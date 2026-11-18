@@ -1031,6 +1031,26 @@ func (p *Parser) parseRelationFactor() (*nodes.TableRef, error) {
 			return nil, err
 		}
 		ref.Schema, ref.Name = name, name2
+
+		// A three-part name is `catalog.db.tbl` (normal_relation_factor's
+		// id_dot_id_dot_id arm and its relation_name '.' relation_name '.'
+		// relation_name arm).
+		if p.cur.Type == '.' {
+			p.advance()
+			name3, err := p.parseNameAfterDot()
+			if err != nil {
+				return nil, err
+			}
+			ref.Catalog, ref.Schema, ref.Name = name, name2, name3
+		}
+	}
+	// opt_dblink: `t@link` reads the table through a database link.
+	if p.isUserVariable() {
+		vref, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		ref.Dblink = "@" + vref.Name
 	}
 	ref.Loc.End = p.prev.End
 	return ref, nil
@@ -1129,6 +1149,18 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 	return ref, nil
 }
 
+// atFullJoin reports whether FULL opens a join here: FULL JOIN or FULL OUTER
+// JOIN. FULL is no reserved word of OceanBase's, so `FROM t FULL` is a table
+// named t with the alias FULL, and `FROM a FULL JOIN b` is a join: the one
+// token of lookahead after FULL tells the two apart.
+func (p *Parser) atFullJoin() bool {
+	if p.cur.Type != kwFULL {
+		return false
+	}
+	next := p.peekNext().Type
+	return next == kwJOIN || next == kwOUTER
+}
+
 // parseTableNameClauses reads what tbl_name takes after its relation_factor, in the one
 // order the grammar has, and reports whether it read any:
 //
@@ -1183,7 +1215,7 @@ func (p *Parser) parseTableNameClauses(ref *nodes.TableRef) (bool, error) {
 		}
 		ref.Alias = alias
 		read = true
-	} else if p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW {
+	} else if p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW && !p.atFullJoin() {
 		alias, _, err := p.parseIdent()
 		if err != nil {
 			return false, err

@@ -232,6 +232,11 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	case nodes.JoinNaturalRight:
 		joinType = JoinRight
 		natural = true
+	case nodes.JoinFull:
+		joinType = JoinFull
+	case nodes.JoinNaturalFull:
+		joinType = JoinFull
+		natural = true
 	default:
 		return nil, nil, fmt.Errorf("unsupported join type: %d", jc.Type)
 	}

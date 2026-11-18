@@ -227,6 +227,76 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDefaultExpr(sb, n)
 	case *RowExpr:
 		writeRowExpr(sb, n)
+	case *RemoteSequenceExpr:
+		sb.WriteString("{REMOTE_SEQUENCE")
+		fmt.Fprintf(sb, " :loc %d :dblink %q :ref ", n.Loc.Start, n.Dblink)
+		writeNode(sb, n.Ref)
+		sb.WriteString("}")
+	case *OdbcEscapeExpr:
+		sb.WriteString("{ODBC_ESCAPE")
+		fmt.Fprintf(sb, " :loc %d :name %s :expr ", n.Loc.Start, n.Name)
+		writeNode(sb, n.Expr)
+		sb.WriteString("}")
+	case *RestorePointStmt:
+		sb.WriteString("{RESTORE_POINT")
+		fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+		if n.Drop {
+			sb.WriteString(" :drop true")
+		}
+		sb.WriteString("}")
+	case *CatalogStmt:
+		sb.WriteString("{CATALOG")
+		fmt.Fprintf(sb, " :loc %d :action %s :name %s", n.Loc.Start, n.Action, n.Name)
+		if n.IfNotExists {
+			sb.WriteString(" :if_not_exists true")
+		}
+		if n.IfExists {
+			sb.WriteString(" :if_exists true")
+		}
+		for _, prop := range n.Properties {
+			sb.WriteString(" :property ")
+			writeNode(sb, prop)
+		}
+		sb.WriteString("}")
+	case *DatabaseLinkStmt:
+		sb.WriteString("{DATABASE_LINK")
+		fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+		if n.Drop {
+			sb.WriteString(" :drop true")
+		}
+		if n.IfNotExists {
+			sb.WriteString(" :if_not_exists true")
+		}
+		if n.IfExists {
+			sb.WriteString(" :if_exists true")
+		}
+		if n.User != "" {
+			fmt.Fprintf(sb, " :user %q", n.User)
+		}
+		if n.Tenant != "" {
+			fmt.Fprintf(sb, " :tenant %q", n.Tenant)
+		}
+		if n.Database != "" {
+			fmt.Fprintf(sb, " :database %s", n.Database)
+		}
+		if n.Server != "" {
+			fmt.Fprintf(sb, " :server %q", n.Server)
+		}
+		if n.Cluster != "" {
+			fmt.Fprintf(sb, " :cluster %q", n.Cluster)
+		}
+		sb.WriteString("}")
+	case *GroupingSet:
+		sb.WriteString("{GROUPING_SET")
+		fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+		if n.Kind != "" {
+			fmt.Fprintf(sb, " :kind %q", n.Kind)
+		}
+		for _, item := range n.Items {
+			sb.WriteString(" :item ")
+			writeNode(sb, item)
+		}
+		sb.WriteString("}")
 	case *StarExpr:
 		fmt.Fprintf(sb, "{STAR :loc %d}", n.Loc.Start)
 	case *ParamMarkerExpr:
@@ -1455,6 +1525,9 @@ func writeShowStmt(sb *strings.Builder, n *ShowStmt) {
 func writeUseStmt(sb *strings.Builder, n *UseStmt) {
 	sb.WriteString("{USE")
 	fmt.Fprintf(sb, " :loc %d :database %s", n.Loc.Start, n.Database)
+	if n.Catalog != "" {
+		fmt.Fprintf(sb, " :catalog %s", n.Catalog)
+	}
 	sb.WriteString("}")
 }
 
@@ -2052,6 +2125,9 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.Local {
 		sb.WriteString(" :local true")
 	}
+	if n.RemoteOSS {
+		sb.WriteString(" :remote_oss true")
+	}
 	if n.Infile != "" {
 		fmt.Fprintf(sb, " :infile %q", n.Infile)
 	}
@@ -2088,6 +2164,9 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	}
 	if n.CharacterSet != "" {
 		fmt.Fprintf(sb, " :charset %s", n.CharacterSet)
+	}
+	if n.Compression != "" {
+		fmt.Fprintf(sb, " :compression %q", n.Compression)
 	}
 	if n.RowsIdentifiedBy != "" {
 		fmt.Fprintf(sb, " :rows_identified_by %q", n.RowsIdentifiedBy)
@@ -2130,6 +2209,18 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	}
 	if n.IgnoreRows > 0 {
 		fmt.Fprintf(sb, " :ignore_rows %d", n.IgnoreRows)
+	}
+	if n.IgnoreGenerated {
+		sb.WriteString(" :ignore_generated true")
+	}
+	if n.LogFile != "" {
+		fmt.Fprintf(sb, " :logfile %q", n.LogFile)
+	}
+	if n.HasRejectLimit {
+		fmt.Fprintf(sb, " :reject_limit %d", n.RejectLimit)
+	}
+	if n.BadFile != "" {
+		fmt.Fprintf(sb, " :badfile %q", n.BadFile)
 	}
 	sb.WriteString("}")
 }
@@ -2842,6 +2933,9 @@ func writeRowExpr(sb *strings.Builder, n *RowExpr) {
 func writeColumnRef(sb *strings.Builder, n *ColumnRef) {
 	sb.WriteString("{COLREF")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Catalog != "" {
+		fmt.Fprintf(sb, " :catalog %s", n.Catalog)
+	}
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
@@ -2860,10 +2954,16 @@ func writeColumnRef(sb *strings.Builder, n *ColumnRef) {
 func writeTableRef(sb *strings.Builder, n *TableRef) {
 	sb.WriteString("{TABLEREF")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Catalog != "" {
+		fmt.Fprintf(sb, " :catalog %s", n.Catalog)
+	}
 	if n.Schema != "" {
 		fmt.Fprintf(sb, " :schema %s", n.Schema)
 	}
 	fmt.Fprintf(sb, " :name %s", n.Name)
+	if n.Dblink != "" {
+		fmt.Fprintf(sb, " :dblink %q", n.Dblink)
+	}
 	if n.Alias != "" {
 		fmt.Fprintf(sb, " :alias %s", n.Alias)
 	}
@@ -5471,28 +5571,11 @@ func writeCacheIndexStmt(sb *strings.Builder, n *CacheIndexStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if len(n.Partitions) > 0 {
-		sb.WriteString(" :partitions (")
-		for i, p := range n.Partitions {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			sb.WriteString(p)
-		}
-		sb.WriteString(")")
-	}
-	if len(n.Indexes) > 0 {
-		sb.WriteString(" :indexes (")
-		for i, idx := range n.Indexes {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			sb.WriteString(idx)
-		}
-		sb.WriteString(")")
-	}
 	if n.CacheName != "" {
 		fmt.Fprintf(sb, " :cache %s", n.CacheName)
+	}
+	if n.CacheSchema != "" {
+		fmt.Fprintf(sb, " :cache_schema %s", n.CacheSchema)
 	}
 	sb.WriteString("}")
 }

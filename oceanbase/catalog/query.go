@@ -507,7 +507,8 @@ const (
 	JoinRight
 	JoinCross
 	JoinStraight // STRAIGHT_JOIN — MySQL-only
-	// Note: MySQL does NOT support FULL OUTER JOIN.
+	// JoinFull is FULL [OUTER] JOIN, which OceanBase has and MySQL does not.
+	JoinFull
 )
 
 // =============================================================================

@@ -184,7 +184,8 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 
 		case p.cur.Type == kwCOLLATE:
 			p.advance() // consume COLLATE
-			collation, _, err := p.parseIdentifier()
+			// collation_name is a name or a string literal.
+			collation, _, err := p.parseIdentOrText()
 			if err != nil {
 				return nil, err
 			}
@@ -224,12 +225,40 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 		if isComparison && binOp != nodes.BinOpNullSafeEq && (p.cur.Type == kwALL || ((p.cur.Type == kwANY || p.cur.Type == kwSOME) && p.peekNext().Type == '(')) {
 			// ANY and SOME are not reserved: `1 = any` compares with a column.
 			quantTok := p.advance()
+			quantLoc := quantTok.Loc
 			quantifier := strings.ToUpper(quantTok.Str)
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
 			if !p.isQueryExpressionStart() {
-				return nil, p.syntaxErrorAtCur()
+				// any_expr's other arm is `bool_pri COMP_EQ sub_query_flag
+				// any_expr` and belongs to '=' alone: every other comparison
+				// takes a select_with_parens, so `a <= ALL(a)` is a 1064.
+				if binOp != nodes.BinOpEq {
+					return nil, p.syntaxErrorAtCur()
+				}
+				// The arm's any_expr is '(' expr_list ')', which holds exactly
+				// one expression -- `a = ALL(a)` and `a = ANY(a)` parse, and
+				// `a = ALL(a, b)` is a 1064.
+				only, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if only == nil || p.cur.Type == ',' {
+					return nil, p.syntaxErrorAtCur()
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				left = &nodes.BinaryExpr{
+					Loc:        nodes.Loc{Start: start, End: p.prev.End},
+					Op:         binOp,
+					Left:       left,
+					Right:      &nodes.QuantifiedExpr{Loc: nodes.Loc{Start: quantLoc, End: p.prev.End}, Quantifier: quantifier, Expr: only},
+					OriginalOp: originalOp,
+				}
+				level = precComparison
+				continue
 			}
 			subStart := p.pos()
 			sub, err := p.parseSubqueryExpr()
@@ -425,6 +454,8 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 		return p.parseMatchExpr()
 	case kwBINARY:
 		return p.parseUnaryExpr(nodes.UnaryBinary)
+	case '{':
+		return p.parseOdbcEscape()
 	default:
 		return p.parsePrimaryExpr()
 	}
@@ -631,7 +662,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		kwIF,
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
 		kwCHAR, kwCHARACTER, kwCHECK, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
-		kwMOD, kwREPEAT, kwREPLACE:
+		kwSCHEMA, kwMOD, kwREPEAT, kwREPLACE:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()
 		}
@@ -642,7 +673,18 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	default:
 		// Variable reference
 		if p.isVariableRef() {
-			return p.parseVariableRef()
+			ref, err := p.parseVariableRef()
+			if err != nil {
+				return nil, err
+			}
+			// expr_const's global_or_session_alias writes the dot and the name
+			// after it, so `SELECT @@global a` is a 1064 and not the item
+			// @@global aliased a. A SET target keeps taking @@persist as a
+			// variable called persist.
+			if ref.System && ref.Scope == "" && scopeWords[strings.ToLower(ref.Name)] {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return ref, nil
 		}
 
 		// Temporal literals: DATE '2024-01-01', TIME '12:00:00', TIMESTAMP '2024-01-01 12:00:00'
@@ -730,6 +772,12 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtTok(p.peekNext())
 	}
 	start := p.pos()
+	// function_name carries SCHEMA beside NAME_OB, so `SCHEMA()` is a call even
+	// though SCHEMA is reserved and no column is called it.
+	if p.cur.Type == kwSCHEMA && p.peekNext().Type == '(' {
+		tok := p.advance()
+		return p.parseFuncCall(start, "", tok.Str)
+	}
 	name, _, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
@@ -812,21 +860,102 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			if reserved {
 				p.reservedColumnRef = ref
 			}
+			// column_ref's four-part arms: id_dot_id_dot_id '.' column_name and
+			// id_dot_id_dot_id '.' '*', where the first name is the catalog.
+			// ID_DOT_ID_DOT_ID is one token of OceanBase's lexer, so the three
+			// names must be written with nothing between them: `select d . t .
+			// key . a` is a 1064.
+			if p.cur.Type == '.' && !strings.ContainsAny(p.inputText(start, p.prev.End), " \t\n\r") {
+				p.advance()
+				if p.cur.Type == '*' {
+					p.advance()
+					ref.Catalog, ref.Schema, ref.Table, ref.Column, ref.Star = name, name2, name3, "", true
+					ref.Loc.End = p.prev.End
+					return ref, nil
+				}
+				off := p.pos()
+				name4, err := p.parseNameAfterDot()
+				if err != nil {
+					return nil, err
+				}
+				// The fourth part is a column_name, which is NAME_OB, so a
+				// number there is a 1064: `SELECT t.1.2.3 FROM t` is one.
+				if c := p.byteAt(off); c >= '0' && c <= '9' {
+					return nil, p.syntaxErrorAtCur()
+				}
+				ref.Catalog, ref.Schema, ref.Table, ref.Column = name, name2, name3, name4
+				ref.Loc.End = p.prev.End
+			}
+			if p.isUserVariable() {
+				return p.parseRemoteSequence(ref)
+			}
 			return ref, nil
 		}
 
 		// table.col
-		return &nodes.ColumnRef{
+		ref := &nodes.ColumnRef{
 			Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			Table:  name,
 			Column: name2,
-		}, nil
+		}
+		// simple_expr's remote sequence arms: `t.col@link`, `db.t.col@link`.
+		if p.isUserVariable() {
+			return p.parseRemoteSequence(ref)
+		}
+		return ref, nil
 	}
 
 	// Plain column ref
 	return &nodes.ColumnRef{
 		Loc:    nodes.Loc{Start: start, End: p.prev.End},
 		Column: name,
+	}, nil
+}
+
+// parseOdbcEscape reads simple_expr's ODBC escape sequence `'{' relation_name
+// expr '}'`, such as `{fn CONCAT(a, b)}`. p.cur is the '{'.
+//
+// Ref: simple_expr's '{' relation_name expr '}' arm in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 1948).
+func (p *Parser) parseOdbcEscape() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume '{'
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	return &nodes.OdbcEscapeExpr{
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		Name: name,
+		Expr: expr,
+	}, nil
+}
+
+// parseRemoteSequence reads the `@link` after a qualified name, which makes it
+// a sequence read through a database link: `t.col@link`, `db.t.col@link`,
+// `catalog.db.t.col@link`. ref is the name the caller read.
+//
+// Ref: simple_expr's USER_VARIABLE arms in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 1938-1990).
+func (p *Parser) parseRemoteSequence(ref *nodes.ColumnRef) (nodes.ExprNode, error) {
+	vref, err := p.parseVariableRef()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.RemoteSequenceExpr{
+		Loc:    nodes.Loc{Start: ref.Loc.Start, End: p.prev.End},
+		Ref:    ref,
+		Dblink: "@" + vref.Name,
 	}, nil
 }
 
@@ -990,6 +1119,15 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return nil, p.syntaxErrorAtCur()
 		}
 		fc.Args = append(fc.Args, arg)
+		// win_fun_first_last_params and win_fun_lead_lag_params write RESPECT
+		// NULLS or IGNORE NULLS after an argument, before the ')'.
+		if builtin && nullsTreatmentNames[upperName] && p.atNullsTreatment() {
+			t, err := p.parseNullsTreatment()
+			if err != nil {
+				return nil, err
+			}
+			fc.NullTreatment = t
+		}
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1070,6 +1208,20 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	// outside those bounds is a 1064 before OVER is even reached: NTILE(),
 	// NTILE(a, b), LEAD() and FIRST_VALUE() are all rejected on OceanBase 4.3.5.
 	if builtin {
+		// NTH_VALUE's opt_from_first_or_last and the trailing
+		// opt_respect_or_ignore_nulls of FIRST_VALUE, LAST_VALUE, LEAD and LAG
+		// follow the argument list.
+		if fc.Name == "NTH_VALUE" && p.cur.Type == kwFROM && (p.peekNext().Type == kwFIRST || p.peekNext().Type == kwLAST) {
+			p.advance() // consume FROM
+			fc.FromFirstLast = strings.ToUpper(p.advance().Str)
+		}
+		if nullsTreatmentNames[fc.Name] && p.atNullsTreatment() {
+			t, err := p.parseNullsTreatment()
+			if err != nil {
+				return nil, err
+			}
+			fc.NullTreatment = t
+		}
 		if bounds, ok := windowFuncArity[fc.Name]; ok {
 			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
 				return nil, p.syntaxErrorAtCur()
@@ -1078,6 +1230,16 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 		if bounds, ok := fixedFuncArity[fc.Name]; ok {
 			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
 				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		// VECTOR_DISTANCE's and VECTOR_SIMILARITY's third argument is one of four
+		// metric words and no other expression.
+		if fc.Name == "VECTOR_DISTANCE" || fc.Name == "VECTOR_SIMILARITY" {
+			if len(fc.Args) == 3 {
+				ref, ok := fc.Args[2].(*nodes.ColumnRef)
+				if !ok || ref.Table != "" || ref.Schema != "" || !vectorMetricNames[strings.ToLower(ref.Column)] {
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 		}
 		// The histograms fix an INTNUM in one argument position, so a
@@ -1122,6 +1284,48 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 	fc.Loc.End = p.prev.End
 	return fc, nil
 }
+
+// vectorMetricNames are the words vector_distance_metric and
+// vector_similarity_metric take as VECTOR_DISTANCE's and VECTOR_SIMILARITY's
+// third argument. The set is closed, so a third argument that is another
+// keyword -- COUNT, EVENT, MANUAL -- is a 1064.
+//
+// Ref: vector_distance_metric and vector_similarity_metric in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 3630-3694).
+var vectorMetricNames = wordSet(`cosine dot euclidean manhattan`)
+
+// nullsTreatmentNames are the window functions whose grammar carries
+// RESPECT NULLS or IGNORE NULLS: win_fun_first_last_params for FIRST_VALUE and
+// LAST_VALUE, win_fun_lead_lag_params for LEAD and LAG, and NTH_VALUE's own
+// arm. opt_respect_or_ignore_nulls writes the second word; the pair is
+// `respect_or_ignore NULLS`.
+//
+// Ref: respect_or_ignore and opt_respect_or_ignore_nulls in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 2409-2437).
+var nullsTreatmentNames = map[string]bool{
+	"FIRST_VALUE": true, "LAST_VALUE": true, "LEAD": true, "LAG": true, "NTH_VALUE": true,
+}
+
+// atNullsTreatment reports whether the tokens are RESPECT NULLS or IGNORE NULLS.
+func (p *Parser) atNullsTreatment() bool {
+	if p.cur.Type != kwRESPECT && p.cur.Type != kwIGNORE {
+		return false
+	}
+	return p.peekNext().Type == kwNULLS
+}
+
+// parseNullsTreatment reads RESPECT NULLS or IGNORE NULLS.
+func (p *Parser) parseNullsTreatment() (string, error) {
+	treatment := strings.ToUpper(p.advance().Str)
+	if _, err := p.expect(kwNULLS); err != nil {
+		return "", err
+	}
+	return treatment, nil
+}
+
+// scopeWords are global_or_session_alias's words, which a system variable in an
+// expression must follow with a dot and a name.
+var scopeWords = wordSet(`global session local persist persist_only`)
 
 // windowFuncArity is the inclusive [min, max] argument count each dedicated
 // window function takes in its window_func_call arm (MySQL-compatible
@@ -1402,8 +1606,11 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 	bound := &nodes.WindowFrameBound{Loc: nodes.Loc{Start: start}}
 
 	if p.cur.Type == kwCURRENT {
+		// CURRENT ROW is both words: `ROWS BETWEEN CURRENT AND ...` is a 1064.
 		p.advance()
-		p.match(kwROW)
+		if _, err := p.expect(kwROW); err != nil {
+			return nil, err
+		}
 		bound.Type = nodes.BoundCurrentRow
 	} else if p.cur.Type == kwUNBOUNDED {
 		p.advance()
@@ -1418,8 +1625,23 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 			}
 		}
 	} else {
-		// expr PRECEDING | expr FOLLOWING
-		expr, err := p.parseExpr()
+		// win_interval PRECEDING | win_interval FOLLOWING, where win_interval is
+		// an integer, a decimal, a parameter marker, UNBOUNDED or INTERVAL expr
+		// date_unit -- and no other expression, so `ROWS UNCOMMITTED PRECEDING`
+		// and `ROWS a PRECEDING` are 1064s.
+		//
+		// Ref: win_interval in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+		// 2567-2593).
+		var expr nodes.ExprNode
+		var err error
+		switch p.cur.Type {
+		case kwINTERVAL:
+			expr, err = p.parseIntervalExpr()
+		case tokICONST, tokFCONST, '?':
+			expr, err = p.parsePrimaryExpr()
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -2195,6 +2417,12 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 	isArray := false
 	if _, ok := p.match(kwARRAY); ok {
 		isArray = true
+	}
+
+	// sys_view_cast_opt: OceanBase's IGNORE after the target type.
+	if _, ok := p.match(kwIGNORE); ok {
+		// The flag only says the cast ignores what it cannot convert, which the
+		// type already describes.
 	}
 
 	if _, err := p.expect(')'); err != nil {

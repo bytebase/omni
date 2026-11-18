@@ -127,6 +127,14 @@ func cloneBoolMap(m map[string]bool) map[string]bool {
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
+		// OceanBase parses column_attribute's `ID n` and refuses to run it: the
+		// pinned server answers 1064 on a table that exists, as it does for
+		// TABLE_ID (testdata/simulate.tsv, rule column_attribute/ID_INTNUM and
+		// generated_column_attribute/ID_INTNUM). A column's id is given when it
+		// is created and never altered.
+		if alterCarriesColumnID(cmd) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "a column id cannot be altered"}
+		}
 		return c.alterAddColumn(tbl, cmd)
 	case nodes.ATDropColumn:
 		return c.alterDropColumn(tbl, cmd)
@@ -180,6 +188,21 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterReorganizePartition(tbl, cmd)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
+	case nodes.ATPartitionBy:
+		// OceanBase parses a repartition that carries a SIZE ('size') and then
+		// refuses it: the pinned server answers 1064 on a table that exists
+		// (testdata/simulate.tsv, rule opt_auto_split_tablet_size_option). A
+		// table's tablet size is set when the table is created. The rest of the
+		// clause is parsed and not kept, as it was before.
+		// RANGE () SIZE ('s') and RANGE (expr) SIZE ('s') (PARTITION ...) are the
+		// two forms the server refuses with 1064; RANGE (expr) SIZE ('s') with no
+		// partition list reaches the executor and answers 1235, which is the gap
+		// this row records.
+		if pb := cmd.PartitionBy; pb != nil && pb.SplitSize != "" &&
+			(len(pb.Partitions) > 0 || (pb.Expr == nil && len(pb.Columns) == 0)) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "SIZE cannot be altered"}
+		}
+		return nil
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
@@ -191,6 +214,20 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// Unsupported alter command; silently ignore.
 		return nil
 	}
+}
+
+// alterCarriesColumnID reports whether an ADD COLUMN action carries column
+// attribute `ID n`, on a plain column or on a generated one.
+func alterCarriesColumnID(cmd *nodes.AlterTableCmd) bool {
+	for _, col := range cmd.Columns {
+		if col != nil && (col.HasID || (col.Generated != nil && col.Generated.HasID)) {
+			return true
+		}
+	}
+	if col := cmd.Column; col != nil {
+		return col.HasID || (col.Generated != nil && col.Generated.HasID)
+	}
+	return false
 }
 
 // alterAddColumn adds a new column to the table.

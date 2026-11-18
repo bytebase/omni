@@ -74,9 +74,13 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		p.advance()
 	}
 
-	// [LOCAL]
+	// [LOCAL] or OceanBase's REMOTE_OSS, which names an OSS endpoint in the
+	// file position instead of a local one.
 	if p.cur.Type == kwLOCAL {
 		stmt.Local = true
+		p.advance()
+	} else if p.isBareWord("REMOTE_OSS") {
+		stmt.RemoteOSS = true
 		p.advance()
 	}
 
@@ -119,10 +123,13 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		if _, err := p.expect(kwINFILE); err != nil {
 			return nil, err
 		}
-		if p.cur.Type == tokSCONST {
-			stmt.Infile = p.cur.Str
-			p.advance()
+		// infile_string is a STRING_VALUE: the file name is not optional, and
+		// `LOAD DATA INFILE INTO TABLE a` is a 1064.
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Infile = p.cur.Str
+		p.advance()
 	}
 
 	// [REPLACE | IGNORE]
@@ -132,9 +139,14 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Ignore = true
 	}
 
-	// INTO TABLE tbl_name
-	p.match(kwINTO)
-	p.match(kwTABLE)
+	// INTO TABLE tbl_name. Both words are required: `LOAD DATA INFILE 's'
+	// TABLE a` and `LOAD DATA INFILE 's' INTO a` are 1064s.
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after INTO TABLE, offer table_ref candidates.
 	p.checkCursor()
@@ -164,6 +176,18 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.Partitions = parts
 	}
 
+	// opt_compression: COMPRESSION [=] compression_name. OceanBase reads it
+	// after the partition clause and before the character set.
+	if p.cur.Type == kwCOMPRESSION {
+		p.advance()
+		p.match('=')
+		name, err := p.parseCompressionName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Compression = name
+	}
+
 	// [CHARACTER SET charset_name]. The name is a charset_name, which carries
 	// the reserved word BINARY beside ident_or_text, so `CHARACTER SET BINARY`
 	// and a quoted name parse where a plain identifier would turn them away.
@@ -174,7 +198,9 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// Ref: charset and charset_name in OceanBase's MySQL-mode grammar.
 	if p.cur.Type == kwCHARACTER {
 		p.advance()
-		p.match(kwSET)
+		if _, err := p.expect(kwSET); err != nil {
+			return nil, err
+		}
 		name, err := p.parseCharsetName()
 		if err != nil {
 			return nil, err
@@ -225,17 +251,34 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		}
 	}
 
-	// [IGNORE number {LINES | ROWS}]
+	// opt_load_ignore_rows: IGNORE INTNUM lines_or_rows, or OceanBase's
+	// GENERATED INTNUM lines_or_rows. The number and the word after it are
+	// both required: `IGNORE 1` and `IGNORE LINES` are 1064s.
 	if p.cur.Type == kwIGNORE {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			stmt.IgnoreRows = int(p.cur.Ival)
-			p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
 		}
-		p.match(kwLINES, kwROWS)
+		stmt.IgnoreRows = int(p.cur.Ival)
+		p.advance()
+		if _, ok := p.match(kwLINES, kwROWS); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else if p.cur.Type == kwGENERATED {
+		p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.IgnoreRows = int(p.cur.Ival)
+		stmt.IgnoreGenerated = true
+		p.advance()
+		if _, ok := p.match(kwLINES, kwROWS); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
-	// [(col_name_or_user_var, ...)]
+	// [(col_name_or_user_var, ...)]. opt_field_or_var_spec carries the empty
+	// list `()` as an arm of its own.
 	cols, err := p.parseColumnOrUserVarList()
 	if err != nil {
 		return nil, err
@@ -272,8 +315,55 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		}
 	}
 
+	// opt_load_data_extended_option_list: LOGFILE, REJECT LIMIT and BADFILE,
+	// space-separated, in any order and each at most once.
+	if err := p.parseLoadDataExtendedOptions(stmt); err != nil {
+		return nil, err
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseLoadDataExtendedOptions reads OceanBase's
+// load_data_extended_option_list: LOGFILE [=] 'file', REJECT LIMIT [=] n and
+// BADFILE [=] 'file', one after another with no comma between them.
+//
+// Ref: load_data_extended_option in sql_parser_mysql_mode.y (v4.3.5_CE_BP6,
+// lines 5455-5472).
+func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
+	for {
+		switch {
+		case p.cur.Type == kwLOGFILE:
+			p.advance()
+			p.match('=')
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.LogFile = p.cur.Str
+			p.advance()
+		case p.isBareWord("REJECT") && p.peekNext().Type == kwLIMIT:
+			p.advance() // consume REJECT
+			p.advance() // consume LIMIT
+			p.match('=')
+			if p.cur.Type != tokICONST {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.RejectLimit = int(p.cur.Ival)
+			stmt.HasRejectLimit = true
+			p.advance()
+		case p.isBareWord("BADFILE"):
+			p.advance()
+			p.match('=')
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.BadFile = p.cur.Str
+			p.advance()
+		default:
+			return nil
+		}
+	}
 }
 
 // parseLoadDataS3Source parses the Aurora MySQL S3 source of a LOAD DATA /
@@ -493,6 +583,11 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 	}
 	p.advance()
 	var out []nodes.ExprNode
+	// opt_field_or_var_spec carries the empty list `()` as an arm of its own.
+	if p.cur.Type == ')' {
+		p.advance()
+		return nil, nil
+	}
 	for {
 		if p.isUserVariable() {
 			v, err := p.parseVariableRef()

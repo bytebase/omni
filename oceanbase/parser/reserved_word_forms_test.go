@@ -101,7 +101,6 @@ var reservedWordSweepGap = map[string]bool{
 	"select default + 1 from t":                                    true,
 	"create procedure p() end: loop leave end; end loop":           true,
 	"create procedure p() language: loop leave language; end loop": true,
-	"select unique + 1 from t":                                     true,
 }
 
 var reservedWordCases = []asOfCase{

@@ -6425,11 +6425,13 @@ func TestParseHandlerOpen(t *testing.T) {
 }
 
 func TestParseHandlerRead(t *testing.T) {
+	// handler_scan_function is FIRST or NEXT alone: PREV and LAST need an index
+	// name, which is handler_rkey_function's arm.
 	tests := []string{
 		"HANDLER t1 READ FIRST",
 		"HANDLER t1 READ NEXT",
-		"HANDLER t1 READ PREV",
-		"HANDLER t1 READ LAST",
+		"HANDLER t1 READ idx PREV",
+		"HANDLER t1 READ idx LAST",
 		"HANDLER t1 READ idx FIRST",
 		"HANDLER t1 READ idx NEXT",
 		"HANDLER t1 READ NEXT LIMIT 5",
@@ -9743,16 +9745,33 @@ func TestParsePurgeBinaryLogsBeforeDatetime(t *testing.T) {
 	}
 }
 
-func TestParseCacheIndexPartition(t *testing.T) {
-	tests := []string{
+// TestParseCacheIndexForms holds CACHE INDEX to OceanBase's cache_index_stmt,
+// whose tbl_index names the index after the table with no parentheses and
+// whose partition form writes PARTITION (list) with its parentheses.
+func TestParseCacheIndexForms(t *testing.T) {
+	accept := []string{
 		"CACHE INDEX t1 PARTITION (p0, p1) IN hot_cache",
+		"CACHE INDEX t1 PARTITION (ALL) IN hot_cache",
+		"CACHE INDEX t1 i IN hot_cache",
+		"CACHE INDEX t1 INDEX i IN hot_cache",
+		"CACHE INDEX t1, t2 i2 IN hot_cache",
+	}
+	for _, sql := range accept {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	reject := []string{
 		"CACHE INDEX t1 PARTITION ALL IN hot_cache",
 		"CACHE INDEX t1 INDEX (idx1, idx2) IN hot_cache",
 		"CACHE INDEX t1 KEY (idx1) PARTITION (p0) IN hot_cache",
+		"CACHE INDEX t1",
 	}
-	for _, sql := range tests {
+	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) accepted, and OceanBase 4.3.5.6 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -11371,8 +11390,10 @@ func TestReviewBatch110_LoadIndexIntoCachePartitionAll(t *testing.T) {
 	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1 PARTITION (ALL)")
 }
 
+// IGNORE LEAVES is opt_ignore_leaves, which follows the whole table list, so it
+// is written after the last table and not before another one.
 func TestReviewBatch110_LoadIndexIntoCacheMultiTable(t *testing.T) {
-	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1 IGNORE LEAVES, t2 INDEX (idx1)")
+	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1, t2 INDEX (idx1) IGNORE LEAVES")
 }
 
 func TestReviewBatch110_ValuesBasic(t *testing.T) {

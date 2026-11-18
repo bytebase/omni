@@ -335,6 +335,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 
 	start := p.pos()
 
+	// column_attribute's `ID INTNUM`, which pins the column's id and is no
+	// keyword of this lexer's.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		id := p.cur
+		p.advance()
+		col.ID, col.HasID = id.Ival, true
+		return true, nil
+	}
+
 	switch p.cur.Type {
 	case kwNOT:
 		p.advance()
@@ -912,6 +922,16 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = true
 	}
 
+	// generated_column_attribute's `ID INTNUM`.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		id := p.cur
+		p.advance()
+		gen.ID, gen.HasID = id.Ival, true
+		gen.Loc.End = p.prev.End
+		return gen, nil
+	}
+
 	gen.Loc.End = p.prev.End
 	return gen, nil
 }
@@ -954,6 +974,16 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
 		gen.Stored = true
+	}
+
+	// generated_column_attribute's `ID INTNUM`.
+	if p.isBareWord("ID") && p.peekNext().Type == tokICONST {
+		p.advance()
+		id := p.cur
+		p.advance()
+		gen.ID, gen.HasID = id.Ival, true
+		gen.Loc.End = p.prev.End
+		return gen, nil
 	}
 
 	gen.Loc.End = p.prev.End
@@ -1024,8 +1054,12 @@ func (p *Parser) parseTableConstraint(inAlter bool) (*nodes.Constraint, error) {
 		}
 
 	case kwFOREIGN:
+		// FOREIGN KEY is both words: `CONSTRAINT FOREIGN(a) REFERENCES a(a)`
+		// and `FOREIGN(a) REFERENCES a(a)` are 1064s.
 		p.advance()
-		p.match(kwKEY)
+		if _, err := p.expect(kwKEY); err != nil {
+			return nil, err
+		}
 		constr.Type = nodes.ConstrForeignKey
 		// Optional index name, kept apart from the CONSTRAINT symbol, which
 		// names the foreign key when given (see nodes.Constraint).
@@ -2112,11 +2146,11 @@ func (p *Parser) parsePartitionClause(auto bool) (*nodes.PartitionClause, error)
 		}
 	}
 
-	// opt_range_partition_info: SIZE ('size') before RANGE's partition list. Known
-	// gap: ALTER TABLE takes it too, and OceanBase then refuses it with 1064 after
-	// parsing (simulate.tsv), which the catalog does not yet; until it does, only
-	// CREATE TABLE reads it here.
-	if auto && part.Type == nodes.PartitionRange && p.isBareWord("SIZE") {
+	// opt_range_partition_info: SIZE ('size') before RANGE's partition list, which
+	// CREATE TABLE and ALTER TABLE both take. OceanBase refuses the ALTER TABLE
+	// form later with 1064 after parsing it (simulate.tsv), which is no syntax
+	// error.
+	if (part.Type == nodes.PartitionRange || part.Type == nodes.PartitionList) && p.isBareWord("SIZE") {
 		size, err := p.parseSplitSize()
 		if err != nil {
 			return nil, err
@@ -2184,7 +2218,7 @@ func (p *Parser) parseEmptyRangeTail(part *nodes.PartitionClause, auto, columns 
 		part.NumParts = int(p.cur.Ival)
 		p.advance()
 	}
-	if auto && p.isBareWord("SIZE") { // only in CREATE TABLE, as above
+	if p.isBareWord("SIZE") {
 		size, err := p.parseSplitSize()
 		if err != nil {
 			return nil, err

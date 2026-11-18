@@ -652,7 +652,7 @@ func (r *Resolver) resolveTableExpr(tbl ast.TableExpr, sc *fromScope) {
 		r.resolveTableExpr(t.Right, sc)
 
 		// Expand NATURAL JOIN → find common columns → build ON condition
-		if t.Type == ast.JoinNatural || t.Type == ast.JoinNaturalLeft || t.Type == ast.JoinNaturalRight {
+		if t.Type == ast.JoinNatural || t.Type == ast.JoinNaturalLeft || t.Type == ast.JoinNaturalRight || t.Type == ast.JoinNaturalFull {
 			r.expandNaturalJoin(t, sc)
 		}
 
@@ -704,6 +704,8 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
 		j.Type = ast.JoinLeft
 	case ast.JoinNaturalRight:
 		j.Type = ast.JoinRight
+	case ast.JoinNaturalFull:
+		j.Type = ast.JoinFull
 	}
 }
 

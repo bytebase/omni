@@ -165,6 +165,29 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 
 	stmt := &nodes.OptimizeTableStmt{Loc: nodes.Loc{Start: start}}
 
+	// optimize_stmt's TENANT form, which MySQL has no rule for:
+	//
+	//	OPTIMIZE TENANT relation_name
+	//	OPTIMIZE TENANT ALL
+	//
+	// Ref: optimize_stmt in sql_parser_mysql_mode.y (v4.3.5_CE_BP6,
+	// lines 20218-20234).
+	if p.isBareWord("TENANT") {
+		p.advance()
+		if p.cur.Type == kwALL {
+			p.advance()
+			stmt.Tenant = "ALL"
+		} else {
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Tenant = name
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
 	if p.cur.Type == kwLOCAL {
 		stmt.NoWriteToBinlog = true
 		p.advance()
@@ -173,7 +196,10 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// TABLE is required: `OPTIMIZE a` is a 1064.
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after OPTIMIZE TABLE, offer table_ref.
 	p.checkCursor()
@@ -207,7 +233,10 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECK
 
-	p.match(kwTABLE)
+	// TABLE is required: `CHECK a` is a 1064.
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after CHECK TABLE, offer table_ref.
 	p.checkCursor()
@@ -234,10 +263,10 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 	for {
 		if p.cur.Type == kwFOR {
 			p.advance()
-			if p.cur.Type == kwUPGRADE {
-				stmt.Options = append(stmt.Options, "FOR UPGRADE")
-				p.advance()
+			if _, err := p.expect(kwUPGRADE); err != nil {
+				return nil, err
 			}
+			stmt.Options = append(stmt.Options, "FOR UPGRADE")
 		} else if p.cur.Type == kwQUICK {
 			stmt.Options = append(stmt.Options, "QUICK")
 			p.advance()
@@ -275,7 +304,10 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 		p.advance()
 	}
 
-	p.match(kwTABLE)
+	// TABLE is required: `REPAIR a` is a 1064.
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	// Completion: after REPAIR TABLE, offer table_ref.
 	p.checkCursor()
@@ -512,7 +544,8 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 
 	stmt := &nodes.KillStmt{Loc: nodes.Loc{Start: start}}
 
-	// Optional CONNECTION | QUERY
+	// Optional CONNECTION | QUERY. Each takes an expression after it, so
+	// `KILL CONNECTION` alone is a 1064.
 	if p.cur.Type == kwCONNECTION {
 		p.advance()
 	} else if p.cur.Type == kwQUERY {
@@ -638,60 +671,46 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		Table: table,
 	}
 
-	// Determine if this is a direction keyword (FIRST/NEXT/PREV/LAST) or an index name
-	switch p.cur.Type {
-	case kwFIRST:
-		stmt.Direction = "FIRST"
-		p.advance()
-	case kwNEXT:
-		stmt.Direction = "NEXT"
-		p.advance()
-	case kwPREV:
-		stmt.Direction = "PREV"
-		p.advance()
-	case kwLAST:
-		stmt.Direction = "LAST"
-		p.advance()
-	default:
-		// Must be an index name followed by direction or comparison
-		if p.isIdentToken() {
-			idx, _, err := p.parseIdentifier()
+	// handler_read_or_scan: a scan function (FIRST or NEXT), or an index name
+	// and a handler_rkey_function. HANDLER t READ with nothing after it is an
+	// arm of its own, so the read may end here.
+	//
+	// Ref: handler_stmt, handler_read_or_scan, handler_scan_function,
+	// handler_rkey_function and handler_rkey_mode in sql_parser_mysql_mode.y
+	// (v4.3.5_CE_BP6, lines 23279-23374).
+	switch {
+	case p.cur.Type == kwFIRST || p.cur.Type == kwNEXT:
+		stmt.Direction = strings.ToUpper(p.advance().Str)
+	case p.isNameOB(p.cur):
+		idx, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Index = idx
+		switch p.cur.Type {
+		case kwFIRST, kwNEXT, kwPREV, kwLAST:
+			stmt.Direction = strings.ToUpper(p.advance().Str)
+		case '=', tokGreaterEq, tokLessEq, '>', '<':
+			p.advance() // consume the comparison operator
+			if _, err := p.expect('('); err != nil {
+				return nil, err
+			}
+			// handler_rkey_mode '(' expr_list ')': the list holds at least one
+			// expression.
+			values, err := p.parseExprList()
 			if err != nil {
 				return nil, err
 			}
-			stmt.Index = idx
-
-			// Direction keyword after index name
-			switch p.cur.Type {
-			case kwFIRST:
-				stmt.Direction = "FIRST"
-				p.advance()
-			case kwNEXT:
-				stmt.Direction = "NEXT"
-				p.advance()
-			case kwPREV:
-				stmt.Direction = "PREV"
-				p.advance()
-			case kwLAST:
-				stmt.Direction = "LAST"
-				p.advance()
-			case '=', '<', '>':
-				// Comparison operator with value list — skip operator and value list
-				p.advance()
-				if p.cur.Type == '=' || p.cur.Type == '>' {
-					p.advance() // for <= or >=
-				}
-				if p.cur.Type == '(' {
-					p.advance()
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						p.advance()
-					}
-					if p.cur.Type == ')' {
-						p.advance()
-					}
-				}
-				stmt.Direction = "NEXT" // default
+			if len(values) == 0 {
+				return nil, p.syntaxErrorAtCur()
 			}
+			stmt.Values = values
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			stmt.Direction = "NEXT"
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -824,7 +843,10 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume CHECKSUM
 
-	p.match(kwTABLE)
+	// TABLE is required: `CHECKSUM a` is a 1064.
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.ChecksumTableStmt{Loc: nodes.Loc{Start: start}}
 
@@ -1052,10 +1074,17 @@ func (p *Parser) parseInstallPluginStmt(start int) (*nodes.InstallPluginStmt, er
 		return nil, err
 	}
 
-	p.match(kwSONAME)
-
+	// SONAME and its string are both required:
+	// `INSTALL PLUGIN a SONAME`, `INSTALL PLUGIN a 's'` and
+	// `INSTALL PLUGIN SONAME 's'` are 1064s.
+	if _, err := p.expect(kwSONAME); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
 	soname := p.cur.Str
-	p.expect(tokSCONST)
+	p.advance()
 
 	stmt := &nodes.InstallPluginStmt{
 		Loc:        nodes.Loc{Start: start},
@@ -1415,92 +1444,132 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 	return stmt, nil
 }
 
-// parseCacheIndexStmt parses CACHE INDEX statement.
+// parseCacheIndexStmt parses OceanBase's cache_index_stmt.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/cache-index.html
+// Ref: cache_index_stmt, tbl_index_list, tbl_index, key_cache_name and
+// tbl_partition_list in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+// 21422-21479).
 //
-//	CACHE INDEX tbl_name [[INDEX|KEY] (idx1, idx2, ...)]
-//	    [PARTITION (p1, p2, ...) | PARTITION ALL]
-//	    [, tbl_name ...] IN cache_name
+//	CACHE INDEX tbl_index_list IN key_cache_name
+//	CACHE INDEX normal_relation_factor PARTITION (tbl_partition_list) IN key_cache_name
+//
+//	tbl_index: normal_relation_factor opt_key_or_index opt_index_name
+//	tbl_partition_list: ALL | name_list
+//
+// The index name follows the table with no parentheses: `CACHE INDEX t i IN c`
+// names the index i of the table t. MySQL's `INDEX (i1, i2)` form is no arm of
+// OceanBase's rule.
 //
 // p.cur is CACHE.
 func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	start := p.pos()
 	p.advance() // consume CACHE
-	p.advance() // consume INDEX
-
-	stmt := &nodes.CacheIndexStmt{
-		Loc: nodes.Loc{Start: start},
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
 	}
 
-	// Parse table list
-	for {
-		ref, err := p.parseTableRef()
+	stmt := &nodes.CacheIndexStmt{Loc: nodes.Loc{Start: start}}
+
+	entry, err := p.parseCacheIndexTable()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Tables = append(stmt.Tables, entry)
+
+	if p.cur.Type == kwPARTITION {
+		// The partition form takes one table and no index name.
+		parts, err := p.parseTblPartitionList()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Tables = append(stmt.Tables, ref)
-
-		// Optional INDEX|KEY (idx1, idx2, ...)
-		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+		entry.Partitions = parts
+	} else {
+		for p.cur.Type == ',' {
 			p.advance()
-			if p.cur.Type == '(' {
-				idxList, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Indexes = idxList
+			next, err := p.parseCacheIndexTable()
+			if err != nil {
+				return nil, err
 			}
+			stmt.Tables = append(stmt.Tables, next)
 		}
-
-		// Optional PARTITION (p1, p2, ...) | PARTITION ALL
-		if p.cur.Type == kwPARTITION {
-			p.advance()
-			if _, ok := p.match(kwALL); ok {
-				stmt.Partitions = []string{"ALL"}
-			} else {
-				parts, err := p.parseParenIdentList()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Partitions = parts
-			}
-		}
-
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
 	}
 
-	// IN cache_name
-	if p.cur.Type == kwIN {
-		p.advance()
-		name, _, _ := p.parseIdentifier()
-		stmt.CacheName = name
+	if _, err := p.expect(kwIN); err != nil {
+		return nil, err
 	}
+	cache, err := p.parseRelationFactor()
+	if err != nil {
+		return nil, err
+	}
+	stmt.CacheSchema = cache.Schema
+	stmt.CacheName = cache.Name
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseLoadIndexIntoCacheStmt parses LOAD INDEX INTO CACHE.
+// parseCacheIndexTable parses one tbl_index: a table, an optional KEY or
+// INDEX, and an optional index name that follows with no parentheses.
+func (p *Parser) parseCacheIndexTable() (*nodes.LoadIndexTable, error) {
+	start := p.pos()
+	ref, err := p.parseRelationFactor()
+	if err != nil {
+		return nil, err
+	}
+	entry := &nodes.LoadIndexTable{Loc: nodes.Loc{Start: start}, Table: ref}
+
+	if p.cur.Type == kwKEY || p.cur.Type == kwINDEX {
+		p.advance()
+	}
+	// opt_index_name is a relation_name, so the next word is the index name
+	// unless it opens the next clause.
+	if p.isIdentToken() && p.cur.Type != kwIN && p.cur.Type != kwPARTITION {
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		entry.Indexes = []string{name}
+	}
+	entry.Loc.End = p.prev.End
+	return entry, nil
+}
+
+// parseTblPartitionList parses PARTITION '(' tbl_partition_list ')', whose list
+// is ALL or a name_list.
+func (p *Parser) parseTblPartitionList() ([]string, error) {
+	if _, err := p.expect(kwPARTITION); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var names []string
+	if p.cur.Type == kwALL {
+		p.advance()
+		names = []string{"ALL"}
+	} else {
+		list, err := p.parseNameList()
+		if err != nil {
+			return nil, err
+		}
+		names = list
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// parseLoadIndexIntoCacheStmt parses load_index_into_cache_stmt.
 //
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/load-index.html
+// Ref: load_index_into_cache_stmt and tbl_index_or_partition in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 21418-21505).
 //
-//	LOAD INDEX INTO CACHE
-//	  tbl_index_list [, tbl_index_list] ...
+//	LOAD INDEX INTO CACHE tbl_index_or_partition_list opt_ignore_leaves
 //
-//	tbl_index_list:
-//	  tbl_name
-//	    [PARTITION (partition_list)]
-//	    [{INDEX | KEY} (index_name [, index_name] ...)]
-//	    [IGNORE LEAVES]
-//
-//	partition_list: {
-//	    partition_name [, partition_name] ...
-//	  | ALL
-//	}
+//	tbl_index_or_partition:
+//	    normal_relation_factor opt_key_or_index '(' name_list ')'
+//	  | normal_relation_factor opt_tbl_partition_list
 //
 // LOAD and INDEX already consumed. p.cur is INTO.
 func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCacheStmt, error) {
@@ -1511,10 +1580,9 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Parse table list
 	for {
 		tblStart := p.pos()
-		ref, err := p.parseTableRef()
+		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err
 		}
@@ -1523,52 +1591,29 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 			Table: ref,
 		}
 
-		// [PARTITION (partition_list | ALL)]
-		if p.cur.Type == kwPARTITION {
+		keyed := false
+		if p.cur.Type == kwKEY || p.cur.Type == kwINDEX {
 			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				if p.cur.Type == kwALL {
-					entry.Partitions = []string{"ALL"}
-					p.advance()
-				} else {
-					for {
-						name, _, _ := p.parseIdentifier()
-						entry.Partitions = append(entry.Partitions, name)
-						if p.cur.Type != ',' {
-							break
-						}
-						p.advance()
-					}
-				}
-				p.match(')')
-			}
+			keyed = true
 		}
-
-		// [{INDEX | KEY} (index_name [, index_name] ...)]
-		if p.cur.Type == kwINDEX || p.cur.Type == kwKEY {
+		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == '(' {
-				p.advance()
-				for {
-					name, _, _ := p.parseIdentifier()
-					entry.Indexes = append(entry.Indexes, name)
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
-				}
-				p.match(')')
+			names, err := p.parseNameList()
+			if err != nil {
+				return nil, err
 			}
-		}
-
-		// [IGNORE LEAVES]
-		if p.cur.Type == kwIGNORE {
-			p.advance()
-			if p.cur.Type == kwLEAVES {
-				p.advance()
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
 			}
-			entry.IgnoreLeaves = true
+			entry.Indexes = names
+		} else if keyed {
+			return nil, p.syntaxErrorAtCur()
+		} else if p.cur.Type == kwPARTITION {
+			parts, err := p.parseTblPartitionList()
+			if err != nil {
+				return nil, err
+			}
+			entry.Partitions = parts
 		}
 
 		entry.Loc.End = p.prev.End
@@ -1578,6 +1623,15 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 			break
 		}
 		p.advance()
+	}
+
+	// opt_ignore_leaves is IGNORE LEAVES, both words.
+	if p.cur.Type == kwIGNORE {
+		p.advance()
+		if _, err := p.expect(kwLEAVES); err != nil {
+			return nil, err
+		}
+		stmt.Tables[len(stmt.Tables)-1].IgnoreLeaves = true
 	}
 
 	stmt.Loc.End = p.prev.End

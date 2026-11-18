@@ -87,7 +87,7 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	generated_column_attribute/opt_primary_KEY	ALTER TABLE a ADD a TINYINT AS(a) KEY
 1146	1146	engine	one_table@missing	generated_column_attribute/UNIQUE	ALTER TABLE a ADD a TINYINT AS(a) UNIQUE
 1146	1146	engine	one_table@missing	generated_column_attribute/COMMENT_STRING_VALUE	ALTER TABLE a ADD a TINYINT AS(a) COMMENT 's'
-1064	1146	engine	one_table@missing	generated_column_attribute/ID_INTNUM	ALTER TABLE a ADD a TINYINT AS(a) ID 1
+1146	1146	engine	one_table@missing	generated_column_attribute/ID_INTNUM	ALTER TABLE a ADD a TINYINT AS(a) ID 1
 1146	1146	engine	one_table@missing	generated_column_attribute/constraint_definition	ALTER TABLE a ADD a TINYINT AS(a) CHECK(a)
 1146	1146	engine	one_table@missing	generated_column_attribute/SRID_INTNUM	ALTER TABLE a ADD a TINYINT AS(a) SRID 1
 1146	1146	engine	one_table@missing	generated_column_attribute/VISIBLE	ALTER TABLE a ADD a TINYINT AS(a) VISIBLE
@@ -188,7 +188,7 @@ ok:6297af21f138	ok:6297af21f138	engine	one_table@missing	table_element_list/tabl
 1146	1146	engine	one_table@missing	column_attribute/UNIQUE	ALTER TABLE a ADD a TINYINT UNIQUE
 1146	1146	engine	one_table@missing	column_attribute/COMMENT_STRING_VALUE	ALTER TABLE a ADD a TINYINT COMMENT 's'
 1146	1146	engine	one_table@missing	column_attribute/ON_UPDATE_cur_timestamp_func	ALTER TABLE a ADD a TINYINT ON UPDATE CURRENT_TIMESTAMP
-1064	1146	engine	one_table@missing	column_attribute/ID_INTNUM	ALTER TABLE a ADD a TINYINT ID 1
+1146	1146	engine	one_table@missing	column_attribute/ID_INTNUM	ALTER TABLE a ADD a TINYINT ID 1
 1146	1146	engine	one_table@missing	column_attribute/constraint_definition	ALTER TABLE a ADD a TINYINT CHECK(a)
 1146	1146	engine	one_table@missing	column_attribute/SRID_INTNUM	ALTER TABLE a ADD a TINYINT SRID 1
 1146	1146	engine	one_table@missing	column_attribute/COLLATE_collation_name	ALTER TABLE a ADD a TINYINT COLLATE a
@@ -330,9 +330,9 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_(_expr_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE(a)
 1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 1146	1146	engine	one_table@missing	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
-1064	1146	engine	one_table@missing	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
-1064	1146	engine	one_table@missing	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
-1064	1146	engine	one_table@missing	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
+1146	1146	engine	one_table@missing	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
+1146	1146	engine	one_table@missing	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
+1146	1146	engine	one_table@missing	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
 1146	1146	engine	one_table@missing	opt_range_partition_info/(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE)
 1146	1146	engine	one_table@missing	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
 1146	1146	engine	one_table@missing	partition_options/subpartition_option_partition_num	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) PARTITIONS 1
@@ -486,8 +486,8 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1146	1146	engine	one_table@missing	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1146	1146	engine	one_table@missing	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-1064	1146	engine	one_table@missing	alter_table_action/REFRESH	ALTER TABLE a REFRESH
-1064	1146	engine	one_table@missing	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
+1146	1146	engine	one_table@missing	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+1146	1146	engine	one_table@missing	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 1146	1146	engine	one_table@missing	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 1146	1146	engine	one_table@missing	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
 1146	1146	engine	one_table@missing	alter_table_action/LOCK__opt_equal_mark_lock_opt	ALTER TABLE a LOCK DEFAULT
@@ -497,8 +497,8 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	lock_opt/NONE	ALTER TABLE a LOCK NONE
 1146	1146	engine	one_table@missing	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 1146	1146	engine	one_table@missing	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1064	1146	engine	one_table@missing	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1064	1146	engine	one_table@missing	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+1146	1146	engine	one_table@missing	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+1146	1146	engine	one_table@missing	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1146	1146	engine	one_table@missing	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1146	1146	engine	one_table@missing	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1146	1146	engine	one_table@missing	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
@@ -517,20 +517,20 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 1146	1146	engine	one_table@missing	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-1064	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1146	1146	engine	one_table@missing	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
-1064	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
+1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 1146	1146	engine	one_table@missing	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
-1064	1146	engine	one_table@missing	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+1146	1146	engine	one_table@missing	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
 1146	1146	engine	one_table@missing	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1146	engine	one_table@missing	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
+1146	1146	engine	one_table@missing	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 1146	1146	engine	one_table@missing	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1146	engine	one_table@missing	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
+1146	1146	engine	one_table@missing	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
 1146	1146	engine	one_table@missing	add_constraint_uniq_key/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1146	engine	one_table@missing	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
-1064	1146	engine	one_table@missing	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
+1146	1146	engine	one_table@missing	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+1146	1146	engine	one_table@missing	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1146	1146	engine	one_table@missing	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1146	engine	one_table@missing	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
+1146	1146	engine	one_table@missing	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
 1146	1146	engine	one_table@missing	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 1146	1146	engine	one_table@missing	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1146	1146	engine	one_table@missing	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
@@ -550,7 +550,7 @@ ok:21398b12e364	ok:21398b12e364	engine	one_table@missing	opt_table_option_list/t
 1146	1146	engine	one_table@missing	alter_column_option/MODIFY_column_definition	ALTER TABLE a MODIFY a TINYINT
 1146	1146	engine	one_table@missing	alter_column_option/RENAME_COLUMN_column_definition_ref_TO_column_name	ALTER TABLE a RENAME COLUMN a TO a
 1146	1146	engine	one_table@missing	opt_position_column/FIRST	ALTER TABLE a ADD a TINYINT FIRST
-1064	1146	engine	one_table@missing	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
+1146	1146	engine	one_table@missing	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
 1146	1146	engine	one_table@missing	opt_position_column/AFTER_column_name	ALTER TABLE a ADD a TINYINT AFTER a
 1146	1146	engine	one_table@missing	opt_to/TO	ALTER TABLE a RENAME TO a
 1051	1051	engine	one_table@missing	opt_drop_behavior/CASCADE	DROP TABLE a CASCADE
@@ -900,8 +900,8 @@ ok	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RA
 ok	ok:66f73c3d490f	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_)_opt_partitions_opt_auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE COLUMNS()
 1054	1054	engine	one_table@table	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@table	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
-1064	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
-1064	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
+1054	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
+1054	1054	engine	one_table@table	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
 1054	1054	engine	one_table@table	opt_range_partition_info/(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE)
 1054	1054	engine	one_table@table	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
 1054	1054	engine	one_table@table	partition_options/subpartition_option_partition_num	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) PARTITIONS 1
@@ -1055,8 +1055,8 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/RENAME
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1091	1091	engine	one_table@table	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1091	3940	engine	one_table@table	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-1064	1210	engine	one_table@table	alter_table_action/REFRESH	ALTER TABLE a REFRESH
-1064	ok:449319c55fc9	engine	one_table@table	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
+ok	1210	engine	one_table@table	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 ok:a070047fd36c	ok:a070047fd36c	engine	one_table@table	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/LOCK__opt_equal_mark_lock_opt	ALTER TABLE a LOCK DEFAULT
@@ -1066,8 +1066,8 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	algorithm_opt/INSTANT	ALT
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/NONE	ALTER TABLE a LOCK NONE
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1064	3821	engine	one_table@table	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1064	3821	engine	one_table@table	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+1091	3821	engine	one_table@table	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+1091	3821	engine	one_table@table	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1505	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1505	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
@@ -1086,20 +1086,20 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/EXCLUSIVE	ALTER 
 1068	1068	engine	one_table@table	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 1176	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-1064	1235	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+ok	1235	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	one_table@table	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
-1064	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
+ok	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@table	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
-1064	1072	engine	one_table@table	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+1072	1072	engine	one_table@table	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
 1072	1072	engine	one_table@table	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1072	engine	one_table@table	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
+1072	1072	engine	one_table@table	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 1072	1072	engine	one_table@table	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1072	engine	one_table@table	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
+1072	1072	engine	one_table@table	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
 1072	1072	engine	one_table@table	add_constraint_uniq_key/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1068	engine	one_table@table	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
-1064	1072	engine	one_table@table	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
+1068	1068	engine	one_table@table	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+1072	1072	engine	one_table@table	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1072	1072	engine	one_table@table	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1068	engine	one_table@table	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
+1068	1068	engine	one_table@table	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
 5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 5031	1215	engine	one_table@table	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1176	1176	engine	one_table@table	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
@@ -1119,7 +1119,7 @@ ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_C
 1054	1054	engine	one_table@table	alter_column_option/MODIFY_column_definition	ALTER TABLE a MODIFY a TINYINT
 1054	1054	engine	one_table@table	alter_column_option/RENAME_COLUMN_column_definition_ref_TO_column_name	ALTER TABLE a RENAME COLUMN a TO a
 ok:acec8131168d	ok:acec8131168d	engine	one_table@table	opt_position_column/FIRST	ALTER TABLE a ADD a TINYINT FIRST
-1064	1054	engine	one_table@table	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
+1054	1054	engine	one_table@table	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
 1054	1054	engine	one_table@table	opt_position_column/AFTER_column_name	ALTER TABLE a ADD a TINYINT AFTER a
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	opt_to/TO	ALTER TABLE a RENAME TO a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	opt_drop_behavior/CASCADE	DROP TABLE a CASCADE
@@ -1470,7 +1470,7 @@ ok	ok:e999ba0a84f6	engine	one_table@column	range_partition_option/PARTITION_BY_R
 1503	1235	engine	one_table@column	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@column	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1064	engine	one_table@column	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
-1064	1235	engine	one_table@column	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
+1503	1235	engine	one_table@column	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
 1503	1503	engine	one_table@column	opt_range_partition_info/(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE)
 1503	1503	engine	one_table@column	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
 1503	1503	engine	one_table@column	partition_options/subpartition_option_partition_num	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) PARTITIONS 1
@@ -1624,8 +1624,8 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/RENAM
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1091	1091	engine	one_table@column	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1091	3940	engine	one_table@column	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-1064	1210	engine	one_table@column	alter_table_action/REFRESH	ALTER TABLE a REFRESH
-1064	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
+ok	1210	engine	one_table@column	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 ok:5d78096adb5d	ok:5d78096adb5d	engine	one_table@column	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/LOCK__opt_equal_mark_lock_opt	ALTER TABLE a LOCK DEFAULT
@@ -1635,8 +1635,8 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	algorithm_opt/INSTANT	AL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/NONE	ALTER TABLE a LOCK NONE
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1064	3821	engine	one_table@column	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1064	3821	engine	one_table@column	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+1091	3821	engine	one_table@column	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+1091	3821	engine	one_table@column	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1505	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1505	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
@@ -1655,20 +1655,20 @@ ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	alter_index_option/ADD_a
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 1176	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-1064	1235	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+ok	1235	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	one_table@column	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
-1064	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
+ok	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@column	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
-1064	ok:e5cac50200af	engine	one_table@column	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
 ok:989aaa2a0497	ok:989aaa2a0497	engine	one_table@column	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	ok:9e65dfde7e19	engine	one_table@column	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
+ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 ok:6b3ca7ee0aaa	ok:6b3ca7ee0aaa	engine	one_table@column	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	ok:9e65dfde7e19	engine	one_table@column	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
+ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
 ok:6b3ca7ee0aaa	ok:6b3ca7ee0aaa	engine	one_table@column	add_constraint_uniq_key/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1068	engine	one_table@column	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
-1064	1687	engine	one_table@column	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
+1068	1068	engine	one_table@column	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+1687	1687	engine	one_table@column	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1687	1687	engine	one_table@column	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1068	engine	one_table@column	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
+1068	1068	engine	one_table@column	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
 1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 1215	1215	engine	one_table@column	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 1176	1176	engine	one_table@column	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
@@ -1688,7 +1688,7 @@ ok:fc92d6b12a7b	ok:fc92d6b12a7b	engine	one_table@column	alter_column_option/MODI
 ok:fc92d6b12a7b	ok:fc92d6b12a7b	engine	one_table@column	alter_column_option/MODIFY_column_definition	ALTER TABLE a MODIFY a TINYINT
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_column_option/RENAME_COLUMN_column_definition_ref_TO_column_name	ALTER TABLE a RENAME COLUMN a TO a
 1060	1060	engine	one_table@column	opt_position_column/FIRST	ALTER TABLE a ADD a TINYINT FIRST
-1064	1060	engine	one_table@column	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
+1060	1060	engine	one_table@column	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
 1060	1060	engine	one_table@column	opt_position_column/AFTER_column_name	ALTER TABLE a ADD a TINYINT AFTER a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_to/TO	ALTER TABLE a RENAME TO a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	opt_drop_behavior/CASCADE	DROP TABLE a CASCADE
@@ -2039,7 +2039,7 @@ ok	ok:dde5650d5287	engine	one_table@index	range_partition_option/PARTITION_BY_RA
 1503	1235	engine	one_table@index	range_partition_option/PARTITION_BY_RANGE_COLUMNS_(_column_name_list_)_partition_options_opt_range_partition_info	ALTER TABLE a PARTITION BY RANGE COLUMNS(a)
 1064	1064	engine	one_table@index	opt_auto_split_tablet_size_option/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE() SIZE('s')
 1064	1064	engine	one_table@index	opt_range_partition_info/auto_split_tablet_size_option_(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')(PARTITION a VALUES LESS THAN MAXVALUE)
-1064	1235	engine	one_table@index	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
+1503	1235	engine	one_table@index	opt_range_partition_info/auto_split_tablet_size_option	ALTER TABLE a PARTITION BY RANGE(a) SIZE('s')
 1503	1503	engine	one_table@index	opt_range_partition_info/(_range_partition_list_)	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE)
 1503	1503	engine	one_table@index	partition_options/partition_num_subpartition_option	ALTER TABLE a PARTITION BY KEY() PARTITIONS 1 SUBPARTITION BY RANGE(a)
 1503	1503	engine	one_table@index	partition_options/subpartition_option_partition_num	ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY RANGE(a) PARTITIONS 1
@@ -2193,8 +2193,8 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/RENAME
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1091	1091	engine	one_table@index	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1091	3940	engine	one_table@index	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-1064	1210	engine	one_table@index	alter_table_action/REFRESH	ALTER TABLE a REFRESH
-1064	ok:b05454e6c466	engine	one_table@index	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
+ok	1210	engine	one_table@index	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 ok:1ac3e3ba399f	ok:1ac3e3ba399f	engine	one_table@index	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/LOCK__opt_equal_mark_lock_opt	ALTER TABLE a LOCK DEFAULT
@@ -2204,8 +2204,8 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	algorithm_opt/INSTANT	ALT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/NONE	ALTER TABLE a LOCK NONE
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1064	3821	engine	one_table@index	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1064	3821	engine	one_table@index	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+1091	3821	engine	one_table@index	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+1091	3821	engine	one_table@index	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1505	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1505	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
@@ -2224,20 +2224,20 @@ ok:25c111463945	ok:25c111463945	engine	one_table@index	alter_index_option/ADD_ad
 1068	1068	engine	one_table@index	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:8ad4b5558f9a	ok:8ad4b5558f9a	engine	one_table@index	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-1064	1235	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+ok	1235	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1061	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
-1064	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
+ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@index	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
-1064	ok:7c097d37a5bb	engine	one_table@index	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
+ok:7c097d37a5bb	ok:7c097d37a5bb	engine	one_table@index	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
 ok:84147f20f515	ok:84147f20f515	engine	one_table@index	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	ok:25c111463945	engine	one_table@index	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
+ok:25c111463945	ok:25c111463945	engine	one_table@index	add_unique_key_opt/(_add_unique_key_)	ALTER TABLE a ADD(UNIQUE(a))
 ok:94f0cfbec4bf	ok:94f0cfbec4bf	engine	one_table@index	add_unique_key/UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	ok:25c111463945	engine	one_table@index	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
+ok:25c111463945	ok:25c111463945	engine	one_table@index	add_constraint_uniq_key_opt/(_add_constraint_uniq_key_)	ALTER TABLE a ADD(CONSTRAINT UNIQUE(a))
 ok:94f0cfbec4bf	ok:94f0cfbec4bf	engine	one_table@index	add_constraint_uniq_key/CONSTRAINT_opt_constraint_name_UNIQUE_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD CONSTRAINT UNIQUE(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1068	engine	one_table@index	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
-1064	1687	engine	one_table@index	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
+1068	1068	engine	one_table@index	add_constraint_pri_key_opt/(_add_constraint_pri_key_)	ALTER TABLE a ADD(CONSTRAINT PRIMARY KEY(a))
+1687	1687	engine	one_table@index	add_spatial_index_opt/(_add_spatial_index_)	ALTER TABLE a ADD(SPATIAL(a))
 1687	1687	engine	one_table@index	add_spatial_index/SPATIAL_opt_key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD SPATIAL(a) WITH COLUMN GROUP(ALL COLUMNS)
-1064	1068	engine	one_table@index	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
+1068	1068	engine	one_table@index	add_primary_key_opt/(_add_primary_key_)	ALTER TABLE a ADD(PRIMARY KEY(a))
 1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_CONSTRAINT_opt_constraint_name_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
 1215	1215	engine	one_table@index	alter_foreign_key_action/ADD_FOREIGN_KEY_opt_index_name_(_column_name_list_)_REFERENCES_relation_factor_(_column_name_list_)_opt_match_option_opt_reference_option_list	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
 ok:ef33c88e5b07	ok:ef33c88e5b07	engine	one_table@index	visibility_option/INVISIBLE	ALTER TABLE a ALTER INDEX a INVISIBLE
@@ -2257,7 +2257,7 @@ ok:341cdad22d31	ok:341cdad22d31	engine	one_table@index	alter_column_option/MODIF
 ok:341cdad22d31	ok:341cdad22d31	engine	one_table@index	alter_column_option/MODIFY_column_definition	ALTER TABLE a MODIFY a TINYINT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_column_option/RENAME_COLUMN_column_definition_ref_TO_column_name	ALTER TABLE a RENAME COLUMN a TO a
 1060	1060	engine	one_table@index	opt_position_column/FIRST	ALTER TABLE a ADD a TINYINT FIRST
-1064	1060	engine	one_table@index	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
+1060	1060	engine	one_table@index	opt_position_column/BEFORE_column_name	ALTER TABLE a ADD a TINYINT BEFORE a
 1060	1060	engine	one_table@index	opt_position_column/AFTER_column_name	ALTER TABLE a ADD a TINYINT AFTER a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_to/TO	ALTER TABLE a RENAME TO a
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	opt_drop_behavior/CASCADE	DROP TABLE a CASCADE

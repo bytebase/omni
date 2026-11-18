@@ -301,10 +301,12 @@ func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropR
 		IsProcedure: isProcedure,
 	}
 
-	// IF EXISTS
+	// IF EXISTS: both words are required, so `DROP FUNCTION IF a` is a 1064.
 	if p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwEXISTS_KW)
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfExists = true
 	}
 

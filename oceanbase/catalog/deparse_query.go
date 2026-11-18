@@ -232,6 +232,8 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope)
 		b.WriteString("cross join ")
 	case JoinStraight:
 		b.WriteString("straight_join ")
+	case JoinFull:
+		b.WriteString("full join ")
 	default: // JoinInner
 		b.WriteString("join ")
 	}

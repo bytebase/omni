@@ -143,7 +143,6 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwOPTIMIZE:
 		return p.parseOptimizeTableStmt()
-
 	case kwCHECK:
 		return p.parseCheckTableStmt()
 
@@ -187,7 +186,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		return p.parseStopDispatch()
 
 	case kwPURGE:
-		return p.parsePurgeBinaryLogsStmt()
+		return p.parsePurgeStmt()
 
 	case kwIMPORT:
 		return p.parseImportTableStmt()
@@ -227,6 +226,15 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		// AUDIT and NOAUDIT are no keywords of this lexer's.
 		if p.isBareWord("AUDIT") || p.isBareWord("NOAUDIT") {
 			return p.parseAuditStmt()
+		}
+		// FLASHBACK, DUMP and the recycle-bin forms beside them are no
+		// keywords of this lexer's either, and each opens a statement of its
+		// own.
+		if p.isBareWord("FLASHBACK") {
+			return p.parseFlashbackStmt()
+		}
+		if p.isBareWord("DUMP") {
+			return p.parseDumpMemoryStmt()
 		}
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -394,6 +402,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	} else if p.cur.Type == kwEXTERNAL {
 		p.advance()
 		external = true
+		// CREATE EXTERNAL CATALOG is a statement of its own beside CREATE
+		// EXTERNAL TABLE.
+		if p.atExternalCatalog() {
+			return p.parseCreateCatalogStmt(start)
+		}
 		// Completion: after CREATE EXTERNAL, TABLE is the only continuation.
 		p.checkCursor()
 		if p.collectMode() {
@@ -406,6 +419,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	}
 
 	switch p.cur.Type {
+	case kwRESTORE:
+		return p.parseCreateRestorePointStmt(start)
+
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, temporary, external)
 
@@ -459,6 +475,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreateMaterializedStmt(start, false)
 
 	case kwDATABASE, kwSCHEMA:
+		// CREATE DATABASE LINK is a statement of its own beside CREATE
+		// DATABASE.
+		if p.atDatabaseLink() {
+			return p.parseCreateDblinkStmt(start)
+		}
 		return p.parseCreateDatabaseStmt(start)
 
 	case kwAGGREGATE:
@@ -766,7 +787,14 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		}
 		return p.parseDropMaterializedStmt(start)
 
+	case kwRESTORE:
+		return p.parseDropRestorePointStmt(start)
+
 	case kwDATABASE, kwSCHEMA:
+		// DROP DATABASE LINK is a statement of its own beside DROP DATABASE.
+		if p.atDatabaseLink() {
+			return p.parseDropDblinkStmt(start)
+		}
 		return p.parseDropDatabaseStmt(start)
 
 	case kwUSER:
@@ -813,6 +841,10 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		}, nil
 
 	default:
+		// DROP CATALOG: CATALOG is no keyword of this lexer's.
+		if p.isBareWord("CATALOG") {
+			return p.parseDropCatalogStmt(start)
+		}
 		return nil, &ParseError{
 			Message:  "unexpected token after DROP",
 			Position: p.cur.Loc,

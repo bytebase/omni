@@ -56,6 +56,8 @@ const (
 	NaturalInnerJoin
 	NaturalLeftOuterJoin
 	NaturalRightOuterJoin
+	FullOuterJoin
+	NaturalFullOuterJoin
 )
 
 // joinTableSources returns the columns a join exposes, in the order MySQL
@@ -67,7 +69,8 @@ const (
 func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource {
 	switch tp {
 	case Join, InnerJoin, CrossJoin, StraightJoin, LeftOuterJoin, RightOuterJoin,
-		NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
+		NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin,
+		FullOuterJoin, NaturalFullOuterJoin:
 	default:
 		return nil
 	}
@@ -866,6 +869,10 @@ func toJoinType(joinType ast.JoinType) joinType {
 		return NaturalLeftOuterJoin
 	case ast.JoinNaturalRight:
 		return NaturalRightOuterJoin
+	case ast.JoinFull:
+		return FullOuterJoin
+	case ast.JoinNaturalFull:
+		return NaturalFullOuterJoin
 	default:
 		return Join
 	}

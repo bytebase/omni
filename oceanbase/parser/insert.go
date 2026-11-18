@@ -61,6 +61,15 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		stmt.Ignore = true
 	}
 
+	// OceanBase's OVERWRITE, which insert_stmt writes after opt_priority and
+	// opt_ignore and before opt_into_single_table_insert.
+	if _, ok := p.match(kwOVERWRITE); ok {
+		if isReplace {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Overwrite = true
+	}
+
 	// Optional INTO
 	p.match(kwINTO)
 

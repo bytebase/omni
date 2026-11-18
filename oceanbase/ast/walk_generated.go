@@ -97,6 +97,14 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+		for _, item := range n.IndexOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Parallel != nil {
+			Walk(v, n.Parallel)
+		}
 	case *AlterTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -198,6 +206,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
+		}
+	case *CatalogStmt:
+		for _, item := range n.Properties {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *ChangeReplicationFilterStmt:
 		for _, item := range n.Filters {
@@ -506,6 +520,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ExtractExpr:
 		Walk(v, n.Expr)
+	case *FlashbackStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.RenameTo != nil {
+			Walk(v, n.RenameTo)
+		}
 	case *FlushStmt:
 		for _, item := range n.Tables {
 			if item != nil {
@@ -564,6 +585,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *GroupingSet:
+		for _, item := range n.Items {
+			Walk(v, item)
+		}
 	case *HandlerCloseStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -575,6 +600,9 @@ func walkChildren(v Visitor, node Node) {
 	case *HandlerReadStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
+		}
+		for _, item := range n.Values {
+			Walk(v, item)
 		}
 		Walk(v, n.Where)
 		if n.Limit != nil {
@@ -648,6 +676,17 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *IntoClause:
 		for _, item := range n.Vars {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		Walk(v, n.PartitionBy)
+		for _, item := range n.ExternalFormat {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.FileOptions {
 			if item != nil {
 				Walk(v, item)
 			}
@@ -772,6 +811,8 @@ func walkChildren(v Visitor, node Node) {
 	case *MviewRefreshInfo:
 		Walk(v, n.StartWith)
 		Walk(v, n.Next)
+	case *OdbcEscapeExpr:
+		Walk(v, n.Expr)
 	case *OnCondition:
 		Walk(v, n.Expr)
 	case *OptimizeTableStmt:
@@ -816,10 +857,20 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Str)
 	case *PurgeBinaryLogsStmt:
 		Walk(v, n.BeforeExpr)
+	case *PurgeStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *QuantifiedExpr:
+		Walk(v, n.Expr)
 	case *RawStmt:
 		Walk(v, n.Stmt)
 	case *RbIterateExpr:
 		Walk(v, n.Arg)
+	case *RemoteSequenceExpr:
+		if n.Ref != nil {
+			Walk(v, n.Ref)
+		}
 	case *RenameTablePair:
 		if n.Old != nil {
 			Walk(v, n.Old)
@@ -894,6 +945,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Limit != nil {
 			Walk(v, n.Limit)
+		}
+		for _, item := range n.VectorIndexParams {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 		if n.ForUpdate != nil {
 			Walk(v, n.ForUpdate)

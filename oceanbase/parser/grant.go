@@ -990,11 +990,16 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 
 	stmt := &nodes.CreateUserStmt{Loc: nodes.Loc{Start: start}}
 
-	// [IF NOT EXISTS]
+	// [IF NOT EXISTS]: both words are required, so `CREATE USER IF EXISTS 's'`
+	// and `CREATE USER IF NOT 's'` are 1064s.
 	if p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwNOT)
-		p.match(kwEXISTS_KW)
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfNotExists = true
 	}
 
@@ -1038,7 +1043,10 @@ func (p *Parser) parseCreateUserStmt(start int) (*nodes.CreateUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
+		}
 		if res != nil {
 			stmt.Resource = res
 		}
@@ -1245,7 +1253,10 @@ func (p *Parser) parseAlterUserStmt(start int) (*nodes.AlterUserStmt, error) {
 	// [WITH resource_option ...]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		res := p.parseResourceOptions()
+		res, err := p.parseResourceOptions()
+		if err != nil {
+			return nil, err
+		}
 		if res != nil {
 			stmt.Resource = res
 		}
@@ -1652,6 +1663,15 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec, byPassword bool) erro
 		if err := p.parseAuthByTail(spec, byPassword); err != nil {
 			return err
 		}
+	case kwAS:
+		// user_specification_with_password's `IDENTIFIED opt_auth_plugin AS
+		// password` arm: the plugin's WITH is optional and the hash follows AS.
+		p.advance()
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		spec.AuthHash = p.cur.Str
+		p.advance()
 	case kwWITH:
 		p.advance()
 		plugin, err := p.parseAuthPlugin()
@@ -1762,14 +1782,23 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 	case p.cur.Type == kwALL:
 		stmt.All = true
 		p.advance()
-		// ALL EXCEPT role [, role] ...
+		// ALL EXCEPT grant_privileges: OceanBase writes `ALL EXCEPT ALL [PRIVILEGES]`
+		// here, where a privilege list takes the place of the roles.
+		//
+		// Ref: set_role_clause in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+		// 18766-18789).
 		if p.cur.Type == kwEXCEPT {
 			p.advance()
-			roles, err := p.parseRoleRefList()
-			if err != nil {
-				return nil, err
+			if p.cur.Type == kwALL {
+				p.advance()
+				p.match(kwPRIVILEGES)
+			} else {
+				roles, err := p.parseRoleRefList()
+				if err != nil {
+					return nil, err
+				}
+				stmt.AllExcept = roles
 			}
-			stmt.AllExcept = roles
 		}
 	default:
 		roles, err := p.parseRoleRefList()
@@ -1927,48 +1956,38 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 //	  | MAX_CONNECTIONS_PER_HOUR count
 //	  | MAX_USER_CONNECTIONS count
 //	}
-func (p *Parser) parseResourceOptions() *nodes.ResourceOption {
+func (p *Parser) parseResourceOptions() (*nodes.ResourceOption, error) {
 	var res *nodes.ResourceOption
 	for p.cur.Type == kwMAX_QUERIES_PER_HOUR || p.cur.Type == kwMAX_UPDATES_PER_HOUR ||
 		p.cur.Type == kwMAX_CONNECTIONS_PER_HOUR || p.cur.Type == kwMAX_USER_CONNECTIONS {
 		if res == nil {
 			res = &nodes.ResourceOption{Loc: nodes.Loc{Start: p.pos()}}
 		}
-		switch p.cur.Type {
+		word := p.cur.Type
+		p.advance()
+		// resource_option is the word and an INTNUM: `WITH MAX_USER_CONNECTIONS`
+		// with no number after it is a 1064, and so is a second option where the
+		// first one's number belongs.
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		n := int(p.cur.Ival)
+		p.advance()
+		switch word {
 		case kwMAX_QUERIES_PER_HOUR:
-			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxQueriesPerHour = int(p.cur.Ival)
-				res.HasMaxQueries = true
-				p.advance()
-			}
+			res.MaxQueriesPerHour, res.HasMaxQueries = n, true
 		case kwMAX_UPDATES_PER_HOUR:
-			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUpdatesPerHour = int(p.cur.Ival)
-				res.HasMaxUpdates = true
-				p.advance()
-			}
+			res.MaxUpdatesPerHour, res.HasMaxUpdates = n, true
 		case kwMAX_CONNECTIONS_PER_HOUR:
-			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxConnectionsPerHour = int(p.cur.Ival)
-				res.HasMaxConnections = true
-				p.advance()
-			}
+			res.MaxConnectionsPerHour, res.HasMaxConnections = n, true
 		case kwMAX_USER_CONNECTIONS:
-			p.advance()
-			if p.cur.Type == tokICONST {
-				res.MaxUserConnections = int(p.cur.Ival)
-				res.HasMaxUserConn = true
-				p.advance()
-			}
+			res.MaxUserConnections, res.HasMaxUserConn = n, true
 		}
 	}
 	if res != nil {
 		res.Loc.End = p.prev.End
 	}
-	return res
+	return res, nil
 }
 
 // parseUserAccountOptions parses password options, lock options, comment, and attribute

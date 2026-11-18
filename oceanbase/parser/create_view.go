@@ -126,11 +126,13 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 			checkOption = "LOCAL"
 			p.advance()
 		}
-		if p.cur.Type == kwCHECK {
-			p.advance()
-			if p.cur.Type == kwOPTION {
-				p.advance()
-			}
+		// CHECK and OPTION are both words of the clause: `WITH CHECK`,
+		// `WITH CASCADED CHECK` and `WITH LOCAL CHECK` are 1064s.
+		if _, err := p.expect(kwCHECK); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwOPTION); err != nil {
+			return nil, err
 		}
 		stmt.CheckOption = checkOption
 	}

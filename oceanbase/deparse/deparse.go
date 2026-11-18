@@ -1051,6 +1051,17 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			writeExprAlias(b, item)
 		}
 		b.WriteString(")")
+	case *ast.GroupingSet:
+		writeGroupingSet(b, n)
+	case *ast.RemoteSequenceExpr:
+		b.WriteString(deparseColumnRef(n.Ref))
+		b.WriteString(n.Dblink)
+	case *ast.OdbcEscapeExpr:
+		b.WriteString("{")
+		b.WriteString(n.Name)
+		b.WriteString(" ")
+		writeExprAlias(b, n.Expr)
+		b.WriteString("}")
 	case *ast.CollateExpr:
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
 		writeExprAlias(b, n.Expr)
@@ -1505,6 +1516,8 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 	case ast.JoinNaturalRight:
 		joinType = "left join"
 		left, right = right, left
+	case ast.JoinFull, ast.JoinNaturalFull:
+		joinType = "full join"
 	default:
 		joinType = "join"
 	}
@@ -1628,11 +1641,18 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 // Ref: tbl_name in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line 14080).
 func deparseTableRef(t *ast.TableRef) string {
 	var b strings.Builder
+	if t.Catalog != "" {
+		b.WriteString(quoteIdent(t.Catalog))
+		b.WriteString(".")
+	}
 	if t.Schema != "" {
 		b.WriteString(quoteIdent(t.Schema))
 		b.WriteString(".")
 	}
 	b.WriteString(quoteIdent(t.Name))
+	if t.Dblink != "" {
+		b.WriteString(t.Dblink)
+	}
 	switch {
 	case len(t.Partitions) > 0:
 		b.WriteString(" partition(")
@@ -1764,6 +1784,17 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeIsExpr(b, n)
 	case *ast.RowExpr:
 		writeRowExpr(b, n)
+	case *ast.GroupingSet:
+		writeGroupingSet(b, n)
+	case *ast.RemoteSequenceExpr:
+		b.WriteString(deparseColumnRef(n.Ref))
+		b.WriteString(n.Dblink)
+	case *ast.OdbcEscapeExpr:
+		b.WriteString("{")
+		b.WriteString(n.Name)
+		b.WriteString(" ")
+		writeExpr(b, n.Expr)
+		b.WriteString("}")
 	case *ast.CaseExpr:
 		writeCaseExpr(b, n)
 	case *ast.CastExpr:
@@ -1942,6 +1973,9 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 }
 
 func deparseColumnRef(n *ast.ColumnRef) string {
+	if n.Catalog != "" {
+		return quoteIdent(n.Catalog) + "." + quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
+	}
 	if n.Schema != "" {
 		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
 	}
@@ -2185,6 +2219,24 @@ func writeIsExpr(b *strings.Builder, n *ast.IsExpr) {
 	writeExpr(b, n.Expr)
 	b.WriteString(" ")
 	b.WriteString(test)
+	b.WriteString(")")
+}
+
+// writeGroupingSet writes ROLLUP (...), CUBE (...), GROUPING SETS (...) or the
+// empty set `()`.
+func writeGroupingSet(b *strings.Builder, n *ast.GroupingSet) {
+	if n.Kind == "" {
+		b.WriteString("()")
+		return
+	}
+	b.WriteString(n.Kind)
+	b.WriteString(" (")
+	for i, item := range n.Items {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeExpr(b, item)
+	}
 	b.WriteString(")")
 }
 

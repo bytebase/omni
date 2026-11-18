@@ -25,13 +25,19 @@ type SelectStmt struct {
 	OrderBy           []*OrderByItem     // ORDER BY clause
 	OrderByWithRollup bool               // ORDER BY ... WITH ROLLUP
 	Limit             *Limit             // LIMIT / OFFSET
-	ForUpdate         *ForUpdate         // FOR UPDATE / SHARE
-	WindowClause      []*WindowDef       // WINDOW clause
-	Into              *IntoClause        // INTO clause
-	SetOp             SetOperation       // UNION / INTERSECT / EXCEPT
-	SetAll            bool               // ALL modifier for set operations
-	Left              *SelectStmt        // left side of set operation
-	Right             *SelectStmt        // right side of set operation
+	// Approx is opt_approx, the APPROX or APPROXIMATE word of a vector search:
+	// ORDER BY expr APPROX LIMIT n. OceanBase takes it only before a LIMIT.
+	Approx bool
+	// VectorIndexParams is opt_with_vector_index_parameters:
+	// PARAMETERS(name = value, ...) after the LIMIT of a vector search.
+	VectorIndexParams []*VectorIndexParam
+	ForUpdate         *ForUpdate   // FOR UPDATE / SHARE
+	WindowClause      []*WindowDef // WINDOW clause
+	Into              *IntoClause  // INTO clause
+	SetOp             SetOperation // UNION / INTERSECT / EXCEPT
+	SetAll            bool         // ALL modifier for set operations
+	Left              *SelectStmt  // left side of set operation
+	Right             *SelectStmt  // right side of set operation
 	// TableSource and ValuesSource are the TABLE or VALUES query primary this
 	// node stands for. The source holds only its table or rows; the ORDER BY,
 	// LIMIT, and INTO after it are this node's, except that an ORDER BY and
@@ -114,10 +120,13 @@ const (
 
 // InsertStmt represents an INSERT or REPLACE statement.
 type InsertStmt struct {
-	Loc            Loc
-	IsReplace      bool // REPLACE instead of INSERT
-	Priority       InsertPriority
-	Ignore         bool          // INSERT IGNORE
+	Loc       Loc
+	IsReplace bool // REPLACE instead of INSERT
+	Priority  InsertPriority
+	Ignore    bool // INSERT IGNORE
+	// Overwrite is OceanBase's INSERT OVERWRITE, whose target is a single table
+	// and whose source is a query: insert_stmt's OVERWRITE arm writes no VALUES.
+	Overwrite      bool
 	Table          *TableRef     // target table
 	Partitions     []string      // PARTITION (p0, p1, ...)
 	Columns        []*ColumnRef  // explicit column list; nil without one, non-nil and empty for ()
@@ -251,6 +260,15 @@ const (
 	ATAlterColumnInvisible // never built: OceanBase's ALTER COLUMN has no SET INVISIBLE
 	ATAlterIndexVisible
 	ATAlterIndexInvisible
+	// ATAlterIndexStorageCachePolicy is ALTER INDEX name STORAGE_CACHE_POLICY (...).
+	ATAlterIndexStorageCachePolicy
+	// ATAlterIndexParallel is ALTER INDEX name PARALLEL n | NOPARALLEL.
+	ATAlterIndexParallel
+	// ATRefresh is alter_table_action's REFRESH, which refreshes an external
+	// table's metadata.
+	ATRefresh
+	// ATRemoveTTL is alter_table_action's REMOVE TTL.
+	ATRemoveTTL
 	ATForce
 	ATOrderBy
 	ATEnableKeys
@@ -313,6 +331,12 @@ type AlterTableCmd struct {
 	// PARTITION names).
 	PartitionValues []*Assignment
 	Location        string
+	// IndexOptions holds ALTER INDEX's STORAGE_CACHE_POLICY attributes.
+	IndexOptions []*IndexOption
+	// Parallel is ALTER INDEX's PARALLEL n or NOPARALLEL.
+	Parallel *ParallelOption
+	// ConstraintNames is DROP CONSTRAINT's and DROP CHECK's '(' name_list ')'.
+	ConstraintNames []string
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -533,16 +557,20 @@ func (p *RenameTablePair) nodeTag() {}
 
 // ColumnDef represents a column definition in CREATE TABLE.
 type ColumnDef struct {
-	Loc                      Loc
-	Name                     string
-	TypeName                 *DataType
-	Constraints              []*ColumnConstraint
-	DefaultValue             ExprNode
-	Comment                  string
-	AutoIncrement            bool
-	OnUpdate                 ExprNode // ON UPDATE CURRENT_TIMESTAMP
-	Generated                *GeneratedColumn
-	ColumnFormat             string // COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}
+	Loc           Loc
+	Name          string
+	TypeName      *DataType
+	Constraints   []*ColumnConstraint
+	DefaultValue  ExprNode
+	Comment       string
+	AutoIncrement bool
+	OnUpdate      ExprNode // ON UPDATE CURRENT_TIMESTAMP
+	Generated     *GeneratedColumn
+	ColumnFormat  string // COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}
+	// ID and HasID are column_attribute's `ID INTNUM`, which pins the column's
+	// storage id. OceanBase admits the same attribute on a generated column.
+	ID                       int64
+	HasID                    bool
 	Storage                  string // STORAGE {DISK | MEMORY}
 	EngineAttribute          string // ENGINE_ATTRIBUTE [=] 'string'
 	SecondaryEngineAttribute string // SECONDARY_ENGINE_ATTRIBUTE [=] 'string'
@@ -555,6 +583,10 @@ type GeneratedColumn struct {
 	Loc    Loc
 	Expr   ExprNode
 	Stored bool // STORED vs VIRTUAL
+	// ID and HasID are generated_column_attribute's `ID INTNUM`, which pins the
+	// generated column's storage id.
+	ID    int64
+	HasID bool
 }
 
 func (g *GeneratedColumn) nodeTag() {}
@@ -858,6 +890,13 @@ type FuncCallExpr struct {
 	// JSONValueArm does for JSON_VALUE.
 	JSONQueryArm bool
 	Using        string // CHAR(n, ... USING charset_name): the character set as written ("" = no USING)
+	// NullTreatment is a window function's RESPECT NULLS or IGNORE NULLS, as
+	// "RESPECT" or "IGNORE", whether written inside the argument list or after
+	// it. Only FIRST_VALUE, LAST_VALUE, LEAD, LAG and NTH_VALUE take it.
+	NullTreatment string
+	// FromFirstLast is NTH_VALUE's FROM FIRST or FROM LAST, as "FIRST" or
+	// "LAST". It follows the argument list and precedes NullTreatment.
+	FromFirstLast string
 }
 
 // JSONValueOptions is what JSON_VALUE takes after its path. The call's document and path are
@@ -1109,8 +1148,12 @@ type ColumnRef struct {
 	Loc    Loc
 	Table  string // table name or alias (may be empty)
 	Schema string // schema/database name (may be empty)
-	Column string // column name
-	Star   bool   // table.*
+	// Catalog is the first part of a four-part name, `catalog.db.tbl.col`
+	// (column_ref's id_dot_id_dot_id '.' column_name arm). It is only written
+	// with Schema and Table.
+	Catalog string
+	Column  string // column name
+	Star    bool   // table.*
 }
 
 func (r *ColumnRef) nodeTag()  {}
@@ -1118,9 +1161,16 @@ func (r *ColumnRef) exprNode() {}
 
 // TableRef represents a table reference (possibly qualified, with alias).
 type TableRef struct {
-	Loc        Loc
-	Schema     string   // database name
-	Name       string   // table name
+	Loc    Loc
+	Schema string // database name
+	// Catalog is the first part of a three-part name, `catalog.db.tbl`
+	// (normal_relation_factor's id_dot_id_dot_id arm). It is only written with
+	// Schema.
+	Catalog string
+	Name    string // table name
+	// Dblink is opt_dblink's `@name`, which reads the table through a database
+	// link.
+	Dblink     string
 	Alias      string   // AS alias
 	Partitions []string // PARTITION (p0, p1, ...)
 	// PartitionValues is an external table's PARTITION (col = value, ...).
@@ -1132,6 +1182,51 @@ type TableRef struct {
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// RemoteSequenceExpr is a sequence value read through a database link:
+// `t.col@link`, `db.t.col@link` or `catalog.db.t.col@link`. The name it reads
+// is a column reference, and Dblink the `@link` after it.
+//
+// Ref: simple_expr's USER_VARIABLE arms in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 1938-1990), which build T_REMOTE_SEQUENCE.
+type RemoteSequenceExpr struct {
+	Loc    Loc
+	Ref    *ColumnRef // the qualified name of the sequence
+	Dblink string     // the @name after it
+}
+
+func (e *RemoteSequenceExpr) nodeTag()  {}
+func (e *RemoteSequenceExpr) exprNode() {}
+
+// QuantifiedExpr is any_expr's parenthesized-expression arm: the right side of
+// `expr comp_op {ANY|SOME|ALL} (expr)`, which holds one expression and no
+// query. `x = ANY(a)` is the array_contains form the server builds, and
+// `x = ALL(a)` compares against the one value.
+//
+// Ref: any_expr and bool_pri's `COMP_EQ sub_query_flag any_expr` arm in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 1514-1527 and 2155-2169).
+type QuantifiedExpr struct {
+	Loc        Loc
+	Quantifier string // "ANY", "SOME" or "ALL"
+	Expr       ExprNode
+}
+
+func (e *QuantifiedExpr) nodeTag()  {}
+func (e *QuantifiedExpr) exprNode() {}
+
+// OdbcEscapeExpr is the ODBC escape sequence simple_expr carries as
+// `'{' relation_name expr '}'`, such as `{fn CONCAT(a, b)}`.
+//
+// Ref: simple_expr's '{' relation_name expr '}' arm in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 1948), which builds T_ODBC_ESCAPE_SEQUENCES.
+type OdbcEscapeExpr struct {
+	Loc  Loc
+	Name string   // the word after '{'
+	Expr ExprNode // the expression after it
+}
+
+func (e *OdbcEscapeExpr) nodeTag()  {}
+func (e *OdbcEscapeExpr) exprNode() {}
 
 // ExternalTableRef is a table read from a location rather than from a stored
 // table. tbl_name takes it as url_expr: a quoted path with its FORMAT and
@@ -1349,6 +1444,52 @@ type OrderByItem struct {
 
 func (o *OrderByItem) nodeTag() {}
 
+// GroupingSet is one item of a GROUP BY list that is a grouping set rather than
+// an expression: ROLLUP (list), CUBE (list), GROUPING SETS (list, ...) and the
+// empty set `()`. An item of ROLLUP, CUBE or GROUPING SETS is an expression or
+// the empty set, except in a GROUPING SETS list, where an item may be a ROLLUP
+// or a CUBE of its own.
+//
+// Ref: sort_key_for_group_by, rollup_clause, cube_clause, grouping_sets_clause,
+// grouping_sets and gs_group_by_expr in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 13531-13623).
+type GroupingSet struct {
+	Loc Loc
+	// Kind is "ROLLUP", "CUBE", "GROUPING SETS", or "" for the empty set.
+	Kind  string
+	Items []ExprNode
+}
+
+func (e *GroupingSet) nodeTag()  {}
+func (e *GroupingSet) exprNode() {}
+
+// VectorIndexParam is one vec_index_param: the name of a vector index parameter
+// and its value, as written.
+//
+// Ref: vec_index_params, vec_index_param and vec_index_param_value in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 24877-24910).
+type VectorIndexParam struct {
+	Loc   Loc
+	Name  string
+	Value string
+}
+
+func (v *VectorIndexParam) nodeTag() {}
+
+// FileOption is one file_option of INTO OUTFILE: SINGLE [=] bool,
+// MAX_FILE_SIZE [=] size or BUFFER_SIZE [=] size. Value holds the value as
+// written.
+//
+// Ref: file_option, file_opt, file_option_list and file_size_const in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 12042-12102).
+type FileOption struct {
+	Loc   Loc
+	Name  string // "SINGLE", "MAX_FILE_SIZE" or "BUFFER_SIZE"
+	Value string
+}
+
+func (o *FileOption) nodeTag() {}
+
 // Limit represents LIMIT and OFFSET.
 type Limit struct {
 	Loc    Loc
@@ -1376,6 +1517,8 @@ const (
 	JoinStraight     // STRAIGHT_JOIN (MySQL-specific)
 	JoinNaturalLeft  // NATURAL LEFT [OUTER] JOIN
 	JoinNaturalRight // NATURAL RIGHT [OUTER] JOIN
+	JoinFull         // FULL [OUTER] JOIN
+	JoinNaturalFull  // NATURAL FULL [OUTER] JOIN
 )
 
 // JoinClause represents a JOIN clause.
@@ -1491,6 +1634,14 @@ type IntoClause struct {
 	HasFieldsEscapedBy    bool
 	HasLinesStartingBy    bool
 	HasLinesTerminatedBy  bool
+	// PartitionBy is OceanBase's file_partition_opt: PARTITION BY bit_expr.
+	PartitionBy ExprNode
+	// ExternalFormat is OceanBase's FORMAT opt_equal_mark '('
+	// external_file_format_list ')', the format the file is written in.
+	ExternalFormat []*ExternalProperty
+	// FileOptions is file_opt: SINGLE, MAX_FILE_SIZE and BUFFER_SIZE, which
+	// follow the fields and lines clauses.
+	FileOptions []*FileOption
 
 	// Aurora MySQL: SELECT ... INTO OUTFILE S3 's3-uri' export options.
 	// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
@@ -1593,6 +1744,9 @@ func (s *ShowStmt) stmtNode() {}
 type UseStmt struct {
 	Loc      Loc
 	Database string
+	// Catalog is database_with_catalog_factor's first name when the statement
+	// writes one: `USE catalog.db`.
+	Catalog string
 }
 
 func (s *UseStmt) nodeTag()  {}
@@ -2074,13 +2228,28 @@ type LoadDataStmt struct {
 	SourceQuery *SelectStmt
 	// OnError is opt_on_error, as written: "LOG ERRORS",
 	// "LOG ERRORS REJECT LIMIT 1" or "LOG ERRORS REJECT LIMIT UNLIMITED".
-	OnError            string
-	Replace            bool
-	Ignore             bool
-	Table              *TableRef
-	Partitions         []string // PARTITION (p0, p1, ...)
-	CharacterSet       string   // CHARACTER SET charset_name
-	RowsIdentifiedBy   string   // ROWS IDENTIFIED BY '<tagname>' (XML only)
+	OnError string
+	// RemoteOSS is opt_load_local's REMOTE_OSS: the file is read from an OSS
+	// endpoint rather than the server's own filesystem.
+	RemoteOSS  bool
+	Replace    bool
+	Ignore     bool
+	Table      *TableRef
+	Partitions []string // PARTITION (p0, p1, ...)
+	// Compression is opt_compression's compression_name.
+	Compression  string
+	CharacterSet string // CHARACTER SET charset_name
+	// IgnoreGenerated is opt_load_ignore_rows' GENERATED form: the server skips
+	// n generated rows instead of n leading ones.
+	IgnoreGenerated bool
+	// The load_data_extended_option_list, which OceanBase adds after SET: the
+	// error log file, the rejected-rows limit and the bad-rows file. A limit of
+	// 0 with HasRejectLimit set is REJECT LIMIT 0.
+	LogFile            string
+	HasRejectLimit     bool
+	RejectLimit        int
+	BadFile            string
+	RowsIdentifiedBy   string // ROWS IDENTIFIED BY '<tagname>' (XML only)
 	Columns            []ExprNode
 	SetList            []*Assignment
 	LinesStartingBy    string
@@ -2144,6 +2313,58 @@ type AnalyzeTableStmt struct {
 func (s *AnalyzeTableStmt) nodeTag()  {}
 func (s *AnalyzeTableStmt) stmtNode() {}
 
+// RestorePointStmt is OceanBase's CREATE RESTORE POINT and DROP RESTORE POINT.
+//
+// Ref: create_restore_point_stmt and drop_restore_point_stmt in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 4906-4918).
+type RestorePointStmt struct {
+	Loc  Loc
+	Drop bool   // DROP RESTORE POINT, where false is CREATE RESTORE POINT
+	Name string // relation_name
+}
+
+func (s *RestorePointStmt) nodeTag()  {}
+func (s *RestorePointStmt) stmtNode() {}
+
+// CatalogStmt is OceanBase's CREATE EXTERNAL CATALOG, DROP CATALOG and
+// SET CATALOG: the catalogs a session reads external tables through.
+//
+// Ref: create_catalog_stmt, drop_catalog_stmt and set_catalog_stmt in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 4926-4956).
+type CatalogStmt struct {
+	Loc    Loc
+	Action string // "CREATE", "DROP" or "SET"
+	Name   string // relation_name
+	// Properties is CREATE EXTERNAL CATALOG's external_properties_list.
+	Properties  []*ExternalProperty
+	IfNotExists bool // CREATE ... IF NOT EXISTS
+	IfExists    bool // DROP ... IF EXISTS
+}
+
+func (s *CatalogStmt) nodeTag()  {}
+func (s *CatalogStmt) stmtNode() {}
+
+// DatabaseLinkStmt is OceanBase's CREATE DATABASE LINK and DROP DATABASE LINK.
+//
+// Ref: create_dblink_stmt and drop_dblink_stmt in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 17690-17730).
+type DatabaseLinkStmt struct {
+	Loc         Loc
+	Drop        bool   // DROP DATABASE LINK, where false is CREATE DATABASE LINK
+	Name        string // the link's name
+	User        string // CONNECT TO user
+	Tenant      string // the @tenant after it, with its @
+	Database    string // DATABASE name
+	Password    string // IDENTIFIED BY 'password'
+	Server      string // SERVER [=] 'host:port' or HOST 'host:port'
+	Cluster     string // CLUSTER 'name', or ""
+	IfNotExists bool
+	IfExists    bool
+}
+
+func (s *DatabaseLinkStmt) nodeTag()  {}
+func (s *DatabaseLinkStmt) stmtNode() {}
+
 // MethodOptStmt is method_opt, which the grammar reaches as a statement of its
 // own (stmt: method_opt): the statistics method of DBMS_STATS, which the server
 // parses and runs nothing for.
@@ -2181,11 +2402,16 @@ type StatsForColumnsItem struct {
 
 func (i *StatsForColumnsItem) nodeTag() {}
 
-// OptimizeTableStmt represents an OPTIMIZE TABLE statement.
+// OptimizeTableStmt represents an OPTIMIZE TABLE statement, and OceanBase's
+// OPTIMIZE TENANT beside it.
 type OptimizeTableStmt struct {
 	Loc             Loc
 	NoWriteToBinlog bool
 	Tables          []*TableRef
+	// Tenant is optimize_stmt's TENANT form: the tenant's name, or "ALL" for
+	// OPTIMIZE TENANT ALL. It is "" for the TABLE form, which is the one MySQL
+	// has.
+	Tenant string
 }
 
 func (s *OptimizeTableStmt) nodeTag()  {}
@@ -2711,10 +2937,13 @@ func (s *HandlerOpenStmt) stmtNode() {}
 type HandlerReadStmt struct {
 	Loc       Loc
 	Table     *TableRef
-	Direction string   // FIRST, NEXT, PREV, LAST
-	Index     string   // index name for index-based reads
-	Where     ExprNode // WHERE condition
-	Limit     *Limit   // LIMIT clause
+	Direction string // FIRST, NEXT, PREV, LAST
+	Index     string // index name for index-based reads
+	// Values is the expr_list of an index read with a comparison operator:
+	// `HANDLER t READ i >= (1, 2)`.
+	Values []ExprNode
+	Where  ExprNode // WHERE condition
+	Limit  *Limit   // LIMIT clause
 }
 
 func (s *HandlerReadStmt) nodeTag()  {}
@@ -3512,6 +3741,72 @@ type PurgeBinaryLogsStmt struct {
 func (s *PurgeBinaryLogsStmt) nodeTag()  {}
 func (s *PurgeBinaryLogsStmt) stmtNode() {}
 
+// PurgeStmt is OceanBase's purge_stmt, which empties an object out of the
+// recycle bin. The binary-log form is PurgeBinaryLogsStmt beside it.
+//
+// Ref: purge_stmt in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+// 20190-20215).
+//
+//	PURGE {TABLE | INDEX} relation_factor
+//	PURGE {DATABASE | SCHEMA} database_factor
+//	PURGE TENANT relation_name
+//	PURGE RECYCLEBIN
+type PurgeStmt struct {
+	Loc Loc
+	// Kind is the word after PURGE: "TABLE", "INDEX", "DATABASE",
+	// "TENANT" or "RECYCLEBIN".
+	Kind string
+	// Name is the object to purge. It is nil for PURGE RECYCLEBIN.
+	Name *TableRef
+}
+
+func (s *PurgeStmt) nodeTag()  {}
+func (s *PurgeStmt) stmtNode() {}
+
+// FlashbackStmt is OceanBase's flashback_stmt, which restores an object from
+// the recycle bin.
+//
+// Ref: flashback_stmt in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+// 20152-20188).
+//
+//	FLASHBACK TABLE relation_factor TO BEFORE DROP [RENAME TO relation_factor]
+//	FLASHBACK {DATABASE | SCHEMA} database_factor TO BEFORE DROP [RENAME TO database_factor]
+//	FLASHBACK TENANT relation_name TO BEFORE DROP [RENAME TO relation_name]
+type FlashbackStmt struct {
+	Loc Loc
+	// Kind is the word after FLASHBACK: "TABLE", "DATABASE" or "TENANT".
+	Kind string
+	// Name is the object to restore.
+	Name *TableRef
+	// RenameTo is opt_flashback_rename_*'s RENAME TO name, or nil.
+	RenameTo *TableRef
+}
+
+func (s *FlashbackStmt) nodeTag()  {}
+func (s *FlashbackStmt) stmtNode() {}
+
+// DumpMemoryStmt is OceanBase's dump_memory_stmt: the observer's memory
+// diagnostics, which the server parses and answers to a client that asks for
+// them.
+//
+// Ref: dump_memory_stmt in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+// 20236-20291).
+type DumpMemoryStmt struct {
+	Loc Loc
+	// Kind names the alternative as written: "ENTITY_ALL", "ENTITY",
+	// "CHUNK_ALL", "CHUNK", "CHUNK_NAME", "LEAK_MOD", "LEAK_RATE" or
+	// "MEMORY_LEAK".
+	Kind string
+	// Args holds the alternative's values in the order it writes them, each as
+	// written: the entity name and slot index of DUMP ENTITY, the tenant id and
+	// context of DUMP CHUNK, the chunk name of DUMP CHUNK P_CHUNK, and the mode
+	// or rate of SET OPTION.
+	Args []string
+}
+
+func (s *DumpMemoryStmt) nodeTag()  {}
+func (s *DumpMemoryStmt) stmtNode() {}
+
 // ResetMasterStmt represents a RESET MASTER statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/reset-master.html
@@ -3591,11 +3886,11 @@ func (s *BinlogStmt) stmtNode() {}
 
 // CacheIndexStmt represents a CACHE INDEX statement.
 type CacheIndexStmt struct {
-	Loc        Loc
-	Tables     []*TableRef
-	Partitions []string // PARTITION (p1, p2, ...) or PARTITION ALL
-	Indexes    []string // INDEX (idx1, idx2, ...)
-	CacheName  string   // IN cache_name
+	Loc    Loc
+	Tables []*LoadIndexTable // tbl_index_list, or the one table of the PARTITION form
+	// CacheName is IN key_cache_name, and CacheSchema the database it names.
+	CacheName   string
+	CacheSchema string
 }
 
 func (s *CacheIndexStmt) nodeTag()  {}
@@ -3607,7 +3902,8 @@ type LoadIndexIntoCacheStmt struct {
 	Tables []*LoadIndexTable
 }
 
-// LoadIndexTable represents a table entry in LOAD INDEX INTO CACHE.
+// LoadIndexTable represents one table of LOAD INDEX INTO CACHE, and one
+// tbl_index of CACHE INDEX, which the same shapes serve.
 type LoadIndexTable struct {
 	Loc          Loc
 	Table        *TableRef
