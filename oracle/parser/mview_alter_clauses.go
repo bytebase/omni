@@ -580,7 +580,7 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: value, Loc: valueLoc}}}
 		}
 		anns.Items = append(anns.Items, opt)
-		if p.cur.Type == ',' && op != "DROP" {
+		if p.cur.Type == ',' && op != "DROP" && op != "DROP IF EXISTS" {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type != ',' {
