@@ -31,6 +31,7 @@ const (
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
 	ErrNoSuchTable                       = 1146
+	ErrUnknownView                       = 4092
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
 	ErrCantRemoveAllFields               = 1090
@@ -40,6 +41,7 @@ const (
 	ErrCheckConstraintViolated           = 3819
 	ErrFKCannotDropParent                = 3730
 	ErrNoSuchFunction                    = 1305
+	ErrFunctionNotDefined                = 1128
 	ErrNoSuchProcedure                   = 1305
 	ErrDupFunction                       = 1304
 	ErrDupProcedure                      = 1304
@@ -106,6 +108,7 @@ var sqlStateMap = map[int]string{
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
 	ErrNoSuchTable:                       "42S02",
+	ErrUnknownView:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrNoDatabaseSelected:                "3D000",
 	ErrCantRemoveAllFields:               "42000",
@@ -115,6 +118,7 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintViolated:           "HY000",
 	ErrFKCannotDropParent:                "HY000",
 	ErrNoSuchFunction:                    "42000",
+	ErrFunctionNotDefined:                "HY000",
 	ErrDupFunction:                       "HY000",
 	ErrNoSuchEvent:                       "HY000",
 	ErrTriggerInWrongSchema:              "HY000",
@@ -182,6 +186,20 @@ func errDupTable(name string) error {
 func errNoSuchTable(db, name string) error {
 	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable),
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
+}
+
+// errUnknownView is what DROP VIEW reports for a name the database holds no
+// view of, whether it holds a table of that name or nothing at all.
+func errUnknownView(db, name string) error {
+	return &Error{Code: ErrUnknownView, SQLState: sqlState(ErrUnknownView),
+		Message: fmt.Sprintf("Unknown VIEW: '%s.%s'", db, name)}
+}
+
+// errFunctionNotDefined is 1128, what MariaDB answers for a function or a
+// fulltext parser plugin it does not have.
+func errFunctionNotDefined(name string) error {
+	return &Error{Code: ErrFunctionNotDefined, SQLState: sqlState(ErrFunctionNotDefined),
+		Message: fmt.Sprintf("Function '%s' is not defined", name)}
 }
 
 // errPartitionMgmtOnNonpartitioned is 1505, a partition action on a table with no
