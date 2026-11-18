@@ -495,14 +495,17 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			op = p.cur.Str
 			p.advance()
 			if p.cur.Type == kwIF {
+				p.advance()
 				if op == "ADD" {
 					op = "ADD IF NOT EXISTS"
+					if err := p.atExpect(kwNOT); err != nil {
+						return nil, err
+					}
 				} else {
 					op = "DROP IF EXISTS"
-				}
-				p.advance()
-				if p.cur.Type == kwNOT {
-					p.advance()
+					if p.cur.Type == kwNOT {
+						return nil, p.syntaxErrorAtCur()
+					}
 				}
 				if err := p.atExpect(kwEXISTS); err != nil {
 					return nil, err

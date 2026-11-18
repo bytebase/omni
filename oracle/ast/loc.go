@@ -441,6 +441,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *IndextypeOp:
 		return v.Loc
+	case *ArrayDMLTypePair:
+		return v.Loc
 	case *IndextypeModOp:
 		return v.Loc
 	case *DimensionLevel:
