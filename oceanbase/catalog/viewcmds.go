@@ -119,7 +119,32 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // (metadata_load.go). The refresh options, partitioning, table options and
 // primary key change nothing the catalog tracks.
 func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt, source string) error {
-	return c.createView(materializedViewAsView(stmt), source, true, true)
+	if err := c.createView(materializedViewAsView(stmt), source, true, true); err != nil {
+		return err
+	}
+	if stmt.PrimaryKey == nil {
+		return nil
+	}
+	db, err := c.resolveDatabase(stmt.Name.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Name.Name)
+	installed := db.Views[key]
+	for _, name := range stmt.PrimaryKey.Columns {
+		found := false
+		for _, out := range installed.Columns {
+			if strings.EqualFold(out, name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			delete(db.Views, key)
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
+		}
+	}
+	return nil
 }
 
 // materializedViewLogTarget checks the table a materialized view log names: a

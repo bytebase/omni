@@ -139,10 +139,22 @@ const (
 // materializedViewLog follows a materialized view log statement to its base
 // table. The walk models no log itself, but every form requires the table to
 // exist and be a base table, and it keeps whether a log of the table does.
-func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool) bool {
+func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool, columns []string) bool {
 	r, ok, lowered := b.tableOf(tr)
 	if !ok {
 		return lowered
+	}
+	if op == materializedLogCreate && len(columns) > 0 {
+		path := tablePath(r.db, r.name)
+		for _, name := range columns {
+			ck, ok := b.key(spaceColumn, name)
+			if !ok {
+				return false
+			}
+			if f, _ := b.l.Lookup(walk.Key{Space: spaceColumn, Parent: path, Name: ck}); f == walk.Absent {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", name, r.written))
+			}
+		}
 	}
 	k := relKey(r.db, r.name)
 	state := b.w.materializedLogs[k]

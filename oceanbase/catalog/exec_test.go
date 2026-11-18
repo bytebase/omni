@@ -306,3 +306,50 @@ func TestExecRenameMaterializedViewAtomic(t *testing.T) {
 		t.Errorf("a failed RENAME TABLE moved the materialized view: mv=%v mv2=%v", db.Views["mv"], db.Views["mv2"])
 	}
 }
+
+// TestExecRenameTableSwap pins that a multi-pair RENAME TABLE simulates the
+// pairs in order, so a swap works and a repeated source is an error rather than
+// a missing table.
+func TestExecRenameTableSwap(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE a (x INT); CREATE TABLE b (x INT); RENAME TABLE a TO tmp, b TO a, tmp TO b;", nil); err != nil {
+		t.Fatal(err)
+	}
+	db := c.GetDatabase("test")
+	if db.Tables["a"] == nil || db.Tables["b"] == nil || db.Tables["tmp"] != nil {
+		t.Fatalf("swap left a=%v b=%v tmp=%v", db.Tables["a"], db.Tables["b"], db.Tables["tmp"])
+	}
+	results, err := c.Exec("RENAME TABLE a TO x, a TO y;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("RENAME TABLE a TO x, a TO y: error = %v, want a failure", results)
+	}
+	if db.Tables["x"] != nil || db.Tables["y"] != nil {
+		t.Errorf("a failed rename moved a table: x=%v y=%v", db.Tables["x"], db.Tables["y"])
+	}
+}
+
+// TestExecMaterializedViewPrimaryKey pins that a primary key column must be
+// one of the materialized view's output columns.
+func TestExecMaterializedViewPrimaryKey(t *testing.T) {
+	c := New()
+	c.Exec("CREATE DATABASE test; USE test;", nil) //nolint:errcheck
+	for _, tc := range []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"CREATE MATERIALIZED VIEW mv1 (a, PRIMARY KEY (missing)) AS SELECT 1 AS a;", true},
+		{"CREATE MATERIALIZED VIEW mv2 (a, PRIMARY KEY (a)) AS SELECT 1 AS a;", false},
+		{"CREATE MATERIALIZED VIEW mv3 (PRIMARY KEY (missing)) AS SELECT 1 AS a;", true},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got := len(results) == 1 && results[0].Error != nil; got != tc.wantErr {
+			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
+		}
+	}
+}

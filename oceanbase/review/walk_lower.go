@@ -45,11 +45,15 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.DropViewStmt:
 		return b.dropView(v)
 	case *ast.CreateMaterializedViewLogStmt:
-		return b.materializedViewLog(v.Table, materializedLogCreate, v.OrReplace)
+		var columns []string
+		if v.With != nil {
+			columns = v.With.ReferenceColumns
+		}
+		return b.materializedViewLog(v.Table, materializedLogCreate, v.OrReplace, columns)
 	case *ast.AlterMaterializedViewLogStmt:
-		return b.materializedViewLog(v.Table, materializedLogAlter, false)
+		return b.materializedViewLog(v.Table, materializedLogAlter, false, nil)
 	case *ast.DropMaterializedViewLogStmt:
-		return b.materializedViewLog(v.Table, materializedLogDrop, false)
+		return b.materializedViewLog(v.Table, materializedLogDrop, false, nil)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.DropTriggerStmt:
