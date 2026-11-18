@@ -49,15 +49,24 @@ func DescribeExplain(statement string) (format string, executed bool, ok bool) {
 	if err != nil || file == nil || len(file.Stmts) != 1 {
 		return "", false, false
 	}
-	explain, ok := file.Stmts[0].(*ast.ExplainStmt)
-	if !ok || explain.Query == nil {
-		return "", false, false
+	switch node := file.Stmts[0].(type) {
+	case *ast.ExplainStmt:
+		if node.Query == nil {
+			return "", false, false
+		}
+		format = node.Type
+		if format == "" {
+			format = "TEXT"
+		}
+		return format, node.Type == "ANALYZE", true
+	case *ast.OptimizerTraceStmt:
+		if node.Query == nil {
+			return "", false, false
+		}
+		// TRACE is a plan too, and it never executes the traced query.
+		return "TRACE", false, true
 	}
-	format = explain.Type
-	if format == "" {
-		format = "TEXT"
-	}
-	return format, explain.Type == "ANALYZE", true
+	return "", false, false
 }
 
 // singleStatement returns the one statement in text. An explain request plans one

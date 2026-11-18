@@ -22,6 +22,7 @@ func TestSubmitTask(t *testing.T) {
 		{"SUBMIT TASK properties AS INSERT INTO a SELECT CURRENT_USER", "properties", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK schedule AS INSERT INTO a SELECT CURRENT_USER", "schedule", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT 1", "", 1, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK PROPERTIES('warehouse' = 'w') AS INSERT INTO a SELECT 1", "", 1, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO a PROPERTIES('timeout' = '2') SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO BLACKHOLE(a) SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO t VERSION AS OF branch SELECT 1", "", 0, nil, ast.T_InsertStmt},
@@ -159,17 +160,6 @@ func TestSubmitTaskExplainedInsert(t *testing.T) {
 	for _, sql := range []string{
 		"SUBMIT TASK AS EXPLAIN SELECT 1",
 		"SUBMIT TASK AS DESC UPDATE t SET a = 1",
-	} {
-		if _, errs := parseForTest(sql); len(errs) == 0 {
-			t.Errorf("%q parsed, want rejected", sql)
-		}
-	}
-}
-
-func TestSubmitTaskRejectsWarehouseProperty(t *testing.T) {
-	for _, sql := range []string{
-		"SUBMIT TASK PROPERTIES('warehouse' = 'x') AS INSERT INTO t SELECT 1",
-		"SUBMIT TASK PROPERTIES('WAREHOUSE' = 'x') AS INSERT INTO t SELECT 1",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

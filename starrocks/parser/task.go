@@ -57,15 +57,6 @@ func (p *Parser) parseSubmitTask(startLoc ast.Loc, hints []*ast.Property) (ast.N
 			if err != nil {
 				return nil, err
 			}
-			for _, prop := range props {
-				if strings.EqualFold(prop.Key, "warehouse") {
-					return nil, &ParseError{
-						Position: prop.Loc.Start,
-						End:      prop.Loc.End,
-						Message:  "task properties may not set warehouse",
-					}
-				}
-			}
 			stmt.Properties = append(stmt.Properties, props...)
 		case kwSCHEDULE:
 			schedule, err := p.parseTaskSchedule()

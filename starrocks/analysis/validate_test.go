@@ -154,6 +154,10 @@ func TestDescribeExplain(t *testing.T) {
 	if !ok || format != "VERBOSE" || executed {
 		t.Errorf("EXPLAIN VERBOSE = (%q, %v, %v), want (VERBOSE, false, true)", format, executed, ok)
 	}
+	format, executed, ok = DescribeExplain("TRACE ALL SELECT 1")
+	if !ok || format != "TRACE" || executed {
+		t.Errorf("TRACE = (%q, %v, %v), want (TRACE, false, true)", format, executed, ok)
+	}
 }
 
 // A buffer that cannot lex is not read-only anything: the chunk it sits in
