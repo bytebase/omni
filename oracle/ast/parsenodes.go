@@ -3320,7 +3320,8 @@ type AlterMaterializedViewStmt struct {
 	DeallocateKeep   string // KEEP size
 
 	// EVALUATE USING EDITION
-	EditionName string // edition name
+	EditionName   string // edition name
+	ConsiderFresh bool   // CONSIDER FRESH after the edition
 
 	// ANNOTATIONS operations
 	Annotations *List // annotations_clause operations, one *DDLOption each

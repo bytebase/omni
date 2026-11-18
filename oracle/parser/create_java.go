@@ -273,8 +273,10 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 		p.advance() // consume BFILE
 		p.advance() // consume (
 		dir := ""
+		dirLoc := nodes.Loc{Start: -1, End: -1}
 		if p.isCreateTableNameStart() {
 			dir = p.cur.Str
+			dirLoc = nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 			p.advance()
 		}
 		if err := p.expectCreateTableToken(','); err != nil {
@@ -284,11 +286,12 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 			return p.syntaxErrorAtCur()
 		}
 		file := p.cur.Str
+		fileLoc := nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 		p.advance()
 		if err := p.expectCreateTableToken(')'); err != nil {
 			return err
 		}
-		addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.String{Str: dir}, &nodes.String{Str: file}}})
+		addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: dir, Loc: dirLoc}, &nodes.StringLiteral{Val: file, Loc: fileLoc}}})
 	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"), p.isKeywordStr("BFILE"):
 		kind := p.cur.Str
 		p.advance()
@@ -303,6 +306,7 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 			// parentheses is accepted too (compat.tsv's USING BFILE a, 's')
 			// row).
 			dir := p.cur.Str
+			dirLoc := nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 			p.advance()
 			if err := p.expectCreateTableToken(','); err != nil {
 				return err
@@ -311,11 +315,12 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 				return p.syntaxErrorAtCur()
 			}
 			file := p.cur.Str
+			fileLoc := nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 			p.advance()
 			if err := p.expectCreateTableToken(')'); err != nil {
 				return err
 			}
-			addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.String{Str: dir}, &nodes.String{Str: file}}})
+			addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: dir, Loc: dirLoc}, &nodes.StringLiteral{Val: file, Loc: fileLoc}}})
 			return nil
 		}
 		if p.isIdentLike() && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
