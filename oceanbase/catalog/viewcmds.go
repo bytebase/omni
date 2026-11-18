@@ -140,6 +140,59 @@ func (c *Catalog) materializedViewLogTarget(ref *nodes.TableRef) error {
 	return nil
 }
 
+// createMaterializedViewLog applies CREATE MATERIALIZED VIEW LOG. The log
+// itself is not modeled, but its base table must exist and a second log of the
+// table is refused unless the statement says OR REPLACE.
+func (c *Catalog) createMaterializedViewLog(stmt *nodes.CreateMaterializedViewLogStmt) error {
+	if err := c.materializedViewLogTarget(stmt.Table); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Table.Name)
+	if db.MaterializedViewLogs[key] && !stmt.OrReplace {
+		return errDupTable(stmt.Table.Name)
+	}
+	db.MaterializedViewLogs[key] = true
+	return nil
+}
+
+// alterMaterializedViewLog applies ALTER MATERIALIZED VIEW LOG, which needs a
+// log of the base table.
+func (c *Catalog) alterMaterializedViewLog(stmt *nodes.AlterMaterializedViewLogStmt) error {
+	if err := c.materializedViewLogTarget(stmt.Table); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	if !db.MaterializedViewLogs[toLower(stmt.Table.Name)] {
+		return errUnknownTable(db.Name, stmt.Table.Name)
+	}
+	return nil
+}
+
+// dropMaterializedViewLog applies DROP MATERIALIZED VIEW LOG, which needs a
+// log of the base table.
+func (c *Catalog) dropMaterializedViewLog(stmt *nodes.DropMaterializedViewLogStmt) error {
+	if err := c.materializedViewLogTarget(stmt.Table); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Table.Name)
+	if !db.MaterializedViewLogs[key] {
+		return errUnknownTable(db.Name, stmt.Table.Name)
+	}
+	delete(db.MaterializedViewLogs, key)
+	return nil
+}
+
 // alterMaterializedView applies ALTER MATERIALIZED VIEW. Its actions refresh,
 // re-compile or toggle rewrite, which change no query the catalog holds, but
 // the target must be a materialized view the catalog has.

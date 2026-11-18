@@ -117,6 +117,17 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	return true
 }
 
+// materializedViewLog follows a materialized view log statement to its base
+// table. The walk models no log itself, but every form requires the table to
+// exist and be a base table.
+func (b *builder) materializedViewLog(tr *ast.TableRef) bool {
+	_, ok, lowered := b.tableOf(tr)
+	if !ok {
+		return lowered
+	}
+	return true
+}
+
 // createMaterializedView follows CREATE MATERIALIZED VIEW. The walk models a
 // materialized view as a relation of no kind, as a snapshot's own materialized
 // views are (walk_snapshot.go); it does not follow the view's body or its

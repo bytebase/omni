@@ -44,10 +44,12 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.alterMaterializedView(v)
 	case *ast.DropViewStmt:
 		return b.dropView(v)
-	case *ast.CreateMaterializedViewLogStmt, *ast.AlterMaterializedViewLogStmt, *ast.DropMaterializedViewLogStmt:
-		// The walk models no materialized view log, and none of these changes a
-		// name it keeps.
-		return true
+	case *ast.CreateMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table)
+	case *ast.AlterMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table)
+	case *ast.DropMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.DropTriggerStmt:
@@ -166,6 +168,11 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 func (b *builder) clearDatabase(d string) {
 	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
+	}
+	for k := range b.w.materialized {
+		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+			delete(b.w.materialized, k)
+		}
 	}
 }
 

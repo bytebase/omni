@@ -238,11 +238,11 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.AlterMaterializedViewStmt:
 		return c.alterMaterializedView(s)
 	case *nodes.CreateMaterializedViewLogStmt:
-		return c.materializedViewLogTarget(s.Table)
+		return c.createMaterializedViewLog(s)
 	case *nodes.AlterMaterializedViewLogStmt:
-		return c.materializedViewLogTarget(s.Table)
+		return c.alterMaterializedViewLog(s)
 	case *nodes.DropMaterializedViewLogStmt:
-		return c.materializedViewLogTarget(s.Table)
+		return c.dropMaterializedViewLog(s)
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:
