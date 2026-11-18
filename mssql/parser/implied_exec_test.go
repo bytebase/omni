@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -117,6 +118,11 @@ func TestImpliedExecStmtBatchStart(t *testing.T) {
 		"my_proc; EXEC p @x = 1",
 		"my_proc; SELECT @@ROWCOUNT",
 		"my_proc PRINT '@a'",
+		// A statement whose keyword is no argument.
+		"my_proc COMMIT",
+		"my_proc CHECKPOINT",
+		"my_proc BACKUP DATABASE a TO DISK = 'x'",
+		"my_proc TRUNCATE TABLE a",
 	} {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v, want accepted", sql, err)
@@ -138,6 +144,10 @@ func TestImpliedExecStmtBatchStart(t *testing.T) {
 		"my_proc; SELECT @a",
 		"my_proc FETCH c INTO @a",
 		"my_proc; SET @a = 1; DECLARE @a INT",
+		// The parameter's name is no variable; its value may use one.
+		"my_proc @p = @p",
+		// A declaration is visible only after its @name.
+		"my_proc IF 1 = 1 BEGIN SELECT @a; DECLARE @a INT END",
 		// More than four parts are no procedure name.
 		"a.b.c.d.e",
 		"a.b.c.d.e 1",
@@ -160,18 +170,31 @@ func TestImpliedExecStmtBatchStart(t *testing.T) {
 
 // TestImpliedExecCompletion holds completion after a call by name to
 // completion after the same call with EXEC: the call is the batch's first
-// statement, and Collect reads it as one.
+// statement, and Collect reads it as one, down to the procedure references it
+// offers on the name and after a dot.
 func TestImpliedExecCompletion(t *testing.T) {
 	for _, tt := range []struct{ exec, implied string }{
+		{"EXEC foo", "foo"},
+		{"EXEC dbo.", "dbo."},
 		{"EXEC foo @p = ", "foo @p = "},
 		{"EXEC foo 1, @p = ", "foo 1, @p = "},
 		{"EXEC foo ", "foo "},
 	} {
 		exec, implied := Collect(tt.exec, len(tt.exec)), Collect(tt.implied, len(tt.implied))
-		if len(implied.Rules) != len(exec.Rules) || len(implied.Tokens) != len(exec.Tokens) {
-			t.Errorf("Collect(%q) = %d tokens, %d rules; Collect(%q) = %d tokens, %d rules",
-				tt.implied, len(implied.Tokens), len(implied.Rules),
-				tt.exec, len(exec.Tokens), len(exec.Rules))
+		if got, want := ruleNames(implied.Rules), ruleNames(exec.Rules); !slices.Equal(got, want) {
+			t.Errorf("Collect(%q) rules = %v, Collect(%q) = %v", tt.implied, got, tt.exec, want)
+		}
+		if len(implied.Tokens) != len(exec.Tokens) {
+			t.Errorf("Collect(%q) = %d tokens, Collect(%q) = %d", tt.implied, len(implied.Tokens), tt.exec, len(exec.Tokens))
 		}
 	}
+}
+
+// ruleNames names the rules of a candidate set, in order.
+func ruleNames(rules []RuleCandidate) []string {
+	names := make([]string, len(rules))
+	for i, rule := range rules {
+		names[i] = rule.Rule
+	}
+	return names
 }

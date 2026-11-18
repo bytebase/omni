@@ -900,7 +900,7 @@ func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 		return nil, err
 	}
 	class := p.alterAuthorizationClass()
-	parts, err := p.parseMultiPartIdentifier()
+	parts, err := p.parseMultiPartIdentifier("")
 	if err != nil {
 		return nil, err
 	}

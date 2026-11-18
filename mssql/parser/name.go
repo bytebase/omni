@@ -149,9 +149,12 @@ func assignObjectRefParts(ref *nodes.TableRef, parts []string) {
 // "The procedure name 'a.b.c.d.e' contains more than the maximum number of
 // prefixes. The maximum is 3." — for an EXEC, for a call by name and for
 // ALTER AUTHORIZATION's securable alike (measured on the pinned server).
+//
+// completionRule is what completion offers after a dot, as parseObjectRef
+// does; "" offers nothing.
 const maxNameParts = 4
 
-func (p *Parser) parseMultiPartIdentifier() ([]string, error) {
+func (p *Parser) parseMultiPartIdentifier(completionRule string) ([]string, error) {
 	var parts []string
 	for i := 0; ; i++ {
 		dots := 0
@@ -161,6 +164,10 @@ func (p *Parser) parseMultiPartIdentifier() ([]string, error) {
 		}
 		if i > 0 && dots == 0 {
 			return parts, nil
+		}
+		if completionRule != "" && p.collectMode() {
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
 		}
 		empties := dots
 		if i > 0 {
@@ -177,6 +184,11 @@ func (p *Parser) parseMultiPartIdentifier() ([]string, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		parts = append(parts, id)
+		if completionRule != "" && i == 0 && p.collectMode() && p.cursorOff <= p.prev.End {
+			// The cursor ends the first part: a qualified name may follow.
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
+		}
 	}
 }
 

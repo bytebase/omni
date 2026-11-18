@@ -36,7 +36,7 @@ func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
 	// procNumOpt. The name may start with dots, as `.a` does. execProc's other
 	// form, varObjectReference (TSql160.g:26342), names a variable, which a
 	// batch beginning here cannot declare: SQL Server reports 137 for it.
-	parts, err := p.parseMultiPartIdentifier()
+	parts, err := p.parseMultiPartIdentifier("proc_ref")
 	if err != nil {
 		return nil, err
 	}
@@ -88,15 +88,20 @@ func (p *Parser) isImpliedExecName() bool {
 	return true
 }
 
-// impliedExecHasParams reports whether the current token can begin the
-// setParamList of a procedure called by name, the way parseExecStmt reads the
-// arguments of EXEC.
+// impliedExecHasParams reports whether the current token begins the
+// setParamList of a procedure called by name: a setParam begins with a value
+// (possibleNegativeConstantOrIdentifier, TSql160.g:5186), DEFAULT, or the
+// variable of `@p = value`, and any other token starts a statement, which
+// parseStmt reads — COMMIT, CHECKPOINT and BACKUP among them, which
+// isStatementStart does not name. A word is an identifier to ScriptDOM unless
+// it is one of its keywords, so omni's identifier-like tokens begin a value.
 func (p *Parser) impliedExecHasParams() bool {
 	switch p.cur.Type {
-	case tokEOF, ';', ')', kwGO, kwEND:
-		return false
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokMONEY, kwNULL, kwDEFAULT,
+		tokVARIABLE, tokSYSVARIABLE, '-':
+		return true
 	}
-	return !p.isStatementStart()
+	return p.isIdentLike()
 }
 
 // parseExecStmt parses an EXEC/EXECUTE statement.

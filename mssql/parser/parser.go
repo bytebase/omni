@@ -88,7 +88,7 @@ func Parse(sql string) (*nodes.List, error) {
 	// declared holds the variables that batch declares so far.
 	batchStart := true
 	impliedBatch := false
-	declared := map[string]bool{}
+	declared := map[string]int{}
 	for p.cur.Type != tokEOF {
 		// Skip semicolons. A batch's first statement may not follow one: SQL
 		// Server refuses `; my_proc` (Msg 102), so the name is no longer the
@@ -125,15 +125,17 @@ func Parse(sql string) (*nodes.List, error) {
 		if first {
 			e, ok := stmt.(*nodes.ExecStmt)
 			impliedBatch = ok && e.Implied
-			declared = map[string]bool{}
+			declared = map[string]int{}
 		}
+		if treeTooHigh(stmt, p.prev.End-stmtStart) {
+			return nil, nestedTooDeeply(stmtStart)
+		}
+		// After the height check: the read below walks the tree (AGENTS.md,
+		// "No input overflows the stack").
 		if impliedBatch {
 			if name, at := p.impliedBatchVariable(stmt, stmtStart, p.prev.End, declared); name != "" {
 				return nil, p.newParseError(at, "Must declare the scalar variable \""+name+"\".")
 			}
-		}
-		if treeTooHigh(stmt, p.prev.End-stmtStart) {
-			return nil, nestedTooDeeply(stmtStart)
 		}
 		_, batchStart = stmt.(*nodes.GoStmt)
 		if batchStart {
@@ -150,7 +152,7 @@ func Parse(sql string) (*nodes.List, error) {
 }
 
 // impliedBatchVariable records the variables stmt declares and returns the
-// first it uses that its batch has not declared, with its offset.
+// first it uses that its batch has not declared before it, with its offset.
 //
 // SQL Server's parser reports Msg 137 ("Must declare the scalar variable") for
 // a batch that uses a variable it does not declare, and a batch beginning with
@@ -162,12 +164,14 @@ func Parse(sql string) (*nodes.List, error) {
 // declaration that would take the call's place as the batch's first
 // statement. Every other batch is read as written, variable or not.
 //
-// A DECLARE declares a variable, and an EXEC's `@p = ...` names a parameter
-// rather than using a variable; every other @name a statement holds is a use,
-// which a token read of the statement finds whether the AST carries it as a
-// node or as a field (SET @a = ..., FETCH ... INTO @a, ...).
-func (p *Parser) impliedBatchVariable(stmt nodes.Node, start, end int, declared map[string]bool) (string, int) {
-	names := map[string]bool{}
+// A DECLARE declares a variable where its @name is, so a use before it in the
+// same statement is still undeclared, and an EXEC's `@p = ...` names a
+// parameter at its own @p rather than using a variable: `@p = @p` names the
+// first and uses the second. Every other @name is a use, which a token read of
+// the statement finds whether the AST carries it as a node (VariableRef) or as
+// a field (SET @a = ..., FETCH ... INTO @a, ...).
+func (p *Parser) impliedBatchVariable(stmt nodes.Node, start, end int, declared map[string]int) (string, int) {
+	names := map[int]bool{}
 	nodes.Inspect(stmt, func(n nodes.Node) bool {
 		switch v := n.(type) {
 		case *nodes.DeclareStmt:
@@ -175,13 +179,18 @@ func (p *Parser) impliedBatchVariable(stmt nodes.Node, start, end int, declared 
 				return true
 			}
 			for _, item := range v.Variables.Items {
-				if decl, ok := item.(*nodes.VariableDecl); ok {
-					declared[strings.ToLower(decl.Name)] = true
+				decl, ok := item.(*nodes.VariableDecl)
+				if !ok {
+					continue
+				}
+				name := strings.ToLower(decl.Name)
+				if at, seen := declared[name]; !seen || decl.Loc.Start < at {
+					declared[name] = decl.Loc.Start
 				}
 			}
 		case *nodes.ExecArg:
 			if v.Name != "" {
-				names[strings.ToLower(v.Name)] = true
+				names[v.Loc.Start] = true
 			}
 		}
 		return true
@@ -198,9 +207,15 @@ func (p *Parser) impliedBatchVariable(stmt nodes.Node, start, end int, declared 
 		if tok.Type != tokVARIABLE {
 			continue
 		}
-		if name := strings.ToLower(tok.Str); !declared[name] && !names[name] {
-			return tok.Str, start + tok.Loc
+		at := start + tok.Loc
+		if names[at] {
+			continue
 		}
+		// The declaration's own @name is no use of the variable.
+		if declaredAt, ok := declared[strings.ToLower(tok.Str)]; ok && declaredAt <= at {
+			continue
+		}
+		return tok.Str, at
 	}
 }
 
@@ -295,8 +310,14 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// Completion: when in collect mode, offer all top-level statement keywords.
+	// Completion: when in collect mode, offer all top-level statement keywords,
+	// or a procedure's name when the cursor is on one that begins a batch:
+	// that is where a call by name stands (optSimpleExecute, TSql160.g:567).
 	if p.collectMode() {
+		if batchStart && p.isImpliedExecName() {
+			p.addRuleCandidate("proc_ref")
+			return nil, errCollecting
+		}
 		for _, t := range topLevelKeywords {
 			p.addTokenCandidate(t)
 		}
