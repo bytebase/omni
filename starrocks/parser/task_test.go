@@ -27,6 +27,8 @@ func TestSubmitTask(t *testing.T) {
 		{"SUBMIT TASK AS INSERT INTO t VERSION AS OF branch SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO t PARTITION p SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO t PARTITIONS 'p' SELECT 1", "", 0, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK AS INSERT INTO t(c) (SELECT 1)", "", 0, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK AS INSERT INTO t(c) TRACE ALL SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO a SELECT 1 UNION (SELECT 2) INTO OUTFILE 'x'", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK SCHEDULE START('20260101') EVERY(INTERVAL 10 SECOND) AS INSERT INTO a SELECT 1", "", 0,
 			&ast.TaskSchedule{Start: "20260101", Interval: "10", Unit: "SECOND"}, ast.T_InsertStmt},

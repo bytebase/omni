@@ -371,8 +371,10 @@ func (p *Parser) tryParseColumnList() ([]string, bool, error) {
 		return nil, false, err
 	}
 
-	// After a column list we expect VALUES, SELECT, or WITH.
-	if p.cur.Kind == kwVALUES || p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+	// After a column list comes VALUES or a queryStatement, including its
+	// query prefix and a parenthesized query.
+	switch p.cur.Kind {
+	case kwVALUES, kwSELECT, kwWITH, kwTRACE, kwEXPLAIN, kwDESC, kwDESCRIBE, int('('):
 		return cols, true, nil
 	}
 
