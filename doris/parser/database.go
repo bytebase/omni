@@ -233,6 +233,25 @@ func (p *Parser) parsePropertyItems(parseItem func() (*ast.Property, error)) ([]
 	return props, nil
 }
 
+// parseFullProperties parses PROPERTIES(...) with the grammar's own item, for
+// the clause the engine reads that way (propertyClause,
+// DorisParser.g4:1377-1379):
+//
+//	PROPERTIES LEFT_PAREN propertyItemList RIGHT_PAREN
+//
+// EXPORT TABLE's list takes (a = a) as well as ("a" = "a") there, where most
+// clauses' lists hold only a string pair (container-verified). cur must be
+// kwPROPERTIES on entry; it is consumed here.
+func (p *Parser) parseFullProperties() ([]*ast.Property, error) {
+	p.advance() // consume PROPERTIES
+
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+
+	return p.parsePropertyItems(p.parsePropertyItem)
+}
+
 // parseStringProperty reads one "key"="value" item, both sides string
 // literals. This is the common propertyItem: the engine's own propertyKey and
 // propertyValue are `identifier | constant`, which is wider, but widening it
