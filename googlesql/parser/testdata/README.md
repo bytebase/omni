@@ -15,8 +15,8 @@ GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 1,509 | 706 | 399 |
-| Near-misses | 6,223 | 4,986 | 1,162 | 75 |
+| One per alternative | 2,614 | 1,533 | 682 | 399 |
+| Near-misses | 6,223 | 5,027 | 1,162 | 34 |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
