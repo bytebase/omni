@@ -85,6 +85,22 @@ func SplitAll(input string) []Segment {
 	// block: one token for most followers, two for BEGIN WITH LABEL (WITH
 	// alone could open a block whose first statement is a CTE). Use a small
 	// buffered queue.
+	//
+	// Hints (/*+ ... */) are read past, as the parser reads past them
+	// (parser.nextToken): they hold no syntax, so they decide no boundary.
+	nextRaw := func() Token {
+		tok := l.NextToken()
+		for tok.Kind == tokHintStart {
+			for tok.Kind != tokHintEnd && tok.Kind != tokEOF {
+				tok = l.NextToken()
+			}
+			if tok.Kind == tokEOF {
+				return tok
+			}
+			tok = l.NextToken()
+		}
+		return tok
+	}
 	var pending []Token
 	nextToken := func() Token {
 		if len(pending) > 0 {
@@ -92,17 +108,17 @@ func SplitAll(input string) []Segment {
 			pending = pending[1:]
 			return t
 		}
-		return l.NextToken()
+		return nextRaw()
 	}
 	peekToken := func() Token {
 		if len(pending) == 0 {
-			pending = append(pending, l.NextToken())
+			pending = append(pending, nextRaw())
 		}
 		return pending[0]
 	}
 	peekToken2 := func() Token {
 		for len(pending) < 2 {
-			pending = append(pending, l.NextToken())
+			pending = append(pending, nextRaw())
 		}
 		return pending[1]
 	}

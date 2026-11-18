@@ -211,6 +211,15 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 	return Token{}, p.syntaxErrorAtCur()
 }
 
+// textBetween returns the source text between two byte offsets, or "" for
+// offsets outside the text the parser was given.
+func (p *Parser) textBetween(start, end int) string {
+	if start < p.baseOffset || end < start || end > len(p.input)+p.baseOffset {
+		return ""
+	}
+	return p.input[start-p.baseOffset : end-p.baseOffset]
+}
+
 // syntaxErrorAtCur returns a *ParseError describing a syntax error at
 // the current token position.
 func (p *Parser) syntaxErrorAtCur() *ParseError {

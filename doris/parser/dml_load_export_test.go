@@ -256,6 +256,23 @@ func TestCopyIntoStageAndSelect(t *testing.T) {
 	}
 }
 
+// Stage keeps the source's spelling, so the tilde and a quoted identifier that
+// spells one are told apart, and a quoted name keeps its backticks.
+func TestCopyIntoStageSpelling(t *testing.T) {
+	tests := []struct{ sql, stage string }{
+		{"COPY INTO t FROM @~", "@~"},
+		{"COPY INTO t FROM @`~`", "@`~`"},
+		{"COPY INTO t FROM @stage", "@stage"},
+		{"COPY INTO t FROM @`a.b`", "@`a.b`"},
+	}
+	for _, tc := range tests {
+		stmt := mustParseCopyInto(t, tc.sql)
+		if stmt.Stage != tc.stage {
+			t.Errorf("Parse(%q): Stage = %q, want %q", tc.sql, stmt.Stage, tc.stage)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // LOAD tests
 // ---------------------------------------------------------------------------

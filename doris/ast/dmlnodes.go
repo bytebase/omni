@@ -202,7 +202,7 @@ var _ Node = (*TruncateTableStmt)(nil)
 type CopyIntoStmt struct {
 	Target      *ObjectName   // destination table
 	Columns     []string      // optional column list, COPY INTO t(c1, c2)
-	Stage       string        // the stage as written: "@stage" or "@~"
+	Stage       string        // the stage as written: "@stage", "@`stage`" or "@~"
 	Pattern     string        // the glob of @stage('glob'), or ""
 	SelectItems []*SelectItem // the query's select list, for (SELECT ... FROM @stage)
 	Where       Node          // the query's WHERE, or nil

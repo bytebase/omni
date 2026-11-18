@@ -179,24 +179,22 @@ func (p *Parser) parseCopySelectList() ([]*ast.SelectItem, error) {
 //
 //	ATSIGN (stage=identifier | TILDE) (LEFT_PAREN pattern=STRING_LITERAL RIGHT_PAREN)?
 //
-// returning the stage as written ("@stage" or "@~") and the glob it takes,
-// or "" for one without a pattern. cur must be on the '@'.
+// returning the stage as written — "@stage", "@`stage`", "@~" — and the glob it
+// takes, or "" for one without a pattern. The text is the source's, so a quoted
+// stage name stays distinguishable from the tilde: @`~` names a stage, @~ is
+// the user stage. cur must be on the '@'.
 func (p *Parser) parseCopyStage() (stage, pattern string, err error) {
 	if p.cur.Kind != int('@') {
 		return "", "", p.syntaxErrorAtCur()
 	}
-	p.advance() // consume '@'
+	at := p.advance() // consume '@'
 
 	if p.cur.Kind == int('~') {
 		p.advance()
-		stage = "@~"
-	} else {
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return "", "", err
-		}
-		stage = "@" + name
+	} else if _, _, err := p.parseIdentifier(); err != nil {
+		return "", "", err
 	}
+	stage = p.textBetween(at.Loc.Start, p.prev.Loc.End)
 
 	if p.cur.Kind == int('(') {
 		p.advance() // consume '('

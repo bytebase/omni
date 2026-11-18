@@ -216,6 +216,9 @@ func TestProcedureTextFollowsSplit(t *testing.T) {
 		"ALTER PROCEDURE a(BEGIN x); SELECT 1;",
 		// The `.*?` closes at the first ')', so a '(' inside it nests nothing.
 		"ALTER PROCEDURE a((x); SELECT 1;",
+		// A hint span is read past here as the parser reads past it.
+		"/*+ hint */ CREATE PROCEDURE a(x;y); SELECT 1;",
+		"CREATE PROCEDURE /*+ hint */ a(x;y); SELECT 1;",
 	} {
 		segments := Split(sql)
 		if len(segments) == 0 {

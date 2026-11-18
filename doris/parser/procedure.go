@@ -233,14 +233,6 @@ func (p *Parser) beginOpensCompoundBlock() bool {
 	return !labelled
 }
 
-// textBetween returns the source text between two byte offsets.
-func (p *Parser) textBetween(start, end int) string {
-	if start < p.baseOffset || end < start || end > len(p.input)+p.baseOffset {
-		return ""
-	}
-	return p.input[start-p.baseOffset : end-p.baseOffset]
-}
-
 // parseProcedureParams parses a non-empty comma-separated list of procedure
 // parameters. Called after '(' has been consumed and ')' has not yet been seen.
 func (p *Parser) parseProcedureParams() ([]*ast.ProcedureParam, error) {
