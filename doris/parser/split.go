@@ -270,12 +270,13 @@ func (b *blockFrame) step(kind TokenKind, follower Token) bool {
 			return false
 		}
 	}
+	// A qualified name is a field: SELECT t.case, t.begin and t.end from t name
+	// columns, and open and close nothing.
+	if b.prev == int('.') {
+		return false
+	}
 	switch kind {
 	case kwCASE:
-		if b.prev == int('.') {
-			// A qualified name: SELECT t.case FROM t names a field.
-			return false
-		}
 		b.stack = append(b.stack, blockCase)
 	case kwBEGIN:
 		b.stack = append(b.stack, blockBegin)
