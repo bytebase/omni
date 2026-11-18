@@ -253,8 +253,9 @@ type blockFrame struct {
 type blockConstruct int
 
 const (
-	blockBegin blockConstruct = iota
-	blockCase
+	blockBegin    blockConstruct = iota
+	blockCaseStmt                // CASE ... END CASE, a statement
+	blockCaseExpr                // CASE ... END, an expression
 )
 
 // open starts the frame on the BEGIN the caller has read.
@@ -286,7 +287,11 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 	}
 	switch kind {
 	case kwCASE:
-		b.stack = append(b.stack, blockCase)
+		if b.startsStatement() {
+			b.stack = append(b.stack, blockCaseStmt)
+		} else {
+			b.stack = append(b.stack, blockCaseExpr)
+		}
 	case kwBEGIN:
 		if b.startsStatement() {
 			b.stack = append(b.stack, blockBegin)
@@ -299,18 +304,20 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			b.endCase = true
 			return b.empty()
 		}
-		if isControlFlowEndFollower(follower) {
-			// END IF, END LOOP and their kin close their own statement, which
-			// the frame never opened — even inside an open CASE.
-			return false
-		}
-		if b.top() == blockCase {
-			// An expression's END closes the CASE wherever it stands.
+		if b.top() == blockCaseExpr {
+			// An expression's END closes it wherever it stands; a word after it
+			// is the item's alias (SELECT CASE WHEN 1 THEN 2 END loop).
 			b.pop()
 			return b.empty()
 		}
+		if isControlFlowEndFollower(follower) {
+			// END IF, END LOOP and their kin close their own statement, which
+			// the frame never opened.
+			return false
+		}
 		if !b.startsStatement() {
-			// An END that names a column (SELECT end FROM t) closes nothing.
+			// An END that names a column (SELECT end FROM t, even inside a CASE
+			// branch) closes nothing.
 			return false
 		}
 		b.pop()
