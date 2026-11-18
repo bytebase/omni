@@ -1405,10 +1405,17 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			OnDelete:    refActionToString(con.OnDelete),
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
-		// Validate FK before adding (unless foreign_key_checks=0).
+		// Validate FK before adding (unless foreign_key_checks=0). A
+		// self-reference reads the table's pre-statement indexes, not one an
+		// earlier command of this ALTER adds: mariadb:11.8.8 answers 1005 for
+		// `ADD KEY k(x), ADD FOREIGN KEY (x) REFERENCES a(x), ADD COLUMN z INT`.
 		db := tbl.Database
+		fkTbl := keyTbl
+		if prospective != nil && prospective != tbl {
+			fkTbl = prospective
+		}
 		if c.foreignKeyChecks {
-			if err := c.validateSingleFK(db, keyTbl, fkCon); err != nil {
+			if err := c.validateSingleFK(db, fkTbl, fkCon); err != nil {
 				return err
 			}
 		}
