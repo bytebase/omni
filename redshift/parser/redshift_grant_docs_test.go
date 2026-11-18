@@ -57,6 +57,13 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		}
 	}
 
+	// A grantee's range ends at its own name: the option is the statement's.
+	optSQL := "GRANT ALTER ON DATASHARE d TO alice WITH GRANT OPTION"
+	opt := singleStmt(t, optSQL).(*nodes.GrantStmt)
+	if rs := opt.Grantees.Items[0].(*nodes.RoleSpec); optSQL[rs.Loc.Start:rs.Loc.End] != "alice" {
+		t.Errorf("%q: grantee range = %q, want alice", optSQL, optSQL[rs.Loc.Start:rs.Loc.End])
+	}
+
 	// WITH GRANT OPTION follows a username, and the AST holds one option for the
 	// statement, so it ends the grantee list.
 	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE d TO ROLE r, a WITH GRANT OPTION").(*nodes.GrantStmt); !grant.GrantOption {

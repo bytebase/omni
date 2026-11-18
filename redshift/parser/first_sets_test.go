@@ -208,3 +208,23 @@ func TestIsRedshiftMultiwordTypenameStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftDatashareGranteeStart holds the predicate to the tokens it
+// reads: the unquoted word DATASHARE and a name after it.
+func TestIsRedshiftDatashareGranteeStart(t *testing.T) {
+	newGranteeParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance()
+		return p
+	}
+	for _, sql := range []string{"datashare d", "DATASHARE sales_share"} {
+		if !newGranteeParser(sql).isRedshiftDatashareGranteeStart() {
+			t.Errorf("isRedshiftDatashareGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"datashare", "datashare, d", `"datashare" d`, "role d", "a.b d"} {
+		if newGranteeParser(sql).isRedshiftDatashareGranteeStart() {
+			t.Errorf("isRedshiftDatashareGranteeStart(%q) = true, want false", sql)
+		}
+	}
+}

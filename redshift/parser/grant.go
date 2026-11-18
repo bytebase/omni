@@ -828,7 +828,7 @@ func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.
 		list, err := p.parseRedshiftPlainGranteeList()
 		return list, false, err
 	}
-	if allowDatashare && p.redshiftProcedureDatashareGrantee(objtype, objects, privs) {
+	if allowDatashare && p.isRedshiftDatashareGranteeStart() && redshiftProcedureDatashareTarget(objtype, objects, privs) {
 		list, err := p.parseRedshiftDatashareGrantee()
 		return list, true, err
 	}
@@ -851,6 +851,7 @@ func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List,
 	for {
 		loc := p.pos()
 		var grantee *nodes.RoleSpec
+		username := false
 		switch {
 		case p.cur.Type == ROLE && isColIdToken(p.peekNext()):
 			p.advance()
@@ -875,22 +876,25 @@ func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List,
 				return nil, false, err
 			}
 			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name}
-			if allowOption && p.cur.Type == WITH {
-				p.advance()
-				if _, err := p.expect(GRANT); err != nil {
-					return nil, false, err
-				}
-				if _, err := p.expect(OPTION); err != nil {
-					return nil, false, err
-				}
-				withGrantOption = true
-				if p.cur.Type == ',' {
-					return nil, false, p.syntaxErrorAtCur()
-				}
-			}
+			username = true
 		}
+		// The grantee ends at its own last token: the option is the statement's,
+		// not part of the name.
 		grantee.Loc = nodes.Loc{Start: loc, End: p.prev.End}
 		result.Items = append(result.Items, grantee)
+		if allowOption && username && p.cur.Type == WITH {
+			p.advance()
+			if _, err := p.expect(GRANT); err != nil {
+				return nil, false, err
+			}
+			if _, err := p.expect(OPTION); err != nil {
+				return nil, false, err
+			}
+			withGrantOption = true
+			if p.cur.Type == ',' {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+		}
 		if p.cur.Type != ',' {
 			return result, withGrantOption, nil
 		}
@@ -898,11 +902,11 @@ func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List,
 	}
 }
 
-// redshiftProcedureDatashareGrantee reports whether the grantees are
-// r_GRANT's and r_REVOKE's TO DATASHARE datashare_name, whose target is one
-// procedure with its argument list. DATASHARE alone is a grantee of that
-// spelling.
-func (p *Parser) redshiftProcedureDatashareGrantee(objtype nodes.ObjectType, objects, privs *nodes.List) bool {
+// redshiftProcedureDatashareTarget reports whether r_GRANT's and r_REVOKE's
+// procedure-to-datashare alternative is the one that fits: one procedure with
+// its argument list, and EXECUTE. The grantee itself is
+// isRedshiftDatashareGranteeStart's.
+func redshiftProcedureDatashareTarget(objtype nodes.ObjectType, objects, privs *nodes.List) bool {
 	if objtype != nodes.OBJECT_PROCEDURE || !redshiftPrivilegeIs(privs, "execute") {
 		return false
 	}
@@ -910,10 +914,7 @@ func (p *Parser) redshiftProcedureDatashareGrantee(objtype nodes.ObjectType, obj
 		return false
 	}
 	owa, ok := objects.Items[0].(*nodes.ObjectWithArgs)
-	if !ok || owa.Objargs == nil {
-		return false
-	}
-	return p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext())
+	return ok && owa.Objargs != nil
 }
 
 // parseRedshiftIAMRoleGrantees parses the grantees of r_GRANT's and r_REVOKE's
