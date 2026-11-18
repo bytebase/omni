@@ -769,6 +769,7 @@ type futureColumn struct {
 	def         *nodes.ColumnDef // ADD, MODIFY or CHANGE's new definition
 	from        string           // CHANGE's source column; empty for MODIFY/ADD
 	ifNotExists bool             // ADD COLUMN IF NOT EXISTS
+	add         bool             // ADD, not MODIFY or CHANGE
 }
 
 // alterFutureColumnsAfter returns the columns the commands after cmds[at]
@@ -783,11 +784,11 @@ func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int) []futureColumn
 		switch later.Type {
 		case nodes.ATAddColumn:
 			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists})
+				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists, add: true})
 			}
 			for _, def := range later.Columns {
 				if def != nil {
-					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists})
+					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists, add: true})
 				}
 			}
 		case nodes.ATModifyColumn:
@@ -822,7 +823,9 @@ func applyFutureColumns(tbl *Table, changes []futureColumn) {
 			}
 		}
 		if at, ok := tbl.colByName[toLower(ch.def.Name)]; ok {
-			if ch.ifNotExists {
+			// A later duplicate ADD is 1060 when the statement runs; it must
+			// not replace the definition the key is judged against.
+			if ch.add {
 				continue
 			}
 			col := buildColumnFromDef(tbl, ch.def)

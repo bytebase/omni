@@ -117,6 +117,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1128,
 		},
 		{
+			name:  "two later ADD COLUMN clauses of one name",
+			setup: []string{"CREATE TABLE a (x INT)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL KEY(b), ADD b POINT NOT NULL, ADD b POINT",
+			code:  1060,
+		},
+		{
 			name:  "two VECTOR keys beside an added column",
 			setup: []string{"CREATE TABLE a (v VECTOR(3) NOT NULL)"},
 			stmt:  "ALTER TABLE a ADD VECTOR i(v), ADD VECTOR j(v), ADD COLUMN x INT",

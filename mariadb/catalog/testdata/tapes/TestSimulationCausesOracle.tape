@@ -292,6 +292,25 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
+| CREATE TABLE a (x INT)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(b), ADD b POINT NOT NULL, ADD b POINT
+< error
+| 1060 42S21 Duplicate column name 'b'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
 | CREATE TABLE a (v VECTOR(3) NOT NULL)
 < ok 0 0
 > exec
