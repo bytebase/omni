@@ -46,6 +46,8 @@ func TestFunctionExpressionGaps(t *testing.T) {
 		"SELECT TOP_K_FRE_HIST() OVER a",
 		"SELECT HYBRID_HIST(a) OVER a",
 		"SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a, b) OVER a",
+		"SELECT TOP_K_FRE_HIST(1.5, a, b, 's') OVER w",
+		"SELECT HYBRID_HIST(a, b) OVER w",
 	}
 	for _, sql := range accept {
 		if _, err := Parse(sql); err != nil {
@@ -62,7 +64,7 @@ func TestFunctionExpressionGaps(t *testing.T) {
 // TestFunctionExpressionGapTrees pins the shapes those forms build.
 func TestFunctionExpressionGapTrees(t *testing.T) {
 	fc := firstFuncCall(t, "SELECT COUNT(UNIQUE a)")
-	if fc.Quantifier != nodes.AggQuantDistinct || len(fc.Args) != 1 {
+	if fc.Quantifier != nodes.AggQuantUnique || len(fc.Args) != 1 {
 		t.Errorf("COUNT(UNIQUE a): quantifier %v, %d args", fc.Quantifier, len(fc.Args))
 	}
 

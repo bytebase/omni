@@ -93,7 +93,7 @@ func (p *Parser) parseAggQuantifier(allowed quantSet) (nodes.AggQuantifier, erro
 			return nodes.AggQuantNone, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		return nodes.AggQuantDistinct, nil
+		return nodes.AggQuantUnique, nil
 	case kwDISTINCT, kwDISTINCTROW:
 		if allowed&(quantDistinct|quantDistinctAll) == 0 {
 			return nodes.AggQuantNone, p.syntaxErrorAtCur()

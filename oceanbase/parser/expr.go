@@ -1080,6 +1080,18 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
+		// The histograms fix an INTNUM in one argument position, so a
+		// non-integer expression there is a 1064 even with the right count.
+		switch fc.Name {
+		case "TOP_K_FRE_HIST":
+			if _, ok := fc.Args[2].(*nodes.IntLit); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+		case "HYBRID_HIST":
+			if _, ok := fc.Args[1].(*nodes.IntLit); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 		// A dedicated window function has no arm outside window_function, and
 		// LISTAGG's only arm is there too, so without OVER each is a 1064:
 		// OceanBase 4.3.5 rejects SELECT ROW_NUMBER() a and SELECT LISTAGG(a) a,
