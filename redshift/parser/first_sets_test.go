@@ -306,3 +306,42 @@ func TestIsRedshiftIdentityGranteeStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftNamedGranteeStart holds the ROLE and GROUP grantee leads: the
+// keyword and a name after it, never the keyword alone.
+func TestIsRedshiftNamedGranteeStart(t *testing.T) {
+	newGranteeParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance()
+		return p
+	}
+	for _, sql := range []string{"ROLE analyst", "role analyst"} {
+		if !newGranteeParser(sql).isRedshiftRoleGranteeStart() {
+			t.Errorf("isRedshiftRoleGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"GROUP analysts", "group analysts"} {
+		if !newGranteeParser(sql).isRedshiftGroupGranteeStart() {
+			t.Errorf("isRedshiftGroupGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, tc := range []struct {
+		sql   string
+		role  bool
+		group bool
+	}{
+		{"ROLE", false, false},
+		{"ROLE, analyst", false, false},
+		{"GROUP", false, false},
+		{"analyst", false, false},
+		{`"ROLE" analyst`, false, false},
+	} {
+		p := newGranteeParser(tc.sql)
+		if got := p.isRedshiftRoleGranteeStart(); got != tc.role {
+			t.Errorf("isRedshiftRoleGranteeStart(%q) = %v, want %v", tc.sql, got, tc.role)
+		}
+		if got := p.isRedshiftGroupGranteeStart(); got != tc.group {
+			t.Errorf("isRedshiftGroupGranteeStart(%q) = %v, want %v", tc.sql, got, tc.group)
+		}
+	}
+}

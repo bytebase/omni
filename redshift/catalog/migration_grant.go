@@ -22,7 +22,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpGrant,
 				ObjectName:    objName,
 				SQL:           sql,
-				Transactional: true,
+				Transactional: grantTransactional(g),
 				Phase:         PhaseMain,
 				ObjType:       g.ObjType,
 				ObjOID:        g.ObjOID,
@@ -37,7 +37,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpRevoke,
 				ObjectName:    objName,
 				SQL:           sql,
-				Transactional: true,
+				Transactional: grantTransactional(g),
 				Phase:         PhaseMain,
 				ObjType:       g.ObjType,
 				ObjOID:        g.ObjOID,
@@ -54,7 +54,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpRevoke,
 				ObjectName:    objNameFrom,
 				SQL:           formatRevokeSQL(gFrom, objNameFrom),
-				Transactional: true,
+				Transactional: grantTransactional(gFrom),
 				Phase:         PhaseMain,
 				ObjType:       gFrom.ObjType,
 				ObjOID:        gFrom.ObjOID,
@@ -87,6 +87,13 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	})
 
 	return ops
+}
+
+// grantTransactional reports whether a grant runs inside a transaction block. A
+// GRANT on an external resource cannot, the docs say
+// (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
+func grantTransactional(g Grant) bool {
+	return g.Target != nodes.OBJECT_FOREIGN_TABLE && g.Target != nodes.OBJECT_EXTERNAL_SCHEMA
 }
 
 // formatGrantSQL generates a GRANT statement.

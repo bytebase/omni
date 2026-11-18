@@ -853,14 +853,14 @@ func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List,
 		var grantee *nodes.RoleSpec
 		username := false
 		switch {
-		case p.cur.Type == ROLE && isColIdToken(p.peekNext()):
+		case p.isRedshiftRoleGranteeStart():
 			p.advance()
 			name, err := p.parseColId()
 			if err != nil {
 				return nil, false, err
 			}
 			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name}
-		case p.cur.Type == GROUP_P && isColIdToken(p.peekNext()):
+		case p.isRedshiftGroupGranteeStart():
 			p.advance()
 			name, err := p.parseColId()
 			if err != nil {

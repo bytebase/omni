@@ -641,3 +641,20 @@ func (p *Parser) isRedshiftPublicGranteeStart() bool {
 func (p *Parser) isRedshiftRoleIdentityStart() bool {
 	return p.redshiftKeywordIs("role") && isColIdToken(p.peekNext())
 }
+
+// isRedshiftRoleGranteeStart reports whether ROLE introduces a role grantee,
+// ROLE role_name, rather than a username of that spelling: ROLE is unreserved,
+// so ROLE alone is the username "role".
+//
+// Validated by TestIsRedshiftNamedGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftRoleGranteeStart() bool {
+	return p.cur.Type == ROLE && isColIdToken(p.peekNext())
+}
+
+// isRedshiftGroupGranteeStart reports whether GROUP introduces a group grantee,
+// GROUP group_name, rather than a username of that spelling.
+//
+// Validated by TestIsRedshiftNamedGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftGroupGranteeStart() bool {
+	return p.cur.Type == GROUP_P && isColIdToken(p.peekNext())
+}

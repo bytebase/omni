@@ -144,4 +144,19 @@ func TestExternalTableGrantRendersItsOwnSyntax(t *testing.T) {
 	if want := "REVOKE SELECT ON EXTERNAL TABLE "; !strings.HasPrefix(revokes[0], want) {
 		t.Errorf("REVOKE SQL = %q, want prefix %q", revokes[0], want)
 	}
+
+	// A GRANT on an external resource cannot run inside a transaction block.
+	for _, g := range c.grants {
+		if got, want := grantTransactional(g), g.Target == nodes.OBJECT_TABLE; got != want {
+			t.Errorf("grantTransactional(%v) = %v, want %v", g.Target, got, want)
+		}
+	}
+	// An external-table grant and a plain relation's to a role of that spelling
+	// are two: target and grantee kind are part of a grant's identity.
+	external := Grant{ObjType: 'r', ObjOID: 1, Grantee: "iam_role:r", Privilege: "select",
+		Target: nodes.OBJECT_FOREIGN_TABLE, GranteeKind: "iam_role", GranteeName: "r"}
+	plain := Grant{ObjType: 'r', ObjOID: 1, Grantee: "iam_role:r", Privilege: "select"}
+	if makeGrantKey(c, external) == makeGrantKey(c, plain) {
+		t.Error("external and plain grants share a key, want two")
+	}
 }

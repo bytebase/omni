@@ -16,3 +16,4 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftDatashareNameStart` | the unquoted word `DATASHARE` | the word and a name after it | `TestIsRedshiftDatashareNameStart` |
 | `isRedshiftConnectStart`, `isRedshiftDebugStart` | `CONNECT`, `DEBUG` | unquoted words + `TO`/`ON` | `TestIsRedshiftFederatedPermissionStart` |
 | `isRedshiftAdminsOfAccountStart`, `isRedshiftPublicGranteeStart`, `isRedshiftRoleIdentityStart` | `ADMINS OF`, `PUBLIC` (no colon), `ROLE` before a name | unquoted words + continuation | `TestIsRedshiftIdentityGranteeStart` |
+| `isRedshiftRoleGranteeStart`, `isRedshiftGroupGranteeStart` | `ROLE`, `GROUP` | the token and a name after it | `TestIsRedshiftNamedGranteeStart` |
