@@ -94,6 +94,16 @@ func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMateri
 		stmt.PrimaryKey = pk
 	}
 
+	// The clauses after the name are table options, then WITH COLUMN GROUP and
+	// the refresh switches. Offer the latter beside parseTableOption's own
+	// candidates when the cursor stands here.
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwWITH, kwENABLE, kwDISABLE} {
+			p.addTokenCandidate(t)
+		}
+	}
+
 	// A comma may stand between two table options and never ends the list; a
 	// comma with no option after it is a syntax error. This is the loop
 	// CREATE TABLE uses for the same rule.
@@ -519,6 +529,14 @@ func (p *Parser) parseCreateMaterializedViewLogStmt(start int, orReplace bool) (
 		return nil, err
 	}
 	stmt.Table = ref
+
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwPARALLEL, kwWITH, kwPURGE} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
 
 	for {
 		opt, ok, err := p.parseParallelOption()

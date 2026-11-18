@@ -103,7 +103,9 @@ func buildViewMap(c *Catalog) map[tableKey]*View {
 	}
 	for _, db := range c.Databases() {
 		for name, v := range db.Views {
-			if v == nil {
+			if v == nil || v.Materialized {
+				// The differ emits CREATE/DROP VIEW; a materialized view is not
+				// one, so it stays out rather than deploy as an ordinary view.
 				continue
 			}
 			m[tableKey{db: toLower(db.Name), name: name}] = v

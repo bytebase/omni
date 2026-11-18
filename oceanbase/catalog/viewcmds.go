@@ -36,15 +36,15 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		return errDupTable(stmt.Name.Name)
 	}
 	if existing, exists := db.Views[key]; exists {
+		if !stmt.OrReplace {
+			return errDupTable(stmt.Name.Name)
+		}
 		if existing.Materialized != materialized {
 			kind := "VIEW"
 			if materialized {
 				kind = "MATERIALIZED VIEW"
 			}
 			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, stmt.Name.Name, kind)}
-		}
-		if !stmt.OrReplace {
-			return errDupTable(stmt.Name.Name)
 		}
 	}
 
