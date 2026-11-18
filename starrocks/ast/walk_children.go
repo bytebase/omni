@@ -714,6 +714,36 @@ func walkChildren(v Visitor, node Node) {
 	case *UnsetDefaultStorageVaultStmt:
 		// leaf-ish node, no Node children
 
+	// DDL — STORAGE VOLUME nodes (StarRocks.g4:782-822).
+	case *CreateStorageVolumeStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterStorageVolumeStmt:
+		for _, clause := range n.Clauses {
+			Walk(v, clause)
+		}
+	case *AlterStorageVolumeClause:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropStorageVolumeStmt:
+		// leaf-ish node, name stored as string
+	case *DescStorageVolumeStmt:
+		// leaf-ish node, name stored as string
+
+	// DDL — WAREHOUSE nodes (StarRocks.g4:2038-2053).
+	case *CreateWarehouseStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropWarehouseStmt:
+		// leaf-ish node, no Node children
+	case *SuspendWarehouseStmt:
+		// leaf-ish node, no Node children
+	case *ResumeWarehouseStmt:
+		// leaf-ish node, no Node children
+
 	// DDL — STORAGE POLICY nodes (T5.3).
 	case *CreateStoragePolicyStmt:
 		for _, prop := range n.Properties {

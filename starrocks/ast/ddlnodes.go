@@ -507,6 +507,164 @@ func (n *UnsetDefaultStorageVaultStmt) Tag() NodeTag { return T_UnsetDefaultStor
 var _ Node = (*UnsetDefaultStorageVaultStmt)(nil)
 
 // ---------------------------------------------------------------------------
+// STORAGE VOLUME DDL nodes (StarRocks.g4:782-822)
+// ---------------------------------------------------------------------------
+
+// CreateStorageVolumeStmt represents:
+//
+//	CREATE STORAGE VOLUME [IF NOT EXISTS] name TYPE = type
+//	    LOCATIONS = (uri, ...) [COMMENT 'text'] [PROPERTIES (...)]
+//
+// TYPE and LOCATIONS are not optional: createStorageVolumeStatement
+// (StarRocks.g4:782) states both.
+type CreateStorageVolumeStmt struct {
+	Name        string
+	IfNotExists bool
+	Type        string   // typeDesc: TYPE = identifier
+	Locations   []string // locationsDesc: LOCATIONS = stringList
+	Comment     string   // optional COMMENT 'text'
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateStorageVolumeStmt) Tag() NodeTag { return T_CreateStorageVolumeStmt }
+
+var _ Node = (*CreateStorageVolumeStmt)(nil)
+
+// AlterStorageVolumeClauseType classifies one clause of ALTER STORAGE VOLUME.
+type AlterStorageVolumeClauseType int
+
+const (
+	// StorageVolumeComment is modifyStorageVolumeCommentClause (StarRocks.g4:816):
+	// COMMENT '=' string.
+	StorageVolumeComment AlterStorageVolumeClauseType = iota
+	// StorageVolumeProperties is modifyStorageVolumePropertiesClause
+	// (StarRocks.g4:812): SET propertyList.
+	StorageVolumeProperties
+)
+
+// AlterStorageVolumeClause represents one alterStorageVolumeClause
+// (StarRocks.g4:807).
+type AlterStorageVolumeClause struct {
+	Type       AlterStorageVolumeClauseType
+	Comment    string      // StorageVolumeComment
+	Properties []*Property // StorageVolumeProperties
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterStorageVolumeClause) Tag() NodeTag { return T_AlterStorageVolumeClause }
+
+var _ Node = (*AlterStorageVolumeClause)(nil)
+
+// AlterStorageVolumeStmt represents:
+//
+//	ALTER STORAGE VOLUME name clause (',' clause)*
+//
+// The clauses keep their written order: a statement may set the comment and
+// the properties, each any number of times.
+type AlterStorageVolumeStmt struct {
+	Name    string
+	Clauses []*AlterStorageVolumeClause
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *AlterStorageVolumeStmt) Tag() NodeTag { return T_AlterStorageVolumeStmt }
+
+var _ Node = (*AlterStorageVolumeStmt)(nil)
+
+// DropStorageVolumeStmt represents:
+//
+//	DROP STORAGE VOLUME [IF EXISTS] name
+type DropStorageVolumeStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropStorageVolumeStmt) Tag() NodeTag { return T_DropStorageVolumeStmt }
+
+var _ Node = (*DropStorageVolumeStmt)(nil)
+
+// DescStorageVolumeStmt represents:
+//
+//	(DESC | DESCRIBE) STORAGE VOLUME name
+type DescStorageVolumeStmt struct {
+	Name string
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *DescStorageVolumeStmt) Tag() NodeTag { return T_DescStorageVolumeStmt }
+
+var _ Node = (*DescStorageVolumeStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// WAREHOUSE DDL nodes (StarRocks.g4:2038-2053)
+// ---------------------------------------------------------------------------
+
+// CreateWarehouseStmt represents:
+//
+//	CREATE WAREHOUSE [IF NOT EXISTS] name [COMMENT 'text'] [PROPERTIES (...)]
+type CreateWarehouseStmt struct {
+	Name        string
+	IfNotExists bool
+	Comment     string
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateWarehouseStmt) Tag() NodeTag { return T_CreateWarehouseStmt }
+
+var _ Node = (*CreateWarehouseStmt)(nil)
+
+// DropWarehouseStmt represents:
+//
+//	DROP WAREHOUSE [IF EXISTS] name
+type DropWarehouseStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropWarehouseStmt) Tag() NodeTag { return T_DropWarehouseStmt }
+
+var _ Node = (*DropWarehouseStmt)(nil)
+
+// SuspendWarehouseStmt represents:
+//
+//	SUSPEND WAREHOUSE [IF EXISTS] name
+type SuspendWarehouseStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *SuspendWarehouseStmt) Tag() NodeTag { return T_SuspendWarehouseStmt }
+
+var _ Node = (*SuspendWarehouseStmt)(nil)
+
+// ResumeWarehouseStmt represents:
+//
+//	RESUME WAREHOUSE [IF EXISTS] name
+type ResumeWarehouseStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ResumeWarehouseStmt) Tag() NodeTag { return T_ResumeWarehouseStmt }
+
+var _ Node = (*ResumeWarehouseStmt)(nil)
+
+// ---------------------------------------------------------------------------
 // STORAGE POLICY DDL nodes (T5.3)
 // ---------------------------------------------------------------------------
 

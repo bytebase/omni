@@ -216,6 +216,24 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DropStorageVaultStmt:
 		return v.Loc
+	case *CreateStorageVolumeStmt:
+		return v.Loc
+	case *AlterStorageVolumeStmt:
+		return v.Loc
+	case *AlterStorageVolumeClause:
+		return v.Loc
+	case *DropStorageVolumeStmt:
+		return v.Loc
+	case *DescStorageVolumeStmt:
+		return v.Loc
+	case *CreateWarehouseStmt:
+		return v.Loc
+	case *DropWarehouseStmt:
+		return v.Loc
+	case *SuspendWarehouseStmt:
+		return v.Loc
+	case *ResumeWarehouseStmt:
+		return v.Loc
 	case *SetDefaultStorageVaultStmt:
 		return v.Loc
 	case *UnsetDefaultStorageVaultStmt:

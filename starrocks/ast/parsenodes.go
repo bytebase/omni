@@ -15,6 +15,8 @@ import "strings"
 type CreateDatabaseStmt struct {
 	Name        *ObjectName
 	IfNotExists bool
+	Charset     string      // charsetDesc: the character set's name; empty when the statement names none
+	Collate     string      // collateDesc: the collation's name; empty when the statement names none
 	Properties  []*Property // optional PROPERTIES clause
 	Loc         Loc
 }

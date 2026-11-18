@@ -391,6 +391,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwSTORAGE:
 			p.advance() // consume STORAGE
 			return p.parseCreateStorage(createTok.Loc)
+		case kwWAREHOUSE:
+			return p.parseCreateWarehouse(createTok.Loc)
 		case kwREPOSITORY:
 			return p.parseCreateRepository(createTok.Loc, false)
 		case kwREAD:
@@ -523,6 +525,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropUser(dropTok.Loc)
 		case kwJOB:
 			return nil, p.rejectJobStatement()
+		case kwWAREHOUSE:
+			return p.parseDropWarehouse(dropTok.Loc)
 		case kwSTATS:
 			p.advance() // consume STATS
 			return p.parseDropStats(dropTok.Loc, "")
@@ -607,6 +611,19 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwSHOW:
 		return p.parseShow()
 	case kwDESCRIBE, kwDESC:
+		// descStorageVolumeStatement (StarRocks.g4:820):
+		// (DESC | DESCRIBE) STORAGE VOLUME name. STORAGE is nonReserved, so DESC
+		// STORAGE alone describes a table named storage; the form is taken only
+		// when VOLUME follows.
+		if p.peekNext().Kind == kwSTORAGE {
+			mark := p.save()
+			descTok := p.advance() // consume DESC/DESCRIBE
+			p.advance()            // consume STORAGE
+			if p.cur.Kind == kwVOLUME {
+				return p.parseDescStorageVolume(descTok.Loc)
+			}
+			p.restore(mark)
+		}
 		// A describe names what it describes (StarRocks.g4:561
 		// descTableStatement): a bare DESC, or DESC ALL with no table, is a
 		// syntax error.
@@ -735,6 +752,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwROUTINE {
 			return p.parseResumeRoutineLoad(resumeTok.Loc)
 		}
+		if p.cur.Kind == kwWAREHOUSE {
+			return p.parseResumeWarehouse(resumeTok.Loc)
+		}
 		if p.cur.Kind == kwALL {
 			p.advance() // consume ALL
 			if p.cur.Kind == kwROUTINE {
@@ -743,6 +763,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.unsupported("RESUME ALL")
 		}
 		return p.unsupported("RESUME")
+
+	case kwSUSPEND:
+		suspendTok := p.advance() // consume SUSPEND
+		if p.cur.Kind == kwWAREHOUSE {
+			return p.parseSuspendWarehouse(suspendTok.Loc)
+		}
+		return p.unsupported("SUSPEND")
 
 	case kwSTOP:
 		stopTok := p.advance() // consume STOP

@@ -347,6 +347,37 @@ const (
 	// T_UnsetDefaultStorageVaultStmt is the tag for *UnsetDefaultStorageVaultStmt.
 	T_UnsetDefaultStorageVaultStmt
 
+	// DDL — STORAGE VOLUME nodes (StarRocks.g4:782-822).
+
+	// T_CreateStorageVolumeStmt is the tag for *CreateStorageVolumeStmt.
+	T_CreateStorageVolumeStmt
+
+	// T_AlterStorageVolumeStmt is the tag for *AlterStorageVolumeStmt.
+	T_AlterStorageVolumeStmt
+
+	// T_AlterStorageVolumeClause is the tag for *AlterStorageVolumeClause.
+	T_AlterStorageVolumeClause
+
+	// T_DropStorageVolumeStmt is the tag for *DropStorageVolumeStmt.
+	T_DropStorageVolumeStmt
+
+	// T_DescStorageVolumeStmt is the tag for *DescStorageVolumeStmt.
+	T_DescStorageVolumeStmt
+
+	// DDL — WAREHOUSE nodes (StarRocks.g4:2038-2053).
+
+	// T_CreateWarehouseStmt is the tag for *CreateWarehouseStmt.
+	T_CreateWarehouseStmt
+
+	// T_DropWarehouseStmt is the tag for *DropWarehouseStmt.
+	T_DropWarehouseStmt
+
+	// T_SuspendWarehouseStmt is the tag for *SuspendWarehouseStmt.
+	T_SuspendWarehouseStmt
+
+	// T_ResumeWarehouseStmt is the tag for *ResumeWarehouseStmt.
+	T_ResumeWarehouseStmt
+
 	// DDL — STORAGE POLICY nodes (T5.3).
 
 	// T_CreateStoragePolicyStmt is the tag for *CreateStoragePolicyStmt.
@@ -857,6 +888,24 @@ func (t NodeTag) String() string {
 		return "AlterStorageVaultStmt"
 	case T_DropStorageVaultStmt:
 		return "DropStorageVaultStmt"
+	case T_CreateStorageVolumeStmt:
+		return "CreateStorageVolumeStmt"
+	case T_AlterStorageVolumeStmt:
+		return "AlterStorageVolumeStmt"
+	case T_AlterStorageVolumeClause:
+		return "AlterStorageVolumeClause"
+	case T_DropStorageVolumeStmt:
+		return "DropStorageVolumeStmt"
+	case T_DescStorageVolumeStmt:
+		return "DescStorageVolumeStmt"
+	case T_CreateWarehouseStmt:
+		return "CreateWarehouseStmt"
+	case T_DropWarehouseStmt:
+		return "DropWarehouseStmt"
+	case T_SuspendWarehouseStmt:
+		return "SuspendWarehouseStmt"
+	case T_ResumeWarehouseStmt:
+		return "ResumeWarehouseStmt"
 	case T_SetDefaultStorageVaultStmt:
 		return "SetDefaultStorageVaultStmt"
 	case T_UnsetDefaultStorageVaultStmt:

@@ -856,3 +856,140 @@ DROP STORAGE POLICY p`
 		t.Errorf("Stmts[3]: expected DropStoragePolicyStmt, got %T", file.Stmts[3])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// STORAGE VOLUME
+// ---------------------------------------------------------------------------
+
+// TestCreateStorageVolume: createStorageVolumeStatement (StarRocks.g4:782).
+func TestCreateStorageVolume(t *testing.T) {
+	stmt := parseOne(t, `CREATE STORAGE VOLUME IF NOT EXISTS vol_1 TYPE = S3
+		LOCATIONS = ('s3://bucket/path', 's3://bucket/other')
+		COMMENT 'shared'
+		PROPERTIES ("aws.s3.use_aws_sdk_default_behavior" = "true")`).(*ast.CreateStorageVolumeStmt)
+
+	if stmt.Name != "vol_1" || !stmt.IfNotExists {
+		t.Errorf("Name = %q IfNotExists = %v, want vol_1 and true", stmt.Name, stmt.IfNotExists)
+	}
+	if stmt.Type != "S3" {
+		t.Errorf("Type = %q, want S3", stmt.Type)
+	}
+	if len(stmt.Locations) != 2 || stmt.Locations[0] != "s3://bucket/path" || stmt.Locations[1] != "s3://bucket/other" {
+		t.Errorf("Locations = %v, want the two stated", stmt.Locations)
+	}
+	if stmt.Comment != "shared" {
+		t.Errorf("Comment = %q, want shared", stmt.Comment)
+	}
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "aws.s3.use_aws_sdk_default_behavior" {
+		t.Errorf("Properties = %+v, want the stated one", stmt.Properties)
+	}
+	if stmt.Tag() != ast.T_CreateStorageVolumeStmt {
+		t.Errorf("Tag() = %v, want T_CreateStorageVolumeStmt", stmt.Tag())
+	}
+	if end, want := stmt.Loc.End, len(`CREATE STORAGE VOLUME IF NOT EXISTS vol_1 TYPE = S3
+		LOCATIONS = ('s3://bucket/path', 's3://bucket/other')
+		COMMENT 'shared'
+		PROPERTIES ("aws.s3.use_aws_sdk_default_behavior" = "true")`); end != want {
+		t.Errorf("Loc.End = %d, want %d", end, want)
+	}
+
+	// The shortest form states no comment and no properties.
+	short := parseOne(t, `CREATE STORAGE VOLUME v TYPE = HDFS LOCATIONS = ('hdfs://h/p')`).(*ast.CreateStorageVolumeStmt)
+	if short.Comment != "" || short.Properties != nil {
+		t.Errorf("Comment = %q Properties = %v, want neither", short.Comment, short.Properties)
+	}
+}
+
+// TestCreateStorageVolumeRejected: TYPE and LOCATIONS sit outside every
+// optional group, so a statement that leaves one out is refused.
+func TestCreateStorageVolumeRejected(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE STORAGE VOLUME v LOCATIONS = ('hdfs://h/p')`,
+		`CREATE STORAGE VOLUME v TYPE = HDFS`,
+		`CREATE STORAGE VOLUME v TYPE HDFS LOCATIONS = ('hdfs://h/p')`,
+		`CREATE STORAGE VOLUME v TYPE = HDFS LOCATIONS = ()`,
+		`CREATE STORAGE VOLUME v TYPE = HDFS LOCATIONS = 'hdfs://h/p'`,
+		`CREATE STORAGE VOLUME v TYPE = HDFS LOCATIONS = ('hdfs://h/p') COMMENT`,
+		`CREATE STORAGE VOLUME v TYPE = HDFS LOCATIONS = ('hdfs://h/p') zzz`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", sql)
+		}
+	}
+}
+
+// TestAlterStorageVolume: alterStorageVolumeStatement (StarRocks.g4:803)
+// keeps both clause forms, in the order they were written, comma-separated.
+func TestAlterStorageVolume(t *testing.T) {
+	stmt := parseOne(t, `ALTER STORAGE VOLUME v COMMENT = 'one', SET ("aws.s3.region" = "us-east-1"), COMMENT = 'two'`).(*ast.AlterStorageVolumeStmt)
+
+	if stmt.Name != "v" {
+		t.Errorf("Name = %q, want v", stmt.Name)
+	}
+	if len(stmt.Clauses) != 3 {
+		t.Fatalf("Clauses = %d, want 3", len(stmt.Clauses))
+	}
+	want := []ast.AlterStorageVolumeClauseType{
+		ast.StorageVolumeComment, ast.StorageVolumeProperties, ast.StorageVolumeComment,
+	}
+	for i, c := range stmt.Clauses {
+		if c.Type != want[i] {
+			t.Errorf("Clauses[%d].Type = %v, want %v", i, c.Type, want[i])
+		}
+	}
+	if stmt.Clauses[0].Comment != "one" || stmt.Clauses[2].Comment != "two" {
+		t.Errorf("comments = %q, %q, want one and two", stmt.Clauses[0].Comment, stmt.Clauses[2].Comment)
+	}
+	if props := stmt.Clauses[1].Properties; len(props) != 1 || props[0].Key != "aws.s3.region" {
+		t.Errorf("Clauses[1].Properties = %+v, want the stated one", props)
+	}
+	if stmt.Tag() != ast.T_AlterStorageVolumeStmt {
+		t.Errorf("Tag() = %v, want T_AlterStorageVolumeStmt", stmt.Tag())
+	}
+}
+
+// TestAlterStorageVolumeRejected: the '=' of a COMMENT clause is obligatory
+// (StarRocks.g4:816), and an ALTER names at least one clause.
+func TestAlterStorageVolumeRejected(t *testing.T) {
+	for _, sql := range []string{
+		`ALTER STORAGE VOLUME v`,
+		`ALTER STORAGE VOLUME v COMMENT 'a'`,
+		`ALTER STORAGE VOLUME v COMMENT =`,
+		`ALTER STORAGE VOLUME v SET`,
+		`ALTER STORAGE VOLUME v SET ()`,
+		`ALTER STORAGE VOLUME v COMMENT = 'a',`,
+		`ALTER STORAGE VOLUME v COMMENT = 'a' COMMENT = 'b'`,
+		`ALTER STORAGE VOLUME v COMMENT = 'a' zzz`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", sql)
+		}
+	}
+}
+
+// TestDropDescStorageVolume: dropStorageVolumeStatement (StarRocks.g4:799) and
+// descStorageVolumeStatement (StarRocks.g4:820).
+func TestDropDescStorageVolume(t *testing.T) {
+	drop := parseOne(t, `DROP STORAGE VOLUME IF EXISTS v`).(*ast.DropStorageVolumeStmt)
+	if drop.Name != "v" || !drop.IfExists {
+		t.Errorf("Name = %q IfExists = %v, want v and true", drop.Name, drop.IfExists)
+	}
+
+	for _, sql := range []string{`DESC STORAGE VOLUME v`, `DESCRIBE STORAGE VOLUME v`, `DESC STORAGE VOLUME 'v'`} {
+		desc := parseOne(t, sql).(*ast.DescStorageVolumeStmt)
+		if desc.Name != "v" {
+			t.Errorf("%q: Name = %q, want v", sql, desc.Name)
+		}
+	}
+
+	// A table may be named storage: DESC STORAGE is a describe, not a
+	// storage-volume description missing VOLUME.
+	if _, ok := parseOne(t, `DESC storage`).(*ast.DescribeStmt); !ok {
+		t.Error("DESC storage should describe a table named storage")
+	}
+	for _, sql := range []string{`DROP STORAGE VOLUME`, `DESC STORAGE VOLUME`, `DESC STORAGE a`, `DESC STORAGE VOLUME v zzz`} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", sql)
+		}
+	}
+}

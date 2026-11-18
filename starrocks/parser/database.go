@@ -4,10 +4,10 @@ import (
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
-// parseCreateDatabase parses:
+// parseCreateDatabase parses createDbStatement (StarRocks.g4:354):
 //
 //	CREATE (DATABASE | SCHEMA) [IF NOT EXISTS] db_name
-//	    [PROPERTIES ("key"="value", ...)]
+//	    [charsetDesc] [collateDesc] [PROPERTIES ("key"="value", ...)]
 //
 // The CREATE keyword has already been consumed by the caller; cur is
 // DATABASE or SCHEMA.
@@ -38,6 +38,27 @@ func (p *Parser) parseCreateDatabase() (ast.Node, error) {
 	}
 	stmt.Name = name
 
+	endLoc := ast.NodeLoc(name)
+
+	// Optional charsetDesc, then optional collateDesc. DEFAULT belongs to the
+	// clause it precedes, so each is looked for on its own.
+	if p.atCharsetDesc() {
+		charset, loc, err := p.parseCharsetDesc()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Charset = charset
+		endLoc = loc
+	}
+	if p.atCollateDesc() {
+		collate, loc, err := p.parseCollateDesc()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Collate = collate
+		endLoc = loc
+	}
+
 	// Optional PROPERTIES clause
 	if p.cur.Kind == kwPROPERTIES {
 		props, err := p.parseProperties()
@@ -45,10 +66,76 @@ func (p *Parser) parseCreateDatabase() (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Properties = props
+		endLoc = p.prev.Loc
 	}
 
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(stmt.Name))
+	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
+}
+
+// atCharsetDesc reports whether charsetDesc (StarRocks.g4:424)
+//
+//	[DEFAULT] (CHAR SET | CHARSET | CHARACTER SET) [=] identifierOrString
+//
+// starts at the current token. CHAR is a type name too, so CHAR SET is read as
+// one word only when SET follows it.
+func (p *Parser) atCharsetDesc() bool {
+	switch p.cur.Kind {
+	case kwCHARSET:
+		return true
+	case kwCHAR, kwCHARACTER:
+		return p.peekNext().Kind == kwSET
+	case kwDEFAULT:
+		// DEFAULT belongs to the clause after it, so the clause is looked for
+		// past it: a speculative advance and rollback, since CHAR SET needs
+		// two tokens.
+		mark := p.save()
+		p.advance() // consume DEFAULT
+		ok := p.atCharsetDesc()
+		p.restore(mark)
+		return ok
+	}
+	return false
+}
+
+// atCollateDesc reports whether collateDesc (StarRocks.g4:428)
+//
+//	[DEFAULT] COLLATE [=] identifierOrString
+//
+// starts at the current token.
+func (p *Parser) atCollateDesc() bool {
+	if p.cur.Kind == kwCOLLATE {
+		return true
+	}
+	return p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwCOLLATE
+}
+
+// parseCharsetDesc parses charsetDesc (StarRocks.g4:424). cur is one of the
+// tokens atCharsetDesc accepted.
+func (p *Parser) parseCharsetDesc() (string, ast.Loc, error) {
+	p.match(kwDEFAULT)
+	switch p.cur.Kind {
+	case kwCHARSET:
+		p.advance() // consume CHARSET
+	case kwCHAR, kwCHARACTER:
+		p.advance() // consume CHAR / CHARACTER
+		if _, err := p.expect(kwSET); err != nil {
+			return "", ast.NoLoc(), err
+		}
+	}
+	p.match(int('='))
+	return p.parseIdentifierOrString()
+}
+
+// parseCollateDesc parses collateDesc (StarRocks.g4:428). cur is one of the
+// tokens atCollateDesc accepted.
+func (p *Parser) parseCollateDesc() (string, ast.Loc, error) {
+	p.match(kwDEFAULT)
+	if _, err := p.expect(kwCOLLATE); err != nil {
+		return "", ast.NoLoc(), err
+	}
+	p.match(int('='))
+	return p.parseIdentifierOrString()
 }
 
 // parseAlterDatabase parses:
