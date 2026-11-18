@@ -1792,12 +1792,15 @@ func (p *Parser) nestedPhysicalPhase(allowed atClauses, phase int) int {
 // [ inline_ref_constraint ] | out_of_line_constraint
 // | out_of_line_ref_constraint | supplemental_logging_props } [, ...] ).
 //
-// Oracle judges no item of it: the clause stands in ALTER TABLE's
+// Oracle judges no item of it. The clause stands in ALTER TABLE's
 // upgrade_table_clause alone, and the option it belongs to (UPGRADE [ NOT ]
-// INCLUDING DATA) is one a table without that nested table column does not
-// take, so Oracle answers ORA-01735 at byte 0 and reads no further, whatever
-// the group holds. Measured on the pinned server, ((a zzz)), ((UNIQUE())),
-// ((1 2 3)) and ((SUPPLEMENTAL LOG GROUP a(a LOG))) all answer it, and the
+// INCLUDING DATA) answers ORA-01735 at byte 0 on the pinned server whatever
+// the group holds, on a table that holds the nested table column as on one
+// that does not: measured on a table of an object type with the nested table
+// column c stored as a nested table, ((c NULL)) and ((1 2 3)) answer it
+// alike, as ((a zzz)), ((UNIQUE())) and
+// ((SUPPLEMENTAL LOG GROUP a(a LOG))) do on a heap table. Oracle reads no
+// further, so nothing in the group is judged, and the
 // alterTable_object_properties and alterTable_supplemental_logging_props
 // rows of compat.tsv, whose statements hold just such text, are the judge's
 // acceptances for it. The group is therefore the balanced tokens Oracle's
