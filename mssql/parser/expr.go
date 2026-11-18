@@ -183,6 +183,70 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 			}, nil
 		}
+		// IS [NOT] DISTINCT FROM, which SQL Server 2022 takes only in a
+		// search condition: IF 1 IS DISTINCT FROM 2 is accepted and
+		// SELECT 1 IS DISTINCT FROM 2 is an error.
+		if p.cur.Type == kwDISTINCT && p.inSearchCondition() {
+			p.advance() // consume DISTINCT
+			if _, err := p.expect(kwFROM); err != nil {
+				return nil, err
+			}
+			testType := nodes.IsDistinctFrom
+			if not {
+				testType = nodes.IsNotDistinctFrom
+			}
+			switch {
+			case p.cur.Type == kwNULL:
+				// IS [NOT] DISTINCT FROM NULL
+				// (booleanExpressionNullPredicateFromDistinctPredicate)
+				p.advance()
+				return &nodes.IsExpr{
+					Expr:     left,
+					TestType: testType,
+					Value:    &nodes.Literal{Type: nodes.LitNull, Loc: nodes.Loc{Start: p.prev.Loc, End: p.prevEnd()}},
+					Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+				}, nil
+			case (p.cur.Type == kwALL || p.cur.Type == kwSOME || p.cur.Type == kwANY) && p.peekNext().Type == '(':
+				// IS [NOT] DISTINCT FROM { ALL | SOME | ANY } ( <subquery> )
+				// (subqueryComparisonDistinctPredicate)
+				quantifier := strings.ToUpper(p.cur.Str)
+				p.advance() // consume ALL/SOME/ANY
+				p.advance() // consume (
+				subquery, err := p.parseSelectStmt()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				distinct := nodes.DistinctFrom
+				if not {
+					distinct = nodes.DistinctNotFrom
+				}
+				return &nodes.SubqueryComparisonExpr{
+					Left:       left,
+					Quantifier: quantifier,
+					Distinct:   distinct,
+					Subquery:   subquery,
+					Loc:        nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+				}, nil
+			}
+			// IS [NOT] DISTINCT FROM <expression>
+			// (booleanExpressionDistinctPredicate)
+			value, err := p.parseAddition()
+			if err != nil {
+				return nil, err
+			}
+			if value == nil {
+				return nil, p.unexpectedToken()
+			}
+			return &nodes.IsExpr{
+				Expr:     left,
+				TestType: testType,
+				Value:    value,
+				Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+			}, nil
+		}
 	}
 
 	// BETWEEN
@@ -320,27 +384,58 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			return nil, p.unexpectedToken()
 		}
 		var escape nodes.ExprNode
+		braced := false
 		if p.cur.Type == kwESCAPE {
 			p.advance()
 			escape, err = p.parseAddition()
 			if err != nil {
 				return nil, err
 			}
+		} else if p.cur.Type == '{' {
+			// likePredicate takes the ODBC escape { ESCAPE <expr> } beside
+			// the bare escapeExpression (bnf/TSql170.g).
+			p.advance() // consume {
+			if _, err := p.expect(kwESCAPE); err != nil {
+				return nil, err
+			}
+			escape, err = p.parseAddition()
+			if err != nil {
+				return nil, err
+			}
+			if escape == nil {
+				return nil, p.unexpectedToken()
+			}
+			if _, err := p.expect('}'); err != nil {
+				return nil, err
+			}
+			braced = true
 		}
 		return &nodes.LikeExpr{
-			Expr:    left,
-			Pattern: pattern,
-			Escape:  escape,
-			Not:     not,
-			Loc:     nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+			Expr:         left,
+			Pattern:      pattern,
+			Escape:       escape,
+			Not:          not,
+			EscapeBraced: braced,
+			Loc:          nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}, nil
 	}
 
-	// Comparison operators
-	op, ok := comparisonOp(p.cur.Type)
+	// Comparison operators. In a search condition SQL Server also reads the
+	// operators ScriptDOM's comparisonOperator writes with a space between
+	// their characters: ! =, ! <, ! >, < =, < > and > =. The lexer joins them
+	// only when they touch, and elsewhere they are errors
+	// (SELECT 1 ! = 2 is refused).
+	op, ok := p.splitComparisonOp()
+	tokens := 2
+	if !ok {
+		op, ok = comparisonOp(p.cur.Type)
+		tokens = 1
+	}
 	if ok {
 		loc := p.pos()
-		p.advance()
+		for i := 0; i < tokens; i++ {
+			p.advance()
+		}
 
 		// Completion: after comparison operator → columnref, func_name
 		if p.collectMode() {
@@ -388,6 +483,48 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 	}
 
 	return left, nil
+}
+
+// splitComparisonOp reads a comparison operator whose two characters the
+// lexer made two tokens, which SQL Server takes in a search condition:
+// ! =, ! <, ! >, < =, < > and > =. It reads the two tokens without advancing
+// and reports false otherwise.
+func (p *Parser) splitComparisonOp() (nodes.BinaryOp, bool) {
+	if !p.inSearchCondition() {
+		return 0, false
+	}
+	first, second := p.cur.Type, p.peekNext().Type
+	var op nodes.BinaryOp
+	switch first {
+	case '!':
+		switch second {
+		case '=':
+			op = nodes.BinOpNeq
+		case '<':
+			op = nodes.BinOpNotLt
+		case '>':
+			op = nodes.BinOpNotGt
+		default:
+			return 0, false
+		}
+	case '<':
+		switch second {
+		case '=':
+			op = nodes.BinOpLte
+		case '>':
+			op = nodes.BinOpNeq
+		default:
+			return 0, false
+		}
+	case '>':
+		if second != '=' {
+			return 0, false
+		}
+		op = nodes.BinOpGte
+	default:
+		return 0, false
+	}
+	return op, true
 }
 
 func comparisonOp(tok int) (nodes.BinaryOp, bool) {
@@ -833,6 +970,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwSESSION_USER,
 		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE:
 		return p.parseNiladicKeywordFunc()
+	case '{':
+		// ODBC escape: { fn <function> } or { d|t|ts '<literal>' }
+		return p.parseOdbcEscape()
 	case kwIDENTITYCOL, kwROWGUIDCOL:
 		// IDENTITYCOL / ROWGUIDCOL reference the identity / rowguid column of a
 		// table without naming it. Keyword-only column references; no parens.

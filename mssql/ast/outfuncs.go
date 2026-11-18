@@ -192,6 +192,20 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeLikeExpr(sb, n)
 	case *IsExpr:
 		writeIsExpr(sb, n)
+	case *OdbcFunctionCallExpr:
+		writeOdbcFunctionCallExpr(sb, n)
+	case *OdbcLiteralExpr:
+		writeOdbcLiteralExpr(sb, n)
+	case *GraphMatchPredicate:
+		writeGraphMatchPredicate(sb, n)
+	case *GraphMatchNodeExpr:
+		writeGraphMatchNodeExpr(sb, n)
+	case *GraphMatchCompositeExpr:
+		writeGraphMatchCompositeExpr(sb, n)
+	case *GraphMatchLastNodePredicate:
+		writeGraphMatchLastNodePredicate(sb, n)
+	case *GraphMatchRecursivePredicate:
+		writeGraphMatchRecursivePredicate(sb, n)
 	case *ExistsExpr:
 		writeExistsExpr(sb, n)
 	case *FullTextPredicate:
@@ -2051,6 +2065,109 @@ func writeLikeExpr(sb *strings.Builder, n *LikeExpr) {
 		sb.WriteString(" :escape ")
 		writeNode(sb, n.Escape)
 	}
+	if n.EscapeBraced {
+		sb.WriteString(" :escapeBraced true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeOdbcFunctionCallExpr(sb *strings.Builder, n *OdbcFunctionCallExpr) {
+	sb.WriteString("{ODBCFN")
+	sb.WriteString(fmt.Sprintf(" :name \"%s\"", escapeString(n.Name)))
+	if n.Args != nil {
+		sb.WriteString(" :args ")
+		writeNode(sb, n.Args)
+	}
+	if n.Convert != "" {
+		sb.WriteString(fmt.Sprintf(" :convert \"%s\"", escapeString(n.Convert)))
+	}
+	if n.Extract != "" {
+		sb.WriteString(fmt.Sprintf(" :extract \"%s\"", escapeString(n.Extract)))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeOdbcLiteralExpr(sb *strings.Builder, n *OdbcLiteralExpr) {
+	sb.WriteString("{ODBCLIT")
+	sb.WriteString(fmt.Sprintf(" :kind \"%s\"", escapeString(n.Kind)))
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGraphMatchPredicate(sb *strings.Builder, n *GraphMatchPredicate) {
+	sb.WriteString("{GRAPHMATCH")
+	if n.Expression != nil {
+		sb.WriteString(" :expression ")
+		writeNode(sb, n.Expression)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGraphMatchNodeExpr(sb *strings.Builder, n *GraphMatchNodeExpr) {
+	sb.WriteString("{GRAPHNODE")
+	sb.WriteString(fmt.Sprintf(" :node \"%s\"", escapeString(n.Node)))
+	sb.WriteString(fmt.Sprintf(" :lastNode %t", n.UsesLastNode))
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGraphMatchCompositeExpr(sb *strings.Builder, n *GraphMatchCompositeExpr) {
+	sb.WriteString("{GRAPHSTEP")
+	if n.Left != nil {
+		sb.WriteString(" :left ")
+		writeNode(sb, n.Left)
+	}
+	sb.WriteString(fmt.Sprintf(" :edge \"%s\"", escapeString(n.Edge)))
+	if n.Right != nil {
+		sb.WriteString(" :right ")
+		writeNode(sb, n.Right)
+	}
+	sb.WriteString(fmt.Sprintf(" :arrowOnRight %t", n.ArrowOnRight))
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGraphMatchLastNodePredicate(sb *strings.Builder, n *GraphMatchLastNodePredicate) {
+	sb.WriteString("{GRAPHLASTNODE")
+	if n.Left != nil {
+		sb.WriteString(" :left ")
+		writeNode(sb, n.Left)
+	}
+	if n.Right != nil {
+		sb.WriteString(" :right ")
+		writeNode(sb, n.Right)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeGraphMatchRecursivePredicate(sb *strings.Builder, n *GraphMatchRecursivePredicate) {
+	sb.WriteString("{GRAPHSHORTESTPATH")
+	if n.Expression != nil {
+		sb.WriteString(" :expression ")
+		writeNode(sb, n.Expression)
+	}
+	if n.Outer != nil {
+		sb.WriteString(" :outer ")
+		writeNode(sb, n.Outer)
+	}
+	sb.WriteString(fmt.Sprintf(" :anchorOnLeft %t", n.AnchorOnLeft))
+	sb.WriteString(fmt.Sprintf(" :plus %t", n.IsPlusSign))
+	if n.Lower != nil {
+		sb.WriteString(" :lower ")
+		writeNode(sb, n.Lower)
+	}
+	if n.Upper != nil {
+		sb.WriteString(" :upper ")
+		writeNode(sb, n.Upper)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2316,6 +2433,9 @@ func writeSubqueryComparisonExpr(sb *strings.Builder, n *SubqueryComparisonExpr)
 	}
 	fmt.Fprintf(sb, " :op %d", n.Op)
 	fmt.Fprintf(sb, " :quantifier \"%s\"", escapeString(n.Quantifier))
+	if n.Distinct != DistinctNone {
+		fmt.Fprintf(sb, " :distinct %d", n.Distinct)
+	}
 	if n.Subquery != nil {
 		sb.WriteString(" :subquery ")
 		writeNode(sb, n.Subquery)
@@ -2385,6 +2505,9 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 	if n.Temporal != nil {
 		sb.WriteString(" :temporal ")
 		writeNode(sb, n.Temporal)
+	}
+	if n.ForPath {
+		sb.WriteString(" :forPath true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -2481,6 +2604,9 @@ func writeAliasedTableRef(sb *strings.Builder, n *AliasedTableRef) {
 		sb.WriteString(" :hints ")
 		writeNode(sb, n.Hints)
 	}
+	if n.ForPath {
+		sb.WriteString(" :forPath true")
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2515,6 +2641,9 @@ func writeTableHint(sb *strings.Builder, n *TableHint) {
 	if n.IntValue != nil {
 		sb.WriteString(" :intValue ")
 		writeNode(sb, n.IntValue)
+	}
+	if n.OldForceIndex {
+		sb.WriteString(" :oldForceIndex true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

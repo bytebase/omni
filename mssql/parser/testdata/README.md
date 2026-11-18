@@ -12,9 +12,9 @@ a minute; a second recording on a fresh server wrote the same file.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,276 | 81 | 153 |
-| Near-misses | 11,960 | 11,783 | 28 | 149 |
-| `suite:lexer` | 67 | 62 | 2 | 3 |
+| One per alternative | 5,510 | 5,338 | 32 | 140 |
+| Near-misses | 11,960 | 11,805 | 24 | 131 |
+| `suite:lexer` | 67 | 64 | 0 | 3 |
 
 SQL Server accepts 3,034 of the 5,510 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
@@ -92,37 +92,41 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,121 rows agree: 12,212 when the file was recorded, the rest closed family
+17,207 rows agree: 12,212 when the file was recorded, the rest closed family
 by family (#1034 to #1070, and then the batch's call by name, `ALTER
-AUTHORIZATION` and the refusals around it), each reading its option lists and
-clauses by the grammar and the server's checks. What is left, and why:
+AUTHORIZATION` and the refusals around it, then `SELECT`'s table sources,
+ODBC escapes and graph `MATCH`), each reading its option lists and clauses by
+the grammar and the server's checks. What is left, and why:
 
-- **Only omni accepts (305):**
+- **Only omni accepts (274):**
   - The judge has no PolyBase (`IsPolyBaseInstalled` is 0), so it refuses
     every `CREATE EXTERNAL TABLE`, `FILE FORMAT` and `STREAM`, `COPY INTO`
-    and Synapse's `CREATE TABLE ... AS SELECT` (73). omni reads them by the
+    and Synapse's `CREATE TABLE ... AS SELECT` (80). omni reads them by the
     grammar and the docs rather than refuse a kind of statement outright.
   - Statements omni still reads by their shape: federations (36, Azure SQL
     Database's), security policies (32), sensitivity classifications (29),
     `CREATE RULE` and `CREATE SYNONYM` (7).
-  - Table sources and their arguments in `SELECT` (50): `OPENROWSET`,
-    `OPENQUERY`, `CONTAINSTABLE` arguments, a trailing comma after a table.
-  - Graph `MATCH` patterns (22): omni does not read the arrows.
-  - 56 rows of one or two each: `DROP` of an object SQL Server 2022 does not
+  - Table sources and their arguments in `SELECT` (3): `OPENROWSET ( a )` and
+    its alias, whose argument list the grammar takes and the server cannot
+    resolve without a provider, and `CONTAINSTABLE`'s second option,
+    `LANGUAGE 0x00`, which the grammar takes and the server refuses there.
+  - 87 rows of one or two each: `DROP` of an object SQL Server 2022 does not
     know (`DROP AGGREGATE`, `DROP XML SCHEMA`, `DROP PARTITION`), a
     `CREATE TABLE ... AS SELECT`, `ENABLE TRIGGER` without a name, a name of
     two words where the grammar wants one.
-- **Only SQL Server accepts (111):**
-  - ODBC escapes (19: `{fn NOW()}`, `{d '2020-01-01'}`), split comparison
-    operators (`! =`, `< >`, 7) and `IS DISTINCT FROM` (8).
-  - Graph `MATCH` arrows (14), and `ALTER TABLE ... ADD CONNECTION` (8), a
-    `COLUMN_SET`, a `CONTAINED` constraint and the rest of what an AST field
-    would be needed for.
+- **Only SQL Server accepts (56):**
+  - `ALTER TABLE` (12): `ALTER TABLE ... ADD CONNECTION` (8), which needs the
+    graph connection constraint's AST, `a COLUMN_SET FOR ALL_SPARSE_COLUMNS`
+    (2 rows), `ADD CONTAINED`, and `DROP INDEX` as a table element.
+  - `DELETE` from `OPENQUERY`, `OPENDATASOURCE` or a function (11), which
+    needs the rowset functions as DML targets.
   - Full-text `LANGUAGE x zzz` (10): a full-text statement's language term is
     looked up while it is parsed (Msg 7678), so the server stops there and
     never reads the words after it — `LANGUAGE 'a' 1 2 3` is accepted too.
     omni reads those words by the grammar and refuses them. The same artifact
     keeps `ALTER DATABASE a COLLATE a zzz` open (Msg 448, then 102).
-  - `USE FEDERATION` (9), `DELETE` from `OPENQUERY`, `OPENDATASOURCE` or a
-    function (6), `WITH CHANGE_TRACKING_CONTEXT` (5), `FOR PATH` (4), a table
-    hint holding a number (3).
+  - `USE FEDERATION` (9), `WITH CHANGE_TRACKING_CONTEXT` (5), `TSEQUAL` (2).
+  - 7 single rows: `ALTER DATABASE a COLLATE a zzz`, `(SELECT *)` as a batch
+    (2), `SELECT * FROM.a() a(a)` (the server's lookup of the name `a` counts
+    as an acceptance), `GROUP BY 1 WITH (DISTRIBUTED_AGG)`, `INSERT OVER a
+    DEFAULT VALUES`, and `SELECT.$PARTITION.a(1)`.

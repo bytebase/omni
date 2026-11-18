@@ -246,6 +246,9 @@ func TestResolveQuerySpanPredicatesThroughExpressionsAndViews(t *testing.T) {
 	}{
 		{"SELECT a FROM t WHERE PARSE(b AS int) > 0", set(column("t", "b"))},
 		{"SELECT a FROM t WHERE JSON_OBJECT('k': c) IS NOT NULL", set(column("t", "c"))},
+		// A graph pattern's node names are read as the nodes' columns, as
+		// LAST_NODE (a) = LAST_NODE (b) was before MATCH had a shape of its own.
+		{"SELECT a FROM t WHERE MATCH(LAST_NODE(a) = LAST_NODE(b))", set(column("t", "a"), column("t", "b"))},
 		{"SELECT a FROM v_filtered", set(column("t", "b"))},
 	}
 	for _, tc := range tests {

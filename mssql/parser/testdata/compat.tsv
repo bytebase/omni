@@ -8180,7 +8180,7 @@ reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPa
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-2	SELECT * FROM(*) a
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-3	SELECT * FROM(SELECT) a
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-4	SELECT * FROM(SELECT * a
-accept	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-5	SELECT * FROM(SELECT *)
+reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-5	SELECT * FROM(SELECT *)
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!insert	SELECT * FROM(SELECT *) a zzz
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!swap	SELECT * FROM(SELECTIVE *) a
 accept	accept	engine	derivedTable(queryDerivedTable|inlinedDerivedTable)/queryDerivedTable	SELECT * FROM(SELECT *) a
@@ -8196,7 +8196,7 @@ reject	reject	engine	derivedTable(queryDerivedTable|inlinedDerivedTable)/inlined
 reject	reject	engine	derivedTable(queryDerivedTable|inlinedDerivedTable)/inlinedDerivedTable!insert	SELECT * FROM(VALUES(1)) zzz a
 reject	reject	engine	derivedTable(queryDerivedTable|inlinedDerivedTable)/inlinedDerivedTable!swap	SELECT * FROM(VARYING(1)) a
 accept	accept	engine	derivedTable(forPathClause)?/%empty	SELECT * FROM(SELECT *) a
-reject	accept	engine	derivedTable(forPathClause)?/forPathClause	SELECT * FROM(SELECT *) FOR PATH a
+accept	accept	engine	derivedTable(forPathClause)?/forPathClause	SELECT * FROM(SELECT *) FOR PATH a
 reject	reject	engine	derivedTable(forPathClause)?/forPathClause!drop-1	SELECT * FROM(SELECT *) PATH a
 reject	reject	engine	derivedTable(forPathClause)?/forPathClause!drop-2	SELECT * FROM(SELECT *) FOR a
 reject	reject	engine	derivedTable(forPathClause)?/forPathClause!truncate	SELECT * FROM(SELECT *) FOR
@@ -8597,12 +8597,12 @@ accept	accept	engine	fromClause/From_selectTableReferenceWithOdbc_(Comma_selectT
 accept	accept	engine	fromClause(Comma_selectTableReferenceWithOdbc)*/%empty	SELECT * FROM @a
 accept	accept	engine	fromClause(Comma_selectTableReferenceWithOdbc)*/Comma_selectTableReferenceWithOdbc_(Comma_selectTableRe~07438ddf	SELECT * FROM @a, @a
 reject	reject	engine	fromClause(Comma_selectTableReferenceWithOdbc)*/Comma_selectTableReferenceWithOdbc_(Comma_selectTableRe~07438ddf!drop-1	SELECT * FROM @a @a
-accept	reject	engine	fromClause(Comma_selectTableReferenceWithOdbc)*/Comma_selectTableReferenceWithOdbc_(Comma_selectTableRe~07438ddf!drop-2	SELECT * FROM @a,
+reject	reject	engine	fromClause(Comma_selectTableReferenceWithOdbc)*/Comma_selectTableReferenceWithOdbc_(Comma_selectTableRe~07438ddf!drop-2	SELECT * FROM @a,
 accept	accept	engine	fromClause(Comma_selectTableReferenceWithOdbc)*/Comma_selectTableReferenceWithOdbc_(Comma_selectTableRe~07438ddf!insert	SELECT * FROM @a, @a zzz
-reject	accept	engine	forPathClause/For_PATH	SELECT * FROM a FOR PATH
+accept	accept	engine	forPathClause/For_PATH	SELECT * FROM a FOR PATH
 accept	accept	engine	forPathClause/For_PATH!drop-1	SELECT * FROM a PATH
 reject	reject	engine	forPathClause/For_PATH!drop-2	SELECT * FROM a FOR
-reject	accept	engine	forPathClause/For_PATH!insert	SELECT * FROM a FOR PATH zzz
+accept	accept	engine	forPathClause/For_PATH!insert	SELECT * FROM a FOR PATH zzz
 reject	reject	engine	forPathClause/For_PATH!swap	SELECT * FROM a FORCE PATH
 accept	accept	engine	temporalClause/For_SYSTEM_TIME_(As_Of_stringLiteralOrVariable|From_s~b108580a)	SELECT * FROM a FOR SYSTEM_TIME ALL
 reject	reject	engine	temporalClause/For_SYSTEM_TIME_(As_Of_stringLiteralOrVariable|From_s~b108580a)!drop-1	SELECT * FROM a SYSTEM_TIME ALL
@@ -8674,12 +8674,12 @@ reject	reject	engine	odbcConvertSpecification/nonQuotedIdentifier	SELECT { FN CO
 reject	reject	engine	odbcConvertSpecification/nonQuotedIdentifier!drop-1	SELECT { FN CONVERT(1,) }
 reject	reject	engine	odbcConvertSpecification/nonQuotedIdentifier!truncate	SELECT { FN CONVERT(1,
 reject	reject	engine	odbcConvertSpecification/nonQuotedIdentifier!insert	SELECT { FN CONVERT(1, a zzz) }
-reject	accept	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5	SELECT { FN CURRENT_TIME }
+accept	accept	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5	SELECT { FN CURRENT_TIME }
 reject	reject	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!drop-1	SELECT FN CURRENT_TIME }
 reject	reject	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!drop-2	SELECT { CURRENT_TIME }
 reject	reject	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!drop-3	SELECT { FN }
 reject	reject	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!drop-4	SELECT { FN CURRENT_TIME
-reject	accept	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!insert	SELECT { FN CURRENT_TIME } zzz
+accept	accept	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!insert	SELECT { FN CURRENT_TIME } zzz
 reject	reject	engine	odbcFunctionCall/LeftCurly_FN_(Convert_LeftParenthesis_expression_C~0f94~3627f9b5!swap	SELECT { FOLLOWING CURRENT_TIME }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Convert_LeftParenthesis_expression_Comma_odbcConvertSpe~2e7394b1	SELECT { FN CONVERT(1, a) }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Convert_LeftParenthesis_expression_Comma_odbcConvertSpe~2e7394b1!drop-1	SELECT { FN(1, a) }
@@ -8690,7 +8690,7 @@ reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Convert_LeftParenthesis_expression_Comma_odbcConvertSpe~2e7394b1!truncate	SELECT { FN CONVERT(1, a
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Convert_LeftParenthesis_expression_Comma_odbcConvertSpe~2e7394b1!insert	SELECT { FN CONVERT(1, a) zzz }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Convert_LeftParenthesis_expression_Comma_odbcConvertSpe~2e7394b1!swap	SELECT { FN COOKIE(1, a) }
-reject	accept	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76	SELECT { FN TRUNCATE(1, 1) }
+accept	accept	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76	SELECT { FN TRUNCATE(1, 1) }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76!drop-1	SELECT { FN(1, 1) }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76!drop-2	SELECT { FN TRUNCATE 1, 1) }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76!drop-3	SELECT { FN TRUNCATE(, 1) }
@@ -8700,7 +8700,7 @@ reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76!truncate	SELECT { FN TRUNCATE(1, 1
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76!insert	SELECT { FN TRUNCATE(1, 1) zzz }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Truncate_LeftParenthesis_expression_Comma_expression_Ri~793b7c76!swap	SELECT { FN TRUNCATE_TARGET(1, 1) }
-reject	accept	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Database|User|CurrentDate)_LeftParenthesis_RightParenthesis	SELECT { FN DATABASE() }
+accept	accept	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Database|User|CurrentDate)_LeftParenthesis_RightParenthesis	SELECT { FN DATABASE() }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Database|User|CurrentDate)_LeftParenthesis_RightParenthesis!drop-1	SELECT { FN() }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Database|User|CurrentDate)_LeftParenthesis_RightParenthesis!drop-2	SELECT { FN DATABASE) }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Database|User|CurrentDate)_LeftParenthesis_RightParenthesis!drop-3	SELECT { FN DATABASE(}
@@ -8715,7 +8715,7 @@ reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Insert|Left|Right)_LeftParenthesis_expressionList_Righ~d9d41d57!truncate	SELECT { FN INSERT(1
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Insert|Left|Right)_LeftParenthesis_expressionList_Righ~d9d41d57!insert	SELECT { FN INSERT(1) zzz }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(Insert|Left|Right)_LeftParenthesis_expressionList_Righ~d9d41d57!swap	SELECT { FN INSTEAD(1) }
-reject	accept	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(CurrentTime|CurrentTimestamp)_(LeftParenthesis_(expres~d00287ea	SELECT { FN CURRENT_TIME }
+accept	accept	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(CurrentTime|CurrentTimestamp)_(LeftParenthesis_(expres~d00287ea	SELECT { FN CURRENT_TIME }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(CurrentTime|CurrentTimestamp)_(LeftParenthesis_(expres~d00287ea!truncate	SELECT { FN
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/(CurrentTime|CurrentTimestamp)_(LeftParenthesis_(expres~d00287ea!insert	SELECT { FN CURRENT_TIME zzz }
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/extractFromExpression_EXTRACT	SELECT { FN EXTRACT(a FROM 1) }
@@ -8733,12 +8733,12 @@ reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Identifier_LeftParenthesis_(expressionList)?_RightParenthesis!drop-3	SELECT { FN a(}
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Identifier_LeftParenthesis_(expressionList)?_RightParenthesis!truncate	SELECT { FN a(
 reject	reject	engine	odbcFunctionCall(Convert_LeftParenthesis_expression_C~0f94f401)/Identifier_LeftParenthesis_(expressionList)?_RightParenthesis!insert	SELECT { FN a() zzz }
-reject	accept	engine	odbcFunctionCall(Database|User|CurrentDate)/Database	SELECT { FN DATABASE() }
+accept	accept	engine	odbcFunctionCall(Database|User|CurrentDate)/Database	SELECT { FN DATABASE() }
 reject	reject	engine	odbcFunctionCall(Database|User|CurrentDate)/Database!insert	SELECT { FN DATABASE zzz() }
-reject	accept	engine	odbcFunctionCall(Database|User|CurrentDate)/User	SELECT { FN USER() }
+accept	accept	engine	odbcFunctionCall(Database|User|CurrentDate)/User	SELECT { FN USER() }
 reject	reject	engine	odbcFunctionCall(Database|User|CurrentDate)/User!insert	SELECT { FN USER zzz() }
 reject	reject	engine	odbcFunctionCall(Database|User|CurrentDate)/User!swap	SELECT { FN USER_DB() }
-reject	accept	engine	odbcFunctionCall(Database|User|CurrentDate)/CurrentDate	SELECT { FN CURRENT_DATE() }
+accept	accept	engine	odbcFunctionCall(Database|User|CurrentDate)/CurrentDate	SELECT { FN CURRENT_DATE() }
 reject	reject	engine	odbcFunctionCall(Database|User|CurrentDate)/CurrentDate!insert	SELECT { FN CURRENT_DATE zzz() }
 reject	reject	engine	odbcFunctionCall(Insert|Left|Right)/Insert	SELECT { FN INSERT(1) }
 reject	reject	engine	odbcFunctionCall(Insert|Left|Right)/Insert!insert	SELECT { FN INSERT zzz(1) }
@@ -8748,19 +8748,19 @@ reject	reject	engine	odbcFunctionCall(Insert|Left|Right)/Left!swap	SELECT { FN L
 reject	reject	engine	odbcFunctionCall(Insert|Left|Right)/Right	SELECT { FN RIGHT(1) }
 reject	reject	engine	odbcFunctionCall(Insert|Left|Right)/Right!insert	SELECT { FN RIGHT zzz(1) }
 reject	reject	engine	odbcFunctionCall(Insert|Left|Right)/Right!swap	SELECT { FN ROLE(1) }
-reject	accept	engine	odbcFunctionCall(CurrentTime|CurrentTimestamp)/CurrentTime	SELECT { FN CURRENT_TIME }
-reject	accept	engine	odbcFunctionCall(CurrentTime|CurrentTimestamp)/CurrentTimestamp	SELECT { FN CURRENT_TIMESTAMP }
+accept	accept	engine	odbcFunctionCall(CurrentTime|CurrentTimestamp)/CurrentTime	SELECT { FN CURRENT_TIME }
+accept	accept	engine	odbcFunctionCall(CurrentTime|CurrentTimestamp)/CurrentTimestamp	SELECT { FN CURRENT_TIMESTAMP }
 reject	reject	engine	odbcFunctionCall(CurrentTime|CurrentTimestamp)/CurrentTimestamp!insert	SELECT { FN CURRENT_TIMESTAMP zzz }
 reject	reject	engine	odbcFunctionCall(CurrentTime|CurrentTimestamp)/CurrentTimestamp!swap	SELECT { FN CURRENT_USER }
-reject	accept	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/LeftParenthesis_(expressionList)?_RightParenthesis	SELECT { FN CURRENT_TIME() }
+accept	accept	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/LeftParenthesis_(expressionList)?_RightParenthesis	SELECT { FN CURRENT_TIME() }
 reject	reject	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/LeftParenthesis_(expressionList)?_RightParenthesis!drop-1	SELECT { FN CURRENT_TIME) }
 reject	reject	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/LeftParenthesis_(expressionList)?_RightParenthesis!drop-2	SELECT { FN CURRENT_TIME(}
 reject	reject	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/LeftParenthesis_(expressionList)?_RightParenthesis!truncate	SELECT { FN CURRENT_TIME(
 reject	reject	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/LeftParenthesis_(expressionList)?_RightParenthesis!insert	SELECT { FN CURRENT_TIME() zzz }
-reject	accept	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/%empty	SELECT { FN CURRENT_TIME }
-reject	accept	engine	odbcFunctionCall(expressionList)?/%empty	SELECT { FN CURRENT_TIME() }
-reject	accept	engine	odbcFunctionCall(expressionList)?/%empty!insert	SELECT { FN CURRENT_TIME(zzz) }
-reject	accept	engine	odbcFunctionCall(expressionList)?/expressionList	SELECT { FN CURRENT_TIME(1) }
+accept	accept	engine	odbcFunctionCall(LeftParenthesis_(expressionList)?_Ri~1f8f4956)/%empty	SELECT { FN CURRENT_TIME }
+accept	accept	engine	odbcFunctionCall(expressionList)?/%empty	SELECT { FN CURRENT_TIME() }
+accept	accept	engine	odbcFunctionCall(expressionList)?/%empty!insert	SELECT { FN CURRENT_TIME(zzz) }
+accept	accept	engine	odbcFunctionCall(expressionList)?/expressionList	SELECT { FN CURRENT_TIME(1) }
 reject	reject	engine	odbcFunctionCall(expressionList)?/expressionList!insert	SELECT { FN CURRENT_TIME(1 zzz) }
 accept	accept	engine	joinTableReference/joinParenthesis_(joinElement)*	SELECT * FROM((@a CROSS JOIN @a))
 reject	reject	engine	joinTableReference/joinParenthesis_(joinElement)*!drop-1	SELECT * FROM(@a CROSS JOIN @a))
@@ -8904,9 +8904,9 @@ reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableM
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-3	SELECT * FROM @a.() a(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-4	SELECT * FROM @a.a) a(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-5	SELECT * FROM @a.a(a(a)
-accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-6	SELECT * FROM @a.a()(a)
+reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-6	SELECT * FROM @a.a()(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-7	SELECT * FROM @a.a() a a)
-accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-8	SELECT * FROM @a.a() a()
+reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-8	SELECT * FROM @a.a() a()
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-9	SELECT * FROM @a.a() a(a
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!insert	SELECT * FROM @a.a() a(a) zzz
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/derivedTable	SELECT * FROM(SELECT *) a
@@ -8916,7 +8916,7 @@ reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowse
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!drop-3	SELECT * FROM OPENROWSET()
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!drop-4	SELECT * FROM OPENROWSET(a
 accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!insert	SELECT * FROM OPENROWSET(a) zzz
-accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!swap	SELECT * FROM OPENXML(a)
+reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!swap	SELECT * FROM OPENXML(a)
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/fulltextTableReference	SELECT * FROM CONTAINSTABLE(a, a, 'a')
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/fulltextTableReference!drop-1	SELECT * FROM(a, a, 'a')
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/fulltextTableReference!drop-2	SELECT * FROM CONTAINSTABLE a, a, 'a')
@@ -8952,7 +8952,7 @@ reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openJsonT
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openJsonTableReference_OPENJSON!drop-3	SELECT * FROM OPENJSON()
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openJsonTableReference_OPENJSON!drop-4	SELECT * FROM OPENJSON(1
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/openJsonTableReference_OPENJSON!insert	SELECT * FROM OPENJSON(1) zzz
-accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openJsonTableReference_OPENJSON!swap	SELECT * FROM OPENQUERY(1)
+reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openJsonTableReference_OPENJSON!swap	SELECT * FROM OPENQUERY(1)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/subDmlTableReference	SELECT * FROM(DELETE a) a
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/subDmlTableReference!drop-1	SELECT * FROM DELETE a) a
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/subDmlTableReference!drop-2	SELECT * FROM(a) a
@@ -9462,7 +9462,7 @@ accept	accept	engine	schemaObjectTableReference/(temporalClause)?_(forPathClause
 accept	accept	engine	schemaObjectTableReference(temporalClause)?/%empty	SELECT * FROM a
 accept	accept	engine	schemaObjectTableReference(temporalClause)?/temporalClause	SELECT * FROM a FOR SYSTEM_TIME ALL
 accept	accept	engine	schemaObjectTableReference(forPathClause)?/%empty	SELECT * FROM a
-reject	accept	engine	schemaObjectTableReference(forPathClause)?/forPathClause	SELECT * FROM a FOR PATH
+accept	accept	engine	schemaObjectTableReference(forPathClause)?/forPathClause	SELECT * FROM a FOR PATH
 accept	accept	engine	schemaObjectTableReference((singleOldStyleTableHint_(simpleTabl~fe082ad0)/singleOldStyleTableHint_(simpleTableReferenceAlias)?	SELECT * FROM a(FORCESEEK)
 reject	reject	engine	schemaObjectTableReference((singleOldStyleTableHint_(simpleTabl~fe082ad0)/singleOldStyleTableHint_(simpleTableReferenceAlias)?!drop-1	SELECT * FROM a FORCESEEK)
 reject	reject	engine	schemaObjectTableReference((singleOldStyleTableHint_(simpleTabl~fe082ad0)/singleOldStyleTableHint_(simpleTableReferenceAlias)?!drop-3	SELECT * FROM a(FORCESEEK
@@ -9555,7 +9555,7 @@ reject	reject	engine	fulltextSemanticTableColumnList(Comma_identifierColumnRefer
 reject	reject	engine	fulltextSemanticTableColumnList(Comma_identifierColumnReferenceExpression)*/Comma_identifierColumnReferenceExpression_(Comma_identi~056d1a56!insert	SELECT * FROM SEMANTICKEYPHRASETABLE(a,(a, a zzz))
 accept	accept	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00)
 reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!drop-1	SELECT * FROM CONTAINSTABLE(a, a, 'a' LANGUAGE 0x00)
-accept	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!drop-2	SELECT * FROM CONTAINSTABLE(a, a, 'a', 0x00)
+reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!drop-2	SELECT * FROM CONTAINSTABLE(a, a, 'a', 0x00)
 reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!drop-3	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE)
 reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!truncate	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE
 reject	reject	engine	fulltextTableOptions/Comma_languageExpression_(Comma_integerOrVariable)?!insert	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00 zzz)
@@ -9857,9 +9857,9 @@ reject	reject	engine	oldForceIndex/LeftParenthesis_integer_RightParenthesis!drop
 reject	reject	engine	oldForceIndex/LeftParenthesis_integer_RightParenthesis!drop-3	SELECT * FROM a HOLDLOCK(1
 reject	reject	engine	oldForceIndex/LeftParenthesis_integer_RightParenthesis!insert	SELECT * FROM a HOLDLOCK(1) zzz
 reject	reject	engine	nonParameterTableHints/HoldLock_(oldForceIndex|simpleTableHints)?	SELECT * FROM a HOLDLOCK
-reject	accept	engine	nonParameterTableHints/simpleTableHints	SELECT * FROM a WITH(1)
+accept	accept	engine	nonParameterTableHints/simpleTableHints	SELECT * FROM a WITH(1)
 reject	reject	engine	nonParameterTableHints/simpleTableHints!drop-2	SELECT * FROM a WITH 1)
-accept	reject	engine	nonParameterTableHints/simpleTableHints!drop-3	SELECT * FROM a WITH()
+reject	reject	engine	nonParameterTableHints/simpleTableHints!drop-3	SELECT * FROM a WITH()
 reject	reject	engine	nonParameterTableHints/simpleTableHints!drop-4	SELECT * FROM a WITH(1
 reject	reject	engine	nonParameterTableHints/simpleTableHints!insert	SELECT * FROM a WITH(1) zzz
 reject	reject	engine	nonParameterTableHints/simpleTableHints!swap	SELECT * FROM a WITHIN(1)
@@ -9871,8 +9871,8 @@ reject	reject	engine	nonParameterTableHints(oldForceIndex|simpleTableHints)?/sim
 reject	reject	engine	nonParameterTableHints(oldForceIndex|simpleTableHints)?/simpleTableHints!drop-4	SELECT * FROM a HOLDLOCK WITH(1
 reject	reject	engine	nonParameterTableHints(oldForceIndex|simpleTableHints)?/simpleTableHints!insert	SELECT * FROM a HOLDLOCK WITH(1) zzz
 reject	reject	engine	nonParameterTableHints(oldForceIndex|simpleTableHints)?/simpleTableHints!swap	SELECT * FROM a HOLDLOCK WITHIN(1)
-reject	accept	engine	simpleTableHints/With_(oldForceIndex|tableHints)	SELECT * FROM a WITH(1)
-reject	accept	engine	simpleTableHints(oldForceIndex|tableHints)/oldForceIndex	SELECT * FROM a WITH(1)
+accept	accept	engine	simpleTableHints/With_(oldForceIndex|tableHints)	SELECT * FROM a WITH(1)
+accept	accept	engine	simpleTableHints(oldForceIndex|tableHints)/oldForceIndex	SELECT * FROM a WITH(1)
 accept	accept	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints	SELECT * FROM a WITH(FORCESEEK)
 reject	reject	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints!drop-1	SELECT * FROM a WITH FORCESEEK)
 reject	reject	engine	simpleTableHints(oldForceIndex|tableHints)/tableHints!drop-3	SELECT * FROM a WITH(FORCESEEK
@@ -9905,7 +9905,7 @@ reject	reject	engine	tableHint/indexTableHint!swap	DELETE a WITH(INFINITE = a)
 accept	accept	engine	tableHint/literalTableHint	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1)
 reject	reject	engine	tableHint/literalTableHint!drop-1	DELETE a WITH(= 1)
 reject	reject	engine	tableHint/literalTableHint!drop-2	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS 1)
-accept	reject	engine	tableHint/literalTableHint!drop-3	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS =)
+reject	reject	engine	tableHint/literalTableHint!drop-3	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS =)
 reject	reject	engine	tableHint/literalTableHint!truncate	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS =
 reject	reject	engine	tableHint/literalTableHint!insert	DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS = 1 zzz)
 reject	reject	engine	tableHint/literalTableHint!swap	DELETE a WITH(SPECIFICATION = 1)
@@ -13200,7 +13200,7 @@ reject	reject	engine	booleanExpressionPrimary/booleanExpressionParenthesis!drop-
 reject	reject	engine	booleanExpressionPrimary/booleanExpressionParenthesis!drop-5	IF(1 = 1 SELECT 1
 reject	reject	engine	booleanExpressionPrimary/booleanExpressionParenthesis!truncate	IF(1 = 1
 reject	reject	engine	booleanExpressionPrimary/booleanExpressionParenthesis!insert	IF(1 = 1) zzz SELECT 1
-accept	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis	IF MATCH(LAST_NODE = a) SELECT 1
 accept	accept	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!drop-1	IF(LAST_NODE = a) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!drop-2	IF MATCH LAST_NODE = a) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/MATCH_LeftParenthesis_graphMatchPattern_RightParenthesis!drop-3	IF MATCH(= a) SELECT 1
@@ -13272,7 +13272,7 @@ reject	reject	engine	booleanExpressionPrimary(comparisonPredicate|subqueryCompar
 reject	reject	engine	booleanExpressionPrimary(comparisonPredicate|subqueryComparis~adfce878)/subqueryComparisonPredicate!swap	IF 1 = ALLOW_CONNECTIONS(SELECT *) SELECT 1
 accept	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/booleanExpressionNullPredicate	IF 1 IS NULL SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/booleanExpressionNullPredicate!swap	IF 1 IS NULLIF SELECT 1
-reject	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/(Not)?_Distinct_From_(booleanExpressionNullPredicateFro~0e25a116	IF 1 IS DISTINCT FROM NULL SELECT 1
+accept	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/(Not)?_Distinct_From_(booleanExpressionNullPredicateFro~0e25a116	IF 1 IS DISTINCT FROM NULL SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/(Not)?_Distinct_From_(booleanExpressionNullPredicateFro~0e25a116!drop-1	IF 1 IS FROM NULL SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/(Not)?_Distinct_From_(booleanExpressionNullPredicateFro~0e25a116!drop-2	IF 1 IS DISTINCT NULL SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicate|(Not)~c75ac5b0)/(Not)?_Distinct_From_(booleanExpressionNullPredicateFro~0e25a116!drop-3	IF 1 IS DISTINCT FROM SELECT 1
@@ -13285,12 +13285,12 @@ accept	accept	engine	booleanExpressionPrimary(Not)?/Not	IF 1 NOT LIKE 1 SELECT 1
 reject	reject	engine	booleanExpressionPrimary(Not)?/Not!truncate	IF 1
 reject	reject	engine	booleanExpressionPrimary(Not)?/Not!insert	IF 1 NOT zzz LIKE 1 SELECT 1
 reject	reject	engine	booleanExpressionPrimary(Not)?/Not!swap	IF 1 NOTIFICATION LIKE 1 SELECT 1
-reject	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/booleanExpressionNullPredicateFromDistinctPredicate	IF 1 IS DISTINCT FROM NULL SELECT 1
+accept	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/booleanExpressionNullPredicateFromDistinctPredicate	IF 1 IS DISTINCT FROM NULL SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/booleanExpressionNullPredicateFromDistinctPredicate!swap	IF 1 IS DISTINCT FROM NULLIF SELECT 1
-reject	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/booleanExpressionDistinctPredicate	IF 1 IS DISTINCT FROM 1 SELECT 1
+accept	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/booleanExpressionDistinctPredicate	IF 1 IS DISTINCT FROM 1 SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/booleanExpressionDistinctPredicate!insert	IF 1 IS DISTINCT FROM 1 zzz SELECT 1
-reject	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate	IF 1 IS DISTINCT FROM ALL(SELECT *) SELECT 1
-reject	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate!drop-1	IF 1 IS DISTINCT FROM(SELECT *) SELECT 1
+accept	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate	IF 1 IS DISTINCT FROM ALL(SELECT *) SELECT 1
+accept	accept	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate!drop-1	IF 1 IS DISTINCT FROM(SELECT *) SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate!drop-2	IF 1 IS DISTINCT FROM ALL SELECT *) SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate!drop-3	IF 1 IS DISTINCT FROM ALL(*) SELECT 1
 reject	reject	engine	booleanExpressionPrimary(booleanExpressionNullPredicateFromDi~3f39361b)/subqueryComparisonDistinctPredicate!drop-4	IF 1 IS DISTINCT FROM ALL(SELECT) SELECT 1
@@ -13315,12 +13315,12 @@ reject	reject	engine	booleanExpressionPrimary(inPredicate|betweenPredicate|likeP
 reject	reject	engine	booleanExpressionPrimary(inPredicate|betweenPredicate|likePredicate)/betweenPredicate!insert	IF 1 BETWEEN 1 AND 1 zzz SELECT 1
 reject	reject	engine	booleanExpressionPrimary(inPredicate|betweenPredicate|likePredicate)/betweenPredicate!swap	IF 1 BINDING 1 AND 1 SELECT 1
 accept	accept	engine	booleanExpressionPrimary(inPredicate|betweenPredicate|likePredicate)/likePredicate	IF 1 LIKE 1 SELECT 1
-accept	reject	engine	graphMatchPattern/graphMatchExpressionPattern_(And_graphMatchExpressionPattern)*	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchPattern/graphMatchExpressionPattern_(And_graphMatchExpressionPattern)*	IF MATCH(LAST_NODE = a) SELECT 1
 reject	reject	engine	graphMatchPattern/graphMatchExpressionPattern_(And_graphMatchExpressionPattern)*!truncate	IF MATCH(LAST_NODE =
 reject	reject	engine	graphMatchPattern/graphMatchExpressionPattern_(And_graphMatchExpressionPattern)*!insert	IF MATCH(LAST_NODE = a zzz) SELECT 1
-accept	reject	engine	graphMatchPattern/graphMatchExpressionPattern_(And_graphMatchExpressionPattern)*!swap	IF MATCH(LEADING = a) SELECT 1
-accept	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/%empty	IF MATCH(LAST_NODE = a) SELECT 1
-accept	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8	IF MATCH(LAST_NODE = a AND LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchPattern/graphMatchExpressionPattern_(And_graphMatchExpressionPattern)*!swap	IF MATCH(LEADING = a) SELECT 1
+reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/%empty	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8	IF MATCH(LAST_NODE = a AND LAST_NODE = a) SELECT 1
 reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8!drop-1	IF MATCH(LAST_NODE = a LAST_NODE = a) SELECT 1
 reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8!drop-2	IF MATCH(LAST_NODE = a AND = a) SELECT 1
 reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8!drop-3	IF MATCH(LAST_NODE = a AND LAST_NODE a) SELECT 1
@@ -13328,7 +13328,7 @@ reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_gra
 reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8!truncate	IF MATCH(LAST_NODE = a AND LAST_NODE =
 reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8!insert	IF MATCH(LAST_NODE = a AND LAST_NODE = a zzz) SELECT 1
 reject	reject	engine	graphMatchPattern(And_graphMatchExpressionPattern)*/And_graphMatchExpressionPattern_(And_graphMatchExpressi~110137a8!swap	IF MATCH(LAST_NODE = a ANONYMOUS LAST_NODE = a) SELECT 1
-accept	reject	engine	graphMatchExpressionPattern/(graphMatchRecursivePattern_SHORTEST_~c81f85c0)	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchExpressionPattern/(graphMatchRecursivePattern_SHORTEST_~c81f85c0)	IF MATCH(LAST_NODE = a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-1	IF MATCH((a() +)) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!drop-2	IF MATCH(SHORTEST_PATH a() +)) SELECT 1
@@ -13340,15 +13340,15 @@ reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHOR
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!truncate	IF MATCH(SHORTEST_PATH(a() +
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!insert	IF MATCH(SHORTEST_PATH(a() +) zzz) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchRecursivePattern_SHORTEST_PATH!swap	IF MATCH(SHUTDOWN(a() +)) SELECT 1
-accept	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchLastNodePattern_LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
-reject	accept	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern	IF MATCH(a -(a) - > a) SELECT 1
+reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphMatchLastNodePattern_LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
+accept	accept	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern	IF MATCH(a -(a) - > a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-1	IF MATCH(-(a) - > a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-2	IF MATCH(a(a) - > a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-3	IF MATCH(a - a) - > a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-4	IF MATCH(a -() - > a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-5	IF MATCH(a -(a - > a) SELECT 1
-accept	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-6	IF MATCH(a -(a) > a) SELECT 1
-accept	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-7	IF MATCH(a -(a) - a) SELECT 1
+reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-6	IF MATCH(a -(a) > a) SELECT 1
+reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-7	IF MATCH(a -(a) - a) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!drop-8	IF MATCH(a -(a) - >) SELECT 1
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!truncate	IF MATCH(a -(a) - >
 reject	reject	engine	graphMatchExpressionPattern(graphMatchRecursivePattern_SHORTEST_~c81f85c0)/graphCompositeMatchPattern!insert	IF MATCH(a -(a) - > a zzz) SELECT 1
@@ -13364,19 +13364,19 @@ reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly!drop-5	IF MATCH(SHORTEST_PATH(a() { 1, 1)) SELECT 1
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly!truncate	IF MATCH(SHORTEST_PATH(a() { 1, 1
 reject	reject	engine	graphRecursiveMatchQuantifier(Plus|LeftCurly_integer_Comma_integer~3491bdac)/LeftCurly_integer_Comma_integer_RightCurly!insert	IF MATCH(SHORTEST_PATH(a() { 1, 1 } zzz)) SELECT 1
-accept	reject	engine	graphMatchNodeExpression/(LAST_NODE_LeftParenthesis_identifier~e650f698)	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression/(LAST_NODE_LeftParenthesis_identifier~e650f698)	IF MATCH(LAST_NODE = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis	IF MATCH(LAST_NODE = LAST_NODE(a)) SELECT 1
-accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-1	IF MATCH(LAST_NODE =(a)) SELECT 1
+reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-1	IF MATCH(LAST_NODE =(a)) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-2	IF MATCH(LAST_NODE = LAST_NODE a)) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-3	IF MATCH(LAST_NODE = LAST_NODE()) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-4	IF MATCH(LAST_NODE = LAST_NODE(a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!truncate	IF MATCH(LAST_NODE = LAST_NODE(a
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!insert	IF MATCH(LAST_NODE = LAST_NODE(a) zzz) SELECT 1
 reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!swap	IF MATCH(LAST_NODE = LEADING(a)) SELECT 1
-accept	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/identifier	IF MATCH(LAST_NODE = a) SELECT 1
-reject	accept	engine	graphCompositeMatchPattern/graphMatchNodeExpression_graphSingleMatchPattern_(graph~5a897ca4	IF MATCH(a -(a) - > a) SELECT 1
-reject	accept	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/%empty	IF MATCH(a -(a) - > a) SELECT 1
-reject	accept	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(a -(a) - > a -(a) - > a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression(LAST_NODE_LeftParenthesis_identifier~e650f698)/identifier	IF MATCH(LAST_NODE = a) SELECT 1
+accept	accept	engine	graphCompositeMatchPattern/graphMatchNodeExpression_graphSingleMatchPattern_(graph~5a897ca4	IF MATCH(a -(a) - > a) SELECT 1
+accept	accept	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/%empty	IF MATCH(a -(a) - > a) SELECT 1
+accept	accept	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(a -(a) - > a -(a) - > a) SELECT 1
 reject	reject	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-1	IF MATCH(a -(a) - > a(a) - > a) SELECT 1
 reject	reject	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-2	IF MATCH(a -(a) - > a - a) - > a) SELECT 1
 reject	reject	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-3	IF MATCH(a -(a) - > a -() - > a) SELECT 1
@@ -13389,7 +13389,7 @@ reject	reject	engine	graphCompositeMatchPattern(graphSingleMatchPattern)*/graphS
 reject	reject	engine	graphMatchSPRightRecursivePattern/(graphSingleMatchPattern)*	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
 reject	reject	engine	graphMatchSPRightRecursivePattern/(graphSingleMatchPattern)*!insert	IF MATCH(SHORTEST_PATH(a(zzz) +)) SELECT 1
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/%empty	IF MATCH(SHORTEST_PATH(a() +)) SELECT 1
-reject	accept	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(SHORTEST_PATH(a(-(a) - > a) +)) SELECT 1
+accept	accept	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(SHORTEST_PATH(a(-(a) - > a) +)) SELECT 1
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-1	IF MATCH(SHORTEST_PATH(a((a) - > a) +)) SELECT 1
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-2	IF MATCH(SHORTEST_PATH(a(- a) - > a) +)) SELECT 1
 reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-3	IF MATCH(SHORTEST_PATH(a(-() - > a) +)) SELECT 1
@@ -13402,7 +13402,7 @@ reject	reject	engine	graphMatchSPRightRecursivePattern(graphSingleMatchPattern)*
 reject	reject	engine	graphMatchSPLeftRecursivePattern/(graphSingleLeftMatchPattern)*	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern/(graphSingleLeftMatchPattern)*!insert	IF MATCH(SHORTEST_PATH((zzz) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/%empty	IF MATCH(SHORTEST_PATH(() + a)) SELECT 1
-reject	accept	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
+accept	accept	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!drop-1	IF MATCH(SHORTEST_PATH((-(a) - >) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!drop-2	IF MATCH(SHORTEST_PATH((a(a) - >) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!drop-3	IF MATCH(SHORTEST_PATH((a - a) - >) + a)) SELECT 1
@@ -13412,9 +13412,9 @@ reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPatter
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!drop-7	IF MATCH(SHORTEST_PATH((a -(a) -) + a)) SELECT 1
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!truncate	IF MATCH(SHORTEST_PATH((a -(a) -
 reject	reject	engine	graphMatchSPLeftRecursivePattern(graphSingleLeftMatchPattern)*/graphSingleLeftMatchPattern_(graphSingleLeftMatchPattern)*!insert	IF MATCH(SHORTEST_PATH((a -(a) - > zzz) + a)) SELECT 1
-reject	accept	engine	graphSingleLeftMatchPattern/((graphMatchNodeExpression_Minus_Left~a2c105ae)	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
-reject	accept	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_Minus_LeftParenthesis_identifi~0008a1fe	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
-reject	accept	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a	IF MATCH(SHORTEST_PATH((a < -(a) -) + a)) SELECT 1
+accept	accept	engine	graphSingleLeftMatchPattern/((graphMatchNodeExpression_Minus_Left~a2c105ae)	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
+accept	accept	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_Minus_LeftParenthesis_identifi~0008a1fe	IF MATCH(SHORTEST_PATH((a -(a) - >) + a)) SELECT 1
+accept	accept	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a	IF MATCH(SHORTEST_PATH((a < -(a) -) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-1	IF MATCH(SHORTEST_PATH((< -(a) -) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-3	IF MATCH(SHORTEST_PATH((a <(a) -) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-4	IF MATCH(SHORTEST_PATH((a < - a) -) + a)) SELECT 1
@@ -13423,21 +13423,21 @@ reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!drop-7	IF MATCH(SHORTEST_PATH((a < -(a)) + a)) SELECT 1
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!truncate	IF MATCH(SHORTEST_PATH((a < -(a)
 reject	reject	engine	graphSingleLeftMatchPattern((graphMatchNodeExpression_Minus_Left~a2c105ae)/graphMatchNodeExpression_LessThan_Minus_LeftParenthesis~6f8f085a!insert	IF MATCH(SHORTEST_PATH((a < -(a) - zzz) + a)) SELECT 1
-reject	accept	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
+accept	accept	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-1	IF MATCH(LAST_NODE(a) - > a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-2	IF MATCH(LAST_NODE - a) - > a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-3	IF MATCH(LAST_NODE -() - > a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-4	IF MATCH(LAST_NODE -(a - > a) SELECT 1
-accept	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-5	IF MATCH(LAST_NODE -(a) > a) SELECT 1
-accept	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-6	IF MATCH(LAST_NODE -(a) - a) SELECT 1
+reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-5	IF MATCH(LAST_NODE -(a) > a) SELECT 1
+reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-6	IF MATCH(LAST_NODE -(a) - a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!drop-7	IF MATCH(LAST_NODE -(a) - >) SELECT 1
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!truncate	IF MATCH(LAST_NODE -(a) - >
 reject	reject	engine	graphSingleMatchPattern/((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)!insert	IF MATCH(LAST_NODE -(a) - > a zzz) SELECT 1
-reject	accept	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/Minus_LeftParenthesis_identifier_RightParenthesis_Minus~9584b65b	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
+accept	accept	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/Minus_LeftParenthesis_identifier_RightParenthesis_Minus~9584b65b	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
 accept	accept	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815	IF MATCH(LAST_NODE < -(a) - a) SELECT 1
-accept	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-2	IF MATCH(LAST_NODE <(a) - a) SELECT 1
+reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-2	IF MATCH(LAST_NODE <(a) - a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-3	IF MATCH(LAST_NODE < - a) - a) SELECT 1
-accept	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-4	IF MATCH(LAST_NODE < -() - a) SELECT 1
+reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-4	IF MATCH(LAST_NODE < -() - a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-5	IF MATCH(LAST_NODE < -(a - a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-6	IF MATCH(LAST_NODE < -(a) a) SELECT 1
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-7	IF MATCH(LAST_NODE < -(a) -) SELECT 1
@@ -13493,7 +13493,7 @@ accept	accept	engine	booleanExpressionParenthesis/LeftParenthesis_booleanExpress
 accept	accept	engine	existsPredicate/Exists_subquery	IF EXISTS(SELECT *) SELECT 1
 accept	accept	engine	comparisonPredicate/expressionWithFlags	IF 1 = 1 SELECT 1
 accept	accept	engine	subqueryComparisonPredicate/subqueryComparisonPredicateType_subquery	IF 1 = ALL(SELECT *) SELECT 1
-reject	accept	engine	subqueryComparisonDistinctPredicate/subqueryComparisonPredicateType_subquery	IF 1 IS DISTINCT FROM ALL(SELECT *) SELECT 1
+accept	accept	engine	subqueryComparisonDistinctPredicate/subqueryComparisonPredicateType_subquery	IF 1 IS DISTINCT FROM ALL(SELECT *) SELECT 1
 accept	accept	engine	inPredicate/In_(subquery|LeftParenthesis_expressionL~93d59486)	IF 1 IN(1) SELECT 1
 accept	accept	engine	inPredicate(subquery|LeftParenthesis_expressionL~93d59486)/subquery	IF 1 IN(SELECT *) SELECT 1
 reject	reject	engine	inPredicate(subquery|LeftParenthesis_expressionL~93d59486)/subquery!drop-1	IF 1 IN SELECT *) SELECT 1
@@ -13513,7 +13513,7 @@ accept	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!truncate	IF 1 LIKE 1 ESCAPE
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!insert	IF 1 LIKE 1 ESCAPE 1 zzz SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!swap	IF 1 LIKE 1 EVENT 1 SELECT 1
-reject	accept	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly	IF 1 LIKE 1 { ESCAPE 1 } SELECT 1
+accept	accept	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly	IF 1 LIKE 1 { ESCAPE 1 } SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly!drop-1	IF 1 LIKE 1 ESCAPE 1 } SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly!drop-2	IF 1 LIKE 1 { 1 } SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly!drop-3	IF 1 LIKE 1 { ESCAPE } SELECT 1
@@ -13521,8 +13521,8 @@ reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly!truncate	IF 1 LIKE 1 { ESCAPE 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly!insert	IF 1 LIKE 1 { ESCAPE 1 } zzz SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/LeftCurly_escapeExpression_RightCurly!swap	IF 1 LIKE 1 { EVENT 1 } SELECT 1
-reject	accept	engine	booleanExpressionDistinctPredicate/expressionWithFlags	IF 1 IS DISTINCT FROM 1 SELECT 1
-reject	accept	engine	booleanExpressionNullPredicateFromDistinctPredicate/Null	IF 1 IS DISTINCT FROM NULL SELECT 1
+accept	accept	engine	booleanExpressionDistinctPredicate/expressionWithFlags	IF 1 IS DISTINCT FROM 1 SELECT 1
+accept	accept	engine	booleanExpressionNullPredicateFromDistinctPredicate/Null	IF 1 IS DISTINCT FROM NULL SELECT 1
 accept	accept	engine	booleanExpressionNullPredicate/nullNotNull	IF 1 IS NULL SELECT 1
 accept	accept	engine	escapeExpression/Escape_expressionWithFlags	IF 1 LIKE 1 ESCAPE 1 SELECT 1
 accept	accept	engine	comparisonOperator/EqualsSign	IF 1 = 1 SELECT 1
@@ -13531,24 +13531,24 @@ accept	accept	engine	comparisonOperator/GreaterThan_(EqualsSign)?	IF 1 > 1 SELEC
 reject	reject	engine	comparisonOperator/GreaterThan_(EqualsSign)?!insert	IF 1 > zzz 1 SELECT 1
 accept	accept	engine	comparisonOperator/LessThan_(EqualsSign|GreaterThan)?	IF 1 < 1 SELECT 1
 reject	reject	engine	comparisonOperator/LessThan_(EqualsSign|GreaterThan)?!insert	IF 1 < zzz 1 SELECT 1
-reject	accept	engine	comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	IF 1 ! = 1 SELECT 1
+accept	accept	engine	comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)	IF 1 ! = 1 SELECT 1
 reject	reject	engine	comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)!drop-2	IF 1 ! 1 SELECT 1
 reject	reject	engine	comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)!truncate	IF 1 !
 reject	reject	engine	comparisonOperator/Bang_(EqualsSign|LessThan|GreaterThan)!insert	IF 1 ! = zzz 1 SELECT 1
 accept	accept	engine	comparisonOperator(EqualsSign)?/%empty	IF 1 > 1 SELECT 1
-reject	accept	engine	comparisonOperator(EqualsSign)?/EqualsSign	IF 1 > = 1 SELECT 1
+accept	accept	engine	comparisonOperator(EqualsSign)?/EqualsSign	IF 1 > = 1 SELECT 1
 reject	reject	engine	comparisonOperator(EqualsSign)?/EqualsSign!truncate	IF 1 >
 reject	reject	engine	comparisonOperator(EqualsSign)?/EqualsSign!insert	IF 1 > = zzz 1 SELECT 1
 accept	accept	engine	comparisonOperator(EqualsSign|GreaterThan)?/%empty	IF 1 < 1 SELECT 1
-reject	accept	engine	comparisonOperator(EqualsSign|GreaterThan)?/EqualsSign	IF 1 < = 1 SELECT 1
+accept	accept	engine	comparisonOperator(EqualsSign|GreaterThan)?/EqualsSign	IF 1 < = 1 SELECT 1
 reject	reject	engine	comparisonOperator(EqualsSign|GreaterThan)?/EqualsSign!truncate	IF 1 <
 reject	reject	engine	comparisonOperator(EqualsSign|GreaterThan)?/EqualsSign!insert	IF 1 < = zzz 1 SELECT 1
-reject	accept	engine	comparisonOperator(EqualsSign|GreaterThan)?/GreaterThan	IF 1 < > 1 SELECT 1
+accept	accept	engine	comparisonOperator(EqualsSign|GreaterThan)?/GreaterThan	IF 1 < > 1 SELECT 1
 reject	reject	engine	comparisonOperator(EqualsSign|GreaterThan)?/GreaterThan!insert	IF 1 < > zzz 1 SELECT 1
-reject	accept	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/EqualsSign	IF 1 ! = 1 SELECT 1
-reject	accept	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/LessThan	IF 1 ! < 1 SELECT 1
+accept	accept	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/EqualsSign	IF 1 ! = 1 SELECT 1
+accept	accept	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/LessThan	IF 1 ! < 1 SELECT 1
 reject	reject	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/LessThan!insert	IF 1 ! < zzz 1 SELECT 1
-reject	accept	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/GreaterThan	IF 1 ! > 1 SELECT 1
+accept	accept	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/GreaterThan	IF 1 ! > 1 SELECT 1
 reject	reject	engine	comparisonOperator(EqualsSign|LessThan|GreaterThan)/GreaterThan!insert	IF 1 ! > zzz 1 SELECT 1
 accept	accept	engine	subqueryComparisonPredicateType/All	IF 1 = ALL(SELECT *) SELECT 1
 reject	reject	engine	subqueryComparisonPredicateType/All!insert	IF 1 = ALL zzz(SELECT *) SELECT 1
@@ -13633,7 +13633,7 @@ reject	reject	engine	expressionWithClrElements(expressionWithClrElementsFunction
 accept	accept	engine	expressionWithClrElements(expressionWithClrElementsFunctionCal~ed67b52f)/collationOpt	SELECT 1.a
 reject	reject	engine	expressionWithClrElementsFunctionCallPart/parenthesizedOptExpressionWithDefaultList	SELECT 1.a()
 accept	accept	engine	expressionPrimary/(odbcFunctionCall|literal|castCall_CA~87d662aa)_collationOpt	SELECT 1
-reject	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/odbcFunctionCall	SELECT { FN CURRENT_TIME }
+accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/odbcFunctionCall	SELECT { FN CURRENT_TIME }
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/literal	SELECT 1
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/castCall_CAST	SELECT CAST(1 AS a)
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/castCall_CAST!drop-1	SELECT(1 AS a)
@@ -17385,24 +17385,24 @@ reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpr
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358!drop-3	IF MATCH(SHORTEST_PATH(() a)) SELECT 1
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358!truncate	IF MATCH(SHORTEST_PATH(() +
 reject	reject	engine	graphMatchRecursivePattern_SHORTEST_PATH(graphMatchNodeExpression_LeftParenth~a5c4b21d)/LeftParenthesis_graphMatchSPLeftRecursivePattern_RightP~ac06a358!insert	IF MATCH(SHORTEST_PATH(() + a zzz)) SELECT 1
-accept	reject	engine	identifier_LAST_NODE/LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	identifier_LAST_NODE/LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
 reject	reject	engine	identifier_LAST_NODE/LAST_NODE!truncate	IF MATCH(
 reject	reject	engine	identifier_LAST_NODE/LAST_NODE!insert	IF MATCH(LAST_NODE zzz = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression_LAST_NODE/(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression_LAST_NODE/(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)	IF MATCH(LAST_NODE = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis	IF MATCH(LAST_NODE(a) = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-1	IF MATCH((a) = a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-1	IF MATCH((a) = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-2	IF MATCH(LAST_NODE a) = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-3	IF MATCH(LAST_NODE() = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!drop-4	IF MATCH(LAST_NODE(a = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!truncate	IF MATCH(LAST_NODE(a
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!insert	IF MATCH(LAST_NODE(a) zzz = a) SELECT 1
 reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/LAST_NODE_LeftParenthesis_identifier_RightParenthesis!swap	IF MATCH(LEADING(a) = a) SELECT 1
-accept	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/identifier_LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
-accept	reject	engine	graphMatchLastNodePattern_LAST_NODE/graphMatchNodeExpression_LAST_NODE_(EqualsSign_graphMat~3f422b6b	IF MATCH(LAST_NODE = a) SELECT 1
-accept	reject	engine	graphMatchLastNodePattern_LAST_NODE(EqualsSign_graphMatchNodeExpression|~8bdf379f)/EqualsSign_graphMatchNodeExpression	IF MATCH(LAST_NODE = a) SELECT 1
-reject	accept	engine	graphMatchLastNodePattern_LAST_NODE(EqualsSign_graphMatchNodeExpression|~8bdf379f)/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
-reject	accept	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/%empty	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
-reject	accept	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(LAST_NODE -(a) - > a -(a) - > a) SELECT 1
+reject	reject	engine	graphMatchNodeExpression_LAST_NODE(LAST_NODE_LeftParenthesis_identifier~8c2fb27c)/identifier_LAST_NODE	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchLastNodePattern_LAST_NODE/graphMatchNodeExpression_LAST_NODE_(EqualsSign_graphMat~3f422b6b	IF MATCH(LAST_NODE = a) SELECT 1
+reject	reject	engine	graphMatchLastNodePattern_LAST_NODE(EqualsSign_graphMatchNodeExpression|~8bdf379f)/EqualsSign_graphMatchNodeExpression	IF MATCH(LAST_NODE = a) SELECT 1
+accept	accept	engine	graphMatchLastNodePattern_LAST_NODE(EqualsSign_graphMatchNodeExpression|~8bdf379f)/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
+accept	accept	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/%empty	IF MATCH(LAST_NODE -(a) - > a) SELECT 1
+accept	accept	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*	IF MATCH(LAST_NODE -(a) - > a -(a) - > a) SELECT 1
 reject	reject	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-1	IF MATCH(LAST_NODE -(a) - > a(a) - > a) SELECT 1
 reject	reject	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-2	IF MATCH(LAST_NODE -(a) - > a - a) - > a) SELECT 1
 reject	reject	engine	graphMatchLastNodePattern_LAST_NODE(graphSingleMatchPattern)*/graphSingleMatchPattern_(graphSingleMatchPattern)*!drop-3	IF MATCH(LAST_NODE -(a) - > a -() - > a) SELECT 1
@@ -17524,8 +17524,8 @@ accept	accept	engine	suite:lexer	a: SELECT 1
 accept	reject	engine	suite:lexer	a : SELECT 1
 accept	accept	engine	suite:lexer	SELECT 1;;
 accept	accept	engine	suite:lexer	GO
-reject	accept	engine	suite:lexer	SELECT {fn NOW()}
-reject	accept	engine	suite:lexer	SELECT {d '2020-01-01'}
+accept	accept	engine	suite:lexer	SELECT {fn NOW()}
+accept	accept	engine	suite:lexer	SELECT {d '2020-01-01'}
 reject	reject	engine	suite:lexer	SELECT {oj a}
 accept	accept	engine	suite:lexer	SELECT 1 FROM a WHERE a !< 1
 accept	accept	engine	suite:lexer	SELECT 1 FROM a WHERE a !> 1

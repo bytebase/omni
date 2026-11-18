@@ -714,6 +714,11 @@ func (q *querySpanExtractor) collectPredicatesInScope(expr ast.Node) error {
 			return err
 		}
 		return q.collectPredicatesInScope(v.LanguageTerm)
+	case *ast.GraphMatchPredicate:
+		// A graph pattern names node and edge aliases, whose columns are the
+		// predicate's. Each name is read as a column, the way a graph
+		// pseudocolumn is (query_span_pseudo_column.go).
+		return q.collectGraphMatchColumns(v.Expression)
 	case *ast.SubqueryExpr:
 		return q.mergeSubqueryIntoPredicates(v.Query)
 	case *ast.ExistsExpr:
@@ -1272,6 +1277,56 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 
 // rowsetServerArgument returns the linked server an OPENQUERY call names: its
 // first argument, which the parser reads as a table reference.
+// collectGraphMatchColumns reads the node aliases of a graph pattern as
+// columns of the search condition.
+func (q *querySpanExtractor) collectGraphMatchColumns(expr ast.ExprNode) error {
+	return q.walkGraphMatchColumns(expr, func(cr *ast.ColumnRef) error {
+		return q.collectPredicatesInScope(cr)
+	})
+}
+
+// walkGraphMatchColumns calls f for each node alias of a graph pattern.
+func (q *querySpanExtractor) walkGraphMatchColumns(expr ast.ExprNode, f func(*ast.ColumnRef) error) error {
+	switch v := expr.(type) {
+	case nil:
+		return nil
+	case *ast.GraphMatchNodeExpr:
+		return f(&ast.ColumnRef{Column: v.Node, Loc: v.Loc})
+	case *ast.GraphMatchCompositeExpr:
+		if err := q.walkGraphMatchColumns(v.Left, f); err != nil {
+			return err
+		}
+		return q.walkGraphMatchColumns(v.Right, f)
+	case *ast.GraphMatchLastNodePredicate:
+		if err := q.walkGraphMatchColumns(v.Left, f); err != nil {
+			return err
+		}
+		return q.walkGraphMatchColumns(v.Right, f)
+	case *ast.GraphMatchRecursivePredicate:
+		if err := q.walkGraphMatchColumns(v.Outer, f); err != nil {
+			return err
+		}
+		if v.Expression != nil {
+			for _, it := range v.Expression.Items {
+				step, ok := it.(ast.ExprNode)
+				if !ok {
+					continue
+				}
+				if err := q.walkGraphMatchColumns(step, f); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	case *ast.BinaryExpr:
+		if err := q.walkGraphMatchColumns(v.Left, f); err != nil {
+			return err
+		}
+		return q.walkGraphMatchColumns(v.Right, f)
+	}
+	return nil
+}
+
 func rowsetServerArgument(fn *ast.FuncCallExpr) string {
 	if fn.Args == nil || fn.Args.Len() == 0 {
 		return ""
@@ -1780,6 +1835,20 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		}
 		r.Name = q.sliceName(n)
 		return r, nil
+	case *ast.GraphMatchPredicate:
+		r := QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}
+		if err := q.walkGraphMatchColumns(v.Expression, func(cr *ast.ColumnRef) error {
+			sub, err := q.tsqlIsFieldSensitive(cr.Database, cr.Schema, cr.Table, cr.Column)
+			if err != nil {
+				return fmt.Errorf("failed to resolve graph match node %q: %w", cr.Column, err)
+			}
+			r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, sub.SourceColumns)
+			return nil
+		}); err != nil {
+			return r, err
+		}
+		r.IsPlainField = false
+		return r, nil
 	case *ast.StarExpr:
 		// Star in scalar context: treat as empty (already handled at target-list level).
 		return QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}, nil
@@ -2044,6 +2113,16 @@ func expressionNodeLoc(n ast.Node) (ast.Loc, bool) {
 	case *ast.ExistsExpr:
 		return v.Loc, true
 	case *ast.FullTextPredicate:
+		return v.Loc, true
+	case *ast.GraphMatchPredicate:
+		return v.Loc, true
+	case *ast.GraphMatchNodeExpr:
+		return v.Loc, true
+	case *ast.GraphMatchCompositeExpr:
+		return v.Loc, true
+	case *ast.GraphMatchLastNodePredicate:
+		return v.Loc, true
+	case *ast.GraphMatchRecursivePredicate:
 		return v.Loc, true
 	case *ast.ParenExpr:
 		return v.Loc, true

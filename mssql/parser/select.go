@@ -882,6 +882,11 @@ func (p *Parser) parseFromClause() (*nodes.List, error) {
 			return nil, err
 		}
 		if source == nil {
+			// A comma in the FROM list promises another table source;
+			// FROM t, and FROM t, WHERE ... are errors.
+			if len(sources) > 0 {
+				return nil, p.unexpectedToken()
+			}
 			break
 		}
 		sources = append(sources, source)
@@ -1134,21 +1139,29 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 			return nil, err
 		}
 
+		// FOR PATH precedes the alias of a derived table
+		// (derivedTable, bnf/TSql170.g). SQL Server requires the alias:
+		// FROM (SELECT 1) is an error, and FROM (SELECT 1) d is not.
+		forPath, err := p.parseForPath()
+		if err != nil {
+			return nil, err
+		}
+
 		// Alias [ ( col1, col2, ... ) ]
 		alias, cols, err := p.parseAliasAndOptionalColumnList()
 		if err != nil {
 			return nil, err
 		}
-		if alias != "" {
-			result := &nodes.AliasedTableRef{
-				Table:   inner,
-				Alias:   alias,
-				Columns: cols,
-				Loc:     nodes.Loc{Start: loc, End: -1},
-			}
-			return result, nil
+		if alias == "" {
+			return nil, p.newParseError(loc, "a derived table requires an alias")
 		}
-		return inner, nil
+		return &nodes.AliasedTableRef{
+			Table:   inner,
+			Alias:   alias,
+			Columns: cols,
+			ForPath: forPath,
+			Loc:     nodes.Loc{Start: loc, End: p.prevEnd()},
+		}, nil
 	}
 
 	// Rowset functions: OPENROWSET, OPENQUERY, OPENJSON, OPENDATASOURCE, OPENXML
@@ -1209,6 +1222,15 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 		ref.Loc.End = p.prevEnd()
 	}
 
+	// FOR PATH follows FOR SYSTEM_TIME and precedes the alias in
+	// schemaObjectTableReference (bnf/TSql170.g).
+	if ref.ForPath, err = p.parseForPath(); err != nil {
+		return nil, err
+	}
+	if ref.ForPath {
+		ref.Loc.End = p.prevEnd()
+	}
+
 	// Alias
 	alias := p.parseOptionalAlias()
 	if alias != "" {
@@ -1256,6 +1278,9 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 // parseTableValuedFunction instead.
 func (p *Parser) parseNamedTableHints(hasAlias bool) (*nodes.List, error) {
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+		if procIsInteger(p.peekSecond()) {
+			return p.parseOldForceIndex()
+		}
 		return p.parseTableHints()
 	}
 	if hasAlias && p.cur.Type == '(' {
@@ -1612,6 +1637,19 @@ func (p *Parser) parsePivotAlias() (string, error) {
 //
 //	FOR SYSTEM_TIME { AS OF t | FROM t TO t | BETWEEN t AND t
 //	    | CONTAINED IN ( t , t ) | ALL }
+//
+// parseForPath parses FOR PATH after a table reference or a derived table
+// (forPathClause, bnf/TSql170.g). It reports whether it read one; FOR
+// followed by anything else belongs to the query's FOR XML, JSON, or BROWSE.
+func (p *Parser) parseForPath() (bool, error) {
+	if p.cur.Type != kwFOR || p.isDelimited(p.peekNext()) || !p.isValidOptionToken(graphForPathWord, p.peekNext()) {
+		return false, nil
+	}
+	p.advance() // consume FOR
+	p.advance() // consume PATH
+	return true, nil
+}
+
 func (p *Parser) parseTemporalClause() (*nodes.TemporalClause, error) {
 	loc := p.pos()
 	p.advance() // consume FOR
@@ -2599,6 +2637,7 @@ func (p *Parser) parseOrderByList() (*nodes.List, error) {
 //	  | XLOCK
 //	}
 func (p *Parser) parseTableHints() (*nodes.List, error) {
+	loc := p.pos()
 	p.advance() // consume WITH
 	if _, err := p.expect('('); err != nil {
 		return nil, err
@@ -2645,9 +2684,32 @@ func (p *Parser) parseTableHints() (*nodes.List, error) {
 	}
 
 	if len(hints) == 0 {
-		return nil, nil
+		// tableHintsBody holds at least one hint: WITH () is an error.
+		return nil, p.newParseError(loc, "a table hint is required in WITH ()")
 	}
 	return &nodes.List{Items: hints}, nil
+}
+
+// parseOldForceIndex parses WITH (n), the deprecated index hint that holds one
+// index in place of tableHints (simpleTableHints, oldForceIndex,
+// bnf/TSql170.g). The current token is WITH.
+func (p *Parser) parseOldForceIndex() (*nodes.List, error) {
+	loc := p.pos()
+	p.advance() // consume WITH
+	p.advance() // consume (
+	idx, err := p.parseIndexValue()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: []nodes.Node{&nodes.TableHint{
+		Name:          "INDEX",
+		IndexValues:   &nodes.List{Items: []nodes.Node{idx}},
+		OldForceIndex: true,
+		Loc:           nodes.Loc{Start: loc, End: p.prevEnd()},
+	}}}, nil
 }
 
 // parseTableHint parses a single table hint.
@@ -2761,10 +2823,14 @@ func (p *Parser) parseTableHint() (*nodes.TableHint, error) {
 			Loc:  nodes.Loc{Start: loc, End: -1},
 		}
 		if _, ok := p.match('='); ok {
+			// literalTableHint holds SPATIAL_WINDOW_MAX_CELLS = <integer>.
 			var err error
 			hint.IntValue, err = p.parsePrimary()
 			if err != nil {
 				return nil, err
+			}
+			if hint.IntValue == nil {
+				return nil, p.newParseError(p.pos(), "SPATIAL_WINDOW_MAX_CELLS takes a value")
 			}
 		}
 		hint.Loc.End = p.prevEnd()

@@ -509,8 +509,8 @@ func (p *Parser) parseProcCondition(what string) (nodes.ExprNode, error) {
 // predicate, AND, OR or NOT of them, or one in parentheses. SQL Server
 // refuses any other expression where a condition is expected (Msg 4145),
 // so IF (a) and IF (SELECT 1) are errors. UPDATE (column) in a trigger and
-// TSEQUAL are the functions that are predicates, and omni reads a graph
-// MATCH, which it does not parse yet, as a call of MATCH.
+// TSEQUAL are the functions that are predicates, and MATCH is a predicate of
+// its own (GraphMatchPredicate).
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/search-condition-transact-sql
 func procIsCondition(e nodes.ExprNode) bool {
 	switch n := e.(type) {
@@ -527,14 +527,15 @@ func procIsCondition(e nodes.ExprNode) bool {
 	case *nodes.ParenExpr:
 		return procIsCondition(n.Expr)
 	case *nodes.BetweenExpr, *nodes.InExpr, *nodes.LikeExpr, *nodes.IsExpr,
-		*nodes.ExistsExpr, *nodes.FullTextPredicate, *nodes.SubqueryComparisonExpr:
+		*nodes.ExistsExpr, *nodes.FullTextPredicate, *nodes.SubqueryComparisonExpr,
+		*nodes.GraphMatchPredicate:
 		return true
 	case *nodes.FuncCallExpr:
 		if n.Name == nil || n.Name.Schema != "" || n.Name.Database != "" || n.Name.Server != "" {
 			return false
 		}
 		switch strings.ToUpper(n.Name.Object) {
-		case "UPDATE", "TSEQUAL", "MATCH":
+		case "UPDATE", "TSEQUAL":
 			return true
 		}
 	}
