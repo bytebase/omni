@@ -63,6 +63,19 @@ use_bloom_filter use_frm user_resources validate validation value variables vect
 visible wait warnings window without work wrapper x509 xa xid xml zone
 `)
 
+// keywordCallsRefused are words OceanBase's lexer makes a keyword token of but this
+// parser still reads as NAME, so they reach refusesFunctionName as tokIDENT. The engine
+// takes a call only where its own grammar has an arm for that keyword (ARRAY_FILTER, the
+// window functions, the aggregates), and these have none: OceanBase 4.3.5 answers 1064
+// for each, as the func_expr rows' swap near-misses record. STATS_AUTO_RECALC is not
+// here: it is in keywordsNotFunctionNames, which the quoted and qualified forms keep
+// accepting as that list's tests require.
+var keywordCallsRefused = wordSet(`
+arbitration calibration checkpoint gts id isolate line_delimiter maximize
+micro_index_clustered minor move multivalue policy pool time_unit times
+tp_name trim_space verbose
+`)
+
 func wordSet(words string) map[string]bool {
 	set := make(map[string]bool)
 	for _, word := range strings.Fields(words) {
@@ -75,5 +88,12 @@ func wordSet(words string) map[string]bool {
 // take as the name of the call that follows it. A quoted name lexes as an identifier
 // whatever it spells, so it never comes here.
 func (p *Parser) refusesFunctionName() bool {
-	return p.cur.Type != tokIDENT && p.peekNext().Type == '(' && keywordsNotFunctionNames[strings.ToLower(p.cur.Str)]
+	if p.peekNext().Type != '(' || p.backtickQuotedAt(p.cur.Loc) {
+		return false
+	}
+	word := strings.ToLower(p.cur.Str)
+	if p.cur.Type == tokIDENT {
+		return keywordCallsRefused[word]
+	}
+	return keywordsNotFunctionNames[word]
 }

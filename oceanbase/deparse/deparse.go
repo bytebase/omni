@@ -2327,6 +2327,7 @@ func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 // These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
 var funcNameRewrites = map[string]string{
 	"SUBSTRING":         "substr",
+	"CHARACTER":         "char",
 	"CURRENT_TIMESTAMP": "now",
 	"CURRENT_DATE":      "curdate",
 	"CURRENT_TIME":      "curtime",
@@ -2648,6 +2649,10 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	// GROUP_CONCAT has special formatting
 	if name == "GROUP_CONCAT" {
 		writeGroupConcat(b, n)
+		return
+	}
+	if name == "ARRAY_AGG" {
+		writeArrayAgg(b, n)
 		return
 	}
 
@@ -2989,6 +2994,45 @@ func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 // writeGroupConcat handles GROUP_CONCAT with its special syntax:
 // group_concat([distinct] expr [order by expr ASC|DESC] separator 'str')
 // MySQL 8.0 always shows the separator (default ',') and explicit ASC in ORDER BY.
+// writeArrayAgg writes ARRAY_AGG(expr ORDER BY ...), whose ORDER BY item may
+// carry NULLS FIRST or NULLS LAST.
+func writeArrayAgg(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString("array_agg(")
+	if n.Quantifier.RemovesDuplicates() {
+		b.WriteString("distinct ")
+	}
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		writeExpr(b, arg)
+	}
+	if len(n.OrderBy) > 0 {
+		b.WriteString(" order by ")
+		for i, item := range n.OrderBy {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			writeExpr(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" DESC")
+			}
+			if item.NullsFirst != nil {
+				if *item.NullsFirst {
+					b.WriteString(" NULLS FIRST")
+				} else {
+					b.WriteString(" NULLS LAST")
+				}
+			}
+		}
+	}
+	b.WriteString(")")
+	if n.Over != nil {
+		b.WriteString(" ")
+		writeWindowDef(b, n.Over)
+	}
+}
+
 func writeGroupConcat(b *strings.Builder, n *ast.FuncCallExpr) {
 	b.WriteString("group_concat(")
 
