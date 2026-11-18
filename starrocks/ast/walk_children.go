@@ -591,33 +591,6 @@ func walkChildren(v Visitor, node Node) {
 		// leaf node, no children
 
 	// DML — MERGE INTO nodes (T4.3).
-	case *MergeStmt:
-		if n.Target != nil {
-			Walk(v, n.Target)
-		}
-		if n.Source != nil {
-			Walk(v, n.Source)
-		}
-		if n.On != nil {
-			Walk(v, n.On)
-		}
-		for _, clause := range n.Clauses {
-			Walk(v, clause)
-		}
-	case *MergeClause:
-		if n.And != nil {
-			Walk(v, n.And)
-		}
-		for _, a := range n.Assignments {
-			if a.Value != nil {
-				Walk(v, a.Value)
-			}
-		}
-		for _, val := range n.Values {
-			if val != nil {
-				Walk(v, val)
-			}
-		}
 
 	// DDL — Materialized View nodes (T5.1).
 	case *MTMVRefreshTrigger:
@@ -699,20 +672,6 @@ func walkChildren(v Visitor, node Node) {
 		// leaf-ish node, name stored as string
 	case *RefreshCatalogStmt:
 	// DDL — STORAGE VAULT nodes (T5.3).
-	case *CreateStorageVaultStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *AlterStorageVaultStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *DropStorageVaultStmt:
-		// leaf-ish node, no Node children
-	case *SetDefaultStorageVaultStmt:
-		// leaf-ish node, no Node children
-	case *UnsetDefaultStorageVaultStmt:
-		// leaf-ish node, no Node children
 
 	// DDL — STORAGE VOLUME nodes (StarRocks.g4:782-822).
 	case *CreateStorageVolumeStmt:
@@ -769,12 +728,6 @@ func walkChildren(v Visitor, node Node) {
 		// leaf-ish node, no Node children
 
 	// DDL — STAGE nodes (T5.3).
-	case *CreateStageStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *DropStageStmt:
-		// leaf-ish node, no Node children
 
 	// DDL — FILE nodes (T5.3).
 	case *CreateFileStmt:
@@ -786,34 +739,6 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	// Workload management DDL nodes (T5.4).
-	case *CreateWorkloadGroupStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *AlterWorkloadGroupStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *DropWorkloadGroupStmt:
-		// leaf-ish node, no Node children
-	case *WorkloadPolicyItem:
-		// leaf node, raw text only
-	case *CreateWorkloadPolicyStmt:
-		for _, c := range n.Conditions {
-			Walk(v, c)
-		}
-		for _, a := range n.Actions {
-			Walk(v, a)
-		}
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *AlterWorkloadPolicyStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *DropWorkloadPolicyStmt:
-		// leaf-ish node, no Node children
 	case *CreateResourceStmt:
 		for _, prop := range n.Properties {
 			Walk(v, prop)
@@ -823,16 +748,6 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *DropResourceStmt:
-		// leaf-ish node, no Node children
-	case *CreateSQLBlockRuleStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *AlterSQLBlockRuleStmt:
-		for _, prop := range n.Properties {
-			Walk(v, prop)
-		}
-	case *DropSQLBlockRuleStmt:
 		// leaf-ish node, no Node children
 	// Security DDL nodes (T5.5).
 	case *CreateRowPolicyStmt:
@@ -1097,17 +1012,6 @@ func walkChildren(v Visitor, node Node) {
 		}
 
 	// Statistics / Analyze / Constraint management nodes (T8.3).
-	case *AddConstraintStmt:
-		if n.Table != nil {
-			Walk(v, n.Table)
-		}
-		if n.RefTable != nil {
-			Walk(v, n.RefTable)
-		}
-	case *DropConstraintStmt:
-		if n.Table != nil {
-			Walk(v, n.Table)
-		}
 	case *ShowConstraintsStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -1152,11 +1056,6 @@ func walkChildren(v Visitor, node Node) {
 		for _, param := range n.Parameters {
 			Walk(v, param)
 		}
-	case *CallProcedureStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
-		walkNodes(v, n.Args)
 	case *DropProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
