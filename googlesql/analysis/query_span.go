@@ -1810,15 +1810,20 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 			w.recordTable(n.Name, "")
 		}
 	case *ast.ExportMetadataStmt:
-		// The exported table is the statement's source; its metadata is read. An
-		// OPTIONS value may hold a subquery, which the parser fills, so walk the
-		// values for the tables those subqueries read.
+		// The exported table is the statement's source; its metadata is read.
 		w.recordTable(n.Path, "")
-		for _, opt := range n.Options {
-			if opt != nil {
-				w.walkSubqueriesOnly(opt.Value)
-			}
-		}
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.ImportStmt:
+		// IMPORT reads a module, not a table; an OPTIONS value's subquery is still
+		// a read.
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.ModuleStmt:
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.UndropStmt:
+		// UNDROP names a schema, not a table; its AS OF expression and OPTIONS
+		// values may embed subqueries.
+		w.walkSubqueriesOnly(n.ForSystemTime)
+		w.walkOptionsSubqueries(n.Options)
 	case *ast.CreateSchemaStmt, *ast.CreateDatabaseStmt:
 		// Schema/Database creates have no table reference of lineage interest.
 	default:
@@ -2052,6 +2057,17 @@ func (w *spanWalker) walkSubqueriesOnly(expr ast.Node) {
 	}
 	ew := &exprWalk{w: w, followSub: true}
 	ew.walk(expr)
+}
+
+// walkOptionsSubqueries records the tables read by subqueries inside an OPTIONS
+// list's values, which the parser fills (fillSubqueries). Options are metadata
+// rather than lineage, so only their subqueries are followed.
+func (w *spanWalker) walkOptionsSubqueries(opts []*ast.OptionsEntry) {
+	for _, opt := range opts {
+		if opt != nil {
+			w.walkSubqueriesOnly(opt.Value)
+		}
+	}
 }
 
 // walkWindowSpec walks a window specification's PARTITION BY / ORDER BY / frame

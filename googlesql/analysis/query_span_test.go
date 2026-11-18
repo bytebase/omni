@@ -724,3 +724,28 @@ func TestGetQuerySpan_TableClauseProjection(t *testing.T) {
 		})
 	}
 }
+
+// TestGetQuerySpan_OptionSubqueries holds the statements whose OPTIONS (or AS OF)
+// expression the parser fills: a subquery there reads a table, so the span
+// records it even though the statement itself names no table.
+func TestGetQuerySpan_OptionSubqueries(t *testing.T) {
+	for _, c := range []struct {
+		sql string
+		raw []string
+	}{
+		{"IMPORT MODULE m OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"MODULE m OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"UNDROP SCHEMA s OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"UNDROP SCHEMA s FOR SYSTEM_TIME AS OF (SELECT MAX(t) FROM a)", []string{"a"}},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
+			}
+			if got := tableNames(span); !eqStrings(got, c.raw) {
+				t.Errorf("tables = %v, want %v", got, c.raw)
+			}
+		})
+	}
+}
