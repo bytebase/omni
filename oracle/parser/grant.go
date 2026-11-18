@@ -686,6 +686,9 @@ func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
 	if repeatedKind && p.isIdentLike() && p.peekNext().Type == '.' {
 		ahead := p.peekAhead(3)
 		if isGrantProgramUnitKind(ahead[1]) && isGrantWordToken(ahead[2]) {
+			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+				return "", err
+			}
 			schema, err := p.parseIdentifier()
 			if err != nil {
 				return "", err

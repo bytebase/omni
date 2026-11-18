@@ -1656,7 +1656,9 @@ func (p *Parser) parseATNestedTableStorage() error {
 				orgSeen = true
 				phase = 5
 				p.advance() // INCLUDING
-				p.advance() // the overflow column
+				if err := p.parseATName(); err != nil {
+					return err
+				}
 				if err := p.atExpectWord("OVERFLOW"); err != nil {
 					return err
 				}
