@@ -13,7 +13,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := mariadbDatabase(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p"} {
+		for _, stmt := range []string{"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP SEQUENCE IF EXISTS a", "DROP TABLE IF EXISTS p"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -51,6 +51,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code: 4092,
 		},
 		{
+			name:  "ALTER VIEW over a sequence",
+			setup: []string{"CREATE SEQUENCE a"},
+			stmt:  "ALTER VIEW a AS SELECT a",
+			code:  1347,
+		},
+		{
 			name:  "ADD KEY over a missing column",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD KEY(a)",
@@ -79,6 +85,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a",
 			code:  1072,
+		},
+		{
+			name:  "ADD KEY of a name the table has over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY idx_d(missing)",
+			code:  1072,
+		},
+		{
+			name:  "ADD PRIMARY KEY over a missing column on a table with one",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PRIMARY KEY(missing)",
+			code:  1072,
+		},
+		{
+			name:  "ADD KEY before the column it names",
+			setup: []string{"CREATE TABLE a (b INT)"},
+			stmt:  "ALTER TABLE a ADD KEY k(missing), ADD COLUMN missing INT",
+			code:  0,
 		},
 		{
 			name:  "REMOVE PARTITIONING of a table with none",

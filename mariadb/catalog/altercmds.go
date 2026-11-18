@@ -141,6 +141,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	dropsPK := alterDropsPrimaryKey(stmt.Commands)
 	droppedColumns := alterDroppedColumns(stmt.Commands)
 	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
+	addedColumns := alterAddedColumnNames(stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -156,13 +157,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, addedColumns)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, addedColumns); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -192,7 +193,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, addedColumns); err != nil {
 			rollback()
 			return err
 		}
@@ -259,7 +260,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // composite key's columns would leave a half-built key behind; declaredChecks
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, addedColumns map[string]bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
@@ -270,7 +271,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, declaredChecks)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks, addedColumns)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -551,7 +552,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}, declared); err != nil {
+			}, declared, nil); err != nil {
 				return err
 			}
 		}
@@ -745,6 +746,39 @@ func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 	for _, cmd := range cmds {
 		if cmd.Type == nodes.ATDropColumn {
 			out[toLower(cmd.Name)] = true
+		}
+	}
+	return out
+}
+
+// alterAddedColumnNames collects the columns an ALTER introduces anywhere in
+// the statement. MariaDB judges a key against the table the statement leaves,
+// so `ADD KEY k(b), ADD COLUMN b INT` is accepted although the key's clause
+// comes first.
+func alterAddedColumnNames(cmds []*nodes.AlterTableCmd) map[string]bool {
+	out := make(map[string]bool)
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn:
+			if cmd.Column != nil {
+				out[toLower(cmd.Column.Name)] = true
+			}
+			for _, col := range cmd.Columns {
+				if col != nil {
+					out[toLower(col.Name)] = true
+				}
+			}
+		case nodes.ATChangeColumn:
+			if cmd.Column != nil {
+				out[toLower(cmd.Column.Name)] = true
+			}
+		case nodes.ATRenameColumn:
+			if cmd.NewName != "" {
+				out[toLower(cmd.NewName)] = true
+			}
 		}
 	}
 	return out
@@ -1178,13 +1212,13 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 // UNIQUE and FOREIGN KEY alike. A functional part is an expression, and a
 // WITHOUT OVERLAPS part names the application-time period; neither is a
 // column, and the checks that judge them run later.
-func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
+func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn, addedColumns map[string]bool) error {
 	for _, ic := range cols {
 		if ic == nil || ic.Functional || ic.WithoutOverlaps {
 			continue
 		}
 		ref, ok := ic.Expr.(*nodes.ColumnRef)
-		if !ok || tbl.GetColumn(ref.Column) != nil {
+		if !ok || tbl.GetColumn(ref.Column) != nil || addedColumns[toLower(ref.Column)] {
 			continue
 		}
 		return errKeyColumnDoesNotExist(ref.Column)
@@ -1192,7 +1226,7 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	return nil
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, addedColumns map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1205,7 +1239,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
 		return err
 	}
-	if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
+	if err := validateAddedKeyColumns(tbl, con.IndexColumns, addedColumns); err != nil {
 		return err
 	}
 

@@ -8,6 +8,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -24,6 +27,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -35,6 +41,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -53,6 +62,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -64,6 +76,28 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE SEQUENCE a
+< ok 0 0
+> exec
+| ALTER VIEW a AS SELECT a
+< error
+| 1347 HY000 'omni_testsimulationcausesoracle.a' is not of type 'VIEW'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -82,6 +116,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -96,6 +133,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -114,6 +154,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -128,6 +171,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -146,6 +192,65 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY idx_d(missing)
+< error
+| 1072 42000 Key column 'missing' doesn't exist in table
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD PRIMARY KEY(missing)
+< error
+| 1072 42000 Key column 'missing' doesn't exist in table
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY k(missing), ADD COLUMN missing INT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -160,6 +265,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -178,6 +286,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -192,6 +303,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -210,6 +324,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -224,6 +341,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p
@@ -242,6 +362,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -258,6 +381,9 @@
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
@@ -271,6 +397,9 @@
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS p

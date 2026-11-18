@@ -151,6 +151,9 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		if _, isTable := db.Tables[key]; isTable {
 			return errWrongObject(db.Name, stmt.Name.Name, "VIEW")
 		}
+		if _, isSequence := db.Sequences[key]; isSequence {
+			return errWrongObject(db.Name, stmt.Name.Name, "VIEW")
+		}
 		return errNoSuchTable(db.Name, stmt.Name.Name)
 	}
 
