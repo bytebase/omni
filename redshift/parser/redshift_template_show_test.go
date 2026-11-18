@@ -9,6 +9,7 @@ func TestRedshiftTemplateAndShowDocsForms(t *testing.T) {
 		command string
 	}{
 		{"CREATE TEMPLATE t FOR COPY", "create"},
+		{"CREATE TEMPLATE İn FOR COPY", "create"},
 		{"CREATE OR REPLACE TEMPLATE db.s.t FOR COPY AS FORMAT AS parquet emptyasnull, maxerror 10", "create or replace"},
 		{"CREATE TEMPLATE s.t FOR COPY FORMAT csv delimiter ',', ignoreheader 1", "create"},
 		{"CREATE TEMPLATE t FOR COPY parquet emptyasnull", "create"},
@@ -44,6 +45,7 @@ func TestRedshiftTemplateAndShowDocsForms(t *testing.T) {
 		{"SHOW MASKING POLICIES FROM DATABASE dev LIMIT 5", "masking policies"},
 		{"SHOW PROCEDURES FROM SCHEMA s LIKE 'p%' LIMIT 5", "procedures"},
 		{"SHOW TEMPLATE db.s.t", "template"},
+		{"SHOW TEMPLATE İn", "template"},
 		{"SHOW TEMPLATES FROM SCHEMA s LIKE 't%' LIMIT 5", "templates"},
 	} {
 		stmt := firstRedshiftShowStmt(t, tc.sql)
@@ -82,6 +84,7 @@ func TestRedshiftTemplateAndShowDocsForms(t *testing.T) {
 		"SHOW CONSTRAINTS FROM TABLE s.t",
 		"SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE t",
 		`SHOW CONSTRAINTS PRIMARY "KEYS" FROM TABLE s.t`,
+		"SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE s.t",
 		"SHOW FUNCTIONS FROM SCHEMA a.b.c",
 		"SHOW PARAMETERS OF FUNCTION f(INT)",
 		"SHOW PARAMETERS OF FUNCTION s.f()",

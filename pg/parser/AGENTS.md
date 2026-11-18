@@ -129,7 +129,7 @@ When you discover a new FIRST set that needs a single source of truth (typically
 2. **Add the predicate** as `isXStart`. Compose from existing predicates where possible (e.g., `isFuncTypeStart` is a thin alias for `isTypenameStart`). Avoid creating a new map if an existing one already represents the right set.
 3. **Add the oracle test** in `first_set_oracle_test.go`. Choose a probe template that exercises the production at the cleanest possible grammar position. Run the test, observe drift, decide whether to fix the slice, fix the renderer, or add a subtraction (with documented justification).
 4. **Migrate call sites** that previously hand-wrote the cluster. Use grep to find them. **Do not mass-replace** — read each call site, confirm the substitution is behavior-preserving, and adjust the surrounding control flow if necessary.
-5. **Update this AGENTS.md** — add the new predicate to the canonical list and the new probe template to the table.
+5. **Update this AGENTS.md** — add the new predicate to the canonical list and the new probe template to the table (or, for Redshift-only predicates in `redshift/parser`, add them to `redshift/parser/AGENTS.md`).
 
 If the production cannot be oracle-tested (grammar ambiguity), use the in-Go bidirectional pattern from `TestIsConstTypenameStartRejectsAllOtherKeywords`: iterate the full `Keywords` table and assert the predicate's accept set matches the slice's membership exactly.
 

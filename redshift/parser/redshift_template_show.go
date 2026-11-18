@@ -2,7 +2,6 @@ package parser
 
 import (
 	"strconv"
-	"strings"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
@@ -63,24 +62,57 @@ var redshiftCopyReservedOptionWords = map[string]bool{
 	"tdes": true, "truncatecolumns": true, "wallet": true,
 }
 
+// asciiLower folds ASCII A-Z to a-z without touching non-ASCII bytes, matching
+// the lexer's identifier and keyword folding (ident_fold_test.go).
+func asciiLower(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 'A' && s[i] <= 'Z' {
+			b := []byte(s)
+			for ; i < len(b); i++ {
+				if b[i] >= 'A' && b[i] <= 'Z' {
+					b[i] += 'a' - 'A'
+				}
+			}
+			return string(b)
+		}
+	}
+	return s
+}
+
+func asciiEqualFold(s, lowerWord string) bool {
+	if len(s) != len(lowerWord) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != lowerWord[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // redshiftTokIsWord reports whether tok is the unquoted keyword or identifier
-// word (never a string literal or delimited identifier).
-func (p *Parser) redshiftTokIsWord(tok Token, word string) bool {
+// word (never a string literal or delimited identifier), folded on ASCII only.
+func (p *Parser) redshiftTokIsWord(tok Token, lowerWord string) bool {
 	if tok.Type != IDENT && tok.Type < NOT_LA {
 		return false
 	}
-	if p.lexer != nil && tok.End-tok.Loc != len(word) {
+	if p.lexer != nil && tok.End-tok.Loc != len(lowerWord) {
 		return false
 	}
-	return strings.EqualFold(tok.Str, word)
+	return asciiEqualFold(tok.Str, lowerWord)
 }
 
-func (p *Parser) redshiftCurIsWord(word string) bool {
-	return p.redshiftTokIsWord(p.cur, word)
+func (p *Parser) redshiftCurIsWord(lowerWord string) bool {
+	return p.redshiftTokIsWord(p.cur, lowerWord)
 }
 
-func (p *Parser) expectRedshiftUnquotedWord(word string) error {
-	if !p.redshiftCurIsWord(word) {
+func (p *Parser) expectRedshiftUnquotedWord(lowerWord string) error {
+	if !p.redshiftCurIsWord(lowerWord) {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
@@ -100,7 +132,7 @@ func (p *Parser) isRedshiftDocIdent() bool {
 	if p.cur.Type != IDENT && p.cur.Type < NOT_LA {
 		return false
 	}
-	return !redshiftReservedWords[strings.ToLower(p.cur.Str)]
+	return !redshiftReservedWords[asciiLower(p.cur.Str)]
 }
 
 func (p *Parser) parseRedshiftDocIdent() (string, error) {
@@ -293,7 +325,7 @@ func (p *Parser) parseRedshiftTemplateOption(allowLiteral bool) (string, bool, e
 		return tok.Str, true, nil
 	}
 	if (p.cur.Type == IDENT || p.cur.Type >= NOT_LA) && !p.isDelimitedIdentToken(p.cur) &&
-		redshiftCopyReservedOptionWords[strings.ToLower(p.cur.Str)] {
+		redshiftCopyReservedOptionWords[asciiLower(p.cur.Str)] {
 		tok := p.advance()
 		return tok.Str, true, nil
 	}
@@ -307,7 +339,7 @@ func (p *Parser) parseRedshiftTemplateOption(allowLiteral bool) (string, bool, e
 			return strconv.FormatInt(tok.Ival, 10), false, nil
 		case DEFAULT, TRUE_P, FALSE_P:
 			tok := p.advance()
-			return strings.ToLower(tok.Str), false, nil
+			return asciiLower(tok.Str), false, nil
 		}
 	}
 	return "", false, p.syntaxErrorAtCur()
@@ -627,8 +659,8 @@ func (p *Parser) parseRedshiftDocShowStmt(loc int) (nodes.Node, error) {
 		//   | FROM DATABASE db_name ]
 		//   [ LIMIT row_limit ]
 		// https://docs.aws.amazon.com/redshift/latest/dg/r_SHOW_POLICIES.html
-		kind := strings.ToLower(p.advance().Str) // consume RLS / MASKING
-		p.advance()                              // consume POLICIES
+		kind := asciiLower(p.advance().Str) // consume RLS / MASKING
+		p.advance()                         // consume POLICIES
 		var opts []nodes.Node
 		switch p.cur.Type {
 		case ON:
