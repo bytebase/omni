@@ -1150,7 +1150,10 @@ type ExternalTableRef struct {
 	Source   []*ExternalProperty // SOURCE(...): external_properties_list
 	Format   []*ExternalProperty // FORMAT(...): external_file_format_list
 	Pattern  string              // PATTERN 's'
-	Alias    string              // opt_as_alias: AS relation_name
+	// PatternSet marks the clause present, since PATTERN '' is a pattern and not
+	// an absent one.
+	PatternSet bool
+	Alias      string // opt_as_alias: AS relation_name
 }
 
 func (r *ExternalTableRef) nodeTag()   {}

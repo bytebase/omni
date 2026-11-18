@@ -1420,7 +1420,7 @@ func deparseExternalTableRef(t *ast.ExternalTableRef) string {
 		b.WriteString(", format(")
 		writeExternalProperties(&b, t.Format)
 		b.WriteString(")")
-		if t.Pattern != "" {
+		if t.PatternSet {
 			b.WriteString(", pattern ")
 			b.WriteString(quoteStringValue(t.Pattern))
 		}
@@ -1430,7 +1430,7 @@ func deparseExternalTableRef(t *ast.ExternalTableRef) string {
 		b.WriteString("(format(")
 		writeExternalProperties(&b, t.Format)
 		b.WriteString(")")
-		if t.Pattern != "" {
+		if t.PatternSet {
 			b.WriteString(" pattern ")
 			b.WriteString(quoteStringValue(t.Pattern))
 		}

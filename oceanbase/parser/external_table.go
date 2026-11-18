@@ -46,6 +46,16 @@ func (p *Parser) atURLTableFunction() bool {
 // A path names its location itself; SOURCE(...) carries properties instead; and
 // FILES(...) names its location with LOCATION.
 func (p *Parser) parseExternalTableRef() (*nodes.ExternalTableRef, error) {
+	ref, err := p.parseExternalTableRefBody()
+	if err != nil {
+		return nil, err
+	}
+	return p.externalTableRefAlias(ref)
+}
+
+// parseExternalTableRefBody parses url_expr alone, without its opt_as_alias,
+// which url_spec never takes.
+func (p *Parser) parseExternalTableRefBody() (*nodes.ExternalTableRef, error) {
 	ref := &nodes.ExternalTableRef{Loc: nodes.Loc{Start: p.pos()}}
 	switch {
 	case p.cur.Type == tokSCONST:
@@ -63,7 +73,7 @@ func (p *Parser) parseExternalTableRef() (*nodes.ExternalTableRef, error) {
 			if err != nil {
 				return nil, err
 			}
-			ref.Pattern = pattern
+			ref.Pattern, ref.PatternSet = pattern, true
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -93,22 +103,20 @@ func (p *Parser) parseExternalTableRef() (*nodes.ExternalTableRef, error) {
 			return nil, err
 		}
 		ref.Format = format
-		if _, ok := p.match(','); !ok {
-			// opt_comma: the pattern may follow without one.
-			if !p.isBareWord("PATTERN") {
-				if _, err := p.expect(')'); err != nil {
-					return nil, err
-				}
-				ref.Loc.End = p.prev.End
-				return p.externalTableRefAlias(ref)
-			}
+		// opt_comma: the pattern may follow with or without a comma, and a comma
+		// with nothing after it is a 1064.
+		comma := false
+		if _, ok := p.match(','); ok {
+			comma = true
 		}
 		if p.isBareWord("PATTERN") {
 			pattern, err := p.parseExternalPattern()
 			if err != nil {
 				return nil, err
 			}
-			ref.Pattern = pattern
+			ref.Pattern, ref.PatternSet = pattern, true
+		} else if comma {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -130,7 +138,7 @@ func (p *Parser) parseExternalTableRef() (*nodes.ExternalTableRef, error) {
 		}
 	}
 	ref.Loc.End = p.prev.End
-	return p.externalTableRefAlias(ref)
+	return ref, nil
 }
 
 // externalTableRefAlias reads the AS relation_name a url_expr may carry. The
@@ -172,7 +180,7 @@ func (p *Parser) parseURLSpec() (*nodes.ExternalTableRef, *nodes.SelectStmt, err
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, nil, err
 		}
-		ref, err := p.parseExternalTableRef()
+		ref, err := p.parseURLTableFunction()
 		if err != nil {
 			return nil, nil, err
 		}
@@ -185,11 +193,20 @@ func (p *Parser) parseURLSpec() (*nodes.ExternalTableRef, *nodes.SelectStmt, err
 			From:       []nodes.TableExpr{ref},
 		}, nil
 	}
-	ref, err := p.parseExternalTableRef()
+	ref, err := p.parseURLTableFunction()
 	if err != nil {
 		return nil, nil, err
 	}
 	return ref, nil, nil
+}
+
+// parseURLTableFunction parses url_table_function_expr, which is what url_spec
+// ends in: SOURCE(...) or FILES(...), with no quoted path and no alias.
+func (p *Parser) parseURLTableFunction() (*nodes.ExternalTableRef, error) {
+	if !p.atURLTableFunction() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseExternalTableRefBody()
 }
 
 // parseExternalProperties parses external_properties_list, after the '(' of
@@ -255,6 +272,9 @@ func (p *Parser) parseExternalProperties() ([]*nodes.ExternalProperty, error) {
 		})
 		if p.cur.Type == ',' {
 			p.advance()
+			if p.cur.Type == ')' {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 	}
 	return props, nil
@@ -287,6 +307,9 @@ func (p *Parser) parseExternalFileFormatList() ([]*nodes.ExternalProperty, error
 		props = append(props, prop)
 		if p.cur.Type == ',' {
 			p.advance()
+			if p.cur.Type == ')' {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 	}
 	if _, err := p.expect(')'); err != nil {
@@ -387,6 +410,7 @@ func (p *Parser) parseExternalFileFormat() (*nodes.ExternalProperty, error) {
 		if _, err := p.expect('='); err != nil {
 			return nil, err
 		}
+		listStart := p.pos()
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
@@ -405,7 +429,7 @@ func (p *Parser) parseExternalFileFormat() (*nodes.ExternalProperty, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		value = &nodes.RowExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Items: items}
+		value = &nodes.RowExpr{Loc: nodes.Loc{Start: listStart, End: p.prev.End}, Items: items}
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

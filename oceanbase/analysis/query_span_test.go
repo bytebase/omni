@@ -199,3 +199,20 @@ func TestResolveQuerySpanNonQueries(t *testing.T) {
 		})
 	}
 }
+
+// TestResolveQuerySpanTableFunctions: the table sources OceanBase's grammar adds
+// — UNNEST, RB_ITERATE and a table read from a location — are analyzed rather
+// than refused as an unsupported source.
+func TestResolveQuerySpanTableFunctions(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM UNNEST(t1.a, t1.b) AS u(c, d)",
+		"SELECT c FROM UNNEST(t1.a) AS u(c)",
+		"SELECT * FROM RB_ITERATE(t1.a) AS x(v)",
+		"SELECT * FROM SOURCE(TYPE = 's')",
+		"SELECT * FROM 's'(FORMAT(TYPE = 'csv')) AS e",
+	} {
+		if _, err := resolve(t, statement); err != nil {
+			t.Errorf("ResolveQuerySpan(%q): %v", statement, err)
+		}
+	}
+}

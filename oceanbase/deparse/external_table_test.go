@@ -16,6 +16,7 @@ func TestDeparseExternalTableExprs(t *testing.T) {
 		{"SELECT a FROM SOURCE(TYPE = 's', COMPRESSION_CODE = a) AS x", "select `a` AS `a` from source(type = 's', compression_code = `a`) as `x`"},
 		{"SELECT a FROM 's'(FORMAT(TYPE = 'csv') PATTERN 'p')", "select `a` AS `a` from 's'(format(type = 'csv') pattern 'p')"},
 		{"SELECT a FROM FILES(LOCATION 's', FORMAT(TYPE = 'csv'), PATTERN 'p') AS f", "select `a` AS `a` from files(location 's', format(type = 'csv'), pattern 'p') as `f`"},
+		{"SELECT a FROM 's'(FORMAT(TYPE = 'csv') PATTERN '')", "select `a` AS `a` from 's'(format(type = 'csv') pattern '')"},
 		{"SELECT a FROM (SELECT a) AS OF SNAPSHOT 1 t", "select `a` AS `a` from (select `a` AS `a`) as of snapshot 1 `t`"},
 		{"SELECT a FROM RB_ITERATE(a) AS b(c)", "select `a` AS `a` from rb_iterate(`a`) `b`(`c`)"},
 		{"SELECT a FROM UNNEST(a, b) AS u(c, d)", "select `a` AS `a` from unnest(`a`, `b`) `u`(`c`, `d`)"},

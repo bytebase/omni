@@ -718,9 +718,49 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		return q.extractJoin(t)
 	case *ast.JsonTableExpr:
 		return q.extractJSONTable(t)
+	case *ast.UnnestExpr:
+		return q.extractTableFunction(t.Alias, t.Columns, t.Args)
+	case *ast.RbIterateExpr:
+		var columns []string
+		if t.Column != "" {
+			columns = []string{t.Column}
+		}
+		return q.extractTableFunction(t.Alias, columns, []ast.ExprNode{t.Arg})
+	case *ast.ExternalTableRef:
+		// The file's columns are known only when the query runs, so the source
+		// has a name and no columns.
+		name := t.Alias
+		if name == "" {
+			name = t.Path
+		}
+		return &pseudoTable{Name: name}, nil
 	default:
 		return nil, fmt.Errorf("unsupported omni MySQL table source %T", tableExpr)
 	}
+}
+
+// extractTableFunction reads a table function in FROM — UNNEST or RB_ITERATE —
+// as a pseudo table named by its alias (or its argument), whose columns are the
+// names it declares and whose lineage is the arguments' columns.
+func (q *querySpanExtractor) extractTableFunction(alias string, columns []string, args []ast.ExprNode) (tableSource, error) {
+	name := alias
+	if name == "" && len(args) > 0 {
+		name = q.exprName(args[0])
+	}
+	sources := ColumnSet{}
+	for _, arg := range args {
+		field, err := q.extractExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+		merged, _ := mergeColumnSet(sources, field.SourceColumns)
+		sources = merged
+	}
+	var result []QuerySpanResult
+	for _, column := range columns {
+		result = append(result, QuerySpanResult{Name: column, SourceColumns: sources})
+	}
+	return &pseudoTable{Name: name, Columns: result}, nil
 }
 
 func (q *querySpanExtractor) extractJSONTable(expr *ast.JsonTableExpr) (tableSource, error) {
@@ -1766,6 +1806,13 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 	case *ast.JsonTableExpr:
 		collectAccessTablesFromExpr(result, n.Expr, defaultDatabase)
 		collectAccessTablesFromExpr(result, n.Path, defaultDatabase)
+	case *ast.UnnestExpr:
+		for _, arg := range n.Args {
+			collectAccessTablesFromExpr(result, arg, defaultDatabase)
+		}
+	case *ast.RbIterateExpr:
+		collectAccessTablesFromExpr(result, n.Arg, defaultDatabase)
+	case *ast.ExternalTableRef:
 	default:
 	}
 }

@@ -226,6 +226,14 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)
 	case *nodes.CreateTableStmt:
+		if s.External {
+			// An external table's columns, location, format and properties are
+			// modeled by metadata.ExternalTableMetadata, which the catalog holds
+			// from a sync. It does not build one from DDL yet, and creating a
+			// plain table here would leave the catalog with a table the server
+			// does not have, so the statement changes no schema it holds.
+			return nil
+		}
 		var prior *Database
 		var priorKey string
 		existed := false
@@ -262,6 +270,11 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.DropMaterializedViewLogStmt:
 		return c.dropMaterializedViewLog(s)
 	case *nodes.AlterTableStmt:
+		if s.External {
+			// ALTER EXTERNAL TABLE changes a table the catalog keeps no model
+			// for (see CreateTableStmt above).
+			return nil
+		}
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:
 		return c.alterDatabase(s)

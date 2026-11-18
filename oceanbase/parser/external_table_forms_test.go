@@ -74,6 +74,10 @@ func TestExternalTableForms(t *testing.T) {
 		"SELECT a FROM FILES(LOCATION 's')",
 		"SELECT a FROM FILES('s' FORMAT(TYPE = 's'))",
 		"DELETE FROM 's'(FORMAT(TYPE 's'))",
+		// A comma in a property or format list needs an entry after it.
+		"DELETE FROM SOURCE(TYPE = 's',)",
+		"DELETE FROM 's'(FORMAT(TYPE = 's',))",
+		"DELETE FROM FILES(LOCATION 's', FORMAT(TYPE = 's'),)",
 		// ALTER EXTERNAL TABLE's partition actions need both halves and LOCATION.
 		"ALTER EXTERNAL TABLE a ADD PARTITION(a) LOCATION 's'",
 		"ALTER EXTERNAL TABLE a ADD PARTITION('s') LOCATION 's'",
@@ -87,6 +91,9 @@ func TestExternalTableForms(t *testing.T) {
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO a",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT",
+		// url_spec takes the table functions alone: no alias and no quoted path.
+		"LOAD DATA FROM SOURCE(TYPE = 's') AS x INTO TABLE a",
+		"LOAD DATA FROM(SELECT a FROM 's'(FORMAT(TYPE = 's'))) INTO TABLE a",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) was accepted", sql)

@@ -2056,6 +2056,17 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 		}
 		fmt.Fprintf(sb, " :s3_uri %q", n.S3URI)
 	}
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
+	}
+	if n.SourceQuery != nil {
+		sb.WriteString(" :source_query ")
+		writeNode(sb, n.SourceQuery)
+	}
+	if n.OnError != "" {
+		fmt.Fprintf(sb, " :on_error %q", n.OnError)
+	}
 	if n.Replace {
 		sb.WriteString(" :replace true")
 	}
@@ -4030,7 +4041,7 @@ func writeExternalTableRef(sb *strings.Builder, n *ExternalTableRef) {
 		sb.WriteString(" :format ")
 		writeNodeList(sb, externalPropertyNodes(n.Format))
 	}
-	if n.Pattern != "" {
+	if n.PatternSet {
 		fmt.Fprintf(sb, " :pattern %q", n.Pattern)
 	}
 	if n.Alias != "" {

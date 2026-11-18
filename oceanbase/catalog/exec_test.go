@@ -369,3 +369,28 @@ func TestExecAlterRenameLogRollback(t *testing.T) {
 		t.Fatalf("CREATE MATERIALIZED VIEW LOG ON t after rollback: error = %v, want a duplicate", results)
 	}
 }
+
+// TestExecLeavesExternalTablesAlone pins that the external-table statements
+// change no schema the catalog holds. metadata.ExternalTableMetadata is where an
+// external table's columns, location and format live, and the catalog holds it
+// from a sync rather than from DDL, so a CREATE EXTERNAL TABLE must not install
+// a plain table with the same name and columns.
+func TestExecLeavesExternalTablesAlone(t *testing.T) {
+	c := New()
+	results, err := c.Exec("CREATE DATABASE test; USE test;\n"+
+		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\n"+
+		"ALTER EXTERNAL TABLE ext ADD COLUMN b INT", nil)
+	if err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	if len(results) != 4 {
+		t.Fatalf("got %d results, want 4", len(results))
+	}
+	db := c.GetDatabase("test")
+	if db == nil {
+		t.Fatal("GetDatabase(test) = nil")
+	}
+	if db.Tables["ext"] != nil {
+		t.Errorf("CREATE EXTERNAL TABLE installed a plain table ext: %#v", db.Tables["ext"])
+	}
+}
