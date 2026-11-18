@@ -599,8 +599,45 @@ func isCreateTableLikeShape(stmt *ast.CreateTableStmt) bool {
 
 // parseCreateTableClauses parses the optional trailing clauses of CREATE TABLE
 // in flexible order.
+// ctasClauseRank orders createTableAsSelectStatement's clauses
+// (StarRocks.g4:488-497): keyDesc, comment, partition, distribution, orderBy,
+// properties, AS. A rank of 0 is a clause the production does not take.
+func ctasClauseRank(kind TokenKind) int {
+	switch kind {
+	case kwAGGREGATE, kwUNIQUE, kwDUPLICATE, kwPRIMARY:
+		return 1
+	case kwCOMMENT:
+		return 2
+	case kwAUTO, kwPARTITION:
+		return 3
+	case kwDISTRIBUTED:
+		return 4
+	case kwORDER:
+		return 5
+	case kwPROPERTIES:
+		return 6
+	case kwAS:
+		return 7
+	}
+	return 0
+}
+
 func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
+	lastRank := 0
 	for {
+		if p.strictCTAS {
+			rank := ctasClauseRank(p.cur.Kind)
+			if rank == 0 {
+				switch p.cur.Kind {
+				case kwENGINE, kwROLLUP, kwBROKER, kwLIKE:
+					return p.syntaxErrorAtCur()
+				}
+			} else if rank <= lastRank {
+				return p.syntaxErrorAtCur()
+			} else {
+				lastRank = rank
+			}
+		}
 		switch p.cur.Kind {
 		case kwENGINE:
 			p.advance() // consume ENGINE

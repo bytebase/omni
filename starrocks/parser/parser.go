@@ -58,6 +58,10 @@ type Parser struct {
 	typeMemo    map[int]typeReplay
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// strictCTAS makes parseCreateTable enforce createTableAsSelectStatement's
+	// clause order and cardinality, which a SUBMIT TASK body needs.
+	strictCTAS bool
 }
 
 // typeReplay is a recorded parseDataType result, the state the parse ended

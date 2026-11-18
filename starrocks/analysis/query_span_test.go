@@ -1212,3 +1212,19 @@ func TestGetQuerySpanWrappedGroupedWith(t *testing.T) {
 		}
 	}
 }
+
+// An outer WITH scopes over the whole set operation, not just its left arm.
+func TestGetQuerySpanWithSetOperation(t *testing.T) {
+	for _, sql := range []string{
+		"WITH c AS (SELECT * FROM secret) (SELECT 1) UNION SELECT * FROM c",
+		"TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT 1) UNION SELECT * FROM c",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q): %v", sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+			t.Errorf("%q: AccessTables = %+v, want secret", sql, span.AccessTables)
+		}
+	}
+}

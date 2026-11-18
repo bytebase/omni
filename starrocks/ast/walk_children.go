@@ -270,6 +270,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.On)
 		}
 	case *SetOpStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		Walk(v, n.Left)
 		Walk(v, n.Right)
 		for _, item := range n.OrderBy {

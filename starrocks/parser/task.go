@@ -72,7 +72,9 @@ clausesDone:
 		// reads it from the CREATE keyword on, so hold the result to that
 		// rule: a query must follow AS, and the column list is names only.
 		p.advance() // consume CREATE
+		p.strictCTAS = true
 		stmt.Statement, err = p.parseCreateTable()
+		p.strictCTAS = false
 		if err == nil {
 			ctas, ok := stmt.Statement.(*ast.CreateTableStmt)
 			if !ok || ctas.AsSelect == nil || ctas.External || ctas.Like != nil ||
@@ -453,30 +455,22 @@ func (p *Parser) parseOptimizerTrace(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// attachWith sets the WITH clause on the query a parenthesized or set-op tree
-// starts with. ParenSelect and SetOpStmt carry no WITH field, so the clause
-// belongs to their leftmost SELECT.
+// attachWith sets the WITH clause on the query node that owns the whole
+// queryNoWith, so a set-operation tail stays inside its scope.
 func attachWith(node ast.Node, with *ast.WithClause) {
-	for {
-		switch n := node.(type) {
-		case *ast.ParenSelect:
-			// The outer clause belongs to the group, above the inner query's
-			// own WITH, so the two lexical scopes stay separate.
-			n.With = with
-			n.Loc.Start = with.Loc.Start
-			return
-		case *ast.SelectStmt:
-			n.With = with
-			n.Loc.Start = with.Loc.Start
-			return
-		case *ast.SetOpStmt:
-			// A set-operation chain is left-deep, so follow the spine in a
-			// loop; recursing here could exhaust the stack before the parser's
-			// tree-height check runs.
-			node = n.Left
-		default:
-			return
-		}
+	switch n := node.(type) {
+	case *ast.ParenSelect:
+		// The outer clause belongs to the group, above the inner query's own
+		// WITH, so the two lexical scopes stay separate.
+		n.With = with
+		n.Loc.Start = with.Loc.Start
+	case *ast.SetOpStmt:
+		// The clause scopes over both arms, not just the leftmost SELECT.
+		n.With = with
+		n.Loc.Start = with.Loc.Start
+	case *ast.SelectStmt:
+		n.With = with
+		n.Loc.Start = with.Loc.Start
 	}
 }
 
@@ -522,16 +516,23 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			selectStmt.With = with
-			selectStmt.Loc.Start = with.Loc.Start
-			return p.parseSetOpTail(selectStmt)
+			query, err := p.parseSetOpTail(selectStmt)
+			if err != nil {
+				return nil, err
+			}
+			attachWith(query, with)
+			return query, nil
 		case int('('):
 			paren, err := p.parseParenSelect()
 			if err != nil {
 				return nil, err
 			}
-			attachWith(paren, with)
-			return p.parseSetOpTail(paren)
+			query, err := p.parseSetOpTail(paren)
+			if err != nil {
+				return nil, err
+			}
+			attachWith(query, with)
+			return query, nil
 		}
 		return nil, p.syntaxErrorAtCur()
 	case int('('):

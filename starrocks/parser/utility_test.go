@@ -246,6 +246,8 @@ func TestExplainRejectsNonQueryStatements(t *testing.T) {
 		"EXPLAIN SUBMIT TASK AS INSERT INTO t SELECT 1",
 		"EXPLAIN DROP TASK t",
 		"EXPLAIN ALTER LOAD FOR t",
+		"EXPLAIN UPDATE t SET a = 1 INTO OUTFILE 'x'",
+		"DESC DELETE FROM t INTO OUTFILE 'x'",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

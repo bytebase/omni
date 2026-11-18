@@ -303,6 +303,25 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	if n == nil {
 		return
 	}
+	if n.With != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		for _, cte := range n.With.CTEs {
+			if cte == nil || cte.Name == "" {
+				continue
+			}
+			scope.names[strings.ToLower(cte.Name)] = true
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
+		}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
+		for _, cte := range n.With.CTEs {
+			if cte != nil && cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+		}
+		w.visitSetOpArms(n, outermost)
+		return
+	}
 	// WITH on the leftmost SELECT scopes over the entire set operation —
 	// WITH c AS (...) SELECT 1 UNION SELECT * FROM c resolves c in the right
 	// arm too (engine-verified) — so install its names before walking the

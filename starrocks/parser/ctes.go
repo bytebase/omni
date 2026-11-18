@@ -104,19 +104,26 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		attachWith(paren, with)
-		return p.parseSetOpTail(paren)
+		query, err := p.parseSetOpTail(paren)
+		if err != nil {
+			return nil, err
+		}
+		attachWith(query, with)
+		return query, nil
 	}
 
 	stmt, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}
-	stmt.With = with
-	stmt.Loc.Start = with.Loc.Start
 
 	// A WITH … SELECT may continue with set operators (UNION/INTERSECT/EXCEPT).
-	return p.parseSetOpTail(stmt)
+	query, err := p.parseSetOpTail(stmt)
+	if err != nil {
+		return nil, err
+	}
+	attachWith(query, with)
+	return query, nil
 }
 
 // parseCTE parses one CTE definition:

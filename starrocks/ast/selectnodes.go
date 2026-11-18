@@ -302,6 +302,8 @@ const (
 // (see parseSetOpTail) so that branch-local clauses inside parenthesized
 // operands remain on the inner SelectStmt.
 type SetOpStmt struct {
+	// With scopes over the whole set operation, including the right arm.
+	With    *WithClause
 	Op      SetOperator    // the set operator
 	All     bool           // true for ALL quantifier; false means DISTINCT (the default)
 	Left    Node           // SelectStmt, ParenSelect, or another SetOpStmt
