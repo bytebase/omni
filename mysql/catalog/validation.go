@@ -403,14 +403,48 @@ func validateStorageEngine(name string, refuseUnknown bool) error {
 // performanceSchemaEngine is the engine the performance schema's own tables use.
 const performanceSchemaEngine = "performance_schema"
 
+// canonicalEngineNames are the engines whose aliases MySQL stores and reports
+// under another name: `ENGINE = HEAP` reads back MEMORY and `ENGINE = MERGE`
+// MRG_MyISAM (measured on mysql:8.0.46).
+var canonicalEngineNames = map[string]string{
+	"heap":  "MEMORY",
+	"merge": "MRG_MyISAM",
+}
+
 // storedEngineName is the engine a table or partition keeps for an ENGINE
-// option: the name written when it is one a table may keep, and the catalog's
-// empty default for `DEFAULT` and for a name MySQL substitutes.
+// option: a name it may keep, with an alias written as MySQL stores it, and the
+// catalog's empty default — InnoDB — for `DEFAULT` and for a name MySQL
+// substitutes.
 func storedEngineName(name string) string {
-	if storageEngines[strings.ToLower(strings.TrimSpace(name))] && !strings.EqualFold(strings.TrimSpace(name), "default") {
-		return name
+	key := strings.ToLower(strings.TrimSpace(name))
+	if !storageEngines[key] || key == "default" {
+		return ""
 	}
-	return ""
+	if canonical, ok := canonicalEngineNames[key]; ok {
+		return canonical
+	}
+	return name
+}
+
+// compositeSQLModes are the sql_mode values MySQL expands into a list, as
+// @@sql_mode reports them afterwards. Only NO_ENGINE_SUBSTITUTION matters here,
+// and TRADITIONAL carries it where ANSI does not (both measured on
+// mysql:8.0.46).
+var compositeSQLModes = map[string][]string{
+	"TRADITIONAL": {
+		"STRICT_TRANS_TABLES", "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE",
+		"NO_ZERO_DATE", "ERROR_FOR_DIVISION_BY_ZERO", "NO_ENGINE_SUBSTITUTION",
+	},
+	"ANSI": {"REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE", "ONLY_FULL_GROUP_BY"},
+}
+
+// partitionEngineName is storedEngineName for a partition of a CREATE TABLE
+// statement, where a loader's snapshot keeps the engine its server reported.
+func partitionEngineName(name string, declared bool) string {
+	if declared {
+		return storedEngineName(name)
+	}
+	return name
 }
 
 // noEngineSubstitution reports whether the session's sql_mode refuses an engine
@@ -418,13 +452,26 @@ func storedEngineName(name string) string {
 // without it — an empty one included — makes MySQL substitute the default engine
 // and take the statement.
 func (c *Catalog) noEngineSubstitution() bool {
-	mode := strings.ToUpper(strings.TrimSpace(c.session.SQLMode))
+	return sqlModeHas(c.session.SQLMode, "NO_ENGINE_SUBSTITUTION")
+}
+
+// sqlModeHas reports whether mode holds the flag, expanding a composite mode as
+// MySQL does. `DEFAULT` is the server's own mode list, which has
+// NO_ENGINE_SUBSTITUTION.
+func sqlModeHas(mode, flag string) bool {
+	mode = strings.ToUpper(strings.TrimSpace(mode))
 	if mode == "DEFAULT" {
-		return true
+		return flag == "NO_ENGINE_SUBSTITUTION"
 	}
 	for _, part := range strings.Split(mode, ",") {
-		if strings.TrimSpace(part) == "NO_ENGINE_SUBSTITUTION" {
+		part = strings.ToUpper(strings.TrimSpace(part))
+		if part == flag {
 			return true
+		}
+		for _, expanded := range compositeSQLModes[part] {
+			if expanded == flag {
+				return true
+			}
 		}
 	}
 	return false

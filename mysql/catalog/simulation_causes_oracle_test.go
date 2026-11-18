@@ -522,6 +522,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:    0,
 		},
 		{
+			// TRADITIONAL expands to a list that carries NO_ENGINE_SUBSTITUTION;
+			// ANSI's does not.
+			name:    "CREATE TABLE with an unknown engine under TRADITIONAL",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'TRADITIONAL'"},
+			stmt:    "CREATE TABLE s (b INT) ENGINE = nosuch",
+			code:    1286,
+		},
+		{
+			name:    "CREATE TABLE with an unknown engine under ANSI",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'ANSI'"},
+			stmt:    "CREATE TABLE s (b INT) ENGINE = nosuch",
+			code:    0,
+		},
+		{
 			name:    "ALTER TABLE with an unknown engine where the session refuses it",
 			setup:   []string{oneTable},
 			session: []string{"SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"},
@@ -639,6 +655,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 				db := c.GetDatabase("d")
 				if db == nil || db.GetTable("a") == nil || db.GetTable("a").Partitioning != nil {
 					t.Fatalf("catalog kept the table partitioned after %s", tc.stmt)
+				}
+			}
+			// MySQL stores an engine's alias under its canonical name.
+			if tc.code == 0 {
+				tbl := c.GetDatabase("d").GetTable("s")
+				switch tc.stmt {
+				case "CREATE TABLE s (b INT) ENGINE = MERGE":
+					if tbl == nil || tbl.Engine != "MRG_MyISAM" {
+						t.Fatalf("catalog stored engine %q for MERGE, want MRG_MyISAM", tbl.Engine)
+					}
+				case "CREATE TABLE s (b INT) ENGINE = HEAP":
+					if tbl == nil || tbl.Engine != "MEMORY" {
+						t.Fatalf("catalog stored engine %q for HEAP, want MEMORY", tbl.Engine)
+					}
 				}
 			}
 			if tc.code == 0 && tc.stmt == "ALTER TABLE a ADD PRIMARY KEY(x2), ADD x2 INT" {

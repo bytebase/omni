@@ -105,7 +105,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "engine":
-			tbl.Engine = storedEngineName(opt.Value)
+			// A loader's snapshot keeps the engine its server reported, which the
+			// pinned one may not ship; an authored statement keeps what the
+			// pinned server would store.
+			if declared {
+				tbl.Engine = storedEngineName(opt.Value)
+			} else {
+				tbl.Engine = opt.Value
+			}
 		case "charset", "character set", "default charset", "default character set":
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
@@ -761,7 +768,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
 		}
-		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions)
+		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions, declared)
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
@@ -900,7 +907,7 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 }
 
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
-func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
+func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:     pc.Linear,
 		NumParts:   pc.NumParts,
@@ -972,11 +979,12 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, pc.Type)
 		}
-		// Options.
+		// Options. A loader's snapshot keeps the engine its server reported,
+		// which the pinned one may not ship.
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
 			case "engine":
-				pdi.Engine = storedEngineName(opt.Value)
+				pdi.Engine = partitionEngineName(opt.Value, declared)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -997,7 +1005,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
-					spdi.Engine = storedEngineName(opt.Value)
+					spdi.Engine = partitionEngineName(opt.Value, declared)
 				case "comment":
 					spdi.Comment = opt.Value
 				}
