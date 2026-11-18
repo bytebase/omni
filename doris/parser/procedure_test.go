@@ -157,6 +157,7 @@ func TestAlterProcedure(t *testing.T) {
 		{"ALTER PROCEDURE a(zzz)", "a", "zzz"},
 		{"ALTER PROCEDURE a(a zzz)", "a", "a zzz"},
 		{"ALTER PROCEDURE a() zzz", "a", "zzz"},
+		{"ALTER PROCEDURE a(x;y)", "a", "x;y"},
 		{"ALTER PROC db.a()", "db.a", ""},
 	}
 	for _, tc := range tests {

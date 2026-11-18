@@ -160,19 +160,19 @@ func (p *Parser) parseProcedureListAndBody(stmt *ast.CreateProcedureStmt) error 
 
 // collectProcedureParens reads the grammar's LEFT_PAREN .*? RIGHT_PAREN at cur
 // and returns the parenthesized text as written. The text is the shortest one
-// that closes the parenthesis, as the grammar's non-greedy `.*?` takes it, and
-// it does not cross a statement separator: the parser is handed one statement
-// at a time.
+// that closes the parenthesis, as the grammar's non-greedy `.*?` takes it: a
+// ';' in it separates nothing (DorisParser.g4:29-33 makes SEMICOLON a
+// statement delimiter only).
 func (p *Parser) collectProcedureParens() (string, error) {
 	open, err := p.expect(int('('))
 	if err != nil {
 		return "", err
 	}
 	for {
-		if p.cur.Kind == tokEOF || p.cur.Kind == int(';') {
+		if p.cur.Kind == tokEOF {
 			return "", &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "unexpected end of statement inside a procedure's parentheses (missing ')')",
+				Message: "unexpected end of input inside a procedure's parentheses (missing ')')",
 			}
 		}
 		tok := p.advance()
