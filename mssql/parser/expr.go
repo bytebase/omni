@@ -1388,7 +1388,8 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if arg == nil {
 			p.enterSearchCondition()
 		}
-		cond, err := p.parseScalarExpr()
+		// The searched WHEN is a condition, the simple one's a value.
+		cond, err := p.parseExpr()
 		if arg == nil {
 			p.leaveSearchCondition()
 		}
