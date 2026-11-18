@@ -539,6 +539,7 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 			return err
 		}
 		stmt.GrantsTo = grantee
+		p.parseShowGrantsIncludeHierarchy(stmt)
 		return p.parseShowGrantsToShareIn(stmt)
 	case kwOF:
 		p.advance() // consume OF
@@ -605,10 +606,30 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 			return err
 		}
 		stmt.GrantsTo = grantee
+		p.parseShowGrantsIncludeHierarchy(stmt)
 		return nil
 
 	default:
 		return p.syntaxErrorAtCur()
+	}
+}
+
+// parseShowGrantsIncludeHierarchy reads the optional INCLUDE HIERARCHY of
+// SHOW GRANTS TO and SHOW FUTURE GRANTS TO. The page writes it after a role,
+// a database role or a user grantee and before LIMIT, and for no other target
+// or grantee:
+// https://docs.snowflake.com/en/sql-reference/sql/show-grants
+func (p *Parser) parseShowGrantsIncludeHierarchy(stmt *ast.ShowStmt) {
+	if stmt.GrantsTo == nil {
+		return
+	}
+	switch stmt.GrantsTo.Kind {
+	case ast.GranteeRole, ast.GranteeDatabaseRole, ast.GranteeUser:
+	default:
+		return
+	}
+	if p.acceptWords("INCLUDE", "HIERARCHY") {
+		stmt.IncludeHierarchy = true
 	}
 }
 

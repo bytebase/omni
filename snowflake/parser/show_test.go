@@ -308,6 +308,47 @@ func TestParseShowGrants(t *testing.T) {
 		}
 	})
 
+	// SHOW GRANTS TO { ROLE | DATABASE ROLE | USER } <name> [ INCLUDE HIERARCHY ],
+	// https://docs.snowflake.com/en/sql-reference/sql/show-grants
+	t.Run("to role include hierarchy", func(t *testing.T) {
+		stmt := mustParseShow(t, "SHOW GRANTS TO ROLE analyst INCLUDE HIERARCHY")
+		if stmt.GrantsTo == nil || stmt.GrantsTo.Kind != ast.GranteeRole || stmt.GrantsTo.Name.String() != "analyst" {
+			t.Fatalf("GrantsTo = %+v, want ROLE analyst", stmt.GrantsTo)
+		}
+		if !stmt.IncludeHierarchy {
+			t.Errorf("IncludeHierarchy = false, want true")
+		}
+	})
+
+	t.Run("to database role include hierarchy limit", func(t *testing.T) {
+		stmt := mustParseShow(t, "SHOW GRANTS TO DATABASE ROLE db.analyst INCLUDE HIERARCHY LIMIT 5")
+		if stmt.GrantsTo == nil || stmt.GrantsTo.Kind != ast.GranteeDatabaseRole {
+			t.Fatalf("GrantsTo = %+v, want DATABASE ROLE db.analyst", stmt.GrantsTo)
+		}
+		if !stmt.IncludeHierarchy || !stmt.HasLimit || stmt.Limit != "5" {
+			t.Errorf("IncludeHierarchy/Limit = %v/%q, want true/5", stmt.IncludeHierarchy, stmt.Limit)
+		}
+	})
+
+	t.Run("future grants to role include hierarchy", func(t *testing.T) {
+		stmt := mustParseShow(t, "SHOW FUTURE GRANTS TO ROLE r1 INCLUDE HIERARCHY")
+		if !stmt.IsGrants || !stmt.Future || !stmt.IncludeHierarchy {
+			t.Errorf("IsGrants/Future/IncludeHierarchy = %v/%v/%v, want true/true/true", stmt.IsGrants, stmt.Future, stmt.IncludeHierarchy)
+		}
+	})
+
+	t.Run("include hierarchy only on a TO role, database role or user", func(t *testing.T) {
+		for _, sql := range []string{
+			"SHOW GRANTS ON ACCOUNT INCLUDE HIERARCHY",
+			"SHOW GRANTS TO APPLICATION a INCLUDE HIERARCHY",
+			"SHOW GRANTS TO SHARE s INCLUDE HIERARCHY",
+		} {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("%q: want a syntax error", sql)
+			}
+		}
+	})
+
 	t.Run("future grants to role", func(t *testing.T) {
 		stmt := mustParseShow(t, "SHOW FUTURE GRANTS TO ROLE r1")
 		if !stmt.IsGrants || !stmt.Future {

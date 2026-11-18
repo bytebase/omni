@@ -641,10 +641,88 @@ var (
 	propertySet = "[ { [ NOT ] ENFORCED | [ NOT ] DEFERRABLE | INITIALLY { DEFERRED | IMMEDIATE } | { ENABLE | DISABLE } | { VALIDATE | NOVALIDATE } | { RELY | NORELY } } [ ... ] ]"
 )
 
-// objectTypeChoice is <object_type>: the account-level objects GRANT names
-// and the schema-level ones its object_type parameter lists, from
+// objectTypes are the values <object_type> takes, in the order the GRANT page
+// names them: the account-level objects its ON clause writes and the
+// schema-level objects its object_type parameter lists, from
 // https://docs.snowflake.com/en/sql-reference/sql/grant-privilege.
-const objectTypeChoice = "('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | 'COMPUTE' 'POOL' | 'CONNECTION' | 'DATA' 'EXCHANGE' 'LISTING' | 'DATABASE' | 'DATABASE' 'ROLE' | 'EXTERNAL' 'VOLUME' | 'FAILOVER' 'GROUP' | 'INTEGRATION' | 'REPLICATION' 'GROUP' | 'RESOURCE' 'MONITOR' | 'ROLE' | 'SCHEMA' | 'SHARE' | 'USER' | 'WAREHOUSE' | 'AGENT' | 'AGGREGATION' 'POLICY' | 'ALERT' | 'AUTHENTICATION' 'POLICY' | 'CORTEX' 'EXTENSION' | 'CORTEX' 'SEARCH' 'SERVICE' | 'DATA' 'METRIC' 'FUNCTION' | 'DATASET' | 'DBT' 'PROJECT' | 'DCM' 'PROJECT' | 'DYNAMIC' 'TABLE' | 'EVENT' 'TABLE' | 'EXPERIMENT' | 'EXTERNAL' 'TABLE' | 'FILE' 'FORMAT' | 'FUNCTION' | 'GATEWAY' | 'GIT' 'REPOSITORY' | 'ICEBERG' 'TABLE' | 'IMAGE' 'REPOSITORY' | 'INTERACTIVE' 'TABLE' | 'JOIN' 'POLICY' | 'MAINTENANCE' 'POLICY' | 'MASKING' 'POLICY' | 'MATERIALIZED' 'VIEW' | 'MCP' 'SERVER' | 'MODEL' | 'MODEL' 'MONITOR' | 'NETWORK' 'RULE' | 'NOTEBOOK' | 'ONLINE' 'FEATURE' 'TABLE' | 'PACKAGES' 'POLICY' | 'PASSWORD' 'POLICY' | 'PIPE' | 'PRIVACY' 'POLICY' | 'PROCEDURE' | 'PROJECTION' 'POLICY' | 'RESTRICTED' 'SESSION' 'SCOPE' | 'ROW' 'ACCESS' 'POLICY' | 'SECRET' | 'SEMANTIC' 'VIEW' | 'SEQUENCE' | 'SERVICE' | 'SESSION' 'POLICY' | 'SNAPSHOT' | 'SNAPSHOT' 'POLICY' | 'SNAPSHOT' 'SET' | 'STAGE' | 'STORAGE' 'LIFECYCLE' 'POLICY' | 'STREAM' | 'STREAMLIT' | 'TABLE' | 'TAG' | 'TASK' | 'TYPE' | 'VIEW' | 'WORKSPACE')"
+var objectTypes = []string{
+	"ACCOUNT", "APPLICATION", "APPLICATION PACKAGE", "COMPUTE POOL", "CONNECTION",
+	"DATA EXCHANGE LISTING", "DATABASE", "DATABASE ROLE", "EXTERNAL VOLUME",
+	"FAILOVER GROUP", "INTEGRATION", "REPLICATION GROUP", "RESOURCE MONITOR",
+	"ROLE", "SCHEMA", "SHARE", "USER", "WAREHOUSE",
+	"AGENT", "AGGREGATION POLICY", "ALERT", "AUTHENTICATION POLICY", "CORTEX EXTENSION",
+	"CORTEX SEARCH SERVICE", "DATA METRIC FUNCTION", "DATASET", "DBT PROJECT",
+	"DCM PROJECT", "DYNAMIC TABLE", "EVENT TABLE", "EXPERIMENT", "EXTERNAL TABLE",
+	"FILE FORMAT", "FUNCTION", "GATEWAY", "GIT REPOSITORY", "ICEBERG TABLE",
+	"IMAGE REPOSITORY", "INTERACTIVE TABLE", "JOIN POLICY", "MAINTENANCE POLICY",
+	"MASKING POLICY", "MATERIALIZED VIEW", "MCP SERVER", "MODEL", "MODEL MONITOR",
+	"NETWORK RULE", "NOTEBOOK", "ONLINE FEATURE TABLE", "PACKAGES POLICY",
+	"PASSWORD POLICY", "PIPE", "PRIVACY POLICY", "PROCEDURE", "PROJECTION POLICY",
+	"RESTRICTED SESSION SCOPE", "ROW ACCESS POLICY", "SECRET", "SEMANTIC VIEW",
+	"SEQUENCE", "SERVICE", "SESSION POLICY", "SNAPSHOT", "SNAPSHOT POLICY",
+	"SNAPSHOT SET", "STAGE", "STORAGE LIFECYCLE POLICY", "STREAM", "STREAMLIT",
+	"TABLE", "TAG", "TASK", "TYPE", "VIEW", "WORKSPACE",
+}
+
+// objectChoice writes types as an ANTLR choice of literals:
+// ('ACCOUNT' | 'APPLICATION' | 'APPLICATION' 'PACKAGE' | ...).
+func objectChoice(types []string) string {
+	var b strings.Builder
+	b.WriteByte('(')
+	for i, t := range types {
+		if i > 0 {
+			b.WriteString(" | ")
+		}
+		for j, w := range strings.Fields(t) {
+			if j > 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteByte('\'')
+			b.WriteString(w)
+			b.WriteByte('\'')
+		}
+	}
+	b.WriteByte(')')
+	return b.String()
+}
+
+// without returns the values of types in their order, less the ones named.
+func without(types []string, drop ...string) []string {
+	gone := map[string]bool{}
+	for _, d := range drop {
+		gone[d] = true
+	}
+	var out []string
+	for _, t := range types {
+		if !gone[t] {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// objectTypeChoice is <object_type> as the page's parameter lists it.
+var objectTypeChoice = objectChoice(objectTypes)
+
+// objectTypeTakesName holds the pages whose syntax writes
+// ON <object_type> <object_name>, where the type takes a name. ACCOUNT is not
+// one of the types there: SHOW GRANTS writes ON ACCOUNT as a form of its own
+// (https://docs.snowflake.com/en/sql-reference/sql/show-grants), GRANT and
+// REVOKE CALLER write ON ALL <object_type_plural> IN ACCOUNT for the
+// inherited form (.../grant-caller, .../revoke-caller), and GRANT OWNERSHIP's
+// object_type parameter lists no ACCOUNT (.../grant-ownership). SCHEMA comes
+// first, so the statement the rows derive is ON SCHEMA <name> -- a schema
+// object those parameters support -- and not ON ACCOUNT <name>, which the
+// engine reads as an account-level grant.
+var objectTypeTakesName = map[string]bool{
+	"grant-ownership": true,
+	"grant-caller":    true,
+	"revoke-caller":   true,
+	"show-grants":     true,
+}
+
+// namedObjectTypeChoice is <object_type> on those pages.
+var namedObjectTypeChoice = objectChoice(append([]string{"SCHEMA"}, without(objectTypes, "ACCOUNT", "SCHEMA")...))
 
 // templateValue is a template argument, USING ( <key> => <value> ).
 var templateValue = regexp.MustCompile(`=> <value>`)
@@ -783,14 +861,99 @@ var accountLevelPage = regexp.MustCompile(`^[a-z]+-(warehouse|user|role|database
 // string: a database, or a database and a schema.
 var namespaceRef = regexp.MustCompile(`(^|[^@'])\[\s*<namespace>\.\s*\]`)
 
+// nameSample is the text tokens.tsv samples a name with; the docs judge reads
+// a literal word as that word, where a name class stands for any name.
+const nameSample = "a"
+
+// sampledNames holds the placeholders of a page whose name is written by that
+// sample rather than by the name class. The docs judge reads a name class as
+// any word, a keyword among them, so a form of another page with its name
+// dropped reads as this page's statement:
+//
+//	DROP APPLICATION PACKAGE   is DROP APPLICATION named PACKAGE
+//	USE ROLE                   is USE named ROLE
+//	ALTER ACCOUNT UNSET TAG    is ALTER ACCOUNT UNSET <param_name>
+//
+// The page writes the object word as a form of its own (DROP APPLICATION
+// PACKAGE, ALTER ACCOUNT UNSET TAG <tag_name>), and Snowflake does not
+// reserve PACKAGE, ROLE, TAG and the rest, so the docs cannot say which
+// reading the engine takes. The sample pins the reading where the page's own
+// form is the one with the name: the statement a row generates is the same,
+// and a name-dropped near-miss is `undocumented` instead of another page's
+// statement. Each page's own form, and the word it must not read as a name:
+//
+//   - drop-application, drop-model, drop-snapshot, alter-application,
+//     alter-database, alter-database-catalog-linked, alter-snapshot,
+//     create-database, use-database: the object's <name> follows the object
+//     word (DROP APPLICATION <name>,
+//     https://docs.snowflake.com/en/sql-reference/sql/drop-application).
+//   - use-schema: <schema_db> is the database of the qualified form,
+//     USE <db_name>.<schema_name>, which docs-fixes.tsv writes beside
+//     USE SCHEMA (https://docs.snowflake.com/en/sql-reference/sql/use-schema).
+//   - grant-privilege, revoke-privilege: the grantee's <role_name> follows
+//     TO/FROM ROLE
+//     (https://docs.snowflake.com/en/sql-reference/sql/grant-privilege).
+//   - grant-privilege-application, revoke-privilege-application,
+//     grant-application-role, revoke-application-role, show-grants,
+//     grant-caller, revoke-caller: <app_name>/<application_name> follows
+//     APPLICATION (https://docs.snowflake.com/en/sql-reference/sql/show-grants).
+//   - alter-account, alter-organization-account, alter-pipe, alter-user,
+//     alter-warehouse: <param_name>, <property_name>, <object_property_name>,
+//     <object_param_name> and <session_param_name> are the UNSET list's names,
+//     and the page writes TAG with a tag name
+//     (https://docs.snowflake.com/en/sql-reference/sql/alter-account).
+//   - alter-task, alter-task-graph: the UNSET list's <unset_parameter> and
+//     <unset_property>, which docs-fixes.tsv names so the SET form keeps its
+//     name class (https://docs.snowflake.com/en/sql-reference/sql/alter-task).
+//   - alter-security-integration: <parameter> after UNSET
+//     (https://docs.snowflake.com/en/sql-reference/sql/alter-security-integration).
+var sampledNames = map[string]map[string]bool{
+	"drop-application":              {"name": true},
+	"drop-model":                    {"name": true},
+	"drop-snapshot":                 {"name": true},
+	"alter-application":             {"name": true},
+	"alter-database":                {"name": true},
+	"alter-database-catalog-linked": {"name": true},
+	"alter-snapshot":                {"name": true},
+	"create-database":               {"name": true},
+	"use-database":                  {"name": true},
+	"use-schema":                    {"schema_db": true},
+	"grant-privilege":               {"role_name": true},
+	"revoke-privilege":              {"role_name": true},
+	"grant-privilege-application":   {"name": true, "app_name": true},
+	"revoke-privilege-application":  {"name": true, "app_name": true},
+	"grant-application-role":        {"application_name": true},
+	"revoke-application-role":       {"application": true},
+	"show-grants":                   {"app_name": true},
+	"grant-caller":                  {"app_name": true},
+	"revoke-caller":                 {"app_name": true},
+	"alter-account":                 {"param_name": true},
+	"alter-organization-account":    {"param_name": true},
+	"alter-pipe":                    {"property_name": true},
+	"alter-user":                    {"object_property_name": true, "object_param_name": true, "session_param_name": true},
+	"alter-warehouse":               {"property_name": true, "param_name": true},
+	"alter-task":                    {"unset_parameter": true},
+	"alter-task-graph":              {"unset_property": true},
+	"alter-security-integration":    {"parameter": true},
+}
+
 // value writes a value as the grammar reads it on a page: <object_type>
 // as the object types GRANT lists, and a <name> of an account-level
 // object as one part, of a database object as two at most.
 func value(slug, placeholder, cls string) string {
 	if cls == tObjectType {
 		// SHOW GRANTS ON <object_type> <name>: one of the object types the
-		// GRANT page lists.
+		// GRANT page lists, or, on a page whose type takes a name, one that
+		// is not ACCOUNT (see objectTypeTakesName).
+		if objectTypeTakesName[slug] {
+			return namedObjectTypeChoice
+		}
 		return objectTypeChoice
+	}
+	if sampledNames[slug][placeholder] && (cls == tName || cls == tQName || cls == tQName2) {
+		// The docs judge reads a name class as any word; the page's own form
+		// has the name, so it is written by the sample (see sampledNames).
+		return "'" + nameSample + "'"
 	}
 	if cls == tQName && (placeholder == "name" || placeholder == "new_name" || placeholder == "object_name") {
 		switch {
