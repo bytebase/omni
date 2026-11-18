@@ -50,6 +50,17 @@ func (p *Parser) parseMaterializedViewKeyword() error {
 	return err
 }
 
+// materializedViewLogOnCursor offers ON after the LOG keyword in completion
+// mode.
+func (p *Parser) materializedViewLogOnCursor() error {
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwON)
+		return &ParseError{Message: "collecting"}
+	}
+	return nil
+}
+
 // materializedViewLogTableCursor offers a base table after ON in completion
 // mode.
 func (p *Parser) materializedViewLogTableCursor() error {
@@ -512,6 +523,9 @@ func (p *Parser) parseMvRefreshInterval(info *nodes.MviewRefreshInfo) error {
 //	    opt_mlog_option_list opt_mlog_with opt_mlog_new_values opt_mlog_purge
 func (p *Parser) parseCreateMaterializedViewLogStmt(start int, orReplace bool) (*nodes.CreateMaterializedViewLogStmt, error) {
 	p.advance() // consume LOG
+	if err := p.materializedViewLogOnCursor(); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
@@ -820,6 +834,9 @@ func (p *Parser) parseAlterMviewAction() (*nodes.AlterMviewAction, error) {
 // <table>. p.cur is LOG.
 func (p *Parser) parseAlterMaterializedViewLogStmt(start int) (*nodes.AlterMaterializedViewLogStmt, error) {
 	p.advance() // consume LOG
+	if err := p.materializedViewLogOnCursor(); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
@@ -913,6 +930,9 @@ func (p *Parser) parseDropMaterializedStmt(start int) (nodes.Node, error) {
 		return nil, err
 	} else if log {
 		p.advance() // consume LOG
+		if err := p.materializedViewLogOnCursor(); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
 		}

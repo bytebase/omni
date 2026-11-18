@@ -144,6 +144,11 @@ func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool, co
 	if !ok {
 		return lowered
 	}
+	k := relKey(r.db, r.name)
+	if b.w.materialized[k] {
+		b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "table"))
+		return true
+	}
 	if op == materializedLogCreate && len(columns) > 0 {
 		path := tablePath(r.db, r.name)
 		for _, name := range columns {
@@ -156,7 +161,6 @@ func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool, co
 			}
 		}
 	}
-	k := relKey(r.db, r.name)
 	state := b.w.materializedLogs[k]
 	switch op {
 	case materializedLogCreate:

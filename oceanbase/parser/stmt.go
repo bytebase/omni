@@ -569,7 +569,9 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 
 	p.checkCursor()
 	if p.collectMode() {
-		p.addTokenCandidate(kwMATERIALIZED)
+		for _, t := range []int{kwVIEW, kwMATERIALIZED, kwALGORITHM, kwSQL} {
+			p.addTokenCandidate(t)
+		}
 		return nil, &ParseError{Message: "collecting"}
 	}
 
