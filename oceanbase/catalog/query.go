@@ -1084,6 +1084,17 @@ func (*GroupingSetExprQ) analyzedExprTag()          {}
 func (g *GroupingSetExprQ) exprType() *ResolvedType { return nil }
 func (*GroupingSetExprQ) exprCollation() string     { return "" }
 
+// OdbcEscapeExprQ is an ODBC escape (`{fn ABS(a)}`, `{d '2026-01-01'}`): the
+// word that says how its expression is read, and the analyzed expression.
+type OdbcEscapeExprQ struct {
+	Name string
+	Arg  AnalyzedExpr
+}
+
+func (*OdbcEscapeExprQ) analyzedExprTag()          {}
+func (o *OdbcEscapeExprQ) exprType() *ResolvedType { return o.Arg.exprType() }
+func (*OdbcEscapeExprQ) exprCollation() string     { return "" }
+
 // ----------------------------------------------------------------------------
 // RawExprQ — an expression the IR keeps as written.
 // ----------------------------------------------------------------------------

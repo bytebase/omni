@@ -2043,7 +2043,11 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 
 func deparseColumnRef(n *ast.ColumnRef) string {
 	if n.Catalog != "" {
-		return quoteIdent(n.Catalog) + "." + quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
+		last := quoteIdent(n.Column)
+		if n.Star {
+			last = "*"
+		}
+		return quoteIdent(n.Catalog) + "." + quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + last
 	}
 	if n.Schema != "" {
 		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)

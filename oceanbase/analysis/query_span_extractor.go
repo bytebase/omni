@@ -1547,7 +1547,10 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		*ast.RenameTableStmt, *ast.RenameUserStmt, *ast.TruncateStmt, *ast.ImportTableStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt,
 		*ast.InstallPluginStmt, *ast.UninstallPluginStmt, *ast.InstallComponentStmt,
-		*ast.UninstallComponentStmt, *ast.CloneStmt:
+		*ast.UninstallComponentStmt, *ast.CloneStmt,
+		// purge_stmt and flashback_stmt destroy and restore a table (or a
+		// database, a tenant or the recycle bin) as DDL does.
+		*ast.PurgeStmt, *ast.FlashbackStmt:
 		return DDL
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.BeginStmt, *ast.CommitStmt,
 		*ast.RollbackStmt, *ast.SavepointStmt, *ast.LockTablesStmt, *ast.UnlockTablesStmt,
@@ -1644,6 +1647,15 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 		for _, orderBy := range n.OrderBy {
 			if orderBy != nil {
 				collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
+			}
+		}
+		// INTO OUTFILE's partition key and its FORMAT list may hold a subquery.
+		if n.Into != nil {
+			collectAccessTablesFromExpr(result, n.Into.PartitionBy, defaultDatabase)
+			for _, prop := range n.Into.ExternalFormat {
+				if prop != nil {
+					collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+				}
 			}
 		}
 	case *ast.ExplainStmt:

@@ -67,6 +67,25 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			addTable(db, table, true)
 		}
 
+	case *ast.PurgeStmt:
+		// PURGE TABLE and PURGE INDEX name a table in the recycle bin; PURGE
+		// RECYCLEBIN names none.
+		if n.Name != nil && (n.Kind == "TABLE" || n.Kind == "INDEX") {
+			db, table := tableRef(n.Name, database)
+			addTable(db, table, true)
+		}
+
+	case *ast.FlashbackStmt:
+		// FLASHBACK restores the table the statement names, and may rename it.
+		if n.Name != nil && n.Kind == "TABLE" {
+			db, table := tableRef(n.Name, database)
+			addTable(db, table, true)
+			if n.RenameTo != nil {
+				newDB, newTable := tableRef(n.RenameTo, database)
+				addTable(newDB, newTable, false)
+			}
+		}
+
 	case *ast.TruncateStmt:
 		for _, ref := range n.Tables {
 			db, table := tableRef(ref, database)

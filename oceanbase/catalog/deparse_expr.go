@@ -54,6 +54,12 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeRowExprQ(b, e, q)
 	case *GroupingSetExprQ:
 		writeGroupingSetExprQ(b, e, q)
+	case *OdbcEscapeExprQ:
+		b.WriteString("{")
+		b.WriteString(e.Name)
+		b.WriteString(" ")
+		writeAnalyzedExpr(b, e.Arg, q)
+		b.WriteString("}")
 	case *RawExprQ:
 		b.WriteString(e.Text)
 	default:
