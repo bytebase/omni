@@ -30,6 +30,12 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 
 	// Determine object type code.
 	objTypeCode := grantObjTypeCode(nodes.ObjectType(stmt.Objtype))
+	if objTypeCode == 'x' {
+		// A Redshift object the catalog does not model — an external table or
+		// schema, a datashare, a COPY job, a model — records nothing: its grants
+		// name no object this catalog resolves, and no DDL statement reads them.
+		return nil
+	}
 	if objTypeCode == 'c' {
 		// A COPY template is no catalog object: its grants name nothing this
 		// catalog resolves, and no DDL statement reads them. What a grant to
@@ -229,6 +235,11 @@ func grantObjTypeCode(objType nodes.ObjectType) byte {
 		// A COPY template's privileges are ALTER, DROP and USAGE; its grants are
 		// recorded nowhere (see ExecGrantStmt).
 		return 'c'
+	case nodes.OBJECT_FOREIGN_TABLE, nodes.OBJECT_EXTERNAL_SCHEMA, nodes.OBJECT_DATASHARE,
+		nodes.OBJECT_COPY_JOB, nodes.OBJECT_MODEL:
+		// Redshift's own object types: the catalog resolves none of them, so
+		// PostgreSQL's ACL validation has no privilege set to hold them to.
+		return 'x'
 	default:
 		return 'r'
 	}

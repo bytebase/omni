@@ -551,7 +551,7 @@ func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.O
 			if err != nil {
 				return 0, 0, nil, redshiftGrantObject, err
 			}
-			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names), redshiftGrantExternalSchema, nil
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_EXTERNAL_SCHEMA, makeNameListAsAnyNameList(names), redshiftGrantExternalSchema, nil
 		case TABLE:
 			p.advance()
 			list, err := p.parseGrantObjectAnyNameList()
@@ -912,7 +912,7 @@ func (p *Parser) parseRedshiftDatashareGrantee() (*nodes.List, error) {
 // A GRANT names one consumer; a REVOKE names a list of them.
 func (p *Parser) parseRedshiftDatashareUsageGrantees(isGrant bool) (*nodes.List, error) {
 	loc := p.pos()
-	var prefix string
+	prefix := ""
 	switch {
 	case p.redshiftKeywordIs("namespace"):
 		prefix = "namespace"
@@ -922,66 +922,74 @@ func (p *Parser) parseRedshiftDatashareUsageGrantees(isGrant bool) (*nodes.List,
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	id, err := p.parseFileName()
+	item, err := p.parseRedshiftDatashareConsumer(prefix, loc)
 	if err != nil {
 		return nil, err
 	}
-	// VIA DATA CATALOG follows each ACCOUNT id, on both pages.
-	if prefix == "account" {
-		if err := p.parseRedshiftViaDataCatalog(); err != nil {
-			return nil, err
-		}
-	}
-	items := []nodes.Node{&nodes.RoleSpec{
-		Roletype: int(nodes.ROLESPEC_CSTRING),
-		Rolename: prefix + ":" + id,
-		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
-	}}
+	items := []nodes.Node{item}
 	if isGrant {
 		return &nodes.List{Items: items}, nil
 	}
 	for p.cur.Type == ',' {
 		p.advance()
 		itemLoc := p.pos()
-		id, err := p.parseFileName()
+		item, err := p.parseRedshiftDatashareConsumer(prefix, itemLoc)
 		if err != nil {
 			return nil, err
 		}
-		if prefix == "account" {
-			if err := p.parseRedshiftViaDataCatalog(); err != nil {
-				return nil, err
-			}
-		}
-		items = append(items, &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
-			Rolename: prefix + ":" + id,
-			Loc:      nodes.Loc{Start: itemLoc, End: p.prev.End},
-		})
+		items = append(items, item)
 	}
 	return &nodes.List{Items: items}, nil
 }
 
+// parseRedshiftDatashareConsumer parses one consumer a datashare's USAGE grantee
+// names: NAMESPACE '<guid>' or ACCOUNT '<number>' [ VIA DATA CATALOG ]. The
+// IAM_ROLE, namespace and account prefixes keep the qualifier, which is per
+// account, so a consumer can tell a Data Catalog account from a direct one.
+func (p *Parser) parseRedshiftDatashareConsumer(prefix string, loc int) (*nodes.RoleSpec, error) {
+	id, err := p.parseFileName()
+	if err != nil {
+		return nil, err
+	}
+	name := prefix + ":" + id
+	if prefix == "account" {
+		via, err := p.parseRedshiftViaDataCatalog()
+		if err != nil {
+			return nil, err
+		}
+		if via {
+			name = "account_via_data_catalog:" + id
+		}
+	}
+	return &nodes.RoleSpec{
+		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Rolename: name,
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+	}, nil
+}
+
 // parseRedshiftViaDataCatalog parses the optional VIA DATA CATALOG that a
-// datashare's ACCOUNT grantee takes. The docs write DATA CATALOG as two words;
-// the one-word DATA_CATALOG this fork has always read still reads.
-func (p *Parser) parseRedshiftViaDataCatalog() error {
+// datashare's ACCOUNT grantee takes, and reports whether it read it. The docs
+// write DATA CATALOG as two words; the one-word DATA_CATALOG this fork has
+// always read still reads.
+func (p *Parser) parseRedshiftViaDataCatalog() (bool, error) {
 	if !p.redshiftKeywordIs("via") {
-		return nil
+		return false, nil
 	}
 	p.advance()
 	if p.redshiftKeywordIs("data_catalog") {
 		p.advance()
-		return nil
+		return true, nil
 	}
 	if !p.redshiftKeywordIs("data") {
-		return p.syntaxErrorAtCur()
+		return false, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	if !p.redshiftKeywordIs("catalog") {
-		return p.syntaxErrorAtCur()
+		return false, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	return nil
+	return true, nil
 }
 
 // redshiftPrivilegesNameColumns reports whether any privilege names a column,

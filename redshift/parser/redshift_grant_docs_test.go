@@ -26,10 +26,10 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		{"REVOKE SELECT(a) ON EXTERNAL TABLE s.t FROM IAM_ROLE 'r'", nodes.OBJECT_FOREIGN_TABLE, false, 1},
 		{"REVOKE SELECT, INSERT ON EXTERNAL TABLE s.t FROM PUBLIC", nodes.OBJECT_FOREIGN_TABLE, false, 1},
 		{"REVOKE ALL ON EXTERNAL TABLE s.t FROM IAM_ROLE 'r', IAM_ROLE 'r2'", nodes.OBJECT_FOREIGN_TABLE, false, 2},
-		{"GRANT CREATE ON EXTERNAL SCHEMA s TO IAM_ROLE 'r'", nodes.OBJECT_SCHEMA, true, 1},
-		{"GRANT CREATE, ALTER, DROP ON EXTERNAL SCHEMA s, s2 TO IAM_ROLE r WITH GRANT OPTION", nodes.OBJECT_SCHEMA, true, 1},
-		{"GRANT ALL ON EXTERNAL SCHEMA s TO IAM_ROLE 'r'", nodes.OBJECT_SCHEMA, true, 1},
-		{"REVOKE DROP ON EXTERNAL SCHEMA s FROM IAM_ROLE 'r', IAM_ROLE 'r2'", nodes.OBJECT_SCHEMA, false, 2},
+		{"GRANT CREATE ON EXTERNAL SCHEMA s TO IAM_ROLE 'r'", nodes.OBJECT_EXTERNAL_SCHEMA, true, 1},
+		{"GRANT CREATE, ALTER, DROP ON EXTERNAL SCHEMA s, s2 TO IAM_ROLE r WITH GRANT OPTION", nodes.OBJECT_EXTERNAL_SCHEMA, true, 1},
+		{"GRANT ALL ON EXTERNAL SCHEMA s TO IAM_ROLE 'r'", nodes.OBJECT_EXTERNAL_SCHEMA, true, 1},
+		{"REVOKE DROP ON EXTERNAL SCHEMA s FROM IAM_ROLE 'r', IAM_ROLE 'r2'", nodes.OBJECT_EXTERNAL_SCHEMA, false, 2},
 		{"GRANT ALTER ON DATASHARE d TO a WITH GRANT OPTION", nodes.OBJECT_DATASHARE, true, 1},
 		{"GRANT SHARE ON DATASHARE d TO ROLE r, GROUP g, PUBLIC", nodes.OBJECT_DATASHARE, true, 3},
 		{"GRANT ALTER ON DATASHARE d TO role", nodes.OBJECT_DATASHARE, true, 1},
@@ -54,6 +54,28 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		}
 		if grant.Grantees == nil || len(grant.Grantees.Items) != tc.grantees {
 			t.Errorf("Parse(%q): grantees = %#v, want %d", tc.sql, grant.Grantees, tc.grantees)
+		}
+	}
+
+	// A datashare consumer keeps the VIA DATA CATALOG qualifier, per account.
+	for sql, want := range map[string][]string{
+		"GRANT USAGE ON DATASHARE d TO ACCOUNT '1' VIA DATA CATALOG":         {"account_via_data_catalog:1"},
+		"GRANT USAGE ON DATASHARE d TO ACCOUNT '1'":                          {"account:1"},
+		"GRANT USAGE ON DATASHARE d TO NAMESPACE 'n'":                        {"namespace:n"},
+		"REVOKE USAGE ON DATASHARE d FROM ACCOUNT '1' VIA DATA CATALOG, '2'": {"account_via_data_catalog:1", "account:2"},
+	} {
+		grant, ok := singleStmt(t, sql).(*nodes.GrantStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected GrantStmt", sql)
+		}
+		if len(grant.Grantees.Items) != len(want) {
+			t.Fatalf("Parse(%q): grantees = %#v, want %v", sql, grant.Grantees, want)
+		}
+		for i, name := range want {
+			rs := grant.Grantees.Items[i].(*nodes.RoleSpec)
+			if rs.Rolename != name {
+				t.Errorf("Parse(%q): grantee %d = %q, want %q", sql, i, rs.Rolename, name)
+			}
 		}
 	}
 
@@ -328,6 +350,8 @@ func TestRedshiftFuncArgNameVersusType(t *testing.T) {
 		{"CREATE FUNCTION f(bit varying) RETURNS int AS 's' LANGUAGE sql", ""},
 		{"CREATE FUNCTION f(interval year) RETURNS int AS 's' LANGUAGE sql", ""},
 		{"CREATE FUNCTION f(timestamp with time zone) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(IN character varying) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(IN int int) RETURNS int AS 's' LANGUAGE sql", "int"},
 		{"CREATE FUNCTION f(int int) RETURNS int AS 's' LANGUAGE sql", "int"},
 		{"CREATE FUNCTION f(a int, b varchar(10)) RETURNS int AS 's' LANGUAGE sql", "a"},
 	} {

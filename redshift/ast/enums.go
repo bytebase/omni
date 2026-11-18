@@ -234,6 +234,10 @@ const (
 	OBJECT_MODEL
 	OBJECT_COPY_JOB
 	OBJECT_TEMPLATE
+	// OBJECT_EXTERNAL_SCHEMA is Redshift's EXTERNAL SCHEMA, a schema that
+	// points outside the database; GRANT and REVOKE name it by its own
+	// keywords, and the catalog models none of its privileges.
+	OBJECT_EXTERNAL_SCHEMA
 )
 
 // SubLinkType represents types of SubLink.

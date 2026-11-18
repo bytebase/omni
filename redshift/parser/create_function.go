@@ -265,7 +265,7 @@ func (p *Parser) parseFuncArg() (*nodes.FunctionParameter, error) {
 		// Cases 1 or 4: arg_class is consumed; decide if a param_name
 		// follows or if cur is the type.
 		mode = argClass
-		if p.isColId() {
+		if p.isColId() && !p.isRedshiftMultiwordTypenameStart() {
 			snap := p.snapshotTokenStream()
 			savedName := p.advance().Str // a ColId, as checked
 			if p.isFuncTypeStart() {
