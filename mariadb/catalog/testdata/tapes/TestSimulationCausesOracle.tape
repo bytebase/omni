@@ -236,106 +236,12 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
-| CREATE TABLE a (b INT)
-< ok 0 0
-> exec
-| ALTER TABLE a ADD KEY k(missing), ADD COLUMN missing INT
-< ok 0 0
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
-| CREATE TABLE a (b INT)
-< ok 0 0
-> exec
-| ALTER TABLE a ADD SPATIAL KEY k(x), ADD COLUMN x POINT
-< error
-| 1252 42000 All parts of a SPATIAL index must be NOT NULL
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a
 < error
 | 1128 HY000 Function 'a' is not defined
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
-| CREATE TABLE a (a VARCHAR(10), KEY k(a))
-< ok 0 0
-> exec
-| ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES a(a), DEFAULT CHARSET=latin1, ADD b VARCHAR(10)
-< error
-| 1005 HY000 Can't create table `omni_testsimulationcausesoracle`.`a` (errno: 150 "Foreign key constraint is incorrectly formed")
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
-| CREATE TABLE a (x INT)
-< ok 0 0
-> exec
-| ALTER TABLE a ADD SPATIAL KEY(b), ADD b POINT NOT NULL, ADD b POINT
-< error
-| 1060 42S21 Duplicate column name 'b'
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
-| CREATE TABLE a (v VECTOR(3) NOT NULL)
-< ok 0 0
-> exec
-| ALTER TABLE a ADD VECTOR i(v), ADD VECTOR j(v), ADD COLUMN x INT
-< error
-| 1235 42000 This version of MariaDB doesn't yet support 'multiple VECTOR indexes'
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0

@@ -141,16 +141,6 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	dropsPK := alterDropsPrimaryKey(stmt.Commands)
 	droppedColumns := alterDroppedColumns(stmt.Commands)
 	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
-	cmdIndex := make(map[*nodes.AlterTableCmd]int, len(stmt.Commands))
-	for i, cmd := range stmt.Commands {
-		cmdIndex[cmd] = i
-	}
-	futureFor := func(cmd *nodes.AlterTableCmd) []futureColumn {
-		if cmd.Type != nodes.ATAddIndex && cmd.Type != nodes.ATAddConstraint {
-			return nil
-		}
-		return alterFutureColumnsAfter(stmt.Commands, cmdIndex[cmd], tbl.Charset, tbl.Collation)
-	}
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -166,13 +156,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, futureFor(cmd))
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, futureFor(cmd)); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -202,7 +192,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, futureFor(cmd)); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks); err != nil {
 			rollback()
 			return err
 		}
@@ -269,7 +259,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // composite key's columns would leave a half-built key behind; declaredChecks
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, future []futureColumn) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
@@ -280,7 +270,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, declaredChecks, future)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -561,7 +551,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}, declared, nil); err != nil {
+			}, declared); err != nil {
 				return err
 			}
 		}
@@ -758,85 +748,6 @@ func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 		}
 	}
 	return out
-}
-
-// A futureColumn is a column a later command of the same ALTER adds. A key is
-// validated against the columns the statement leaves behind, so `ADD KEY
-// k(b), ADD COLUMN b INT` is accepted although the key's clause comes first.
-type futureColumn struct {
-	def         *nodes.ColumnDef // ADD COLUMN's definition
-	ifNotExists bool             // ADD COLUMN IF NOT EXISTS
-	charset     string           // the table default when the column is added
-	collation   string
-}
-
-// alterFutureColumnsAfter returns the columns the commands after cmds[at] add,
-// in statement order, with the table defaults in force at each. It is built
-// only for a command that adds a key, so an ALTER of many columns pays nothing
-// for the ones without keys.
-func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int, charset, collation string) []futureColumn {
-	var changes []futureColumn
-	for _, later := range cmds[at+1:] {
-		if later == nil {
-			continue
-		}
-		switch later.Type {
-		case nodes.ATTableOption:
-			if opt := later.Option; opt != nil && !opt.EngineDefined {
-				switch toLower(opt.Name) {
-				case "charset", "character set", "default charset", "default character set":
-					charset, collation = normalizeCharsetName(opt.Value), ""
-				case "collate", "default collate":
-					collation = opt.Value
-				}
-			}
-		case nodes.ATAddColumn:
-			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists, charset: charset, collation: collation})
-			}
-			for _, def := range later.Columns {
-				if def != nil {
-					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists, charset: charset, collation: collation})
-				}
-			}
-		}
-	}
-	return changes
-}
-
-// applyFutureColumns adds a later command's columns to the key's table.
-func applyFutureColumns(tbl *Table, changes []futureColumn) {
-	for _, ch := range changes {
-		if ch.def == nil || ch.def.Name == "" {
-			continue
-		}
-		if ch.charset != "" || ch.collation != "" {
-			tbl.Charset, tbl.Collation = ch.charset, ch.collation
-		}
-		if tbl.GetColumn(ch.def.Name) != nil {
-			// A later duplicate ADD is 1060 when the statement runs; it must
-			// not replace the definition the key is judged against.
-			continue
-		}
-		col := buildColumnFromDef(tbl, ch.def)
-		col.Position = len(tbl.Columns) + 1
-		tbl.Columns = append(tbl.Columns, col)
-		// An inline PRIMARY/UNIQUE key supplies an index a self-referencing
-		// foreign key before it may look for.
-		for _, cc := range ch.def.Constraints {
-			switch cc.Type {
-			case nodes.ColConstrPrimaryKey:
-				tbl.Indexes = append(tbl.Indexes, &Index{Name: "PRIMARY", Table: tbl, Columns: []*IndexColumn{{Name: ch.def.Name}}, Unique: true, Primary: true, Visible: true})
-			case nodes.ColConstrUnique:
-				name := cc.Name
-				if name == "" {
-					name = ch.def.Name
-				}
-				tbl.Indexes = append(tbl.Indexes, &Index{Name: name, Table: tbl, Columns: []*IndexColumn{{Name: ch.def.Name}}, Unique: true, Visible: true})
-			}
-		}
-		rebuildColIndex(tbl)
-	}
 }
 
 func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool) error {
@@ -1281,7 +1192,7 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	return nil
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, future []futureColumn) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1308,13 +1219,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 	}
-	keyTbl := tbl
-	if len(future) > 0 {
-		kt := cloneTable(tbl)
-		applyFutureColumns(&kt, future)
-		keyTbl = &kt
-	}
-	if err := validateAddedKeyColumns(keyTbl, con.IndexColumns); err != nil {
+	if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
 		return err
 	}
 
@@ -1326,7 +1231,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 				return errMultiplePriKey()
 			}
 		}
-		if err := validatePrimaryKeyColumns(keyTbl, cols); err != nil {
+		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 			return err
 		}
 		// Mark PK columns as NOT NULL.
@@ -1374,7 +1279,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		long, err := validateUniqueIndexColumns(keyTbl, idxCols)
+		long, err := validateUniqueIndexColumns(tbl, idxCols)
 		if err != nil {
 			return err
 		}
@@ -1427,7 +1332,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
 		if c.foreignKeyChecks {
-			if err := c.validateSingleFK(db, keyTbl, fkCon); err != nil {
+			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
 				return err
 			}
 		}
@@ -1439,7 +1344,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// reading one it names that column. Checked before the constraint
 		// goes in, so a refusal leaves the table as it was.
 		fkIdxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(keyTbl, fkIdxCols, false, false); err != nil {
+		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
 			return err
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
@@ -1478,7 +1383,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(keyTbl, idxCols, false, false); err != nil {
+		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
 		keyIdx := &Index{
@@ -1530,7 +1435,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateVectorIndex(keyTbl, idxCols); err != nil {
+		if err := validateVectorIndex(tbl, idxCols); err != nil {
 			return err
 		}
 		vecIdx := &Index{
@@ -1557,7 +1462,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(keyTbl, idxCols, false, true); err != nil {
+		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 			return err
 		}
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {

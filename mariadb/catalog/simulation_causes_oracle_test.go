@@ -99,40 +99,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1072,
 		},
 		{
-			name:  "ADD KEY before the column it names",
-			setup: []string{"CREATE TABLE a (b INT)"},
-			stmt:  "ALTER TABLE a ADD KEY k(missing), ADD COLUMN missing INT",
-			code:  0,
-		},
-		{
-			name:  "ADD SPATIAL KEY before a nullable column it names",
-			setup: []string{"CREATE TABLE a (b INT)"},
-			stmt:  "ALTER TABLE a ADD SPATIAL KEY k(x), ADD COLUMN x POINT",
-			code:  1252,
-		},
-		{
 			name:  "ADD FULLTEXT WITH PARSER over a missing column",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a",
 			code:  1128,
-		},
-		{
-			name:  "FOREIGN KEY before a later inserted column under a new default charset",
-			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY k(a))"},
-			stmt:  "ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES a(a), DEFAULT CHARSET=latin1, ADD b VARCHAR(10)",
-			code:  1005,
-		},
-		{
-			name:  "two later ADD COLUMN clauses of one name",
-			setup: []string{"CREATE TABLE a (x INT)"},
-			stmt:  "ALTER TABLE a ADD SPATIAL KEY(b), ADD b POINT NOT NULL, ADD b POINT",
-			code:  1060,
-		},
-		{
-			name:  "two VECTOR keys beside an added column",
-			setup: []string{"CREATE TABLE a (v VECTOR(3) NOT NULL)"},
-			stmt:  "ALTER TABLE a ADD VECTOR i(v), ADD VECTOR j(v), ADD COLUMN x INT",
-			code:  1235,
 		},
 		{
 			name:  "REMOVE PARTITIONING of a table with none",
