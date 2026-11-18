@@ -571,7 +571,7 @@ ok	ok:fb90786a5789	engine	one_table@table	binary/COLLATE_SYM_BINARY	ALTER TABLE 
 ok:32b777d74de9	ok:32b777d74de9	engine	one_table@table	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1068	1068	engine	one_table@table	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
 1005	1005	engine	one_table@table	opt_ref_list/(_ref_list_)	ALTER TABLE a ADD a INT REFERENCES a(a);
-1005	1239	engine	one_table@table	ref_list/ref_list_,_ident	ALTER TABLE a ADD a INT REFERENCES a(a, a);
+1239	1239	engine	one_table@table	ref_list/ref_list_,_ident	ALTER TABLE a ADD a INT REFERENCES a(a, a);
 1005	1005	engine	one_table@table	opt_match_clause/MATCH_FULL	ALTER TABLE a ADD a INT REFERENCES a MATCH FULL;
 1005	1005	engine	one_table@table	opt_match_clause/MATCH_PARTIAL	ALTER TABLE a ADD a INT REFERENCES a MATCH PARTIAL;
 1005	1005	engine	one_table@table	opt_match_clause/MATCH_SIMPLE_SYM	ALTER TABLE a ADD a INT REFERENCES a MATCH SIMPLE;

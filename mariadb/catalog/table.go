@@ -464,14 +464,44 @@ func validateStorageEngines(opts []*nodes.TableOption) error {
 }
 
 // validateAlteredStorageEngines is validateStorageEngines for the ENGINE option
-// an ALTER TABLE carries as one of its commands.
+// an ALTER TABLE carries as one of its commands, a partition definition's
+// included: `ADD PARTITION (PARTITION p ENGINE=zzz)` is the same 1286, before
+// the table is looked up.
 func validateAlteredStorageEngines(cmds []*nodes.AlterTableCmd) error {
 	for _, cmd := range cmds {
-		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+		if cmd == nil {
 			continue
 		}
-		if err := validateStorageEngines([]*nodes.TableOption{cmd.Option}); err != nil {
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil {
+			if err := validateStorageEngines([]*nodes.TableOption{cmd.Option}); err != nil {
+				return err
+			}
+		}
+		if err := validatePartitionStorageEngines(cmd.PartitionDefs); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// validatePartitionStorageEngines refuses an ENGINE option a partition or a
+// subpartition definition names, for the CREATE TABLE clause and an ALTER's
+// ADD PARTITION alike.
+func validatePartitionStorageEngines(defs []*nodes.PartitionDef) error {
+	for _, def := range defs {
+		if def == nil {
+			continue
+		}
+		if err := validateStorageEngines(def.Options); err != nil {
+			return err
+		}
+		for _, sub := range def.SubPartitions {
+			if sub == nil {
+				continue
+			}
+			if err := validateStorageEngines(sub.Options); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

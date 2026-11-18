@@ -720,7 +720,14 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 			}
 			tbl.Constraints = append(tbl.Constraints, fkCon)
 			// The backing index is named after the constraint only where the
-			// statement named one, as the CREATE TABLE path's is.
+			// statement named one, as the CREATE TABLE path's is, and a name
+			// the table's indexes already hold is 1061, measured on
+			// mariadb:11.8.8: `ADD a INT CONSTRAINT k REFERENCES p(id)` over
+			// a table holding KEY k(b) answers it rather than adding a second
+			// index called k.
+			if !hasIndexCoveringColumns(tbl, fkCols) && cc.Name != "" && indexNameExists(tbl, cc.Name) {
+				return errDupKeyName(cc.Name)
+			}
 			insertFKBackingIndex(tbl, cc.Name, fkCols, []*IndexColumn{{Name: colDef.Name}}, len(tbl.Indexes))
 		}
 	}
@@ -1255,14 +1262,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 	// answers 1128 for `ADD FULLTEXT(a) WITH PARSER a` even where a is not a
 	// column, and 1072 only for a key without a parser.
 	if con.Type == nodes.ConstrFulltextIndex {
-		for _, opt := range con.IndexOptions {
-			if strings.EqualFold(opt.Name, "PARSER") {
-				name := ""
-				if s, ok := opt.Value.(*nodes.StringLit); ok {
-					name = s.Value
-				}
-				return errFunctionNotDefined(name)
-			}
+		if err := validateFulltextParser(con.IndexOptions); err != nil {
+			return err
 		}
 	}
 	if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
@@ -1457,6 +1458,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateFulltextParser(con.IndexOptions); err != nil {
+			return err
+		}
 		if err := validateFulltextColumns(tbl, idxCols); err != nil {
 			return err
 		}

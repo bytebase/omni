@@ -56,6 +56,7 @@ const (
 	ErrWrongNameForIndex                 = 1280
 	ErrCannotPartOfFulltext              = 1283
 	ErrUnknownStorageEngine              = 1286
+	ErrKeyRefMismatch                    = 1239
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
 	// The window-reference errors, measured on mariadb:11.8.8.
@@ -151,6 +152,7 @@ var sqlStateMap = map[int]string{
 	ErrWrongNameForIndex:                 "42000",
 	ErrCannotPartOfFulltext:              "HY000",
 	ErrUnknownStorageEngine:              "42000",
+	ErrKeyRefMismatch:                    "42000",
 	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
 	ErrFKDupName:                         "HY000",
@@ -399,6 +401,13 @@ func errCannotPartOfFulltext(name string) error {
 func errUnknownStorageEngine(name string) error {
 	return &Error{Code: ErrUnknownStorageEngine, SQLState: sqlState(ErrUnknownStorageEngine),
 		Message: fmt.Sprintf("Unknown storage engine '%s'", name)}
+}
+
+// errKeyRefMismatch is 1239, a foreign key whose local columns and referenced
+// columns do not count the same: `FOREIGN KEY (a) REFERENCES z(a, a)`.
+func errKeyRefMismatch(name string) error {
+	return &Error{Code: ErrKeyRefMismatch, SQLState: sqlState(ErrKeyRefMismatch),
+		Message: fmt.Sprintf("Incorrect foreign key definition for '%s': Key reference and table reference don't match", name)}
 }
 
 func errCantRemoveAllFields() error {

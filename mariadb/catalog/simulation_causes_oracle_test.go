@@ -225,6 +225,46 @@ func TestSimulationCausesOracle(t *testing.T) {
 			refs:  "REFERENCES `a` (`b`)",
 		},
 		{
+			// The columns a key and its reference name count the same.
+			name:  "ADD COLUMN with REFERENCES whose columns do not count the same",
+			setup: []string{oneTable, "CREATE TABLE z (q INT UNIQUE)"},
+			stmt:  "ALTER TABLE a ADD q INT REFERENCES z(q, q)",
+			code:  1239,
+		},
+		{
+			// A backing index named after the constraint keeps a name the
+			// table's indexes already hold from being taken twice.
+			name:  "ADD COLUMN with a named REFERENCES whose name an index holds",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY k (c))", "CREATE TABLE p (id INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE a ADD q INT CONSTRAINT k REFERENCES p(id)",
+			code:  1061,
+		},
+		{
+			// The parser a FULLTEXT key names is looked up before its columns
+			// are judged.
+			name:  "CREATE FULLTEXT INDEX over an INT column with a parser",
+			setup: []string{intColumnTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a(a) WITH PARSER p",
+			code:  1128,
+		},
+		{
+			name: "CREATE TABLE with a FULLTEXT key over an INT column and a parser",
+			stmt: "CREATE TABLE x (a INT, FULLTEXT KEY x (a) WITH PARSER p)",
+			code: 1128,
+		},
+		{
+			// A partition definition's ENGINE is judged with the table's.
+			name:  "ADD PARTITION with an unknown engine",
+			setup: []string{"CREATE TABLE a (b INT) PARTITION BY HASH(b) PARTITIONS 2"},
+			stmt:  "ALTER TABLE a ADD PARTITION (PARTITION p ENGINE=zzz)",
+			code:  1286,
+		},
+		{
+			name: "CREATE TABLE with an unknown engine in a partition definition",
+			stmt: "CREATE TABLE x (a INT) PARTITION BY HASH(a) (PARTITION p ENGINE=zzz)",
+			code: 1286,
+		},
+		{
 			// An ENGINE option naming an engine the pinned server does not
 			// ship is 1286, before the table is looked up, before a name
 			// collides and before a column-less definition.

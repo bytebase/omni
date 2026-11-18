@@ -25,9 +25,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	key := toLower(tableName)
 
 	// An ENGINE option naming an engine the pinned server does not ship is
-	// 1286, answered before the name is looked up.
+	// 1286, answered before the name is looked up: a table option's and a
+	// partition definition's alike.
 	if err := validateStorageEngines(stmt.Options); err != nil {
 		return err
+	}
+	if stmt.Partitions != nil {
+		if err := validatePartitionStorageEngines(stmt.Partitions.Partitions); err != nil {
+			return err
+		}
 	}
 
 	// A LIKE source that names the target itself is rejected as a repeated
@@ -801,6 +807,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateFulltextParser(con.IndexOptions); err != nil {
+				return err
+			}
 			if err := validateFulltextColumns(tbl, idxCols); err != nil {
 				return err
 			}
@@ -1886,6 +1895,13 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		return errFKIncorrectlyFormed(db.Name, tbl.Name)
 	}
 
+	// The statement's own columns and the referenced ones count the same:
+	// `FOREIGN KEY (a) REFERENCES z(a, a)` is 1239, measured on
+	// mariadb:11.8.8, whether or not the referenced key is there.
+	if len(con.RefColumns) != len(con.Columns) {
+		return errKeyRefMismatch(con.Name)
+	}
+
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
 	// that starts with the referenced columns in order.
 	if !hasIndexOnColumns(refTbl, con.RefColumns) {
@@ -2157,6 +2173,25 @@ func validateKeyPartPrefixes(cols []*nodes.IndexColumn, spatial bool) error {
 
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
 	return validateKeyParts(tbl, idxCols, fulltext, spatial, false)
+}
+
+// validateFulltextParser refuses a FULLTEXT key naming a parser the server does
+// not have: 1128. MariaDB looks the parser up before it judges the key's
+// columns, measured on mariadb:11.8.8: `ADD FULLTEXT(a) WITH PARSER p` over a
+// column that is no column answers 1128, where the same key without a parser
+// answers 1072, and over an INT column 1128 where the key alone is 1283.
+func validateFulltextParser(opts []*nodes.IndexOption) error {
+	for _, opt := range opts {
+		if opt == nil || !strings.EqualFold(opt.Name, "PARSER") {
+			continue
+		}
+		name := ""
+		if s, ok := opt.Value.(*nodes.StringLit); ok {
+			name = s.Value
+		}
+		return errFunctionNotDefined(name)
+	}
+	return nil
 }
 
 // validateFulltextColumns refuses a FULLTEXT key part over a column whose type
