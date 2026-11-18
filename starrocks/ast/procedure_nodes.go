@@ -7,7 +7,7 @@ package ast
 //
 //	[IN | OUT | INOUT] param_name type
 type ProcedureParam struct {
-	Direction string    // "IN", "OUT", "INOUT", or "" (defaults to IN)
+	Direction string // "IN", "OUT", "INOUT", or "" (defaults to IN)
 	Name      string
 	Type      *TypeName
 	Loc       Loc
@@ -35,18 +35,6 @@ type CreateProcedureStmt struct {
 
 // Tag implements Node.
 func (n *CreateProcedureStmt) Tag() NodeTag { return T_CreateProcedureStmt }
-
-// CallProcedureStmt represents:
-//
-//	CALL proc_name([args])
-type CallProcedureStmt struct {
-	Name *ObjectName
-	Args []Node // expression arguments
-	Loc  Loc
-}
-
-// Tag implements Node.
-func (n *CallProcedureStmt) Tag() NodeTag { return T_CallProcedureStmt }
 
 // DropProcedureStmt represents:
 //

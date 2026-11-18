@@ -150,8 +150,23 @@ func TestDataType_TEXT(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Legacy Doris versioned type names
+// Doris's versioned type names are not StarRocks's: StarRocks.g4's baseType
+// has DATE and DATETIME, and decimalType has DECIMALV2, but no DATEV1, DATEV2,
+// DATETIMEV1, DATETIMEV2 or DECIMALV3 (nor QUANTILE_STATE, JSONB, AGG_STATE,
+// IPV4, IPV6 or VARIANT), and the pinned server refuses every one of them.
 // ---------------------------------------------------------------------------
+
+// TestDataType_DorisVersionedNamesRefused pins the refusal.
+func TestDataType_DorisVersionedNamesRefused(t *testing.T) {
+	for _, name := range []string{
+		"DATEV1", "DATEV2", "DATETIMEV1", "DATETIMEV2", "DECIMALV3", "DECIMALV3(27,9)",
+		"DATETIMEV2(3)", "QUANTILE_STATE", "JSONB", "AGG_STATE", "IPV4", "IPV6", "VARIANT",
+	} {
+		if tn, err := parseType(name); err == nil {
+			t.Errorf("parseType(%q) = %v, want a syntax error", name, tn)
+		}
+	}
+}
 
 func TestDataType_LARGEINT(t *testing.T) {
 	tn, err := parseType("LARGEINT")
@@ -161,38 +176,6 @@ func TestDataType_LARGEINT(t *testing.T) {
 	assertTypeName(t, tn, "LARGEINT")
 }
 
-func TestDataType_DATEV1(t *testing.T) {
-	tn, err := parseType("DATEV1")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DATEV1")
-}
-
-func TestDataType_DATEV2(t *testing.T) {
-	tn, err := parseType("DATEV2")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DATEV2")
-}
-
-func TestDataType_DATETIMEV1(t *testing.T) {
-	tn, err := parseType("DATETIMEV1")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DATETIMEV1")
-}
-
-func TestDataType_DATETIMEV2(t *testing.T) {
-	tn, err := parseType("DATETIMEV2")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DATETIMEV2")
-}
-
 func TestDataType_DECIMALV2(t *testing.T) {
 	tn, err := parseType("DECIMALV2")
 	if err != nil {
@@ -200,18 +183,6 @@ func TestDataType_DECIMALV2(t *testing.T) {
 	}
 	assertTypeName(t, tn, "DECIMALV2")
 }
-
-func TestDataType_DECIMALV3(t *testing.T) {
-	tn, err := parseType("DECIMALV3")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DECIMALV3")
-}
-
-// ---------------------------------------------------------------------------
-// Special Doris types
-// ---------------------------------------------------------------------------
 
 func TestDataType_HLL(t *testing.T) {
 	tn, err := parseType("HLL")
@@ -229,60 +200,12 @@ func TestDataType_BITMAP(t *testing.T) {
 	assertTypeName(t, tn, "BITMAP")
 }
 
-func TestDataType_QUANTILE_STATE(t *testing.T) {
-	tn, err := parseType("QUANTILE_STATE")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "QUANTILE_STATE")
-}
-
 func TestDataType_JSON(t *testing.T) {
 	tn, err := parseType("JSON")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertTypeName(t, tn, "JSON")
-}
-
-func TestDataType_JSONB(t *testing.T) {
-	tn, err := parseType("JSONB")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "JSONB")
-}
-
-func TestDataType_AGG_STATE(t *testing.T) {
-	tn, err := parseType("AGG_STATE")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "AGG_STATE")
-}
-
-func TestDataType_IPV4(t *testing.T) {
-	tn, err := parseType("IPV4")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "IPV4")
-}
-
-func TestDataType_IPV6(t *testing.T) {
-	tn, err := parseType("IPV6")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "IPV6")
-}
-
-func TestDataType_VARIANT(t *testing.T) {
-	tn, err := parseType("VARIANT")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "VARIANT")
 }
 
 func TestDataType_VARBINARY(t *testing.T) {
@@ -332,28 +255,6 @@ func TestDataType_DECIMAL_OneParam(t *testing.T) {
 	assertTypeName(t, tn, "DECIMAL")
 	assertParams(t, tn, 18)
 }
-
-func TestDataType_DECIMALV3_TwoParams(t *testing.T) {
-	tn, err := parseType("DECIMALV3(27,9)")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DECIMALV3")
-	assertParams(t, tn, 27, 9)
-}
-
-func TestDataType_DATETIMEV2_Param(t *testing.T) {
-	tn, err := parseType("DATETIMEV2(3)")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	assertTypeName(t, tn, "DATETIMEV2")
-	assertParams(t, tn, 3)
-}
-
-// ---------------------------------------------------------------------------
-// ARRAY types
-// ---------------------------------------------------------------------------
 
 func TestDataType_ARRAY_INT(t *testing.T) {
 	tn, err := parseType("ARRAY<INT>")

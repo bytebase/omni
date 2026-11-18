@@ -329,16 +329,21 @@ func TestCreateTable_DistributedByHash(t *testing.T) {
 	}
 }
 
+// TestCreateTable_DistributedByRandom: distributionDesc (StarRocks.g4:2684)
+// takes BUCKETS INTEGER_VALUE, and Doris's BUCKETS AUTO is refused.
 func TestCreateTable_DistributedByRandom(t *testing.T) {
-	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT) DISTRIBUTED BY RANDOM BUCKETS AUTO")
+	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT) DISTRIBUTED BY RANDOM BUCKETS 4")
 	if stmt.DistributedBy == nil {
 		t.Fatal("DistributedBy is nil")
 	}
 	if stmt.DistributedBy.Type != "RANDOM" {
 		t.Errorf("DistributedBy.Type = %q, want %q", stmt.DistributedBy.Type, "RANDOM")
 	}
-	if !stmt.DistributedBy.Auto {
-		t.Error("DistributedBy.Auto should be true")
+	if stmt.DistributedBy.Buckets != 4 {
+		t.Errorf("DistributedBy.Buckets = %d, want 4", stmt.DistributedBy.Buckets)
+	}
+	if _, errs := parseForTest("CREATE TABLE t (id INT) DISTRIBUTED BY RANDOM BUCKETS AUTO"); len(errs) == 0 {
+		t.Error("BUCKETS AUTO parsed, want a syntax error")
 	}
 }
 
@@ -516,9 +521,15 @@ func TestCreateTable_ColumnDefaultInt(t *testing.T) {
 }
 
 func TestCreateTable_ColumnGenerated(t *testing.T) {
-	stmt := parseCreateTableStmt(t, "CREATE TABLE t (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1))")
+	// generatedColumnDesc (StarRocks.g4:412) is AS expression. Doris's
+	// GENERATED ALWAYS AS (expr) is not in the grammar and the pinned server
+	// refuses it.
+	stmt := parseCreateTableStmt(t, "CREATE TABLE t (c1 INT, c2 INT AS (c1 + 1))")
 	if stmt.Columns[1].Generated == nil {
 		t.Fatal("Columns[1].Generated is nil")
+	}
+	if _, errs := parseForTest("CREATE TABLE t (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1))"); len(errs) == 0 {
+		t.Error("GENERATED ALWAYS AS parsed, want a syntax error")
 	}
 }
 
@@ -587,9 +598,6 @@ func TestCreateTable_DistributedByRandomNoBuckets(t *testing.T) {
 	if stmt.DistributedBy.Buckets != 0 {
 		t.Errorf("DistributedBy.Buckets = %d, want 0", stmt.DistributedBy.Buckets)
 	}
-	if stmt.DistributedBy.Auto {
-		t.Error("DistributedBy.Auto should be false")
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -637,7 +645,7 @@ func TestCreateTable_Legacy_t3(t *testing.T) {
 
 func TestCreateTable_Legacy_t4_Generated(t *testing.T) {
 	stmt := parseCreateTableStmt(t,
-		"CREATE TABLE t4(c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')")
+		"CREATE TABLE t4(c1 INT, c2 INT AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')")
 	if stmt.Columns[1].Generated == nil {
 		t.Error("expected generated column")
 	}
@@ -936,7 +944,7 @@ func TestCreateTable_LegacyCorpus(t *testing.T) {
 		"CREATE TABLE t1(c1 INT, c2 STRING) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')",
 		"CREATE TABLE t2(c1 INT, c2 INT MAX) AGGREGATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')",
 		"CREATE TABLE t3(c1 INT, c2 INT) UNIQUE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')",
-		"CREATE TABLE t4(c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')",
+		"CREATE TABLE t4(c1 INT, c2 INT AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')",
 		"CREATE TABLE t5(c1 INT, c2 INT DEFAULT 10) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) PROPERTIES ('replication_num' = '1')",
 		"CREATE TABLE t6(c1 INT, c2 INT) DUPLICATE KEY(c1) DISTRIBUTED BY RANDOM PROPERTIES ('replication_num' = '1')",
 		`CREATE TABLE t7(c1 INT, c2 DATETIME NOT NULL) DUPLICATE KEY(c1) AUTO PARTITION BY RANGE(date_trunc(c2, 'day')) () DISTRIBUTED BY RANDOM PROPERTIES ('replication_num' = '1')`,

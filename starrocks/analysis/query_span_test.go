@@ -868,12 +868,12 @@ func TestGetQuerySpan_TopLevelParenSelect(t *testing.T) {
 }
 
 func TestGetQuerySpan_DMLSourceTablesRecorded(t *testing.T) {
-	// Physical tables read by DML — UPDATE ... FROM, DELETE ... USING,
-	// MERGE ... USING — must reach AccessTables for access checks.
+	// Physical tables read by DML — UPDATE ... FROM, DELETE ... USING — must
+	// reach AccessTables for access checks. MERGE is not one of them: StarRocks
+	// has no MERGE statement.
 	for _, sql := range []string{
 		"UPDATE target SET x = secret.x FROM secret",
 		"DELETE FROM target USING secret",
-		"MERGE INTO target USING secret ON target.id = secret.id WHEN MATCHED THEN UPDATE SET x = 1",
 	} {
 		span, err := GetQuerySpan(sql)
 		if err != nil {

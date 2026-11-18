@@ -731,14 +731,24 @@ SELECT * FROM c`
 
 func TestExprExtractSyntaxErrors(t *testing.T) {
 	for _, input := range []string{
-		"EXTRACT(YEAR d)",     // missing FROM
-		"EXTRACT(FROM d)",     // missing unit
-		"EXTRACT(YEAR FROM)",  // missing source expression
-		"EXTRACT YEAR FROM d", // missing parentheses
+		"EXTRACT(YEAR d)",    // missing FROM
+		"EXTRACT(FROM d)",    // missing unit
+		"EXTRACT(YEAR FROM)", // missing source expression
 	} {
 		if _, err := parseExprFrom(input); err == nil {
 			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
 		}
+	}
+	// `EXTRACT YEAR FROM d` is not the unapplied call the others are:
+	// EXTRACT is nonReserved, so where '(' does not follow, the word is the
+	// column and YEAR is left to the caller, as StarRocks reads it.
+	expr, err := parseExprFrom("EXTRACT YEAR FROM d")
+	if err != nil {
+		t.Fatalf("parseExpr(EXTRACT YEAR FROM d) = %v, want the column", err)
+	}
+	col, ok := expr.(*ast.ColumnRef)
+	if !ok || len(col.Name.Parts) != 1 || col.Name.Parts[0] != "EXTRACT" {
+		t.Fatalf("parseExpr(EXTRACT YEAR FROM d) = %#v, want the column EXTRACT", expr)
 	}
 }
 
