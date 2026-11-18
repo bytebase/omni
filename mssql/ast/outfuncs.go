@@ -1342,6 +1342,11 @@ func writeTryCatchStmt(sb *strings.Builder, n *TryCatchStmt) {
 
 func writeExecStmt(sb *strings.Builder, n *ExecStmt) {
 	sb.WriteString("{EXEC")
+	if n.Implied {
+		// A procedure called by name without EXEC as the batch's first
+		// statement (optSimpleExecute, TSql160.g:567).
+		sb.WriteString(" :implied true")
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
