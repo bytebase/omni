@@ -114,16 +114,11 @@ func rewriteResultLimitInline(statement string, limitCount int) (string, error) 
 		// applies. Unwrapping instead would miss
 		// (SELECT 1 LIMIT 1000) LIMIT 900000: the group's own LIMIT is the one
 		// the engine honors.
-		if stmt.Limit != nil {
-			return rewriteExistingLimit(statement, stmt.Limit, limitCount)
-		}
-		if stmt.Into != nil {
-			return statement[:stmt.Into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + statement[stmt.Into.Loc.Start:], nil
-		}
-		if hasUnparsedTail(statement, stmt.Loc.End) {
-			return "", errors.New("statement has unparsed tail content")
-		}
-		return statement[:stmt.Loc.End] + fmt.Sprintf(" LIMIT %d", limitCount) + statement[stmt.Loc.End:], nil
+		return rewriteTrailingClauseLimit(statement, stmt.Limit, stmt.Into, stmt.Loc, limitCount)
+	case *ast.ValuesStmt:
+		// A VALUES query produces rows and carries its own trailing clauses,
+		// as a grouped query does.
+		return rewriteTrailingClauseLimit(statement, stmt.Limit, stmt.Into, stmt.Loc, limitCount)
 	default:
 		// A statement Doris parses to something other than a query — DDL, DML,
 		// SHOW, etc. — has no rows to cap; run it unchanged, matching every other
@@ -193,6 +188,22 @@ func rewriteExistingLimit(sql string, limitNode ast.Node, limitCount int) (strin
 		return sql, nil
 	}
 	return sql[:limitLoc.Start] + fmt.Sprintf("%d", limitCount) + sql[limitLoc.End:], nil
+}
+
+// rewriteTrailingClauseLimit caps a query whose trailing clauses sit on the
+// node itself: an existing LIMIT is capped, and an INTO OUTFILE, which follows
+// the clauses, keeps the cap in front of it.
+func rewriteTrailingClauseLimit(sql string, limit ast.Node, into *ast.IntoOutfileClause, loc ast.Loc, limitCount int) (string, error) {
+	if limit != nil {
+		return rewriteExistingLimit(sql, limit, limitCount)
+	}
+	if into != nil {
+		return sql[:into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[into.Loc.Start:], nil
+	}
+	if hasUnparsedTail(sql, loc.End) {
+		return "", errors.New("statement has unparsed tail content")
+	}
+	return sql[:loc.End] + fmt.Sprintf(" LIMIT %d", limitCount) + sql[loc.End:], nil
 }
 
 func rewriteSelectLimit(sql string, stmt *ast.SelectStmt, limitCount int) (string, error) {

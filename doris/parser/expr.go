@@ -1061,8 +1061,9 @@ func (p *Parser) parseOrderByItem() (*ast.OrderByItem, error) {
 func (p *Parser) parseParenExprOrSubquery() (ast.Node, error) {
 	openTok := p.advance() // consume '('
 
-	// Subquery: (SELECT ...) or (WITH ... SELECT ...)
-	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+	// Subquery: (SELECT ...), (WITH ... SELECT ...) or (VALUES ...) — all
+	// three are queries (DorisParser.g4:1167, :1186).
+	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH || p.cur.Kind == kwVALUES {
 		return p.parseSubqueryPlaceholder(openTok.Loc.Start)
 	}
 
@@ -1843,8 +1844,8 @@ func (p *Parser) parseInExpr(left ast.Node, notFlag bool) (ast.Node, error) {
 		return nil, err
 	}
 
-	// Subquery: IN (SELECT ...) or IN (WITH ... SELECT ...)
-	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+	// Subquery: IN (SELECT ...), IN (WITH ... SELECT ...) or IN (VALUES ...)
+	if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH || p.cur.Kind == kwVALUES {
 		subq, err := p.parseSubqueryPlaceholder(ast.NodeLoc(left).Start)
 		if err != nil {
 			return nil, err

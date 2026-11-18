@@ -126,34 +126,7 @@ func (p *Parser) parseRoutineLoadProperty() error {
 			return err
 		}
 		p.advance() // consume COLUMNS
-		if _, err := p.expect(int('(')); err != nil {
-			return err
-		}
-		for first := true; ; first = false {
-			paren := !first && p.cur.Kind == int('(')
-			if paren {
-				p.advance()
-			}
-			if _, _, err := p.parseIdentifier(); err != nil {
-				return err
-			}
-			if p.cur.Kind == int('=') {
-				p.advance()
-				if _, err := p.parseExpr(); err != nil {
-					return err
-				}
-			}
-			if paren {
-				if _, err := p.expect(int(')')); err != nil {
-					return err
-				}
-			}
-			if p.cur.Kind != int(',') {
-				break
-			}
-			p.advance() // consume ','
-		}
-		_, err := p.expect(int(')'))
+		_, err := p.parseImportColumnDescs()
 		return err
 	case kwPRECEDING:
 		p.advance()
@@ -186,6 +159,133 @@ func (p *Parser) parseRoutineLoadProperty() error {
 		return p.parseLoadPartitionSpec(&spec)
 	}
 	return p.syntaxErrorAtCur()
+}
+
+// ---------------------------------------------------------------------------
+// LOAD properties as statements
+// ---------------------------------------------------------------------------
+
+// atLoadPropertyStatement reports whether the statement at cur is one of the
+// load properties Doris's grammar derives as a statement of its own
+// (DorisParser.g4:389-393): ORDER BY name, COLUMNS (...), PRECEDING FILTER,
+// WHERE and DELETE ON. A DELETE statement names FROM, so only DELETE ON is the
+// load property.
+func (p *Parser) atLoadPropertyStatement() bool {
+	switch p.cur.Kind {
+	case kwORDER, kwCOLUMNS, kwPRECEDING, kwWHERE:
+		return true
+	case kwDELETE:
+		return p.peekNext().Kind == kwON
+	}
+	return false
+}
+
+// parseLoadPropertyStmt parses a load property that Doris's grammar also
+// derives as a statement of its own:
+//
+//	ORDER BY name             Kind "SEQUENCE"
+//	COLUMNS (desc, ...)       Kind "COLUMNS"
+//	PRECEDING FILTER expr     Kind "PRECEDING FILTER"
+//	WHERE expr                Kind "WHERE"
+//	DELETE ON expr            Kind "DELETE ON"
+//
+// (DorisParser.g4:389-393, the five import*Statement alternatives of
+// unsupportedLoadStatement, which the CUP parser's import_*_stmt also takes,
+// DorisLegacyParser.g4:48-83. The engine answers such a statement as a load
+// clause, so the clause itself is what this reads.) It is called from
+// parseSingle, the top level: a nested statement — an explain command's, a
+// JOB body — does not reach these alternatives.
+func (p *Parser) parseLoadPropertyStmt() (*ast.LoadPropertyStmt, error) {
+	start := p.cur.Loc
+	stmt := &ast.LoadPropertyStmt{}
+	var err error
+	// These are also loadProperty alternatives; each is read here from its own
+	// statement production, which keeps the nodes a subquery can hide in. The
+	// statement COLUMNS form always states its list, so COLUMNS TERMINATED BY
+	// (a LOAD and CREATE ROUTINE LOAD property only, :410 vs :389-393) is not
+	// read here.
+	switch p.cur.Kind {
+	case kwORDER:
+		stmt.Kind = "SEQUENCE"
+		p.advance() // consume ORDER
+		if _, err = p.expect(kwBY); err == nil {
+			stmt.Name, _, err = p.parseIdentifier()
+		}
+	case kwCOLUMNS:
+		stmt.Kind = "COLUMNS"
+		p.advance() // consume COLUMNS
+		stmt.Columns, err = p.parseImportColumnDescs()
+	case kwPRECEDING:
+		stmt.Kind = "PRECEDING FILTER"
+		p.advance() // consume PRECEDING
+		if _, err = p.expect(kwFILTER); err == nil {
+			stmt.Expr, err = p.parseExpr()
+		}
+	case kwWHERE:
+		stmt.Kind = "WHERE"
+		p.advance() // consume WHERE
+		stmt.Expr, err = p.parseExpr()
+	case kwDELETE:
+		stmt.Kind = "DELETE ON"
+		p.advance() // consume DELETE
+		if _, err = p.expect(kwON); err == nil {
+			stmt.Expr, err = p.parseExpr()
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err != nil {
+		return nil, err
+	}
+	stmt.Loc = ast.Loc{Start: start.Start, End: p.prev.Loc.End}
+	stmt.Text = p.sourceText(stmt.Loc)
+	return stmt, nil
+}
+
+// parseImportColumnDescs reads importColumnsStatement's list:
+//
+//	'(' importColumnDesc (',' importColumnDesc)* ')'
+//
+// where importColumnDesc (:410) is name ('=' booleanExpression)?, and, after
+// the first, may sit in parentheses (the CUP parser's import_column_descs,
+// DorisLegacyParser.g4:53). cur is '('.
+func (p *Parser) parseImportColumnDescs() ([]*ast.ImportColumnDesc, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var descs []*ast.ImportColumnDesc
+	for first := true; ; first = false {
+		paren := !first && p.cur.Kind == int('(')
+		if paren {
+			p.advance() // consume '('
+		}
+		name, nameLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		desc := &ast.ImportColumnDesc{Name: name, Loc: nameLoc}
+		if p.cur.Kind == int('=') {
+			p.advance() // consume '='
+			if desc.Expr, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
+		if paren {
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+		}
+		desc.Loc.End = p.prev.Loc.End
+		descs = append(descs, desc)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return descs, nil
 }
 
 // ---------------------------------------------------------------------------

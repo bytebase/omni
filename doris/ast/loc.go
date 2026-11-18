@@ -104,6 +104,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *SelectStmt:
 		return v.Loc
+	case *ValuesStmt:
+		return v.Loc
 	case *SelectItem:
 		return v.Loc
 	case *TableRef:
@@ -167,6 +169,10 @@ func NodeLoc(n Node) Loc {
 	case *LoadDataDesc:
 		return v.Loc
 	case *LoadDataStmt:
+		return v.Loc
+	case *LoadPropertyStmt:
+		return v.Loc
+	case *ImportColumnDesc:
 		return v.Loc
 	case *ExportStmt:
 		return v.Loc

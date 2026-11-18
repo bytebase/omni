@@ -311,6 +311,55 @@ func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
 // Compile-time assertion that *ExportStmt satisfies Node.
 var _ Node = (*ExportStmt)(nil)
 
+// ---------------------------------------------------------------------------
+// LOAD property statement
+// ---------------------------------------------------------------------------
+
+// LoadPropertyStmt represents one load property that Doris's grammar also
+// derives as a statement of its own (DorisParser.g4:389-393, the
+// importSequenceStatement and its four siblings under
+// unsupportedLoadStatement), and that the CUP parser's import_*_stmt
+// (DorisLegacyParser.g4:48-83) also takes:
+//
+//	ORDER BY name             Kind "SEQUENCE"
+//	COLUMNS (desc, ...)       Kind "COLUMNS"
+//	PRECEDING FILTER expr     Kind "PRECEDING FILTER"
+//	WHERE expr                Kind "WHERE"
+//	DELETE ON expr            Kind "DELETE ON"
+//
+// The clause's operands are kept as the nodes they parsed to, so a subquery
+// they hold is a table read like any other; Text keeps the clause as written,
+// as CreateRoutineLoadStmt keeps the load properties it carries.
+type LoadPropertyStmt struct {
+	Kind    string              // the clause's name, as listed above
+	Name    string              // ORDER BY's column
+	Expr    Node                // WHERE, DELETE ON and PRECEDING FILTER's expression
+	Columns []*ImportColumnDesc // COLUMNS(...)'s column list
+	Text    string              // the clause's source text, as written
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *LoadPropertyStmt) Tag() NodeTag { return T_LoadPropertyStmt }
+
+// Compile-time assertion that *LoadPropertyStmt satisfies Node.
+var _ Node = (*LoadPropertyStmt)(nil)
+
+// ImportColumnDesc is one column of COLUMNS(...) (DorisParser.g4:410
+// importColumnDesc): name ('=' booleanExpression)?, the parenthesized spelling
+// allowed after the first.
+type ImportColumnDesc struct {
+	Name string
+	Expr Node // optional '=' booleanExpression; nil if absent
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ImportColumnDesc) Tag() NodeTag { return T_ImportColumnDesc }
+
+// Compile-time assertion that *ImportColumnDesc satisfies Node.
+var _ Node = (*ImportColumnDesc)(nil)
+
 // ROUTINE LOAD statements (T6.2)
 // ---------------------------------------------------------------------------
 

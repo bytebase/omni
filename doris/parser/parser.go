@@ -551,6 +551,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseOutfileTail(node)
 	case kwWITH:
 		return p.parseWithStatement()
+	case kwVALUES:
+		// VALUES rowConstructor ... is a query: DorisParser.g4:1486 makes
+		// inlineTable a queryPrimary (:1186).
+		values, err := p.parseValuesStmt()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseQueryStmt(values)
 	case kwINSERT:
 		return p.parseInsert()
 	case kwUPDATE:
@@ -894,7 +902,17 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 	var result ast.Node
 	if p.cur.Kind != tokEOF {
 		first := p.cur
-		node, err := p.parseStmt()
+		var node ast.Node
+		var err error
+		// The load properties DorisParser.g4:389-393 also derives as
+		// statements are statement alternatives only, which no nested
+		// statement reaches; parseStmt serves the nested callers too, so the
+		// top level picks them first (see atLoadPropertyStatement).
+		if p.atLoadPropertyStatement() {
+			node, err = p.parseLoadPropertyStmt()
+		} else {
+			node, err = p.parseStmt()
+		}
 		// A tree too deep for a recursive walk is dropped here, before
 		// anything (the raw query validation below, or the caller) walks it.
 		if node != nil && treeTooHigh(node, len(segText)) {
@@ -986,7 +1004,7 @@ func dedupeErrors(errs []ParseError) []ParseError {
 // isQueryBody reports whether a statement may stand as a subquery body.
 func isQueryBody(n ast.Node) bool {
 	switch n.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt, *ast.GroupedQuery:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ValuesStmt, *ast.GroupedQuery:
 		return true
 	}
 	return false
