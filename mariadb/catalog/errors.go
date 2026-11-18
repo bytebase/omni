@@ -31,6 +31,7 @@ const (
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
 	ErrNoSuchTable                       = 1146
+	ErrUnknownView                       = 4092
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
 	ErrCantRemoveAllFields               = 1090
@@ -106,6 +107,7 @@ var sqlStateMap = map[int]string{
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
 	ErrNoSuchTable:                       "42S02",
+	ErrUnknownView:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrNoDatabaseSelected:                "3D000",
 	ErrCantRemoveAllFields:               "42000",
@@ -182,6 +184,13 @@ func errDupTable(name string) error {
 func errNoSuchTable(db, name string) error {
 	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable),
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
+}
+
+// errUnknownView is what DROP VIEW reports for a name the database holds no
+// view of, whether it holds a table of that name or nothing at all.
+func errUnknownView(db, name string) error {
+	return &Error{Code: ErrUnknownView, SQLState: sqlState(ErrUnknownView),
+		Message: fmt.Sprintf("Unknown VIEW: '%s.%s'", db, name)}
 }
 
 // errPartitionMgmtOnNonpartitioned is 1505, a partition action on a table with no

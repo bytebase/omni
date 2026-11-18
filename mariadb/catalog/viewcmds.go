@@ -144,9 +144,14 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
-	// ALTER VIEW requires the view to exist.
+	// ALTER VIEW requires the view to exist, and answers differently when the
+	// name belongs to a table: mariadb:11.8.8 says 1347 "'db.a' is not of type
+	// 'VIEW'" for a table and 1146 "Table 'db.a' doesn't exist" for no object.
 	if _, exists := db.Views[key]; !exists {
-		return errUnknownTable(db.Name, stmt.Name.Name)
+		if _, isTable := db.Tables[key]; isTable {
+			return errWrongObject(db.Name, stmt.Name.Name, "VIEW")
+		}
+		return errNoSuchTable(db.Name, stmt.Name.Name)
 	}
 
 	// A `?` parameter marker is not allowed in a view body; the engine rejects
@@ -713,7 +718,9 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 			if stmt.IfExists {
 				continue
 			}
-			return errUnknownTable(db.Name, ref.Name)
+			// A name no view holds is 4092 "Unknown VIEW", whether a table
+			// holds it or nothing does (mariadb:11.8.8).
+			return errUnknownView(db.Name, ref.Name)
 		}
 		delete(db.Views, key)
 	}
