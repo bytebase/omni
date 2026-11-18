@@ -249,8 +249,19 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 	}
 	if with != nil {
 		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
+		// Walk each body before adding its name, like the SELECT paths. The
+		// Inspect below skips the WithClause so the bodies are not walked a
+		// second time under the completed scope.
 		for _, cte := range with.CTEs {
-			if cte == nil || cte.Name == "" {
+			if cte == nil {
+				continue
+			}
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+			if cte.Name == "" {
 				continue
 			}
 			name := strings.ToLower(cte.Name)
@@ -258,12 +269,13 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			w.cteNames[name]++
 			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
-		w.enterScope(scope)
-		defer w.leaveScope(scope)
 	}
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch q := n.(type) {
+		case *ast.WithClause:
+			// Its bodies were walked above in sibling order.
+			return false
 		case *ast.SubqueryExpr:
 			w.analyzeSubquery(q)
 			return false

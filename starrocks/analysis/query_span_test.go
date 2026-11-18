@@ -1255,3 +1255,18 @@ func TestGetQuerySpanSequentialCTEBodies(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want b and allowed", span.AccessTables)
 	}
 }
+
+// DML CTE bodies also see only earlier siblings, not every name up front.
+func TestGetQuerySpanDMLSequentialCTEBodies(t *testing.T) {
+	span, err := GetQuerySpan("WITH a AS (SELECT * FROM b), b AS (SELECT * FROM allowed) UPDATE target SET x = 1")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["b"] || !got["allowed"] {
+		t.Errorf("AccessTables = %+v, want b and allowed", span.AccessTables)
+	}
+}
