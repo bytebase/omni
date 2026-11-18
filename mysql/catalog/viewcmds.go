@@ -144,9 +144,14 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
-	// ALTER VIEW requires the view to exist.
+	// ALTER VIEW requires the view to exist, and answers by what holds the name:
+	// mysql:8.0.46 says 1347 "'db.a' is not VIEW" for a table and 1146 "Table
+	// 'db.a' doesn't exist" for nothing.
 	if _, exists := db.Views[key]; !exists {
-		return errUnknownTable(db.Name, stmt.Name.Name)
+		if db.Tables[key] != nil {
+			return errWrongObject(db.Name, stmt.Name.Name, "VIEW")
+		}
+		return errNoSuchTable(db.Name, stmt.Name.Name)
 	}
 
 	// A `?` parameter marker is not allowed in a view body; the engine rejects
@@ -696,6 +701,11 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 		if _, exists := db.Views[key]; !exists {
 			if stmt.IfExists {
 				continue
+			}
+			// A name no view holds is 1347 when a table holds it, and 1051
+			// "Unknown table" otherwise (mysql:8.0.46).
+			if db.Tables[key] != nil {
+				return errWrongObject(db.Name, ref.Name, "VIEW")
 			}
 			return errUnknownTable(db.Name, ref.Name)
 		}

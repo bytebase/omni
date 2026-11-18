@@ -236,6 +236,114 @@ func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 	return nil
 }
 
+// maxDisplayWidth is the widest length MySQL keeps in a type's length argument;
+// past it the statement is refused with 1439 before anything else about the
+// column or the table is looked at.
+const maxDisplayWidth = 4294967295
+
+// validateColumnDisplayWidth refuses a column whose declared length is past the
+// widest MySQL holds for its type: 1439. Measured on mysql:8.0.46: an integer's
+// display width stops at 255 and BIT's at 64, and every other type at
+// 4294967295. The type's own limit is a later check, so `CHAR(4294967296)`
+// answers 1439 where `CHAR(65536)` answers 1074, and `DECIMAL(4294967296)` 1439
+// where `DECIMAL(66)` answers 1426. The width is checked before the table is
+// opened and before the column's name: `ALTER TABLE nosuchdb.a ADD a
+// INT(256)` and `ALTER TABLE a ADD existing_name INT(256)` are both 1439.
+func validateColumnDisplayWidth(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.TypeName == nil {
+		return nil
+	}
+	max := maxDisplayWidth
+	switch normalizedTypeName(colDef.TypeName.Name) {
+	case "tinyint", "smallint", "mediumint", "int", "bigint":
+		max = 255
+	case "bit":
+		max = 64
+	}
+	if colDef.TypeName.Length > max {
+		return errTooBigDisplayWidth(colDef.Name, max)
+	}
+	return nil
+}
+
+// parserOptionName returns the parser a FULLTEXT key names WITH PARSER, and
+// whether it names one at all.
+func parserOptionName(opts []*nodes.IndexOption) (string, bool) {
+	for _, opt := range opts {
+		if opt == nil || !strings.EqualFold(opt.Name, "PARSER") {
+			continue
+		}
+		if s, ok := opt.Value.(*nodes.StringLit); ok {
+			return s.Value, true
+		}
+		return "", true
+	}
+	return "", false
+}
+
+// validateFulltextParserOption refuses a FULLTEXT key whose parser MySQL does
+// not have: 1128, which it answers while preparing the statement, before it
+// opens the table and before it judges the key's columns. `ngram` is the one
+// fulltext parser its server ships. fulltext says whether the key is one: a
+// parser named on any other key is not a parser at all.
+func validateFulltextParserOption(fulltext bool, opts []*nodes.IndexOption) error {
+	if !fulltext {
+		return nil
+	}
+	name, ok := parserOptionName(opts)
+	if !ok || strings.EqualFold(name, "ngram") {
+		return nil
+	}
+	return errFunctionNotDefined(name)
+}
+
+// validateFulltextParser is validateFulltextParserOption for a constraint.
+func validateFulltextParser(con *nodes.Constraint) error {
+	if con == nil || con.Type != nodes.ConstrFulltextIndex {
+		return nil
+	}
+	return validateFulltextParserOption(true, con.IndexOptions)
+}
+
+// validateKeyPartsExist refuses a key part that names a column the table does
+// not have: 1072. A functional part is an expression, and names no column.
+//
+// The check is made where the command runs, so a key naming a column a later
+// command of the same ALTER TABLE adds is refused; MySQL judges the columns of
+// the table the statement leaves. No statement of simulate.tsv reaches that.
+func validateKeyPartsExist(tbl *Table, parts []*nodes.IndexColumn) error {
+	for _, ic := range parts {
+		if ic == nil || ic.Functional {
+			continue
+		}
+		ref, ok := ic.Expr.(*nodes.ColumnRef)
+		if !ok {
+			continue
+		}
+		if tbl.GetColumn(ref.Column) == nil {
+			return errKeyColumnDoesNotExist(ref.Column)
+		}
+	}
+	return nil
+}
+
+// validateKeyColumnsExist is validateKeyPartsExist for a constraint, whose key
+// parts may also be written as a plain column list.
+func validateKeyColumnsExist(tbl *Table, con *nodes.Constraint) error {
+	if con == nil {
+		return nil
+	}
+	if len(con.IndexColumns) == 0 {
+		for _, name := range con.Columns {
+			if tbl.GetColumn(name) == nil {
+				return errKeyColumnDoesNotExist(name)
+			}
+		}
+		return nil
+	}
+	return validateKeyPartsExist(tbl, con.IndexColumns)
+}
+
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {
 	bad := false
 	nodes.Inspect(expr, func(n nodes.Node) bool {

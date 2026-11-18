@@ -16,6 +16,20 @@ const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
 // its keys in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
+	// MySQL checks a column's display width and a FULLTEXT key's parser while
+	// preparing the statement, so both answer ahead of the database and the
+	// table it names: 1439 for `CREATE TABLE nosuchdb.a (a INT(256))` and 1128
+	// for a FULLTEXT key whose parser it does not have.
+	for _, colDef := range stmt.Columns {
+		if err := validateColumnDisplayWidth(colDef); err != nil {
+			return err
+		}
+	}
+	for _, con := range stmt.Constraints {
+		if err := validateFulltextParser(con); err != nil {
+			return err
+		}
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -422,6 +436,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	}
 
 	// Process table-level constraints.
+	//
+	// A loader's statement (DefineTable) keeps a key part it could not read as a
+	// column (metadataIndexConstraint), so which columns a key names is judged
+	// only for a CREATE TABLE statement.
+	checkKeyColumns := func(con *nodes.Constraint) error {
+		if !declared {
+			return nil
+		}
+		return validateKeyColumnsExist(tbl, con)
+	}
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
 
@@ -429,6 +453,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrPrimaryKey:
 			if hasPK {
 				return errMultiplePriKey()
+			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
 			}
 			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 				return err
@@ -477,6 +504,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
@@ -511,6 +541,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			if foreignKeyConstraintNameExists(db, tbl, conName) {
 				return errFKDupName(conName)
+			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
 			}
 			refDB := ""
 			refTable := ""
@@ -565,6 +598,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
@@ -594,6 +630,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			idxCols := buildIndexColumns(con)
 			ftIdx := &Index{
 				Name:      idxName,
@@ -617,6 +656,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				if indexNameExists(tbl, idxName) {
 					return errDupKeyName(idxName)
 				}
+			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
 			}
 			idxCols := buildIndexColumns(con)
 			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {

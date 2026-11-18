@@ -4,6 +4,12 @@ import nodes "github.com/bytebase/omni/mysql/ast"
 
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
+	// A FULLTEXT key's parser is looked up while MySQL prepares the statement,
+	// so 1128 answers ahead of the database and the table it names
+	// (mysql:8.0.46).
+	if err := validateFulltextParserOption(stmt.Fulltext, stmt.Options); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -30,6 +36,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return nil
 		}
 		return errDupKeyName(stmt.IndexName)
+	}
+
+	// A key part that names a column the table does not have is 1072, checked
+	// after the key's name: mysql:8.0.46 answers 1061 for a name the table
+	// already has and 1072 only for one it does not.
+	if err := validateKeyPartsExist(tbl, stmt.Columns); err != nil {
+		return err
 	}
 
 	// Build index columns from AST columns.

@@ -9,6 +9,12 @@ import (
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	// The checks MySQL makes while preparing the statement answer ahead of the
+	// table it names and of the database: mysql:8.0.46 answers 1439 for
+	// `ALTER TABLE nosuchdb.a ADD a INT(256)`.
+	if err := alterDefinitions(stmt.Commands); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -16,6 +22,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	db, err := c.resolveDatabase(dbName)
 	if err != nil {
+		return err
+	}
+	// EXCHANGE PARTITION naming the table being altered as the table to swap with
+	// is 1066, "Not unique table/alias", which MySQL answers before it looks
+	// either table up: mysql:8.0.46 answers it for a table that exists and for
+	// one that does not.
+	if err := alterExchangeSelf(c, db, stmt); err != nil {
 		return err
 	}
 
@@ -80,6 +93,81 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	return nil
 }
 
+// alterExchangeSelf refuses an EXCHANGE PARTITION that names the table being
+// altered as the table to swap with: 1066 "Not unique table/alias", answered
+// before either table is looked up (measured on mysql:8.0.46). A name in another
+// database is a different table, and that database is looked up with the table.
+func alterExchangeSelf(c *Catalog, db *Database, stmt *nodes.AlterTableStmt) error {
+	if stmt.Table == nil {
+		return nil
+	}
+	for _, cmd := range stmt.Commands {
+		if cmd == nil || cmd.Type != nodes.ATExchangePartition || cmd.ExchangeTable == nil {
+			continue
+		}
+		exchDB := db
+		if cmd.ExchangeTable.Schema != "" {
+			exchDB = c.GetDatabase(cmd.ExchangeTable.Schema)
+			if exchDB == nil {
+				continue
+			}
+		}
+		if exchDB == db && strings.EqualFold(cmd.ExchangeTable.Name, stmt.Table.Name) {
+			return errNonUniqueTable(cmd.ExchangeTable.Name)
+		}
+	}
+	return nil
+}
+
+// alterDefinitions runs the checks MySQL makes before it opens the table an
+// ALTER TABLE names, so each answers ahead of 1146: a column's display width
+// (1439) and a FULLTEXT key's parser (1128).
+func alterDefinitions(commands []*nodes.AlterTableCmd) error {
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		for _, colDef := range alterColumnDefs(cmd) {
+			if err := validateColumnDisplayWidth(colDef); err != nil {
+				return err
+			}
+		}
+		for _, con := range alterConstraints(cmd) {
+			if err := validateFulltextParser(con); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// alterColumnDefs returns the column definitions a command carries.
+func alterColumnDefs(cmd *nodes.AlterTableCmd) []*nodes.ColumnDef {
+	switch cmd.Type {
+	case nodes.ATAddColumn:
+		defs := make([]*nodes.ColumnDef, 0, len(cmd.Columns)+1)
+		if cmd.Column != nil {
+			defs = append(defs, cmd.Column)
+		}
+		return append(defs, cmd.Columns...)
+	case nodes.ATModifyColumn, nodes.ATChangeColumn:
+		if cmd.Column != nil {
+			return []*nodes.ColumnDef{cmd.Column}
+		}
+	}
+	return nil
+}
+
+// alterConstraints returns the constraints a command carries, from ADD
+// CONSTRAINT and from the table element list `ADD (col, CONSTRAINT, ...)`.
+func alterConstraints(cmd *nodes.AlterTableCmd) []*nodes.Constraint {
+	cons := make([]*nodes.Constraint, 0, len(cmd.Constraints)+1)
+	if cmd.Constraint != nil {
+		cons = append(cons, cmd.Constraint)
+	}
+	return append(cons, cmd.Constraints...)
+}
+
 // undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
 // in the statement may have moved the table to another database, under another name,
 // so its entry there goes first.
@@ -142,7 +230,19 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
 		tbl.Partitioning = nil
+		return nil
+	case nodes.ATRebuildPartition, nodes.ATDiscardPartitionTablespace, nodes.ATImportPartitionTablespace:
+		// These leave the schema as it is, and a table without partitions is
+		// still refused (1505, measured on mysql:8.0.46). ANALYZE, CHECK,
+		// OPTIMIZE and REPAIR PARTITION on such a table are taken, so they stay
+		// the default no-op.
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
 		return nil
 	default:
 		// Unsupported alter command; silently ignore.
@@ -477,6 +577,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errMultiplePriKey()
 			}
 		}
+		if err := validateKeyColumnsExist(tbl, con); err != nil {
+			return err
+		}
 		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 			return err
 		}
@@ -523,6 +626,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
+		if err := validateKeyColumnsExist(tbl, con); err != nil {
+			return err
+		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
@@ -553,6 +659,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
 			return errFKDupName(conName)
+		}
+		if err := validateKeyColumnsExist(tbl, con); err != nil {
+			return err
 		}
 		refDBName := ""
 		refTable := ""
@@ -613,6 +722,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
+		if err := validateKeyColumnsExist(tbl, con); err != nil {
+			return err
+		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
@@ -642,6 +754,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
+		if err := validateKeyColumnsExist(tbl, con); err != nil {
+			return err
+		}
 		idxCols := buildIndexColumns(con)
 		ftIdx := &Index{
 			Name:      idxName,
@@ -665,6 +780,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			if indexNameExists(tbl, idxName) {
 				return errDupKeyName(idxName)
 			}
+		}
+		if err := validateKeyColumnsExist(tbl, con); err != nil {
+			return err
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
@@ -1213,7 +1331,7 @@ var _ = strings.ToLower
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
@@ -1256,7 +1374,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 // alterDropPartition drops named partitions from a partitioned table.
 func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE DROP PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -1275,7 +1393,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 // alterTruncatePartition truncates named partitions (no-op for metadata catalog).
 func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE TRUNCATE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
 	return nil
@@ -1284,7 +1402,7 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterCoalescePartition reduces the number of partitions for HASH/KEY partitioned tables.
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE COALESCE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
@@ -1305,7 +1423,7 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
@@ -1366,11 +1484,11 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 
 // alterExchangePartition exchanges a partition with a non-partitioned table.
 func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
-	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE EXCHANGE PARTITION: table '%s' is not partitioned", tbl.Name)
-	}
 	// For DDL catalog purposes, exchange is primarily a data operation.
-	// We just validate both tables exist.
+	// We just validate both tables exist. The exchange table is looked up before
+	// the table being altered is judged: mysql:8.0.46 answers 1146 for
+	// `ALTER TABLE a EXCHANGE PARTITION p0 WITH TABLE missing` on a table with no
+	// partitions, and 1505 only when that table exists.
 	if cmd.ExchangeTable != nil {
 		exchDB := db
 		if cmd.ExchangeTable.Schema != "" {
@@ -1383,6 +1501,9 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 		if exchTbl == nil {
 			return errNoSuchTable(exchDB.Name, cmd.ExchangeTable.Name)
 		}
+	}
+	if tbl.Partitioning == nil {
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	return nil
 }

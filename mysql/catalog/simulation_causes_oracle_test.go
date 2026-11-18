@@ -1,0 +1,377 @@
+package catalog
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	gomysql "github.com/go-sql-driver/mysql"
+
+	"github.com/bytebase/omni/mysql/internal/testcontainer"
+)
+
+// TestSimulationCausesOracle holds the refusals testdata/simulate.tsv records to
+// mysql:8.0.46 cause by cause: the object an ALTER or DROP VIEW names, a key
+// built on a column the table does not have, a FULLTEXT key's parser, a
+// partition action on a table that has no partitions, and a type's display
+// width. Each case is answered by the pinned server and by the catalog, and
+// both must agree with the code the case states.
+func TestSimulationCausesOracle(t *testing.T) {
+	conn := testcontainer.OpenEmpty(t)
+	ctx := context.Background()
+	reset := func() {
+		for _, stmt := range []string{"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s"} {
+			if _, err := conn.ExecContext(ctx, stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
+		}
+	}
+	t.Cleanup(reset)
+
+	oneTable := "CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"
+	cases := []struct {
+		name  string
+		setup []string
+		stmt  string
+		code  int
+	}{
+		{
+			name:  "ALTER VIEW over a table",
+			setup: []string{oneTable},
+			stmt:  "ALTER VIEW a AS SELECT b FROM a",
+			code:  1347,
+		},
+		{
+			name: "ALTER VIEW over no object",
+			stmt: "ALTER VIEW a AS SELECT b FROM a",
+			code: 1146,
+		},
+		{
+			name:  "ALTER VIEW over a view",
+			setup: []string{"CREATE VIEW a AS SELECT 1 AS b"},
+			stmt:  "ALTER VIEW a AS SELECT 1 AS b",
+			code:  0,
+		},
+		{
+			name:  "DROP VIEW over a table",
+			setup: []string{oneTable},
+			stmt:  "DROP VIEW a",
+			code:  1347,
+		},
+		{
+			name: "DROP VIEW over no object",
+			stmt: "DROP VIEW a",
+			code: 1051,
+		},
+		{
+			name:  "ADD KEY over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(a)",
+			code:  1072,
+		},
+		{
+			name:  "ADD FULLTEXT over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(a)",
+			code:  1072,
+		},
+		{
+			name:  "ADD SPATIAL over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL(a)",
+			code:  1072,
+		},
+		{
+			name:  "ADD UNIQUE over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD UNIQUE(a)",
+			code:  1072,
+		},
+		{
+			name:  "ADD FOREIGN KEY over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a",
+			code:  1072,
+		},
+		{
+			name:  "ADD KEY of a name the table has over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY idx_d(missing)",
+			code:  1061,
+		},
+		{
+			name:  "ADD PRIMARY KEY over a missing column on a table with one",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PRIMARY KEY(missing)",
+			code:  1068,
+		},
+		{
+			name:  "ADD FULLTEXT WITH PARSER over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a",
+			code:  1128,
+		},
+		{
+			name:  "ADD FULLTEXT WITH PARSER ngram",
+			setup: []string{"CREATE TABLE a (b TEXT)"},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(b) WITH PARSER ngram",
+			code:  0,
+		},
+		{
+			name:  "CREATE INDEX over a missing column",
+			setup: []string{oneTable},
+			stmt:  "CREATE INDEX i ON a(missing)",
+			code:  1072,
+		},
+		{
+			name:  "CREATE INDEX of a name the table has over a missing column",
+			setup: []string{oneTable},
+			stmt:  "CREATE INDEX idx_d ON a(missing)",
+			code:  1061,
+		},
+		{
+			name:  "CREATE FULLTEXT INDEX WITH PARSER over a missing column",
+			setup: []string{oneTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a(missing) WITH PARSER a",
+			code:  1128,
+		},
+		{
+			name:  "CREATE TABLE with a key over a missing column",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT, KEY(missing))",
+			code:  1072,
+		},
+		{
+			name:  "CREATE TABLE with a FULLTEXT key's unknown parser",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT, FULLTEXT(b) WITH PARSER a)",
+			code:  1128,
+		},
+		{
+			name:  "REMOVE PARTITIONING of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a REMOVE PARTITIONING",
+			code:  1505,
+		},
+		{
+			name:  "ADD PARTITION to a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PARTITION (PARTITION p0)",
+			code:  1505,
+		},
+		{
+			name:  "ADD PARTITION PARTITIONS to a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PARTITION PARTITIONS 2",
+			code:  1505,
+		},
+		{
+			name:  "DROP PARTITION from a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a DROP PARTITION p0",
+			code:  1505,
+		},
+		{
+			name:  "TRUNCATE PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TRUNCATE PARTITION ALL",
+			code:  1505,
+		},
+		{
+			name:  "COALESCE PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COALESCE PARTITION 1",
+			code:  1505,
+		},
+		{
+			name:  "REORGANIZE PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1)",
+			code:  1505,
+		},
+		{
+			name:  "REBUILD PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a REBUILD PARTITION ALL",
+			code:  1505,
+		},
+		{
+			name:  "DISCARD PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a DISCARD PARTITION ALL TABLESPACE",
+			code:  1505,
+		},
+		{
+			name:  "IMPORT PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a IMPORT PARTITION ALL TABLESPACE",
+			code:  1505,
+		},
+		{
+			name:  "EXCHANGE PARTITION with another table on a table with none",
+			setup: []string{oneTable, "CREATE TABLE s (b INT)"},
+			stmt:  "ALTER TABLE a EXCHANGE PARTITION p0 WITH TABLE s",
+			code:  1505,
+		},
+		{
+			name:  "EXCHANGE PARTITION with the table itself",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a EXCHANGE PARTITION p0 WITH TABLE a",
+			code:  1066,
+		},
+		{
+			// MySQL's maintenance actions are taken on a table with no
+			// partitions, where REBUILD PARTITION is refused (1505).
+			name:  "ANALYZE PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ANALYZE PARTITION ALL",
+			code:  0,
+		},
+		{
+			name:  "CHECK PARTITION of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a CHECK PARTITION ALL",
+			code:  0,
+		},
+		{
+			name:  "REMOVE PARTITIONING of a partitioned table",
+			setup: []string{"CREATE TABLE a (b INT) PARTITION BY HASH(b) PARTITIONS 2"},
+			stmt:  "ALTER TABLE a REMOVE PARTITIONING",
+			code:  0,
+		},
+		{
+			name:  "ADD BIT past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e BIT(65)",
+			code:  1439,
+		},
+		{
+			name:  "ADD INT past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT(256)",
+			code:  1439,
+		},
+		{
+			name:  "ADD INT past the width MySQL holds at all",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT(4294967296)",
+			code:  1439,
+		},
+		{
+			name:  "ADD CHAR past the width MySQL holds at all",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e CHAR(4294967296)",
+			code:  1439,
+		},
+		{
+			name:  "ADD DECIMAL past the width MySQL holds at all",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e DECIMAL(4294967296)",
+			code:  1439,
+		},
+		{
+			// The width is checked before the column's name.
+			name:  "ADD a column the table has with a width past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD b INT(256)",
+			code:  1439,
+		},
+		{
+			// The width is checked before the table is looked up.
+			name: "ADD a column with a width past its display width to no table",
+			stmt: "ALTER TABLE a ADD e INT(256)",
+			code: 1439,
+		},
+		{
+			name:  "MODIFY a column past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a MODIFY b INT(256)",
+			code:  1439,
+		},
+		{
+			name: "CREATE TABLE with a column past its display width",
+			stmt: "CREATE TABLE s (b INT(256))",
+			code: 1439,
+		},
+		{
+			name:  "ADD INT at its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT(255)",
+			code:  0,
+		},
+		{
+			name:  "ADD BIT at its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e BIT(64)",
+			code:  0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			reset()
+			for _, stmt := range tc.setup {
+				if _, err := conn.ExecContext(ctx, stmt); err != nil {
+					t.Fatalf("%s: %v", stmt, err)
+				}
+			}
+			_, err := conn.ExecContext(ctx, tc.stmt)
+			engineCode, engineMessage := simulationEngineRefusal(t, tc.stmt, err)
+			if engineCode != tc.code {
+				t.Fatalf("mysql: %s answered %d (%s), want %d", tc.stmt, engineCode, engineMessage, tc.code)
+			}
+
+			c := New()
+			execAlterClauses(t, c, "CREATE DATABASE d; USE d;")
+			for _, stmt := range tc.setup {
+				execAlterClauses(t, c, stmt)
+			}
+			catalogCode, catalogMessage := simulationCatalogRefusal(t, c, tc.stmt)
+			if catalogCode != engineCode {
+				t.Fatalf("catalog: %s answered %d (%s), mysql answered %d (%s)",
+					tc.stmt, catalogCode, catalogMessage, engineCode, engineMessage)
+			}
+			if tc.code == 0 && tc.stmt == "ALTER TABLE a REMOVE PARTITIONING" {
+				db := c.GetDatabase("d")
+				if db == nil || db.GetTable("a") == nil || db.GetTable("a").Partitioning != nil {
+					t.Fatalf("catalog kept the table partitioned after %s", tc.stmt)
+				}
+			}
+		})
+	}
+}
+
+// simulationEngineRefusal reads the server's answer as the error number and
+// message, 0 for a statement it took.
+func simulationEngineRefusal(t *testing.T, stmt string, err error) (int, string) {
+	t.Helper()
+	if err == nil {
+		return 0, ""
+	}
+	var refusal *gomysql.MySQLError
+	if !errors.As(err, &refusal) {
+		t.Fatalf("%s: not a MySQL error: %v", stmt, err)
+	}
+	return int(refusal.Number), refusal.Message
+}
+
+// simulationCatalogRefusal reads the catalog's answer as the error number and
+// message, 0 for a statement it took.
+func simulationCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, string) {
+	t.Helper()
+	results, err := c.Exec(stmt, nil)
+	if err != nil {
+		t.Fatalf("Exec(%q): %v", stmt, err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("Exec(%q): %d results, want 1", stmt, len(results))
+	}
+	if results[0].Error == nil {
+		return 0, ""
+	}
+	var refusal *Error
+	if !errors.As(results[0].Error, &refusal) {
+		t.Fatalf("%s: not a catalog error: %v", stmt, results[0].Error)
+	}
+	return refusal.Code, refusal.Message
+}
