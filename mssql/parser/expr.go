@@ -32,12 +32,16 @@ func exprLocStart(expr nodes.ExprNode, fallback int) int {
 // parseOr parses OR expressions (lowest precedence).
 //
 //	or_expr = and_expr { OR and_expr }
+//
+// SQL Server reads AND, OR and NOT only in a search condition: a boolean is no
+// value there, so SELECT 1 OR 2 and UPDATE a SET a = 1 AND 2 are Msg 156
+// (measured), and the three operators stop an expression outside one.
 func (p *Parser) parseOr() (nodes.ExprNode, error) {
 	left, err := p.parseAnd()
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == kwOR {
+	for p.cur.Type == kwOR && p.inSearchCondition() {
 		loc := p.pos()
 		p.advance()
 		// Completion: after OR → columnref, func_name
@@ -71,7 +75,7 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == kwAND {
+	for p.cur.Type == kwAND && p.inSearchCondition() {
 		loc := p.pos()
 		p.advance()
 		// Completion: after AND → columnref, func_name
@@ -107,7 +111,7 @@ func (p *Parser) parseNot() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	if p.cur.Type == kwNOT {
+	if p.cur.Type == kwNOT && p.inSearchCondition() {
 		loc := p.pos()
 		p.advance()
 		if p.collectMode() {
@@ -980,6 +984,25 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 	case kwEXISTS:
 		return p.parseExists()
+	case kwTSEQUAL:
+		// tsEqualCall (TSql160.g:30641): TSEQUAL ( expression , expression ),
+		// a predicate of a search condition and nothing else. SQL Server
+		// refuses it in a select list (Msg 156) and with other than two
+		// arguments (Msg 102, measured).
+		if !p.inSearchCondition() || p.peekNext().Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		loc := p.pos()
+		p.advance() // consume TSEQUAL
+		expr, err := p.parseFuncCall(p.prev.Str, loc)
+		if err != nil {
+			return nil, err
+		}
+		fc, ok := expr.(*nodes.FuncCallExpr)
+		if !ok || fc.Args == nil || len(fc.Args.Items) != 2 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return expr, nil
 	case kwTRY_CAST:
 		if p.peekNext().Type == '(' {
 			return p.parseTryCast()

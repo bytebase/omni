@@ -747,7 +747,10 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
+	// The rule's condition_expression is a search condition.
+	p.enterSearchCondition()
 	expr, err := p.parseExpr()
+	p.leaveSearchCondition()
 	if err != nil {
 		return nil, err
 	}

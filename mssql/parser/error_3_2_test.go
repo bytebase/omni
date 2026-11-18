@@ -12,13 +12,13 @@ func TestErrorSection3_2_EndOfInput(t *testing.T) {
 		name string
 		sql  string
 	}{
-		{"SELECT_1_OR_truncated", "SELECT 1 OR"},
-		{"SELECT_1_AND_truncated", "SELECT 1 AND"},
 		{"SELECT_1_PLUS_truncated", "SELECT 1 +"},
 		{"SELECT_star_FROM_truncated", "SELECT * FROM"},
 		{"SELECT_star_FROM_t_WHERE_truncated", "SELECT * FROM t WHERE"},
 		{"CREATE_TABLE_truncated", "CREATE TABLE"},
 		{"IF_truncated", "IF"},
+		{"SELECT_star_FROM_t_WHERE_truncated_or", "SELECT * FROM t WHERE 1 OR"},
+		{"SELECT_star_FROM_t_WHERE_truncated_and", "SELECT * FROM t WHERE 1 AND"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -70,8 +70,15 @@ func TestErrorSection3_2_MultiLine(t *testing.T) {
 		want string // substring expected in error
 	}{
 		{
+			// AND and OR are a search condition's, so the error is the OR
+			// itself rather than the end of the text.
 			"multiline_truncated",
 			"SELECT\n  1\n  OR",
+			`at or near "OR"`,
+		},
+		{
+			"multiline_truncated_in_condition",
+			"SELECT\n  *\nFROM t\nWHERE 1 = 1 AND",
 			"at end of input",
 		},
 		{

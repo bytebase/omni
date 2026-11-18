@@ -995,8 +995,11 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 			cd.NotForReplication = true
 		}
 		if _, err := p.expect('('); err == nil {
+			// A CHECK constraint's expression is a search condition.
+			p.enterSearchCondition()
 			var exprErr error
 			cd.Expr, exprErr = p.parseExpr()
+			p.leaveSearchCondition()
 			if exprErr != nil {
 				return nil, exprErr
 			}
@@ -1203,8 +1206,11 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
+		// A CHECK constraint's expression is a search condition.
+		p.enterSearchCondition()
 		var exprErr error
 		cd.Expr, exprErr = p.parseExpr()
+		p.leaveSearchCondition()
 		if exprErr != nil {
 			return nil, exprErr
 		}

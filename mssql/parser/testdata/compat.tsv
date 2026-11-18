@@ -8174,7 +8174,7 @@ reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-2	SELECT * OPTI
 reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-3	SELECT * OPTION()
 reject	reject	engine	select(optimizerHints)?/optimizerHints!drop-4	SELECT * OPTION(a
 reject	reject	engine	select(optimizerHints)?/optimizerHints!insert	SELECT * OPTION(a) zzz
-accept	reject	engine	select(optimizerHints)?/optimizerHints!swap	SELECT * OR(a)
+reject	reject	engine	select(optimizerHints)?/optimizerHints!swap	SELECT * OR(a)
 accept	accept	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5	SELECT * FROM(SELECT *) a
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-1	SELECT * FROM SELECT *) a
 reject	reject	engine	derivedTable/(queryDerivedTable|inlinedDerivedTable)_(forPathClause)~116e56a5!drop-2	SELECT * FROM(*) a
@@ -9305,7 +9305,7 @@ reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-2	UPDA
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-3	UPDATE a SET @a = 1 OPTION()
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!drop-4	UPDATE a SET @a = 1 OPTION(a
 reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!insert	UPDATE a SET @a = 1 OPTION(a) zzz
-accept	reject	engine	updateStatement(optimizerHints)?/optimizerHints!swap	UPDATE a SET @a = 1 OR(a)
+reject	reject	engine	updateStatement(optimizerHints)?/optimizerHints!swap	UPDATE a SET @a = 1 OR(a)
 accept	accept	engine	updateSpecification/Update_dmlTopRowFilterOpt_dmlTarget_setClausesList_outp~0724e00f	UPDATE a SET @a = 1
 accept	accept	engine	updateSpecification(dmlWhereClause)?/%empty	UPDATE a SET @a = 1
 accept	accept	engine	updateSpecification(dmlWhereClause)?/dmlWhereClause	UPDATE a SET @a = 1 WHERE 1 = 1
@@ -13230,7 +13230,7 @@ reject	reject	engine	booleanExpressionPrimary/existsPredicate!drop-5	IF EXISTS(S
 reject	reject	engine	booleanExpressionPrimary/existsPredicate!truncate	IF EXISTS(SELECT *
 reject	reject	engine	booleanExpressionPrimary/existsPredicate!insert	IF EXISTS(SELECT *) zzz SELECT 1
 reject	reject	engine	booleanExpressionPrimary/existsPredicate!swap	IF EXIT(SELECT *) SELECT 1
-reject	accept	engine	booleanExpressionPrimary/tsEqualCall	IF TSEQUAL(1, 1) SELECT 1
+accept	accept	engine	booleanExpressionPrimary/tsEqualCall	IF TSEQUAL(1, 1) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/tsEqualCall!drop-1	IF(1, 1) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/tsEqualCall!drop-2	IF TSEQUAL 1, 1) SELECT 1
 reject	reject	engine	booleanExpressionPrimary/tsEqualCall!drop-3	IF TSEQUAL(, 1) SELECT 1
@@ -13443,7 +13443,7 @@ reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_R
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!drop-7	IF MATCH(LAST_NODE < -(a) -) SELECT 1
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!truncate	IF MATCH(LAST_NODE < -(a) -
 reject	reject	engine	graphSingleMatchPattern((Minus_LeftParenthesis_identifier_Ri~9c9c91b0)/LessThan_Minus_LeftParenthesis_identifier_RightParenthe~d6733815!insert	IF MATCH(LAST_NODE < -(a) - a zzz) SELECT 1
-reject	accept	engine	tsEqualCall/TSEqual_LeftParenthesis_expression_Comma_expression_Rig~0664de87	IF TSEQUAL(1, 1) SELECT 1
+accept	accept	engine	tsEqualCall/TSEqual_LeftParenthesis_expression_Comma_expression_Rig~0664de87	IF TSEQUAL(1, 1) SELECT 1
 reject	reject	engine	updateCall/Update_LeftParenthesis_identifier_RightParenthesis	IF UPDATE(a) SELECT 1
 accept	accept	engine	fulltextPredicate/(Contains|FreeText)_LeftParenthesis_(fulltextColumn|Lef~fe78f13a	IF CONTAINS(*, 'a') SELECT 1
 accept	accept	engine	fulltextPredicate(Contains|FreeText)/Contains	IF CONTAINS(*, 'a') SELECT 1
