@@ -99,7 +99,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMateri
 	// candidates when the cursor stands here.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwWITH, kwENABLE, kwDISABLE} {
+		for _, t := range []int{kwWITH, kwENABLE, kwDISABLE, kwAS} {
 			p.addTokenCandidate(t)
 		}
 	}
