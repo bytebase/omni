@@ -113,6 +113,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.UsingType != nil {
 			Walk(v, n.UsingType)
 		}
+		for _, item := range n.ArrayDMLTypes {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterInmemoryJoinGroupStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -132,6 +137,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.StartWith)
 		Walk(v, n.Next)
+		walkList(v, n.Annotations)
+		if n.Modify != nil {
+			Walk(v, n.Modify)
+		}
 		if n.ScopeTable != nil {
 			Walk(v, n.ScopeTable)
 		}
@@ -315,6 +324,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.IntoTable != nil {
 			Walk(v, n.IntoTable)
 		}
+	case *ArrayDMLTypePair:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		if n.VarrayType != nil {
+			Walk(v, n.VarrayType)
+		}
 	case *AssociateStatisticsStmt:
 		for _, item := range n.Objects {
 			if item != nil {
@@ -441,6 +457,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Virtual)
 		walkList(v, n.Constraints)
+		walkList(v, n.Annotations)
 	case *CommentStmt:
 		if n.Object != nil {
 			Walk(v, n.Object)
@@ -598,6 +615,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.UsingType != nil {
 			Walk(v, n.UsingType)
+		}
+		for _, item := range n.ArrayDMLTypes {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *CreateInmemoryJoinGroupStmt:
 		if n.Name != nil {

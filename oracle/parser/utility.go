@@ -928,9 +928,12 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 		stmt.Tables = append(stmt.Tables, t)
 	}
 
-	// TO
+	// TO, or TOPLEVEL before SCN, TIMESTAMP or RESTORE POINT, which
+	// Oracle reads the same (compat.tsv's FLASHBACK TABLE a TOPLEVEL rows).
 	if p.cur.Type != kwTO {
-		return nil, p.syntaxErrorAtCur()
+		if !(p.atWord("TOPLEVEL") && (p.atNextWord("SCN") || p.atNextWord("TIMESTAMP") || p.atNextWord("RESTORE"))) {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	p.advance()
 
