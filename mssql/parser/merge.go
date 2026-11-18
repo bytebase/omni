@@ -130,7 +130,12 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
+	// MERGE's ON predicate is a search condition, so its AND and OR are read
+	// here as they are in a WHERE: MERGE a USING b ON a.x = b.x AND a.y = b.y
+	// ... is accepted (measured).
+	p.enterSearchCondition()
 	cond, err := p.parseExpr()
+	p.leaveSearchCondition()
 	if err != nil {
 		return nil, err
 	}

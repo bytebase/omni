@@ -34,7 +34,11 @@ type Parser struct {
 	// when this depth is > 0, matching SqlScriptDOM's separation of
 	// booleanExpressionWithFlags from expressionWithFlags.
 	searchCondDepth int
-	depth           int // nesting depth of the productions being parsed (see enterNesting)
+	// subqueryDepth is non-zero while parsing a subquery's query expression,
+	// whose ORDER BY SQL Server holds to TOP, OFFSET or FOR and which takes no
+	// FOR BROWSE (Msg 1033, 176).
+	subqueryDepth int
+	depth         int // nesting depth of the productions being parsed (see enterNesting)
 
 	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
 	// bodies, CATCH blocks and procedure or function bodies being parsed:
@@ -241,7 +245,7 @@ func isNilNode(n nodes.Node) bool {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
 func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
-	withClause, err := p.parseWithClause()
+	withClause, err := p.parseWithClause(true)
 	if err != nil {
 		return nil, err
 	}
@@ -324,6 +328,9 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwSELECT:
 		return p.parseSelectStmt()
+	case '(':
+		// A parenthesized query expression is a statement of its own.
+		return p.parseQueryParenthesisStmt()
 	case kwWITH:
 		return p.parseWithStmt()
 	case kwINSERT:
@@ -548,7 +555,11 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		// Check for label: identifier followed by ':'
 		if p.isIdentLike() {
 			next := p.peekNext()
-			if next.Type == ':' {
+			// A label's colon touches its name: SQL Server reads `a: SELECT 1`
+			// as a label and `a : SELECT 1` as the name `a` and a stray colon
+			// (Msg 102, measured), so a separated colon is no label here and
+			// the statement falls through to the error.
+			if next.Type == ':' && next.Loc == p.cur.End {
 				// Labels must be identifiers; reject reserved keywords here.
 				if !p.isIdentLike() {
 					return nil, p.syntaxErrorAtCur()
@@ -593,8 +604,14 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 				next.Type == kwINTO {
 				return p.parseCopyIntoStmt()
 			}
-			// RENAME OBJECT/DATABASE (Azure Synapse/PDW)
-			if p.cur.Type == kwRENAME {
+			// RENAME OBJECT/DATABASE (Azure Synapse/PDW). SQL Server 2022
+			// has no RENAME statement, and its grammar's bare
+			// renameEntityStatement, `RENAME a TO a`, is Msg 156 there
+			// (measured): only the documented Synapse forms are read, and a
+			// RENAME without one of their two words falls through to the
+			// procedure call SQL Server reads it as.
+			if p.cur.Type == kwRENAME &&
+				(next.Type == kwOBJECT || next.Type == kwDATABASE) {
 				return p.parseRenameStmt()
 			}
 			// REVERT (security context)
@@ -656,7 +673,8 @@ func (p *Parser) parseAddStmt() (nodes.StmtNode, error) {
 		return stmt, nil
 	}
 
-	return nil, nil
+	// ADD names one of its two statements, and bare ADD is Msg 102 (measured).
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseCreateStmt dispatches CREATE to the appropriate sub-parser.
@@ -1408,11 +1426,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		// CREATE AVAILABILITY GROUP
+		// CREATE AVAILABILITY GROUP: the GROUP is required.
 		if p.cur.Type == kwAVAILABILITY {
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateAvailabilityGroupStmt()
 			if err != nil {
@@ -1480,7 +1498,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		return nil, nil
+		// A CREATE with no object after it names nothing: bare CREATE is
+		// Msg 102 (measured).
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -2036,11 +2056,12 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		// ALTER AVAILABILITY GROUP
+		// ALTER AVAILABILITY GROUP: the GROUP is required, and ALTER
+		// AVAILABILITY a FAILOVER is Msg 102 (measured).
 		if p.cur.Type == kwAVAILABILITY {
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterAvailabilityGroupStmt()
 			if err != nil {
@@ -2215,7 +2236,9 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		}
 		if p.cur.Type == kwIF {
 			p.advance()
-			p.match(kwEXISTS)
+			if _, err := p.expect(kwEXISTS); err != nil {
+				return nil, err
+			}
 			dropStmt.IfExists = true
 		}
 		// Completion: after DROP DATABASE [IF EXISTS] → database_ref
@@ -2430,12 +2453,13 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		// DROP AVAILABILITY GROUP
+		// DROP AVAILABILITY GROUP: the GROUP is required, and DROP
+		// AVAILABILITY a is Msg 102 (measured).
 		if next.Type == kwAVAILABILITY {
 			p.advance() // consume DROP
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropAvailabilityGroupStmt()
 			if err != nil {

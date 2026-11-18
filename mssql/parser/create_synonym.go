@@ -25,10 +25,21 @@ func (p *Parser) parseCreateSynonymStmt() (*nodes.CreateSynonymStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.match(kwFOR)
+	if stmt.Name == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// FOR and the target are required: CREATE SYNONYM FOR a is Msg 156,
+	// CREATE SYNONYM a a is Msg 102, and CREATE SYNONYM a FOR is Msg 102
+	// (measured).
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
+	}
 	stmt.Target, err = p.parseTableRef()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.Target == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

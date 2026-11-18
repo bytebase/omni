@@ -33,11 +33,11 @@ var locPrecisionMatrixExactSliceCases = []locMatrixCase{
 	{name: "in subquery", sql: "SELECT c IN (SELECT x FROM s)", typeName: "InExpr", want: "c IN (SELECT x FROM s)"},
 
 	// Boolean and arithmetic.
-	{name: "or and precedence", sql: "SELECT a OR b AND c", typeName: "BinaryExpr", want: "a OR b AND c"},
+	{name: "or and precedence", sql: "SELECT a WHERE a OR a AND a", typeName: "BinaryExpr", want: "a OR a AND a"},
 	{name: "add subtract chain", sql: "SELECT a - b + c", typeName: "BinaryExpr", want: "a - b + c"},
 	{name: "divide modulo chain", sql: "SELECT a / b % c", typeName: "BinaryExpr", want: "a / b % c"},
 	{name: "unary minus", sql: "SELECT -c", typeName: "UnaryExpr", want: "-c"},
-	{name: "unary not", sql: "SELECT NOT (c > 0)", typeName: "UnaryExpr", want: "NOT (c > 0)"},
+	{name: "unary not", sql: "SELECT a WHERE NOT (c > 0)", typeName: "UnaryExpr", want: "NOT (c > 0)"},
 	{name: "paren expr", sql: "SELECT (a + b)", typeName: "ParenExpr", want: "(a + b)"},
 
 	// Postfix expressions.

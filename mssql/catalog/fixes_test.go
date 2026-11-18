@@ -897,3 +897,47 @@ func TestMigrationKeepsSkippedTrigger(t *testing.T) {
 	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
 	require.NotContains(t, sql, "DROP TRIGGER")
 }
+
+// TestColumnLevelKeyWithColumns checks that a PRIMARY KEY or UNIQUE written
+// beside a column and naming its own columns keys those columns, as
+// `ALTER TABLE a ADD x a UNIQUE(x)` does: `x int, y int UNIQUE(x)` is a
+// unique index on x, and y keeps its nullability.
+func TestColumnLevelKeyWithColumns(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([x] int, [y] int UNIQUE([x]), [z] int PRIMARY KEY ([x]));`)
+	require.NoError(t, err)
+	table := c.GetTable("dbo", "t")
+	require.NotNil(t, table)
+	byName := map[string]*metadata.IndexMetadata{}
+	for _, ix := range table.Indexes {
+		byName[ix.Name] = ix
+	}
+	unique := byName["UQ_t_1"]
+	require.NotNil(t, unique)
+	require.Equal(t, []string{"x"}, unique.Expressions)
+	primary := byName["PK_t_2"]
+	require.NotNil(t, primary)
+	require.Equal(t, []string{"x"}, primary.Expressions)
+	for _, col := range table.Columns {
+		if col.Name == "y" {
+			require.True(t, col.Nullable, "y is not the key's column")
+		}
+		if col.Name == "x" {
+			require.False(t, col.Nullable, "the primary key holds x")
+		}
+	}
+}
+
+// TestColumnLevelKeyNamesALaterColumn checks the same for a key whose column
+// the CREATE TABLE body has not reached yet: the primary key's columns allow
+// no NULL once every column exists.
+func TestColumnLevelKeyNamesALaterColumn(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([x] int PRIMARY KEY ([y]), [y] int NULL);`)
+	require.NoError(t, err)
+	table := c.GetTable("dbo", "t")
+	require.NotNil(t, table)
+	for _, col := range table.Columns {
+		if col.Name == "y" {
+			require.False(t, col.Nullable, "the primary key holds y")
+		}
+	}
+}
