@@ -538,9 +538,13 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	strTok := p.advance()
+	sql := strTok.Str
+	if strTok.Kind == tokUnicodeString {
+		sql = decodeUnicodeString(sql)
+	}
 
 	stmt := &ExecuteImmediateStmt{
-		SQL: strTok.Str,
+		SQL: sql,
 		Loc: ast.Loc{Start: start, End: strTok.Loc.End},
 	}
 	using, err := p.parseOptionalUsing()
@@ -555,11 +559,7 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 	// the same way, mapping an inner byte offset back into the literal. A
 	// trailing-token error is reported before execution, so validate only when
 	// the statement itself ended.
-	if (strTok.Kind == tokString || strTok.Kind == tokUnicodeString) && p.cur.Kind == tokEOF {
-		sql := strTok.Str
-		if strTok.Kind == tokUnicodeString {
-			sql = decodeUnicodeString(sql)
-		}
+	if p.cur.Kind == tokEOF {
 		inner, err := Parse(sql)
 		if err != nil {
 			if errs := AllErrors(err); len(errs) > 0 {
