@@ -1158,6 +1158,27 @@
 | DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
+| CREATE VIEW a AS SELECT (SELECT 1 AS x HAVING x)
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | CREATE TABLE a SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'

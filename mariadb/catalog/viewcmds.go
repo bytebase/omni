@@ -120,25 +120,29 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 }
 
 // viewBodyMayNameNoColumn reports whether a 1054 from a view body can be the
-// engine's. It must be a SELECT with no FROM, and one whose body has no clause
-// the analyzer cannot resolve a select alias in (HAVING, GROUP BY, ORDER BY) and
-// no schema-qualified function, whose argument may name a stored function's
-// column rather than a column of the body. Measured on mariadb:11.8.8.
+// engine's. It must be a SELECT with no FROM, and one whose body, nested queries
+// included, has no clause the analyzer cannot resolve a select alias in (HAVING,
+// GROUP BY, ORDER BY) and no schema-qualified function, whose argument may name a
+// stored function's column rather than a column of the body. Measured on mariadb:11.8.8.
 func viewBodyMayNameNoColumn(sel *nodes.SelectStmt) bool {
 	if len(sel.From) != 0 {
 		return false
 	}
-	if sel.Having != nil || len(sel.GroupBy) != 0 || len(sel.OrderBy) != 0 {
-		return false
-	}
-	qualified := false
+	skip := false
 	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if fn, ok := n.(*nodes.FuncCallExpr); ok && fn.Schema != "" {
-			qualified = true
+		switch e := n.(type) {
+		case *nodes.SelectStmt:
+			if e.Having != nil || len(e.GroupBy) != 0 || len(e.OrderBy) != 0 {
+				skip = true
+			}
+		case *nodes.FuncCallExpr:
+			if e.Schema != "" {
+				skip = true
+			}
 		}
-		return !qualified
+		return !skip
 	})
-	return !qualified
+	return !skip
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter

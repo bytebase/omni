@@ -333,6 +333,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code: 1054,
 		},
 		{
+			name: "CREATE VIEW over a nested select alias",
+			stmt: "CREATE VIEW a AS SELECT (SELECT 1 AS x HAVING x)",
+			code: 0,
+		},
+		{
 			name:  "CREATE VIEW over a table with a resolved body",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW a AS SELECT b FROM a",
