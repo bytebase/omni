@@ -342,7 +342,7 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 // ones: another relation of the name is in the way (1050), and the database
 // must exist (1049).
 func (b *builder) createExternalTable(v *ast.CreateTableStmt) bool {
-	if v.Table == nil {
+	if v.Table == nil || b.namesTooLong(v) {
 		return true
 	}
 	r, st := b.ref(v.Table)

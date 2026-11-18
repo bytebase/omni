@@ -1602,6 +1602,20 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
 			}
 		}
+	case *ast.LoadDataStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		if n.Source != nil {
+			collectAccessTablesFromTableExpr(result, n.Source, defaultDatabase)
+		}
+		collectAccessTablesFromNode(result, n.SourceQuery, defaultDatabase)
+		for _, column := range n.Columns {
+			collectAccessTablesFromExpr(result, column, defaultDatabase)
+		}
+		for _, assignment := range n.SetList {
+			if assignment != nil {
+				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+			}
+		}
 	case *ast.UpdateStmt:
 		for _, tableExpr := range n.Tables {
 			collectAccessTablesFromTableExpr(result, tableExpr, defaultDatabase)
@@ -1810,6 +1824,9 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 		}
 	case *ast.SubqueryExpr:
 		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		if n.Flashback != nil {
+			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, defaultDatabase)
+		}
 	case *ast.JsonTableExpr:
 		collectAccessTablesFromExpr(result, n.Expr, defaultDatabase)
 		collectAccessTablesFromExpr(result, n.Path, defaultDatabase)

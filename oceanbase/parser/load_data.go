@@ -88,7 +88,9 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	//
 	// It takes no LOCAL and is LOAD DATA's alone, so LOAD XML keeps the INFILE
 	// and S3 forms.
-	if !isXML && !stmt.Local && p.atLoadDataURLSource() {
+	// The url_spec alternative takes opt_duplicate and nothing else: no LOCAL,
+	// no LOW_PRIORITY and no CONCURRENT.
+	if !isXML && !stmt.Local && !stmt.LowPriority && !stmt.Concurrent && p.atLoadDataURLSource() {
 		return p.parseLoadDataURL(stmt)
 	}
 

@@ -96,15 +96,13 @@ func (p *Parser) parseAlterTableBody(stmt *nodes.AlterTableStmt) (*nodes.AlterTa
 				return nil, err
 			}
 			if ok {
-				stmt.Commands = append(stmt.Commands, cmd)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-				if p.cur.Type == tokEOF || p.cur.Type == ';' {
+				// The external partition forms are whole statements, not entries
+				// of alter_table_actions: no comma follows them.
+				if p.cur.Type == ',' {
 					return nil, p.syntaxErrorAtCur()
 				}
-				continue
+				stmt.Commands = append(stmt.Commands, cmd)
+				break
 			}
 		}
 

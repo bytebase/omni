@@ -83,6 +83,9 @@ func TestExternalTableForms(t *testing.T) {
 		"ALTER EXTERNAL TABLE a ADD PARTITION('s') LOCATION 's'",
 		"ALTER EXTERNAL TABLE a ADD PARTITION(a 's')",
 		"ALTER EXTERNAL TABLE a DROP PARTITION 's'",
+		// The external partition forms are whole statements: no comma follows.
+		"ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION 's', ADD COLUMN b INT",
+		"ALTER EXTERNAL TABLE a DROP PARTITION LOCATION 's', ADD COLUMN b INT",
 		// url_spec takes the table functions, the query form needs its SELECT,
 		// and INTO TABLE is required.
 		"LOAD DATA FROM 's'(FORMAT(TYPE = 's')) INTO TABLE a",
@@ -91,6 +94,9 @@ func TestExternalTableForms(t *testing.T) {
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO a",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT",
+		// The url_spec form takes no priority modifier.
+		"LOAD DATA LOW_PRIORITY FROM SOURCE(TYPE = 's') INTO TABLE a",
+		"LOAD DATA CONCURRENT FROM SOURCE(TYPE = 's') INTO TABLE a",
 		// url_spec takes the table functions alone: no alias and no quoted path.
 		"LOAD DATA FROM SOURCE(TYPE = 's') AS x INTO TABLE a",
 		"LOAD DATA FROM(SELECT a FROM 's'(FORMAT(TYPE = 's'))) INTO TABLE a",

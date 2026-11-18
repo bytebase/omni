@@ -362,6 +362,8 @@ func stmtLocStart(node nodes.Node) int {
 		return s.Loc.Start
 	case *nodes.CreateTableStmt:
 		return s.Loc.Start
+	case *nodes.MethodOptStmt:
+		return s.Loc.Start
 	case *nodes.CreateIndexStmt:
 		return s.Loc.Start
 	case *nodes.CreateViewStmt:

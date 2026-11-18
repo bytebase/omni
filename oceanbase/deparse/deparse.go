@@ -1298,6 +1298,10 @@ func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 			b.WriteString(" ")
 			b.WriteString(t.Alias)
 		}
+	case *ast.ExternalTableRef, *ast.RbIterateExpr, *ast.UnnestExpr:
+		// These carry no ExprNode form, so their own writer is the text:
+		// the source as written, as a subquery's is.
+		writeTableExpr(b, tbl)
 	default:
 		writeExprAlias(b, tbl.(ast.ExprNode))
 	}
@@ -1443,7 +1447,8 @@ func deparseExternalTableRef(t *ast.ExternalTableRef) string {
 }
 
 // writeExternalProperties writes the entries of a SOURCE(...) or FORMAT(...)
-// list as `name = value` pairs.
+// list as `name = value` pairs. A value the grammar gives a parenthesized list
+// — NULL_IF and COLUMN_BLOOM_FILTER — keeps its parentheses.
 func writeExternalProperties(b *strings.Builder, props []*ast.ExternalProperty) {
 	for i, prop := range props {
 		if i > 0 {
@@ -1451,6 +1456,17 @@ func writeExternalProperties(b *strings.Builder, props []*ast.ExternalProperty) 
 		}
 		b.WriteString(strings.ToLower(prop.Name))
 		b.WriteString(" = ")
+		if list, ok := prop.Value.(*ast.RowExpr); ok {
+			b.WriteString("(")
+			for j, item := range list.Items {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeExpr(b, item)
+			}
+			b.WriteString(")")
+			continue
+		}
 		writeExpr(b, prop.Value)
 	}
 }

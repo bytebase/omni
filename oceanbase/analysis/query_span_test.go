@@ -210,6 +210,8 @@ func TestResolveQuerySpanTableFunctions(t *testing.T) {
 		"SELECT * FROM RB_ITERATE(t1.a) AS x(v)",
 		"SELECT * FROM SOURCE(TYPE = 's')",
 		"SELECT * FROM 's'(FORMAT(TYPE = 'csv')) AS e",
+		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE t1",
+		"LOAD DATA FROM(SELECT a FROM SOURCE(TYPE = 's')) INTO TABLE t1",
 	} {
 		if _, err := resolve(t, statement); err != nil {
 			t.Errorf("ResolveQuerySpan(%q): %v", statement, err)
