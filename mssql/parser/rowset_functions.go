@@ -52,6 +52,9 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := checkRowsetArgs(funcTok, args); err != nil {
+			return nil, err
+		}
 		if len(args) > 0 {
 			fc.Args = &nodes.List{Items: args}
 		}
@@ -184,6 +187,67 @@ func (p *Parser) parseAdHocTableRef(fc *nodes.FuncCallExpr) (*nodes.AdHocTableRe
 	ref.Alias = p.parseOptionalAlias()
 	ref.Loc.End = p.prevEnd()
 	return ref, nil
+}
+
+// checkRowsetArgs holds OPENQUERY and OPENXML to their own argument lists.
+//
+//	openQueryRowset: OPENQUERY ( identifier , stringLiteral )
+//	openXmlParams:   OPENXML ( variable , stringOrVariable [ , integerOrVariable ] )
+//
+// OPENROWSET reads its arguments by shape (openRowsetParams,
+// internalOpenRowsetArgs, openRowsetBulk), and OPENJSON takes one or two
+// expressions; their shapes are checked where they differ.
+func checkRowsetArgs(funcTok int, args []nodes.Node) error {
+	switch funcTok {
+	case kwOPENQUERY:
+		if len(args) != 2 {
+			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[len(args)-1]).Start}
+		}
+		ref, ok := args[0].(*nodes.TableRef)
+		if !ok || ref.Server != "" || ref.Database != "" || ref.Schema != "" {
+			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[0]).Start}
+		}
+		if lit, ok := args[1].(*nodes.Literal); !ok || lit.Type != nodes.LitString {
+			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[1]).Start}
+		}
+	case kwOPENXML:
+		if len(args) < 2 || len(args) > 3 {
+			return &ParseError{Message: "OPENXML takes a document handle, a row pattern, and an optional row number", Position: nodes.NodeLoc(args[len(args)-1]).Start}
+		}
+		if _, ok := args[0].(*nodes.VariableRef); !ok {
+			return &ParseError{Message: "OPENXML takes a document handle from a variable", Position: nodes.NodeLoc(args[0]).Start}
+		}
+		if !isStringOrVariable(args[1]) {
+			return &ParseError{Message: "OPENXML takes a row pattern as a string or a variable", Position: nodes.NodeLoc(args[1]).Start}
+		}
+		if len(args) == 3 && !isIntegerOrVariable(args[2]) {
+			return &ParseError{Message: "OPENXML takes a row number as an integer or a variable", Position: nodes.NodeLoc(args[2]).Start}
+		}
+	}
+	return nil
+}
+
+// isStringOrVariable reports whether n is a string literal or a variable.
+func isStringOrVariable(n nodes.Node) bool {
+	switch v := n.(type) {
+	case *nodes.Literal:
+		return v.Type == nodes.LitString
+	case *nodes.VariableRef:
+		return true
+	}
+	return false
+}
+
+// isIntegerOrVariable reports whether n is an integer literal, not a binary
+// constant, or a variable.
+func isIntegerOrVariable(n nodes.Node) bool {
+	switch v := n.(type) {
+	case *nodes.Literal:
+		return v.Type == nodes.LitInteger && !procIsBinary(Token{Type: tokICONST, Str: v.Str})
+	case *nodes.VariableRef:
+		return true
+	}
+	return false
 }
 
 func isRowsetObjectArg(funcName string, argIndex int) bool {

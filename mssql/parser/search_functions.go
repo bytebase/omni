@@ -338,6 +338,12 @@ func (p *Parser) parseFullTextTopN() (nodes.ExprNode, error) {
 	loc := p.pos()
 	switch p.cur.Type {
 	case tokICONST:
+		// integerOrVariable is an integer, and the lexer makes a binary
+		// constant (0x10) a tokICONST too. CONTAINSTABLE(a, a, 'a', 0x00)
+		// is an error.
+		if procIsBinary(p.cur) {
+			return nil, p.unexpectedToken()
+		}
 		tok := p.advance()
 		return &nodes.Literal{
 			Type: nodes.LitInteger,

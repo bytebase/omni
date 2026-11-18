@@ -247,22 +247,27 @@ func (p *Parser) parseVariableTableSource() (nodes.TableExpr, error) {
 			Args:   args,
 			Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
 		}
+		// variableMethodCallTableReference takes an alias and its column list
+		// (bnf/TSql170.g). SQL Server rejects @v.f()(c), whose column list has
+		// no alias, @v.f() AS a, which has no column list, and @v.f() a(),
+		// whose column list is empty.
 		mc.Alias = p.parseOptionalAlias()
-		if p.cur.Type == '(' {
-			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				col, ok := p.parseIdentifier()
-				if !ok {
-					break
-				}
-				mc.Columns = append(mc.Columns, col)
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		if mc.Alias == "" || p.cur.Type != '(' {
+			return nil, p.newParseError(loc, "a table variable method call takes an alias and its column list")
+		}
+		p.advance() // consume (
+		for {
+			col, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.newParseError(p.pos(), "a table variable method call takes a column list")
 			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
+			mc.Columns = append(mc.Columns, col)
+			if _, ok := p.match(','); !ok {
+				break
 			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 		mc.Loc.End = p.prevEnd()
 		return mc, nil
@@ -311,26 +316,18 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	// Function call: ident(...). Without a schema it names a built-in, which
 	// SQL Server's parser checks (Msg 195; see builtinFunctions).
 	if p.cur.Type == '(' {
-		// MATCH ( graph pattern ) is a predicate of a search condition, read
-		// here as a call (graphMatchPredicate, TSql160.g).
+		// MATCH ( graph pattern ) is a predicate of a search condition
+		// (graphMatchPredicate, TSql160.g). Elsewhere MATCH is not a
+		// function, so the built-in check below refuses it (Msg 195).
+		if !delimited && p.inSearchCondition() && p.isValidOptionToken(graphMatchWord, p.prev) {
+			return p.parseGraphMatchPredicate(loc)
+		}
 		upper := strings.ToUpper(name)
-		graphMatch := !delimited && p.inSearchCondition() && upper == "MATCH"
-		// Inside it, LAST_NODE ( node ) = LAST_NODE ( node ) is graph syntax
-		// (graphMatchLastNodePattern, TSql160.g), refused anywhere else
-		// (Msg 195).
-		graphSyntax := !delimited && p.graphMatchDepth > 0 && upper == "LAST_NODE"
-		if !graphMatch && !graphSyntax && (delimited || !builtinFunctions[upper]) {
+		if delimited || !builtinFunctions[upper] {
 			return nil, &ParseError{Message: fmt.Sprintf("%q is not a recognized built-in function name", name), Position: loc}
 		}
 		if strings.EqualFold(name, "PARSE") || strings.EqualFold(name, "TRY_PARSE") {
 			return p.parseParseExpr(name, loc)
-		}
-		if graphSyntax {
-			return p.parseGraphLastNodePattern(name, loc)
-		}
-		if graphMatch {
-			p.graphMatchDepth++
-			defer func() { p.graphMatchDepth-- }()
 		}
 		return p.parseFuncCall(name, loc)
 	}
@@ -775,47 +772,4 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 	}
 
 	return fc, nil
-}
-
-// parseGraphLastNodePattern parses LAST_NODE ( node ) = LAST_NODE ( node )
-// inside a graph MATCH, the current token being the first open parenthesis
-// (graphMatchLastNodePattern, TSql160.g). SQL Server takes LAST_NODE only so.
-func (p *Parser) parseGraphLastNodePattern(name string, loc int) (nodes.ExprNode, error) {
-	lastNode := func(start int, fname string) (nodes.ExprNode, error) {
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		argLoc := p.pos()
-		node, ok := p.parseIdentifier()
-		if !ok {
-			return nil, p.syntaxErrorAtCur()
-		}
-		argEnd := p.prevEnd()
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		return &nodes.FuncCallExpr{
-			Name: &nodes.TableRef{Object: fname, Loc: nodes.Loc{Start: start, End: start + len(fname)}},
-			Args: &nodes.List{Items: []nodes.Node{&nodes.ColumnRef{Column: node, Loc: nodes.Loc{Start: argLoc, End: argEnd}}}},
-			Loc:  nodes.Loc{Start: start, End: p.prevEnd()},
-		}, nil
-	}
-	left, err := lastNode(loc, name)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect('='); err != nil {
-		return nil, err
-	}
-	rloc := p.pos()
-	if p.isDelimited(p.cur) || strings.ToUpper(p.cur.Str) != "LAST_NODE" {
-		return nil, p.syntaxErrorAtCur()
-	}
-	rname := p.cur.Str
-	p.advance()
-	right, err := lastNode(rloc, rname)
-	if err != nil {
-		return nil, err
-	}
-	return &nodes.BinaryExpr{Op: nodes.BinOpEq, Left: left, Right: right, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 }
