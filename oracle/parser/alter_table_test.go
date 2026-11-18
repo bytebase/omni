@@ -473,6 +473,11 @@ func TestParseAlterTableObjectAndCollectionStorage(t *testing.T) {
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY COMPRESS)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) COMPRESS NOCOMPRESS)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG GROUP g(c), d NULL))",
+		// Oracle answers ORA-01735 at byte 0 for the option and reads no
+		// item of the object_properties group, so what it holds is not
+		// judged: parseATObjectProperties reads the balanced tokens alone.
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c zzz))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG GROUP g(c LOG)))",
 		"ALTER TABLE t ADD (a CLOB, b CLOB) LOB (a) STORE AS SECUREFILE LOB (b) STORE AS SECUREFILE",
 		"ALTER TABLE t ADD PARTITION p VALUES LESS THAN (10) DEFAULT DIRECTORY d LOCATION (d:'data.csv')",
 		"ALTER TABLE t ADD PARTITION p VALUES LESS THAN (10) LOCATION ('x') (SUBPARTITION s VALUES (1) LOCATION ('y'))",
@@ -481,28 +486,26 @@ func TestParseAlterTableObjectAndCollectionStorage(t *testing.T) {
 	}
 }
 
-// TestParseAlterTableNestedTableStorageStrict holds the nested table's
-// object and physical properties to their alternatives: an ordinary
-// ALTER TABLE keeps COLUMNS outside DATA's parentheses, an inline
-// constraint's state follows NULL, and the physical properties choose once.
+// TestParseAlterTableNestedTableStorageStrict holds the storage table's
+// clauses that Oracle reads to their alternatives: an ordinary ALTER TABLE
+// keeps COLUMNS outside DATA's parentheses, and the physical and column
+// properties after the object_properties group choose once, an index
+// organization at the end. The group itself is not held: Oracle answers
+// ORA-01735 at byte 0 for the option that holds it and reads no item of it
+// (parseATObjectProperties), so its text judges nothing.
 func TestParseAlterTableNestedTableStorageStrict(t *testing.T) {
 	for _, sql := range []string{
 		"ALTER TABLE t ADD SUPPLEMENTAL LOG DATA (UNIQUE COLUMNS)",
-		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c CONSTRAINT x SCOPE IS t))",
-		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c CONSTRAINT x WITH ROWID))",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE NOCACHE)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) MAPPING TABLE NOMAPPING)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CLUSTER cl(c) CACHE)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) MAPPING TABLE PCTTHRESHOLD 10)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE MAPPING TABLE)",
-		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG DATA(UNIQUE, ALL COLUMNS)))",
-		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG DATA(UNIQUE) COLUMNS))",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s (CACHE (c))",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE TABLESPACE x)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) XMLTYPE x TABLESPACE y)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INCLUDING SELECT OVERFLOW)",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) COMPRESS 1 MAPPING TABLE)",
-		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c SCOPE IS t SCOPE IS u))",
 		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY COMPRESS BASIC)",
 	} {
 		ParseShouldFail(t, sql)
