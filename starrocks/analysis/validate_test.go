@@ -63,6 +63,24 @@ func TestValidateQuerySubmitTask(t *testing.T) {
 	}
 }
 
+// EXPLAIN ANALYZE over DML is not read-only, but its profile is still a
+// result set the driver must read rather than Exec.
+func TestValidateQueryAnalyzeInsert(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN ANALYZE INSERT INTO t SELECT 1",
+		"DESC ANALYZE INSERT INTO t SELECT 1",
+	} {
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Errorf("%q: %v", sql, err)
+			continue
+		}
+		if readOnly || !returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (false, true)", sql, readOnly, returnsData)
+		}
+	}
+}
+
 // TRACE plans the query it wraps and never runs it, so it is read-only like
 // EXPLAIN, including over a query that writes out a file.
 func TestValidateQueryOptimizerTrace(t *testing.T) {

@@ -1196,3 +1196,19 @@ func TestGetQuerySpanNestedWithScopes(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want denied and allowed", span.AccessTables)
 	}
 }
+
+// A wrapped grouped WITH keeps its scope: c is the CTE, not a physical table.
+func TestGetQuerySpanWrappedGroupedWith(t *testing.T) {
+	for _, sql := range []string{
+		"TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT * FROM c)",
+		"CREATE TABLE dst AS TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT * FROM c)",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q): %v", sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+			t.Errorf("%q: AccessTables = %+v, want secret", sql, span.AccessTables)
+		}
+	}
+}

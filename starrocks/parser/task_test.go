@@ -86,6 +86,7 @@ func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
 		"SUBMIT TASK AS CREATE TABLE a ENGINE = OLAP AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a ROLLUP (r (x)) AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a BROKER PROPERTIES('x' = 'y') AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a BROKER AS SELECT 1",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

@@ -189,6 +189,26 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		w.visitSetOpArm(n, true /* outermost */)
 	case *ast.DataCacheSelectStmt:
 		w.visitDataCacheSelect(n)
+	case *ast.OptimizerTraceStmt:
+		w.visitWrappedQuery(n.Query)
+	case *ast.ExplainStmt:
+		w.visitWrappedQuery(n.Query)
+	default:
+		w.validateEmbeddedSubqueries(node)
+	}
+}
+
+// visitWrappedQuery walks the query a TRACE, EXPLAIN or CTAS body wraps. It
+// uses the scoped visitor for query relations, so a grouped WITH keeps its
+// scope, but does not promote the wrapped projection to this statement's
+// Results: a plan or trace answers with its own rows.
+func (w *spanWalker) visitWrappedQuery(node ast.Node) {
+	if node == nil {
+		return
+	}
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+		w.visitSetOpArm(node, false)
 	default:
 		w.validateEmbeddedSubqueries(node)
 	}
@@ -673,13 +693,20 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int, allowTrace bool)
 		switch stmt := stmt.(type) {
 		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 			w.visitSetOpArm(stmt, false)
-		case *ast.OptimizerTraceStmt, *ast.ExplainStmt:
+		case *ast.OptimizerTraceStmt:
 			if !allowTrace {
 				loc := ast.NodeLoc(stmt)
 				w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
 				continue
 			}
-			w.validateEmbeddedSubqueries(stmt)
+			w.visitWrappedQuery(stmt.Query)
+		case *ast.ExplainStmt:
+			if !allowTrace {
+				loc := ast.NodeLoc(stmt)
+				w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
+				continue
+			}
+			w.visitWrappedQuery(stmt.Query)
 		default:
 			// A placeholder body that parses cleanly as something other than
 			// a query (EXISTS (DELETE FROM secret) FROM public) is not a

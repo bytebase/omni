@@ -689,15 +689,17 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 
 		case kwBROKER:
-			// BROKER ext_properties
+			// BROKER ext_properties (StarRocks.g4:2703), where extProperties
+			// is BROKER properties: a bare BROKER is incomplete.
 			p.advance() // consume BROKER
-			if p.cur.Kind == kwPROPERTIES {
-				props, err := p.parseProperties()
-				if err != nil {
-					return err
-				}
-				stmt.BrokerProperties = props
+			if p.cur.Kind != kwPROPERTIES {
+				return p.syntaxErrorAtCur()
 			}
+			props, err := p.parseProperties()
+			if err != nil {
+				return err
+			}
+			stmt.BrokerProperties = props
 			continue
 
 		case kwAS:
