@@ -139,7 +139,9 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		p.advance() // MODEL
 		return p.finishRedshiftModelPrivilege(loc, privLoc, false, grantOptionFor)
 	}
-	if p.redshiftKeywordIs("debug") && p.peekNext().Type == ON {
+	if p.redshiftKeywordIs("debug") && p.peekNext().Type == ON && !grantOptionFor && roleOptionName == "" {
+		// r_REVOKE's DEBUG alternative starts at DEBUG: no GRANT OPTION FOR and
+		// no ADMIN OPTION FOR prefix.
 		return p.parseRedshiftDebugStmt(loc, false)
 	}
 	if p.redshiftScopedPermissionStart() {
@@ -397,14 +399,24 @@ func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*n
 		p.advance()
 		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
+	isRole := false
 	if p.redshiftKeywordIs("role") && isColIdToken(p.peekNext()) {
 		p.advance()
+		isRole = true
 	}
-	// A quoted identity carries its own ":" inside the delimited identifier.
+	roletype := int(nodes.ROLESPEC_CSTRING)
+	if isRole {
+		roletype = int(nodes.ROLESPEC_IDC_ROLE)
+	}
+	// A quoted identity carries its own ":" inside the delimited identifier, and
+	// must hold one <prefix>:<name> as the unquoted spelling does.
 	if p.isDelimitedIdentToken(p.cur) {
+		if !redshiftIdentityName(p.cur.Str) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		tok := p.advance()
 		return &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Roletype: roletype,
 			Rolename: tok.Str,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
@@ -421,10 +433,18 @@ func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*n
 		return nil, err
 	}
 	return &nodes.RoleSpec{
-		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Roletype: roletype,
 		Rolename: prefix + ":" + name,
 		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
+}
+
+// redshiftIdentityName reports whether s is one <prefix>:<name> pair: the AWS
+// IAM Identity Center identity a quoted CONNECT or DEBUG grantee spells as one
+// delimited identifier.
+func redshiftIdentityName(s string) bool {
+	prefix, name, ok := strings.Cut(s, ":")
+	return ok && prefix != "" && name != "" && !strings.Contains(name, ":")
 }
 
 func (p *Parser) finishGrantRole(loc int, isGrant bool, roles *nodes.List) (nodes.Node, error) {
@@ -1016,7 +1036,19 @@ func (p *Parser) checkRedshiftGrantPrivileges(kind redshiftGrantKind, objtype no
 	}
 	switch kind {
 	case redshiftGrantExternalTable:
-		return p.checkRedshiftPrivilegeNames(privs, "external table", true,
+		// The column-level alternative is the whole statement: { SELECT | ALL
+		// [ PRIVILEGES ] } ( column_list ), one privilege and one list. The
+		// privilege-list alternative names no column.
+		if redshiftPrivilegesNameColumns(privs) {
+			if len(privs.Items) != 1 {
+				return p.redshiftPrivilegeError(privs, "an external table's column grant is one privilege with one column list")
+			}
+			if name := redshiftPrivilegeName(privs.Items[0]); name != "" && name != "select" {
+				return p.redshiftPrivilegeError(privs, name+" takes no column list on an external table")
+			}
+			return p.checkRedshiftPrivilegeShape(privs, true)
+		}
+		return p.checkRedshiftPrivilegeNames(privs, "external table", false,
 			map[string]bool{"select": true, "alter": true, "drop": true, "delete": true, "insert": true})
 	case redshiftGrantExternalSchema:
 		return p.checkRedshiftPrivilegeNames(privs, "external schema", false,

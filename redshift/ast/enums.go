@@ -259,6 +259,9 @@ const (
 	ROLESPEC_CURRENT_USER                     // CURRENT_USER (synonym)
 	ROLESPEC_SESSION_USER                     // SESSION_USER
 	ROLESPEC_PUBLIC                           // PUBLIC
+	// ROLESPEC_IDC_ROLE is an AWS IAM Identity Center role (a group identity),
+	// the grantee GRANT CONNECT and DEBUG write as ROLE <prefix>:<name>.
+	ROLESPEC_IDC_ROLE
 )
 
 // AlterTableType represents ALTER TABLE command types.

@@ -90,6 +90,9 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		"GRANT SELECT ON EXTERNAL TABLE s.t TO ROLE r",
 		"GRANT SELECT ON EXTERNAL TABLE s.t TO PUBLICACCESSIBLE",
 		"GRANT SELECT(a) ON EXTERNAL TABLE s.t TO PUBLIC",
+		"GRANT SELECT(a), INSERT ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'",
+		"GRANT SELECT(a), (b) ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'",
+		"GRANT ALTER(a) ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'",
 		"GRANT CREATE ON EXTERNAL SCHEMA s TO a",
 		"GRANT CREATE ON EXTERNAL SCHEMA s TO PUBLIC",
 		"REVOKE SELECT ON EXTERNAL TABLE s.t FROM a",
@@ -177,11 +180,28 @@ func TestRedshiftGrantFederatedIdentity(t *testing.T) {
 		}
 	}
 
+	// ROLE names an Identity Center role, not a user of that name.
+	role := singleStmt(t, "GRANT CONNECT TO ROLE AWSIDC:analysts").(*nodes.GrantRoleStmt)
+	if rs, ok := role.GranteeRoles.Items[0].(*nodes.RoleSpec); !ok || nodes.RoleSpecType(rs.Roletype) != nodes.ROLESPEC_IDC_ROLE {
+		t.Errorf("TO ROLE AWSIDC:analysts: grantee = %+v, want ROLESPEC_IDC_ROLE", role.GranteeRoles.Items[0])
+	}
+	user := singleStmt(t, "GRANT CONNECT TO AWSIDC:analysts").(*nodes.GrantRoleStmt)
+	if rs, ok := user.GranteeRoles.Items[0].(*nodes.RoleSpec); !ok || nodes.RoleSpecType(rs.Roletype) != nodes.ROLESPEC_CSTRING {
+		t.Errorf("TO AWSIDC:analysts: grantee = %+v, want ROLESPEC_CSTRING", user.GranteeRoles.Items[0])
+	}
+
 	for _, sql := range []string{
+		// DEBUG's revoke starts at DEBUG, with no role-option prefix.
+		"REVOKE GRANT OPTION FOR DEBUG ON DATABASE d FROM AWSIDC:alice",
+		"REVOKE ADMIN OPTION FOR DEBUG ON DATABASE d FROM AWSIDC:alice",
 		// A CONNECT and DEBUG grantee is <prefix>:<name>, ROLE <prefix>:<name>,
 		// PUBLIC (CONNECT) or the admins of an account (DEBUG).
 		"GRANT CONNECT TO alice",
 		"GRANT CONNECT TO a:b:c",
+		`GRANT CONNECT TO "alice"`,
+		`GRANT CONNECT TO "a:b:c"`,
+		`GRANT DEBUG ON DATABASE d TO "alice"`,
+		`GRANT CONNECT TO ROLE "alice"`,
 		"GRANT CONNECT TO ROLE alice",
 		"GRANT CONNECT TO a, b",
 		"GRANT CONNECT ON TABLE t TO a:b",
