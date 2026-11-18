@@ -244,14 +244,6 @@ const (
 	// T_DeleteStmt is the tag for *DeleteStmt.
 	T_DeleteStmt
 
-	// DML — MERGE INTO nodes (T4.3).
-
-	// T_MergeStmt is the tag for *MergeStmt.
-	T_MergeStmt
-
-	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
-	T_MergeClause
-
 	// DML — TRUNCATE TABLE / LOAD / EXPORT nodes (T6.1).
 
 	// T_TruncateTableStmt is the tag for *TruncateTableStmt.
@@ -330,22 +322,36 @@ const (
 
 	// T_RefreshCatalogStmt is the tag for *RefreshCatalogStmt.
 	T_RefreshCatalogStmt
-	// DDL — STORAGE VAULT nodes (T5.3).
+	// DDL — STORAGE VOLUME nodes (StarRocks.g4:782-822).
 
-	// T_CreateStorageVaultStmt is the tag for *CreateStorageVaultStmt.
-	T_CreateStorageVaultStmt
+	// T_CreateStorageVolumeStmt is the tag for *CreateStorageVolumeStmt.
+	T_CreateStorageVolumeStmt
 
-	// T_AlterStorageVaultStmt is the tag for *AlterStorageVaultStmt.
-	T_AlterStorageVaultStmt
+	// T_AlterStorageVolumeStmt is the tag for *AlterStorageVolumeStmt.
+	T_AlterStorageVolumeStmt
 
-	// T_DropStorageVaultStmt is the tag for *DropStorageVaultStmt.
-	T_DropStorageVaultStmt
+	// T_AlterStorageVolumeClause is the tag for *AlterStorageVolumeClause.
+	T_AlterStorageVolumeClause
 
-	// T_SetDefaultStorageVaultStmt is the tag for *SetDefaultStorageVaultStmt.
-	T_SetDefaultStorageVaultStmt
+	// T_DropStorageVolumeStmt is the tag for *DropStorageVolumeStmt.
+	T_DropStorageVolumeStmt
 
-	// T_UnsetDefaultStorageVaultStmt is the tag for *UnsetDefaultStorageVaultStmt.
-	T_UnsetDefaultStorageVaultStmt
+	// T_DescStorageVolumeStmt is the tag for *DescStorageVolumeStmt.
+	T_DescStorageVolumeStmt
+
+	// DDL — WAREHOUSE nodes (StarRocks.g4:2038-2053).
+
+	// T_CreateWarehouseStmt is the tag for *CreateWarehouseStmt.
+	T_CreateWarehouseStmt
+
+	// T_DropWarehouseStmt is the tag for *DropWarehouseStmt.
+	T_DropWarehouseStmt
+
+	// T_SuspendWarehouseStmt is the tag for *SuspendWarehouseStmt.
+	T_SuspendWarehouseStmt
+
+	// T_ResumeWarehouseStmt is the tag for *ResumeWarehouseStmt.
+	T_ResumeWarehouseStmt
 
 	// DDL — STORAGE POLICY nodes (T5.3).
 
@@ -369,14 +375,6 @@ const (
 	// T_DropRepositoryStmt is the tag for *DropRepositoryStmt.
 	T_DropRepositoryStmt
 
-	// DDL — STAGE nodes (T5.3).
-
-	// T_CreateStageStmt is the tag for *CreateStageStmt.
-	T_CreateStageStmt
-
-	// T_DropStageStmt is the tag for *DropStageStmt.
-	T_DropStageStmt
-
 	// DDL — FILE nodes (T5.3).
 
 	// T_CreateFileStmt is the tag for *CreateFileStmt.
@@ -385,27 +383,6 @@ const (
 	// T_DropFileStmt is the tag for *DropFileStmt.
 	T_DropFileStmt
 	// Workload management DDL nodes (T5.4).
-
-	// T_CreateWorkloadGroupStmt is the tag for *CreateWorkloadGroupStmt.
-	T_CreateWorkloadGroupStmt
-
-	// T_AlterWorkloadGroupStmt is the tag for *AlterWorkloadGroupStmt.
-	T_AlterWorkloadGroupStmt
-
-	// T_DropWorkloadGroupStmt is the tag for *DropWorkloadGroupStmt.
-	T_DropWorkloadGroupStmt
-
-	// T_WorkloadPolicyItem is the tag for *WorkloadPolicyItem.
-	T_WorkloadPolicyItem
-
-	// T_CreateWorkloadPolicyStmt is the tag for *CreateWorkloadPolicyStmt.
-	T_CreateWorkloadPolicyStmt
-
-	// T_AlterWorkloadPolicyStmt is the tag for *AlterWorkloadPolicyStmt.
-	T_AlterWorkloadPolicyStmt
-
-	// T_DropWorkloadPolicyStmt is the tag for *DropWorkloadPolicyStmt.
-	T_DropWorkloadPolicyStmt
 
 	// T_CreateResourceStmt is the tag for *CreateResourceStmt.
 	T_CreateResourceStmt
@@ -416,14 +393,6 @@ const (
 	// T_DropResourceStmt is the tag for *DropResourceStmt.
 	T_DropResourceStmt
 
-	// T_CreateSQLBlockRuleStmt is the tag for *CreateSQLBlockRuleStmt.
-	T_CreateSQLBlockRuleStmt
-
-	// T_AlterSQLBlockRuleStmt is the tag for *AlterSQLBlockRuleStmt.
-	T_AlterSQLBlockRuleStmt
-
-	// T_DropSQLBlockRuleStmt is the tag for *DropSQLBlockRuleStmt.
-	T_DropSQLBlockRuleStmt
 	// Security DDL nodes (T5.5).
 
 	// T_CreateRowPolicyStmt is the tag for *CreateRowPolicyStmt.
@@ -596,12 +565,6 @@ const (
 	T_ShowJobTaskStmt
 	// Statistics / Analyze / Constraint management nodes (T8.3).
 
-	// T_AddConstraintStmt is the tag for *AddConstraintStmt.
-	T_AddConstraintStmt
-
-	// T_DropConstraintStmt is the tag for *DropConstraintStmt.
-	T_DropConstraintStmt
-
 	// T_ShowConstraintsStmt is the tag for *ShowConstraintsStmt.
 	T_ShowConstraintsStmt
 
@@ -626,9 +589,6 @@ const (
 
 	// T_CreateProcedureStmt is the tag for *CreateProcedureStmt.
 	T_CreateProcedureStmt
-
-	// T_CallProcedureStmt is the tag for *CallProcedureStmt.
-	T_CallProcedureStmt
 
 	// T_DropProcedureStmt is the tag for *DropProcedureStmt.
 	T_DropProcedureStmt
@@ -799,10 +759,6 @@ func (t NodeTag) String() string {
 		return "UpdateStmt"
 	case T_DeleteStmt:
 		return "DeleteStmt"
-	case T_MergeStmt:
-		return "MergeStmt"
-	case T_MergeClause:
-		return "MergeClause"
 	case T_TruncateTableStmt:
 		return "TruncateTableStmt"
 	case T_LoadDataDesc:
@@ -851,16 +807,24 @@ func (t NodeTag) String() string {
 		return "DropCatalogStmt"
 	case T_RefreshCatalogStmt:
 		return "RefreshCatalogStmt"
-	case T_CreateStorageVaultStmt:
-		return "CreateStorageVaultStmt"
-	case T_AlterStorageVaultStmt:
-		return "AlterStorageVaultStmt"
-	case T_DropStorageVaultStmt:
-		return "DropStorageVaultStmt"
-	case T_SetDefaultStorageVaultStmt:
-		return "SetDefaultStorageVaultStmt"
-	case T_UnsetDefaultStorageVaultStmt:
-		return "UnsetDefaultStorageVaultStmt"
+	case T_CreateStorageVolumeStmt:
+		return "CreateStorageVolumeStmt"
+	case T_AlterStorageVolumeStmt:
+		return "AlterStorageVolumeStmt"
+	case T_AlterStorageVolumeClause:
+		return "AlterStorageVolumeClause"
+	case T_DropStorageVolumeStmt:
+		return "DropStorageVolumeStmt"
+	case T_DescStorageVolumeStmt:
+		return "DescStorageVolumeStmt"
+	case T_CreateWarehouseStmt:
+		return "CreateWarehouseStmt"
+	case T_DropWarehouseStmt:
+		return "DropWarehouseStmt"
+	case T_SuspendWarehouseStmt:
+		return "SuspendWarehouseStmt"
+	case T_ResumeWarehouseStmt:
+		return "ResumeWarehouseStmt"
 	case T_CreateStoragePolicyStmt:
 		return "CreateStoragePolicyStmt"
 	case T_AlterStoragePolicyStmt:
@@ -873,40 +837,16 @@ func (t NodeTag) String() string {
 		return "AlterRepositoryStmt"
 	case T_DropRepositoryStmt:
 		return "DropRepositoryStmt"
-	case T_CreateStageStmt:
-		return "CreateStageStmt"
-	case T_DropStageStmt:
-		return "DropStageStmt"
 	case T_CreateFileStmt:
 		return "CreateFileStmt"
 	case T_DropFileStmt:
 		return "DropFileStmt"
-	case T_CreateWorkloadGroupStmt:
-		return "CreateWorkloadGroupStmt"
-	case T_AlterWorkloadGroupStmt:
-		return "AlterWorkloadGroupStmt"
-	case T_DropWorkloadGroupStmt:
-		return "DropWorkloadGroupStmt"
-	case T_WorkloadPolicyItem:
-		return "WorkloadPolicyItem"
-	case T_CreateWorkloadPolicyStmt:
-		return "CreateWorkloadPolicyStmt"
-	case T_AlterWorkloadPolicyStmt:
-		return "AlterWorkloadPolicyStmt"
-	case T_DropWorkloadPolicyStmt:
-		return "DropWorkloadPolicyStmt"
 	case T_CreateResourceStmt:
 		return "CreateResourceStmt"
 	case T_AlterResourceStmt:
 		return "AlterResourceStmt"
 	case T_DropResourceStmt:
 		return "DropResourceStmt"
-	case T_CreateSQLBlockRuleStmt:
-		return "CreateSQLBlockRuleStmt"
-	case T_AlterSQLBlockRuleStmt:
-		return "AlterSQLBlockRuleStmt"
-	case T_DropSQLBlockRuleStmt:
-		return "DropSQLBlockRuleStmt"
 	case T_CreateRowPolicyStmt:
 		return "CreateRowPolicyStmt"
 	case T_DropRowPolicyStmt:
@@ -1015,10 +955,6 @@ func (t NodeTag) String() string {
 		return "ShowJobStmt"
 	case T_ShowJobTaskStmt:
 		return "ShowJobTaskStmt"
-	case T_AddConstraintStmt:
-		return "AddConstraintStmt"
-	case T_DropConstraintStmt:
-		return "DropConstraintStmt"
 	case T_ShowConstraintsStmt:
 		return "ShowConstraintsStmt"
 	case T_AnalyzeStmt:
@@ -1035,8 +971,6 @@ func (t NodeTag) String() string {
 		return "ProcedureParam"
 	case T_CreateProcedureStmt:
 		return "CreateProcedureStmt"
-	case T_CallProcedureStmt:
-		return "CallProcedureStmt"
 	case T_DropProcedureStmt:
 		return "DropProcedureStmt"
 	default:

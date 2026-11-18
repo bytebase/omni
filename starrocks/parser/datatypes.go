@@ -16,7 +16,7 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	case kwTINYINT, kwSMALLINT, kwINT, kwINTEGER, kwBIGINT, kwLARGEINT:
 		return true
 	// Float/decimal types
-	case kwFLOAT, kwDOUBLE, kwDECIMAL, kwDECIMALV2, kwDECIMALV3,
+	case kwFLOAT, kwDOUBLE, kwDECIMAL, kwDECIMALV2,
 		// decimalType's other names (StarRocks.g4:2845).
 		kwDECIMAL32, kwDECIMAL64, kwDECIMAL128, kwNUMERIC, kwNUMBER:
 		return true
@@ -27,12 +27,10 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	case kwSTRING, kwTEXT, kwVARCHAR, kwCHAR, kwVARBINARY:
 		return true
 	// Date/time types
-	case kwDATE, kwDATETIME, kwTIME, kwDATEV1, kwDATEV2, kwDATETIMEV1, kwDATETIMEV2:
+	case kwDATE, kwDATETIME, kwTIME:
 		return true
-	// Special Doris types
-	case kwBITMAP, kwHLL, kwQUANTILE_STATE, kwPERCENTILE, kwJSON, kwJSONB:
-		return true
-	case kwIPV4, kwIPV6, kwVARIANT, kwAGG_STATE:
+	// Special types
+	case kwBITMAP, kwHLL, kwPERCENTILE, kwJSON:
 		return true
 	// ALL keyword can appear as a type name in some grammar positions
 	case kwALL:
@@ -67,8 +65,6 @@ func typeKeywordName(tok Token) string {
 		return "DECIMAL"
 	case kwDECIMALV2:
 		return "DECIMALV2"
-	case kwDECIMALV3:
-		return "DECIMALV3"
 	case kwDECIMAL32:
 		return "DECIMAL32"
 	case kwDECIMAL64:
@@ -97,34 +93,14 @@ func typeKeywordName(tok Token) string {
 		return "DATETIME"
 	case kwTIME:
 		return "TIME"
-	case kwDATEV1:
-		return "DATEV1"
-	case kwDATEV2:
-		return "DATEV2"
-	case kwDATETIMEV1:
-		return "DATETIMEV1"
-	case kwDATETIMEV2:
-		return "DATETIMEV2"
 	case kwBITMAP:
 		return "BITMAP"
 	case kwHLL:
 		return "HLL"
-	case kwQUANTILE_STATE:
-		return "QUANTILE_STATE"
 	case kwPERCENTILE:
 		return "PERCENTILE"
 	case kwJSON:
 		return "JSON"
-	case kwJSONB:
-		return "JSONB"
-	case kwIPV4:
-		return "IPV4"
-	case kwIPV6:
-		return "IPV6"
-	case kwVARIANT:
-		return "VARIANT"
-	case kwAGG_STATE:
-		return "AGG_STATE"
 	case kwALL:
 		return "ALL"
 	case kwARRAY:

@@ -2,9 +2,6 @@
 
 == TestSelect_DivergenceFlaggedOracleAccepts default#1
 > exec
-| SELECT * FROM JSON_TABLE('[1]', 'lax $' COLUMNS (a integer))
-< ok - -
-> exec
 | WITH SESSION foo = 1 SELECT 1
 < error
 | INVALID_SESSION_PROPERTY 14 1:20

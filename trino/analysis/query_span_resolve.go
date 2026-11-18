@@ -833,6 +833,10 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 		}
 		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
 		return columnProjection(cols)
+	case *parser.JSONTableRelation:
+		cols := s.jsonTableColumns(n, colAliases)
+		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
+		return columnProjection(cols)
 	default:
 		// Lateral and table-function relations are not resolved here (tracked
 		// separately). Bind the alias as a non-derived (opaque) relation so
@@ -955,6 +959,54 @@ func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Ident
 		cols = append(cols, outCol{name: name, sources: srcs})
 	}
 	return cols
+}
+
+// jsonTableColumns computes the output columns of a JSON_TABLE relation. Every
+// non-ordinality column is extracted from the relation's JSON input (and any
+// PASSING argument), so it carries those sources; an ordinality column is a row
+// number and carries none. A value column's DEFAULT ON EMPTY / ON ERROR
+// expressions are sources too, since the column may take their value. Nested
+// columns contribute their own leaf columns. Without a resolvable input the
+// columns are still named, so references through the relation can resolve to
+// no lineage instead of staying opaque.
+func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast.Identifier) []outCol {
+	var input []ColumnRef
+	if n.Path != nil {
+		if n.Path.Input != nil {
+			input = append(input, s.resolveExprRefs(n.Path.Input.Expr)...)
+		}
+		for _, arg := range n.Path.Passing {
+			if arg.Value != nil {
+				input = append(input, s.resolveExprRefs(arg.Value.Expr)...)
+			}
+		}
+	}
+	var cols []outCol
+	var walk func([]parser.JSONTableColumn)
+	walk = func(list []parser.JSONTableColumn) {
+		for _, col := range list {
+			switch col.Kind {
+			case parser.JSONTableNestedColumn:
+				walk(col.Columns)
+			case parser.JSONTableOrdinalityColumn:
+				cols = append(cols, outCol{name: identName(col.Name)})
+			default:
+				sources := append([]ColumnRef(nil), input...)
+				if col.OnEmpty != nil {
+					sources = append(sources, s.resolveExprRefs(col.OnEmpty.Default)...)
+				}
+				if col.OnError != nil {
+					sources = append(sources, s.resolveExprRefs(col.OnError.Default)...)
+				}
+				cols = append(cols, outCol{name: identName(col.Name), sources: sources})
+			}
+		}
+	}
+	walk(n.Columns)
+	if len(cols) == 0 {
+		return nil
+	}
+	return applyColumnAliases(cols, colAliases)
 }
 
 // starExpansion returns the exact output columns a star select item covers, or

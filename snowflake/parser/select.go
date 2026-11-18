@@ -187,8 +187,12 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.All = true
 	}
 
-	// TOP n
-	if p.cur.Type == kwTOP {
+	// TOP n. TOP is a non-reserved keyword with no limitation on its use, so
+	// it names a column wherever no count follows it: `SELECT top FROM t`
+	// reads a select item named top, and only `SELECT TOP <n>` is the clause.
+	// https://docs.snowflake.com/en/sql-reference/reserved-keywords
+	// https://docs.snowflake.com/en/sql-reference/sql/select
+	if p.cur.Type == kwTOP && p.startsTopCount() {
 		p.advance() // consume TOP
 		topExpr, err := p.parseTopCount()
 		if err != nil {
@@ -284,14 +288,27 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	return stmt, nil
 }
 
-// parseTopCount parses the count following TOP. Snowflake documents TOP n
-// as taking a constant, so this deliberately parses a single primary
-// expression (number literal, $variable, or parenthesized expression)
-// rather than a full expression: in `SELECT TOP 125 * FROM t` the `*` is
-// the star select target, not a multiplication operator applied to 125.
+// startsTopCount reports whether the TOP at cur begins the TOP clause rather
+// than a select item named top. TOP <n> takes a non-negative integer constant
+// (https://docs.snowflake.com/en/sql-reference/constructs/top_n), so only a
+// number or a session variable begins it; a name, a comma, a clause keyword or
+// `(` leaves TOP to the identifier and function-call parser.
+func (p *Parser) startsTopCount() bool {
+	switch p.peekNext().Type {
+	case tokInt, tokFloat, tokReal, tokVariable:
+		return true
+	}
+	return false
+}
+
+// parseTopCount parses the count following TOP. Snowflake documents TOP <n>
+// as taking an integer constant, so this deliberately parses a single primary
+// expression (number literal or $variable) rather than a full expression: in
+// `SELECT TOP 125 * FROM t` the `*` is the star select target, not a
+// multiplication operator applied to 125.
 func (p *Parser) parseTopCount() (ast.Node, error) {
 	switch p.cur.Type {
-	case tokInt, tokFloat, tokReal, tokVariable, '(':
+	case tokInt, tokFloat, tokReal, tokVariable:
 		return p.parsePrimaryExpr()
 	default:
 		return nil, &ParseError{

@@ -51,6 +51,21 @@ func TestValidateQueryServerState(t *testing.T) {
 	}
 }
 
+// DESC STORAGE VOLUME answers with a storage volume's settings, so the
+// editor's read-only mode admits it the way it admits DESC over a table.
+func TestValidateQueryDescStorageVolume(t *testing.T) {
+	for _, sql := range []string{"DESC STORAGE VOLUME v", "DESCRIBE STORAGE VOLUME v"} {
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Errorf("%q: %v", sql, err)
+			continue
+		}
+		if !readOnly || !returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (true, true)", sql, readOnly, returnsData)
+		}
+	}
+}
+
 // An explained statement is a plan, and only StarRocks's EXPLAIN ANALYZE runs
 // the statement it plans.
 func TestDescribeExplain(t *testing.T) {

@@ -275,31 +275,20 @@ func TestCreateUser_PasswordAndDefaultRole(t *testing.T) {
 	}
 }
 
-func TestCreateUser_PasswordPolicy(t *testing.T) {
-	// CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_EXPIRE INTERVAL 10 DAY FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 1 DAY;
-	stmt := parseCreateUserStmt(t, `CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_EXPIRE INTERVAL 10 DAY FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 1 DAY`)
-	if stmt.Password != "12345" {
-		t.Errorf("Password = %q, want %q", stmt.Password, "12345")
-	}
-	if !stmt.PasswordExpire {
-		t.Error("PasswordExpire should be true")
-	}
-	if stmt.PasswordExpireInterval != 10 {
-		t.Errorf("PasswordExpireInterval = %d, want 10", stmt.PasswordExpireInterval)
-	}
-	if stmt.FailedLoginAttempts != 3 {
-		t.Errorf("FailedLoginAttempts = %d, want 3", stmt.FailedLoginAttempts)
-	}
-	if stmt.PasswordLockTime != 1 {
-		t.Errorf("PasswordLockTime = %d, want 1", stmt.PasswordLockTime)
-	}
-}
-
-func TestCreateUser_PasswordHistory(t *testing.T) {
-	// CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8;
-	stmt := parseCreateUserStmt(t, `CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8`)
-	if stmt.PasswordHistory != 8 {
-		t.Errorf("PasswordHistory = %d, want 8", stmt.PasswordHistory)
+// TestCreateUser_PasswordPolicyRefused: createUserStatement (StarRocks.g4:1623)
+// is CREATE USER ... authOption? (DEFAULT ROLE roleList)? properties? — it has
+// no PASSWORD_EXPIRE, PASSWORD_HISTORY, FAILED_LOGIN_ATTEMPTS or
+// PASSWORD_LOCK_TIME clause, and the pinned server refuses each of them.
+func TestCreateUser_PasswordPolicyRefused(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_EXPIRE INTERVAL 10 DAY`,
+		`CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8`,
+		`ALTER USER 'jack' FAILED_LOGIN_ATTEMPTS 3`,
+		`ALTER USER 'jack' PASSWORD_LOCK_TIME 1 DAY`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want a syntax error", sql)
+		}
 	}
 }
 
@@ -337,17 +326,6 @@ func TestAlterUser_IdentifiedBy(t *testing.T) {
 	}
 	if stmt.IfExists {
 		t.Error("IfExists should be false")
-	}
-}
-
-func TestAlterUser_PasswordPolicy(t *testing.T) {
-	// ALTER USER jack@'%' FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 1 DAY;
-	stmt := parseAlterUserStmt(t, `ALTER USER jack@'%' FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 1 DAY`)
-	if stmt.FailedLoginAttempts != 3 {
-		t.Errorf("FailedLoginAttempts = %d, want 3", stmt.FailedLoginAttempts)
-	}
-	if stmt.PasswordLockTime != 1 {
-		t.Errorf("PasswordLockTime = %d, want 1", stmt.PasswordLockTime)
 	}
 }
 
@@ -496,9 +474,6 @@ func TestCreateRowPolicy_Restrictive(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *ast.CreateRowPolicyStmt, got %T", n)
 	}
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
-	}
 	if stmt.Type != "RESTRICTIVE" {
 		t.Errorf("Type = %q, want RESTRICTIVE", stmt.Type)
 	}
@@ -539,7 +514,7 @@ func TestDropRowPolicy_Basic(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateDictionary_Basic(t *testing.T) {
-	sql := `CREATE DICTIONARY IF NOT EXISTS my_dict USING my_table (id KEY, name VALUE) LAYOUT(HASH_MAP) PROPERTIES("read_timeout" = "3000")`
+	sql := `CREATE DICTIONARY my_dict USING my_table (id KEY, name VALUE) PROPERTIES("read_timeout" = "3000")`
 	n := parseOne(t, sql)
 	stmt, ok := n.(*ast.CreateDictionaryStmt)
 	if !ok {
@@ -547,9 +522,6 @@ func TestCreateDictionary_Basic(t *testing.T) {
 	}
 	if stmt.Name.String() != "my_dict" {
 		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_dict")
-	}
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
 	}
 	if stmt.UsingTable.String() != "my_table" {
 		t.Errorf("UsingTable = %q, want %q", stmt.UsingTable.String(), "my_table")
@@ -563,14 +535,24 @@ func TestCreateDictionary_Basic(t *testing.T) {
 	if stmt.Columns[1].Name != "name" || stmt.Columns[1].Role != "VALUE" {
 		t.Errorf("Columns[1] = {%q, %q}, want {name, VALUE}", stmt.Columns[1].Name, stmt.Columns[1].Role)
 	}
-	if stmt.Layout != "hash_map" {
-		t.Errorf("Layout = %q, want %q", stmt.Layout, "hash_map")
-	}
 	if len(stmt.Properties) != 1 {
 		t.Fatalf("Properties: got %d, want 1", len(stmt.Properties))
 	}
 	if stmt.Properties[0].Key != "read_timeout" {
 		t.Errorf("Properties[0].Key = %q, want %q", stmt.Properties[0].Key, "read_timeout")
+	}
+}
+
+// TestCreateDictionaryDorisClausesRefused: createDictionaryStatement
+// (StarRocks.g4:842) has no IF NOT EXISTS and no LAYOUT.
+func TestCreateDictionaryDorisClausesRefused(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE DICTIONARY IF NOT EXISTS my_dict USING my_table (id KEY, name VALUE)`,
+		`CREATE DICTIONARY my_dict USING my_table (id KEY, name VALUE) LAYOUT(HASH_MAP)`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want a syntax error", sql)
+		}
 	}
 }
 

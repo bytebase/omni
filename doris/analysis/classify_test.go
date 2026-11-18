@@ -17,6 +17,10 @@ func TestClassify(t *testing.T) {
 		{"((SELECT 1))", QueryTypeSelect},
 		{"(SELECT 1) UNION SELECT 2", QueryTypeSelect},
 		{"with cte as (select 1) select * from cte", QueryTypeSelect},
+		// VALUES is a query primary (DorisParser.g4:1186), so its rows are a
+		// SELECT-shaped read, not a DML keyword.
+		{"VALUES(1)", QueryTypeSelect},
+		{"values(1), (2)", QueryTypeSelect},
 
 		// Info-schema / admin reads
 		{"SHOW TABLES", QueryTypeSelectInfoSchema},
@@ -153,5 +157,15 @@ func TestClassifyStatementCTEPrefixedDML(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A load-property statement is DML, as a LOAD is; before it parsed, the
+// keyword fallback classified `DELETE ON 1` as DML.
+func TestClassifyStatementLoadProperty(t *testing.T) {
+	for _, sql := range []string{"DELETE ON 1", "ORDER BY a", "COLUMNS(a)"} {
+		if got := ClassifyStatement(sql); got != QueryTypeDML {
+			t.Errorf("ClassifyStatement(%q) = %s, want DML", sql, got)
+		}
 	}
 }

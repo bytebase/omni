@@ -208,8 +208,7 @@ func (p *Parser) parseCTASColumnNames(stmt *ast.CreateTableStmt) error {
 // parseColumnDef parses a single column definition.
 //
 //	col_name data_type [KEY] [agg_type]
-//	    [GENERATED ALWAYS AS (expr)]
-//	    [NOT NULL | NULL] [AUTO_INCREMENT]
+//	    [AS expr | NOT NULL | NULL] [AUTO_INCREMENT]
 //	    [DEFAULT value] [ON UPDATE CURRENT_TIMESTAMP]
 //	    [COMMENT 'str']
 func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
@@ -251,31 +250,10 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 			p.advance()
 			continue
 
-		case kwGENERATED:
-			p.advance() // consume GENERATED
-			// Optional ALWAYS
-			p.match(kwALWAYS)
-			if _, err := p.expect(kwAS); err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(int('(')); err != nil {
-				return nil, err
-			}
-			expr, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			closeTok, err := p.expect(int(')'))
-			if err != nil {
-				return nil, err
-			}
-			col.Generated = expr
-			col.Loc.End = closeTok.Loc.End
-			continue
-
 		case kwAS:
-			// StarRocks generated-column shorthand: col TYPE AS <expr>
-			// (doris requires the GENERATED ALWAYS prefix handled above). The
+			// generatedColumnDesc (StarRocks.g4:412) is AS expression, the only
+			// generated-column form the grammar has: Doris's `GENERATED ALWAYS
+			// AS (expr)` is not derived, and the pinned server refuses it. The
 			// expression may be parenthesized — AS (a+b) — or not — AS abs(a) /
 			// AS a + b; parseExpr handles both, so don't mandate outer parens.
 			p.advance() // consume AS
@@ -1361,23 +1339,20 @@ func (p *Parser) parseDistributedBy() (*ast.DistributionDesc, error) {
 		}
 	}
 
-	// Optional BUCKETS n | BUCKETS AUTO
+	// Optional BUCKETS n. distributionDesc (StarRocks.g4:2681) counts buckets
+	// with INTEGER_VALUE; Doris's BUCKETS AUTO is not derived, and the pinned
+	// server refuses it.
 	if p.cur.Kind == kwBUCKETS {
 		p.advance() // consume BUCKETS
-		if p.cur.Kind == kwAUTO {
-			dd.Auto = true
-			dd.Loc.End = p.cur.Loc.End
-			p.advance()
-		} else if p.cur.Kind == tokInt {
-			dd.Buckets = int(p.cur.Ival)
-			dd.Loc.End = p.cur.Loc.End
-			p.advance()
-		} else {
+		if p.cur.Kind != tokInt {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: fmt.Sprintf("expected integer or AUTO after BUCKETS, got %q", p.cur.Str),
+				Message: fmt.Sprintf("expected an integer after BUCKETS, got %q", p.cur.Str),
 			}
 		}
+		dd.Buckets = int(p.cur.Ival)
+		dd.Loc.End = p.cur.Loc.End
+		p.advance()
 	}
 
 	return dd, nil

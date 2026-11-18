@@ -158,10 +158,6 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DeleteStmt:
 		return v.Loc
-	case *MergeStmt:
-		return v.Loc
-	case *MergeClause:
-		return v.Loc
 	case *TruncateTableStmt:
 		return v.Loc
 	case *LoadDataDesc:
@@ -210,15 +206,23 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *RefreshCatalogStmt:
 		return v.Loc
-	case *CreateStorageVaultStmt:
+	case *CreateStorageVolumeStmt:
 		return v.Loc
-	case *AlterStorageVaultStmt:
+	case *AlterStorageVolumeStmt:
 		return v.Loc
-	case *DropStorageVaultStmt:
+	case *AlterStorageVolumeClause:
 		return v.Loc
-	case *SetDefaultStorageVaultStmt:
+	case *DropStorageVolumeStmt:
 		return v.Loc
-	case *UnsetDefaultStorageVaultStmt:
+	case *DescStorageVolumeStmt:
+		return v.Loc
+	case *CreateWarehouseStmt:
+		return v.Loc
+	case *DropWarehouseStmt:
+		return v.Loc
+	case *SuspendWarehouseStmt:
+		return v.Loc
+	case *ResumeWarehouseStmt:
 		return v.Loc
 	case *CreateStoragePolicyStmt:
 		return v.Loc
@@ -232,39 +236,15 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DropRepositoryStmt:
 		return v.Loc
-	case *CreateStageStmt:
-		return v.Loc
-	case *DropStageStmt:
-		return v.Loc
 	case *CreateFileStmt:
 		return v.Loc
 	case *DropFileStmt:
-		return v.Loc
-	case *CreateWorkloadGroupStmt:
-		return v.Loc
-	case *AlterWorkloadGroupStmt:
-		return v.Loc
-	case *DropWorkloadGroupStmt:
-		return v.Loc
-	case *WorkloadPolicyItem:
-		return v.Loc
-	case *CreateWorkloadPolicyStmt:
-		return v.Loc
-	case *AlterWorkloadPolicyStmt:
-		return v.Loc
-	case *DropWorkloadPolicyStmt:
 		return v.Loc
 	case *CreateResourceStmt:
 		return v.Loc
 	case *AlterResourceStmt:
 		return v.Loc
 	case *DropResourceStmt:
-		return v.Loc
-	case *CreateSQLBlockRuleStmt:
-		return v.Loc
-	case *AlterSQLBlockRuleStmt:
-		return v.Loc
-	case *DropSQLBlockRuleStmt:
 		return v.Loc
 	case *CreateRowPolicyStmt:
 		return v.Loc
@@ -376,10 +356,6 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ShowJobTaskStmt:
 		return v.Loc
-	case *AddConstraintStmt:
-		return v.Loc
-	case *DropConstraintStmt:
-		return v.Loc
 	case *ShowConstraintsStmt:
 		return v.Loc
 	case *AnalyzeStmt:
@@ -395,8 +371,6 @@ func NodeLoc(n Node) Loc {
 	case *ProcedureParam:
 		return v.Loc
 	case *CreateProcedureStmt:
-		return v.Loc
-	case *CallProcedureStmt:
 		return v.Loc
 	case *DropProcedureStmt:
 		return v.Loc

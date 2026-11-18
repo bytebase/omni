@@ -154,6 +154,10 @@ func isReadOnlyAST(node ast.Node) bool {
 	case *ast.DescribeStmt:
 		// Reject bare `DESCRIBE` / `DESC` (Target nil means no table named).
 		return n.Target != nil
+	case *ast.DescStorageVolumeStmt:
+		// DESC STORAGE VOLUME answers with the volume's settings, like DESC
+		// over a table.
+		return n.Name != ""
 	case *ast.ExplainStmt:
 		// EXPLAIN requires an inner query; the inner query must itself be a
 		// shape EXPLAIN is meaningful for (SELECT family or DML). This blocks
@@ -187,7 +191,7 @@ func isExplainableInner(node ast.Node) bool {
 	}
 	switch node.(type) {
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.MergeStmt, *ast.TruncateTableStmt:
+		*ast.TruncateTableStmt:
 		return true
 	}
 	return false

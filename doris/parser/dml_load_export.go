@@ -319,47 +319,64 @@ func (p *Parser) parseLoadComment(stmt *ast.LoadDataStmt) error {
 	return nil
 }
 
-// parseLoadStorage reads withRemoteStorageSystem (DorisParser.g4:1121):
+// parseLoadStorage reads withRemoteStorageSystem for LOAD LABEL and stores it
+// on stmt. The engine holds a broker load's list to strings on both sides, as
+// the CUP parser's key_value_map does: (username = "u"), ("k" = 1) and
+// ("k" = v) are refused by its legacy parser ("Syntax error ... Encountered:
+// IDENTIFIER"), while EXPORT's list takes all three (container-verified both
+// ways). So this reads the list with parseStringProperty, and parseExport
+// reads it with parsePropertyItem.
+func (p *Parser) parseLoadStorage(stmt *ast.LoadDataStmt) error {
+	storageType, name, props, err := p.parseRemoteStorage(p.parseStringProperty)
+	if err != nil {
+		return err
+	}
+	stmt.StorageType = storageType
+	stmt.BrokerName = name
+	stmt.BrokerProperties = props
+	return nil
+}
+
+// parseRemoteStorage reads withRemoteStorageSystem (DorisParser.g4:1121),
+// which LOAD LABEL and EXPORT TABLE take:
 //
 //	WITH RESOURCE identifierOrText (LEFT_PAREN propertyItemList RIGHT_PAREN)?
 //	| WITH (S3 | HDFS | LOCAL) LEFT_PAREN propertyItemList RIGHT_PAREN
 //	| WITH BROKER identifierOrText (LEFT_PAREN propertyItemList RIGHT_PAREN)?
 //
-// The engine holds a broker load's list to strings on both sides, as the CUP
-// parser's key_value_map does: (username = "u"), ("k" = 1) and ("k" = v) are
-// refused by its legacy parser ("Syntax error ... Encountered: IDENTIFIER"),
-// while EXPORT's list takes all three (container-verified both ways). The
-// other storage systems' lists are read the same way, failing closed.
-func (p *Parser) parseLoadStorage(stmt *ast.LoadDataStmt) error {
+// A S3, HDFS or LOCAL clause needs its list; RESOURCE and BROKER name a
+// resource or broker and may leave it out. cur must be kwWITH on entry; it is
+// consumed here.
+//
+// parseItem reads one item of the list: the clauses differ in what they take
+// for a key and a value, not in the shape of the list.
+func (p *Parser) parseRemoteStorage(parseItem func() (*ast.Property, error)) (storageType, name string, props []*ast.Property, err error) {
 	p.advance() // consume WITH
 	needList := false
 	switch p.cur.Kind {
 	case kwRESOURCE, kwBROKER:
-		stmt.StorageType = strings.ToUpper(p.advance().Str)
-		name, _, err := p.parseIdentifierOrString()
-		if err != nil {
-			return err
+		storageType = strings.ToUpper(p.advance().Str)
+		if name, _, err = p.parseIdentifierOrString(); err != nil {
+			return "", "", nil, err
 		}
-		stmt.BrokerName = name
 	case kwS3, kwHDFS, kwLOCAL:
-		stmt.StorageType = strings.ToUpper(p.advance().Str)
+		storageType = strings.ToUpper(p.advance().Str)
 		needList = true
 	default:
-		return p.syntaxErrorAtCur()
+		return "", "", nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Kind != int('(') {
 		if needList {
-			return p.syntaxErrorAtCur()
+			return "", "", nil, p.syntaxErrorAtCur()
 		}
-		return nil
+		return storageType, name, nil, nil
 	}
 	p.advance() // consume '('
-	props, err := p.parsePropertyItems(p.parseStringProperty)
+	props, err = p.parsePropertyItems(parseItem)
 	if err != nil {
-		return err
+		return "", "", nil, err
 	}
-	stmt.BrokerProperties = props
-	return nil
+	return storageType, name, props, nil
 }
 
 // parseLoadLabel parses the load label, which may be db_name.label_name or
@@ -775,12 +792,23 @@ func (p *Parser) parseLoadMappings() ([]*ast.Assignment, error) {
 // EXPORT TABLE (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseExport parses:
+// parseExport parses EXPORT TABLE (DorisParser.g4:159-163):
 //
-//	EXPORT TABLE name [PARTITION(p1, p2, ...)] [WHERE expr]
+//	EXPORT TABLE name
+//	    [PARTITION(p1, p2, ...)] [WHERE expr]
 //	    TO 'path'
 //	    [PROPERTIES(...)]
-//	    [WITH BROKER name [(key=val, ...)]]
+//	    [withRemoteStorageSystem]
+//
+// DorisLegacyParser.g4's export_stmt (sql_parser.cup:1660) agrees on the
+// PARTITION keyword: it takes `PARTITION`, never `PARTITIONS`, so
+// `EXPORT TABLE a PARTITIONS(a) TO 'a'` is refused (container-verified). Its
+// opt_broker takes the same WITH forms as the grammar's
+// withRemoteStorageSystem, which parseRemoteStorage reads.
+//
+// Both property lists carry the grammar's full propertyItem, which is wider
+// than the "key"="value" pair most clauses take: (a = a) and ('a' = 'a') are
+// both accepted here (container-verified).
 //
 // The EXPORT keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseExport() (ast.Node, error) {
@@ -803,8 +831,8 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	stmt.Target = target
 
 	// Optional PARTITION(p1, p2, ...)
-	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
+	if p.cur.Kind == kwPARTITION {
+		p.advance() // consume PARTITION
 		parts, err := p.parsePartitionNameList()
 		if err != nil {
 			return nil, err
@@ -834,36 +862,22 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	// Optional PROPERTIES(...)
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
+		props, err := p.parseFullProperties()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Properties = props
 	}
 
-	// Optional WITH BROKER broker_name [(key=val, ...)]
+	// Optional withRemoteStorageSystem
 	if p.cur.Kind == kwWITH {
-		p.advance() // consume WITH
-		if _, err := p.expect(kwBROKER); err != nil {
-			return nil, err
-		}
-		brokerName, _, err := p.parseIdentifier()
+		storageType, name, props, err := p.parseRemoteStorage(p.parsePropertyItem)
 		if err != nil {
 			return nil, err
 		}
-		stmt.BrokerName = brokerName
-
-		// Optional broker properties: withRemoteStorageSystem's
-		// (LEFT_PAREN brokerProperties=propertyItemList RIGHT_PAREN)?, in the
-		// grammar's full item form (see parsePropertyItem).
-		if p.cur.Kind == int('(') {
-			p.advance() // consume '('
-			props, err := p.parsePropertyItems(p.parsePropertyItem)
-			if err != nil {
-				return nil, err
-			}
-			stmt.BrokerProperties = props
-		}
+		stmt.StorageType = storageType
+		stmt.BrokerName = name
+		stmt.BrokerProperties = props
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

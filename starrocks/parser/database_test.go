@@ -762,3 +762,80 @@ func TestWalkReachesPropertyLists(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// CREATE DATABASE ... charsetDesc / collateDesc
+// ---------------------------------------------------------------------------
+
+// TestCreateDatabase_CharsetCollate: StarRocks.g4:424 charsetDesc and :428
+// collateDesc, in the three spellings each takes, with and without DEFAULT and
+// the '=' (StarRocks.g4:354 createDbStatement).
+func TestCreateDatabase_CharsetCollate(t *testing.T) {
+	tests := []struct {
+		sql     string
+		charset string
+		collate string
+	}{
+		{"CREATE DATABASE a", "", ""},
+		{"CREATE DATABASE a CHARSET utf8", "utf8", ""},
+		{"CREATE DATABASE a CHAR SET utf8", "utf8", ""},
+		{"CREATE DATABASE a CHARACTER SET utf8", "utf8", ""},
+		{"CREATE DATABASE a DEFAULT CHARSET utf8mb4", "utf8mb4", ""},
+		{"CREATE DATABASE a DEFAULT CHAR SET utf8mb4", "utf8mb4", ""},
+		{"CREATE DATABASE a CHARSET = utf8", "utf8", ""},
+		{"CREATE DATABASE a COLLATE utf8_bin", "", "utf8_bin"},
+		{"CREATE DATABASE a DEFAULT COLLATE = utf8_bin", "", "utf8_bin"},
+		{"CREATE DATABASE a CHARSET utf8 COLLATE utf8_bin", "utf8", "utf8_bin"},
+		{"CREATE DATABASE a DEFAULT CHARSET = 'utf8' DEFAULT COLLATE = 'utf8_bin'", "utf8", "utf8_bin"},
+		{`CREATE DATABASE a CHARSET utf8 PROPERTIES("k"="v")`, "utf8", ""},
+	}
+	for _, tc := range tests {
+		stmt := parseOne(t, tc.sql).(*ast.CreateDatabaseStmt)
+		if stmt.Charset != tc.charset || stmt.Collate != tc.collate {
+			t.Errorf("%q: Charset = %q Collate = %q, want %q and %q",
+				tc.sql, stmt.Charset, stmt.Collate, tc.charset, tc.collate)
+		}
+	}
+
+	// The node ends at its last token: the properties' ')' or, without one,
+	// the name the description states.
+	stmt := parseOne(t, "CREATE DATABASE a CHARSET utf8").(*ast.CreateDatabaseStmt)
+	if end, want := stmt.Loc.End, len("CREATE DATABASE a CHARSET utf8"); end != want {
+		t.Errorf("Loc.End = %d, want %d", end, want)
+	}
+	stmt = parseOne(t, `CREATE DATABASE a CHARSET utf8 PROPERTIES("k"="v")`).(*ast.CreateDatabaseStmt)
+	if end, want := stmt.Loc.End, len(`CREATE DATABASE a CHARSET utf8 PROPERTIES("k"="v")`); end != want {
+		t.Errorf("Loc.End = %d, want %d", end, want)
+	}
+}
+
+// TestCreateDatabase_CharsetCollateRejected: a spelling the grammar does not
+// derive is refused at the token that breaks it.
+func TestCreateDatabase_CharsetCollateRejected(t *testing.T) {
+	tests := []struct {
+		sql string
+		at  string // a token in sql; empty when the statement ends too early
+	}{
+		{"CREATE DATABASE a CHARSET", ""},
+		{"CREATE DATABASE a CHARSET =", ""},
+		{"CREATE DATABASE a CHARSET utf8 zzz", "zzz"},
+		{"CREATE DATABASE a COLLATE", ""},
+		{"CREATE DATABASE a DEFAULT COLLATE", ""},
+		{"CREATE DATABASE a COLLATION utf8", "COLLATION"},
+		{"CREATE DATABASE a DEFAULT zzz", "DEFAULT"},
+	}
+	for _, tc := range tests {
+		_, errs := parseForTest(tc.sql)
+		if len(errs) == 0 {
+			t.Errorf("%q parsed; the engine rejects it", tc.sql)
+			continue
+		}
+		want := len(tc.sql)
+		if tc.at != "" {
+			want = strings.LastIndex(tc.sql, tc.at)
+		}
+		if errs[0].Position != want {
+			t.Errorf("%q: error at %d (%s), want %d", tc.sql, errs[0].Position, errs[0].Message, want)
+		}
+	}
+}

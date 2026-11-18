@@ -270,100 +270,6 @@ func TestKillAnalyze(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// ADD / DROP CONSTRAINT
-// ---------------------------------------------------------------------------
-
-func TestAlterTableAddConstraintPrimaryKey(t *testing.T) {
-	file, errs := parseForTest("ALTER TABLE t ADD CONSTRAINT pk_id PRIMARY KEY (id)")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.AddConstraintStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AddConstraintStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Table == nil || stmt.Table.String() != "t" {
-		t.Errorf("Table = %v, want t", stmt.Table)
-	}
-	if stmt.Name != "pk_id" {
-		t.Errorf("Name = %q, want pk_id", stmt.Name)
-	}
-	if stmt.Type != "PRIMARY KEY" {
-		t.Errorf("Type = %q, want PRIMARY KEY", stmt.Type)
-	}
-	if len(stmt.Columns) != 1 || stmt.Columns[0] != "id" {
-		t.Errorf("Columns = %v, want [id]", stmt.Columns)
-	}
-}
-
-func TestAlterTableAddConstraintUnique(t *testing.T) {
-	file, errs := parseForTest("ALTER TABLE t ADD CONSTRAINT uq_email UNIQUE (email)")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.AddConstraintStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AddConstraintStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Type != "UNIQUE" {
-		t.Errorf("Type = %q, want UNIQUE", stmt.Type)
-	}
-	if len(stmt.Columns) != 1 || stmt.Columns[0] != "email" {
-		t.Errorf("Columns = %v, want [email]", stmt.Columns)
-	}
-}
-
-func TestAlterTableAddConstraintForeignKey(t *testing.T) {
-	file, errs := parseForTest("ALTER TABLE orders ADD CONSTRAINT fk_cust FOREIGN KEY (customer_id) REFERENCES customers (id)")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.AddConstraintStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AddConstraintStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Type != "FOREIGN KEY" {
-		t.Errorf("Type = %q, want FOREIGN KEY", stmt.Type)
-	}
-	if len(stmt.Columns) != 1 || stmt.Columns[0] != "customer_id" {
-		t.Errorf("Columns = %v, want [customer_id]", stmt.Columns)
-	}
-	if stmt.RefTable == nil || stmt.RefTable.String() != "customers" {
-		t.Errorf("RefTable = %v, want customers", stmt.RefTable)
-	}
-	if len(stmt.RefColumns) != 1 || stmt.RefColumns[0] != "id" {
-		t.Errorf("RefColumns = %v, want [id]", stmt.RefColumns)
-	}
-}
-
-func TestAlterTableDropConstraint(t *testing.T) {
-	file, errs := parseForTest("ALTER TABLE t DROP CONSTRAINT pk_id")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.DropConstraintStmt)
-	if !ok {
-		t.Fatalf("expected *ast.DropConstraintStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Table == nil || stmt.Table.String() != "t" {
-		t.Errorf("Table = %v, want t", stmt.Table)
-	}
-	if stmt.Name != "pk_id" {
-		t.Errorf("Name = %q, want pk_id", stmt.Name)
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Legacy corpus forms (from statistics.sql)
-// ---------------------------------------------------------------------------
-
 func TestLegacyCorpus_DropStats(t *testing.T) {
 	// DROP STATS table1;
 	file, errs := parseForTest("DROP STATS table1")
@@ -450,8 +356,6 @@ func TestNodeTagsForStatsNodes(t *testing.T) {
 		{"SHOW ANALYZE", ast.T_ShowAnalyzeStmt},
 		{"DROP STATS t", ast.T_DropStatsStmt},
 		{"KILL ANALYZE 1", ast.T_KillAnalyzeStmt},
-		{"ALTER TABLE t ADD CONSTRAINT c PRIMARY KEY (id)", ast.T_AddConstraintStmt},
-		{"ALTER TABLE t DROP CONSTRAINT c", ast.T_DropConstraintStmt},
 	}
 
 	for _, tt := range tests {

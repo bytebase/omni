@@ -170,13 +170,12 @@ var _ Node = (*PartitionItem)(nil)
 
 // DistributionDesc represents:
 //
-//	DISTRIBUTED BY HASH(cols) [BUCKETS n | BUCKETS AUTO]
-//	DISTRIBUTED BY RANDOM [BUCKETS n | BUCKETS AUTO]
+//	DISTRIBUTED BY HASH(cols) [BUCKETS n]
+//	DISTRIBUTED BY RANDOM [BUCKETS n]
 type DistributionDesc struct {
 	Type    string   // "HASH" or "RANDOM"
 	Columns []string // for HASH; empty for RANDOM
 	Buckets int      // bucket count; 0 if not specified
-	Auto    bool     // BUCKETS AUTO
 	Loc     Loc
 }
 
@@ -435,76 +434,162 @@ func (n *DropViewStmt) Tag() NodeTag { return T_DropViewStmt }
 var _ Node = (*DropViewStmt)(nil)
 
 // ---------------------------------------------------------------------------
-// STORAGE VAULT DDL nodes (T5.3)
+// STORAGE VOLUME DDL nodes (StarRocks.g4:782-822)
 // ---------------------------------------------------------------------------
 
-// CreateStorageVaultStmt represents:
+// CreateStorageVolumeStmt represents:
 //
-//	CREATE STORAGE VAULT [IF NOT EXISTS] name PROPERTIES(...)
-type CreateStorageVaultStmt struct {
+//	CREATE STORAGE VOLUME [IF NOT EXISTS] name TYPE = type
+//	    LOCATIONS = (uri, ...) [COMMENT 'text'] [PROPERTIES (...)]
+//
+// TYPE and LOCATIONS are not optional: createStorageVolumeStatement
+// (StarRocks.g4:782) states both.
+type CreateStorageVolumeStmt struct {
 	Name        string
 	IfNotExists bool
+	Type        string   // typeDesc: TYPE = identifier
+	Locations   []string // locationsDesc: LOCATIONS = stringList
+	Comment     string   // optional COMMENT 'text'
 	Properties  []*Property
 	Loc         Loc
 }
 
 // Tag implements Node.
-func (n *CreateStorageVaultStmt) Tag() NodeTag { return T_CreateStorageVaultStmt }
+func (n *CreateStorageVolumeStmt) Tag() NodeTag { return T_CreateStorageVolumeStmt }
 
-var _ Node = (*CreateStorageVaultStmt)(nil)
+var _ Node = (*CreateStorageVolumeStmt)(nil)
 
-// AlterStorageVaultStmt represents:
-//
-//	ALTER STORAGE VAULT name PROPERTIES(...)
-type AlterStorageVaultStmt struct {
-	Name       string
-	Properties []*Property
+// AlterStorageVolumeClauseType classifies one clause of ALTER STORAGE VOLUME.
+type AlterStorageVolumeClauseType int
+
+const (
+	// StorageVolumeComment is modifyStorageVolumeCommentClause (StarRocks.g4:816):
+	// COMMENT '=' string.
+	StorageVolumeComment AlterStorageVolumeClauseType = iota
+	// StorageVolumeProperties is modifyStorageVolumePropertiesClause
+	// (StarRocks.g4:812): SET propertyList.
+	StorageVolumeProperties
+)
+
+// AlterStorageVolumeClause represents one alterStorageVolumeClause
+// (StarRocks.g4:807).
+type AlterStorageVolumeClause struct {
+	Type       AlterStorageVolumeClauseType
+	Comment    string      // StorageVolumeComment
+	Properties []*Property // StorageVolumeProperties
 	Loc        Loc
 }
 
 // Tag implements Node.
-func (n *AlterStorageVaultStmt) Tag() NodeTag { return T_AlterStorageVaultStmt }
+func (n *AlterStorageVolumeClause) Tag() NodeTag { return T_AlterStorageVolumeClause }
 
-var _ Node = (*AlterStorageVaultStmt)(nil)
+var _ Node = (*AlterStorageVolumeClause)(nil)
 
-// DropStorageVaultStmt represents:
+// AlterStorageVolumeStmt represents:
 //
-//	DROP STORAGE VAULT [IF EXISTS] name
-type DropStorageVaultStmt struct {
+//	ALTER STORAGE VOLUME name clause (',' clause)*
+//
+// The clauses keep their written order: a statement may set the comment and
+// the properties, each any number of times.
+type AlterStorageVolumeStmt struct {
+	Name    string
+	Clauses []*AlterStorageVolumeClause
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *AlterStorageVolumeStmt) Tag() NodeTag { return T_AlterStorageVolumeStmt }
+
+var _ Node = (*AlterStorageVolumeStmt)(nil)
+
+// DropStorageVolumeStmt represents:
+//
+//	DROP STORAGE VOLUME [IF EXISTS] name
+type DropStorageVolumeStmt struct {
 	Name     string
 	IfExists bool
 	Loc      Loc
 }
 
 // Tag implements Node.
-func (n *DropStorageVaultStmt) Tag() NodeTag { return T_DropStorageVaultStmt }
+func (n *DropStorageVolumeStmt) Tag() NodeTag { return T_DropStorageVolumeStmt }
 
-var _ Node = (*DropStorageVaultStmt)(nil)
+var _ Node = (*DropStorageVolumeStmt)(nil)
 
-// SetDefaultStorageVaultStmt represents:
+// DescStorageVolumeStmt represents:
 //
-//	SET DEFAULT STORAGE VAULT name
-type SetDefaultStorageVaultStmt struct {
+//	(DESC | DESCRIBE) STORAGE VOLUME name
+type DescStorageVolumeStmt struct {
 	Name string
 	Loc  Loc
 }
 
 // Tag implements Node.
-func (n *SetDefaultStorageVaultStmt) Tag() NodeTag { return T_SetDefaultStorageVaultStmt }
+func (n *DescStorageVolumeStmt) Tag() NodeTag { return T_DescStorageVolumeStmt }
 
-var _ Node = (*SetDefaultStorageVaultStmt)(nil)
+var _ Node = (*DescStorageVolumeStmt)(nil)
 
-// UnsetDefaultStorageVaultStmt represents:
+// ---------------------------------------------------------------------------
+// WAREHOUSE DDL nodes (StarRocks.g4:2038-2053)
+// ---------------------------------------------------------------------------
+
+// CreateWarehouseStmt represents:
 //
-//	UNSET DEFAULT STORAGE VAULT
-type UnsetDefaultStorageVaultStmt struct {
-	Loc Loc
+//	CREATE WAREHOUSE [IF NOT EXISTS] name [COMMENT 'text'] [PROPERTIES (...)]
+type CreateWarehouseStmt struct {
+	Name        string
+	IfNotExists bool
+	Comment     string
+	Properties  []*Property
+	Loc         Loc
 }
 
 // Tag implements Node.
-func (n *UnsetDefaultStorageVaultStmt) Tag() NodeTag { return T_UnsetDefaultStorageVaultStmt }
+func (n *CreateWarehouseStmt) Tag() NodeTag { return T_CreateWarehouseStmt }
 
-var _ Node = (*UnsetDefaultStorageVaultStmt)(nil)
+var _ Node = (*CreateWarehouseStmt)(nil)
+
+// DropWarehouseStmt represents:
+//
+//	DROP WAREHOUSE [IF EXISTS] name
+type DropWarehouseStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropWarehouseStmt) Tag() NodeTag { return T_DropWarehouseStmt }
+
+var _ Node = (*DropWarehouseStmt)(nil)
+
+// SuspendWarehouseStmt represents:
+//
+//	SUSPEND WAREHOUSE [IF EXISTS] name
+type SuspendWarehouseStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *SuspendWarehouseStmt) Tag() NodeTag { return T_SuspendWarehouseStmt }
+
+var _ Node = (*SuspendWarehouseStmt)(nil)
+
+// ResumeWarehouseStmt represents:
+//
+//	RESUME WAREHOUSE [IF EXISTS] name
+type ResumeWarehouseStmt struct {
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ResumeWarehouseStmt) Tag() NodeTag { return T_ResumeWarehouseStmt }
+
+var _ Node = (*ResumeWarehouseStmt)(nil)
 
 // ---------------------------------------------------------------------------
 // STORAGE POLICY DDL nodes (T5.3)
@@ -605,39 +690,6 @@ func (n *DropRepositoryStmt) Tag() NodeTag { return T_DropRepositoryStmt }
 var _ Node = (*DropRepositoryStmt)(nil)
 
 // ---------------------------------------------------------------------------
-// STAGE DDL nodes (T5.3)
-// ---------------------------------------------------------------------------
-
-// CreateStageStmt represents:
-//
-//	CREATE STAGE [IF NOT EXISTS] name PROPERTIES(...)
-type CreateStageStmt struct {
-	Name        string
-	IfNotExists bool
-	Properties  []*Property
-	Loc         Loc
-}
-
-// Tag implements Node.
-func (n *CreateStageStmt) Tag() NodeTag { return T_CreateStageStmt }
-
-var _ Node = (*CreateStageStmt)(nil)
-
-// DropStageStmt represents:
-//
-//	DROP STAGE [IF EXISTS] name
-type DropStageStmt struct {
-	Name     string
-	IfExists bool
-	Loc      Loc
-}
-
-// Tag implements Node.
-func (n *DropStageStmt) Tag() NodeTag { return T_DropStageStmt }
-
-var _ Node = (*DropStageStmt)(nil)
-
-// ---------------------------------------------------------------------------
 // FILE DDL nodes (T5.3)
 // ---------------------------------------------------------------------------
 
@@ -670,117 +722,6 @@ type DropFileStmt struct {
 func (n *DropFileStmt) Tag() NodeTag { return T_DropFileStmt }
 
 var _ Node = (*DropFileStmt)(nil)
-
-// ---------------------------------------------------------------------------
-// WORKLOAD GROUP DDL nodes (T5.4)
-// ---------------------------------------------------------------------------
-
-// CreateWorkloadGroupStmt represents:
-//
-//	CREATE WORKLOAD GROUP [IF NOT EXISTS] name PROPERTIES(...)
-type CreateWorkloadGroupStmt struct {
-	Name        string
-	IfNotExists bool
-	Properties  []*Property
-	Loc         Loc
-}
-
-// Tag implements Node.
-func (n *CreateWorkloadGroupStmt) Tag() NodeTag { return T_CreateWorkloadGroupStmt }
-
-var _ Node = (*CreateWorkloadGroupStmt)(nil)
-
-// AlterWorkloadGroupStmt represents:
-//
-//	ALTER WORKLOAD GROUP name PROPERTIES(...)
-type AlterWorkloadGroupStmt struct {
-	Name       string
-	Properties []*Property
-	Loc        Loc
-}
-
-// Tag implements Node.
-func (n *AlterWorkloadGroupStmt) Tag() NodeTag { return T_AlterWorkloadGroupStmt }
-
-var _ Node = (*AlterWorkloadGroupStmt)(nil)
-
-// DropWorkloadGroupStmt represents:
-//
-//	DROP WORKLOAD GROUP [IF EXISTS] name
-type DropWorkloadGroupStmt struct {
-	Name     string
-	IfExists bool
-	Loc      Loc
-}
-
-// Tag implements Node.
-func (n *DropWorkloadGroupStmt) Tag() NodeTag { return T_DropWorkloadGroupStmt }
-
-var _ Node = (*DropWorkloadGroupStmt)(nil)
-
-// ---------------------------------------------------------------------------
-// WORKLOAD POLICY DDL nodes (T5.4)
-// ---------------------------------------------------------------------------
-
-// WorkloadPolicyItem holds a raw-text capture of one condition or action item
-// from a WORKLOAD POLICY CONDITIONS/ACTIONS clause.
-type WorkloadPolicyItem struct {
-	RawText string
-	Loc     Loc
-}
-
-// Tag implements Node.
-func (n *WorkloadPolicyItem) Tag() NodeTag { return T_WorkloadPolicyItem }
-
-var _ Node = (*WorkloadPolicyItem)(nil)
-
-// CreateWorkloadPolicyStmt represents:
-//
-//	CREATE WORKLOAD POLICY [IF NOT EXISTS] name
-//	    CONDITIONS(condition_list)
-//	    ACTIONS(action_list)
-//	    [PROPERTIES(...)]
-type CreateWorkloadPolicyStmt struct {
-	Name        string
-	IfNotExists bool
-	Conditions  []*WorkloadPolicyItem
-	Actions     []*WorkloadPolicyItem
-	Properties  []*Property
-	Loc         Loc
-}
-
-// Tag implements Node.
-func (n *CreateWorkloadPolicyStmt) Tag() NodeTag { return T_CreateWorkloadPolicyStmt }
-
-var _ Node = (*CreateWorkloadPolicyStmt)(nil)
-
-// AlterWorkloadPolicyStmt represents:
-//
-//	ALTER WORKLOAD POLICY name PROPERTIES(...)
-type AlterWorkloadPolicyStmt struct {
-	Name       string
-	Properties []*Property
-	Loc        Loc
-}
-
-// Tag implements Node.
-func (n *AlterWorkloadPolicyStmt) Tag() NodeTag { return T_AlterWorkloadPolicyStmt }
-
-var _ Node = (*AlterWorkloadPolicyStmt)(nil)
-
-// DropWorkloadPolicyStmt represents:
-//
-//	DROP WORKLOAD POLICY [IF EXISTS] name
-type DropWorkloadPolicyStmt struct {
-	Name     string
-	IfExists bool
-	Loc      Loc
-}
-
-// Tag implements Node.
-func (n *DropWorkloadPolicyStmt) Tag() NodeTag { return T_DropWorkloadPolicyStmt }
-
-var _ Node = (*DropWorkloadPolicyStmt)(nil)
 
 // ---------------------------------------------------------------------------
 // RESOURCE DDL nodes (T5.4)
@@ -833,46 +774,3 @@ var _ Node = (*DropResourceStmt)(nil)
 // ---------------------------------------------------------------------------
 // SQL BLOCK RULE DDL nodes (T5.4)
 // ---------------------------------------------------------------------------
-
-// CreateSQLBlockRuleStmt represents:
-//
-//	CREATE SQL_BLOCK_RULE [IF NOT EXISTS] name PROPERTIES(...)
-type CreateSQLBlockRuleStmt struct {
-	Name        string
-	IfNotExists bool
-	Properties  []*Property
-	Loc         Loc
-}
-
-// Tag implements Node.
-func (n *CreateSQLBlockRuleStmt) Tag() NodeTag { return T_CreateSQLBlockRuleStmt }
-
-var _ Node = (*CreateSQLBlockRuleStmt)(nil)
-
-// AlterSQLBlockRuleStmt represents:
-//
-//	ALTER SQL_BLOCK_RULE name PROPERTIES(...)
-type AlterSQLBlockRuleStmt struct {
-	Name       string
-	Properties []*Property
-	Loc        Loc
-}
-
-// Tag implements Node.
-func (n *AlterSQLBlockRuleStmt) Tag() NodeTag { return T_AlterSQLBlockRuleStmt }
-
-var _ Node = (*AlterSQLBlockRuleStmt)(nil)
-
-// DropSQLBlockRuleStmt represents:
-//
-//	DROP SQL_BLOCK_RULE [IF EXISTS] name
-type DropSQLBlockRuleStmt struct {
-	Name     string
-	IfExists bool
-	Loc      Loc
-}
-
-// Tag implements Node.
-func (n *DropSQLBlockRuleStmt) Tag() NodeTag { return T_DropSQLBlockRuleStmt }
-
-var _ Node = (*DropSQLBlockRuleStmt)(nil)

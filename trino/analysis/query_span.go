@@ -463,6 +463,31 @@ func (w *spanWalker) visitRelation(rel parser.Relation) {
 		}
 	case *parser.TableFunctionRelation:
 		w.visitTableFunctionCall(n.Call)
+	case *parser.JSONTableRelation:
+		// JSON_TABLE's input expression and PASSING arguments may reference
+		// columns or hold subqueries, and a value column's DEFAULT expression
+		// may too.
+		ew := exprWalk{w: w, followSub: true, onColumn: w.addPredicateColumn}
+		ew.walkJSONPath(n.Path)
+		w.visitJSONTableColumns(n.Columns)
+	}
+}
+
+// visitJSONTableColumns walks a JSON_TABLE column list for the expressions its
+// value columns' DEFAULT behaviors may hold, recursing into nested columns.
+func (w *spanWalker) visitJSONTableColumns(cols []parser.JSONTableColumn) {
+	for _, col := range cols {
+		switch col.Kind {
+		case parser.JSONTableNestedColumn:
+			w.visitJSONTableColumns(col.Columns)
+		case parser.JSONTableValueColumn:
+			if col.OnEmpty != nil {
+				w.walkExprPredicate(col.OnEmpty.Default)
+			}
+			if col.OnError != nil {
+				w.walkExprPredicate(col.OnError.Default)
+			}
+		}
 	}
 }
 

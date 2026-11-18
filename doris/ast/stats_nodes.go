@@ -119,6 +119,7 @@ var _ Node = (*ShowAnalyzeStmt)(nil)
 type ShowStatsStmt struct {
 	Type    string      // "COLUMN", "TABLE", "INDEX", "PARTITION", or ""
 	Target  *ObjectName // optional table reference
+	Index   string      // SHOW INDEX STATS's index name
 	TableID int64       // SHOW TABLE STATS table_id, when given by id
 	Where   Node        // optional WHERE clause
 	Loc     Loc

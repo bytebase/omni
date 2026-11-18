@@ -18521,16 +18521,16 @@ reject@71	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterT
 reject@75	reject@50	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_out_of_line_ref_constraint!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((REF(a) WITH
 reject@82	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_out_of_line_ref_constraint!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((REF(a) WITH ROWID zzz))
 reject@73	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_out_of_line_ref_constraint!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((REFERENCE(a) WITH ROWID))
-reject@77	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+accept	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
 reject@68	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((LOG GROUP a(a)))
 reject@77	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL GROUP a(a)))
-reject@77	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG a(a)))
-reject@77	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP(a)))
+reject@81	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG a(a)))
+reject@86	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP(a)))
 reject@92	reject@92	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-5	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a a)))
-reject@77	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-6	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a()))
+reject@89	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-6	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a()))
 reject@92	reject@50	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!drop-7	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a))
 reject@90	reject@50	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a
-reject@77	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) zzz))
+reject@92	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) zzz))
 reject@72	accept	engine	alterTable_object_properties(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)/alterTable_supplemental_logging_props!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUSPEND LOG GROUP a(a)))
 accept	accept	engine	alterTable_object_properties(DEFAULT_EXPR)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
 accept	accept	engine	alterTable_object_properties(DEFAULT_EXPR)?/DEFAULT_EXPR	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a DEFAULT 1))
@@ -18540,21 +18540,21 @@ reject@73	reject@50	engine	alterTable_object_properties(DEFAULT_EXPR)?/DEFAULT_E
 reject@76	accept	engine	alterTable_object_properties(DEFAULT_EXPR)?/DEFAULT_EXPR!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a DEFAULT 1 zzz))
 reject@66	accept	engine	alterTable_object_properties(DEFAULT_EXPR)?/DEFAULT_EXPR!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a DEFAULT_COLLATION 1))
 accept	accept	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
-reject@66	accept	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/(alterTable_inline_constraint|alterTa~409d15b2)+	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL))
+accept	accept	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/(alterTable_inline_constraint|alterTa~409d15b2)+	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL))
 reject@65	reject@50	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/(alterTable_inline_constraint|alterTa~409d15b2)+!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a
-reject@66	accept	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/(alterTable_inline_constraint|alterTa~409d15b2)+!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL zzz))
+reject@71	accept	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/(alterTable_inline_constraint|alterTa~409d15b2)+!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL zzz))
 reject@66	accept	engine	alterTable_object_properties((alterTable_inline_constraint|alterT~2c5f0196)?/(alterTable_inline_constraint|alterTa~409d15b2)+!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULLS))
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL))
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)_(alterT~dbff923e	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL NULL))
+accept	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL))
+accept	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)_(alterT~dbff923e	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL NULL))
 reject@70	reject@50	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)_(alterT~dbff923e!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)_(alterT~dbff923e!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL NULL zzz))
+reject@76	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)_(alterT~dbff923e!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL NULL zzz))
 reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)+/(alterTable_inline_constraint|alterTa~409d15b2)_(alterT~dbff923e!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULLS NULL))
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_constraint	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL))
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH ROWID))
+accept	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_constraint	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a NULL))
+accept	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH ROWID))
 reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a ROWID))
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH))
+reject@70	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH))
 reject@70	reject@50	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH
-reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH ROWID zzz))
+reject@77	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITH ROWID zzz))
 reject@66	accept	engine	alterTable_object_properties(alterTable_inline_constraint|alterTa~409d15b2)/alterTable_inline_ref_constraint!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a WITHOUT ROWID))
 accept	accept	engine	alterTable_object_properties(,_(ID_(DEFAULT_EXPR)?_((alterTable_i~0cf7c0a4)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
 accept	accept	engine	alterTable_object_properties(,_(ID_(DEFAULT_EXPR)?_((alterTable_i~0cf7c0a4)*/,_(ID_(DEFAULT_EXPR)?_((alterTable_inli~3edf4c56)_(,_(I~88c056e3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a, a))
@@ -18586,26 +18586,26 @@ reject@67	accept	engine	alterTable_physical_properties(alterTable_inmemory_table
 accept	accept	engine	alterTable_physical_properties((alterTable_heap_org_table_clause|al~e405f4af)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
 accept	accept	engine	alterTable_physical_properties((alterTable_heap_org_table_clause|al~e405f4af)?/(alterTable_heap_org_table_clause|alt~9b51182a)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
 accept	accept	engine	alterTable_physical_properties(alterTable_heap_org_table_clause|alt~9b51182a)/alterTable_heap_org_table_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
-reject@67	accept	engine	alterTable_physical_properties(alterTable_heap_org_table_clause|alt~9b51182a)/alterTable_index_org_table_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOMAPPING)
-reject@67	accept	engine	alterTable_physical_properties(alterTable_heap_org_table_clause|alt~9b51182a)/alterTable_index_org_table_clause!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOMAPPING zzz)
+accept	accept	engine	alterTable_physical_properties(alterTable_heap_org_table_clause|alt~9b51182a)/alterTable_index_org_table_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOMAPPING)
+reject@77	accept	engine	alterTable_physical_properties(alterTable_heap_org_table_clause|alt~9b51182a)/alterTable_index_org_table_clause!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOMAPPING zzz)
 reject@67	accept	engine	alterTable_physical_properties(alterTable_heap_org_table_clause|alt~9b51182a)/alterTable_index_org_table_clause!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOMAXVALUE)
 accept	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
-reject@67	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a))
+accept	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a))
 reject@67	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) a(a))
-reject@67	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER(a))
+reject@74	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER(a))
 reject@79	reject@79	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a a))
-reject@67	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a())
+reject@77	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a())
 reject@79	reject@50	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!drop-5	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a)
 reject@78	reject@50	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a
-reject@67	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a) zzz)
+reject@80	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a) zzz)
 reject@67	accept	engine	alterTable_physical_properties(CLUSTER_ID_(_ID_(,_ID)*_))?/CLUSTER_ID_(_ID_(,_ID)*_)!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTERING a(a))
-reject@67	accept	engine	alterTable_physical_properties(,_ID)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a))
-reject@67	accept	engine	alterTable_physical_properties(,_ID)*/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a zzz))
-reject@67	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a, a))
-reject@67	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a a))
-reject@67	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a,))
+accept	accept	engine	alterTable_physical_properties(,_ID)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a))
+reject@79	accept	engine	alterTable_physical_properties(,_ID)*/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a zzz))
+accept	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a, a))
+reject@79	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a a))
+reject@79	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a,))
 reject@79	reject@50	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a,
-reject@67	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a, a zzz))
+reject@82	accept	engine	alterTable_physical_properties(,_ID)*/,_ID_(,_ID)*!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CLUSTER a(a, a zzz))
 reject@59	reject@59	engine	alterTable_lob_storage_parameters/((TABLESPACE_ID|alterTable_logging_cl~208e2099)+	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(LOGGING)
 reject@59	reject@59	engine	alterTable_lob_storage_parameters/((TABLESPACE_ID|alterTable_logging_cl~208e2099)+!truncate	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(
 reject@59	reject@59	engine	alterTable_lob_storage_parameters/((TABLESPACE_ID|alterTable_logging_cl~208e2099)+!insert	ALTER TABLE a UPGRADE INCLUDING DATA VARRAY a STORE AS LOB(LOGGING zzz)
@@ -18895,66 +18895,66 @@ reject@101	reject@101	engine	alterTable_subpartition_template(,_(alterTable_rang
 reject@102	reject@101	engine	alterTable_subpartition_template(,_(alterTable_range_subpartition_des~fde2c352)*/,_(alterTable_range_subpartition_desc|a~424c73fd)_(,_(a~0781e136!truncate	ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION,
 reject@101	reject@101	engine	alterTable_subpartition_template(,_(alterTable_range_subpartition_des~fde2c352)*/,_(alterTable_range_subpartition_desc|a~424c73fd)_(,_(a~0781e136!insert	ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITION zzz) PARTITIONS 1
 reject@101	reject@101	engine	alterTable_subpartition_template(,_(alterTable_range_subpartition_des~fde2c352)*/,_(alterTable_range_subpartition_desc|a~424c73fd)_(,_(a~0781e136!swap	ALTER TABLE a MODIFY PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) SUBPARTITION TEMPLATE(SUBPARTITION, SUBPARTITIONS) PARTITIONS 1
-reject@77	accept	engine	alterTable_supplemental_logging_props/SUPPLEMENTAL_LOG_(alterTable_supplemental_log_grp_clau~cef90024)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_log_grp_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_log_grp_clause!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUPING a(a)))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG(UNIQUE COLUMNS)))
+accept	accept	engine	alterTable_supplemental_logging_props/SUPPLEMENTAL_LOG_(alterTable_supplemental_log_grp_clau~cef90024)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+accept	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_log_grp_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+reject@81	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_log_grp_clause!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUPING a(a)))
+accept	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))
+reject@80	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG(UNIQUE COLUMNS)))
 reject@102	reject@102	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA UNIQUE COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE)))
+reject@86	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-3	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(COLUMNS)))
+reject@92	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-4	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE)))
 reject@102	reject@50	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!drop-5	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS))
 reject@100	reject@50	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS) zzz))
-reject@77	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATABASE(UNIQUE COLUMNS)))
+reject@102	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS) zzz))
+reject@81	accept	engine	alterTable_supplemental_logging_props(alterTable_supplemental_log_grp_clau~cef90024)/alterTable_supplemental_id_key_clause!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATABASE(UNIQUE COLUMNS)))
 accept	accept	engine	alterTable_heap_org_table_clause/((CACHE|NOCACHE))?	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
 accept	accept	engine	alterTable_heap_org_table_clause((CACHE|NOCACHE))?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a))
-reject@67	accept	engine	alterTable_heap_org_table_clause((CACHE|NOCACHE))?/(CACHE|NOCACHE)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CACHE)
-reject@67	accept	engine	alterTable_heap_org_table_clause((CACHE|NOCACHE))?/(CACHE|NOCACHE)!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CACHE zzz)
+accept	accept	engine	alterTable_heap_org_table_clause((CACHE|NOCACHE))?/(CACHE|NOCACHE)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CACHE)
+reject@73	accept	engine	alterTable_heap_org_table_clause((CACHE|NOCACHE))?/(CACHE|NOCACHE)!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CACHE zzz)
 reject@67	accept	engine	alterTable_heap_org_table_clause((CACHE|NOCACHE))?/(CACHE|NOCACHE)!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CALL)
-reject@67	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/CACHE	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CACHE)
-reject@67	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/NOCACHE	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCACHE)
-reject@67	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/NOCACHE!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCACHE zzz)
+accept	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/CACHE	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) CACHE)
+accept	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/NOCACHE	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCACHE)
+reject@75	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/NOCACHE!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCACHE zzz)
 reject@67	accept	engine	alterTable_heap_org_table_clause(CACHE|NOCACHE)/NOCACHE!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((a) NOCHECK)
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause/GROUP_ID_(_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*_)_(ALWAYS)?	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a zzz)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO LOG)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a LOG)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause/GROUP_ID_(_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*_)_(ALWAYS)?	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+reject@91	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/%empty!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a zzz)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO LOG)))
+reject@91	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a LOG)))
+reject@93	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO)))
 reject@93	reject@50	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO LOG zzz)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NOARCHIVELOG LOG)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a a)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,)))
+reject@98	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NO LOG zzz)))
+reject@91	accept	engine	alterTable_supplemental_log_grp_clause(NO_LOG)?/NO_LOG!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a NOARCHIVELOG LOG)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a)))
+reject@91	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a a)))
+reject@91	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,)))
 reject@91	reject@50	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a,
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
+reject@94	accept	engine	alterTable_supplemental_log_grp_clause(,_ID_(NO_LOG)?)*/,_ID_(NO_LOG)?_(,_ID_(NO_LOG)?)*!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a, a zzz)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/%empty	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)))
+accept	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS))
 reject@91	reject@50	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a)
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS zzz))
-reject@77	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ANALYTIC))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause/DATA_(_(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)_COLUMNS_)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY KEY COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(KEY COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY COLUMNS)))
+reject@99	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ALWAYS zzz))
+reject@92	accept	engine	alterTable_supplemental_log_grp_clause(ALWAYS)?/ALWAYS!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG GROUP a(a) ANALYTIC))
+accept	accept	engine	alterTable_supplemental_id_key_clause/DATA_(_(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)_COLUMNS_)	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))
+accept	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY KEY COLUMNS)))
+reject@86	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!drop-1	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(KEY COLUMNS)))
+reject@94	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY COLUMNS)))
 reject@93	reject@50	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY KEY zzz COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIORITY KEY COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))
+reject@98	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIMARY KEY zzz COLUMNS)))
+reject@86	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/PRIMARY_KEY!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(PRIORITY KEY COLUMNS)))
+accept	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))
 reject@86	reject@50	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE zzz COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNITE COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN KEY COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN COLUMNS)))
+reject@93	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNIQUE zzz COLUMNS)))
+reject@86	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/UNIQUE!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(UNITE COLUMNS)))
+accept	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN KEY COLUMNS)))
+reject@94	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!drop-2	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN COLUMNS)))
 reject@93	reject@50	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!truncate	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN KEY zzz COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FREEPOOLS KEY COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/ALL	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(ALL COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/ALL!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(ALL zzz COLUMNS)))
-reject@77	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/ALL!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(ALLOCATE COLUMNS)))
+reject@98	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FOREIGN KEY zzz COLUMNS)))
+reject@86	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/FOREIGN_KEY!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(FREEPOOLS KEY COLUMNS)))
+accept	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/ALL	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(ALL COLUMNS)))
+reject@90	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/ALL!insert	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(ALL zzz COLUMNS)))
+reject@86	accept	engine	alterTable_supplemental_id_key_clause(PRIMARY_KEY|UNIQUE|FOREIGN_KEY|ALL)/ALL!swap	ALTER TABLE a UPGRADE INCLUDING DATA NESTED TABLE a STORE AS a((SUPPLEMENTAL LOG DATA(ALLOCATE COLUMNS)))
 reject@30	reject@30	engine	alterTablespaceSet/ALTER_TABLESPACE_SET_ID_alterTablespaceSet_alter_tables~69d1fabf	ALTER TABLESPACE SET a DEFAULT
 reject@30	reject@30	engine	alterTablespaceSet_alter_tablespace_attrs/(alterTablespaceSet_default_tablespac~c6662f50)	ALTER TABLESPACE SET a DEFAULT
 reject@23	reject@23	engine	alterTablespaceSet_alter_tablespace_attrs/(alterTablespaceSet_default_tablespac~c6662f50)!swap	ALTER TABLESPACE SET a DEFAULT_COLLATION
@@ -41130,14 +41130,14 @@ reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/r
 reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!drop-6	REVOKE REVOKE a ON a FROM
 reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!insert	REVOKE REVOKE a ON a FROM a zzz
 reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_object_privileges!swap	REVOKE REWRITE a ON a FROM a
-reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
 reject@33	reject@33	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-1	REVOKE a FROM PROCEDURE FUNCTION a
 reject@38	reject@38	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-2	REVOKE REVOKE FROM PROCEDURE FUNCTION a
 reject@7	reject@7	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-3	REVOKE REVOKE a PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-4	REVOKE REVOKE a FROM FUNCTION a
-reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-5	REVOKE REVOKE a FROM PROCEDURE a
-reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-6	REVOKE REVOKE a FROM PROCEDURE FUNCTION
-reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!insert	REVOKE REVOKE a FROM PROCEDURE FUNCTION a zzz
+accept	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-4	REVOKE REVOKE a FROM FUNCTION a
+accept	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-5	REVOKE REVOKE a FROM PROCEDURE a
+accept	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!drop-6	REVOKE REVOKE a FROM PROCEDURE FUNCTION
+reject@42	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!insert	REVOKE REVOKE a FROM PROCEDURE FUNCTION a zzz
 reject@7	accept	engine	revoke(revoke_revoke_system_privileges|revo~a1911384)/revoke_revoke_roles_from_programs!swap	REVOKE REWRITE a FROM PROCEDURE FUNCTION a
 reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/%empty	REVOKE REVOKE a FROM a
 reject@7	reject@7	engine	revoke(CONTAINER_=_(CURRENT|ALL))?/CONTAINER_=_(CURRENT|ALL)	REVOKE REVOKE a FROM a CONTAINER = CURRENT
@@ -41206,31 +41206,31 @@ reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/%empty	REVOKE R
 reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE	REVOKE REVOKE a ON a FROM a FORCE
 reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE!insert	REVOKE REVOKE a ON a FROM a FORCE zzz
 reject@7	reject@7	engine	revoke_revoke_object_privileges(FORCE)?/FORCE!swap	REVOKE REVOKE a ON a FROM a FOREIGN
-reject@7	accept	engine	revoke_revoke_roles_from_programs/REVOKE_(ID_(,_ID)*|ALL)_FROM_(PROCEDURE|FUNCTION|PACKAG~61f5189a	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL	REVOKE REVOKE ALL FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!insert	REVOKE REVOKE ALL zzz FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!swap	REVOKE REVOKE ALLOCATE FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!insert	REVOKE REVOKE a FROM PROCEDURE zzz FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs/REVOKE_(ID_(,_ID)*|ALL)_FROM_(PROCEDURE|FUNCTION|PACKAG~61f5189a	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@14	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ID_(,_ID)*!insert	REVOKE REVOKE a zzz FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL	REVOKE REVOKE ALL FROM PROCEDURE FUNCTION a
+reject@18	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!insert	REVOKE REVOKE ALL zzz FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(ID_(,_ID)*|ALL)/ALL!swap	REVOKE REVOKE ALLOCATE FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*	REVOKE REVOKE a, a FROM PROCEDURE FUNCTION a
+reject@14	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-1	REVOKE REVOKE a a FROM PROCEDURE FUNCTION a
+reject@17	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!drop-2	REVOKE REVOKE a, FROM PROCEDURE FUNCTION a
+reject@17	accept	engine	revoke_revoke_roles_from_programs(,_ID)*/,_ID_(,_ID)*!insert	REVOKE REVOKE a, a zzz FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@35	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!insert	REVOKE REVOKE a FROM PROCEDURE zzz FUNCTION a
 reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PROCEDURE!swap	REVOKE REVOKE a FROM PROFILE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION	REVOKE REVOKE a FROM FUNCTION FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!insert	REVOKE REVOKE a FROM FUNCTION zzz FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION	REVOKE REVOKE a FROM FUNCTION FUNCTION a
+reject@34	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!insert	REVOKE REVOKE a FROM FUNCTION zzz FUNCTION a
 reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/FUNCTION!swap	REVOKE REVOKE a FROM FUNCTIONS FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE	REVOKE REVOKE a FROM PACKAGE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!insert	REVOKE REVOKE a FROM PACKAGE zzz FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE	REVOKE REVOKE a FROM PACKAGE FUNCTION a
+reject@33	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!insert	REVOKE REVOKE a FROM PACKAGE zzz FUNCTION a
 reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!swap	REVOKE REVOKE a FROM PACKAGES FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-1	REVOKE REVOKE a FROM PROCEDURE.FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-2	REVOKE REVOKE a FROM PROCEDURE a FUNCTION a
-reject@7	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!insert	REVOKE REVOKE a FROM PROCEDURE a.zzz FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
+reject@21	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-1	REVOKE REVOKE a FROM PROCEDURE.FUNCTION a
+reject@33	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-2	REVOKE REVOKE a FROM PROCEDURE a FUNCTION a
+reject@37	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!insert	REVOKE REVOKE a FROM PROCEDURE a.zzz FUNCTION a
 reject@7	reject@7	engine	revoke_revokee_clause/(ID|PUBLIC)_(,_(ID|PUBLIC))*	REVOKE REVOKE a FROM a
 reject@7	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/ID	REVOKE REVOKE a FROM a
 reject@7	reject@7	engine	revoke_revokee_clause(ID|PUBLIC)/PUBLIC	REVOKE REVOKE a FROM PUBLIC
@@ -41303,19 +41303,19 @@ reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/SOURCE!swap	RE
 reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE	REVOKE REVOKE a ON JAVA RESOURCE a FROM a
 reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE!insert	REVOKE REVOKE a ON JAVA RESOURCE zzz a FROM a
 reject@7	reject@7	engine	revoke_on_object_clause(SOURCE|RESOURCE)/RESOURCE!swap	REVOKE REVOKE a ON JAVA RESTART a FROM a
-reject@7	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)!swap	REVOKE REVOKE a FROM PROCEDURE FUNCTIONS a
-reject@7	accept	engine	revoke_program_unit(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_program_unit(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/FUNCTION_ID	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PROCEDURE
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a zzz
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PROFILE a
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID	REVOKE REVOKE a FROM PROCEDURE PACKAGE a
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PACKAGE
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PACKAGE a zzz
-reject@7	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PACKAGES a
+accept	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+reject@41	accept	engine	revoke_program_unit/(ID_.)?_(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)!swap	REVOKE REVOKE a FROM PROCEDURE FUNCTIONS a
+accept	accept	engine	revoke_program_unit(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_program_unit(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
+accept	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/FUNCTION_ID	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
+accept	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a
+accept	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PROCEDURE
+reject@43	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PROCEDURE a zzz
+reject@39	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PROCEDURE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PROFILE a
+accept	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID	REVOKE REVOKE a FROM PROCEDURE PACKAGE a
+accept	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!drop-2	REVOKE REVOKE a FROM PROCEDURE PACKAGE
+reject@41	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!insert	REVOKE REVOKE a FROM PROCEDURE PACKAGE a zzz
+reject@40	accept	engine	revoke_program_unit(FUNCTION_ID|PROCEDURE_ID|PACKAGE_ID)/PACKAGE_ID!swap	REVOKE REVOKE a FROM PROCEDURE PACKAGES a
 accept	accept	engine	rollback/ROLLBACK_(WORK)?_(TO_SAVEPOINT?_ID|FORCE_STRING)?	ROLLBACK
 accept	accept	engine	rollback(WORK)?/%empty	ROLLBACK
 accept	accept	engine	rollback(WORK)?/WORK	ROLLBACK WORK

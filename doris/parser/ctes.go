@@ -8,29 +8,41 @@ import (
 // WITH / CTE parsing (T1.6)
 // ---------------------------------------------------------------------------
 
-// parseWithSelect parses a WITH clause followed by a SELECT statement:
+// parseWithSelect parses a WITH clause followed by the query it prefixes:
 //
 //	WITH [RECURSIVE] cte_name [(col, ...)] AS (query)
 //	  [, cte_name2 [(col, ...)] AS (query2)]
-//	SELECT ...
+//	{ SELECT ... | VALUES ... }
 //
+// (DorisParser.g4:1167 query is `cte? queryTerm queryOrganization`, and a
+// VALUES query is a queryTerm alternative, so a WITH clause prefixes either.)
 // The WITH keyword has NOT yet been consumed when this is called.
-func (p *Parser) parseWithSelect() (*ast.SelectStmt, error) {
+func (p *Parser) parseWithSelect() (ast.Node, error) {
 	with, err := p.parseWithClause()
 	if err != nil {
 		return nil, err
 	}
+	return p.parseWithQueryBody(with)
+}
 
-	// The trailing SELECT statement (WITH must be followed by SELECT here).
+// parseWithQueryBody parses the query a WITH clause prefixes and attaches the
+// clause to it, extending the node's range to cover WITH. The caller reads any
+// set-operation and trailing-clause tail.
+func (p *Parser) parseWithQueryBody(with *ast.WithClause) (ast.Node, error) {
+	if p.cur.Kind == kwVALUES {
+		stmt, err := p.parseValuesStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.With, stmt.Loc.Start = with, with.Loc.Start
+		return stmt, nil
+	}
+
 	stmt, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}
-
-	// Attach the WITH clause and extend the overall Loc to cover WITH.
-	stmt.With = with
-	stmt.Loc.Start = with.Loc.Start
-
+	stmt.With, stmt.Loc.Start = with, with.Loc.Start
 	return stmt, nil
 }
 
@@ -78,15 +90,13 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 		return stmt, nil
 	}
 
-	stmt, err := p.parseSelectStmt()
+	stmt, err := p.parseWithQueryBody(with)
 	if err != nil {
 		return nil, err
 	}
-	stmt.With = with
-	stmt.Loc.Start = with.Loc.Start
 
-	// WITH ... SELECT continues with set operators and their trailing clauses
-	// as a bare SELECT does (engine-verified).
+	// WITH ... {SELECT|VALUES} continues with set operators and their
+	// trailing clauses as a bare query does (engine-verified).
 	return p.parseQueryStmt(stmt)
 }
 
@@ -190,6 +200,10 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	switch p.cur.Kind {
 	case kwWITH:
 		innerStmt, err = p.parseWithSelect()
+	case kwVALUES:
+		// WITH c AS (VALUES (1)) SELECT 1 — a CTE body is a query, and a
+		// VALUES query is one (DorisParser.g4:1167, :1186).
+		innerStmt, err = p.parseValuesStmt()
 	case int('('):
 		// WITH c AS ((SELECT 1)) ... is engine-verified valid.
 		innerStmt, err = p.parseParenQueryOperand()

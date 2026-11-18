@@ -636,3 +636,12 @@ func TestCreateMTMV_WalkReachesPartitionExpr(t *testing.T) {
 		t.Error("walk did not reach PARTITION BY's argument k")
 	}
 }
+
+// The materialized view body is a query (DorisParser.g4:112), and VALUES is a
+// queryPrimary (:1186).
+func TestCreateMTMVValuesBody(t *testing.T) {
+	stmt := parseOne(t, "CREATE MATERIALIZED VIEW v AS VALUES(1)").(*ast.CreateMTMVStmt)
+	if _, ok := stmt.Query.(*ast.ValuesStmt); !ok {
+		t.Errorf("Query = %T, want *ast.ValuesStmt", stmt.Query)
+	}
+}

@@ -295,11 +295,19 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		// `(BINARY)? booleanExpression`, so the operand is a booleanExpression —
 		// it spans comparisons/predicates but stops below AND/OR/NOT:
 		// BINARY name = 'abc' => BINARY(name = 'abc'); BINARY a AND b => (BINARY a) AND b.
+		// BINARY is also nonReserved, so where no operand follows it names a
+		// column: the pinned server takes `SELECT BINARY` and `SELECT BINARY
+		// zzz`, and refuses the operator with nothing to apply it to.
+		mark := p.save()
 		start := p.cur.Loc
 		p.advance()
 		operand, err := p.parseExprPrec(bpNot + 1)
 		if err != nil {
-			return nil, err
+			if isNestingError(err) {
+				return nil, err
+			}
+			p.restore(mark)
+			return p.parseIdentExpr()
 		}
 		return &ast.UnaryExpr{
 			Op:   ast.UnaryBinary,
@@ -325,7 +333,20 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		return p.parseExistsExpr()
 
 	case kwINTERVAL:
-		return p.parseIntervalExpr()
+		// interval (StarRocks.g4:2764) is INTERVAL value from=unitIdentifier,
+		// with the unit required. INTERVAL is also nonReserved, so a form with
+		// no unit — `SELECT INTERVAL`, `SELECT INTERVAL zzz` — is the column,
+		// which is what the pinned server answers.
+		mark := p.save()
+		node, err := p.parseIntervalExpr()
+		if err == nil {
+			return node, nil
+		}
+		if isNestingError(err) {
+			return nil, err
+		}
+		p.restore(mark)
+		return p.parseIdentExpr()
 
 	default:
 		node, err := p.parsePrimaryExpr()
@@ -586,14 +607,36 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		return p.parseIdentExpr()
 
 	case int('['):
+		// ARRAY_ELEMENT, the lexer's '[*]' (StarRocksLex.g4:506), is a
+		// nonReserved identifier, so `SELECT [*]` names a column. The token is
+		// matched by its three characters touching, as the lexer rule does.
+		if node, ok := p.parseArrayElementIdent(); ok {
+			return node, nil
+		}
 		// Untyped array constructor: [ e, ... ].
 		return p.finishArrayLiteral(p.cur.Loc.Start, nil)
+
+	case tokDotDotDot:
+		// DOTDOTDOT, the lexer's '...' (StarRocksLex.g4:604), is a nonReserved
+		// identifier, so `SELECT ...` names a column named "...".
+		tok := p.advance()
+		loc := tok.Loc
+		return &ast.ColumnRef{
+			Name: &ast.ObjectName{Parts: []string{"..."}, Loc: loc},
+			Loc:  loc,
+		}, nil
 
 	case kwCASE:
 		return p.parseCaseExpr()
 
 	case kwCAST:
-		return p.parseCastExpr()
+		// cast (StarRocks.g4:2413) is CAST '(' expression AS type ')'. CAST is
+		// also nonReserved, so unapplied it names a column: the pinned server
+		// takes `SELECT CAST` and `SELECT CAST zzz`.
+		if p.peekNext().Kind == int('(') {
+			return p.parseCastExpr()
+		}
+		return p.parseIdentExpr()
 
 	case kwCONVERT:
 		// CONVERT is non-reserved, so only treat it specially when applied.
@@ -603,7 +646,25 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		return p.parseIdentExpr()
 
 	case kwEXTRACT:
-		return p.parseExtractExpr()
+		// extract (StarRocks.g4:2441) is EXTRACT '(' identifier FROM
+		// valueExpression ')'. EXTRACT is also nonReserved, so unapplied it
+		// names a column: the pinned server takes `SELECT EXTRACT` and
+		// `SELECT EXTRACT zzz`.
+		if p.peekNext().Kind == int('(') {
+			return p.parseExtractExpr()
+		}
+		return p.parseIdentExpr()
+
+	case kwCEIL, kwFLOOR:
+		// Both are nonReserved, and both are also written applied only:
+		// specialFunctionExpression has CEIL '(' expression ')' and the same
+		// for FLOOR (StarRocks.g4:2515). The pinned server refuses the bare
+		// word in a name position (`SELECT CEIL`, `SELECT FLOOR`) and takes
+		// `CEIL(1)`, so the name needs the argument list.
+		if p.peekNext().Kind != int('(') {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseIdentExpr()
 
 	case kwTIMESTAMPADD, kwTIMESTAMPDIFF:
 		// Their first argument is a unitIdentifier, not an expression, which an
@@ -691,6 +752,32 @@ func (p *Parser) isExprIdentToken() bool {
 // ---------------------------------------------------------------------------
 // Primary expression helpers
 // ---------------------------------------------------------------------------
+
+// parseArrayElementIdent reads ARRAY_ELEMENT — the lexer rule '[*]'
+// (StarRocksLex.g4:506), which StarRocks.g4:2951 makes a nonReserved
+// identifier — as a column name. The three characters must touch, as the
+// lexer rule writes them together; otherwise '[ * ]' is an array constructor
+// holding '*', which no expression rule derives.
+func (p *Parser) parseArrayElementIdent() (ast.Node, bool) {
+	if p.peekNext().Kind != int('*') {
+		return nil, false
+	}
+	mark := p.save()
+	open := p.advance() // '['
+	star := p.advance() // '*'
+	close := p.cur      // ']'
+	if close.Kind == int(']') &&
+		open.Loc.End == star.Loc.Start && star.Loc.End == close.Loc.Start {
+		p.advance()
+		loc := ast.Loc{Start: open.Loc.Start, End: close.Loc.End}
+		return &ast.ColumnRef{
+			Name: &ast.ObjectName{Parts: []string{"[*]"}, Loc: loc},
+			Loc:  loc,
+		}, true
+	}
+	p.restore(mark)
+	return nil, false
+}
 
 // parseIdentExpr parses an identifier that could be a column ref or function
 // call (name followed by '(').

@@ -488,13 +488,10 @@ func (p *Parser) parseInstallPlugin(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.InstallPluginStmt{}
 
-	// Optional SONAME keyword
-	if p.cur.Kind == kwSONAME {
-		stmt.IsSoname = true
-		p.advance()
-	}
-
-	// Source path / URL / library name — string literal
+	// Source path, URL or library name: installPluginStatement
+	// (StarRocks.g4:1889) is INSTALL PLUGIN FROM identifierOrString
+	// properties?. Doris's FROM SONAME "lib.so" is not derived, and the pinned
+	// server refuses it.
 	src, srcLoc, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, err

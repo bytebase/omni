@@ -353,20 +353,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateTable()
 		case kwCATALOG:
 			return p.parseCreateCatalog()
-		case kwWORKLOAD:
-			// CREATE WORKLOAD GROUP ... or CREATE WORKLOAD POLICY ...
-			next := p.peekNext()
-			if next.Kind == kwGROUP {
-				return p.parseCreateWorkloadGroup(createTok.Loc)
-			}
-			if next.Kind == kwPOLICY {
-				return p.parseCreateWorkloadPolicy(createTok.Loc)
-			}
-			return p.unsupported("CREATE WORKLOAD")
 		case kwRESOURCE:
 			return p.parseCreateResource(createTok.Loc, false)
-		case kwSQL_BLOCK_RULE:
-			return p.parseCreateSQLBlockRule(createTok.Loc)
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
@@ -391,6 +379,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwSTORAGE:
 			p.advance() // consume STORAGE
 			return p.parseCreateStorage(createTok.Loc)
+		case kwWAREHOUSE:
+			return p.parseCreateWarehouse(createTok.Loc)
 		case kwREPOSITORY:
 			return p.parseCreateRepository(createTok.Loc, false)
 		case kwREAD:
@@ -400,8 +390,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return nil, err
 			}
 			return p.parseCreateRepository(createTok.Loc, true)
-		case kwSTAGE:
-			return p.parseCreateStage(createTok.Loc)
 		case kwFILE:
 			return p.parseCreateFile(createTok.Loc)
 		case kwROW:
@@ -442,21 +430,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterStorage(alterTok.Loc)
 		case kwREPOSITORY:
 			return p.parseAlterRepository(alterTok.Loc)
-		case kwWORKLOAD:
-			// ALTER WORKLOAD GROUP ... or ALTER WORKLOAD POLICY ...
-			alterLoc := p.prev.Loc
-			next := p.peekNext()
-			if next.Kind == kwGROUP {
-				return p.parseAlterWorkloadGroup(alterLoc)
-			}
-			if next.Kind == kwPOLICY {
-				return p.parseAlterWorkloadPolicy(alterLoc)
-			}
-			return p.unsupported("ALTER WORKLOAD")
 		case kwRESOURCE:
 			return p.parseAlterResource(p.prev.Loc)
-		case kwSQL_BLOCK_RULE:
-			return p.parseAlterSQLBlockRule(p.prev.Loc)
 		case kwDICTIONARY:
 			return p.parseAlterDictionary(p.prev.Loc)
 		case kwROLE:
@@ -492,24 +467,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropStorage(dropTok.Loc)
 		case kwREPOSITORY:
 			return p.parseDropRepository(dropTok.Loc)
-		case kwSTAGE:
-			return p.parseDropStage(dropTok.Loc)
 		case kwFILE:
 			return p.parseDropFile(dropTok.Loc)
-		case kwWORKLOAD:
-			// DROP WORKLOAD GROUP ... or DROP WORKLOAD POLICY ...
-			next := p.peekNext()
-			if next.Kind == kwGROUP {
-				return p.parseDropWorkloadGroup(dropTok.Loc)
-			}
-			if next.Kind == kwPOLICY {
-				return p.parseDropWorkloadPolicy(dropTok.Loc)
-			}
-			return p.unsupported("DROP WORKLOAD")
 		case kwRESOURCE:
 			return p.parseDropResource(dropTok.Loc)
-		case kwSQL_BLOCK_RULE:
-			return p.parseDropSQLBlockRule(dropTok.Loc)
 		case kwROW:
 			p.advance() // consume ROW
 			return p.parseDropRowPolicy(dropTok.Loc)
@@ -523,6 +484,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropUser(dropTok.Loc)
 		case kwJOB:
 			return nil, p.rejectJobStatement()
+		case kwWAREHOUSE:
+			return p.parseDropWarehouse(dropTok.Loc)
 		case kwSTATS:
 			p.advance() // consume STATS
 			return p.parseDropStats(dropTok.Loc, "")
@@ -570,11 +533,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwDELETE:
 		deleteTok := p.advance() // consume DELETE
 		return p.parseDeleteStmt(deleteTok.Loc.Start)
-	case kwMERGE:
-		mergeTok := p.advance() // consume MERGE; cur is now INTO
-		return p.parseMergeStmt(mergeTok.Loc)
-	case kwCALL:
-		return p.parseCallProcedure()
 
 	// Load / Export. StarRocks has no COPY statement: StarRocks.g4 has no
 	// COPY rule and the pinned 3.4.10 server answers "COPY INTO t FROM
@@ -607,6 +565,19 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwSHOW:
 		return p.parseShow()
 	case kwDESCRIBE, kwDESC:
+		// descStorageVolumeStatement (StarRocks.g4:820):
+		// (DESC | DESCRIBE) STORAGE VOLUME name. STORAGE is nonReserved, so DESC
+		// STORAGE alone describes a table named storage; the form is taken only
+		// when VOLUME follows.
+		if p.peekNext().Kind == kwSTORAGE {
+			mark := p.save()
+			descTok := p.advance() // consume DESC/DESCRIBE
+			p.advance()            // consume STORAGE
+			if p.cur.Kind == kwVOLUME {
+				return p.parseDescStorageVolume(descTok.Loc)
+			}
+			p.restore(mark)
+		}
 		// A describe names what it describes (StarRocks.g4:561
 		// descTableStatement): a bare DESC, or DESC ALL with no table, is a
 		// syntax error.
@@ -631,10 +602,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Set / Unset
 	case kwSET:
 		setTok := p.advance() // consume SET
-		// SET DEFAULT STORAGE VAULT name
-		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
-			return p.parseSetDefaultStorageVault(setTok.Loc)
-		}
 		// setDefaultStorageVolumeStatement (StarRocks.g4:824):
 		// SET identifierOrString AS DEFAULT STORAGE VOLUME
 		if (isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString) && p.peekNext().Kind == kwAS {
@@ -735,6 +702,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.cur.Kind == kwROUTINE {
 			return p.parseResumeRoutineLoad(resumeTok.Loc)
 		}
+		if p.cur.Kind == kwWAREHOUSE {
+			return p.parseResumeWarehouse(resumeTok.Loc)
+		}
 		if p.cur.Kind == kwALL {
 			p.advance() // consume ALL
 			if p.cur.Kind == kwROUTINE {
@@ -743,6 +713,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.unsupported("RESUME ALL")
 		}
 		return p.unsupported("RESUME")
+
+	case kwSUSPEND:
+		suspendTok := p.advance() // consume SUSPEND
+		if p.cur.Kind == kwWAREHOUSE {
+			return p.parseSuspendWarehouse(suspendTok.Loc)
+		}
+		return p.unsupported("SUSPEND")
 
 	case kwSTOP:
 		stopTok := p.advance() // consume STOP

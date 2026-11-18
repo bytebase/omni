@@ -832,3 +832,14 @@ func TestCreateTableCTASColumnLocs(t *testing.T) {
 		}
 	}
 }
+
+// A CTAS body is (AS? query) (DorisParser.g4:180), and VALUES is a queryPrimary
+// (:1186), so the body parses with or without AS.
+func TestCreateTableValuesBody(t *testing.T) {
+	for _, sql := range []string{"CREATE TABLE t (a INT) VALUES(1)", "CREATE TABLE t (a INT) AS VALUES(1)"} {
+		stmt := parseOne(t, sql).(*ast.CreateTableStmt)
+		if stmt.AsSelect == nil {
+			t.Errorf("%q: AsSelect = nil, want the VALUES query", sql)
+		}
+	}
+}

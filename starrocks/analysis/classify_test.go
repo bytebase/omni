@@ -24,6 +24,8 @@ func TestClassify(t *testing.T) {
 		{"describe my_table", QueryTypeSelectInfoSchema},
 		{"DESC t", QueryTypeSelectInfoSchema},
 		{"desc my_table", QueryTypeSelectInfoSchema},
+		{"DESC STORAGE VOLUME v", QueryTypeSelectInfoSchema},
+		{"DESCRIBE STORAGE VOLUME v", QueryTypeSelectInfoSchema},
 		{"EXPLAIN SELECT 1", QueryTypeSelectInfoSchema},
 		{"explain select * from t", QueryTypeSelectInfoSchema},
 		{"HELP", QueryTypeSelectInfoSchema},
