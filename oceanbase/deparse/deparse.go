@@ -1533,6 +1533,20 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 				// Tables were swapped above, so swap names to match original SQL
 				leftName, rightName = rightName, leftName
 			}
+			if leftName == "" || rightName == "" {
+				// A side with no name to qualify its columns, such as an
+				// unaliased table function, keeps its USING: expanding it to ON
+				// would write `on((``.`c` = ...))`, which is no SQL.
+				b.WriteString(" using(")
+				for i, col := range cond.Columns {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					b.WriteString(quoteIdent(col))
+				}
+				b.WriteString(")")
+				break
+			}
 			b.WriteString(" on(")
 			writeUsingAsOn(b, cond.Columns, leftName, rightName)
 			b.WriteString(")")

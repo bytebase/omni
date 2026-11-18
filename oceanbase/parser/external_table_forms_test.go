@@ -97,6 +97,8 @@ func TestExternalTableForms(t *testing.T) {
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO a",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT",
+		// A column list closes before the clause that follows it.
+		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a (b LOG ERRORS",
 		// The url_spec form takes no priority modifier.
 		"LOAD DATA LOW_PRIORITY FROM SOURCE(TYPE = 's') INTO TABLE a",
 		"LOAD DATA CONCURRENT FROM SOURCE(TYPE = 's') INTO TABLE a",

@@ -298,6 +298,25 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 				sc.add(t, t.Alias, vt)
 			}
 		}
+	case *ast.UnnestExpr:
+		// A table function's declared columns are its outputs, so a star
+		// expands to them.
+		if t.Alias == "" || len(t.Columns) == 0 {
+			return
+		}
+		var cols []ResolverColumn
+		for i, name := range t.Columns {
+			cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
+		}
+		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: cols})
+	case *ast.RbIterateExpr:
+		if t.Alias == "" || t.Column == "" {
+			return
+		}
+		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: t.Column, Position: 1}}})
+	case *ast.ExternalTableRef:
+		// The file's columns are known only when the query runs, so there is
+		// nothing to expand here.
 	}
 }
 

@@ -3842,7 +3842,7 @@ reject	reject	engine	opt_field_or_var_spec/(_)!drop-2	LOAD DATA INFILE 's' INTO 
 reject	reject	engine	opt_field_or_var_spec/(_)!insert	LOAD DATA INFILE 's' INTO TABLE a() zzz
 accept	accept	engine	opt_field_or_var_spec/(_field_or_vars_list_)	LOAD DATA INFILE 's' INTO TABLE a(a)
 reject	reject	engine	opt_field_or_var_spec/(_field_or_vars_list_)!drop-1	LOAD DATA INFILE 's' INTO TABLE a a)
-accept	reject	engine	opt_field_or_var_spec/(_field_or_vars_list_)!drop-3	LOAD DATA INFILE 's' INTO TABLE a(a
+reject	reject	engine	opt_field_or_var_spec/(_field_or_vars_list_)!drop-3	LOAD DATA INFILE 's' INTO TABLE a(a
 reject	reject	engine	opt_field_or_var_spec/(_field_or_vars_list_)!insert	LOAD DATA INFILE 's' INTO TABLE a(a) zzz
 accept	accept	engine	field_or_vars_list/field_or_vars	LOAD DATA INFILE 's' INTO TABLE a(a)
 reject	reject	engine	field_or_vars_list/field_or_vars!insert	LOAD DATA INFILE 's' INTO TABLE a(a zzz)

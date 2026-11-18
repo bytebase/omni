@@ -21,6 +21,9 @@ func TestDeparseExternalTableExprs(t *testing.T) {
 		{"SELECT a FROM (SELECT a) AS OF SNAPSHOT 1 t", "select `a` AS `a` from (select `a` AS `a`) as of snapshot 1 `t`"},
 		{"SELECT a FROM RB_ITERATE(a) AS b(c)", "select `a` AS `a` from rb_iterate(`a`) `b`(`c`)"},
 		{"SELECT a FROM UNNEST(a, b) AS u(c, d)", "select `a` AS `a` from unnest(`a`, `b`) `u`(`c`, `d`)"},
+		// A side with no name keeps its USING rather than writing an empty
+		// qualifier.
+		{"SELECT t.a FROM t JOIN UNNEST(t.a) USING (a)", "select `t`.`a` AS `a` from (`t` join unnest(`t`.`a`) using(`a`))"},
 	} {
 		list, err := parser.Parse(c.input)
 		if err != nil {

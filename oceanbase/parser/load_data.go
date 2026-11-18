@@ -508,7 +508,9 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 		}
 		p.advance()
 	}
-	p.match(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
