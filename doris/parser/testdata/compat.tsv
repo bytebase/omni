@@ -774,14 +774,14 @@ reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMM
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a zzz)
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATABASE FROM TABLE a INTO TABLE a)
 accept	accept	engine	supportedDmlStatement(withRemoteStorageSystem)?/%empty	EXPORT TABLE a TO 'a'
-reject	accept	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem	EXPORT TABLE a TO 'a' WITH RESOURCE a
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!drop-1	EXPORT TABLE a TO 'a' RESOURCE a
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!drop-2	EXPORT TABLE a TO 'a' WITH a
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!drop-3	EXPORT TABLE a TO 'a' WITH RESOURCE
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!insert	EXPORT TABLE a TO 'a' WITH RESOURCE a zzz
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!swap	EXPORT TABLE a TO 'a' WORK RESOURCE a
 accept	accept	engine	supportedDmlStatement(propertyClause)?/%empty	EXPORT TABLE a TO 'a'
-reject	accept	engine	supportedDmlStatement(propertyClause)?/propertyClause	EXPORT TABLE a TO 'a' PROPERTIES(a = a)
+accept	accept	engine	supportedDmlStatement(propertyClause)?/propertyClause	EXPORT TABLE a TO 'a' PROPERTIES(a = a)
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-1	EXPORT TABLE a TO 'a'(a = a)
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-2	EXPORT TABLE a TO 'a' PROPERTIES a = a)
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-3	EXPORT TABLE a TO 'a' PROPERTIES(= a)
@@ -805,7 +805,7 @@ reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_
 reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!drop-4	EXPORT TABLE a PARTITION(a TO 'a'
 reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!truncate	EXPORT TABLE a PARTITION(a
 reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!insert	EXPORT TABLE a PARTITION(a) zzz TO 'a'
-accept	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!swap	EXPORT TABLE a PARTITIONS(a) TO 'a'
+reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!swap	EXPORT TABLE a PARTITIONS(a) TO 'a'
 accept	accept	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~61df0b35	CREATE TABLE a
 accept	accept	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74	CREATE VIEW a SELECT CURRENT_DATE
 reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74!drop-1	VIEW a SELECT CURRENT_DATE
@@ -4361,7 +4361,7 @@ accept	accept	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq	CR
 reject	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!truncate	CREATE ALIAS FUNCTION a() WITH PARAMETER(
 reject	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(a zzz) AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/%empty	CREATE USER a
-reject	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER	CREATE USER a SUPERUSER
+accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER	CREATE USER a SUPERUSER
 reject	reject	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER!insert	CREATE USER a SUPERUSER zzz
 reject	reject	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER!swap	CREATE USER a SWITCH
 accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/DEFAULT_ROLE_STRING_LITERAL	CREATE USER a DEFAULT ROLE 'a'
@@ -4499,50 +4499,50 @@ reject	reject	engine	storageBackend(propertyClause)?/propertyClause!insert	CREAT
 reject	reject	engine	storageBackend(propertyClause)?/propertyClause!swap	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTY(a = a)
 accept	accept	engine	passwordOption/(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?_(PASSWORD_E~9a60a2f1	CREATE USER a
 accept	accept	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)	CREATE USER a PASSWORD_HISTORY DEFAULT
+accept	accept	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)	CREATE USER a PASSWORD_HISTORY DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!drop-1	CREATE USER a DEFAULT
-accept	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!drop-2	CREATE USER a PASSWORD_HISTORY
+reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!drop-2	CREATE USER a PASSWORD_HISTORY
 reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!insert	CREATE USER a PASSWORD_HISTORY DEFAULT zzz
 reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!swap	CREATE USER a PASSWORD_LOCK_TIME DEFAULT
-reject	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE)/DEFAULT	CREATE USER a PASSWORD_HISTORY DEFAULT
+accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE)/DEFAULT	CREATE USER a PASSWORD_HISTORY DEFAULT
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE)/DEFAULT!swap	CREATE USER a PASSWORD_HISTORY DEFERRED
 accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE)/INTEGER_VALUE	CREATE USER a PASSWORD_HISTORY 1
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE)/INTEGER_VALUE!insert	CREATE USER a PASSWORD_HISTORY 1 zzz
 accept	accept	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)	CREATE USER a PASSWORD_EXPIRE DEFAULT
-accept	reject	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)!drop-2	CREATE USER a PASSWORD_EXPIRE
+accept	accept	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)	CREATE USER a PASSWORD_EXPIRE DEFAULT
+reject	reject	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)!drop-2	CREATE USER a PASSWORD_EXPIRE
 reject	reject	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)!insert	CREATE USER a PASSWORD_EXPIRE DEFAULT zzz
-reject	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/DEFAULT	CREATE USER a PASSWORD_EXPIRE DEFAULT
+accept	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/DEFAULT	CREATE USER a PASSWORD_EXPIRE DEFAULT
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/DEFAULT!swap	CREATE USER a PASSWORD_EXPIRE DEFERRED
-reject	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER	CREATE USER a PASSWORD_EXPIRE NEVER
+accept	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER	CREATE USER a PASSWORD_EXPIRE NEVER
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER!insert	CREATE USER a PASSWORD_EXPIRE NEVER zzz
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER!swap	CREATE USER a PASSWORD_EXPIRE NEXT
 accept	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)	CREATE USER a PASSWORD_EXPIRE INTERVAL 1 DAY
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-1	CREATE USER a PASSWORD_EXPIRE 1 DAY
-accept	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-2	CREATE USER a PASSWORD_EXPIRE INTERVAL DAY
-accept	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-3	CREATE USER a PASSWORD_EXPIRE INTERVAL 1
+reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-2	CREATE USER a PASSWORD_EXPIRE INTERVAL DAY
+reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-3	CREATE USER a PASSWORD_EXPIRE INTERVAL 1
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!insert	CREATE USER a PASSWORD_EXPIRE INTERVAL 1 DAY zzz
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!swap	CREATE USER a PASSWORD_EXPIRE INTO 1 DAY
 accept	accept	engine	passwordOption(DAY|HOUR|SECOND)/DAY	CREATE USER a PASSWORD_LOCK_TIME 1 DAY
-accept	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!drop-1	CREATE USER a PASSWORD_LOCK_TIME 1
+reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!drop-1	CREATE USER a PASSWORD_LOCK_TIME 1
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!insert	CREATE USER a PASSWORD_LOCK_TIME 1 DAY zzz
-accept	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!swap	CREATE USER a PASSWORD_LOCK_TIME 1 DAYS
-reject	accept	engine	passwordOption(DAY|HOUR|SECOND)/HOUR	CREATE USER a PASSWORD_LOCK_TIME 1 HOUR
+reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!swap	CREATE USER a PASSWORD_LOCK_TIME 1 DAYS
+accept	accept	engine	passwordOption(DAY|HOUR|SECOND)/HOUR	CREATE USER a PASSWORD_LOCK_TIME 1 HOUR
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/HOUR!insert	CREATE USER a PASSWORD_LOCK_TIME 1 HOUR zzz
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/HOUR!swap	CREATE USER a PASSWORD_LOCK_TIME 1 HOURS
-reject	accept	engine	passwordOption(DAY|HOUR|SECOND)/SECOND	CREATE USER a PASSWORD_LOCK_TIME 1 SECOND
+accept	accept	engine	passwordOption(DAY|HOUR|SECOND)/SECOND	CREATE USER a PASSWORD_LOCK_TIME 1 SECOND
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/SECOND!insert	CREATE USER a PASSWORD_LOCK_TIME 1 SECOND zzz
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/SECOND!swap	CREATE USER a PASSWORD_LOCK_TIME 1 SELECT
 accept	accept	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
+accept	accept	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!drop-1	CREATE USER a INTERVAL DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!drop-2	CREATE USER a PASSWORD_REUSE DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!drop-3	CREATE USER a PASSWORD_REUSE INTERVAL
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!insert	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT zzz
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!swap	CREATE USER a PATH INTERVAL DEFAULT
-reject	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/DEFAULT	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
+accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/DEFAULT	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/DEFAULT!swap	CREATE USER a PASSWORD_REUSE INTERVAL DEFERRED
-reject	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY	CREATE USER a PASSWORD_REUSE INTERVAL 1 DAY
+accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY	CREATE USER a PASSWORD_REUSE INTERVAL 1 DAY
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY!drop-1	CREATE USER a PASSWORD_REUSE INTERVAL DAY
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY!drop-2	CREATE USER a PASSWORD_REUSE INTERVAL 1
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY!insert	CREATE USER a PASSWORD_REUSE INTERVAL 1 DAY zzz
@@ -4550,23 +4550,23 @@ reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY
 accept	accept	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/%empty	CREATE USER a
 accept	accept	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE	CREATE USER a FAILED_LOGIN_ATTEMPTS 1
 reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!drop-1	CREATE USER a 1
-accept	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!drop-2	CREATE USER a FAILED_LOGIN_ATTEMPTS
+reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!drop-2	CREATE USER a FAILED_LOGIN_ATTEMPTS
 reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!insert	CREATE USER a FAILED_LOGIN_ATTEMPTS 1 zzz
 reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!swap	CREATE USER a FALSE 1
 accept	accept	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
+accept	accept	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
 reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!drop-1	CREATE USER a UNBOUNDED
-accept	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!drop-2	CREATE USER a PASSWORD_LOCK_TIME
+reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!drop-2	CREATE USER a PASSWORD_LOCK_TIME
 reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!insert	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED zzz
 reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!swap	CREATE USER a PASSWORD_REUSE UNBOUNDED
-reject	accept	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/UNBOUNDED	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
+accept	accept	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/UNBOUNDED	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
 reject	reject	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/UNBOUNDED!swap	CREATE USER a PASSWORD_LOCK_TIME UNCOMMITTED
 accept	accept	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/INTEGER_VALUE_(DAY|HOUR|SECOND)	CREATE USER a PASSWORD_LOCK_TIME 1 DAY
-accept	reject	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-1	CREATE USER a PASSWORD_LOCK_TIME DAY
+reject	reject	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-1	CREATE USER a PASSWORD_LOCK_TIME DAY
 accept	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_LOCK	CREATE USER a ACCOUNT_LOCK
+accept	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_LOCK	CREATE USER a ACCOUNT_LOCK
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_LOCK!insert	CREATE USER a ACCOUNT_LOCK zzz
-reject	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK	CREATE USER a ACCOUNT_UNLOCK
+accept	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK	CREATE USER a ACCOUNT_UNLOCK
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK!insert	CREATE USER a ACCOUNT_UNLOCK zzz
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK!swap	CREATE USER a ACTIONS
 accept	accept	engine	functionArguments/functionArgument_(COMMA_functionArgument)*	DROP FUNCTION a(...)
@@ -5372,8 +5372,8 @@ accept	accept	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA
 accept	accept	engine	mappingExpr/identifier_EQ_expression	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
 reject	reject	engine	mappingExpr/identifier_EQ_expression!truncate	LOAD DATA INFILE 'a' INTO TABLE a SET(a =
 accept	accept	engine	mappingExpr/identifier_EQ_expression!swap	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_TIME)
-reject	accept	engine	withRemoteStorageSystem/resourceDesc	EXPORT TABLE a TO 'a' WITH RESOURCE a
-reject	accept	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH S3(a = a)
+accept	accept	engine	withRemoteStorageSystem/resourceDesc	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH S3(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' S3(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-2	EXPORT TABLE a TO 'a' WITH(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH S3 a = a)
@@ -5383,7 +5383,7 @@ reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-7	EXPORT TABLE a TO 'a' WITH S3(a = a
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH S3(a = a) zzz
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!swap	EXPORT TABLE a TO 'a' WORK S3(a = a)
-reject	accept	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH HDFS(a = a)
+accept	accept	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH HDFS(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' HDFS(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH HDFS a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH HDFS(= a)
@@ -5392,7 +5392,7 @@ reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemLi
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-7	EXPORT TABLE a TO 'a' WITH HDFS(a = a
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH HDFS(a = a) zzz
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!swap	EXPORT TABLE a TO 'a' WORK HDFS(a = a)
-reject	accept	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH LOCAL(a = a)
+accept	accept	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH LOCAL(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' LOCAL(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH LOCAL a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH LOCAL(= a)
@@ -5414,9 +5414,9 @@ reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_P
 reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH BROKER a(a =)
 reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-5	EXPORT TABLE a TO 'a' WITH BROKER a(a = a
 reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH BROKER a(a = a) zzz
-reject	accept	engine	resourceDesc/WITH_RESOURCE_identifierOrText_(LEFT_PAREN_propertyItem~56747fa1	EXPORT TABLE a TO 'a' WITH RESOURCE a
-reject	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/%empty	EXPORT TABLE a TO 'a' WITH RESOURCE a
-reject	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH RESOURCE a(a = a)
+accept	accept	engine	resourceDesc/WITH_RESOURCE_identifierOrText_(LEFT_PAREN_propertyItem~56747fa1	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/%empty	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH RESOURCE a(a = a)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' WITH RESOURCE a a = a)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-2	EXPORT TABLE a TO 'a' WITH RESOURCE a(= a)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH RESOURCE a(a a)
@@ -9935,7 +9935,7 @@ reject	reject	engine	grant_user/user_identity_IDENTIFIED_BY_PASSWORD_STRING_LITE
 reject	reject	engine	grant_user/user_identity_IDENTIFIED_BY_PASSWORD_STRING_LITERAL!insert	ALTER USER a IDENTIFIED BY PASSWORD 'a' zzz
 reject	reject	engine	grant_user/user_identity_IDENTIFIED_BY_PASSWORD_STRING_LITERAL!swap	ALTER USER a IF BY PASSWORD 'a'
 accept	accept	engine	opt_user_role/%empty	CREATE USER a
-reject	accept	engine	opt_user_role/SUPERUSER	CREATE USER a SUPERUSER
+accept	accept	engine	opt_user_role/SUPERUSER	CREATE USER a SUPERUSER
 reject	reject	engine	opt_user_role/SUPERUSER!insert	CREATE USER a SUPERUSER zzz
 reject	reject	engine	opt_user_role/SUPERUSER!swap	CREATE USER a SWITCH
 accept	accept	engine	opt_user_role/DEFAULT_ROLE_STRING_LITERAL	CREATE USER a DEFAULT ROLE 'a'
@@ -10297,7 +10297,7 @@ reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!drop-4	LOAD DATA INF
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!insert	LOAD DATA INFILE 'a' INTO TABLE a SET(1) zzz
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!swap	LOAD DATA INFILE 'a' INTO TABLE a SETS(1)
 accept	accept	engine	opt_broker/%empty	EXPORT TABLE a TO 'a'
-reject	accept	engine	opt_broker/WITH_S3_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH S3('a' = 'a')
+accept	accept	engine	opt_broker/WITH_S3_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH S3('a' = 'a')
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-1	EXPORT TABLE a TO 'a' S3('a' = 'a')
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-2	EXPORT TABLE a TO 'a' WITH('a' = 'a')
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-3	EXPORT TABLE a TO 'a' WITH S3 'a' = 'a')
@@ -10307,7 +10307,7 @@ reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-6	EXPORT TABLE a 
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-7	EXPORT TABLE a TO 'a' WITH S3('a' = 'a'
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!insert	EXPORT TABLE a TO 'a' WITH S3('a' = 'a') zzz
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!swap	EXPORT TABLE a TO 'a' WORK S3('a' = 'a')
-reject	accept	engine	opt_broker/WITH_HDFS_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a')
+accept	accept	engine	opt_broker/WITH_HDFS_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a')
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-1	EXPORT TABLE a TO 'a' HDFS('a' = 'a')
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-3	EXPORT TABLE a TO 'a' WITH HDFS 'a' = 'a')
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-4	EXPORT TABLE a TO 'a' WITH HDFS(= 'a')
@@ -10316,7 +10316,7 @@ reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-6	EXPORT TABLE 
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-7	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a'
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!insert	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a') zzz
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!swap	EXPORT TABLE a TO 'a' WORK HDFS('a' = 'a')
-reject	accept	engine	opt_broker/WITH_LOCAL_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH LOCAL('a' = 'a')
+accept	accept	engine	opt_broker/WITH_LOCAL_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH LOCAL('a' = 'a')
 reject	reject	engine	opt_broker/WITH_LOCAL_(_key_value_map_)!drop-1	EXPORT TABLE a TO 'a' LOCAL('a' = 'a')
 reject	reject	engine	opt_broker/WITH_LOCAL_(_key_value_map_)!drop-3	EXPORT TABLE a TO 'a' WITH LOCAL 'a' = 'a')
 reject	reject	engine	opt_broker/WITH_LOCAL_(_key_value_map_)!drop-4	EXPORT TABLE a TO 'a' WITH LOCAL(= 'a')

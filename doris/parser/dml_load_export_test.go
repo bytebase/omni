@@ -472,6 +472,82 @@ func TestExportWithBrokerAndProperties(t *testing.T) {
 	}
 }
 
+// TestExportWithRemoteStorage pins withRemoteStorageSystem
+// (DorisParser.g4:1121) as EXPORT takes it: WITH RESOURCE and WITH BROKER name
+// a resource or broker and may leave the list out, and WITH S3, WITH HDFS and
+// WITH LOCAL need one.
+func TestExportWithRemoteStorage(t *testing.T) {
+	tests := []struct {
+		sql         string
+		storageType string
+		name        string
+		props       int
+	}{
+		{`EXPORT TABLE t TO 'a' WITH RESOURCE r`, "RESOURCE", "r", 0},
+		{`EXPORT TABLE t TO 'a' WITH RESOURCE r(a = a)`, "RESOURCE", "r", 1},
+		{`EXPORT TABLE t TO 'a' WITH BROKER b`, "BROKER", "b", 0},
+		{`EXPORT TABLE t TO 'a' WITH S3(a = a)`, "S3", "", 1},
+		{`EXPORT TABLE t TO 'a' WITH S3('a' = 'a')`, "S3", "", 1},
+		{`EXPORT TABLE t TO 'a' WITH HDFS(a = a)`, "HDFS", "", 1},
+		{`EXPORT TABLE t TO 'a' WITH LOCAL('a' = 'a')`, "LOCAL", "", 1},
+	}
+	for _, c := range tests {
+		stmt := mustParseExport(t, c.sql)
+		if stmt.StorageType != c.storageType || stmt.BrokerName != c.name {
+			t.Errorf("%s: storage = %q %q, want %q %q", c.sql, stmt.StorageType, stmt.BrokerName, c.storageType, c.name)
+		}
+		if len(stmt.BrokerProperties) != c.props {
+			t.Errorf("%s: storage properties = %d, want %d", c.sql, len(stmt.BrokerProperties), c.props)
+		}
+	}
+
+	for _, sql := range []string{
+		`EXPORT TABLE t TO 'a' WITH S3`,
+		`EXPORT TABLE t TO 'a' WITH HDFS`,
+		`EXPORT TABLE t TO 'a' WITH LOCAL`,
+		`EXPORT TABLE t TO 'a' WITH RESOURCE`,
+		`EXPORT TABLE t TO 'a' WITH BROKER b(a = a`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a rejection", sql)
+		}
+	}
+}
+
+// TestExportPropertyLists pins EXPORT's two lists to the grammar's full
+// propertyItem (DorisParser.g4:1385), which takes a bare identifier as a key
+// or a value, where most clauses take only a "key"="value" pair.
+func TestExportPropertyLists(t *testing.T) {
+	stmt := mustParseExport(t, `EXPORT TABLE t TO 'a' PROPERTIES(a = a)`)
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "a" || stmt.Properties[0].Value != "a" {
+		t.Fatalf("properties = %v, want one a = a item", stmt.Properties)
+	}
+
+	for _, sql := range []string{
+		`EXPORT TABLE t TO 'a' PROPERTIES()`,
+		`EXPORT TABLE t TO 'a' PROPERTIES(a = a,)`,
+		`EXPORT TABLE t TO 'a' PROPERTIES(a =)`,
+		`EXPORT TABLE t TO 'a' PROPERTIES(a a)`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a rejection", sql)
+		}
+	}
+}
+
+// TestExportPartitionKeyword pins EXPORT's keyword to PARTITION: both grammars
+// Doris reads for it take PARTITION, so PARTITIONS is refused, unlike
+// TRUNCATE's clause which takes both.
+func TestExportPartitionKeyword(t *testing.T) {
+	stmt := mustParseExport(t, `EXPORT TABLE t PARTITION(p1) TO 'a'`)
+	if len(stmt.Partition) != 1 || stmt.Partition[0] != "p1" {
+		t.Fatalf("partition = %v, want [p1]", stmt.Partition)
+	}
+	if _, err := Parse(`EXPORT TABLE t PARTITIONS(p1) TO 'a'`); err == nil {
+		t.Error("Parse(EXPORT ... PARTITIONS(...)) = nil error, want a rejection")
+	}
+}
+
 func TestExportQualifiedTable(t *testing.T) {
 	stmt := mustParseExport(t,
 		`EXPORT TABLE db.my_table TO '/path/'`)
