@@ -141,6 +141,7 @@ type PartitionDesc struct {
 	Partitions     []*PartitionItem // individual partition definitions
 	HasDefinitions bool             // a second parenthesized definition list was present
 	RangeExplicit  bool             // RANGE was written, not inferred from a keywordless form
+	RangeScalar    bool             // explicit RANGE takes a single scalar identifier
 	Loc            Loc
 }
 

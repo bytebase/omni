@@ -19,6 +19,7 @@ type InsertStmt struct {
 	Label         string      // optional WITH LABEL name; empty if absent
 	Branch        string      // optional write branch (VERSION AS OF); empty if absent
 	Partition     []string    // optional PARTITION(p1, p2, ...) names; nil if absent
+	KeyPartitions []*Property // optional PARTITION(k = v, ...) key selectors
 	TempPartition bool        // true if TEMPORARY PARTITION was specified
 	PartitionStar bool        // true if PARTITION(*) was used
 	Columns       []string    // optional column list; nil if absent

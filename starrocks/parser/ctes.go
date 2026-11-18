@@ -190,20 +190,31 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	// Inner SELECT statement. If it starts with WITH, recurse; otherwise parse
 	// a plain SELECT followed by optional set-operator tail (UNION/INTERSECT/EXCEPT).
 	var innerStmt ast.Node
-	if p.cur.Kind == kwWITH {
+	switch p.cur.Kind {
+	case kwWITH:
 		innerStmt, err = p.parseWithStatement()
 		if err == nil && !isQueryBody(innerStmt) {
 			err = p.syntaxErrorAtCur()
 		}
-	} else {
-		sel, err2 := p.parseSelectStmt()
-		if err2 != nil {
-			return nil, err2
+	case int('('):
+		var paren *ast.ParenSelect
+		paren, err = p.parseParenSelect()
+		if err == nil {
+			innerStmt, err = p.parseSetOpTail(paren)
 		}
-		innerStmt, err = p.parseSetOpTail(sel)
+	default:
+		var sel *ast.SelectStmt
+		sel, err = p.parseSelectStmt()
+		if err == nil {
+			innerStmt, err = p.parseSetOpTail(sel)
+		}
 	}
 	if err != nil {
 		return nil, err
+	}
+	// A CTE body is a queryRelation, which has no outfile clause.
+	if queryHasInto(innerStmt) {
+		return nil, p.syntaxErrorAtCur()
 	}
 	cte.Query = innerStmt
 

@@ -177,11 +177,14 @@ func (p *Parser) parseViewQuery() (ast.Node, error) {
 		}
 		return explain, nil
 	case kwWITH:
-		with, err := p.parseWithSelect()
+		query, err := p.parseWithStatement()
 		if err != nil {
 			return nil, err
 		}
-		return p.parseSetOpTail(with)
+		if !isQueryBody(query) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return query, nil
 	case int('('):
 		paren, err := p.parseParenSelect()
 		if err != nil {

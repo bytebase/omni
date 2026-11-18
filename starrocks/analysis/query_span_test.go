@@ -1296,3 +1296,14 @@ func TestGetQuerySpanNestedParenSelectScope(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want secret", span.AccessTables)
 	}
 }
+
+// A view's CTE body may read a physical table with the same name as the CTE.
+func TestGetQuerySpanViewCTEBodyBeforeName(t *testing.T) {
+	span, err := GetQuerySpan("CREATE VIEW v AS WITH c AS (SELECT * FROM c) SELECT 1 UNION SELECT 2")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "c" {
+		t.Errorf("AccessTables = %+v, want c", span.AccessTables)
+	}
+}

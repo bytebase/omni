@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -120,6 +122,22 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 		if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
 			if p.peekNext().Kind == int('(') {
+				keyPartitions := false
+				if p.cur.Kind == kwPARTITION {
+					mark := p.save()
+					p.advance() // consume PARTITION
+					p.advance() // consume '('
+					keyPartitions = isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('=')
+					p.restore(mark)
+				}
+				if keyPartitions {
+					parts, err := p.parseInsertKeyPartition()
+					if err != nil {
+						return nil, err
+					}
+					stmt.KeyPartitions = parts
+					goto partitionDone
+				}
 				if p.cur.Kind == kwPARTITIONS {
 					mark := p.save()
 					p.advance() // consume PARTITIONS
@@ -148,6 +166,7 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 	}
+partitionDone:
 
 	// Post-target modifiers in any order (grammar: insertLabelOrColumnAliases*).
 	// WITH LABEL and BY NAME apply to both table and FILES targets; the column
@@ -284,6 +303,39 @@ modifiers:
 // parseInsertPartition parses PARTITION(p1, p2, ...) or PARTITION(*).
 // The PARTITION keyword has NOT yet been consumed.
 // Returns (partitionNames, isStar, error).
+func (p *Parser) parseInsertKeyPartition() ([]*ast.Property, error) {
+	p.advance() // consume PARTITION
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var props []*ast.Property
+	for {
+		keyTok := p.cur
+		key, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		start := p.cur.Loc.Start
+		if _, err := p.parseExpr(); err != nil {
+			return nil, err
+		}
+		end := p.prev.Loc.End
+		value := strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
+		props = append(props, &ast.Property{Key: key, Value: value, Loc: ast.Loc{Start: keyTok.Loc.Start, End: end}})
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return props, nil
+}
+
 func (p *Parser) parseInsertPartition() ([]string, bool, error) {
 	p.advance() // consume PARTITION
 	if _, err := p.expect(int('(')); err != nil {

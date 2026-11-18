@@ -703,7 +703,8 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 			if p.strictCTAS {
-				if partDesc.RangeExplicit && !partDesc.HasDefinitions || len(partDesc.FuncExprs) > 0 {
+				if partDesc.RangeExplicit && !partDesc.HasDefinitions ||
+					len(partDesc.FuncExprs) > 0 && !(partDesc.RangeExplicit && partDesc.RangeScalar) {
 					return p.syntaxErrorAtCur()
 				}
 				for _, item := range partDesc.Partitions {
@@ -898,7 +899,14 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 			start := p.cur.Loc.Start
 			var expr ast.Node
 			var err error
-			if explicitType {
+			if explicitType && p.rangeScalarBeforeDefinitions() {
+				// RANGE c (definitions): c is a column, not a function call.
+				name, loc, idErr := p.parseIdentifier()
+				if idErr != nil {
+					return nil, idErr
+				}
+				expr = &ast.ColumnRef{Name: &ast.ObjectName{Parts: []string{name}, Loc: loc}, Loc: loc}
+			} else if explicitType {
 				// Explicit RANGE takes a primaryExpression only.
 				expr, err = p.parsePrimaryExpr()
 			} else {
@@ -907,7 +915,11 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 			if err != nil {
 				return nil, err
 			}
-			if !explicitType {
+			if explicitType {
+				if _, ok := expr.(*ast.ColumnRef); ok {
+					pd.RangeScalar = true
+				}
+			} else {
 				// partitionExpr is only a single identifier or a function call.
 				switch v := expr.(type) {
 				case *ast.ColumnRef:
@@ -972,6 +984,21 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	}
 
 	return pd, nil
+}
+
+// rangeScalarBeforeDefinitions reports whether an identifier at cur is the
+// scalar RANGE expression and the following '(' opens the definition list,
+// rather than the identifier's function-call arguments.
+func (p *Parser) rangeScalarBeforeDefinitions() bool {
+	if !isIdentifierToken(p.cur.Kind) || p.peekNext().Kind != int('(') {
+		return false
+	}
+	mark := p.save()
+	p.advance() // consume identifier
+	p.advance() // consume '('
+	next := p.cur.Kind
+	p.restore(mark)
+	return next == kwPARTITION || next == kwSTART || next == int(')')
 }
 
 // isPartitionExprStart reports whether kind can start a functionCall or
