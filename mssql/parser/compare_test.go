@@ -5160,7 +5160,6 @@ func TestParseExternalOptionsByWords(t *testing.T) {
 		"ALTER EXTERNAL LANGUAGE a AUTHORIZATION dbo REMOVE PLATFORM WINDOWS",
 		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY CPU = (1 TO 2, 4), MAX_PROCESSES = 0)",
 		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY NUMANODE = (0))",
-		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, REJECT_VALUE = 1.5) AS SELECT 1",
 		"CREATE EXTERNAL FILE FORMAT a WITH (FORMAT_TYPE = DELIMITEDTEXT, FORMAT_OPTIONS (FIRST_ROW = 2, USE_TYPE_DEFAULT = FALSE), DATA_COMPRESSION = 'a')",
 		"CREATE EXTERNAL STREAM a WITH (DATA_SOURCE = 'a', LOCATION = 'a')",
 		"COPY INTO a (a DEFAULT -1 2) FROM 'a' WITH (FILE_FORMAT = f, ERRORFILE_CREDENTIAL = (IDENTITY = 'a', SECRET = 'b'))",
@@ -5195,8 +5194,11 @@ func TestParseExternalOptionsByWords(t *testing.T) {
 		"ALTER EXTERNAL RESOURCE POOL default WITH (MAX_CPU_PERCENT = 50)",
 		"CREATE EXTERNAL RESOURCE POOL a WITH (MAX_CPU_PERCENT = 101)",
 		"CREATE EXTERNAL RESOURCE POOL a WITH (AFFINITY NUMANODE = AUTO)",
-		// A CETAS names its columns; an external table without AS SELECT defines them.
+		// An external table defines its columns, and SQL Server takes no AS SELECT
+		// tail after them (compat.tsv: the pinned server refuses the tail's rows).
+		"CREATE EXTERNAL TABLE a AS SELECT 1",
 		"CREATE EXTERNAL TABLE a (id INT) WITH (DATA_SOURCE = a) AS SELECT 1",
+		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a, REJECT_VALUE = 1.5) AS SELECT 1",
 		"CREATE EXTERNAL TABLE a WITH (DATA_SOURCE = a)",
 		"CREATE EXTERNAL TABLE a (id) WITH (DATA_SOURCE = a)",
 		// DISTRIBUTION is Azure SQL Database's elastic query.
@@ -13199,8 +13201,8 @@ func TestParseCopyIntoColumnDepth(t *testing.T) {
 	})
 }
 
-// TestParseRenameCETAS tests RENAME, CETAS, and CREATE TABLE AS CLONE OF (batch 112).
-func TestParseRenameCETAS(t *testing.T) {
+// TestParseRenameClone tests RENAME and CREATE TABLE AS CLONE OF (batch 112).
+func TestParseRenameClone(t *testing.T) {
 	// RENAME OBJECT
 	t.Run("rename_object", func(t *testing.T) {
 		sql := `RENAME OBJECT Customer TO Customer1`
@@ -13278,84 +13280,6 @@ func TestParseRenameCETAS(t *testing.T) {
 		checkLocation(t, sql, "RenameStmt", stmt.Loc)
 	})
 
-	// CETAS
-	t.Run("cetas", func(t *testing.T) {
-		sql := `CREATE EXTERNAL TABLE dbo.export_table
-WITH (
-    LOCATION = '/export/data/',
-    DATA_SOURCE = myExternalDataSource,
-    FILE_FORMAT = myFileFormat
-)
-AS SELECT col1, col2 FROM dbo.source_table WHERE col1 > 100`
-		result := ParseAndCheck(t, sql)
-		if result.Len() == 0 {
-			t.Fatalf("Parse(%q): no statements returned", sql)
-		}
-		stmt, ok := result.Items[0].(*ast.CreateExternalTableAsSelectStmt)
-		if !ok {
-			t.Fatalf("expected *CreateExternalTableAsSelectStmt, got %T", result.Items[0])
-		}
-		if stmt.Name == nil {
-			t.Fatal("expected non-nil Name")
-		}
-		if stmt.Options == nil || stmt.Options.Len() != 3 {
-			t.Fatalf("expected 3 options, got %d", stmt.Options.Len())
-		}
-		if stmt.Query == nil {
-			t.Fatal("expected non-nil Query")
-		}
-		checkLocation(t, sql, "CreateExternalTableAsSelectStmt", stmt.Loc)
-	})
-
-	t.Run("cetas_with_columns", func(t *testing.T) {
-		sql := `CREATE EXTERNAL TABLE dbo.export_table (col1, col2)
-WITH (
-    LOCATION = '/export/',
-    DATA_SOURCE = myds,
-    FILE_FORMAT = myff
-)
-AS SELECT a, b FROM dbo.source`
-		result := ParseAndCheck(t, sql)
-		if result.Len() == 0 {
-			t.Fatalf("Parse(%q): no statements returned", sql)
-		}
-		stmt, ok := result.Items[0].(*ast.CreateExternalTableAsSelectStmt)
-		if !ok {
-			t.Fatalf("expected *CreateExternalTableAsSelectStmt, got %T", result.Items[0])
-		}
-		if stmt.Columns == nil || stmt.Columns.Len() != 2 {
-			t.Fatalf("expected 2 columns, got %d", stmt.Columns.Len())
-		}
-		if stmt.Query == nil {
-			t.Fatal("expected non-nil Query")
-		}
-		checkLocation(t, sql, "CreateExternalTableAsSelectStmt", stmt.Loc)
-	})
-
-	t.Run("cetas_with_reject", func(t *testing.T) {
-		sql := `CREATE EXTERNAL TABLE dbo.export_table
-WITH (
-    LOCATION = '/export/',
-    DATA_SOURCE = myds,
-    FILE_FORMAT = myff,
-    REJECT_TYPE = value,
-    REJECT_VALUE = 5
-)
-AS SELECT * FROM dbo.source`
-		result := ParseAndCheck(t, sql)
-		if result.Len() == 0 {
-			t.Fatalf("Parse(%q): no statements returned", sql)
-		}
-		stmt, ok := result.Items[0].(*ast.CreateExternalTableAsSelectStmt)
-		if !ok {
-			t.Fatalf("expected *CreateExternalTableAsSelectStmt, got %T", result.Items[0])
-		}
-		if stmt.Options == nil || stmt.Options.Len() != 5 {
-			t.Fatalf("expected 5 options, got %d", stmt.Options.Len())
-		}
-		checkLocation(t, sql, "CreateExternalTableAsSelectStmt", stmt.Loc)
-	})
-
 	// CREATE TABLE AS CLONE OF
 	t.Run("create_table_clone", func(t *testing.T) {
 		sql := `CREATE TABLE dbo.Employee AS CLONE OF dbo.EmployeeUSA`
@@ -13411,17 +13335,17 @@ AS SELECT * FROM dbo.source`
 		checkLocation(t, sql, "CreateTableCloneStmt", stmt.Loc)
 	})
 
-	// Regular CREATE EXTERNAL TABLE (non-CETAS) still works
-	t.Run("create_external_table_no_cetas", func(t *testing.T) {
+	// CREATE EXTERNAL TABLE still works
+	t.Run("create_external_table", func(t *testing.T) {
 		sql := `CREATE EXTERNAL TABLE dbo.ext_table (col1 INT, col2 VARCHAR(50)) WITH (LOCATION = '/data/', DATA_SOURCE = myds, FILE_FORMAT = myff)`
 		result := ParseAndCheck(t, sql)
 		if result.Len() == 0 {
 			t.Fatalf("Parse(%q): no statements returned", sql)
 		}
-		// Should parse as SecurityStmt (no AS SELECT)
+		// An external table is a SecurityStmt holding its columns and options.
 		_, ok := result.Items[0].(*ast.SecurityStmt)
 		if !ok {
-			t.Fatalf("expected *SecurityStmt for non-CETAS external table, got %T", result.Items[0])
+			t.Fatalf("expected *SecurityStmt for an external table, got %T", result.Items[0])
 		}
 	})
 
@@ -13453,10 +13377,9 @@ func TestParseStmtDispatchPhase4(t *testing.T) {
 		{"create_json_index", "CREATE JSON INDEX idx_json ON dbo.t1 (col1)", "*ast.CreateJsonIndexStmt"},
 		// Batch 111 - copy into
 		{"copy_into", "COPY INTO dbo.t1 FROM 'https://storage.blob.core.windows.net/data/' WITH (FILE_TYPE = 'CSV')", "*ast.CopyIntoStmt"},
-		// Batch 112 - rename, CETAS, clone
+		// Batch 112 - rename, clone
 		{"rename_object", "RENAME OBJECT dbo.old_table TO new_table", "*ast.RenameStmt"},
 		{"rename_database", "RENAME DATABASE mydb TO newdb", "*ast.RenameStmt"},
-		{"cetas", "CREATE EXTERNAL TABLE dbo.ext (col1) WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff) AS SELECT 1", "*ast.CreateExternalTableAsSelectStmt"},
 		{"create_table_clone", "CREATE TABLE dbo.clone AS CLONE OF dbo.original", "*ast.CreateTableCloneStmt"},
 	}
 
@@ -15482,7 +15405,7 @@ func TestParseExternalNestedParensDepth(t *testing.T) {
 		checkLocation(t, sql, "SecurityStmt", stmt.Loc)
 	})
 
-	// Test structured column def parsing (CETAS path produces ColumnDef nodes from fallback)
+	// Structured column definitions
 	t.Run("external_table_columns_structured", func(t *testing.T) {
 		tests := []string{
 			`CREATE EXTERNAL TABLE dbo.ClickStream (
@@ -16117,71 +16040,8 @@ func TestParseSecurityMiscRemainingDepth(t *testing.T) {
 	})
 }
 
-// TestParseUtilityCetasDbscopedDepth tests batch 131: structured CETAS columns and ALTER DATABASE SCOPED CONFIG options.
-func TestParseUtilityCetasDbscopedDepth(t *testing.T) {
-	// Test 1: CETAS with structured column definitions (ColumnDef nodes instead of raw strings)
-	t.Run("cetas_column_defs_structured", func(t *testing.T) {
-		tests := []struct {
-			name     string
-			sql      string
-			numCols  int
-			colNames []string
-		}{
-			{
-				name: "simple_columns",
-				sql: `CREATE EXTERNAL TABLE dbo.export_data
-					(id, name, value)
-					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
-					AS SELECT id, name, value FROM src`,
-				numCols:  3,
-				colNames: []string{"id", "name", "value"},
-			},
-			{
-				name: "single_column",
-				sql: `CREATE EXTERNAL TABLE dbo.export_data (col1)
-					WITH (LOCATION = '/out/', DATA_SOURCE = ds, FILE_FORMAT = ff)
-					AS SELECT 1`,
-				numCols:  1,
-				colNames: []string{"col1"},
-			},
-		}
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				result := ParseAndCheck(t, tt.sql)
-				if result.Len() != 1 {
-					t.Fatalf("Parse(%q): got %d statements, want 1", tt.sql, result.Len())
-				}
-				stmt, ok := result.Items[0].(*ast.CreateExternalTableAsSelectStmt)
-				if !ok {
-					t.Fatalf("Parse(%q): expected *CreateExternalTableAsSelectStmt, got %T", tt.sql, result.Items[0])
-				}
-				if stmt.Columns == nil {
-					t.Fatalf("Parse(%q): expected columns, got nil", tt.sql)
-				}
-				if len(stmt.Columns.Items) != tt.numCols {
-					t.Fatalf("Parse(%q): got %d columns, want %d", tt.sql, len(stmt.Columns.Items), tt.numCols)
-				}
-				for i, item := range stmt.Columns.Items {
-					colDef, ok := item.(*ast.ColumnDef)
-					if !ok {
-						t.Errorf("Parse(%q): column %d is %T, want *ColumnDef", tt.sql, i, item)
-						continue
-					}
-					if colDef.Name != tt.colNames[i] {
-						t.Errorf("Parse(%q): column %d name = %q, want %q", tt.sql, i, colDef.Name, tt.colNames[i])
-					}
-				}
-				checkLocation(t, tt.sql, "CETAS", stmt.Loc)
-				// Check deterministic serialization
-				s1 := ast.NodeToString(result.Items[0])
-				s2 := ast.NodeToString(result.Items[0])
-				if s1 != s2 {
-					t.Errorf("Parse(%q): serialization not deterministic", tt.sql)
-				}
-			})
-		}
-	})
-
+// TestParseUtilityDbscopedDepth tests batch 131: ALTER DATABASE SCOPED CONFIG options.
+func TestParseUtilityDbscopedDepth(t *testing.T) {
 	// Test 2: ALTER DATABASE SCOPED CONFIGURATION with structured SecurityPrincipalOption nodes
 	t.Run("alter_db_scoped_config_structured", func(t *testing.T) {
 		tests := []struct {
