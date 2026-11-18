@@ -108,6 +108,15 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 	}
 
 	// Assign parts based on count: object, schema.object, db.schema.object, server.db.schema.object
+	assignObjectRefParts(ref, parts)
+
+	ref.Loc.End = p.prevEnd()
+	return ref, nil
+}
+
+// assignObjectRefParts assigns the dot-separated parts of a name to a
+// TableRef: object, schema.object, db.schema.object, server.db.schema.object.
+func assignObjectRefParts(ref *nodes.TableRef, parts []string) {
 	switch len(parts) {
 	case 1:
 		ref.Object = parts[0]
@@ -124,9 +133,63 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 		ref.Schema = parts[2]
 		ref.Object = parts[3]
 	}
+}
 
-	ref.Loc.End = p.prevEnd()
-	return ref, nil
+// parseMultiPartIdentifier parses identifierList (TSql160.g:30325) into its
+// parts, keeping the empty parts of a name such as `.a`, `..a` or `a..b`:
+//
+//	identifierList = identifier ( identifierListElement )*
+//	               | identifierListElement ( identifierListElement )*
+//	identifierListElement = Dot Dot* identifier
+//
+// Each dot after the first joins the part to the previous one; the rest name
+// an empty part, so `a..b` is [a, "", b] and `..a` is ["", "", a].
+//
+// SQL Server reads at most four parts, and refuses the fifth: `a.b.c.d.e` is
+// "The procedure name 'a.b.c.d.e' contains more than the maximum number of
+// prefixes. The maximum is 3." — for an EXEC, for a call by name and for
+// ALTER AUTHORIZATION's securable alike (measured on the pinned server).
+//
+// completionRule is what completion offers after a dot, as parseObjectRef
+// does; "" offers nothing.
+const maxNameParts = 4
+
+func (p *Parser) parseMultiPartIdentifier(completionRule string) ([]string, error) {
+	var parts []string
+	for i := 0; ; i++ {
+		dots := 0
+		for p.cur.Type == '.' {
+			dots++
+			p.advance()
+		}
+		if i > 0 && dots == 0 {
+			return parts, nil
+		}
+		if completionRule != "" && p.collectMode() {
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
+		}
+		empties := dots
+		if i > 0 {
+			empties-- // the dot that joins this part to the previous one
+		}
+		if len(parts)+empties+1 > maxNameParts {
+			return nil, p.newParseError(p.cur.Loc, "a name of more than four parts")
+		}
+		for j := 0; j < empties; j++ {
+			parts = append(parts, "")
+		}
+		id, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, id)
+		if completionRule != "" && i == 0 && p.collectMode() && p.cursorOff <= p.prev.End {
+			// The cursor ends the first part: a qualified name may follow.
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
+		}
+	}
 }
 
 // parseSequenceRef parses a qualified sequence name for NEXT VALUE FOR.
@@ -184,22 +247,27 @@ func (p *Parser) parseVariableTableSource() (nodes.TableExpr, error) {
 			Args:   args,
 			Loc:    nodes.Loc{Start: loc, End: p.prevEnd()},
 		}
+		// variableMethodCallTableReference takes an alias and its column list
+		// (bnf/TSql170.g). SQL Server rejects @v.f()(c), whose column list has
+		// no alias, @v.f() AS a, which has no column list, and @v.f() a(),
+		// whose column list is empty.
 		mc.Alias = p.parseOptionalAlias()
-		if p.cur.Type == '(' {
-			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				col, ok := p.parseIdentifier()
-				if !ok {
-					break
-				}
-				mc.Columns = append(mc.Columns, col)
-				if _, ok := p.match(','); !ok {
-					break
-				}
+		if mc.Alias == "" || p.cur.Type != '(' {
+			return nil, p.newParseError(loc, "a table variable method call takes an alias and its column list")
+		}
+		p.advance() // consume (
+		for {
+			col, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.newParseError(p.pos(), "a table variable method call takes a column list")
 			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
+			mc.Columns = append(mc.Columns, col)
+			if _, ok := p.match(','); !ok {
+				break
 			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 		mc.Loc.End = p.prevEnd()
 		return mc, nil
@@ -248,26 +316,18 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	// Function call: ident(...). Without a schema it names a built-in, which
 	// SQL Server's parser checks (Msg 195; see builtinFunctions).
 	if p.cur.Type == '(' {
-		// MATCH ( graph pattern ) is a predicate of a search condition, read
-		// here as a call (graphMatchPredicate, TSql160.g).
+		// MATCH ( graph pattern ) is a predicate of a search condition
+		// (graphMatchPredicate, TSql160.g). Elsewhere MATCH is not a
+		// function, so the built-in check below refuses it (Msg 195).
+		if !delimited && p.inSearchCondition() && p.isValidOptionToken(graphMatchWord, p.prev) {
+			return p.parseGraphMatchPredicate(loc)
+		}
 		upper := strings.ToUpper(name)
-		graphMatch := !delimited && p.inSearchCondition() && upper == "MATCH"
-		// Inside it, LAST_NODE ( node ) = LAST_NODE ( node ) is graph syntax
-		// (graphMatchLastNodePattern, TSql160.g), refused anywhere else
-		// (Msg 195).
-		graphSyntax := !delimited && p.graphMatchDepth > 0 && upper == "LAST_NODE"
-		if !graphMatch && !graphSyntax && (delimited || !builtinFunctions[upper]) {
+		if delimited || !builtinFunctions[upper] {
 			return nil, &ParseError{Message: fmt.Sprintf("%q is not a recognized built-in function name", name), Position: loc}
 		}
 		if strings.EqualFold(name, "PARSE") || strings.EqualFold(name, "TRY_PARSE") {
 			return p.parseParseExpr(name, loc)
-		}
-		if graphSyntax {
-			return p.parseGraphLastNodePattern(name, loc)
-		}
-		if graphMatch {
-			p.graphMatchDepth++
-			defer func() { p.graphMatchDepth-- }()
 		}
 		return p.parseFuncCall(name, loc)
 	}
@@ -712,47 +772,4 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 	}
 
 	return fc, nil
-}
-
-// parseGraphLastNodePattern parses LAST_NODE ( node ) = LAST_NODE ( node )
-// inside a graph MATCH, the current token being the first open parenthesis
-// (graphMatchLastNodePattern, TSql160.g). SQL Server takes LAST_NODE only so.
-func (p *Parser) parseGraphLastNodePattern(name string, loc int) (nodes.ExprNode, error) {
-	lastNode := func(start int, fname string) (nodes.ExprNode, error) {
-		if _, err := p.expect('('); err != nil {
-			return nil, err
-		}
-		argLoc := p.pos()
-		node, ok := p.parseIdentifier()
-		if !ok {
-			return nil, p.syntaxErrorAtCur()
-		}
-		argEnd := p.prevEnd()
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		return &nodes.FuncCallExpr{
-			Name: &nodes.TableRef{Object: fname, Loc: nodes.Loc{Start: start, End: start + len(fname)}},
-			Args: &nodes.List{Items: []nodes.Node{&nodes.ColumnRef{Column: node, Loc: nodes.Loc{Start: argLoc, End: argEnd}}}},
-			Loc:  nodes.Loc{Start: start, End: p.prevEnd()},
-		}, nil
-	}
-	left, err := lastNode(loc, name)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := p.expect('='); err != nil {
-		return nil, err
-	}
-	rloc := p.pos()
-	if p.isDelimited(p.cur) || strings.ToUpper(p.cur.Str) != "LAST_NODE" {
-		return nil, p.syntaxErrorAtCur()
-	}
-	rname := p.cur.Str
-	p.advance()
-	right, err := lastNode(rloc, rname)
-	if err != nil {
-		return nil, err
-	}
-	return &nodes.BinaryExpr{Op: nodes.BinOpEq, Left: left, Right: right, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 }

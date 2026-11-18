@@ -244,6 +244,10 @@ func madeByChange(stmts []statement) changeMade {
 			if v.Name != nil {
 				m.relations = append(m.relations, v.Name)
 			}
+		case *ast.CreateMaterializedViewStmt:
+			if v.Name != nil {
+				m.relations = append(m.relations, v.Name)
+			}
 		case *ast.RenameTableStmt:
 			for _, pair := range v.Pairs {
 				if pair != nil && pair.New != nil {

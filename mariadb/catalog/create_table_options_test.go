@@ -180,9 +180,19 @@ func TestEngineDefinedOptionRefusals(t *testing.T) {
 	}
 }
 
-// TestEngineDefinedOptionOtherEngine takes an option of an engine the catalog
-// does not know as written: CONNECT's TABLE_TYPE is CONNECT's to check.
+// TestEngineDefinedOptionOtherEngine holds an option an engine of its own would
+// read: CONNECT's TABLE_TYPE. The pinned image ships no CONNECT, so
+// mariadb:11.8.8 answers 1286 for the ENGINE, before the option is read; an
+// engine it does ship defines its own options, which engineTableOptions lists.
 func TestEngineDefinedOptionOtherEngine(t *testing.T) {
 	c := wtSetup(t)
-	wtExec(t, c, "CREATE TABLE ct (a INT) ENGINE=CONNECT TABLE_TYPE=CSV")
+	results, err := c.Exec("CREATE TABLE ct (a INT) ENGINE=CONNECT TABLE_TYPE=CSV", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := results[len(results)-1].Error
+	var e *Error
+	if !errors.As(last, &e) || e.Code != 1286 {
+		t.Errorf("CREATE TABLE ct (a INT) ENGINE=CONNECT TABLE_TYPE=CSV: got %v, want 1286", last)
+	}
 }

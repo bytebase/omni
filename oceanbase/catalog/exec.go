@@ -226,13 +226,41 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)
 	case *nodes.CreateTableStmt:
-		return c.createTable(s)
+		var prior *Database
+		var priorKey string
+		existed := false
+		if s.Table != nil {
+			if db, err := c.resolveDatabase(s.Table.Schema); err == nil {
+				prior, priorKey = db, toLower(s.Table.Name)
+				existed = db.Tables[priorKey] != nil
+			}
+		}
+		if err := c.createTable(s); err != nil {
+			return err
+		}
+		if prior != nil && !existed {
+			// A table this statement created has no materialized view log. One
+			// it found already there keeps whatever the catalog knew.
+			prior.MaterializedViewLogsKnown[priorKey] = true
+			delete(prior.MaterializedViewLogs, priorKey)
+		}
+		return nil
 	case *nodes.CreateIndexStmt:
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:
-		return c.createView(s, source, true)
+		return c.createView(s, source, true, false)
+	case *nodes.CreateMaterializedViewStmt:
+		return c.createMaterializedView(s, source)
 	case *nodes.AlterViewStmt:
 		return c.alterView(s, source)
+	case *nodes.AlterMaterializedViewStmt:
+		return c.alterMaterializedView(s)
+	case *nodes.CreateMaterializedViewLogStmt:
+		return c.createMaterializedViewLog(s)
+	case *nodes.AlterMaterializedViewLogStmt:
+		return c.alterMaterializedViewLog(s)
+	case *nodes.DropMaterializedViewLogStmt:
+		return c.dropMaterializedViewLog(s)
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:
@@ -325,7 +353,15 @@ func stmtLocStart(node nodes.Node) int {
 		return s.Loc.Start
 	case *nodes.CreateViewStmt:
 		return s.Loc.Start
+	case *nodes.CreateMaterializedViewStmt:
+		return s.Loc.Start
+	case *nodes.CreateMaterializedViewLogStmt:
+		return s.Loc.Start
 	case *nodes.AlterViewStmt:
+		return s.Loc.Start
+	case *nodes.AlterMaterializedViewStmt:
+		return s.Loc.Start
+	case *nodes.AlterMaterializedViewLogStmt:
 		return s.Loc.Start
 	case *nodes.AlterTableStmt:
 		return s.Loc.Start
@@ -338,6 +374,8 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.DropIndexStmt:
 		return s.Loc.Start
 	case *nodes.DropViewStmt:
+		return s.Loc.Start
+	case *nodes.DropMaterializedViewLogStmt:
 		return s.Loc.Start
 	case *nodes.RenameTableStmt:
 		return s.Loc.Start

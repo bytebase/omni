@@ -365,7 +365,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	// Completion: after CREATE keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwMATERIALIZED, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -433,6 +433,12 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	case kwVIEW:
 		return p.parseCreateViewStmt(start, false)
+
+	case kwMATERIALIZED:
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateMaterializedStmt(start, false)
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseCreateDatabaseStmt(start)
@@ -561,11 +567,23 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 		return stmt, err
 	}
 
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwVIEW, kwMATERIALIZED, kwALGORITHM, kwSQL} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	switch p.cur.Type {
 	case kwVIEW, kwALGORITHM, kwSQL:
 		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
 		// that order and fails at whatever stands where VIEW belongs.
 		return p.parseCreateViewStmt(start, true)
+	case kwMATERIALIZED:
+		// CREATE OR REPLACE takes a materialized view log and nothing else;
+		// the materialized view itself has no OR REPLACE alternative.
+		return p.parseCreateMaterializedStmt(start, true)
 	default:
 		// DEFINER, which OceanBase takes on a view only after ALGORITHM, and
 		// SPATIAL, since OceanBase has no SPATIAL REFERENCE SYSTEM, fail here like
@@ -582,7 +600,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// Completion: after ALTER keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwMATERIALIZED, kwFUNCTION, kwPROCEDURE, kwEVENT} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -618,6 +636,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	case kwVIEW:
 		return p.parseAlterViewStmt(start)
+
+	case kwMATERIALIZED:
+		return p.parseAlterMaterializedStmt(start)
 
 	case kwALGORITHM:
 		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
@@ -680,7 +701,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	// Completion: after DROP keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF} {
+		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwMATERIALIZED, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -705,6 +726,12 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 
 	case kwVIEW:
 		return p.parseDropViewStmt(start)
+
+	case kwMATERIALIZED:
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseDropMaterializedStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseDropDatabaseStmt(start)

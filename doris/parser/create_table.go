@@ -705,8 +705,10 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 		}
 
-		// Check for bare SELECT/WITH without AS (also valid CTAS per grammar: AS? query)
-		if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+		// Check for a bare SELECT/WITH/VALUES without AS (also valid CTAS per
+		// grammar: AS? query, DorisParser.g4:180, and VALUES is a queryPrimary
+		// at :1186).
+		if p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH || p.cur.Kind == kwVALUES {
 			rawQuery, err := p.parseRawQuery()
 			if err != nil {
 				return err

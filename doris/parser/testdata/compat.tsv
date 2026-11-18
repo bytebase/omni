@@ -774,14 +774,14 @@ reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMM
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!insert	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATA FROM TABLE a INTO TABLE a zzz)
 reject	reject	engine	supportedDmlStatement(COMMA_dataDesc)*/COMMA_dataDesc_(COMMA_dataDesc)*!swap	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a, DATABASE FROM TABLE a INTO TABLE a)
 accept	accept	engine	supportedDmlStatement(withRemoteStorageSystem)?/%empty	EXPORT TABLE a TO 'a'
-reject	accept	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem	EXPORT TABLE a TO 'a' WITH RESOURCE a
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!drop-1	EXPORT TABLE a TO 'a' RESOURCE a
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!drop-2	EXPORT TABLE a TO 'a' WITH a
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!drop-3	EXPORT TABLE a TO 'a' WITH RESOURCE
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!insert	EXPORT TABLE a TO 'a' WITH RESOURCE a zzz
 reject	reject	engine	supportedDmlStatement(withRemoteStorageSystem)?/withRemoteStorageSystem!swap	EXPORT TABLE a TO 'a' WORK RESOURCE a
 accept	accept	engine	supportedDmlStatement(propertyClause)?/%empty	EXPORT TABLE a TO 'a'
-reject	accept	engine	supportedDmlStatement(propertyClause)?/propertyClause	EXPORT TABLE a TO 'a' PROPERTIES(a = a)
+accept	accept	engine	supportedDmlStatement(propertyClause)?/propertyClause	EXPORT TABLE a TO 'a' PROPERTIES(a = a)
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-1	EXPORT TABLE a TO 'a'(a = a)
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-2	EXPORT TABLE a TO 'a' PROPERTIES a = a)
 reject	reject	engine	supportedDmlStatement(propertyClause)?/propertyClause!drop-3	EXPORT TABLE a TO 'a' PROPERTIES(= a)
@@ -805,7 +805,7 @@ reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_
 reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!drop-4	EXPORT TABLE a PARTITION(a TO 'a'
 reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!truncate	EXPORT TABLE a PARTITION(a
 reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!insert	EXPORT TABLE a PARTITION(a) zzz TO 'a'
-accept	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!swap	EXPORT TABLE a PARTITIONS(a) TO 'a'
+reject	reject	engine	supportedDmlStatement(PARTITION_identifierList)?/PARTITION_identifierList!swap	EXPORT TABLE a PARTITIONS(a) TO 'a'
 accept	accept	engine	supportedCreateStatement/CREATE_(EXTERNAL|TEMPORARY)?_TABLE_(IF_NOT_EXISTS)?_mul~61df0b35	CREATE TABLE a
 accept	accept	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74	CREATE VIEW a SELECT CURRENT_DATE
 reject	reject	engine	supportedCreateStatement/CREATE_(OR_REPLACE)?_VIEW_(IF_NOT_EXISTS)?_multipartIde~25d67d74!drop-1	VIEW a SELECT CURRENT_DATE
@@ -1445,7 +1445,7 @@ accept	accept	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_mult
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!drop-1	VIEWS
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!insert	SHOW VIEWS zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_(FULL)?_VIEWS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!swap	SIGNED VIEWS
-reject	accept	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE	SHOW TABLE 1
+accept	accept	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE	SHOW TABLE 1
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE!drop-1	TABLE 1
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE!drop-2	SHOW 1
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_INTEGER_VALUE!insert	SHOW TABLE 1 zzz
@@ -1754,7 +1754,7 @@ accept	accept	engine	unsupportedShowStatement/SHOW_ENCRYPTKEYS_((FROM|IN)_multip
 reject	reject	engine	unsupportedShowStatement/SHOW_ENCRYPTKEYS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!drop-1	ENCRYPTKEYS
 reject	reject	engine	unsupportedShowStatement/SHOW_ENCRYPTKEYS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!insert	SHOW ENCRYPTKEYS zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_ENCRYPTKEYS_((FROM|IN)_multipartIdentifier)?_(wildWhere)?!swap	SIGNED ENCRYPTKEYS
-reject	accept	engine	unsupportedShowStatement/SHOW_TABLE_CREATION_((FROM|IN)_multipartIdentifier)?_(w~4dcfe7dc	SHOW TABLE CREATION
+accept	accept	engine	unsupportedShowStatement/SHOW_TABLE_CREATION_((FROM|IN)_multipartIdentifier)?_(w~4dcfe7dc	SHOW TABLE CREATION
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_CREATION_((FROM|IN)_multipartIdentifier)?_(w~4dcfe7dc!drop-1	TABLE CREATION
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_CREATION_((FROM|IN)_multipartIdentifier)?_(w~4dcfe7dc!drop-2	SHOW CREATION
 reject	reject	engine	unsupportedShowStatement/SHOW_TABLE_CREATION_((FROM|IN)_multipartIdentifier)?_(w~4dcfe7dc!insert	SHOW TABLE CREATION zzz
@@ -1765,7 +1765,7 @@ reject	reject	engine	unsupportedShowStatement/SHOW_LAST_INSERT!drop-2	SHOW INSER
 reject	reject	engine	unsupportedShowStatement/SHOW_LAST_INSERT!drop-3	SHOW LAST
 reject	reject	engine	unsupportedShowStatement/SHOW_LAST_INSERT!insert	SHOW LAST INSERT zzz
 reject	reject	engine	unsupportedShowStatement/SHOW_LAST_INSERT!swap	SIGNED LAST INSERT
-reject	accept	engine	unsupportedShowStatement/SHOW_CREATE_MATERIALIZED_VIEW_identifier_ON_multipartIdentifier	SHOW CREATE MATERIALIZED VIEW a ON a
+accept	accept	engine	unsupportedShowStatement/SHOW_CREATE_MATERIALIZED_VIEW_identifier_ON_multipartIdentifier	SHOW CREATE MATERIALIZED VIEW a ON a
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_MATERIALIZED_VIEW_identifier_ON_multipartIdentifier!drop-1	CREATE MATERIALIZED VIEW a ON a
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_MATERIALIZED_VIEW_identifier_ON_multipartIdentifier!drop-2	SHOW MATERIALIZED VIEW a ON a
 reject	reject	engine	unsupportedShowStatement/SHOW_CREATE_MATERIALIZED_VIEW_identifier_ON_multipartIdentifier!drop-3	SHOW CREATE VIEW a ON a
@@ -2158,7 +2158,7 @@ reject	reject	engine	unsupportedLoadStatement/SHOW_(ALL)?_CREATE_ROUTINE_LOAD_FO
 reject	reject	engine	unsupportedLoadStatement/SHOW_(ALL)?_CREATE_ROUTINE_LOAD_FOR_multipartIdentifier!drop-6	SHOW CREATE ROUTINE LOAD FOR
 reject	reject	engine	unsupportedLoadStatement/SHOW_(ALL)?_CREATE_ROUTINE_LOAD_FOR_multipartIdentifier!insert	SHOW CREATE ROUTINE LOAD FOR a zzz
 reject	reject	engine	unsupportedLoadStatement/SHOW_(ALL)?_CREATE_ROUTINE_LOAD_FOR_multipartIdentifier!swap	SIGNED CREATE ROUTINE LOAD FOR a
-reject	accept	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier	SHOW CREATE LOAD FOR a
+accept	accept	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier	SHOW CREATE LOAD FOR a
 reject	reject	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier!drop-1	CREATE LOAD FOR a
 reject	reject	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier!drop-2	SHOW LOAD FOR a
 reject	reject	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier!drop-4	SHOW CREATE LOAD a
@@ -2166,29 +2166,29 @@ reject	reject	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIden
 reject	reject	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier!insert	SHOW CREATE LOAD FOR a zzz
 reject	reject	engine	unsupportedLoadStatement/SHOW_CREATE_LOAD_FOR_multipartIdentifier!swap	SIGNED CREATE LOAD FOR a
 accept	accept	engine	unsupportedLoadStatement/SYNC	SYNC
-reject	accept	engine	unsupportedLoadStatement/importSequenceStatement	ORDER BY a
+accept	accept	engine	unsupportedLoadStatement/importSequenceStatement	ORDER BY a
 reject	reject	engine	unsupportedLoadStatement/importSequenceStatement!drop-1	BY a
 reject	reject	engine	unsupportedLoadStatement/importSequenceStatement!drop-2	ORDER a
 reject	reject	engine	unsupportedLoadStatement/importSequenceStatement!drop-3	ORDER BY
 reject	reject	engine	unsupportedLoadStatement/importSequenceStatement!insert	ORDER BY a zzz
 reject	reject	engine	unsupportedLoadStatement/importSequenceStatement!swap	OUTER BY a
-reject	accept	engine	unsupportedLoadStatement/importPrecedingFilterStatement	PRECEDING FILTER CURRENT_DATE
+accept	accept	engine	unsupportedLoadStatement/importPrecedingFilterStatement	PRECEDING FILTER CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importPrecedingFilterStatement!drop-1	FILTER CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importPrecedingFilterStatement!drop-2	PRECEDING CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importPrecedingFilterStatement!drop-3	PRECEDING FILTER
 reject	reject	engine	unsupportedLoadStatement/importPrecedingFilterStatement!insert	PRECEDING FILTER CURRENT_DATE zzz
 reject	reject	engine	unsupportedLoadStatement/importPrecedingFilterStatement!swap	PREPARE FILTER CURRENT_DATE
-reject	accept	engine	unsupportedLoadStatement/importWhereStatement	WHERE CURRENT_DATE
+accept	accept	engine	unsupportedLoadStatement/importWhereStatement	WHERE CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importWhereStatement!drop-2	WHERE
 reject	reject	engine	unsupportedLoadStatement/importWhereStatement!insert	WHERE CURRENT_DATE zzz
 reject	reject	engine	unsupportedLoadStatement/importWhereStatement!swap	WHITELIST CURRENT_DATE
-reject	accept	engine	unsupportedLoadStatement/importDeleteOnStatement	DELETE ON CURRENT_DATE
+accept	accept	engine	unsupportedLoadStatement/importDeleteOnStatement	DELETE ON CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importDeleteOnStatement!drop-1	ON CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importDeleteOnStatement!drop-2	DELETE CURRENT_DATE
 reject	reject	engine	unsupportedLoadStatement/importDeleteOnStatement!drop-3	DELETE ON
 reject	reject	engine	unsupportedLoadStatement/importDeleteOnStatement!insert	DELETE ON CURRENT_DATE zzz
 reject	reject	engine	unsupportedLoadStatement/importDeleteOnStatement!swap	DEMAND ON CURRENT_DATE
-reject	accept	engine	unsupportedLoadStatement/importColumnsStatement	COLUMNS(a)
+accept	accept	engine	unsupportedLoadStatement/importColumnsStatement	COLUMNS(a)
 reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!drop-1	(a)
 reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!drop-2	COLUMNS a)
 reject	reject	engine	unsupportedLoadStatement/importColumnsStatement!drop-3	COLUMNS()
@@ -2331,19 +2331,19 @@ reject	reject	engine	loadProperty/partitionSpec!drop-2	CREATE ROUTINE LOAD a PAR
 reject	reject	engine	loadProperty/partitionSpec!truncate	CREATE ROUTINE LOAD a PARTITION
 reject	reject	engine	loadProperty/partitionSpec!insert	CREATE ROUTINE LOAD a PARTITION a zzz FROM a(a = a)
 reject	reject	engine	loadProperty/partitionSpec!swap	CREATE ROUTINE LOAD a PARTITIONS a FROM a(a = a)
-reject	accept	engine	importSequenceStatement/ORDER_BY_identifier	ORDER BY a
-reject	accept	engine	importDeleteOnStatement/DELETE_ON_booleanExpression	DELETE ON CURRENT_DATE
-reject	accept	engine	importWhereStatement/WHERE_booleanExpression	WHERE CURRENT_DATE
-reject	accept	engine	importPrecedingFilterStatement/PRECEDING_FILTER_booleanExpression	PRECEDING FILTER CURRENT_DATE
-reject	accept	engine	importColumnsStatement/COLUMNS_LEFT_PAREN_importColumnDesc_(COMMA_importColumn~7ad66625	COLUMNS(a)
-reject	accept	engine	importColumnsStatement(COMMA_importColumnDesc)*/%empty	COLUMNS(a)
+accept	accept	engine	importSequenceStatement/ORDER_BY_identifier	ORDER BY a
+accept	accept	engine	importDeleteOnStatement/DELETE_ON_booleanExpression	DELETE ON CURRENT_DATE
+accept	accept	engine	importWhereStatement/WHERE_booleanExpression	WHERE CURRENT_DATE
+accept	accept	engine	importPrecedingFilterStatement/PRECEDING_FILTER_booleanExpression	PRECEDING FILTER CURRENT_DATE
+accept	accept	engine	importColumnsStatement/COLUMNS_LEFT_PAREN_importColumnDesc_(COMMA_importColumn~7ad66625	COLUMNS(a)
+accept	accept	engine	importColumnsStatement(COMMA_importColumnDesc)*/%empty	COLUMNS(a)
 reject	reject	engine	importColumnsStatement(COMMA_importColumnDesc)*/%empty!insert	COLUMNS(a zzz)
-reject	accept	engine	importColumnsStatement(COMMA_importColumnDesc)*/COMMA_importColumnDesc_(COMMA_importColumnDesc)*	COLUMNS(a, a)
+accept	accept	engine	importColumnsStatement(COMMA_importColumnDesc)*/COMMA_importColumnDesc_(COMMA_importColumnDesc)*	COLUMNS(a, a)
 reject	reject	engine	importColumnsStatement(COMMA_importColumnDesc)*/COMMA_importColumnDesc_(COMMA_importColumnDesc)*!drop-1	COLUMNS(a a)
 reject	reject	engine	importColumnsStatement(COMMA_importColumnDesc)*/COMMA_importColumnDesc_(COMMA_importColumnDesc)*!drop-2	COLUMNS(a,)
 reject	reject	engine	importColumnsStatement(COMMA_importColumnDesc)*/COMMA_importColumnDesc_(COMMA_importColumnDesc)*!truncate	COLUMNS(a,
 reject	reject	engine	importColumnsStatement(COMMA_importColumnDesc)*/COMMA_importColumnDesc_(COMMA_importColumnDesc)*!insert	COLUMNS(a, a zzz)
-reject	accept	engine	importColumnDesc/identifier_(EQ_booleanExpression)?	COLUMNS(a)
+accept	accept	engine	importColumnDesc/identifier_(EQ_booleanExpression)?	COLUMNS(a)
 reject	reject	engine	importColumnDesc/identifier_(EQ_booleanExpression)?!truncate	COLUMNS(
 reject	reject	engine	importColumnDesc/LEFT_PAREN_identifier_(EQ_booleanExpression)?_RIGHT_PAREN	COLUMNS((a))
 reject	reject	engine	importColumnDesc/LEFT_PAREN_identifier_(EQ_booleanExpression)?_RIGHT_PAREN!drop-1	COLUMNS(a))
@@ -2351,13 +2351,13 @@ reject	reject	engine	importColumnDesc/LEFT_PAREN_identifier_(EQ_booleanExpressio
 reject	reject	engine	importColumnDesc/LEFT_PAREN_identifier_(EQ_booleanExpression)?_RIGHT_PAREN!drop-3	COLUMNS((a)
 reject	reject	engine	importColumnDesc/LEFT_PAREN_identifier_(EQ_booleanExpression)?_RIGHT_PAREN!truncate	COLUMNS((a
 reject	reject	engine	importColumnDesc/LEFT_PAREN_identifier_(EQ_booleanExpression)?_RIGHT_PAREN!insert	COLUMNS((a) zzz)
-reject	accept	engine	importColumnDesc(EQ_booleanExpression)?/%empty	COLUMNS(a)
-reject	accept	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression	COLUMNS(a = CURRENT_DATE)
+accept	accept	engine	importColumnDesc(EQ_booleanExpression)?/%empty	COLUMNS(a)
+accept	accept	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression	COLUMNS(a = CURRENT_DATE)
 reject	reject	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression!drop-1	COLUMNS(a CURRENT_DATE)
 reject	reject	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression!drop-2	COLUMNS(a =)
 reject	reject	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression!truncate	COLUMNS(a =
 reject	reject	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression!insert	COLUMNS(a = CURRENT_DATE zzz)
-reject	accept	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression!swap	COLUMNS(a = CURRENT_TIME)
+accept	accept	engine	importColumnDesc(EQ_booleanExpression)?/EQ_booleanExpression!swap	COLUMNS(a = CURRENT_TIME)
 reject	accept	engine	unsupportedRefreshStatement/REFRESH_TABLE_multipartIdentifier	REFRESH TABLE a
 reject	accept	engine	unsupportedRefreshStatement/REFRESH_DATABASE_multipartIdentifier_(propertyClause)?	REFRESH DATABASE a
 reject	reject	engine	unsupportedRefreshStatement/REFRESH_DATABASE_multipartIdentifier_(propertyClause)?!drop-3	REFRESH DATABASE
@@ -4037,7 +4037,7 @@ reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!dr
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!drop-2	SHOW STATS 1
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!insert	SHOW TABLE STATS 1 zzz
 reject	reject	engine	unsupportedStatsStatement/SHOW_TABLE_STATS_INTEGER_VALUE!swap	SIGNED TABLE STATS 1
-reject	accept	engine	unsupportedStatsStatement/SHOW_INDEX_STATS_multipartIdentifier_identifier	SHOW INDEX STATS a a
+accept	accept	engine	unsupportedStatsStatement/SHOW_INDEX_STATS_multipartIdentifier_identifier	SHOW INDEX STATS a a
 reject	reject	engine	unsupportedStatsStatement/SHOW_INDEX_STATS_multipartIdentifier_identifier!drop-1	INDEX STATS a a
 reject	reject	engine	unsupportedStatsStatement/SHOW_INDEX_STATS_multipartIdentifier_identifier!drop-2	SHOW STATS a a
 reject	reject	engine	unsupportedStatsStatement/SHOW_INDEX_STATS_multipartIdentifier_identifier!drop-3	SHOW INDEX a a
@@ -4361,7 +4361,7 @@ accept	accept	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq	CR
 reject	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!truncate	CREATE ALIAS FUNCTION a() WITH PARAMETER(
 reject	reject	engine	unsupportedCreateStatement(identifierSeq)?/identifierSeq!insert	CREATE ALIAS FUNCTION a() WITH PARAMETER(a zzz) AS CURRENT_DATE
 accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/%empty	CREATE USER a
-reject	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER	CREATE USER a SUPERUSER
+accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER	CREATE USER a SUPERUSER
 reject	reject	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER!insert	CREATE USER a SUPERUSER zzz
 reject	reject	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/SUPERUSER!swap	CREATE USER a SWITCH
 accept	accept	engine	unsupportedCreateStatement(SUPERUSER|DEFAULT_ROLE_STRING_LITERAL)?/DEFAULT_ROLE_STRING_LITERAL	CREATE USER a DEFAULT ROLE 'a'
@@ -4499,50 +4499,50 @@ reject	reject	engine	storageBackend(propertyClause)?/propertyClause!insert	CREAT
 reject	reject	engine	storageBackend(propertyClause)?/propertyClause!swap	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTY(a = a)
 accept	accept	engine	passwordOption/(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?_(PASSWORD_E~9a60a2f1	CREATE USER a
 accept	accept	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)	CREATE USER a PASSWORD_HISTORY DEFAULT
+accept	accept	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)	CREATE USER a PASSWORD_HISTORY DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!drop-1	CREATE USER a DEFAULT
-accept	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!drop-2	CREATE USER a PASSWORD_HISTORY
+reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!drop-2	CREATE USER a PASSWORD_HISTORY
 reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!insert	CREATE USER a PASSWORD_HISTORY DEFAULT zzz
 reject	reject	engine	passwordOption(PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE))?/PASSWORD_HISTORY_(DEFAULT|INTEGER_VALUE)!swap	CREATE USER a PASSWORD_LOCK_TIME DEFAULT
-reject	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE)/DEFAULT	CREATE USER a PASSWORD_HISTORY DEFAULT
+accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE)/DEFAULT	CREATE USER a PASSWORD_HISTORY DEFAULT
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE)/DEFAULT!swap	CREATE USER a PASSWORD_HISTORY DEFERRED
 accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE)/INTEGER_VALUE	CREATE USER a PASSWORD_HISTORY 1
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE)/INTEGER_VALUE!insert	CREATE USER a PASSWORD_HISTORY 1 zzz
 accept	accept	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)	CREATE USER a PASSWORD_EXPIRE DEFAULT
-accept	reject	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)!drop-2	CREATE USER a PASSWORD_EXPIRE
+accept	accept	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)	CREATE USER a PASSWORD_EXPIRE DEFAULT
+reject	reject	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)!drop-2	CREATE USER a PASSWORD_EXPIRE
 reject	reject	engine	passwordOption(PASSWORD_EXPIRE_(DEFAULT|NEVER|INTER~125c2a5e)?/PASSWORD_EXPIRE_(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)!insert	CREATE USER a PASSWORD_EXPIRE DEFAULT zzz
-reject	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/DEFAULT	CREATE USER a PASSWORD_EXPIRE DEFAULT
+accept	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/DEFAULT	CREATE USER a PASSWORD_EXPIRE DEFAULT
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/DEFAULT!swap	CREATE USER a PASSWORD_EXPIRE DEFERRED
-reject	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER	CREATE USER a PASSWORD_EXPIRE NEVER
+accept	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER	CREATE USER a PASSWORD_EXPIRE NEVER
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER!insert	CREATE USER a PASSWORD_EXPIRE NEVER zzz
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/NEVER!swap	CREATE USER a PASSWORD_EXPIRE NEXT
 accept	accept	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)	CREATE USER a PASSWORD_EXPIRE INTERVAL 1 DAY
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-1	CREATE USER a PASSWORD_EXPIRE 1 DAY
-accept	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-2	CREATE USER a PASSWORD_EXPIRE INTERVAL DAY
-accept	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-3	CREATE USER a PASSWORD_EXPIRE INTERVAL 1
+reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-2	CREATE USER a PASSWORD_EXPIRE INTERVAL DAY
+reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-3	CREATE USER a PASSWORD_EXPIRE INTERVAL 1
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!insert	CREATE USER a PASSWORD_EXPIRE INTERVAL 1 DAY zzz
 reject	reject	engine	passwordOption(DEFAULT|NEVER|INTERVAL_INTEGER_VALUE~519c2985)/INTERVAL_INTEGER_VALUE_(DAY|HOUR|SECOND)!swap	CREATE USER a PASSWORD_EXPIRE INTO 1 DAY
 accept	accept	engine	passwordOption(DAY|HOUR|SECOND)/DAY	CREATE USER a PASSWORD_LOCK_TIME 1 DAY
-accept	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!drop-1	CREATE USER a PASSWORD_LOCK_TIME 1
+reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!drop-1	CREATE USER a PASSWORD_LOCK_TIME 1
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!insert	CREATE USER a PASSWORD_LOCK_TIME 1 DAY zzz
-accept	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!swap	CREATE USER a PASSWORD_LOCK_TIME 1 DAYS
-reject	accept	engine	passwordOption(DAY|HOUR|SECOND)/HOUR	CREATE USER a PASSWORD_LOCK_TIME 1 HOUR
+reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/DAY!swap	CREATE USER a PASSWORD_LOCK_TIME 1 DAYS
+accept	accept	engine	passwordOption(DAY|HOUR|SECOND)/HOUR	CREATE USER a PASSWORD_LOCK_TIME 1 HOUR
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/HOUR!insert	CREATE USER a PASSWORD_LOCK_TIME 1 HOUR zzz
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/HOUR!swap	CREATE USER a PASSWORD_LOCK_TIME 1 HOURS
-reject	accept	engine	passwordOption(DAY|HOUR|SECOND)/SECOND	CREATE USER a PASSWORD_LOCK_TIME 1 SECOND
+accept	accept	engine	passwordOption(DAY|HOUR|SECOND)/SECOND	CREATE USER a PASSWORD_LOCK_TIME 1 SECOND
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/SECOND!insert	CREATE USER a PASSWORD_LOCK_TIME 1 SECOND zzz
 reject	reject	engine	passwordOption(DAY|HOUR|SECOND)/SECOND!swap	CREATE USER a PASSWORD_LOCK_TIME 1 SELECT
 accept	accept	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
+accept	accept	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!drop-1	CREATE USER a INTERVAL DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!drop-2	CREATE USER a PASSWORD_REUSE DEFAULT
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!drop-3	CREATE USER a PASSWORD_REUSE INTERVAL
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!insert	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT zzz
 reject	reject	engine	passwordOption(PASSWORD_REUSE_INTERVAL_(DEFAULT|INT~a277bec2)?/PASSWORD_REUSE_INTERVAL_(DEFAULT|INTEGER_VALUE_DAY)!swap	CREATE USER a PATH INTERVAL DEFAULT
-reject	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/DEFAULT	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
+accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/DEFAULT	CREATE USER a PASSWORD_REUSE INTERVAL DEFAULT
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/DEFAULT!swap	CREATE USER a PASSWORD_REUSE INTERVAL DEFERRED
-reject	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY	CREATE USER a PASSWORD_REUSE INTERVAL 1 DAY
+accept	accept	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY	CREATE USER a PASSWORD_REUSE INTERVAL 1 DAY
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY!drop-1	CREATE USER a PASSWORD_REUSE INTERVAL DAY
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY!drop-2	CREATE USER a PASSWORD_REUSE INTERVAL 1
 reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY!insert	CREATE USER a PASSWORD_REUSE INTERVAL 1 DAY zzz
@@ -4550,23 +4550,23 @@ reject	reject	engine	passwordOption(DEFAULT|INTEGER_VALUE_DAY)/INTEGER_VALUE_DAY
 accept	accept	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/%empty	CREATE USER a
 accept	accept	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE	CREATE USER a FAILED_LOGIN_ATTEMPTS 1
 reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!drop-1	CREATE USER a 1
-accept	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!drop-2	CREATE USER a FAILED_LOGIN_ATTEMPTS
+reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!drop-2	CREATE USER a FAILED_LOGIN_ATTEMPTS
 reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!insert	CREATE USER a FAILED_LOGIN_ATTEMPTS 1 zzz
 reject	reject	engine	passwordOption(FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE)?/FAILED_LOGIN_ATTEMPTS_INTEGER_VALUE!swap	CREATE USER a FALSE 1
 accept	accept	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
+accept	accept	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
 reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!drop-1	CREATE USER a UNBOUNDED
-accept	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!drop-2	CREATE USER a PASSWORD_LOCK_TIME
+reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!drop-2	CREATE USER a PASSWORD_LOCK_TIME
 reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!insert	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED zzz
 reject	reject	engine	passwordOption(PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGE~db4c613f)?/PASSWORD_LOCK_TIME_(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))!swap	CREATE USER a PASSWORD_REUSE UNBOUNDED
-reject	accept	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/UNBOUNDED	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
+accept	accept	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/UNBOUNDED	CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED
 reject	reject	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/UNBOUNDED!swap	CREATE USER a PASSWORD_LOCK_TIME UNCOMMITTED
 accept	accept	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/INTEGER_VALUE_(DAY|HOUR|SECOND)	CREATE USER a PASSWORD_LOCK_TIME 1 DAY
-accept	reject	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-1	CREATE USER a PASSWORD_LOCK_TIME DAY
+reject	reject	engine	passwordOption(UNBOUNDED|INTEGER_VALUE_(DAY|HOUR|SECOND))/INTEGER_VALUE_(DAY|HOUR|SECOND)!drop-1	CREATE USER a PASSWORD_LOCK_TIME DAY
 accept	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/%empty	CREATE USER a
-reject	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_LOCK	CREATE USER a ACCOUNT_LOCK
+accept	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_LOCK	CREATE USER a ACCOUNT_LOCK
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_LOCK!insert	CREATE USER a ACCOUNT_LOCK zzz
-reject	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK	CREATE USER a ACCOUNT_UNLOCK
+accept	accept	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK	CREATE USER a ACCOUNT_UNLOCK
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK!insert	CREATE USER a ACCOUNT_UNLOCK zzz
 reject	reject	engine	passwordOption(ACCOUNT_LOCK|ACCOUNT_UNLOCK)?/ACCOUNT_UNLOCK!swap	CREATE USER a ACTIONS
 accept	accept	engine	functionArguments/functionArgument_(COMMA_functionArgument)*	DROP FUNCTION a(...)
@@ -5279,7 +5279,7 @@ accept	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/%empty	EXPLAIN SELEC
 accept	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/VERBOSE	EXPLAIN VERBOSE SELECT CURRENT_DATE
 reject	reject	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/VERBOSE!insert	EXPLAIN VERBOSE zzz SELECT CURRENT_DATE
 reject	reject	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/VERBOSE!swap	EXPLAIN VERSION SELECT CURRENT_DATE
-reject	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/TREE	EXPLAIN TREE SELECT CURRENT_DATE
+accept	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/TREE	EXPLAIN TREE SELECT CURRENT_DATE
 reject	reject	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/TREE!insert	EXPLAIN TREE zzz SELECT CURRENT_DATE
 reject	reject	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/TREE!swap	EXPLAIN TRIGGERS SELECT CURRENT_DATE
 accept	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/GRAPH	EXPLAIN GRAPH SELECT CURRENT_DATE
@@ -5292,7 +5292,7 @@ accept	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/DUMP	EXPLAIN DUMP SE
 reject	reject	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/DUMP!insert	EXPLAIN DUMP zzz SELECT CURRENT_DATE
 reject	reject	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/DUMP!swap	EXPLAIN DUPLICATE SELECT CURRENT_DATE
 accept	accept	engine	explain(PROCESS)?/%empty	EXPLAIN SELECT CURRENT_DATE
-reject	accept	engine	explain(PROCESS)?/PROCESS	EXPLAIN PROCESS SELECT CURRENT_DATE
+accept	accept	engine	explain(PROCESS)?/PROCESS	EXPLAIN PROCESS SELECT CURRENT_DATE
 reject	reject	engine	explain(PROCESS)?/PROCESS!insert	EXPLAIN PROCESS zzz SELECT CURRENT_DATE
 reject	reject	engine	explain(PROCESS)?/PROCESS!swap	EXPLAIN PROCESSLIST SELECT CURRENT_DATE
 reject	accept	engine	explainCommand/EXPLAIN	EXPLAIN a
@@ -5372,8 +5372,8 @@ accept	accept	engine	colMappingList(COMMA_mappingExpr)*/COMMA_mappingExpr_(COMMA
 accept	accept	engine	mappingExpr/identifier_EQ_expression	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_DATE)
 reject	reject	engine	mappingExpr/identifier_EQ_expression!truncate	LOAD DATA INFILE 'a' INTO TABLE a SET(a =
 accept	accept	engine	mappingExpr/identifier_EQ_expression!swap	LOAD DATA INFILE 'a' INTO TABLE a SET(a = CURRENT_TIME)
-reject	accept	engine	withRemoteStorageSystem/resourceDesc	EXPORT TABLE a TO 'a' WITH RESOURCE a
-reject	accept	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH S3(a = a)
+accept	accept	engine	withRemoteStorageSystem/resourceDesc	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH S3(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' S3(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-2	EXPORT TABLE a TO 'a' WITH(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH S3 a = a)
@@ -5383,7 +5383,7 @@ reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-7	EXPORT TABLE a TO 'a' WITH S3(a = a
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH S3(a = a) zzz
 reject	reject	engine	withRemoteStorageSystem/WITH_S3_LEFT_PAREN_propertyItemList_RIGHT_PAREN!swap	EXPORT TABLE a TO 'a' WORK S3(a = a)
-reject	accept	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH HDFS(a = a)
+accept	accept	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH HDFS(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' HDFS(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH HDFS a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH HDFS(= a)
@@ -5392,7 +5392,7 @@ reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemLi
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-7	EXPORT TABLE a TO 'a' WITH HDFS(a = a
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH HDFS(a = a) zzz
 reject	reject	engine	withRemoteStorageSystem/WITH_HDFS_LEFT_PAREN_propertyItemList_RIGHT_PAREN!swap	EXPORT TABLE a TO 'a' WORK HDFS(a = a)
-reject	accept	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH LOCAL(a = a)
+accept	accept	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH LOCAL(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' LOCAL(a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH LOCAL a = a)
 reject	reject	engine	withRemoteStorageSystem/WITH_LOCAL_LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH LOCAL(= a)
@@ -5414,9 +5414,9 @@ reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_P
 reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-4	EXPORT TABLE a TO 'a' WITH BROKER a(a =)
 reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-5	EXPORT TABLE a TO 'a' WITH BROKER a(a = a
 reject	reject	engine	withRemoteStorageSystem(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!insert	EXPORT TABLE a TO 'a' WITH BROKER a(a = a) zzz
-reject	accept	engine	resourceDesc/WITH_RESOURCE_identifierOrText_(LEFT_PAREN_propertyItem~56747fa1	EXPORT TABLE a TO 'a' WITH RESOURCE a
-reject	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/%empty	EXPORT TABLE a TO 'a' WITH RESOURCE a
-reject	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH RESOURCE a(a = a)
+accept	accept	engine	resourceDesc/WITH_RESOURCE_identifierOrText_(LEFT_PAREN_propertyItem~56747fa1	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/%empty	EXPORT TABLE a TO 'a' WITH RESOURCE a
+accept	accept	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN	EXPORT TABLE a TO 'a' WITH RESOURCE a(a = a)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-1	EXPORT TABLE a TO 'a' WITH RESOURCE a a = a)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-2	EXPORT TABLE a TO 'a' WITH RESOURCE a(= a)
 reject	reject	engine	resourceDesc(LEFT_PAREN_propertyItemList_RIGHT_PAREN)?/LEFT_PAREN_propertyItemList_RIGHT_PAREN!drop-3	EXPORT TABLE a TO 'a' WITH RESOURCE a(a a)
@@ -5549,7 +5549,7 @@ reject	reject	engine	queryPrimary/LEFT_PAREN_query_RIGHT_PAREN!drop-3	(SELECT)
 reject	reject	engine	queryPrimary/LEFT_PAREN_query_RIGHT_PAREN!drop-4	(SELECT CURRENT_DATE
 reject	reject	engine	queryPrimary/LEFT_PAREN_query_RIGHT_PAREN!insert	(SELECT CURRENT_DATE) zzz
 reject	reject	engine	queryPrimary/LEFT_PAREN_query_RIGHT_PAREN!swap	(SEMI CURRENT_DATE)
-reject	accept	engine	queryPrimary/inlineTable	VALUES()
+accept	accept	engine	queryPrimary/inlineTable	VALUES()
 reject	reject	engine	queryPrimary/inlineTable!drop-1	()
 reject	reject	engine	queryPrimary/inlineTable!drop-2	VALUES)
 reject	reject	engine	queryPrimary/inlineTable!drop-3	VALUES(
@@ -6464,9 +6464,9 @@ reject	reject	engine	tabletList(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA
 reject	reject	engine	tabletList(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!drop-2	ADMIN CHECK TABLET(1,)
 reject	reject	engine	tabletList(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!truncate	ADMIN CHECK TABLET(1,
 reject	reject	engine	tabletList(COMMA_INTEGER_VALUE)*/COMMA_INTEGER_VALUE_(COMMA_INTEGER_VALUE)*!insert	ADMIN CHECK TABLET(1, 1 zzz)
-reject	accept	engine	inlineTable/VALUES_rowConstructor_(COMMA_rowConstructor)*	VALUES()
-reject	accept	engine	inlineTable(COMMA_rowConstructor)*/%empty	VALUES()
-reject	accept	engine	inlineTable(COMMA_rowConstructor)*/COMMA_rowConstructor_(COMMA_rowConstructor)*	VALUES(),()
+accept	accept	engine	inlineTable/VALUES_rowConstructor_(COMMA_rowConstructor)*	VALUES()
+accept	accept	engine	inlineTable(COMMA_rowConstructor)*/%empty	VALUES()
+accept	accept	engine	inlineTable(COMMA_rowConstructor)*/COMMA_rowConstructor_(COMMA_rowConstructor)*	VALUES(),()
 reject	reject	engine	inlineTable(COMMA_rowConstructor)*/COMMA_rowConstructor_(COMMA_rowConstructor)*!drop-1	VALUES()()
 reject	reject	engine	inlineTable(COMMA_rowConstructor)*/COMMA_rowConstructor_(COMMA_rowConstructor)*!drop-2	VALUES(),)
 reject	reject	engine	inlineTable(COMMA_rowConstructor)*/COMMA_rowConstructor_(COMMA_rowConstructor)*!drop-3	VALUES(),(
@@ -6583,26 +6583,26 @@ accept	accept	engine	booleanExpression(AND|LOGICALAND)/AND!insert	SELECT CURRENT
 reject	reject	engine	booleanExpression(AND|LOGICALAND)/AND!swap	SELECT CURRENT_DATE ANTI CURRENT_DATE
 accept	accept	engine	booleanExpression(AND|LOGICALAND)/LOGICALAND	SELECT CURRENT_DATE && CURRENT_DATE
 accept	accept	engine	booleanExpression(AND|LOGICALAND)/LOGICALAND!insert	SELECT CURRENT_DATE && zzz CURRENT_DATE
-reject	accept	engine	rowConstructor/LEFT_PAREN_(rowConstructorItem_(COMMA_rowConstru~527279~19e6fad4	VALUES()
-reject	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/%empty	VALUES()
-reject	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/%empty!insert	VALUES(zzz)
-reject	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/rowConstructorItem_(COMMA_rowConstructorItem)*	VALUES(NULL)
-reject	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/rowConstructorItem_(COMMA_rowConstructorItem)*!insert	VALUES(NULL zzz)
-reject	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/rowConstructorItem_(COMMA_rowConstructorItem)*!swap	VALUES(NULLS)
-reject	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/%empty	VALUES(NULL)
-reject	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*	VALUES(NULL, NULL)
+accept	accept	engine	rowConstructor/LEFT_PAREN_(rowConstructorItem_(COMMA_rowConstru~527279~19e6fad4	VALUES()
+accept	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/%empty	VALUES()
+accept	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/%empty!insert	VALUES(zzz)
+accept	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/rowConstructorItem_(COMMA_rowConstructorItem)*	VALUES(NULL)
+accept	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/rowConstructorItem_(COMMA_rowConstructorItem)*!insert	VALUES(NULL zzz)
+accept	accept	engine	rowConstructor(rowConstructorItem_(COMMA_rowConstru~527279f5)?/rowConstructorItem_(COMMA_rowConstructorItem)*!swap	VALUES(NULLS)
+accept	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/%empty	VALUES(NULL)
+accept	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*	VALUES(NULL, NULL)
 reject	reject	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!drop-1	VALUES(NULL NULL)
 reject	reject	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!drop-2	VALUES(NULL,)
 reject	reject	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!truncate	VALUES(NULL,
-reject	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!insert	VALUES(NULL, NULL zzz)
-reject	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!swap	VALUES(NULL, NULLS)
-reject	accept	engine	rowConstructorItem/constant	VALUES(NULL)
-reject	accept	engine	rowConstructorItem/DEFAULT	VALUES(DEFAULT)
+accept	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!insert	VALUES(NULL, NULL zzz)
+accept	accept	engine	rowConstructor(COMMA_rowConstructorItem)*/COMMA_rowConstructorItem_(COMMA_rowConstructorItem)*!swap	VALUES(NULL, NULLS)
+accept	accept	engine	rowConstructorItem/constant	VALUES(NULL)
+accept	accept	engine	rowConstructorItem/DEFAULT	VALUES(DEFAULT)
 reject	reject	engine	rowConstructorItem/DEFAULT!insert	VALUES(DEFAULT zzz)
-reject	accept	engine	rowConstructorItem/DEFAULT!swap	VALUES(DEFERRED)
-reject	accept	engine	rowConstructorItem/namedExpression	VALUES(CURRENT_DATE)
-reject	accept	engine	rowConstructorItem/namedExpression!insert	VALUES(CURRENT_DATE zzz)
-reject	accept	engine	rowConstructorItem/namedExpression!swap	VALUES(CURRENT_TIME)
+accept	accept	engine	rowConstructorItem/DEFAULT!swap	VALUES(DEFERRED)
+accept	accept	engine	rowConstructorItem/namedExpression	VALUES(CURRENT_DATE)
+accept	accept	engine	rowConstructorItem/namedExpression!insert	VALUES(CURRENT_DATE zzz)
+accept	accept	engine	rowConstructorItem/namedExpression!swap	VALUES(CURRENT_TIME)
 accept	accept	engine	predicate/(NOT)?_BETWEEN_valueExpression_AND_valueExpression	SELECT CURRENT_DATE BETWEEN CURRENT_DATE AND CURRENT_DATE
 reject	reject	engine	predicate/(NOT)?_BETWEEN_valueExpression_AND_valueExpression!drop-1	SELECT CURRENT_DATE CURRENT_DATE AND CURRENT_DATE
 reject	reject	engine	predicate/(NOT)?_BETWEEN_valueExpression_AND_valueExpression!drop-2	SELECT CURRENT_DATE BETWEEN AND CURRENT_DATE
@@ -8319,47 +8319,47 @@ accept	accept	engine	stmts/stmt
 reject	reject	engine	stmts/stmt!insert	zzz
 accept	accept	engine	stmts/stmts_;_stmt	;
 reject	reject	engine	stmts/stmts_;_stmt!insert	; zzz
-reject	accept	engine	stmts/import_columns_stmt	COLUMNS(a)
+accept	accept	engine	stmts/import_columns_stmt	COLUMNS(a)
 reject	reject	engine	stmts/import_columns_stmt!drop-1	(a)
 reject	reject	engine	stmts/import_columns_stmt!drop-2	COLUMNS a)
 reject	reject	engine	stmts/import_columns_stmt!drop-3	COLUMNS()
 reject	reject	engine	stmts/import_columns_stmt!drop-4	COLUMNS(a
 reject	reject	engine	stmts/import_columns_stmt!insert	COLUMNS(a) zzz
 reject	reject	engine	stmts/import_columns_stmt!swap	COMMENT(a)
-reject	accept	engine	stmts/import_where_stmt	WHERE 1
+accept	accept	engine	stmts/import_where_stmt	WHERE 1
 reject	reject	engine	stmts/import_where_stmt!drop-1	1
 reject	reject	engine	stmts/import_where_stmt!drop-2	WHERE
 reject	reject	engine	stmts/import_where_stmt!insert	WHERE 1 zzz
 reject	reject	engine	stmts/import_where_stmt!swap	WHITELIST 1
-reject	accept	engine	stmts/import_delete_on_stmt	DELETE ON 1
+accept	accept	engine	stmts/import_delete_on_stmt	DELETE ON 1
 reject	reject	engine	stmts/import_delete_on_stmt!drop-1	ON 1
 reject	reject	engine	stmts/import_delete_on_stmt!drop-2	DELETE 1
 reject	reject	engine	stmts/import_delete_on_stmt!drop-3	DELETE ON
 reject	reject	engine	stmts/import_delete_on_stmt!insert	DELETE ON 1 zzz
 reject	reject	engine	stmts/import_delete_on_stmt!swap	DEMAND ON 1
-reject	accept	engine	stmts/import_sequence_stmt	ORDER BY a
+accept	accept	engine	stmts/import_sequence_stmt	ORDER BY a
 reject	reject	engine	stmts/import_sequence_stmt!drop-1	BY a
 reject	reject	engine	stmts/import_sequence_stmt!drop-2	ORDER a
 reject	reject	engine	stmts/import_sequence_stmt!drop-3	ORDER BY
 reject	reject	engine	stmts/import_sequence_stmt!insert	ORDER BY a zzz
 reject	reject	engine	stmts/import_sequence_stmt!swap	OUTER BY a
-reject	accept	engine	stmts/import_preceding_filter_stmt	PRECEDING FILTER 1
+accept	accept	engine	stmts/import_preceding_filter_stmt	PRECEDING FILTER 1
 reject	reject	engine	stmts/import_preceding_filter_stmt!drop-1	FILTER 1
 reject	reject	engine	stmts/import_preceding_filter_stmt!drop-2	PRECEDING 1
 reject	reject	engine	stmts/import_preceding_filter_stmt!drop-3	PRECEDING FILTER
 reject	reject	engine	stmts/import_preceding_filter_stmt!insert	PRECEDING FILTER 1 zzz
 reject	reject	engine	stmts/import_preceding_filter_stmt!swap	PREPARE FILTER 1
-reject	accept	engine	import_columns_stmt/COLUMNS_(_import_column_descs_)	COLUMNS(a)
-reject	accept	engine	import_column_descs/import_column_desc	COLUMNS(a)
+accept	accept	engine	import_columns_stmt/COLUMNS_(_import_column_descs_)	COLUMNS(a)
+accept	accept	engine	import_column_descs/import_column_desc	COLUMNS(a)
 reject	reject	engine	import_column_descs/import_column_desc!truncate	COLUMNS(
 reject	reject	engine	import_column_descs/import_column_desc!insert	COLUMNS(a zzz)
-reject	accept	engine	import_column_descs/import_column_descs_,_import_column_desc	COLUMNS(a, a)
+accept	accept	engine	import_column_descs/import_column_descs_,_import_column_desc	COLUMNS(a, a)
 reject	reject	engine	import_column_descs/import_column_descs_,_import_column_desc!drop-1	COLUMNS(, a)
 reject	reject	engine	import_column_descs/import_column_descs_,_import_column_desc!drop-2	COLUMNS(a a)
 reject	reject	engine	import_column_descs/import_column_descs_,_import_column_desc!drop-3	COLUMNS(a,)
 reject	reject	engine	import_column_descs/import_column_descs_,_import_column_desc!truncate	COLUMNS(a,
 reject	reject	engine	import_column_descs/import_column_descs_,_import_column_desc!insert	COLUMNS(a, a zzz)
-reject	accept	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)	COLUMNS(a,(a))
+accept	accept	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)	COLUMNS(a,(a))
 reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)!drop-1	COLUMNS(,(a))
 reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)!drop-2	COLUMNS(a(a))
 reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)!drop-3	COLUMNS(a, a))
@@ -8367,17 +8367,17 @@ reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_d
 reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)!drop-5	COLUMNS(a,(a)
 reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)!truncate	COLUMNS(a,(a
 reject	reject	engine	import_column_descs/import_column_descs_,_(_import_column_desc_)!insert	COLUMNS(a,(a) zzz)
-reject	accept	engine	import_column_desc/ident	COLUMNS(a)
-reject	accept	engine	import_column_desc/ident_=_expr	COLUMNS(a = 1)
+accept	accept	engine	import_column_desc/ident	COLUMNS(a)
+accept	accept	engine	import_column_desc/ident_=_expr	COLUMNS(a = 1)
 reject	reject	engine	import_column_desc/ident_=_expr!drop-1	COLUMNS(= 1)
 reject	reject	engine	import_column_desc/ident_=_expr!drop-2	COLUMNS(a 1)
 reject	reject	engine	import_column_desc/ident_=_expr!drop-3	COLUMNS(a =)
 reject	reject	engine	import_column_desc/ident_=_expr!truncate	COLUMNS(a =
 reject	reject	engine	import_column_desc/ident_=_expr!insert	COLUMNS(a = 1 zzz)
-reject	accept	engine	import_where_stmt/WHERE_expr	WHERE 1
-reject	accept	engine	import_delete_on_stmt/DELETE_ON_expr	DELETE ON 1
-reject	accept	engine	import_sequence_stmt/ORDER_BY_ident	ORDER BY a
-reject	accept	engine	import_preceding_filter_stmt/PRECEDING_FILTER_expr	PRECEDING FILTER 1
+accept	accept	engine	import_where_stmt/WHERE_expr	WHERE 1
+accept	accept	engine	import_delete_on_stmt/DELETE_ON_expr	DELETE ON 1
+accept	accept	engine	import_sequence_stmt/ORDER_BY_ident	ORDER BY a
+accept	accept	engine	import_preceding_filter_stmt/PRECEDING_FILTER_expr	PRECEDING FILTER 1
 accept	accept	engine	stmt/alter_stmt	ALTER RESOURCE a
 reject	reject	engine	stmt/alter_stmt!drop-1	RESOURCE a
 reject	reject	engine	stmt/alter_stmt!drop-2	ALTER a
@@ -8563,7 +8563,7 @@ accept	accept	engine	stmt/resume_job_stmt	RESUME JOB
 reject	reject	engine	stmt/resume_job_stmt!drop-2	RESUME
 reject	reject	engine	stmt/resume_job_stmt!insert	RESUME JOB zzz
 reject	reject	engine	stmt/resume_job_stmt!swap	RETAIN JOB
-reject	accept	engine	stmt/show_create_load_stmt	SHOW CREATE LOAD FOR a
+accept	accept	engine	stmt/show_create_load_stmt	SHOW CREATE LOAD FOR a
 reject	reject	engine	stmt/show_create_load_stmt!drop-1	CREATE LOAD FOR a
 reject	reject	engine	stmt/show_create_load_stmt!drop-2	SHOW LOAD FOR a
 reject	reject	engine	stmt/show_create_load_stmt!drop-3	SHOW CREATE FOR a
@@ -9935,7 +9935,7 @@ reject	reject	engine	grant_user/user_identity_IDENTIFIED_BY_PASSWORD_STRING_LITE
 reject	reject	engine	grant_user/user_identity_IDENTIFIED_BY_PASSWORD_STRING_LITERAL!insert	ALTER USER a IDENTIFIED BY PASSWORD 'a' zzz
 reject	reject	engine	grant_user/user_identity_IDENTIFIED_BY_PASSWORD_STRING_LITERAL!swap	ALTER USER a IF BY PASSWORD 'a'
 accept	accept	engine	opt_user_role/%empty	CREATE USER a
-reject	accept	engine	opt_user_role/SUPERUSER	CREATE USER a SUPERUSER
+accept	accept	engine	opt_user_role/SUPERUSER	CREATE USER a SUPERUSER
 reject	reject	engine	opt_user_role/SUPERUSER!insert	CREATE USER a SUPERUSER zzz
 reject	reject	engine	opt_user_role/SUPERUSER!swap	CREATE USER a SWITCH
 accept	accept	engine	opt_user_role/DEFAULT_ROLE_STRING_LITERAL	CREATE USER a DEFAULT ROLE 'a'
@@ -10297,7 +10297,7 @@ reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!drop-4	LOAD DATA INF
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!insert	LOAD DATA INFILE 'a' INTO TABLE a SET(1) zzz
 reject	reject	engine	opt_col_mapping_list/SET_(_expr_list_)!swap	LOAD DATA INFILE 'a' INTO TABLE a SETS(1)
 accept	accept	engine	opt_broker/%empty	EXPORT TABLE a TO 'a'
-reject	accept	engine	opt_broker/WITH_S3_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH S3('a' = 'a')
+accept	accept	engine	opt_broker/WITH_S3_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH S3('a' = 'a')
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-1	EXPORT TABLE a TO 'a' S3('a' = 'a')
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-2	EXPORT TABLE a TO 'a' WITH('a' = 'a')
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-3	EXPORT TABLE a TO 'a' WITH S3 'a' = 'a')
@@ -10307,7 +10307,7 @@ reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-6	EXPORT TABLE a 
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!drop-7	EXPORT TABLE a TO 'a' WITH S3('a' = 'a'
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!insert	EXPORT TABLE a TO 'a' WITH S3('a' = 'a') zzz
 reject	reject	engine	opt_broker/WITH_S3_(_key_value_map_)!swap	EXPORT TABLE a TO 'a' WORK S3('a' = 'a')
-reject	accept	engine	opt_broker/WITH_HDFS_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a')
+accept	accept	engine	opt_broker/WITH_HDFS_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a')
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-1	EXPORT TABLE a TO 'a' HDFS('a' = 'a')
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-3	EXPORT TABLE a TO 'a' WITH HDFS 'a' = 'a')
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-4	EXPORT TABLE a TO 'a' WITH HDFS(= 'a')
@@ -10316,7 +10316,7 @@ reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-6	EXPORT TABLE 
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!drop-7	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a'
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!insert	EXPORT TABLE a TO 'a' WITH HDFS('a' = 'a') zzz
 reject	reject	engine	opt_broker/WITH_HDFS_(_key_value_map_)!swap	EXPORT TABLE a TO 'a' WORK HDFS('a' = 'a')
-reject	accept	engine	opt_broker/WITH_LOCAL_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH LOCAL('a' = 'a')
+accept	accept	engine	opt_broker/WITH_LOCAL_(_key_value_map_)	EXPORT TABLE a TO 'a' WITH LOCAL('a' = 'a')
 reject	reject	engine	opt_broker/WITH_LOCAL_(_key_value_map_)!drop-1	EXPORT TABLE a TO 'a' LOCAL('a' = 'a')
 reject	reject	engine	opt_broker/WITH_LOCAL_(_key_value_map_)!drop-3	EXPORT TABLE a TO 'a' WITH LOCAL 'a' = 'a')
 reject	reject	engine	opt_broker/WITH_LOCAL_(_key_value_map_)!drop-4	EXPORT TABLE a TO 'a' WITH LOCAL(= 'a')
@@ -10506,7 +10506,7 @@ reject	reject	engine	show_create_routine_load_stmt/SHOW_ALL_CREATE_ROUTINE_LOAD_
 reject	reject	engine	show_create_routine_load_stmt/SHOW_ALL_CREATE_ROUTINE_LOAD_FOR_job_label!drop-7	SHOW ALL CREATE ROUTINE LOAD FOR
 reject	reject	engine	show_create_routine_load_stmt/SHOW_ALL_CREATE_ROUTINE_LOAD_FOR_job_label!insert	SHOW ALL CREATE ROUTINE LOAD FOR a zzz
 reject	reject	engine	show_create_routine_load_stmt/SHOW_ALL_CREATE_ROUTINE_LOAD_FOR_job_label!swap	SIGNED ALL CREATE ROUTINE LOAD FOR a
-reject	accept	engine	show_create_load_stmt/SHOW_CREATE_LOAD_FOR_job_label	SHOW CREATE LOAD FOR a
+accept	accept	engine	show_create_load_stmt/SHOW_CREATE_LOAD_FOR_job_label	SHOW CREATE LOAD FOR a
 reject	accept	engine	show_create_reporitory_stmt/SHOW_CREATE_REPOSITORY_FOR_ident	SHOW CREATE REPOSITORY FOR a
 accept	accept	engine	analyze_stmt/ANALYZE_TABLE_table_name_opt_partition_names_opt_col_li~781d5f06	ANALYZE TABLE a
 accept	accept	engine	analyze_stmt/ANALYZE_DATABASE_ident_._ident_opt_with_analysis_proper~14f3cf02	ANALYZE DATABASE a.a
@@ -11395,9 +11395,9 @@ reject	reject	engine	opt_key_value_map/(_key_value_map_)!drop-3	CREATE STAGE a P
 reject	reject	engine	opt_key_value_map/(_key_value_map_)!drop-4	CREATE STAGE a PROPERTIES('a' =)
 reject	reject	engine	opt_key_value_map/(_key_value_map_)!drop-5	CREATE STAGE a PROPERTIES('a' = 'a'
 reject	reject	engine	opt_key_value_map/(_key_value_map_)!insert	CREATE STAGE a PROPERTIES('a' = 'a') zzz
-reject	accept	engine	opt_key_value_map_in_paren/%empty	DESCRIBE FUNCTION a()
+accept	accept	engine	opt_key_value_map_in_paren/%empty	DESCRIBE FUNCTION a()
 reject	reject	engine	opt_key_value_map_in_paren/%empty!insert	DESCRIBE FUNCTION a(zzz)
-reject	accept	engine	opt_key_value_map_in_paren/STRING_LITERAL_=_STRING_LITERAL	DESCRIBE FUNCTION a('a' = 'a')
+accept	accept	engine	opt_key_value_map_in_paren/STRING_LITERAL_=_STRING_LITERAL	DESCRIBE FUNCTION a('a' = 'a')
 reject	reject	engine	opt_key_value_map_in_paren/STRING_LITERAL_=_STRING_LITERAL!drop-1	DESCRIBE FUNCTION a(= 'a')
 reject	reject	engine	opt_key_value_map_in_paren/STRING_LITERAL_=_STRING_LITERAL!drop-2	DESCRIBE FUNCTION a('a' 'a')
 reject	reject	engine	opt_key_value_map_in_paren/STRING_LITERAL_=_STRING_LITERAL!drop-3	DESCRIBE FUNCTION a('a' =)
@@ -11815,7 +11815,7 @@ accept	accept	engine	show_param/TABLE_STATUS_opt_db_opt_wild_where	SHOW TABLE ST
 reject	reject	engine	show_param/TABLE_STATUS_opt_db_opt_wild_where!drop-2	SHOW TABLE
 reject	reject	engine	show_param/TABLE_STATUS_opt_db_opt_wild_where!insert	SHOW TABLE STATUS zzz
 reject	reject	engine	show_param/TABLE_STATUS_opt_db_opt_wild_where!swap	SHOW TABLES STATUS
-reject	accept	engine	show_param/TABLE_STATUS_from_or_in_ident_._ident_opt_wild_where	SHOW TABLE STATUS FROM a.a
+accept	accept	engine	show_param/TABLE_STATUS_from_or_in_ident_._ident_opt_wild_where	SHOW TABLE STATUS FROM a.a
 reject	reject	engine	show_param/TABLE_STATUS_from_or_in_ident_._ident_opt_wild_where!drop-1	SHOW STATUS FROM a.a
 reject	reject	engine	show_param/TABLE_STATUS_from_or_in_ident_._ident_opt_wild_where!drop-2	SHOW TABLE FROM a.a
 reject	reject	engine	show_param/TABLE_STATUS_from_or_in_ident_._ident_opt_wild_where!drop-3	SHOW TABLE STATUS a.a
@@ -11827,7 +11827,7 @@ reject	reject	engine	show_param/TABLE_STATUS_from_or_in_ident_._ident_opt_wild_w
 accept	accept	engine	show_param/opt_full_TABLES_opt_db_opt_wild_where	SHOW TABLES
 reject	reject	engine	show_param/opt_full_TABLES_opt_db_opt_wild_where!insert	SHOW TABLES zzz
 reject	reject	engine	show_param/opt_full_TABLES_opt_db_opt_wild_where!swap	SHOW TABLESAMPLE
-reject	accept	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where	SHOW TABLES FROM a.a
+accept	accept	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where	SHOW TABLES FROM a.a
 reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where!drop-1	SHOW FROM a.a
 reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where!drop-2	SHOW TABLES a.a
 reject	reject	engine	show_param/opt_full_TABLES_from_or_in_ident_._ident_opt_wild_where!drop-3	SHOW TABLES FROM.a
@@ -11845,7 +11845,7 @@ reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!drop-5	SHOW VIEWS FROM a.
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!insert	SHOW VIEWS FROM a.a zzz
 reject	reject	engine	show_param/opt_full_VIEWS_from_or_in_ident_._ident_opt_wild_where!swap	SHOW WARM FROM a.a
-reject	accept	engine	show_param/TABLE_INTEGER_VALUE	SHOW TABLE 1
+accept	accept	engine	show_param/TABLE_INTEGER_VALUE	SHOW TABLE 1
 reject	reject	engine	show_param/TABLE_INTEGER_VALUE!drop-1	SHOW 1
 reject	reject	engine	show_param/TABLE_INTEGER_VALUE!insert	SHOW TABLE 1 zzz
 reject	reject	engine	show_param/TABLE_INTEGER_VALUE!swap	SHOW TABLES 1
@@ -12186,7 +12186,7 @@ accept	accept	engine	show_param/TABLE_STATS_INTEGER_VALUE	SHOW TABLE STATS 1
 reject	reject	engine	show_param/TABLE_STATS_INTEGER_VALUE!drop-1	SHOW STATS 1
 reject	reject	engine	show_param/TABLE_STATS_INTEGER_VALUE!insert	SHOW TABLE STATS 1 zzz
 reject	reject	engine	show_param/TABLE_STATS_INTEGER_VALUE!swap	SHOW TABLES STATS 1
-reject	accept	engine	show_param/INDEX_STATS_table_name_ident	SHOW INDEX STATS a a
+accept	accept	engine	show_param/INDEX_STATS_table_name_ident	SHOW INDEX STATS a a
 reject	reject	engine	show_param/INDEX_STATS_table_name_ident!drop-1	SHOW STATS a a
 reject	reject	engine	show_param/INDEX_STATS_table_name_ident!drop-2	SHOW INDEX a a
 reject	reject	engine	show_param/INDEX_STATS_table_name_ident!drop-3	SHOW INDEX STATS a
@@ -12202,7 +12202,7 @@ reject	reject	engine	show_param/COLUMN_HISTOGRAM_table_name_opt_col_list!drop-1	
 reject	reject	engine	show_param/COLUMN_HISTOGRAM_table_name_opt_col_list!drop-3	SHOW COLUMN HISTOGRAM
 reject	reject	engine	show_param/COLUMN_HISTOGRAM_table_name_opt_col_list!insert	SHOW COLUMN HISTOGRAM a zzz
 reject	reject	engine	show_param/COLUMN_HISTOGRAM_table_name_opt_col_list!swap	SHOW COLUMNS HISTOGRAM a
-reject	accept	engine	show_param/TABLE_CREATION_opt_db_opt_wild_where	SHOW TABLE CREATION
+accept	accept	engine	show_param/TABLE_CREATION_opt_db_opt_wild_where	SHOW TABLE CREATION
 reject	reject	engine	show_param/TABLE_CREATION_opt_db_opt_wild_where!drop-1	SHOW CREATION
 reject	reject	engine	show_param/TABLE_CREATION_opt_db_opt_wild_where!insert	SHOW TABLE CREATION zzz
 reject	reject	engine	show_param/TABLE_CREATION_opt_db_opt_wild_where!swap	SHOW TABLES CREATION
@@ -12211,7 +12211,7 @@ reject	reject	engine	show_param/LAST_INSERT!drop-1	SHOW INSERT
 reject	reject	engine	show_param/LAST_INSERT!drop-2	SHOW LAST
 reject	reject	engine	show_param/LAST_INSERT!insert	SHOW LAST INSERT zzz
 reject	reject	engine	show_param/LAST_INSERT!swap	SHOW LATERAL INSERT
-reject	accept	engine	show_param/CREATE_MATERIALIZED_VIEW_ident_ON_table_name	SHOW CREATE MATERIALIZED VIEW a ON a
+accept	accept	engine	show_param/CREATE_MATERIALIZED_VIEW_ident_ON_table_name	SHOW CREATE MATERIALIZED VIEW a ON a
 reject	reject	engine	show_param/CREATE_MATERIALIZED_VIEW_ident_ON_table_name!drop-1	SHOW MATERIALIZED VIEW a ON a
 reject	reject	engine	show_param/CREATE_MATERIALIZED_VIEW_ident_ON_table_name!drop-2	SHOW CREATE VIEW a ON a
 reject	reject	engine	show_param/CREATE_MATERIALIZED_VIEW_ident_ON_table_name!drop-3	SHOW CREATE MATERIALIZED a ON a
@@ -12451,39 +12451,39 @@ reject	reject	engine	opt_builtin/%empty!insert	SHOW zzz FUNCTIONS
 accept	accept	engine	opt_builtin/BUILTIN	SHOW BUILTIN FUNCTIONS
 reject	reject	engine	opt_builtin/BUILTIN!insert	SHOW BUILTIN zzz FUNCTIONS
 reject	reject	engine	opt_builtin/BUILTIN!swap	SHOW BULK FUNCTIONS
-reject	accept	engine	opt_explain_options/%empty	DESCRIBE SELECT 1
+accept	accept	engine	opt_explain_options/%empty	DESCRIBE SELECT 1
 reject	reject	engine	opt_explain_options/%empty!insert	DESCRIBE zzz SELECT 1
-reject	accept	engine	opt_explain_options/VERBOSE	DESCRIBE VERBOSE SELECT 1
+accept	accept	engine	opt_explain_options/VERBOSE	DESCRIBE VERBOSE SELECT 1
 reject	reject	engine	opt_explain_options/VERBOSE!insert	DESCRIBE VERBOSE zzz SELECT 1
 reject	reject	engine	opt_explain_options/VERBOSE!swap	DESCRIBE VERSION SELECT 1
-reject	accept	engine	opt_explain_options/GRAPH	DESCRIBE GRAPH SELECT 1
+accept	accept	engine	opt_explain_options/GRAPH	DESCRIBE GRAPH SELECT 1
 reject	reject	engine	opt_explain_options/GRAPH!insert	DESCRIBE GRAPH zzz SELECT 1
 reject	reject	engine	opt_explain_options/GRAPH!swap	DESCRIBE GROUP SELECT 1
 accept	accept	engine	describe_stmt/describe_command_table_name_opt_partition_names	DESCRIBE a
-reject	accept	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref	DESCRIBE FUNCTION a()
+accept	accept	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref	DESCRIBE FUNCTION a()
 reject	reject	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!drop-2	DESCRIBE a()
 reject	reject	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!drop-3	DESCRIBE FUNCTION()
 reject	reject	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!drop-4	DESCRIBE FUNCTION a)
 reject	reject	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!drop-5	DESCRIBE FUNCTION a(
-reject	accept	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!insert	DESCRIBE FUNCTION a() zzz
+accept	accept	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!insert	DESCRIBE FUNCTION a() zzz
 reject	reject	engine	describe_stmt/describe_command_FUNCTION_table_valued_function_ref!swap	DIAGNOSE FUNCTION a()
 accept	accept	engine	describe_stmt/describe_command_table_name_ALL	DESCRIBE a ALL
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!drop-1	a ALL
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!drop-2	DESCRIBE ALL
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!insert	DESCRIBE a ALL zzz
 reject	reject	engine	describe_stmt/describe_command_table_name_ALL!swap	DIAGNOSE a ALL
-reject	accept	engine	describe_stmt/describe_command_opt_explain_options_query_stmt	DESCRIBE SELECT 1
+accept	accept	engine	describe_stmt/describe_command_opt_explain_options_query_stmt	DESCRIBE SELECT 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_query_stmt!drop-2	DESCRIBE 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_query_stmt!drop-3	DESCRIBE SELECT
-reject	accept	engine	describe_stmt/describe_command_opt_explain_options_query_stmt!insert	DESCRIBE SELECT 1 zzz
+accept	accept	engine	describe_stmt/describe_command_opt_explain_options_query_stmt!insert	DESCRIBE SELECT 1 zzz
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_query_stmt!swap	DIAGNOSE SELECT 1
-reject	accept	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt	DESCRIBE INSERT INTO a SELECT 1
+accept	accept	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt	DESCRIBE INSERT INTO a SELECT 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!drop-2	DESCRIBE INTO a SELECT 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!drop-3	DESCRIBE INSERT a SELECT 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!drop-4	DESCRIBE INSERT INTO SELECT 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!drop-5	DESCRIBE INSERT INTO a 1
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!drop-6	DESCRIBE INSERT INTO a SELECT
-reject	accept	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!insert	DESCRIBE INSERT INTO a SELECT 1 zzz
+accept	accept	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!insert	DESCRIBE INSERT INTO a SELECT 1 zzz
 reject	reject	engine	describe_stmt/describe_command_opt_explain_options_insert_stmt!swap	DIAGNOSE INSERT INTO a SELECT 1
 accept	accept	engine	describe_command/DESCRIBE	DESCRIBE a
 reject	reject	engine	describe_command/DESCRIBE!insert	DESCRIBE zzz a
@@ -13118,14 +13118,14 @@ reject	reject	engine	select_stmt/select_clause_from_clause_where_clause_group_by
 reject	reject	engine	select_stmt/select_clause_from_clause_where_clause_group_by_clause_~0b2bf3a7!drop-4	SELECT 1 FROM
 accept	accept	engine	select_stmt/select_clause_from_clause_where_clause_group_by_clause_~0b2bf3a7!insert	SELECT 1 FROM a zzz
 reject	reject	engine	select_stmt/select_clause_from_clause_where_clause_group_by_clause_~0b2bf3a7!swap	SEMI 1 FROM a
-reject	accept	engine	select_stmt/value_clause_order_by_clause_limit_clause	VALUES()
+accept	accept	engine	select_stmt/value_clause_order_by_clause_limit_clause	VALUES()
 reject	reject	engine	select_stmt/value_clause_order_by_clause_limit_clause!drop-1	()
 reject	reject	engine	select_stmt/value_clause_order_by_clause_limit_clause!drop-2	VALUES)
 reject	reject	engine	select_stmt/value_clause_order_by_clause_limit_clause!drop-3	VALUES(
 reject	reject	engine	select_stmt/value_clause_order_by_clause_limit_clause!insert	VALUES() zzz
 reject	reject	engine	select_stmt/value_clause_order_by_clause_limit_clause!swap	VARCHAR()
-reject	accept	engine	value_clause/VALUES_row_value	VALUES()
-reject	accept	engine	value_clause/value_clause_,_row_value	VALUES(),()
+accept	accept	engine	value_clause/VALUES_row_value	VALUES()
+accept	accept	engine	value_clause/value_clause_,_row_value	VALUES(),()
 reject	reject	engine	value_clause/value_clause_,_row_value!drop-1	(),()
 reject	reject	engine	value_clause/value_clause_,_row_value!drop-2	VALUES),()
 reject	reject	engine	value_clause/value_clause_,_row_value!drop-3	VALUES(,()
@@ -13134,22 +13134,22 @@ reject	reject	engine	value_clause/value_clause_,_row_value!drop-5	VALUES(),)
 reject	reject	engine	value_clause/value_clause_,_row_value!drop-6	VALUES(),(
 reject	reject	engine	value_clause/value_clause_,_row_value!insert	VALUES(),() zzz
 reject	reject	engine	value_clause/value_clause_,_row_value!swap	VARCHAR(),()
-reject	accept	engine	row_value/(_opt_values_)	VALUES()
-reject	accept	engine	opt_values/values	VALUES(1)
-reject	accept	engine	opt_values/values!insert	VALUES(1 zzz)
-reject	accept	engine	opt_values/%empty	VALUES()
-reject	accept	engine	opt_values/%empty!insert	VALUES(zzz)
-reject	accept	engine	values/expr_or_default	VALUES(1)
-reject	accept	engine	values/values_,_expr_or_default	VALUES(1, 1)
+accept	accept	engine	row_value/(_opt_values_)	VALUES()
+accept	accept	engine	opt_values/values	VALUES(1)
+accept	accept	engine	opt_values/values!insert	VALUES(1 zzz)
+accept	accept	engine	opt_values/%empty	VALUES()
+accept	accept	engine	opt_values/%empty!insert	VALUES(zzz)
+accept	accept	engine	values/expr_or_default	VALUES(1)
+accept	accept	engine	values/values_,_expr_or_default	VALUES(1, 1)
 reject	reject	engine	values/values_,_expr_or_default!drop-1	VALUES(, 1)
 reject	reject	engine	values/values_,_expr_or_default!drop-2	VALUES(1 1)
 reject	reject	engine	values/values_,_expr_or_default!drop-3	VALUES(1,)
 reject	reject	engine	values/values_,_expr_or_default!truncate	VALUES(1,
-reject	accept	engine	values/values_,_expr_or_default!insert	VALUES(1, 1 zzz)
-reject	accept	engine	expr_or_default/expr	VALUES(1)
-reject	accept	engine	expr_or_default/DEFAULT	VALUES(DEFAULT)
+accept	accept	engine	values/values_,_expr_or_default!insert	VALUES(1, 1 zzz)
+accept	accept	engine	expr_or_default/expr	VALUES(1)
+accept	accept	engine	expr_or_default/DEFAULT	VALUES(DEFAULT)
 reject	reject	engine	expr_or_default/DEFAULT!insert	VALUES(DEFAULT zzz)
-reject	accept	engine	expr_or_default/DEFAULT!swap	VALUES(DEFERRED)
+accept	accept	engine	expr_or_default/DEFAULT!swap	VALUES(DEFERRED)
 accept	accept	engine	select_clause/SELECT_opt_select_hints_select_list	SELECT 1
 accept	accept	engine	select_clause/SELECT_opt_select_hints_ALL_select_list	SELECT ALL 1
 reject	reject	engine	select_clause/SELECT_opt_select_hints_ALL_select_list!drop-1	ALL 1
@@ -13370,7 +13370,7 @@ reject	reject	engine	table_ref/table_valued_function_ref!drop-1	SELECT 1 FROM()
 reject	reject	engine	table_ref/table_valued_function_ref!drop-2	SELECT 1 FROM a)
 reject	reject	engine	table_ref/table_valued_function_ref!drop-3	SELECT 1 FROM a(
 accept	accept	engine	table_ref/table_valued_function_ref!insert	SELECT 1 FROM a() zzz
-reject	accept	engine	table_valued_function_ref/ident_(_opt_key_value_map_in_paren_)_opt_table_alias	DESCRIBE FUNCTION a()
+accept	accept	engine	table_valued_function_ref/ident_(_opt_key_value_map_in_paren_)_opt_table_alias	DESCRIBE FUNCTION a()
 reject	reject	engine	inline_view_ref/(_query_stmt_)_opt_table_alias	SELECT 1 FROM(SELECT 1)
 accept	accept	engine	base_table_ref_list/base_table_ref	BACKUP SNAPSHOT a TO a ON(a)
 reject	reject	engine	base_table_ref_list/base_table_ref!truncate	BACKUP SNAPSHOT a TO a ON(
@@ -13428,7 +13428,7 @@ reject	reject	engine	opt_table_alias/=_ident	DELETE FROM a = a
 reject	reject	engine	opt_table_alias/=_ident!drop-2	DELETE FROM a =
 reject	reject	engine	opt_table_alias/=_ident!insert	DELETE FROM a = a zzz
 accept	accept	engine	opt_partition_names/%empty	DESCRIBE a
-reject	accept	engine	opt_partition_names/partition_names	DESCRIBE a PARTITION a
+accept	accept	engine	opt_partition_names/partition_names	DESCRIBE a PARTITION a
 reject	reject	engine	opt_partition_names/partition_names!drop-2	DESCRIBE a PARTITION
 reject	reject	engine	opt_partition_names/partition_names!insert	DESCRIBE a PARTITION a zzz
 reject	reject	engine	opt_partition_names/partition_names!swap	DESCRIBE a PARTITIONS a
@@ -13441,33 +13441,33 @@ reject	reject	engine	opt_tablet_list/tablet_list!drop-4	TRUNCATE TABLE a TABLET(
 reject	reject	engine	opt_tablet_list/tablet_list!insert	TRUNCATE TABLE a TABLET(1) zzz
 reject	reject	engine	opt_tablet_list/tablet_list!swap	TRUNCATE TABLE a TABLETS(1)
 reject	reject	engine	tablet_list/TABLET_(_integer_list_)	TRUNCATE TABLE a TABLET(1)
-reject	accept	engine	partition_names/PARTITION_(_ident_list_)	DESCRIBE a PARTITION(a)
+accept	accept	engine	partition_names/PARTITION_(_ident_list_)	DESCRIBE a PARTITION(a)
 reject	reject	engine	partition_names/PARTITION_(_ident_list_)!drop-1	DESCRIBE a(a)
 reject	reject	engine	partition_names/PARTITION_(_ident_list_)!drop-2	DESCRIBE a PARTITION a)
 reject	reject	engine	partition_names/PARTITION_(_ident_list_)!drop-3	DESCRIBE a PARTITION()
 reject	reject	engine	partition_names/PARTITION_(_ident_list_)!drop-4	DESCRIBE a PARTITION(a
 reject	reject	engine	partition_names/PARTITION_(_ident_list_)!insert	DESCRIBE a PARTITION(a) zzz
-reject	accept	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)	DESCRIBE a TEMPORARY PARTITION(a)
+accept	accept	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)	DESCRIBE a TEMPORARY PARTITION(a)
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)!drop-2	DESCRIBE a TEMPORARY(a)
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)!drop-3	DESCRIBE a TEMPORARY PARTITION a)
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)!drop-4	DESCRIBE a TEMPORARY PARTITION()
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)!drop-5	DESCRIBE a TEMPORARY PARTITION(a
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)!insert	DESCRIBE a TEMPORARY PARTITION(a) zzz
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_(_ident_list_)!swap	DESCRIBE a TERMINATED PARTITION(a)
-reject	accept	engine	partition_names/PARTITIONS_(_ident_list_)	DESCRIBE a PARTITIONS(a)
+accept	accept	engine	partition_names/PARTITIONS_(_ident_list_)	DESCRIBE a PARTITIONS(a)
 reject	reject	engine	partition_names/PARTITIONS_(_ident_list_)!drop-2	DESCRIBE a PARTITIONS a)
 reject	reject	engine	partition_names/PARTITIONS_(_ident_list_)!drop-3	DESCRIBE a PARTITIONS()
 reject	reject	engine	partition_names/PARTITIONS_(_ident_list_)!drop-4	DESCRIBE a PARTITIONS(a
 reject	reject	engine	partition_names/PARTITIONS_(_ident_list_)!insert	DESCRIBE a PARTITIONS(a) zzz
 reject	reject	engine	partition_names/PARTITIONS_(_ident_list_)!swap	DESCRIBE a PASSWORD(a)
-reject	accept	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)	DESCRIBE a TEMPORARY PARTITIONS(a)
+accept	accept	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)	DESCRIBE a TEMPORARY PARTITIONS(a)
 reject	reject	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)!drop-3	DESCRIBE a TEMPORARY PARTITIONS a)
 reject	reject	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)!drop-4	DESCRIBE a TEMPORARY PARTITIONS()
 reject	reject	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)!drop-5	DESCRIBE a TEMPORARY PARTITIONS(a
 reject	reject	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)!insert	DESCRIBE a TEMPORARY PARTITIONS(a) zzz
 reject	reject	engine	partition_names/TEMPORARY_PARTITIONS_(_ident_list_)!swap	DESCRIBE a TERMINATED PARTITIONS(a)
-reject	accept	engine	partition_names/PARTITION_ident	DESCRIBE a PARTITION a
-reject	accept	engine	partition_names/TEMPORARY_PARTITION_ident	DESCRIBE a TEMPORARY PARTITION a
+accept	accept	engine	partition_names/PARTITION_ident	DESCRIBE a PARTITION a
+accept	accept	engine	partition_names/TEMPORARY_PARTITION_ident	DESCRIBE a TEMPORARY PARTITION a
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_ident!drop-2	DESCRIBE a TEMPORARY a
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_ident!drop-3	DESCRIBE a TEMPORARY PARTITION
 reject	reject	engine	partition_names/TEMPORARY_PARTITION_ident!insert	DESCRIBE a TEMPORARY PARTITION a zzz

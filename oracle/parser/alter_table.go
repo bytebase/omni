@@ -201,6 +201,12 @@ func (p *Parser) parseAlterTableClause(subtype string, parse func() error) (*nod
 //	constraint_clauses:
 //	    ADD { out_of_line_constraint | out_of_line_ref_constraint | constraint_state }
 //
+// A constraint_state needs a constraint, and Oracle 23ai reads ADD followed by
+// one of its words as a column definition instead: every row of the family
+// (ALTER TABLE a ADD RELY, ADD DEFERRABLE, ADD INITIALLY DEFERRED) answers
+// ORA-02263 or ORA-00902 at the word, neither a syntax error. What it reads a
+// column to be is parseColumnDef's with alterTableAddColumn set.
+//
 //	add_period_clause:
 //	    ADD ( PERIOD FOR valid_time_column [ ( start, end ) ] )
 //
@@ -219,7 +225,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	if p.atWord("SUPPLEMENTAL") {
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(true, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(true, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -386,7 +392,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, options), nil
 	}
 
-	// ADD column_def (without parentheses)
+	// ADD column_def (without parentheses), whose datatype Oracle leaves to
+	// the resolve phase here: see alterTableAddColumn.
+	defer func(saved bool) { p.alterTableAddColumn = saved }(p.alterTableAddColumn)
+	p.alterTableAddColumn = true
 	col, err := p.parseColumnDef()
 	if err != nil {
 		return nil, err
@@ -969,7 +978,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	case p.atWord("SUPPLEMENTAL"):
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(false, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -1606,6 +1615,10 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			if err := p.atExpectWord("DATA"); err != nil {
 				return nil, err
 			}
+			// Oracle reads no item of a nested table's object_properties
+			// here: parseATObjectProperties takes it as text.
+			defer func(saved bool) { p.upgradeIncludingData = saved }(p.upgradeIncludingData)
+			p.upgradeIncludingData = true
 			if err := p.parseATColumnProperties(options); err != nil {
 				return nil, err
 			}

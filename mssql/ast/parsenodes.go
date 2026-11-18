@@ -1169,6 +1169,7 @@ func (n *WaitForStmt) stmtNode() {}
 type ExecStmt struct {
 	Name         *TableRef
 	ModuleVar    string   // EXEC @module_name_var: the variable holding the module name
+	Implied      bool     // a procedure called by name without EXEC as the batch's first statement (optSimpleExecute, TSql160.g:567)
 	Args         *List    // list of ExecArg
 	ReturnVar    string   // @var = EXEC ...
 	ExecString   ExprNode // EXEC ('string') dynamic SQL
@@ -1755,11 +1756,12 @@ func (n *InExpr) exprNode() {}
 
 // LikeExpr represents expr LIKE pattern.
 type LikeExpr struct {
-	Expr    ExprNode
-	Pattern ExprNode
-	Escape  ExprNode
-	Not     bool
-	Loc     Loc
+	Expr         ExprNode
+	Pattern      ExprNode
+	Escape       ExprNode
+	Not          bool
+	EscapeBraced bool // ESCAPE given as the ODBC escape { ESCAPE <expr> }
+	Loc          Loc
 }
 
 func (n *LikeExpr) nodeTag()  {}
@@ -1789,6 +1791,133 @@ const (
 	IsDistinctFrom    // IS DISTINCT FROM (SQL Server 2022), right operand in Value
 	IsNotDistinctFrom // IS NOT DISTINCT FROM (SQL Server 2022), right operand in Value
 )
+
+// DistinctKind is which IS [NOT] DISTINCT FROM form a comparison holds, the
+// form that compares against a quantified subquery.
+type DistinctKind int
+
+const (
+	DistinctNone    DistinctKind = iota // not an IS DISTINCT FROM form
+	DistinctFrom                        // IS DISTINCT FROM
+	DistinctNotFrom                     // IS NOT DISTINCT FROM
+)
+
+// OdbcFunctionCallExpr represents an ODBC function escape inside a scalar
+// expression.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/odbc/reference/develop-app/odbc-escape-sequences
+//
+//	{ fn <function-name> ( [ <argument> [ , ...n ] ] ) }
+//
+// Convert and Extract keep their forms' parts beside the arguments: CONVERT's
+// target type name and EXTRACT's element, which precede the arguments in the
+// escape.
+type OdbcFunctionCallExpr struct {
+	Name    string // function name as written, before any arguments
+	Args    *List  // arguments, if any
+	Convert string // CONVERT's target type (odbcConvertSpecification), "" otherwise
+	Extract string // EXTRACT's element, the identifier before FROM, "" otherwise
+	Loc     Loc
+}
+
+func (n *OdbcFunctionCallExpr) nodeTag()  {}
+func (n *OdbcFunctionCallExpr) exprNode() {}
+
+// OdbcLiteralExpr represents an ODBC literal escape.
+//
+//	{ <kind> '<literal>' }
+//
+// SQL Server reads the kind as an identifier and takes d, t and ts, the date,
+// time and timestamp escapes, as the ODBC specification names them.
+type OdbcLiteralExpr struct {
+	Kind  string   // the kind as written: d, t or ts
+	Value *Literal // the string literal the kind applies to
+	Loc   Loc
+}
+
+func (n *OdbcLiteralExpr) nodeTag()  {}
+func (n *OdbcLiteralExpr) exprNode() {}
+
+// GraphMatchPredicate is a MATCH ( <pattern> ) predicate of a search
+// condition, which walks a graph's nodes and edges.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/match-sql-graph
+//
+//	MATCH ( <graph_match_pattern> )
+//
+// ScriptDOM's GraphMatchPredicate (TSql160.g: booleanExpressionPrimary).
+type GraphMatchPredicate struct {
+	Expression ExprNode // the pattern: *GraphMatchCompositeExpr, *GraphMatchLastNodePredicate,
+	// *GraphMatchRecursivePredicate, or an AND of them in a *BinaryExpr
+	Loc Loc
+}
+
+func (n *GraphMatchPredicate) nodeTag()  {}
+func (n *GraphMatchPredicate) exprNode() {}
+
+// GraphMatchNodeExpr is a node of a graph pattern: a node's alias, or
+// LAST_NODE ( <alias> ), which names the node the pattern ended at.
+//
+// ScriptDOM's GraphMatchNodeExpression (graphMatchNodeExpression).
+type GraphMatchNodeExpr struct {
+	Node         string // the node's alias
+	UsesLastNode bool   // written LAST_NODE ( <alias> )
+	Loc          Loc
+}
+
+func (n *GraphMatchNodeExpr) nodeTag()  {}
+func (n *GraphMatchNodeExpr) exprNode() {}
+
+// GraphMatchCompositeExpr is one step of a graph pattern: from a node, over
+// an edge, to a node, with the arrow on the right or on the left.
+//
+//	<left> -( <edge> )-> <right>     ArrowOnRight
+//	<left> <-( <edge> )- <right>     ArrowOnRight false
+//
+// ScriptDOM's GraphMatchCompositeExpression (graphSingleMatchPattern).
+type GraphMatchCompositeExpr struct {
+	Left         *GraphMatchNodeExpr
+	Edge         string // the edge's alias inside the parentheses
+	Right        *GraphMatchNodeExpr
+	ArrowOnRight bool
+	Loc          Loc
+}
+
+func (n *GraphMatchCompositeExpr) nodeTag()  {}
+func (n *GraphMatchCompositeExpr) exprNode() {}
+
+// GraphMatchLastNodePredicate is the graph pattern LAST_NODE (a) = LAST_NODE (b),
+// whose right side must use LAST_NODE.
+//
+// ScriptDOM's GraphMatchLastNodePredicate (graphMatchLastNodePattern).
+type GraphMatchLastNodePredicate struct {
+	Left  *GraphMatchNodeExpr
+	Right *GraphMatchNodeExpr
+	Loc   Loc
+}
+
+func (n *GraphMatchLastNodePredicate) nodeTag()  {}
+func (n *GraphMatchLastNodePredicate) exprNode() {}
+
+// GraphMatchRecursivePredicate is SHORTEST_PATH ( ... ), which runs a graph
+// pattern over a variable number of hops.
+//
+//	SHORTEST_PATH ( <outer> ( <pattern> ) <quantifier> )     AnchorOnLeft
+//	SHORTEST_PATH ( ( <pattern> ) <quantifier> <outer> )     AnchorOnLeft false
+//
+// ScriptDOM's GraphMatchRecursivePredicate (graphMatchRecursivePattern).
+type GraphMatchRecursivePredicate struct {
+	Expression   *List // *GraphMatchCompositeExpr steps
+	Outer        *GraphMatchNodeExpr
+	AnchorOnLeft bool
+	IsPlusSign   bool     // the '+' quantifier, rather than { n , m }
+	Lower        *Literal // lower limit of { n , m }
+	Upper        *Literal // upper limit of { n , m }
+	Loc          Loc
+}
+
+func (n *GraphMatchRecursivePredicate) nodeTag()  {}
+func (n *GraphMatchRecursivePredicate) exprNode() {}
 
 // ExistsExpr represents EXISTS (subquery).
 type ExistsExpr struct {
@@ -1976,10 +2105,11 @@ func (n *SubqueryExpr) tableExpr() {}
 //	scalar_expression { = | <> | != | > | >= | !> | < | <= | !< }
 //	    { ALL | SOME | ANY } ( subquery )
 type SubqueryComparisonExpr struct {
-	Left       ExprNode // left-hand scalar expression
-	Op         BinaryOp // comparison operator
-	Quantifier string   // "ALL", "SOME", or "ANY"
-	Subquery   StmtNode // subquery (SelectStmt)
+	Left       ExprNode     // left-hand scalar expression
+	Op         BinaryOp     // comparison operator
+	Quantifier string       // "ALL", "SOME", or "ANY"
+	Distinct   DistinctKind // IS [NOT] DISTINCT FROM { ALL | SOME | ANY }, with Op unused
+	Subquery   StmtNode     // subquery (SelectStmt)
 	Loc        Loc
 }
 
@@ -2035,6 +2165,7 @@ type TableRef struct {
 	Alias    string
 	Hints    *List           // table hints: WITH (NOLOCK), WITH (INDEX(...)), etc.
 	Temporal *TemporalClause // FOR SYSTEM_TIME
+	ForPath  bool            // FOR PATH, which makes the table a graph path table
 	Loc      Loc
 }
 
@@ -2202,6 +2333,7 @@ type AliasedTableRef struct {
 	WithTable   *TableRef          // OPENXML WITH table_name: the table whose columns OPENXML takes
 	TableSample *TableSampleClause // optional TABLESAMPLE clause
 	Hints       *List              // table hints: WITH (NOLOCK), etc.
+	ForPath     bool               // FOR PATH after a derived table, which makes it a graph path table
 	Loc         Loc
 }
 
@@ -3187,6 +3319,7 @@ type TableHint struct {
 	IndexValues      *List    // INDEX(val, ...) or FORCESEEK index value
 	ForceSeekColumns *List    // FORCESEEK(idx(col, col, ...)) column names
 	IntValue         ExprNode // SPATIAL_WINDOW_MAX_CELLS = N
+	OldForceIndex    bool     // WITH (n), the deprecated index hint that holds one index
 	Loc              Loc
 }
 
@@ -3354,7 +3487,7 @@ type SecurityPolicyStmt struct {
 	Predicates        *List     // list of *SecurityPredicate (for CREATE/ALTER)
 	StateOn           *bool     // WITH (STATE = ON|OFF); nil if unspecified
 	SchemaBinding     *bool     // WITH (SCHEMABINDING = ON|OFF); nil if unspecified
-	NotForReplication bool
+	NotForReplication bool      // true for NOT FOR REPLICATION, false for an ALTER that drops it
 	Loc               Loc
 }
 

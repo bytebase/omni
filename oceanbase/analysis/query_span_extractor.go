@@ -1422,13 +1422,16 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 	case *ast.SetPasswordStmt, *ast.HelpStmt:
 		return QueryTypeUnknown
 	case *ast.CreateDatabaseStmt, *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.CreateViewStmt,
+		*ast.CreateMaterializedViewStmt, *ast.CreateMaterializedViewLogStmt,
 		*ast.CreateEventStmt, *ast.CreateTriggerStmt, *ast.CreateFunctionStmt,
 		*ast.CreateUserStmt, *ast.CreateRoleStmt, *ast.CreateTablespaceStmt, *ast.CreateServerStmt,
 		*ast.CreateLogfileGroupStmt, *ast.CreateSpatialRefSysStmt, *ast.CreateResourceGroupStmt,
 		*ast.AlterDatabaseStmt, *ast.AlterTableStmt, *ast.AlterViewStmt, *ast.AlterEventStmt,
+		*ast.AlterMaterializedViewStmt, *ast.AlterMaterializedViewLogStmt,
 		*ast.AlterUserStmt, *ast.AlterRoutineStmt, *ast.AlterTablespaceStmt, *ast.AlterServerStmt,
 		*ast.AlterLogfileGroupStmt, *ast.AlterResourceGroupStmt, *ast.AlterInstanceStmt,
 		*ast.DropDatabaseStmt, *ast.DropTableStmt, *ast.DropIndexStmt, *ast.DropViewStmt,
+		*ast.DropMaterializedViewLogStmt,
 		*ast.DropEventStmt, *ast.DropTriggerStmt, *ast.DropRoutineStmt,
 		*ast.DropUserStmt, *ast.DropRoleStmt, *ast.DropTablespaceStmt, *ast.DropServerStmt,
 		*ast.DropLogfileGroupStmt, *ast.DropSpatialRefSysStmt, *ast.DropResourceGroupStmt,
@@ -1467,6 +1470,17 @@ func isDescribeStatement(source string, loc ast.Loc) bool {
 	upper := strings.ToUpper(statement)
 	fields := strings.Fields(upper)
 	return len(fields) > 0 && (fields[0] == "DESCRIBE" || fields[0] == "DESC")
+}
+
+// collectAccessTablesFromMviewRefresh visits the expressions a materialized
+// view refresh clause holds. START WITH and NEXT are bit_exprs, so either may
+// carry a subquery that reads a table.
+func collectAccessTablesFromMviewRefresh(result ColumnSet, refresh *ast.MviewRefreshInfo, defaultDatabase string) {
+	if refresh == nil {
+		return
+	}
+	collectAccessTablesFromExpr(result, refresh.StartWith, defaultDatabase)
+	collectAccessTablesFromExpr(result, refresh.Next, defaultDatabase)
 }
 
 func collectAccessTables(root ast.Node, defaultDatabase string) ColumnSet {
@@ -1583,6 +1597,35 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 	case *ast.CreateViewStmt:
 		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
 		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+	case *ast.CreateMaterializedViewStmt:
+		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		if n.MviewOptions != nil {
+			collectAccessTablesFromMviewRefresh(result, n.MviewOptions.Refresh, defaultDatabase)
+		}
+	case *ast.CreateMaterializedViewLogStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		if n.Purge != nil {
+			collectAccessTablesFromExpr(result, n.Purge.StartWith, defaultDatabase)
+			collectAccessTablesFromExpr(result, n.Purge.Next, defaultDatabase)
+		}
+	case *ast.AlterMaterializedViewStmt:
+		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		for _, action := range n.Actions {
+			if action != nil {
+				collectAccessTablesFromMviewRefresh(result, action.Refresh, defaultDatabase)
+			}
+		}
+	case *ast.AlterMaterializedViewLogStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		for _, action := range n.Actions {
+			if action != nil {
+				collectAccessTablesFromExpr(result, action.StartWith, defaultDatabase)
+				collectAccessTablesFromExpr(result, action.Next, defaultDatabase)
+			}
+		}
+	case *ast.DropMaterializedViewLogStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
 	case *ast.AlterTableStmt:
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
 		for _, command := range n.Commands {

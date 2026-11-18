@@ -578,6 +578,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case '(':
 		return p.parseParenExpr()
 
+	case '[':
+		// func_expr's array-literal arm: '[' expr_list ']'. The engine builds
+		// the same T_FUN_SYS_ARRAY node as ARRAY(expr_list), so it is that
+		// call's AST shape.
+		return p.parseArrayLiteral()
+
 	case kwCAST:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()
@@ -624,7 +630,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		// IF(cond, val, val) — reserved keyword also used as function
 		kwIF,
 		// Reserved keywords that are also function names (function_call_keyword / function_call_conflict)
-		kwCHAR, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
+		kwCHAR, kwCHARACTER, kwCHECK, kwINSERT, kwLEFT, kwRIGHT, kwDATABASE,
 		kwMOD, kwREPEAT, kwREPLACE:
 		if p.funcWordIsName() {
 			return p.parseIdentExpr()
@@ -906,6 +912,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 			return p.parseGetFormatFunc(fc)
 		case "WEIGHT_STRING":
 			return p.parseWeightStringFunc(fc)
+		case "ARRAY_AGG":
+			// ARRAY_AGG(opt_distinct expr order_by_opt_null), the one
+			// aggregate whose arm carries an ORDER BY and NULLS order.
+			return p.parseArrayAggFunc(fc)
 		}
 
 		// An aggregate's arguments may carry a quantifier prefix, and which
@@ -952,9 +962,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	}
 
 	// Empty argument list. CHAR's expr_list is never empty (CHARACTER '(' expr_list ')',
-	// sql_parser_mysql_mode.y), so CHAR() is a 1064.
+	// sql_parser_mysql_mode.y), so CHAR() is a 1064, and so is every other
+	// builtin whose own production takes an expr or an expr_list.
 	if p.cur.Type == ')' {
-		if builtin && upperName == "CHAR" {
+		if builtin && requiresFuncArgs[upperName] {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
@@ -986,8 +997,9 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 	}
 
 	// CHAR(n, ... USING charset_name). Ref: CHARACTER '(' expr_list USING
-	// charset_name ')' in sql_parser_mysql_mode.y (v4.3.5_CE_BP6).
-	if builtin && upperName == "CHAR" && p.cur.Type == kwUSING {
+	// charset_name ')' in sql_parser_mysql_mode.y (v4.3.5_CE_BP6). CHARACTER
+	// is that same production's other spelling.
+	if builtin && (upperName == "CHAR" || upperName == "CHARACTER") && p.cur.Type == kwUSING {
 		p.advance()
 		p.checkCursor()
 		if p.collectMode() {
@@ -1063,6 +1075,32 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
+		if bounds, ok := fixedFuncArity[fc.Name]; ok {
+			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		// The histograms fix an INTNUM in one argument position, so a
+		// non-integer expression there is a 1064 even with the right count.
+		switch fc.Name {
+		case "TOP_K_FRE_HIST":
+			if _, ok := fc.Args[2].(*nodes.IntLit); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+		case "HYBRID_HIST":
+			if _, ok := fc.Args[1].(*nodes.IntLit); !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		// A dedicated window function has no arm outside window_function, and
+		// LISTAGG's only arm is there too, so without OVER each is a 1064:
+		// OceanBase 4.3.5 rejects SELECT ROW_NUMBER() a and SELECT LISTAGG(a) a,
+		// where `a` would otherwise read as an alias.
+		if _, ok := windowFuncArity[fc.Name]; ok || fc.Name == "LISTAGG" {
+			if p.cur.Type != kwOVER {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 	}
 	// A window clause follows only a dedicated window function or an aggregate
 	// (overEligible). On any other builtin, or a stored/quoted call (builtin is
@@ -1118,7 +1156,74 @@ func overEligible(name string) bool {
 	if _, ok := aggArgSpecs[name]; ok {
 		return true
 	}
-	return name == "COUNT"
+	switch name {
+	case "COUNT",
+		// window_function's own aggregates, which have an arm in func_expr
+		// as well (APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE there takes one expr).
+		"APPROX_COUNT_DISTINCT", "APPROX_COUNT_DISTINCT_SYNOPSIS",
+		"APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE",
+		"TOP_K_FRE_HIST", "HYBRID_HIST":
+		return true
+	}
+	return false
+}
+
+// fixedFuncArity is the inclusive [min, max] argument count of the builtins
+// whose grammar fixes it outside the aggregate and window tables: CHECK(expr),
+// APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(expr), TOP_K_FRE_HIST's four
+// parameters, and HYBRID_HIST's two.
+var fixedFuncArity = map[string][2]int{
+	"CHECK":                                {1, 1},
+	"APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE": {1, 1},
+	"TOP_K_FRE_HIST":                       {4, 4},
+	"HYBRID_HIST":                          {2, 2},
+}
+
+// requiresFuncArgs are the builtins whose grammar takes an expr or expr_list,
+// so an empty call is a 1064 rather than a zero-argument stored function.
+// OceanBase 4.3.5 answers 1064 for each, e.g. SELECT DATE() and SELECT ISNULL().
+var requiresFuncArgs = map[string]bool{
+	"APPROX_COUNT_DISTINCT":                true,
+	"APPROX_COUNT_DISTINCT_SYNOPSIS":       true,
+	"APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE": true,
+	"GROUPING":                             true,
+	"GROUPING_ID":                          true,
+	"ISNULL":                               true,
+	"DATE":                                 true,
+	"DAY":                                  true,
+	"YEAR":                                 true,
+	"TIME":                                 true,
+	"TIMESTAMP":                            true,
+	"MONTH":                                true,
+	"WEEK":                                 true,
+	"QUARTER":                              true,
+	"SECOND":                               true,
+	"MINUTE":                               true,
+	"MICROSECOND":                          true,
+	"HOUR":                                 true,
+	"ASCII":                                true,
+	"LOG":                                  true,
+	"LN":                                   true,
+	"LINESTRING":                           true,
+	"MULTIPOINT":                           true,
+	"MULTILINESTRING":                      true,
+	"POLYGON":                              true,
+	"MULTIPOLYGON":                         true,
+	"_ST_ASMVT":                            true,
+	"LAST_REFRESH_SCN":                     true,
+	"SUM_OPNSIZE":                          true,
+	"ARRAY":                                true,
+	"MAP":                                  true,
+	"RB_BUILD_AGG":                         true,
+	"RB_OR_AGG":                            true,
+	"RB_AND_AGG":                           true,
+	"RB_ITERATE":                           true,
+	"ARRAY_AGG":                            true,
+	"RB_OR_CARDINALITY_AGG":                true,
+	"RB_AND_CARDINALITY_AGG":               true,
+	"CHARACTER":                            true,
+	"CHAR":                                 true,
+	"CHECK":                                true,
 }
 
 // parseTrimFunc parses TRIM([LEADING|TRAILING|BOTH] [remstr FROM] str).
@@ -1639,6 +1744,35 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 	}
 	if arg == nil {
 		return nil, p.syntaxErrorAtCur()
+	}
+
+	if isBareInterval(arg) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// WEIGHT_STRING(expr, INTNUM, INTNUM, INTNUM, INTNUM): the engine's
+	// internal five-argument form, which its own SHOW CREATE prints as
+	// weight_string(`s`,0,4,64,0), and which a user may write too without the
+	// AS/LEVEL suffixes. It stays a generic call, as the plain form does.
+	if p.cur.Type == ',' {
+		args := []nodes.ExprNode{arg}
+		for i := 0; i < 4; i++ {
+			if p.cur.Type != ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, &ParseError{Message: "expected WEIGHT_STRING parameter", Position: p.cur.Loc}
+			}
+			tok := p.advance()
+			args = append(args, &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Ival, Text: tok.Str})
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		fc.Args = args
+		fc.Loc.End = p.prev.End
+		return fc, nil
 	}
 
 	ws := &nodes.WeightStringExpr{Loc: fc.Loc, Expr: arg}
@@ -2736,6 +2870,117 @@ func (p *Parser) parseSoundsLikeExpr(left nodes.ExprNode, start int) (nodes.Expr
 		Left:  left,
 		Right: right,
 	}, nil
+}
+
+// parseArrayLiteral parses func_expr's '[' expr_list ']' arm. The engine
+// builds the same T_FUN_SYS_ARRAY node ARRAY(expr_list) does, so this is that
+// call's AST shape and deparses as array(...).
+func (p *Parser) parseArrayLiteral() (nodes.ExprNode, error) {
+	start := p.pos()
+	p.advance() // consume '['
+
+	args, err := p.parseExprList()
+	if err != nil {
+		return nil, err
+	}
+	for _, arg := range args {
+		// A bare INTERVAL is an operand of date arithmetic, not an
+		// expression of its own, as in the ordinary argument path.
+		if isBareInterval(arg) {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if _, err := p.expect(']'); err != nil {
+		return nil, err
+	}
+	return &nodes.FuncCallExpr{
+		Loc:       nodes.Loc{Start: start, End: p.prev.End},
+		Name:      "ARRAY",
+		Args:      args,
+		HasParens: true,
+	}, nil
+}
+
+// parseArrayAggFunc parses ARRAY_AGG(opt_distinct expr order_by_opt_null),
+// the aggregate whose own arm carries an ORDER BY. The '(' has already been
+// consumed.
+func (p *Parser) parseArrayAggFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	q, err := p.parseAggQuantifier(quantDistinct)
+	if err != nil {
+		return nil, err
+	}
+	fc.Quantifier = q
+
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil || isBareInterval(arg) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = append(fc.Args, arg)
+
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		items, err := p.parseArrayAggOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		fc.OrderBy = items
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return p.finishFuncCall(fc, true)
+}
+
+// parseArrayAggOrderByList parses order_by_opt_null's sort list: an ORDER BY
+// item may carry NULLS FIRST or NULLS LAST, which ORDER BY elsewhere does not.
+func (p *Parser) parseArrayAggOrderByList() ([]*nodes.OrderByItem, error) {
+	var items []*nodes.OrderByItem
+	for {
+		start := p.pos()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr == nil || isBareInterval(expr) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		item := &nodes.OrderByItem{Loc: nodes.Loc{Start: start}, Expr: expr}
+		if _, ok := p.match(kwDESC); ok {
+			item.Direction = nodes.OrderDirectionDesc
+			item.Desc = true
+		} else if _, ok := p.match(kwASC); ok {
+			item.Direction = nodes.OrderDirectionAsc
+		}
+		if p.cur.Type == kwNULLS {
+			p.advance()
+			switch p.cur.Type {
+			case kwFIRST:
+				p.advance()
+				v := true
+				item.NullsFirst = &v
+			case kwLAST:
+				p.advance()
+				v := false
+				item.NullsFirst = &v
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		item.Loc.End = p.prev.End
+		items = append(items, item)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return items, nil
 }
 
 // parseRowConstructor parses a ROW(expr, expr, ...) constructor.

@@ -52,11 +52,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		before[idx] = true
 	}
 	snapshot := cloneTable(tbl)
+	logs, known := cloneBoolMap(db.MaterializedViewLogs), cloneBoolMap(db.MaterializedViewLogsKnown)
 	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
 		return err
 	}
 	if err := validateAlteredUniqueKeys(tbl, before, stmt.Commands, repartition); err != nil {
-		undoAlter(db, key, tbl, snapshot)
+		undoAlter(db, key, tbl, snapshot, logs, known)
 		return err
 	}
 	if repartition != nil && tbl.Partitioning != nil {
@@ -84,11 +85,12 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Multi-command ALTER: MySQL treats this as atomic.
 	// Snapshot the table so we can rollback on any sub-command failure.
 	snapshot := cloneTable(tbl)
+	logs, known := cloneBoolMap(db.MaterializedViewLogs), cloneBoolMap(db.MaterializedViewLogsKnown)
 	origKey := key
 
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
-			undoAlter(db, origKey, tbl, snapshot)
+			undoAlter(db, origKey, tbl, snapshot, logs, known)
 			return err
 		}
 	}
@@ -100,12 +102,26 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 // undoAlter puts tbl back as snapshot holds it, under key in db. A RENAME TO earlier
 // in the statement may have moved the table to another database, under another name,
 // so its entry there goes first.
-func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
-	if cur := tbl.Database; cur != nil && cur.Tables[toLower(tbl.Name)] == tbl {
-		delete(cur.Tables, toLower(tbl.Name))
+func undoAlter(db *Database, key string, tbl *Table, snapshot Table, logs, known map[string]bool) {
+	if cur := tbl.Database; cur != nil {
+		if cur.Tables[toLower(tbl.Name)] == tbl {
+			delete(cur.Tables, toLower(tbl.Name))
+		}
+		delete(cur.MaterializedViewLogs, toLower(tbl.Name))
+		delete(cur.MaterializedViewLogsKnown, toLower(tbl.Name))
 	}
 	*tbl = snapshot
 	db.Tables[key] = tbl
+	db.MaterializedViewLogs = logs
+	db.MaterializedViewLogsKnown = known
+}
+
+func cloneBoolMap(m map[string]bool) map[string]bool {
+	out := make(map[string]bool, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }
 
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
@@ -877,7 +893,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if (newDB != oldDB || newKey != oldKey) && newDB.Tables[newKey] != nil {
+	if (newDB != oldDB || newKey != oldKey) && (newDB.Tables[newKey] != nil || newDB.Views[newKey] != nil) {
 		return errDupTable(newName)
 	}
 
@@ -885,6 +901,14 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
+	if _, ok := oldDB.MaterializedViewLogs[oldKey]; ok {
+		delete(oldDB.MaterializedViewLogs, oldKey)
+		newDB.MaterializedViewLogs[newKey] = true
+	}
+	if oldDB.MaterializedViewLogsKnown[oldKey] {
+		delete(oldDB.MaterializedViewLogsKnown, oldKey)
+		newDB.MaterializedViewLogsKnown[newKey] = true
+	}
 	return nil
 }
 

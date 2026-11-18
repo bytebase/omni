@@ -15,7 +15,7 @@ import (
 // view body the engine rejects (a `?` parameter marker); it is true on the
 // CREATE VIEW path (Exec) and false on a DefineView sync, whose body the engine
 // already accepted.
-func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody bool) error {
+func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody, materialized bool) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -35,9 +35,16 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if _, exists := db.Tables[key]; exists {
 		return errDupTable(stmt.Name.Name)
 	}
-	if _, exists := db.Views[key]; exists {
+	if existing, exists := db.Views[key]; exists {
 		if !stmt.OrReplace {
 			return errDupTable(stmt.Name.Name)
+		}
+		if existing.Materialized != materialized {
+			kind := "VIEW"
+			if materialized {
+				kind = "MATERIALIZED VIEW"
+			}
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, stmt.Name.Name, kind)}
 		}
 	}
 
@@ -100,9 +107,165 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     true,
+		Materialized:    materialized,
 		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
 	}
 	return nil
+}
+
+// createMaterializedView applies CREATE MATERIALIZED VIEW. The catalog holds no
+// materialized view of its own, so it installs the view the query is and marks
+// it materialized; a snapshot's materialized view installs the same way
+// (metadata_load.go). The refresh options, partitioning, table options and
+// primary key change nothing the catalog tracks.
+func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt, source string) error {
+	if err := c.createView(materializedViewAsView(stmt), source, true, true); err != nil {
+		return err
+	}
+	if stmt.PrimaryKey == nil {
+		return nil
+	}
+	db, err := c.resolveDatabase(stmt.Name.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Name.Name)
+	installed := db.Views[key]
+	for _, name := range stmt.PrimaryKey.Columns {
+		found := false
+		for _, out := range installed.Columns {
+			if strings.EqualFold(out, name) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			delete(db.Views, key)
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
+		}
+	}
+	return nil
+}
+
+// materializedViewLogTarget checks the table a materialized view log names: a
+// log is written for an existing base table, not a view. The catalog models no
+// log of its own.
+func (c *Catalog) materializedViewLogTarget(ref *nodes.TableRef) error {
+	db, err := c.resolveDatabase(ref.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(ref.Name)
+	if db.Views[key] != nil {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not TABLE", db.Name, ref.Name)}
+	}
+	if db.Tables[key] == nil {
+		return errUnknownTable(db.Name, ref.Name)
+	}
+	return nil
+}
+
+// createMaterializedViewLog applies CREATE MATERIALIZED VIEW LOG. The log
+// itself is not modeled, but its base table must exist and a second log of the
+// table is refused unless the statement says OR REPLACE.
+func (c *Catalog) createMaterializedViewLog(stmt *nodes.CreateMaterializedViewLogStmt) error {
+	if err := c.materializedViewLogTarget(stmt.Table); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Table.Name)
+	var referenceColumns []string
+	if stmt.With != nil {
+		referenceColumns = stmt.With.ReferenceColumns
+	}
+	for _, name := range referenceColumns {
+		if db.Tables[key] != nil && db.Tables[key].GetColumn(name) == nil {
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
+		}
+	}
+	if db.MaterializedViewLogsKnown[key] && db.MaterializedViewLogs[key] && !stmt.OrReplace {
+		return errDupTable(stmt.Table.Name)
+	}
+	db.MaterializedViewLogs[key] = true
+	db.MaterializedViewLogsKnown[key] = true
+	return nil
+}
+
+// alterMaterializedViewLog applies ALTER MATERIALIZED VIEW LOG, which needs a
+// log of the base table.
+func (c *Catalog) alterMaterializedViewLog(stmt *nodes.AlterMaterializedViewLogStmt) error {
+	if err := c.materializedViewLogTarget(stmt.Table); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Table.Name)
+	if db.MaterializedViewLogsKnown[key] && !db.MaterializedViewLogs[key] {
+		return errUnknownTable(db.Name, stmt.Table.Name)
+	}
+	// A successful ALTER proves the log exists.
+	db.MaterializedViewLogs[key] = true
+	db.MaterializedViewLogsKnown[key] = true
+	return nil
+}
+
+// dropMaterializedViewLog applies DROP MATERIALIZED VIEW LOG, which needs a
+// log of the base table.
+func (c *Catalog) dropMaterializedViewLog(stmt *nodes.DropMaterializedViewLogStmt) error {
+	if err := c.materializedViewLogTarget(stmt.Table); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Table.Name)
+	if db.MaterializedViewLogsKnown[key] && !db.MaterializedViewLogs[key] {
+		return errUnknownTable(db.Name, stmt.Table.Name)
+	}
+	delete(db.MaterializedViewLogs, key)
+	db.MaterializedViewLogsKnown[key] = true
+	return nil
+}
+
+// alterMaterializedView applies ALTER MATERIALIZED VIEW. Its actions refresh,
+// re-compile or toggle rewrite, which change no query the catalog holds, but
+// the target must be a materialized view the catalog has.
+func (c *Catalog) alterMaterializedView(stmt *nodes.AlterMaterializedViewStmt) error {
+	db, err := c.resolveDatabase(stmt.Name.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Name.Name)
+	if db.Tables[key] != nil {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not MATERIALIZED VIEW", db.Name, stmt.Name.Name)}
+	}
+	installed, exists := db.Views[key]
+	if !exists {
+		return errUnknownTable(db.Name, stmt.Name.Name)
+	}
+	if !installed.Materialized {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not MATERIALIZED VIEW", db.Name, stmt.Name.Name)}
+	}
+	return nil
+}
+
+// materializedViewAsView turns CREATE MATERIALIZED VIEW into the CREATE VIEW
+// the catalog models.
+func materializedViewAsView(stmt *nodes.CreateMaterializedViewStmt) *nodes.CreateViewStmt {
+	return &nodes.CreateViewStmt{
+		Loc:         stmt.Loc,
+		Name:        stmt.Name,
+		Columns:     stmt.Columns,
+		Select:      stmt.Select,
+		SelectText:  stmt.SelectText,
+		CheckOption: stmt.CheckOption,
+	}
 }
 
 // viewColumnNamesUncertain reports whether a view's stored column names may not be
@@ -167,9 +330,13 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
-	// ALTER VIEW requires the view to exist.
-	if _, exists := db.Views[key]; !exists {
+	// ALTER VIEW requires an ordinary view to exist.
+	existing, exists := db.Views[key]
+	if !exists {
 		return errUnknownTable(db.Name, stmt.Name.Name)
+	}
+	if existing.Materialized {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, stmt.Name.Name)}
 	}
 
 	// A `?` parameter marker is not allowed in a view body; the engine rejects
@@ -732,13 +899,13 @@ func isViewStringMetadataNullableFunc(name string) bool {
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
-	// A table among the names is 1347 before any view is dropped, IF EXISTS or not,
-	// wherever it stands in the list.
-	for _, ref := range stmt.Views {
-		if db, err := c.resolveDatabase(ref.Schema); err == nil && db.Tables[toLower(ref.Name)] != nil {
-			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, ref.Name)}
-		}
+	// Every name is checked before any view is dropped, IF EXISTS or not, so a
+	// wrong kind late in the list leaves the catalog as it was.
+	kindWord := "VIEW"
+	if stmt.Materialized {
+		kindWord = "MATERIALIZED VIEW"
 	}
+	seen := map[[2]string]bool{}
 	for _, ref := range stmt.Views {
 		db, err := c.resolveDatabase(ref.Schema)
 		if err != nil {
@@ -748,13 +915,33 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
-		if _, exists := db.Views[key]; !exists {
+		if seen[[2]string{toLower(db.Name), key}] {
+			continue
+		}
+		seen[[2]string{toLower(db.Name), key}] = true
+		if db.Tables[key] != nil {
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, ref.Name, kindWord)}
+		}
+		installed, exists := db.Views[key]
+		if !exists {
 			if stmt.IfExists {
 				continue
 			}
 			return errUnknownTable(db.Name, ref.Name)
 		}
-		delete(db.Views, key)
+		if installed.Materialized != stmt.Materialized {
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, ref.Name, kindWord)}
+		}
+	}
+	for _, ref := range stmt.Views {
+		db, err := c.resolveDatabase(ref.Schema)
+		if err != nil {
+			continue
+		}
+		key := toLower(ref.Name)
+		if _, exists := db.Views[key]; exists {
+			delete(db.Views, key)
+		}
 	}
 	return nil
 }

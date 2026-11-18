@@ -106,6 +106,10 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
 	}
 	k := relKey(r.db, r.name)
+	if v.OrReplace && b.w.materialized[k] {
+		b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "view"))
+		return true
+	}
 	if v.OrReplace {
 		if f, _ := b.l.Lookup(k); f == walk.Present {
 			b.needKind(k, []string{relView}, r.rng, "", r.written, "view") // 1347
@@ -117,19 +121,180 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	return true
 }
 
+// Materialized view log states. A table the snapshot lists has none known, so
+// a log of it may exist.
+const (
+	materializedLogUnknown = iota
+	materializedLogPresent
+	materializedLogAbsent
+)
+
+// Materialized view log operations.
+const (
+	materializedLogCreate = iota
+	materializedLogAlter
+	materializedLogDrop
+)
+
+// materializedViewLog follows a materialized view log statement to its base
+// table. The walk models no log itself, but every form requires the table to
+// exist and be a base table, and it keeps whether a log of the table does.
+func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool, columns []string) bool {
+	r, ok, lowered := b.tableOf(tr)
+	if !ok {
+		return lowered
+	}
+	k := relKey(r.db, r.name)
+	if b.w.materialized[k] {
+		b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "table"))
+		return true
+	}
+	if op == materializedLogCreate && len(columns) > 0 {
+		path := tablePath(r.db, r.name)
+		for _, name := range columns {
+			ck, ok := b.key(spaceColumn, name)
+			if !ok {
+				return false
+			}
+			if f, _ := b.l.Lookup(walk.Key{Space: spaceColumn, Parent: path, Name: ck}); f == walk.Absent {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", name, r.written))
+			}
+		}
+	}
+	state := b.w.materializedLogs[k]
+	switch op {
+	case materializedLogCreate:
+		if state == materializedLogPresent && !replace {
+			b.fail(r.rng, nil, review.NameTaken, alreadyExists("materialized view log", r.written, ""))
+			return true
+		}
+		state = materializedLogPresent
+	case materializedLogAlter:
+		if state == materializedLogAbsent {
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view log", r.written, ""))
+			return true
+		}
+		state = materializedLogPresent
+	case materializedLogDrop:
+		if state == materializedLogAbsent {
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view log", r.written, ""))
+			return true
+		}
+		state = materializedLogAbsent
+	}
+	b.w.materializedLogs[k] = state
+	return true
+}
+
+// createMaterializedView follows CREATE MATERIALIZED VIEW. The walk models a
+// materialized view as a relation of no kind, as a snapshot's own materialized
+// views are (walk_snapshot.go); it does not follow the view's body or its
+// refresh options.
+func (b *builder) createMaterializedView(v *ast.CreateMaterializedViewStmt) bool {
+	r, st := b.ref(v.Name)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	if b.tooLong(spaceRelation, v.Name.Name, r.rng) {
+		return true
+	}
+	if v.Name.Schema != "" {
+		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
+	}
+	// A primary key names a column of the materialized view's output.
+	if v.PrimaryKey != nil {
+		outs := materializedViewColumns(v)
+		for _, name := range v.PrimaryKey.Columns {
+			found := false
+			for _, out := range outs {
+				if strings.EqualFold(out, name) {
+					found = true
+					break
+				}
+			}
+			if !found && len(outs) > 0 {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", name, r.written))
+			}
+		}
+	}
+	k := relKey(r.db, r.name)
+	b.needFree(k, r.rng, r.written, "materialized view")
+	b.Set(k, walk.Present, "")
+	b.w.materialized[k] = true
+	return true
+}
+
+// materializedViewColumns lists the names a materialized view's column list or
+// SELECT target list gives it.
+func materializedViewColumns(v *ast.CreateMaterializedViewStmt) []string {
+	if len(v.Columns) > 0 {
+		return v.Columns
+	}
+	if v.Select == nil {
+		return nil
+	}
+	var names []string
+	for _, target := range ast.LeftmostQueryLeaf(v.Select).TargetList {
+		t, ok := target.(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		switch {
+		case t.Name != "":
+			names = append(names, t.Name)
+		default:
+			if ref, ok := t.Val.(*ast.ColumnRef); ok {
+				names = append(names, ref.Column)
+			}
+		}
+	}
+	return names
+}
+
+// alterMaterializedView follows ALTER MATERIALIZED VIEW, which names an object
+// the walk holds as a relation of no kind.
+func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
+	r, st := b.ref(v.Name)
+	switch st {
+	case refFailed:
+		return true
+	case refOK:
+		k := relKey(r.db, r.name)
+		switch f, kind := b.l.Lookup(k); {
+		case b.w.materialized[k]:
+		case f == walk.Present:
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, relWord(k, kind), "materialized view"))
+		case f == walk.Absent:
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
+		}
+	}
+	return true
+}
+
 func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 	r, st := b.ref(v.Name)
 	switch st {
 	case refFailed:
 		return true
 	case refOK:
-		b.needKind(relKey(r.db, r.name), []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		k := relKey(r.db, r.name)
+		if b.w.materialized[k] {
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "view"))
+			return true
+		}
+		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
 	}
 	return true
 }
 
 // dropView follows DROP VIEW, which looks every view up first.
 func (b *builder) dropView(v *ast.DropViewStmt) bool {
+	if v.Materialized {
+		return b.dropMaterializedView(v)
+	}
 	b.Order = walk.Lookups
 	for _, t := range v.Views {
 		b.Next()
@@ -141,6 +306,10 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 			return false
 		}
 		k := relKey(r.db, r.name)
+		if b.w.materialized[k] {
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "view"))
+			return true
+		}
 		f, kind := b.l.Lookup(k)
 		switch {
 		case !v.IfExists:
@@ -162,6 +331,45 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 	return true
 }
 
+// dropMaterializedView follows DROP MATERIALIZED VIEW. A materialized view is
+// a relation of no kind, so any relation of the name may be the one the
+// statement drops.
+func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
+	b.Order = walk.Lookups
+	var cleared []walk.Key
+	for _, t := range v.Views {
+		b.Next()
+		r, st := b.ref(t)
+		switch st {
+		case refFailed:
+			return true
+		case refUnknown:
+			return false
+		}
+		k := relKey(r.db, r.name)
+		f, kind := b.l.Lookup(k)
+		switch {
+		case b.w.materialized[k]:
+			if f == walk.Present {
+				b.Set(k, walk.Absent, "")
+				cleared = append(cleared, k)
+			} else if !v.IfExists {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
+			}
+		case f == walk.Present:
+			// A known table, view or external table is the wrong kind even
+			// under IF EXISTS.
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, relWord(k, kind), "materialized view"))
+		case !v.IfExists && f == walk.Absent:
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
+		}
+	}
+	for _, k := range cleared {
+		delete(b.w.materialized, k)
+	}
+	return true
+}
+
 // createTrigger follows CREATE TRIGGER [IF NOT EXISTS]. Trigger names are
 // unique in the database and compare without case on 8.0 but with case on
 // 5.7, so the name is claimed taken only by the spelling the walk has.
@@ -169,6 +377,10 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	r, ok, lowered := b.tableOf(v.Table)
 	if !ok {
 		return lowered
+	}
+	if b.w.materialized[relKey(r.db, r.name)] {
+		b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "table"))
+		return true
 	}
 	rng := b.anchor()
 	if b.tooLong(spaceTrigger, v.Name, rng) {

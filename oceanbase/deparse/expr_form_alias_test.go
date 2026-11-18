@@ -17,6 +17,8 @@ func TestExprFormAliasWithoutSource(t *testing.T) {
 		{"CHAR(65 USING utf8mb4)", "CHAR(65 USING utf8mb4)"},
 		{"CHAR(65, 66 USING latin1)", "CHAR(65, 66 USING latin1)"},
 		{"CHAR(65)", "CHAR(65)"},
+		{"COUNT(UNIQUE a)", "COUNT(UNIQUE a)"},
+		{"ARRAY_AGG(a ORDER BY b DESC NULLS FIRST)", "ARRAY_AGG(a ORDER BY b DESC NULLS FIRST)"},
 	} {
 		var b strings.Builder
 		writeExprAlias(&b, parseExpr(t, tc.expr))

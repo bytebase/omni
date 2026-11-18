@@ -454,11 +454,67 @@ func TestParseAlterTableObjectAndCollectionStorage(t *testing.T) {
 		"ALTER TABLE t ADD (c outer_nt) NESTED TABLE c STORE AS c_store (NESTED TABLE COLUMN_VALUE STORE AS inner_store)",
 		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s ((PRIMARY KEY (nested_table_id)) ORGANIZATION INDEX)",
 		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s (TABLESPACE x)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c NULL NULL))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c DEFAULT 1, c WITH ROWID, UNIQUE(c)))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CLUSTER cl(c, d))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) NOMAPPING)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG GROUP g(c NO LOG) ALWAYS))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG DATA(UNIQUE COLUMNS)))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG DATA(PRIMARY KEY COLUMNS)))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c NULL ENABLE, c NOT NULL DEFERRABLE))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL NULL))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) TABLESPACE x CACHE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) COMPRESS MAPPING TABLE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INCLUDING c OVERFLOW TABLESPACE x)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY COMPRESS 1)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY NOCOMPRESS)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY INMEMORY (c))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY COMPRESS)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) COMPRESS NOCOMPRESS)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG GROUP g(c), d NULL))",
+		// Oracle answers ORA-01735 at byte 0 for UPGRADE INCLUDING DATA and
+		// reads no item of the group, so what it holds is not judged.
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c zzz))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((1 2 3))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c CONSTRAINT x SCOPE IS t))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE NOCACHE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) MAPPING TABLE NOMAPPING)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CLUSTER cl(c) CACHE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) MAPPING TABLE PCTTHRESHOLD 10)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE MAPPING TABLE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s (CACHE (c))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE TABLESPACE x)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) XMLTYPE x TABLESPACE y)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INCLUDING SELECT OVERFLOW)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) COMPRESS 1 MAPPING TABLE)",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) INMEMORY COMPRESS BASIC)",
 		"ALTER TABLE t ADD (a CLOB, b CLOB) LOB (a) STORE AS SECUREFILE LOB (b) STORE AS SECUREFILE",
 		"ALTER TABLE t ADD PARTITION p VALUES LESS THAN (10) DEFAULT DIRECTORY d LOCATION (d:'data.csv')",
 		"ALTER TABLE t ADD PARTITION p VALUES LESS THAN (10) LOCATION ('x') (SUBPARTITION s VALUES (1) LOCATION ('y'))",
 	} {
 		ParseAndCheck(t, sql)
+	}
+}
+
+// TestParseAlterTableNestedTableStorageStrict holds the storage table's
+// clauses that Oracle reads to their alternatives: an ordinary ALTER TABLE
+// keeps COLUMNS outside DATA's parentheses, the physical and column
+// properties after the object_properties group choose once, and the group of
+// an ADD is held to the page's items. The group under UPGRADE INCLUDING DATA
+// is not held: Oracle answers ORA-01735 at byte 0 for the option and reads
+// no item of it, so only its parentheses and what follows it are read
+// (parseATNestedTableStorage).
+func TestParseAlterTableNestedTableStorageStrict(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t ADD SUPPLEMENTAL LOG DATA (UNIQUE COLUMNS)",
+		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s ((c zzz))",
+		"ALTER TABLE t ADD (c nt) NESTED TABLE c STORE AS s ((SUPPLEMENTAL LOG DATA(UNIQUE, ALL COLUMNS)))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c; SELECT 1 FROM dual))",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c) CACHE",
+		"ALTER TABLE t UPGRADE INCLUDING DATA NESTED TABLE c STORE AS s ((c)) zzz",
+	} {
+		ParseShouldFail(t, sql)
 	}
 }
 
@@ -482,4 +538,72 @@ func TestParseAlterTableModifyBareColumn(t *testing.T) {
 	ParseShouldFail(t, `ALTER TABLE t MODIFY "ROWID"`)
 	ParseShouldFail(t, `ALTER TABLE t MODIFY ("ROWID")`)
 	ParseAndCheck(t, `ALTER TABLE t MODIFY ("Rowid")`)
+}
+
+// TestParseAlterTableAddBareColumn covers ADD followed by a word that is not
+// a constraint: Oracle 23ai reads a column definition there and leaves the
+// datatype to the resolve phase, so "ADD c" is ORA-02263 at c and "ADD c d"
+// ORA-00902 at d, and the statement is accepted (compat.tsv's
+// alterTable_constraint_state family). A word Oracle reserves names neither,
+// and a size after a word it does not reserve for a type is ORA-03060.
+func TestParseAlterTableAddBareColumn(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t ADD c",
+		"ALTER TABLE t ADD DEFERRABLE",
+		"ALTER TABLE t ADD DEFERRED",
+		"ALTER TABLE t ADD INITIALLY",
+		"ALTER TABLE t ADD INITIALLY DEFERRED",
+		"ALTER TABLE t ADD INITRANS DEFERRED",
+		"ALTER TABLE t ADD zzz DEFERRABLE",
+		"ALTER TABLE t ADD DEFERRABLE DEFERRED",
+		"ALTER TABLE t ADD DEFERRABLE INITIALLY",
+		"ALTER TABLE t ADD RELY",
+		"ALTER TABLE t ADD NORELY",
+		"ALTER TABLE t ADD REMOTE",
+		"ALTER TABLE t ADD NOREPAIR",
+		"ALTER TABLE t ADD ENABLE",
+		"ALTER TABLE t ADD ENABLE_ALL",
+		"ALTER TABLE t ADD DISABLE",
+		"ALTER TABLE t ADD DISABLE_ALL",
+		"ALTER TABLE t ADD NOVALIDATE",
+		"ALTER TABLE t ADD VALIDATION",
+		"ALTER TABLE t ADD USING a",
+		"ALTER TABLE t ADD EXCEPTIONS a",
+		"ALTER TABLE t ADD PARTITIONING",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	// A reserved word names no column (ORA-00904 at it).
+	for _, sql := range []string{
+		"ALTER TABLE t ADD VALIDATE",
+		"ALTER TABLE t ADD NOWAIT",
+		"ALTER TABLE t ADD NOT DEFERRABLE",
+		"ALTER TABLE t ADD INDEX a",
+		"ALTER TABLE t ADD INTO a",
+		"ALTER TABLE t ADD INITIALLY IMMEDIATE",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	// A size after a type name Oracle does not have is ORA-03060 at it.
+	for _, sql := range []string{
+		"ALTER TABLE t ADD PRIORITY KEY(a)",
+		"ALTER TABLE t ADD zzz KEY(a)",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	// The column's name is kept, with the type Oracle did not resolve.
+	result := ParseAndCheck(t, "ALTER TABLE t ADD INITIALLY DEFERRED")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Action != ast.AT_ADD_COLUMN || cmd.ColumnDef == nil {
+		t.Fatalf("expected AT_ADD_COLUMN with a column, got %d", cmd.Action)
+	}
+	if cmd.ColumnDef.Name != "INITIALLY" {
+		t.Errorf("expected column INITIALLY, got %q", cmd.ColumnDef.Name)
+	}
+	if cmd.ColumnDef.TypeName == nil || cmd.ColumnDef.TypeName.Names.Len() != 1 ||
+		cmd.ColumnDef.TypeName.Names.Items[0].(*ast.String).Str != "DEFERRED" {
+		t.Errorf("expected datatype DEFERRED, got %v", cmd.ColumnDef.TypeName)
+	}
 }

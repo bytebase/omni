@@ -227,8 +227,10 @@ func (p *Parser) parseFuncArgWithDefault() (*nodes.FunctionParameter, error) {
 //	    | arg_class func_type
 //	    | func_type
 //
-// param_name is type_function_name; func_type is Typename or
-// type_function_name attrs '%' TYPE_P; arg_class is one of IN, OUT,
+// param_name is a non-reserved word (the docs sample an argname as any
+// identifier, so a keyword such as INT or AUTHORIZATION names one where a type
+// follows); func_type is
+// Typename or type_function_name attrs '%' TYPE_P; arg_class is one of IN, OUT,
 // INOUT, IN OUT, VARIADIC.
 //
 // Disambiguation strategy: speculatively consume the leading token as
@@ -264,9 +266,9 @@ func (p *Parser) parseFuncArg() (*nodes.FunctionParameter, error) {
 		// Cases 1 or 4: arg_class is consumed; decide if a param_name
 		// follows or if cur is the type.
 		mode = argClass
-		if p.isTypeFunctionName() {
+		if p.isNonReservedWord() && !p.isRedshiftMultiwordTypenameStart() {
 			snap := p.snapshotTokenStream()
-			savedName := p.advance().Str // a type_function_name, as checked
+			savedName := p.advance().Str // a non-reserved word, as checked
 			if p.isFuncTypeStart() {
 				// Case 1: arg_class param_name func_type
 				name = savedName
@@ -280,10 +282,16 @@ func (p *Parser) parseFuncArg() (*nodes.FunctionParameter, error) {
 				p.restoreTokenStream(snap)
 			}
 		}
-	} else if p.isTypeFunctionName() {
+	} else if p.isNonReservedWord() && !p.isRedshiftMultiwordTypenameStart() {
 		// Cases 2, 3, or 5: cur could be a param_name or the type.
+		//
+		// A param_name is a non-reserved word here: the docs write
+		// [ [ argname ] argtype [, ...] ] and sample argname as any identifier,
+		// so a keyword such as INT or AUTHORIZATION names one where a type
+		// follows it (`f(INT INT)`). A token that begins a type running past it
+		// is the whole type, never a name, so the check comes first.
 		snap := p.snapshotTokenStream()
-		savedName := p.advance().Str // a type_function_name, as checked
+		savedName := p.advance().Str // a non-reserved word, as checked
 		argClass2, isArgClass2 := p.tryParseArgClass()
 		switch {
 		case isArgClass2:

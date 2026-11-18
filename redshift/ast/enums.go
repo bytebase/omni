@@ -234,6 +234,10 @@ const (
 	OBJECT_MODEL
 	OBJECT_COPY_JOB
 	OBJECT_TEMPLATE
+	// OBJECT_EXTERNAL_SCHEMA is Redshift's EXTERNAL SCHEMA, a schema that
+	// points outside the database; GRANT and REVOKE name it by its own
+	// keywords, and the catalog models none of its privileges.
+	OBJECT_EXTERNAL_SCHEMA
 )
 
 // SubLinkType represents types of SubLink.
@@ -259,6 +263,22 @@ const (
 	ROLESPEC_CURRENT_USER                     // CURRENT_USER (synonym)
 	ROLESPEC_SESSION_USER                     // SESSION_USER
 	ROLESPEC_PUBLIC                           // PUBLIC
+	// ROLESPEC_IDC_ROLE is an AWS IAM Identity Center role (a group identity),
+	// the grantee GRANT CONNECT and DEBUG write as ROLE <prefix>:<name>.
+	ROLESPEC_IDC_ROLE
+
+	// Redshift's grantees that are not database roles. Rolename holds the
+	// value with the kind's prefix — "iam_role:", "namespace:", "account:",
+	// "account_via_data_catalog:", "admins_of_account:", "datashare:",
+	// "rls_policy:" — the name the catalog and the diff compare.
+	ROLESPEC_IAM_ROLE
+	ROLESPEC_IAM_ROLE_DEFAULT // IAM_ROLE DEFAULT, the keyword, not the string 'default'
+	ROLESPEC_NAMESPACE
+	ROLESPEC_ACCOUNT
+	ROLESPEC_ACCOUNT_VIA_DATA_CATALOG
+	ROLESPEC_ADMINS_OF_ACCOUNT
+	ROLESPEC_DATASHARE
+	ROLESPEC_RLS_POLICY
 )
 
 // AlterTableType represents ALTER TABLE command types.

@@ -135,11 +135,13 @@ func allKnownNodes() []Node {
 		// Statements
 		&SelectStmt{}, &InsertStmt{}, &UpdateStmt{}, &DeleteStmt{},
 		&CreateTableStmt{}, &CreateIndexStmt{}, &CreateViewStmt{}, &CreateDatabaseStmt{},
+		&CreateMaterializedViewStmt{}, &CreateMaterializedViewLogStmt{}, &DropMaterializedViewLogStmt{},
 		&CreateFunctionStmt{}, &CreateTriggerStmt{}, &CreateEventStmt{},
 		&CreateUserStmt{}, &CreateRoleStmt{}, &CreateServerStmt{},
 		&CreateTablespaceStmt{}, &CreateResourceGroupStmt{}, &CreateSpatialRefSysStmt{},
 		&CreateLogfileGroupStmt{},
 		&AlterTableStmt{}, &AlterDatabaseStmt{}, &AlterViewStmt{}, &AlterEventStmt{},
+		&AlterMaterializedViewStmt{}, &AlterMaterializedViewLogStmt{},
 		&AlterRoutineStmt{}, &AlterUserStmt{}, &AlterServerStmt{},
 		&AlterTablespaceStmt{}, &AlterResourceGroupStmt{}, &AlterInstanceStmt{},
 		&AlterLogfileGroupStmt{},
@@ -205,6 +207,9 @@ func allKnownNodes() []Node {
 		&PartitionClause{}, &PartitionDef{}, &SubPartitionDef{},
 		&AlterTableCmd{}, &GeneratedColumn{},
 		&TableOption{}, &DatabaseOption{},
+		&MaterializedViewPrimaryKey{}, &MviewOptions{}, &MviewRefreshInfo{},
+		&ParallelOption{}, &MlogWith{}, &MlogPurge{},
+		&AlterMviewAction{}, &AlterMlogAction{},
 		&OnCondition{}, &UsingCondition{},
 		&IndexHint{},
 

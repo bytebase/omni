@@ -17,6 +17,37 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Schedule)
 		}
 		Walk(v, n.Body)
+	case *AlterMaterializedViewLogStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, item := range n.Actions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *AlterMaterializedViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, item := range n.Actions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+	case *AlterMlogAction:
+		if n.Parallel != nil {
+			Walk(v, n.Parallel)
+		}
+		Walk(v, n.StartWith)
+		Walk(v, n.Next)
+	case *AlterMviewAction:
+		if n.Parallel != nil {
+			Walk(v, n.Parallel)
+		}
+		if n.Refresh != nil {
+			Walk(v, n.Refresh)
+		}
 	case *AlterRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -275,6 +306,42 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *CreateMaterializedViewLogStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.With != nil {
+			Walk(v, n.With)
+		}
+		if n.Purge != nil {
+			Walk(v, n.Purge)
+		}
+	case *CreateMaterializedViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.PrimaryKey != nil {
+			Walk(v, n.PrimaryKey)
+		}
+		for _, item := range n.Options {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		if n.Partitions != nil {
+			Walk(v, n.Partitions)
+		}
+		if n.MviewOptions != nil {
+			Walk(v, n.MviewOptions)
+		}
+		if n.Select != nil {
+			Walk(v, n.Select)
+		}
 	case *CreateTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -371,6 +438,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, item)
 		}
 	case *DropIndexStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+	case *DropMaterializedViewLogStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
@@ -661,6 +732,16 @@ func walkChildren(v Visitor, node Node) {
 	case *MemberOfExpr:
 		Walk(v, n.Value)
 		Walk(v, n.Array)
+	case *MlogPurge:
+		Walk(v, n.StartWith)
+		Walk(v, n.Next)
+	case *MviewOptions:
+		if n.Refresh != nil {
+			Walk(v, n.Refresh)
+		}
+	case *MviewRefreshInfo:
+		Walk(v, n.StartWith)
+		Walk(v, n.Next)
 	case *OnCondition:
 		Walk(v, n.Expr)
 	case *OptimizeTableStmt:

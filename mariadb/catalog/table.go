@@ -1,6 +1,10 @@
 package catalog
 
-import nodes "github.com/bytebase/omni/mariadb/ast"
+import (
+	"strings"
+
+	nodes "github.com/bytebase/omni/mariadb/ast"
+)
 
 type Table struct {
 	Name             string
@@ -412,6 +416,95 @@ var engineTableOptions = map[string]map[string]bool{
 		"encrypted": true, "encryption_key_id": true,
 	},
 	"myisam": {}, "aria": {}, "memory": {},
+}
+
+// storageEngines are the engines a table may keep on mariadb:11.8.8, from its
+// SHOW ENGINES: Aria, CSV, InnoDB, MEMORY, MRG_MyISAM, MyISAM and SEQUENCE,
+// with MEMORY's other name HEAP and MRG_MyISAM's MERGE. PERFORMANCE_SCHEMA is
+// listed there too, and the schema's own tables are the only ones it keeps, so
+// it is no name 1286 covers. `'DEFAULT'`, quoted, is the server's configured
+// default engine: MariaDB answers 1064 for the bare word, and omni's parser
+// refuses it before the catalog sees it.
+//
+// A name the server does not ship is 1286, answered while the statement is
+// prepared: before the table is looked up (1146), before a CREATE TABLE name
+// collides (1050), before a column-less definition (1113) and whatever the
+// session's sql_mode says. Measured on mariadb:11.8.8, where BLACKHOLE,
+// ARCHIVE, CONNECT, Spider and FEDERATED are plugins the image does not carry.
+var storageEngines = map[string]bool{
+	"aria":               true,
+	"csv":                true,
+	"innodb":             true,
+	"memory":             true,
+	"heap":               true,
+	"mrg_myisam":         true,
+	"merge":              true,
+	"myisam":             true,
+	"sequence":           true,
+	"performance_schema": true,
+	"default":            true,
+}
+
+// validateStorageEngines refuses the first ENGINE option that names an engine
+// the pinned server does not ship: 1286, before anything else the statement
+// says is looked up. opts are the statement's options in the order written.
+func validateStorageEngines(opts []*nodes.TableOption) error {
+	for _, opt := range opts {
+		if opt == nil || opt.EngineDefined {
+			continue
+		}
+		switch toLower(opt.Name) {
+		case "engine", "storage engine":
+			if !storageEngines[toLower(strings.TrimSpace(opt.Value))] {
+				return errUnknownStorageEngine(opt.Value)
+			}
+		}
+	}
+	return nil
+}
+
+// validateAlteredStorageEngines is validateStorageEngines for the ENGINE option
+// an ALTER TABLE carries as one of its commands, a partition definition's
+// included: `ADD PARTITION (PARTITION p ENGINE=zzz)` is the same 1286, before
+// the table is looked up.
+func validateAlteredStorageEngines(cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil {
+			if err := validateStorageEngines([]*nodes.TableOption{cmd.Option}); err != nil {
+				return err
+			}
+		}
+		if err := validatePartitionStorageEngines(cmd.PartitionDefs); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validatePartitionStorageEngines refuses an ENGINE option a partition or a
+// subpartition definition names, for the CREATE TABLE clause and an ALTER's
+// ADD PARTITION alike.
+func validatePartitionStorageEngines(defs []*nodes.PartitionDef) error {
+	for _, def := range defs {
+		if def == nil {
+			continue
+		}
+		if err := validateStorageEngines(def.Options); err != nil {
+			return err
+		}
+		for _, sub := range def.SubPartitions {
+			if sub == nil {
+				continue
+			}
+			if err := validateStorageEngines(sub.Options); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // setEngineOption applies one engine-defined option: DEFAULT removes it, any

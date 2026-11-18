@@ -216,6 +216,16 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 				{Name: "value", SourceColumns: set(), IsPlainField: true},
 			},
 		},
+		{
+			// An ODBC escape is an expression like its T-SQL spelling, and an
+			// unaliased one is named by its text.
+			statement: "SELECT {fn UCASE(a)} AS u, {d '2020-01-01'} AS d, {fn UCASE(b)} FROM t",
+			want: []QuerySpanResult{
+				{Name: "u", SourceColumns: set(column("t", "a"))},
+				{Name: "d", SourceColumns: set()},
+				{Name: "{fnUCASE(b)}", SourceColumns: set(column("t", "b"))},
+			},
+		},
 	}
 	for _, tc := range tests {
 		span := resolve(t, tc.statement)
@@ -246,6 +256,10 @@ func TestResolveQuerySpanPredicatesThroughExpressionsAndViews(t *testing.T) {
 	}{
 		{"SELECT a FROM t WHERE PARSE(b AS int) > 0", set(column("t", "b"))},
 		{"SELECT a FROM t WHERE JSON_OBJECT('k': c) IS NOT NULL", set(column("t", "c"))},
+		// A graph pattern names tables, not columns: its nodes and edges are
+		// the aliases of the FROM clause's graph tables, whose columns the
+		// predicate filters.
+		{"SELECT t.a FROM t, t1 WHERE MATCH(t -(t1)-> t1)", set(column("t", "a"), column("t", "b"), column("t", "c"), column("t1", "a"), column("t1", "b"))},
 		{"SELECT a FROM v_filtered", set(column("t", "b"))},
 	}
 	for _, tc := range tests {

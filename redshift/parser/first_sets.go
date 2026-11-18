@@ -553,3 +553,212 @@ func (p *Parser) isRedshiftDocShowStart() bool {
 func (p *Parser) isRedshiftTemplateLead(tok Token) bool {
 	return tok.Type == TEMPLATE && !p.isDelimitedIdentToken(tok)
 }
+
+// redshiftTypenameContinuations is the multiword type grammar: each simple type
+// lead that takes a second word, mapped to the words that carry it, as
+// parseSimpleTypename reads them in type.go.
+//
+// DO NOT extend this map without also extending parseSimpleTypename's multiword
+// branches, and vice versa.
+var redshiftTypenameContinuations = map[int][]int{
+	DOUBLE_P:  {PRECISION},
+	CHARACTER: {VARYING},
+	CHAR_P:    {VARYING},
+	NATIONAL:  {CHARACTER, CHAR_P},
+	NCHAR:     {VARYING},
+	BIT:       {VARYING},
+	BINARY:    {VARYING},
+	TIMESTAMP: {WITH, WITHOUT},
+	TIME:      {WITH, WITHOUT},
+	INTERVAL:  {YEAR_P, MONTH_P, DAY_P, HOUR_P, MINUTE_P, SECOND_P},
+}
+
+// isRedshiftMultiwordTypenameStart reports whether the current token begins a
+// type that runs past it, as CHARACTER VARYING and DOUBLE PRECISION do. Such a
+// token names the type, never a function parameter: `f(character varying)` is
+// one parameter of that type, not a parameter named character of type varying.
+//
+// Validated by TestIsRedshiftMultiwordTypenameStart in first_sets_test.go.
+func (p *Parser) isRedshiftMultiwordTypenameStart() bool {
+	next := p.peekNext().Type
+	for _, tok := range redshiftTypenameContinuations[p.cur.Type] {
+		if tok == next {
+			return true
+		}
+	}
+	return false
+}
+
+// isRedshiftDatashareNameStart reports whether the tokens are the unquoted word
+// DATASHARE and one name after it: the target of ON DATASHARE datashare_name,
+// and the grantee of GRANT EXECUTE ON PROCEDURE ... TO DATASHARE datashare_name.
+// DATASHARE is unreserved, so DATASHARE with no name after it is a relation or a
+// grantee of that spelling.
+//
+// Validated by TestIsRedshiftDatashareNameStart in first_sets_test.go.
+func (p *Parser) isRedshiftDatashareNameStart() bool {
+	return p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext())
+}
+
+// isRedshiftConnectStart reports whether the tokens after GRANT begin
+// r_GRANT's CONNECT alternative: the unquoted word CONNECT and then TO, or ON
+// WORKGROUP.
+//
+// Validated by TestIsRedshiftFederatedPermissionStart in first_sets_test.go.
+func (p *Parser) isRedshiftConnectStart() bool {
+	return p.redshiftKeywordIs("connect") && (p.peekNext().Type == TO || p.peekNext().Type == ON)
+}
+
+// isRedshiftDebugStart reports whether the tokens after GRANT or REVOKE begin
+// r_GRANT's and r_REVOKE's DEBUG alternative: the unquoted word DEBUG and then
+// ON DATABASE.
+//
+// Validated by TestIsRedshiftFederatedPermissionStart in first_sets_test.go.
+func (p *Parser) isRedshiftDebugStart() bool {
+	return p.redshiftKeywordIs("debug") && p.peekNext().Type == ON
+}
+
+// isRedshiftAdminsOfAccountStart reports whether the grantee is
+// ADMINS OF ACCOUNT '<account_id>', which only DEBUG takes.
+//
+// Validated by TestIsRedshiftIdentityGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftAdminsOfAccountStart() bool {
+	return p.redshiftKeywordIs("admins") && p.peekNext().Type == OF
+}
+
+// isRedshiftPublicGranteeStart reports whether PUBLIC is the pseudo-role rather
+// than the prefix of a <prefix>:<name> identity, which a colon after it makes.
+//
+// Validated by TestIsRedshiftIdentityGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftPublicGranteeStart() bool {
+	return p.redshiftKeywordIs("public") && p.peekNext().Type != ':'
+}
+
+// isRedshiftRoleIdentityStart reports whether ROLE introduces an Identity Center
+// role name, ROLE <prefix>:<name>, rather than being the prefix itself, as in
+// ROLE:<name>. ROLE is unreserved.
+//
+// Validated by TestIsRedshiftIdentityGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftRoleIdentityStart() bool {
+	return p.redshiftKeywordIs("role") && isColIdToken(p.peekNext())
+}
+
+// isRedshiftRoleGranteeStart reports whether ROLE introduces a role grantee,
+// ROLE role_name, rather than a username of that spelling: ROLE is unreserved,
+// so ROLE alone is the username "role".
+//
+// Validated by TestIsRedshiftNamedGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftRoleGranteeStart() bool {
+	return p.cur.Type == ROLE && isColIdToken(p.peekNext())
+}
+
+// isRedshiftGroupGranteeStart reports whether GROUP introduces a group grantee,
+// GROUP group_name, rather than a username of that spelling.
+//
+// Validated by TestIsRedshiftNamedGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftGroupGranteeStart() bool {
+	return p.cur.Type == GROUP_P && isColIdToken(p.peekNext())
+}
+
+// isRedshiftScopedPermissionStart reports whether the tokens begin a scoped
+// permission, whose privilege list is followed by FOR: the leading privilege
+// with FOR right after it. A longer privilege list is read first and reaches the
+// same clause with its own FOR.
+//
+// Validated by TestIsRedshiftScopedPermissionStart in first_sets_test.go.
+func (p *Parser) isRedshiftScopedPermissionStart() bool {
+	return p.peekNext().Type == FOR
+}
+
+// redshiftIntegrationOptionWords is the FIRST set of the integration options
+// shared by CREATE DATABASE ... FROM INTEGRATION and ALTER DATABASE ...
+// INTEGRATION SET, as RedshiftDocs.g4's createDatabase and alterDatabase rules
+// write them. The words are unreserved identifiers, so no token slice can hold
+// them; each is matched as an unquoted word.
+//
+// DO NOT extend this list without also extending
+// parseRedshiftIntegrationOptions, and vice versa.
+var redshiftIntegrationOptionWords = []string{
+	"acceptinvchars",
+	"query_all_states",
+	"refresh_interval",
+	"truncatecolumns",
+	"history_mode",
+	"auto_remediation",
+}
+
+// isRedshiftIntegrationOptionStart reports whether the current token starts one
+// of the integration options above.
+//
+// Validated by TestIsRedshiftIntegrationOptionStart in first_sets_test.go.
+func (p *Parser) isRedshiftIntegrationOptionStart() bool {
+	for _, word := range redshiftIntegrationOptionWords {
+		if p.redshiftKeywordIs(word) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRedshiftCreateDatabaseSourceStart reports whether the tokens after
+// CREATE DATABASE's name begin Redshift's data-source clause: FROM, as in
+// FROM INTEGRATION, FROM ARN and FROM DATASHARE, or WITH PERMISSIONS before a
+// datashare. A bare WITH belongs to the PostgreSQL createdb options instead.
+//
+// Validated by TestIsRedshiftCreateDatabaseSourceStart in first_sets_test.go.
+func (p *Parser) isRedshiftCreateDatabaseSourceStart() bool {
+	switch p.cur.Type {
+	case FROM:
+		return true
+	case WITH:
+		return p.redshiftTokIsWord(p.peekNext(), "permissions")
+	default:
+		return false
+	}
+}
+
+// isRedshiftAlterDatabaseIntegrationStart reports whether the token after
+// ALTER DATABASE's name is Redshift's INTEGRATION clause. INTEGRATION is
+// unreserved, so only its unquoted spelling starts the clause; a delimited
+// "integration" is an option name.
+//
+// Validated by TestIsRedshiftAlterDatabaseIntegrationStart in
+// first_sets_test.go.
+func (p *Parser) isRedshiftAlterDatabaseIntegrationStart() bool {
+	return p.redshiftKeywordIs("integration")
+}
+
+// isRedshiftDataMovementOptionStart reports whether the token after a comma in
+// a Redshift COPY or UNLOAD option tail starts another option. The docs write
+// the tail's options as identifiers, so any ColLabel that no clause follows is
+// one; FROM, TO, WHERE and the statement terminators end the list instead.
+//
+// Validated by TestIsRedshiftDataMovementOptionStart in first_sets_test.go.
+func (p *Parser) isRedshiftDataMovementOptionStart() bool {
+	if !p.isColLabel() {
+		return false
+	}
+	switch p.cur.Type {
+	case FROM, TO, WHERE, ';', 0:
+		return false
+	}
+	return true
+}
+
+// isRedshiftCopyColumnStart reports whether the single name between COPY's
+// table and FROM/TO begins the docs' optional column placeholder, as in
+// `COPY a a FROM ...`. The docs write the column list as one ID, so only a
+// name immediately before FROM or TO is that placeholder; a second name is not.
+//
+// Validated by TestIsRedshiftCopyColumnStart in first_sets_test.go.
+func (p *Parser) isRedshiftCopyColumnStart() bool {
+	if !p.isColLabel() {
+		return false
+	}
+	switch p.peekNext().Type {
+	case FROM, TO:
+		return true
+	default:
+		return false
+	}
+}
