@@ -170,9 +170,23 @@ func TestRedshiftCreateDatabaseSourceKeywords(t *testing.T) {
 		"CREATE DATABASE a WITH PERMISSIONS FROM INTEGRATION 'id'",
 		"CREATE DATABASE a FROM 'arn' 'x' WITH NO DATA CATALOG SCHEMA",
 		"ALTER DATABASE a INTEGRATION 'refresh' ALL TABLES",
+		"CREATE DATABASE a FROM ARN 'arn' WITH NO DATA CATALOG SCHEMA IAM_ROLE bogus",
+		"CREATE DATABASE a FROM INTEGRATION 's' DATABASES 'db'",
+		"ALTER DATABASE a INTEGRATION SET",
+		"ALTER DATABASE a INTEGRATION SET QUERY_ALL_STATES TRUE QUERY_ALL_STATES FALSE",
+		"ALTER DATABASE a INTEGRATION SET AUTO_REMEDIATION TRUE QUERY_ALL_STATES TRUE",
 	} {
 		assertParseError(t, sql)
 	}
+}
+
+func TestRedshiftCreateDatabaseIntegrationCreatedbTail(t *testing.T) {
+	stmt := singleStmt(t, "CREATE DATABASE a FROM INTEGRATION 's' WITH OWNER = bob CONNECTION LIMIT 10 COLLATE CI ISOLATION LEVEL SNAPSHOT")
+	create := stmt.(*nodes.CreatedbStmt)
+	assertDefElemString(t, create.Options, "owner", "bob")
+	assertDefElemInt(t, create.Options, "connection_limit", 10)
+	assertDefElemString(t, create.Options, "collate", "ci")
+	assertDefElemString(t, create.Options, "isolation_level", "snapshot")
 }
 
 func assertParseError(t *testing.T, sql string) {

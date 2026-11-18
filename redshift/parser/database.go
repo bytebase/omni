@@ -87,7 +87,7 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 		if p.acceptRedshiftKeyword("set") {
 			items = append(items, makeDefElem("set", &nodes.Boolean{Boolval: true}))
 		}
-		options, err := p.parseRedshiftIntegrationOptions(false)
+		options, err := p.parseRedshiftIntegrationOptions(false, redshiftCreateDatabaseIntegrationOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 		if p.cur.Type == WITH {
 			p.advance()
 		}
-		createdbOptions, err := p.parseCreatedbOptList()
+		createdbOptions, err := p.parseRedshiftIntegrationCreatedbOptions()
 		if err != nil {
 			return nil, err
 		}
@@ -131,9 +131,14 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 		}
 		// The page's examples carry an IAM role after the catalog clause.
 		if p.acceptRedshiftKeyword("iam_role") {
-			role, err := p.parseRedshiftStringOrKeyword()
-			if err != nil {
-				return nil, err
+			role := ""
+			switch {
+			case p.acceptRedshiftKeyword("default"):
+				role = "default"
+			case p.cur.Type == SCONST:
+				role = p.advance().Str
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
 			items = append(items, makeDefElem("iam_role", &nodes.String{Str: role}))
 		}
@@ -222,12 +227,88 @@ func (p *Parser) parseRedshiftDatashareValue() (string, error) {
 	}
 }
 
+// parseRedshiftIntegrationCreatedbOptions parses what r_CREATE_DATABASE
+// allows after an integration source: the owner, connection limit, collation
+// and isolation level, in that order, each at most once. The generic
+// createdb_opt_list would also take any identifier as an option name.
+func (p *Parser) parseRedshiftIntegrationCreatedbOptions() (*nodes.List, error) {
+	var items []nodes.Node
+	next := 0
+	for {
+		idx := -1
+		switch p.cur.Type {
+		case OWNER:
+			idx = 0
+		case CONNECTION:
+			idx = 1
+		case COLLATE:
+			idx = 2
+		case ISOLATION:
+			idx = 3
+		}
+		if idx < 0 {
+			break
+		}
+		if idx < next {
+			return nil, p.syntaxErrorAtCur()
+		}
+		next = idx + 1
+		item, err := p.parseCreatedbOptItem()
+		if err != nil {
+			return nil, err
+		}
+		if item == nil {
+			break
+		}
+		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// redshiftIntegrationOptionIndex is the position of the current option in
+// order, or -1.
+func (p *Parser) redshiftIntegrationOptionIndex(order []string) int {
+	for i, word := range order {
+		if p.redshiftKeywordIs(word) {
+			return i
+		}
+	}
+	return -1
+}
+
+// The two pages order the integration options differently: r_CREATE_DATABASE
+// starts at ACCEPTINVCHARS, r_ALTER_DATABASE's SET QUERY_ALL_STATES form starts
+// at QUERY_ALL_STATES and carries ACCEPTINVCHARS after it.
+var (
+	redshiftCreateDatabaseIntegrationOrder = []string{
+		"acceptinvchars", "query_all_states", "refresh_interval",
+		"truncatecolumns", "history_mode", "auto_remediation",
+	}
+	redshiftAlterDatabaseIntegrationOrder = []string{
+		"query_all_states", "acceptinvchars", "refresh_interval",
+		"truncatecolumns", "history_mode", "auto_remediation",
+	}
+)
+
 // parseRedshiftIntegrationOptions parses the option list shared by
 // CREATE DATABASE ... FROM INTEGRATION and ALTER DATABASE ... INTEGRATION SET.
-// historyModeFor is true in ALTER, whose HISTORY_MODE takes a FOR clause.
-func (p *Parser) parseRedshiftIntegrationOptions(historyModeFor bool) ([]nodes.Node, error) {
+// historyModeFor is true in ALTER, whose HISTORY_MODE takes a FOR clause; order
+// is that statement's documented sequence, each option at most once.
+func (p *Parser) parseRedshiftIntegrationOptions(historyModeFor bool, order []string) ([]nodes.Node, error) {
 	var items []nodes.Node
-	for p.isRedshiftIntegrationOptionStart() {
+	next := 0
+	for {
+		idx := p.redshiftIntegrationOptionIndex(order)
+		if idx < 0 {
+			break
+		}
+		if idx < next {
+			return nil, p.syntaxErrorAtCur()
+		}
+		next = idx + 1
 		switch {
 		case p.acceptRedshiftKeyword("acceptinvchars"):
 			value, err := p.parseRedshiftIntegrationBool()
@@ -616,9 +697,12 @@ func (p *Parser) parseRedshiftAlterDatabaseIntegration(dbname string, stmtLoc in
 			items = append(items, makeDefElem("refresh_schemas", schemas))
 		}
 	case p.acceptRedshiftKeyword("set"):
-		options, err := p.parseRedshiftIntegrationOptions(true)
+		options, err := p.parseRedshiftIntegrationOptions(true, redshiftAlterDatabaseIntegrationOrder)
 		if err != nil {
 			return nil, err
+		}
+		if len(options) == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, options...)
 	default:
