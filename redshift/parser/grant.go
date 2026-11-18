@@ -2545,6 +2545,10 @@ func (p *Parser) parseRedshiftAlterUserOptionList() (*nodes.List, error) {
 	if err != nil {
 		return nil, err
 	}
+	if options == nil {
+		// alterUser_option (',' alterUser_option)*: the commas follow an option.
+		return nil, nil
+	}
 	for p.cur.Type == ',' {
 		p.advance()
 		more, err := p.parseOptRoleList(false)

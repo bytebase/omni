@@ -184,6 +184,9 @@ func TestRedshiftAlterRoleClauseListParse(t *testing.T) {
 		"ALTER ROLE a RENAME TO b EXTERNALID b",
 		"ALTER ROLE a RENAME TO b,",
 		"ALTER ROLE a RENAME TO b, TO c",
+		// alterUser_option (',' alterUser_option)*: the commas follow an option.
+		"ALTER USER u, PASSWORD 'x'",
+		"ALTER USER u CREATEDB,,",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)

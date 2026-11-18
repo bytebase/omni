@@ -402,3 +402,35 @@ func TestCollectSelectAliasPositions(t *testing.T) {
 		t.Errorf("expected 2 alias positions, got %d", len(cs.SelectAliasPositions))
 	}
 }
+
+// TestCollectMaterializedViewIcebergClauses pins the completion a cursor after
+// USING ICEBERG offers: the Iceberg form's own clauses, two of which are
+// keywords and one of which (PARTITIONED BY) is text no token can name.
+func TestCollectMaterializedViewIcebergClauses(t *testing.T) {
+	sql := "CREATE MATERIALIZED VIEW m USING ICEBERG "
+	cs := Collect(sql, len(sql))
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	for _, tok := range []int{LOCATION, TABLE} {
+		if !cs.HasToken(tok) {
+			t.Errorf("expected token %d in candidates", tok)
+		}
+	}
+	if !cs.HasWord("PARTITIONED BY") {
+		t.Errorf("expected PARTITIONED BY in candidate words, got %v", cs.Words)
+	}
+}
+
+// TestCandidateSetWords pins the word candidates' dedup and lookup.
+func TestCandidateSetWords(t *testing.T) {
+	cs := newCandidateSet()
+	cs.addWord("PARTITIONED BY")
+	cs.addWord("PARTITIONED BY")
+	if len(cs.Words) != 1 {
+		t.Fatalf("words = %v, want one", cs.Words)
+	}
+	if !cs.HasWord("PARTITIONED BY") || cs.HasWord("LOCATION") {
+		t.Fatalf("HasWord = %v, want only PARTITIONED BY", cs.Words)
+	}
+}

@@ -474,6 +474,15 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 	// the last one read got: 0 before LOCATION, 1 before PARTITIONED BY, 2
 	// before TABLE PROPERTIES and 3 after it.
 	stage := 0
+	if p.collectMode() {
+		// What a cursor after USING ICEBERG may write, besides the AS its
+		// caller expects: LOCATION, PARTITIONED BY (whose first word is no
+		// keyword of this package) and TABLE PROPERTIES.
+		p.addTokenCandidate(LOCATION)
+		p.addWordCandidate("PARTITIONED BY")
+		p.addTokenCandidate(TABLE)
+		return options, nil
+	}
 	for {
 		switch {
 		case p.cur.Type == LOCATION && stage == 0:
