@@ -373,7 +373,7 @@ func (p *Parser) parseJSONTableColumn() (JSONTableColumn, error) {
 				}
 				col.QueryOnError = behavior
 			}
-			col.Loc.End = behavior.Loc.End
+			col.Loc.End = p.prev.Loc.End
 		}
 		return col, nil
 	}
@@ -402,7 +402,7 @@ func (p *Parser) parseJSONTableColumn() (JSONTableColumn, error) {
 			}
 			col.OnError = behavior
 		}
-		col.Loc.End = behavior.Loc.End
+		col.Loc.End = p.prev.Loc.End
 	}
 	return col, nil
 }

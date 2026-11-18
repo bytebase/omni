@@ -99,6 +99,9 @@ func TestJSONTable_Structure(t *testing.T) {
 	if q.Kind != JSONTableQueryColumn || q.Format == nil || q.Wrapper != "WITH" || !q.WrapperArray || q.Quotes != "KEEP" || !q.QuotesOnScalar || q.QueryOnEmpty == nil || q.QueryOnEmpty.Kind != "ERROR" || q.QueryOnError == nil || q.QueryOnError.Kind != "EMPTY ARRAY" {
 		t.Errorf("column 2=%+v, want query column with every clause", q)
 	}
+	if q.Loc.End <= q.QueryOnError.Loc.End || v.Loc.End <= v.OnError.Loc.End {
+		t.Errorf("column locations must include their behavior's ON EMPTY/ON ERROR tails: query=%+v value=%+v", q.Loc, v.Loc)
+	}
 	n := jt.Columns[3]
 	if n.Kind != JSONTableNestedColumn || n.Path == nil || *n.Path != "$.n" || n.Alias == nil || n.Alias.Value != "n" || len(n.Columns) != 1 {
 		t.Errorf("column 3=%+v, want nested columns with alias n", n)
