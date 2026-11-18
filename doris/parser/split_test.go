@@ -274,9 +274,11 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		"CREATE PROCEDURE p() BEGIN SELECT begin FROM t; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN SELECT end FROM t; END; SELECT 2;",
 		// A BEGIN a control-flow statement puts before its body still opens a
-		// block.
+		// block, and a named terminator inside a CASE closes its own statement.
 		"CREATE PROCEDURE p() BEGIN IF a THEN BEGIN SELECT 1; END; END IF; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN LOOP BEGIN SELECT 1; END; END LOOP; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN IF b THEN SET x = 1; END IF; END CASE; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN LOOP SET x = 1; END LOOP; END CASE; END; SELECT 2;",
 	} {
 		segments := Split(sql)
 		if len(segments) != 2 {

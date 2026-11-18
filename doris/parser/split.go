@@ -292,11 +292,6 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			b.stack = append(b.stack, blockBegin)
 		}
 	case kwEND:
-		if b.top() == blockCase && follower.Kind != kwCASE {
-			// An expression's END closes the CASE wherever it stands.
-			b.pop()
-			return b.empty()
-		}
 		if follower.Kind == kwCASE {
 			// END CASE closes the CASE, and the CASE after it names it. With
 			// no CASE open it closes whatever it can: a block.
@@ -304,13 +299,18 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			b.endCase = true
 			return b.empty()
 		}
-		if !b.startsStatement() {
-			// An END that names a column (SELECT end FROM t) closes nothing.
-			return false
-		}
 		if isControlFlowEndFollower(follower) {
 			// END IF, END LOOP and their kin close their own statement, which
-			// the frame never opened.
+			// the frame never opened — even inside an open CASE.
+			return false
+		}
+		if b.top() == blockCase {
+			// An expression's END closes the CASE wherever it stands.
+			b.pop()
+			return b.empty()
+		}
+		if !b.startsStatement() {
+			// An END that names a column (SELECT end FROM t) closes nothing.
 			return false
 		}
 		b.pop()
