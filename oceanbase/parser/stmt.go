@@ -21,7 +21,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwLOCK, kwUNLOCK,
 			kwGRANT, kwREVOKE,
 			kwLOAD, kwPREPARE, kwEXECUTE, kwDEALLOCATE,
-			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR,
+			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR, kwFOR,
 			kwFLUSH, kwRESET, kwKILL, kwDO,
 			kwXA, kwCALL, kwHELP,
 		}
@@ -136,6 +136,10 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwANALYZE:
 		return p.parseAnalyzeTableStmt()
+
+	case kwFOR:
+		// method_opt, which the grammar reaches as a statement of its own.
+		return p.parseMethodOptStmt()
 
 	case kwOPTIMIZE:
 		return p.parseOptimizeTableStmt()
@@ -380,16 +384,21 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	}
 
 	temporary := false
+	external := false
 
-	// TEMPORARY
+	// TEMPORARY, or EXTERNAL: special_table_type has one of the two and never
+	// both, and EXTERNAL stands before TABLE alone (CREATE EXTERNAL TABLE).
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
+	} else if p.cur.Type == kwEXTERNAL && p.peekNext().Type == kwTABLE {
+		p.advance()
+		external = true
 	}
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(start, temporary)
+		return p.parseCreateTableStmt(start, temporary, external)
 
 	case kwINDEX:
 		return p.parseCreateIndexStmt(start, false, false, false)
@@ -608,6 +617,13 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	if stmt, ok, err := p.parseClusterDDL(start, "ALTER"); ok {
 		return stmt, err
+	}
+
+	// ALTER EXTERNAL TABLE: alter_table_stmt's EXTERNAL alternative, which takes
+	// the same actions as ALTER TABLE and two of its own.
+	if p.cur.Type == kwEXTERNAL && p.peekNext().Type == kwTABLE {
+		p.advance()
+		return p.parseAlterExternalTableStmt(start)
 	}
 
 	// ALTER DISKGROUP is one of alter_system_stmt's alternatives.

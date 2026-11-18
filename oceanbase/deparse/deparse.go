@@ -1365,9 +1365,101 @@ func writeTableExpr(b *strings.Builder, tbl ast.TableExpr) {
 		writeJoinClause(b, t)
 	case *ast.SubqueryExpr:
 		writeSubqueryTableExpr(b, t)
+	case *ast.ExternalTableRef:
+		b.WriteString(deparseExternalTableRef(t))
+	case *ast.RbIterateExpr:
+		b.WriteString("rb_iterate(")
+		writeExpr(b, t.Arg)
+		b.WriteString(")")
+		if t.Alias != "" {
+			b.WriteString(" " + quoteIdent(t.Alias))
+			if t.Column != "" {
+				b.WriteString("(" + quoteIdent(t.Column) + ")")
+			}
+		}
+	case *ast.UnnestExpr:
+		b.WriteString("unnest(")
+		for i, arg := range t.Args {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExpr(b, arg)
+		}
+		b.WriteString(")")
+		if t.Alias != "" {
+			b.WriteString(" " + quoteIdent(t.Alias))
+			if len(t.Columns) > 0 {
+				b.WriteString("(")
+				for i, col := range t.Columns {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					b.WriteString(quoteIdent(col))
+				}
+				b.WriteString(")")
+			}
+		}
 	default:
 		fmt.Fprintf(b, "/* unsupported table expr: %T */", tbl)
 	}
+}
+
+// deparseExternalTableRef writes a table read from a location: a quoted path
+// with its format and pattern, or SOURCE(...) or FILES(...), with the alias
+// after it.
+func deparseExternalTableRef(t *ast.ExternalTableRef) string {
+	var b strings.Builder
+	switch t.Function {
+	case "SOURCE":
+		b.WriteString("source(")
+		writeExternalProperties(&b, t.Source)
+		b.WriteString(")")
+	case "FILES":
+		b.WriteString("files(location ")
+		b.WriteString(quoteStringValue(t.Path))
+		b.WriteString(", format(")
+		writeExternalProperties(&b, t.Format)
+		b.WriteString(")")
+		if t.Pattern != "" {
+			b.WriteString(", pattern ")
+			b.WriteString(quoteStringValue(t.Pattern))
+		}
+		b.WriteString(")")
+	default:
+		b.WriteString(quoteStringValue(t.Path))
+		b.WriteString("(format(")
+		writeExternalProperties(&b, t.Format)
+		b.WriteString(")")
+		if t.Pattern != "" {
+			b.WriteString(" pattern ")
+			b.WriteString(quoteStringValue(t.Pattern))
+		}
+		b.WriteString(")")
+	}
+	if t.Alias != "" {
+		b.WriteString(" as " + quoteIdent(t.Alias))
+	}
+	return b.String()
+}
+
+// writeExternalProperties writes the entries of a SOURCE(...) or FORMAT(...)
+// list as `name = value` pairs.
+func writeExternalProperties(b *strings.Builder, props []*ast.ExternalProperty) {
+	for i, prop := range props {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(strings.ToLower(prop.Name))
+		b.WriteString(" = ")
+		writeExpr(b, prop.Value)
+	}
+}
+
+// quoteStringValue quotes a raw string as OceanBase writes a string literal.
+func quoteStringValue(s string) string {
+	escaped := strings.ReplaceAll(s, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, "'", `\'`)
+	return "'" + escaped + "'"
 }
 
 // writeJoinClause formats a JOIN clause.
@@ -1477,6 +1569,14 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 		writeSelectStmt(b, s.Select, false)
 	}
 	b.WriteString(")")
+	if s.Flashback != nil {
+		if s.Flashback.Proctime {
+			b.WriteString(" as of proctime()")
+		} else {
+			b.WriteString(" as of snapshot ")
+			writeExpr(b, s.Flashback.Snapshot)
+		}
+	}
 	if s.Alias != "" {
 		b.WriteString(" " + quoteIdent(s.Alias))
 	}

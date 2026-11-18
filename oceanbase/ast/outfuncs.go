@@ -135,6 +135,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDeallocateStmt(sb, n)
 	case *AnalyzeTableStmt:
 		writeAnalyzeTableStmt(sb, n)
+	case *MethodOptStmt:
+		writeMethodOptStmt(sb, n)
+	case *StatsMethod:
+		writeStatsMethod(sb, n)
+	case *StatsForColumnsItem:
+		writeStatsForColumnsItem(sb, n)
 	case *OptimizeTableStmt:
 		writeOptimizeTableStmt(sb, n)
 	case *CheckTableStmt:
@@ -231,6 +237,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *TableFlashback:
+		writeTableFlashback(sb, n)
 	case *IntLit:
 		fmt.Fprintf(sb, "{INT_LIT :val %d :loc %d}", n.Value, n.Loc.Start)
 	case *FloatLit:
@@ -341,6 +349,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeMemberOfExpr(sb, n)
 	case *JsonTableExpr:
 		writeJsonTableExpr(sb, n)
+	case *ExternalTableRef:
+		writeExternalTableRef(sb, n)
+	case *ExternalProperty:
+		writeExternalProperty(sb, n)
+	case *RbIterateExpr:
+		writeRbIterateExpr(sb, n)
+	case *UnnestExpr:
+		writeUnnestExpr(sb, n)
 	case *JsonTableColumn:
 		writeJsonTableColumn(sb, n)
 	case *CallStmt:
@@ -2886,6 +2902,18 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 	sb.WriteString("}")
 }
 
+func writeTableFlashback(sb *strings.Builder, n *TableFlashback) {
+	sb.WriteString("{FLASHBACK")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Proctime {
+		sb.WriteString(" :proctime true")
+	} else {
+		sb.WriteString(" :snapshot ")
+		writeNode(sb, n.Snapshot)
+	}
+	sb.WriteString("}")
+}
+
 func writeStringLit(sb *strings.Builder, n *StringLit) {
 	sb.WriteString("{STRING_LIT")
 	fmt.Fprintf(sb, " :val %q :loc %d", n.Value, n.Loc.Start)
@@ -3347,6 +3375,19 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.PartitionBy != nil {
 		sb.WriteString(" :partition_by ")
 		writeNode(sb, n.PartitionBy)
+	}
+	if len(n.PartitionValues) > 0 {
+		sb.WriteString(" :partition_values (")
+		for i, v := range n.PartitionValues {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, v)
+		}
+		sb.WriteString(")")
+	}
+	if n.Location != "" {
+		fmt.Fprintf(sb, " :location %q", n.Location)
 	}
 	sb.WriteString("}")
 }
@@ -3907,6 +3948,38 @@ func writeJsonTableExpr(sb *strings.Builder, n *JsonTableExpr) {
 	sb.WriteString("}")
 }
 
+func writeRbIterateExpr(sb *strings.Builder, n *RbIterateExpr) {
+	sb.WriteString("{RB_ITERATE")
+	fmt.Fprintf(sb, " :loc %d :arg ", n.Loc.Start)
+	writeNode(sb, n.Arg)
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	if n.Column != "" {
+		fmt.Fprintf(sb, " :column %s", n.Column)
+	}
+	sb.WriteString("}")
+}
+
+func writeUnnestExpr(sb *strings.Builder, n *UnnestExpr) {
+	sb.WriteString("{UNNEST")
+	fmt.Fprintf(sb, " :loc %d :args (", n.Loc.Start)
+	for i, arg := range n.Args {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, arg)
+	}
+	sb.WriteString(")")
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
+	}
+	sb.WriteString("}")
+}
+
 func writeJsonTableColumn(sb *strings.Builder, n *JsonTableColumn) {
 	sb.WriteString("{JT_COL")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
@@ -3936,6 +4009,88 @@ func writeJsonTableColumn(sb *strings.Builder, n *JsonTableColumn) {
 		if n.Exists {
 			sb.WriteString(" :exists true")
 		}
+	}
+	sb.WriteString("}")
+}
+
+func writeExternalTableRef(sb *strings.Builder, n *ExternalTableRef) {
+	sb.WriteString("{EXTERNAL_TABLE_REF")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Function != "" {
+		fmt.Fprintf(sb, " :function %s", n.Function)
+	}
+	if n.Path != "" {
+		fmt.Fprintf(sb, " :path %q", n.Path)
+	}
+	if len(n.Source) > 0 {
+		sb.WriteString(" :source ")
+		writeNodeList(sb, externalPropertyNodes(n.Source))
+	}
+	if len(n.Format) > 0 {
+		sb.WriteString(" :format ")
+		writeNodeList(sb, externalPropertyNodes(n.Format))
+	}
+	if n.Pattern != "" {
+		fmt.Fprintf(sb, " :pattern %q", n.Pattern)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	sb.WriteString("}")
+}
+
+func externalPropertyNodes(props []*ExternalProperty) []Node {
+	out := make([]Node, len(props))
+	for i, p := range props {
+		out[i] = p
+	}
+	return out
+}
+
+func writeExternalProperty(sb *strings.Builder, n *ExternalProperty) {
+	sb.WriteString("{EXTERNAL_PROPERTY")
+	fmt.Fprintf(sb, " :loc %d :name %s :value ", n.Loc.Start, n.Name)
+	writeNode(sb, n.Value)
+	sb.WriteString("}")
+}
+
+func writeMethodOptStmt(sb *strings.Builder, n *MethodOptStmt) {
+	sb.WriteString("{METHOD_OPT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	for _, m := range n.Methods {
+		sb.WriteString(" :method ")
+		writeNode(sb, m)
+	}
+	sb.WriteString("}")
+}
+
+func writeStatsMethod(sb *strings.Builder, n *StatsMethod) {
+	sb.WriteString("{STATS_METHOD")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.ForAll {
+		sb.WriteString(" :for_all true")
+	}
+	if n.Indexed != "" {
+		fmt.Fprintf(sb, " :indexed %s", n.Indexed)
+	}
+	if n.Size != "" {
+		fmt.Fprintf(sb, " :size %s", n.Size)
+	}
+	for _, item := range n.Items {
+		sb.WriteString(" :item ")
+		writeNode(sb, item)
+	}
+	sb.WriteString("}")
+}
+
+func writeStatsForColumnsItem(sb *strings.Builder, n *StatsForColumnsItem) {
+	sb.WriteString("{FOR_COLUMNS_ITEM")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
+	}
+	if n.Size != "" {
+		fmt.Fprintf(sb, " :size %s", n.Size)
 	}
 	sb.WriteString("}")
 }

@@ -2645,7 +2645,7 @@ func parseCreateTable(t *testing.T, input string) *ast.CreateTableStmt {
 		p.advance()
 		temporary = true
 	}
-	stmt, err := p.parseCreateTableStmt(start, temporary)
+	stmt, err := p.parseCreateTableStmt(start, temporary, false)
 	if err != nil {
 		t.Fatalf("parseCreateTableStmt(%q) error: %v", input, err)
 	}

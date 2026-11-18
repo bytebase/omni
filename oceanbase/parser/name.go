@@ -1367,6 +1367,9 @@ func (p *Parser) parseUseFlashback() (*nodes.TableFlashback, error) {
 		}
 		flashback.Proctime = true
 	} else {
+		if !p.isBareWord("SNAPSHOT") {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // SNAPSHOT
 		snapshot, err := p.parseExprPrec(precBitOr)
 		if err != nil {

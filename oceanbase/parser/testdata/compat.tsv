@@ -604,10 +604,10 @@ accept	reject	engine	stmt/pl_expr_stmt	DO a
 reject	reject	engine	stmt/pl_expr_stmt!drop-2	DO
 reject	accept	engine	stmt/pl_expr_stmt!insert	DO a zzz
 reject	reject	engine	stmt/pl_expr_stmt!swap	DOP a
-reject	accept	engine	stmt/method_opt	FOR COLUMNS
+accept	accept	engine	stmt/method_opt	FOR COLUMNS
 reject	reject	engine	stmt/method_opt!drop-1	COLUMNS
 reject	reject	engine	stmt/method_opt!drop-2	FOR
-reject	accept	engine	stmt/method_opt!insert	FOR COLUMNS zzz
+accept	accept	engine	stmt/method_opt!insert	FOR COLUMNS zzz
 reject	reject	engine	stmt/method_opt!swap	FORCE COLUMNS
 accept	accept	engine	stmt/switchover_tenant_stmt	ALTER SYSTEM ACTIVATE STANDBY
 reject	reject	engine	stmt/switchover_tenant_stmt!drop-1	SYSTEM ACTIVATE STANDBY
@@ -903,11 +903,11 @@ accept	accept	engine	literal/HEX_STRING_VALUE	SELECT 0x41
 accept	accept	engine	literal/HEX_STRING_VALUE!insert	SELECT 0x41 zzz
 accept	accept	engine	literal/BIN_STRING_VALUE	SELECT b'1'
 accept	accept	engine	literal/BIN_STRING_VALUE!insert	SELECT b'1' zzz
-reject	accept	engine	number_literal/INTNUM	FOR COLUMNS SIZE 1
+accept	accept	engine	number_literal/INTNUM	FOR COLUMNS SIZE 1
 reject	accept	engine	number_literal/INTNUM!drop-1	FOR COLUMNS SIZE
-reject	accept	engine	number_literal/INTNUM!insert	FOR COLUMNS SIZE 1 zzz
-reject	accept	engine	number_literal/DECIMAL_VAL	FOR COLUMNS SIZE 1.5
-reject	accept	engine	number_literal/DECIMAL_VAL!insert	FOR COLUMNS SIZE 1.5 zzz
+accept	accept	engine	number_literal/INTNUM!insert	FOR COLUMNS SIZE 1 zzz
+accept	accept	engine	number_literal/DECIMAL_VAL	FOR COLUMNS SIZE 1.5
+accept	accept	engine	number_literal/DECIMAL_VAL!insert	FOR COLUMNS SIZE 1.5 zzz
 accept	accept	engine	expr_const/literal	SELECT 's'
 accept	accept	engine	expr_const/SYSTEM_VARIABLE	SELECT @@autocommit
 accept	accept	engine	expr_const/SYSTEM_VARIABLE!insert	SELECT @@autocommit zzz
@@ -1315,11 +1315,11 @@ reject	accept	engine	simple_expr/id_dot_id_USER_VARIABLE	SELECT a.a @v
 reject	accept	engine	simple_expr/id_dot_id_USER_VARIABLE!insert	SELECT a.a @v zzz
 reject	accept	engine	simple_expr/id_dot_id_dot_id_USER_VARIABLE	SELECT a.a.a @v
 reject	accept	engine	simple_expr/id_dot_id_dot_id_USER_VARIABLE!insert	SELECT a.a.a @v zzz
-reject	accept	engine	simple_expr_list/simple_expr	SELECT a FROM UNNEST(a)
+accept	accept	engine	simple_expr_list/simple_expr	SELECT a FROM UNNEST(a)
 reject	reject	engine	simple_expr_list/simple_expr!drop-1	SELECT a FROM UNNEST()
 reject	reject	engine	simple_expr_list/simple_expr!truncate	SELECT a FROM UNNEST(
 reject	reject	engine	simple_expr_list/simple_expr!insert	SELECT a FROM UNNEST(a zzz)
-reject	accept	engine	simple_expr_list/simple_expr_list_,_simple_expr	SELECT a FROM UNNEST(a, a)
+accept	accept	engine	simple_expr_list/simple_expr_list_,_simple_expr	SELECT a FROM UNNEST(a, a)
 reject	reject	engine	simple_expr_list/simple_expr_list_,_simple_expr!drop-1	SELECT a FROM UNNEST(, a)
 reject	reject	engine	simple_expr_list/simple_expr_list_,_simple_expr!drop-2	SELECT a FROM UNNEST(a a)
 reject	reject	engine	simple_expr_list/simple_expr_list_,_simple_expr!drop-3	SELECT a FROM UNNEST(a,)
@@ -3706,7 +3706,7 @@ reject	reject	engine	opt_database_name/NAME_OB!insert	ALTER DATABASE a zzz CHARS
 accept	accept	engine	opt_database_name/%empty	ALTER DATABASE CHARSET a
 accept	accept	engine	opt_database_name/%empty!insert	ALTER DATABASE zzz CHARSET a
 accept	accept	engine	load_data_stmt/load_data_with_opt_hint_opt_load_local_INFILE_infile_string_opt_duplicate_INTO_TABLE_relation_factor_opt_use_partition_opt_compression_opt_load_charset_field_opt_line_opt_opt_load_ignore_rows_opt_field_or_var_spec_opt_load_set_spec_opt_load_data_extended_option_list	LOAD DATA INFILE 's' INTO TABLE a
-reject	accept	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a
+accept	accept	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a
 reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error!drop-1	DATA FROM SOURCE(TYPE = 's') INTO TABLE a
 reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error!drop-2	LOAD FROM SOURCE(TYPE = 's') INTO TABLE a
 reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error!drop-3	LOAD DATA SOURCE(TYPE = 's') INTO TABLE a
@@ -3721,12 +3721,12 @@ reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_u
 reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error!drop-12	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE
 reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error!insert	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a zzz
 reject	reject	engine	load_data_stmt/load_data_with_opt_hint_opt_duplicate_FROM_url_spec_INTO_TABLE_relation_factor_opt_use_partition_opt_field_or_var_spec_opt_on_error!swap	LOAD_BATCH_SIZE DATA FROM SOURCE(TYPE = 's') INTO TABLE a
-reject	accept	engine	opt_on_error/LOG_ERRORS	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS
+accept	accept	engine	opt_on_error/LOG_ERRORS	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS
 reject	reject	engine	opt_on_error/LOG_ERRORS!drop-1	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a ERRORS
 reject	reject	engine	opt_on_error/LOG_ERRORS!drop-2	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG
 reject	reject	engine	opt_on_error/LOG_ERRORS!insert	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS zzz
 reject	reject	engine	opt_on_error/LOG_ERRORS!swap	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOGFILE ERRORS
-reject	accept	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT 1
+accept	accept	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT 1
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!drop-1	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a ERRORS REJECT LIMIT 1
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!drop-2	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG REJECT LIMIT 1
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!drop-3	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS LIMIT 1
@@ -3734,19 +3734,19 @@ reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!drop-4	LOAD DAT
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!drop-5	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!insert	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT 1 zzz
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_INTNUM!swap	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOGFILE ERRORS REJECT LIMIT 1
-reject	accept	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT UNLIMITED
+accept	accept	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT UNLIMITED
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED!drop-1	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a ERRORS REJECT LIMIT UNLIMITED
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED!drop-2	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG REJECT LIMIT UNLIMITED
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED!drop-3	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS LIMIT UNLIMITED
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED!drop-4	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT UNLIMITED
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED!insert	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOG ERRORS REJECT LIMIT UNLIMITED zzz
 reject	reject	engine	opt_on_error/LOG_ERRORS_REJECT_LIMIT_UNLIMITED!swap	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a LOGFILE ERRORS REJECT LIMIT UNLIMITED
-reject	accept	engine	opt_on_error/%empty	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a
-reject	accept	engine	url_spec/url_table_function_expr	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a
+accept	accept	engine	opt_on_error/%empty	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a
+accept	accept	engine	url_spec/url_table_function_expr	LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE a
 reject	reject	engine	url_spec/url_table_function_expr!truncate	LOAD DATA FROM SOURCE(TYPE = 's'
 reject	reject	engine	url_spec/url_table_function_expr!insert	LOAD DATA FROM SOURCE(TYPE = 's') zzz INTO TABLE a
 reject	reject	engine	url_spec/url_table_function_expr!swap	LOAD DATA FROM SPARSEVECTOR(TYPE = 's') INTO TABLE a
-reject	accept	engine	url_spec/(_select_with_opt_hint_select_expr_list_FROM_url_table_function_expr_)	LOAD DATA FROM(SELECT a FROM SOURCE(TYPE = 's')) INTO TABLE a
+accept	accept	engine	url_spec/(_select_with_opt_hint_select_expr_list_FROM_url_table_function_expr_)	LOAD DATA FROM(SELECT a FROM SOURCE(TYPE = 's')) INTO TABLE a
 reject	reject	engine	url_spec/(_select_with_opt_hint_select_expr_list_FROM_url_table_function_expr_)!drop-1	LOAD DATA FROM SELECT a FROM SOURCE(TYPE = 's')) INTO TABLE a
 reject	reject	engine	url_spec/(_select_with_opt_hint_select_expr_list_FROM_url_table_function_expr_)!drop-2	LOAD DATA FROM(a FROM SOURCE(TYPE = 's')) INTO TABLE a
 reject	reject	engine	url_spec/(_select_with_opt_hint_select_expr_list_FROM_url_table_function_expr_)!drop-3	LOAD DATA FROM(SELECT FROM SOURCE(TYPE = 's')) INTO TABLE a
@@ -3785,15 +3785,15 @@ reject	reject	engine	opt_compression/COMPRESSION_opt_equal_mark_compression_name
 reject	reject	engine	opt_compression/COMPRESSION_opt_equal_mark_compression_name!drop-2	LOAD DATA INFILE 's' INTO TABLE a COMPRESSION
 reject	reject	engine	opt_compression/COMPRESSION_opt_equal_mark_compression_name!insert	LOAD DATA INFILE 's' INTO TABLE a COMPRESSION a zzz
 reject	reject	engine	opt_compression/COMPRESSION_opt_equal_mark_compression_name!swap	LOAD DATA INFILE 's' INTO TABLE a COMPRESSION_BLOCK_SIZE a
-reject	accept	engine	compression_name/NAME_OB	DELETE FROM SOURCE(COMPRESSION_CODE = a)
+accept	accept	engine	compression_name/NAME_OB	DELETE FROM SOURCE(COMPRESSION_CODE = a)
 reject	reject	engine	compression_name/NAME_OB!drop-1	DELETE FROM SOURCE(COMPRESSION_CODE =)
 reject	reject	engine	compression_name/NAME_OB!truncate	DELETE FROM SOURCE(COMPRESSION_CODE =
 reject	reject	engine	compression_name/NAME_OB!insert	DELETE FROM SOURCE(COMPRESSION_CODE = a zzz)
-reject	accept	engine	compression_name/STRING_VALUE	DELETE FROM SOURCE(COMPRESSION_CODE = 's')
+accept	accept	engine	compression_name/STRING_VALUE	DELETE FROM SOURCE(COMPRESSION_CODE = 's')
 reject	reject	engine	compression_name/STRING_VALUE!insert	DELETE FROM SOURCE(COMPRESSION_CODE = 's' zzz)
-reject	accept	engine	compression_name/unreserved_keyword	DELETE FROM SOURCE(COMPRESSION_CODE = ACCESS_INFO)
+accept	accept	engine	compression_name/unreserved_keyword	DELETE FROM SOURCE(COMPRESSION_CODE = ACCESS_INFO)
 reject	reject	engine	compression_name/unreserved_keyword!insert	DELETE FROM SOURCE(COMPRESSION_CODE = ACCESS_INFO zzz)
-reject	accept	engine	compression_name/unreserved_keyword!swap	DELETE FROM SOURCE(COMPRESSION_CODE = ACCOUNT)
+accept	accept	engine	compression_name/unreserved_keyword!swap	DELETE FROM SOURCE(COMPRESSION_CODE = ACCOUNT)
 accept	accept	engine	binary_format/NAME_OB	ALTER TABLE a FORMAT(BINARY_FORMAT = a)
 reject	reject	engine	binary_format/NAME_OB!drop-1	ALTER TABLE a FORMAT(BINARY_FORMAT =)
 reject	reject	engine	binary_format/NAME_OB!truncate	ALTER TABLE a FORMAT(BINARY_FORMAT =
@@ -3914,7 +3914,7 @@ accept	accept	engine	opt_force_purge/%empty	DROP TENANT a
 accept	accept	engine	special_table_type/TEMPORARY	CREATE TEMPORARY TABLE a SELECT a
 reject	reject	engine	special_table_type/TEMPORARY!insert	CREATE TEMPORARY zzz TABLE a SELECT a
 reject	reject	engine	special_table_type/TEMPORARY!swap	CREATE TEMPTABLE TABLE a SELECT a
-reject	accept	engine	special_table_type/EXTERNAL	CREATE EXTERNAL TABLE a SELECT a
+accept	accept	engine	special_table_type/EXTERNAL	CREATE EXTERNAL TABLE a SELECT a
 reject	reject	engine	special_table_type/EXTERNAL!insert	CREATE EXTERNAL zzz TABLE a SELECT a
 reject	reject	engine	special_table_type/EXTERNAL!swap	CREATE EXTERNAL_STORAGE_DEST TABLE a SELECT a
 accept	accept	engine	special_table_type/%empty	CREATE TABLE a SELECT a
@@ -5965,11 +5965,11 @@ reject	reject	engine	opt_range_partition_info/(_range_partition_list_)!drop-7	AL
 reject	reject	engine	opt_range_partition_info/(_range_partition_list_)!drop-8	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE
 reject	reject	engine	opt_range_partition_info/(_range_partition_list_)!insert	ALTER TABLE a PARTITION BY RANGE(a)(PARTITION a VALUES LESS THAN MAXVALUE) zzz
 reject	reject	engine	opt_range_partition_info/(_range_partition_list_)!swap	ALTER TABLE a PARTITION BY RANGE(a)(PARTITIONING a VALUES LESS THAN MAXVALUE)
-reject	accept	engine	column_name_list/column_name	FOR COLUMNS(a)
+accept	accept	engine	column_name_list/column_name	FOR COLUMNS(a)
 reject	reject	engine	column_name_list/column_name!drop-1	FOR COLUMNS()
 reject	reject	engine	column_name_list/column_name!truncate	FOR COLUMNS(
 reject	reject	engine	column_name_list/column_name!insert	FOR COLUMNS(a zzz)
-reject	accept	engine	column_name_list/column_name_list_,_column_name	FOR COLUMNS(a, a)
+accept	accept	engine	column_name_list/column_name_list_,_column_name	FOR COLUMNS(a, a)
 reject	reject	engine	column_name_list/column_name_list_,_column_name!drop-1	FOR COLUMNS(, a)
 reject	reject	engine	column_name_list/column_name_list_,_column_name!drop-2	FOR COLUMNS(a a)
 reject	reject	engine	column_name_list/column_name_list_,_column_name!drop-3	FOR COLUMNS(a,)
@@ -6601,14 +6601,14 @@ reject	reject	engine	row_format_option/CONDENSED!swap	ALTER TABLE a ROW_FORMAT C
 accept	accept	engine	row_format_option/DEFAULT	ALTER TABLE a ROW_FORMAT DEFAULT
 reject	reject	engine	row_format_option/DEFAULT!insert	ALTER TABLE a ROW_FORMAT DEFAULT zzz
 reject	reject	engine	row_format_option/DEFAULT!swap	ALTER TABLE a ROW_FORMAT DEFAULT_AUTH
-reject	accept	engine	external_properties_list/external_properties	DELETE FROM SOURCE(TYPE = 's')
+accept	accept	engine	external_properties_list/external_properties	DELETE FROM SOURCE(TYPE = 's')
 reject	reject	engine	external_properties_list/external_properties!drop-1	DELETE FROM SOURCE(= 's')
 reject	reject	engine	external_properties_list/external_properties!drop-2	DELETE FROM SOURCE(TYPE 's')
 reject	reject	engine	external_properties_list/external_properties!drop-3	DELETE FROM SOURCE(TYPE =)
 reject	reject	engine	external_properties_list/external_properties!truncate	DELETE FROM SOURCE(TYPE =
 reject	reject	engine	external_properties_list/external_properties!insert	DELETE FROM SOURCE(TYPE = 's' zzz)
 reject	reject	engine	external_properties_list/external_properties!swap	DELETE FROM SOURCE(TYPES = 's')
-reject	accept	engine	external_properties_list/external_properties_list_opt_comma_external_properties	DELETE FROM SOURCE(TYPE = 's' TYPE = 's')
+accept	accept	engine	external_properties_list/external_properties_list_opt_comma_external_properties	DELETE FROM SOURCE(TYPE = 's' TYPE = 's')
 reject	reject	engine	external_properties_list/external_properties_list_opt_comma_external_properties!drop-1	DELETE FROM SOURCE(= 's' TYPE = 's')
 reject	reject	engine	external_properties_list/external_properties_list_opt_comma_external_properties!drop-2	DELETE FROM SOURCE(TYPE 's' TYPE = 's')
 reject	reject	engine	external_properties_list/external_properties_list_opt_comma_external_properties!drop-3	DELETE FROM SOURCE(TYPE = TYPE = 's')
@@ -6618,97 +6618,97 @@ reject	reject	engine	external_properties_list/external_properties_list_opt_comma
 reject	reject	engine	external_properties_list/external_properties_list_opt_comma_external_properties!truncate	DELETE FROM SOURCE(TYPE = 's' TYPE =
 reject	reject	engine	external_properties_list/external_properties_list_opt_comma_external_properties!insert	DELETE FROM SOURCE(TYPE = 's' TYPE = 's' zzz)
 reject	reject	engine	external_properties_list/external_properties_list_opt_comma_external_properties!swap	DELETE FROM SOURCE(TYPES = 's' TYPE = 's')
-reject	accept	engine	external_properties/TYPE_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(TYPE = 's')
-reject	accept	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ACCESSTYPE = 's')
+accept	accept	engine	external_properties/TYPE_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(TYPE = 's')
+accept	accept	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ACCESSTYPE = 's')
 reject	reject	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(ACCESSTYPE 's')
 reject	reject	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(ACCESSTYPE =)
 reject	reject	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(ACCESSTYPE =
 reject	reject	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(ACCESSTYPE = 's' zzz)
 reject	reject	engine	external_properties/ACCESSTYPE_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(ACCESS_INFO = 's')
-reject	accept	engine	external_properties/ACCESSID_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ACCESSID = 's')
+accept	accept	engine	external_properties/ACCESSID_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ACCESSID = 's')
 reject	reject	engine	external_properties/ACCESSID_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(ACCESSID 's')
 reject	reject	engine	external_properties/ACCESSID_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(ACCESSID =)
 reject	reject	engine	external_properties/ACCESSID_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(ACCESSID =
 reject	reject	engine	external_properties/ACCESSID_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(ACCESSID = 's' zzz)
-reject	accept	engine	external_properties/ACCESSKEY_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ACCESSKEY = 's')
+accept	accept	engine	external_properties/ACCESSKEY_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ACCESSKEY = 's')
 reject	reject	engine	external_properties/ACCESSKEY_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(ACCESSKEY 's')
 reject	reject	engine	external_properties/ACCESSKEY_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(ACCESSKEY =)
 reject	reject	engine	external_properties/ACCESSKEY_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(ACCESSKEY =
 reject	reject	engine	external_properties/ACCESSKEY_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(ACCESSKEY = 's' zzz)
-reject	accept	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(STSTOKEN = 's')
+accept	accept	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(STSTOKEN = 's')
 reject	reject	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(STSTOKEN 's')
 reject	reject	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(STSTOKEN =)
 reject	reject	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(STSTOKEN =
 reject	reject	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(STSTOKEN = 's' zzz)
 reject	reject	engine	external_properties/STSTOKEN_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(SUBCLASS_ORIGIN = 's')
-reject	accept	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ENDPOINT = 's')
+accept	accept	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(ENDPOINT = 's')
 reject	reject	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(ENDPOINT 's')
 reject	reject	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(ENDPOINT =)
 reject	reject	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(ENDPOINT =
 reject	reject	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(ENDPOINT = 's' zzz)
 reject	reject	engine	external_properties/ENDPOINT_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(ENDS = 's')
-reject	accept	engine	external_properties/TUNNEL_ENDPOINT_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(TUNNEL_ENDPOINT = 's')
+accept	accept	engine	external_properties/TUNNEL_ENDPOINT_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(TUNNEL_ENDPOINT = 's')
 reject	reject	engine	external_properties/TUNNEL_ENDPOINT_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(TUNNEL_ENDPOINT 's')
 reject	reject	engine	external_properties/TUNNEL_ENDPOINT_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(TUNNEL_ENDPOINT =)
 reject	reject	engine	external_properties/TUNNEL_ENDPOINT_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(TUNNEL_ENDPOINT =
 reject	reject	engine	external_properties/TUNNEL_ENDPOINT_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(TUNNEL_ENDPOINT = 's' zzz)
-reject	accept	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(PROJECT_NAME = 's')
+accept	accept	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(PROJECT_NAME = 's')
 reject	reject	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(PROJECT_NAME 's')
 reject	reject	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(PROJECT_NAME =)
 reject	reject	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(PROJECT_NAME =
 reject	reject	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(PROJECT_NAME = 's' zzz)
 reject	reject	engine	external_properties/PROJECT_NAME_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(PROJECT_PRUNE = 's')
-reject	accept	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(SCHEMA_NAME = 's')
+accept	accept	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(SCHEMA_NAME = 's')
 reject	reject	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(SCHEMA_NAME 's')
 reject	reject	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(SCHEMA_NAME =)
 reject	reject	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(SCHEMA_NAME =
 reject	reject	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(SCHEMA_NAME = 's' zzz)
 reject	reject	engine	external_properties/SCHEMA_NAME_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(SCN = 's')
-reject	accept	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(QUOTA_NAME = 's')
+accept	accept	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(QUOTA_NAME = 's')
 reject	reject	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(QUOTA_NAME 's')
 reject	reject	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(QUOTA_NAME =)
 reject	reject	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(QUOTA_NAME =
 reject	reject	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(QUOTA_NAME = 's' zzz)
 reject	reject	engine	external_properties/QUOTA_NAME_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(RANDOM = 's')
-reject	accept	engine	external_properties/compression_key_COMP_EQ_compression_name	DELETE FROM SOURCE(COMPRESSION_CODE = a)
+accept	accept	engine	external_properties/compression_key_COMP_EQ_compression_name	DELETE FROM SOURCE(COMPRESSION_CODE = a)
 reject	reject	engine	external_properties/compression_key_COMP_EQ_compression_name!drop-1	DELETE FROM SOURCE(= a)
 reject	reject	engine	external_properties/compression_key_COMP_EQ_compression_name!drop-2	DELETE FROM SOURCE(COMPRESSION_CODE a)
 reject	reject	engine	external_properties/compression_key_COMP_EQ_compression_name!swap	DELETE FROM SOURCE(COMPUTATION = a)
-reject	accept	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(TABLE_NAME = 's')
+accept	accept	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(TABLE_NAME = 's')
 reject	reject	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(TABLE_NAME 's')
 reject	reject	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(TABLE_NAME =)
 reject	reject	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(TABLE_NAME =
 reject	reject	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(TABLE_NAME = 's' zzz)
 reject	reject	engine	external_properties/TABLE_NAME_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(TASK = 's')
-reject	accept	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE	DELETE FROM SOURCE(COLLECT_STATISTICS_ON_CREATE = TRUE)
+accept	accept	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE	DELETE FROM SOURCE(COLLECT_STATISTICS_ON_CREATE = TRUE)
 reject	reject	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE!drop-1	DELETE FROM SOURCE(= TRUE)
 reject	reject	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE!drop-2	DELETE FROM SOURCE(COLLECT_STATISTICS_ON_CREATE TRUE)
 reject	reject	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE!drop-3	DELETE FROM SOURCE(COLLECT_STATISTICS_ON_CREATE =)
 reject	reject	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE!truncate	DELETE FROM SOURCE(COLLECT_STATISTICS_ON_CREATE =
 reject	reject	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE!insert	DELETE FROM SOURCE(COLLECT_STATISTICS_ON_CREATE = TRUE zzz)
 reject	reject	engine	external_properties/COLLECT_STATISTICS_ON_CREATE_COMP_EQ_BOOL_VALUE!swap	DELETE FROM SOURCE(COLUMN = TRUE)
-reject	accept	engine	external_properties/REGION_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(REGION = 's')
+accept	accept	engine	external_properties/REGION_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(REGION = 's')
 reject	reject	engine	external_properties/REGION_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(REGION 's')
 reject	reject	engine	external_properties/REGION_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(REGION =)
 reject	reject	engine	external_properties/REGION_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(REGION =
 reject	reject	engine	external_properties/REGION_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(REGION = 's' zzz)
 reject	reject	engine	external_properties/REGION_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(REJECT = 's')
-reject	accept	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(API_MODE = 's')
+accept	accept	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(API_MODE = 's')
 reject	reject	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(API_MODE 's')
 reject	reject	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(API_MODE =)
 reject	reject	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(API_MODE =
 reject	reject	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(API_MODE = 's' zzz)
 reject	reject	engine	external_properties/API_MODE_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(APPEND = 's')
-reject	accept	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(SPLIT = 's')
+accept	accept	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE	DELETE FROM SOURCE(SPLIT = 's')
 reject	reject	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE!drop-2	DELETE FROM SOURCE(SPLIT 's')
 reject	reject	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE!drop-3	DELETE FROM SOURCE(SPLIT =)
 reject	reject	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE!truncate	DELETE FROM SOURCE(SPLIT =
 reject	reject	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE!insert	DELETE FROM SOURCE(SPLIT = 's' zzz)
 reject	reject	engine	external_properties/SPLIT_COMP_EQ_STRING_VALUE!swap	DELETE FROM SOURCE(SQL = 's')
-reject	accept	engine	compression_key/COMPRESSION_CODE	DELETE FROM SOURCE(COMPRESSION_CODE = a)
+accept	accept	engine	compression_key/COMPRESSION_CODE	DELETE FROM SOURCE(COMPRESSION_CODE = a)
 reject	reject	engine	compression_key/COMPRESSION_CODE!truncate	DELETE FROM SOURCE(
 reject	reject	engine	compression_key/COMPRESSION_CODE!insert	DELETE FROM SOURCE(COMPRESSION_CODE zzz = a)
-reject	accept	engine	compression_key/COMPRESSION	DELETE FROM SOURCE(COMPRESSION = a)
+accept	accept	engine	compression_key/COMPRESSION	DELETE FROM SOURCE(COMPRESSION = a)
 reject	reject	engine	compression_key/COMPRESSION!insert	DELETE FROM SOURCE(COMPRESSION zzz = a)
 reject	reject	engine	compression_key/COMPRESSION!swap	DELETE FROM SOURCE(COMPRESSION_BLOCK_SIZE = a)
 accept	accept	engine	external_file_format_list/external_file_format	ALTER TABLE a FORMAT(TYPE = 's')
@@ -6725,9 +6725,9 @@ reject	reject	engine	external_file_format_list/external_file_format_list_opt_com
 reject	reject	engine	external_file_format_list/external_file_format_list_opt_comma_external_file_format!truncate	ALTER TABLE a FORMAT(TYPE = 's' TYPE =
 reject	reject	engine	external_file_format_list/external_file_format_list_opt_comma_external_file_format!insert	ALTER TABLE a FORMAT(TYPE = 's' TYPE = 's' zzz)
 reject	reject	engine	external_file_format_list/external_file_format_list_opt_comma_external_file_format!swap	ALTER TABLE a FORMAT(TYPES = 's' TYPE = 's')
-reject	accept	engine	opt_pattern/%empty	DELETE FROM 's'(FORMAT(TYPE = 's'))
+accept	accept	engine	opt_pattern/%empty	DELETE FROM 's'(FORMAT(TYPE = 's'))
 reject	reject	engine	opt_pattern/%empty!insert	DELETE FROM 's'(FORMAT(TYPE = 's') zzz)
-reject	accept	engine	opt_pattern/pattern_expr	DELETE FROM 's'(FORMAT(TYPE = 's') PATTERN 's')
+accept	accept	engine	opt_pattern/pattern_expr	DELETE FROM 's'(FORMAT(TYPE = 's') PATTERN 's')
 reject	reject	engine	opt_pattern/pattern_expr!drop-1	DELETE FROM 's'(FORMAT(TYPE = 's') 's')
 reject	reject	engine	opt_pattern/pattern_expr!drop-2	DELETE FROM 's'(FORMAT(TYPE = 's') PATTERN)
 reject	reject	engine	opt_pattern/pattern_expr!truncate	DELETE FROM 's'(FORMAT(TYPE = 's') PATTERN
@@ -9777,7 +9777,7 @@ reject	reject	engine	table_factor/LATERAL_select_with_parens!drop-4	SELECT a FRO
 reject	reject	engine	table_factor/LATERAL_select_with_parens!drop-5	SELECT a FROM LATERAL(SELECT a
 accept	accept	engine	table_factor/LATERAL_select_with_parens!insert	SELECT a FROM LATERAL(SELECT a) zzz
 reject	reject	engine	table_factor/LATERAL_select_with_parens!swap	SELECT a FROM LEAD(SELECT a)
-reject	accept	engine	table_factor/select_with_parens_use_flashback	SELECT a FROM(SELECT a) AS OF SNAPSHOT a
+accept	accept	engine	table_factor/select_with_parens_use_flashback	SELECT a FROM(SELECT a) AS OF SNAPSHOT a
 reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-1	SELECT a FROM SELECT a) AS OF SNAPSHOT a
 reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-2	SELECT a FROM(a) AS OF SNAPSHOT a
 reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-3	SELECT a FROM(SELECT) AS OF SNAPSHOT a
@@ -9786,9 +9786,9 @@ reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-5	SELECT
 reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-6	SELECT a FROM(SELECT a) AS SNAPSHOT a
 reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-7	SELECT a FROM(SELECT a) AS OF a
 reject	reject	engine	table_factor/select_with_parens_use_flashback!drop-8	SELECT a FROM(SELECT a) AS OF SNAPSHOT
-reject	accept	engine	table_factor/select_with_parens_use_flashback!insert	SELECT a FROM(SELECT a) AS OF SNAPSHOT a zzz
+accept	accept	engine	table_factor/select_with_parens_use_flashback!insert	SELECT a FROM(SELECT a) AS OF SNAPSHOT a zzz
 reject	reject	engine	table_factor/select_with_parens_use_flashback!swap	SELECT a FROM(SEMISTRUCT_ENCODING_TYPE a) AS OF SNAPSHOT a
-reject	accept	engine	table_factor/LATERAL_select_with_parens_use_flashback	SELECT a FROM LATERAL(SELECT a) AS OF SNAPSHOT a
+accept	accept	engine	table_factor/LATERAL_select_with_parens_use_flashback	SELECT a FROM LATERAL(SELECT a) AS OF SNAPSHOT a
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-2	SELECT a FROM LATERAL SELECT a) AS OF SNAPSHOT a
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-3	SELECT a FROM LATERAL(a) AS OF SNAPSHOT a
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-4	SELECT a FROM LATERAL(SELECT) AS OF SNAPSHOT a
@@ -9797,9 +9797,9 @@ reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-7	SELECT a FROM LATERAL(SELECT a) AS SNAPSHOT a
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-8	SELECT a FROM LATERAL(SELECT a) AS OF a
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!drop-9	SELECT a FROM LATERAL(SELECT a) AS OF SNAPSHOT
-reject	accept	engine	table_factor/LATERAL_select_with_parens_use_flashback!insert	SELECT a FROM LATERAL(SELECT a) AS OF SNAPSHOT a zzz
+accept	accept	engine	table_factor/LATERAL_select_with_parens_use_flashback!insert	SELECT a FROM LATERAL(SELECT a) AS OF SNAPSHOT a zzz
 reject	reject	engine	table_factor/LATERAL_select_with_parens_use_flashback!swap	SELECT a FROM LEAD(SELECT a) AS OF SNAPSHOT a
-reject	accept	engine	table_factor/json_table_expr	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
+accept	accept	engine	table_factor/json_table_expr	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
 reject	reject	engine	table_factor/json_table_expr!drop-1	SELECT a FROM(a, 's' COLUMNS(a FOR ORDINALITY))
 reject	reject	engine	table_factor/json_table_expr!drop-2	SELECT a FROM JSON_TABLE a, 's' COLUMNS(a FOR ORDINALITY))
 reject	reject	engine	table_factor/json_table_expr!drop-3	SELECT a FROM JSON_TABLE(, 's' COLUMNS(a FOR ORDINALITY))
@@ -9818,16 +9818,16 @@ reject	reject	engine	table_factor/(_table_references_)!drop-1	SELECT a FROM a)
 reject	reject	engine	table_factor/(_table_references_)!drop-2	SELECT a FROM()
 reject	reject	engine	table_factor/(_table_references_)!drop-3	SELECT a FROM(a
 reject	reject	engine	table_factor/(_table_references_)!insert	SELECT a FROM(a) zzz
-reject	accept	engine	table_factor/rb_iterate_expr	SELECT a FROM RB_ITERATE(a)
+accept	accept	engine	table_factor/rb_iterate_expr	SELECT a FROM RB_ITERATE(a)
 reject	reject	engine	table_factor/rb_iterate_expr!drop-2	SELECT a FROM RB_ITERATE a)
 reject	reject	engine	table_factor/rb_iterate_expr!drop-3	SELECT a FROM RB_ITERATE()
 reject	reject	engine	table_factor/rb_iterate_expr!drop-4	SELECT a FROM RB_ITERATE(a
-reject	accept	engine	table_factor/rb_iterate_expr!insert	SELECT a FROM RB_ITERATE(a) zzz
+accept	accept	engine	table_factor/rb_iterate_expr!insert	SELECT a FROM RB_ITERATE(a) zzz
 reject	reject	engine	table_factor/rb_iterate_expr!swap	SELECT a FROM RB_OR_AGG(a)
-reject	accept	engine	table_factor/unnest_expr	SELECT a FROM UNNEST(a)
+accept	accept	engine	table_factor/unnest_expr	SELECT a FROM UNNEST(a)
 reject	reject	engine	table_factor/unnest_expr!drop-2	SELECT a FROM UNNEST a)
 reject	reject	engine	table_factor/unnest_expr!drop-4	SELECT a FROM UNNEST(a
-reject	accept	engine	table_factor/unnest_expr!insert	SELECT a FROM UNNEST(a) zzz
+accept	accept	engine	table_factor/unnest_expr!insert	SELECT a FROM UNNEST(a) zzz
 reject	reject	engine	table_factor/unnest_expr!swap	SELECT a FROM UNSIGNED(a)
 accept	accept	engine	tbl_name/relation_factor	DELETE FROM a
 accept	accept	engine	tbl_name/relation_factor_use_partition	DELETE FROM a PARTITION(a)
@@ -10781,13 +10781,13 @@ reject	reject	engine	tbl_name/TABLE_(_simple_expr_)_AS_relation_name!drop-4	DELE
 reject	reject	engine	tbl_name/TABLE_(_simple_expr_)_AS_relation_name!drop-6	DELETE FROM TABLE(a) AS
 reject	reject	engine	tbl_name/TABLE_(_simple_expr_)_AS_relation_name!insert	DELETE FROM TABLE(a) AS a zzz
 reject	reject	engine	tbl_name/TABLE_(_simple_expr_)_AS_relation_name!swap	DELETE FROM TABLEGROUP(a) AS a
-reject	accept	engine	tbl_name/url_expr_opt_as_alias	DELETE FROM SOURCE(TYPE = 's')
+accept	accept	engine	tbl_name/url_expr_opt_as_alias	DELETE FROM SOURCE(TYPE = 's')
 reject	reject	engine	tbl_name/url_expr_opt_as_alias!drop-1	DELETE FROM(TYPE = 's')
 reject	reject	engine	tbl_name/url_expr_opt_as_alias!drop-2	DELETE FROM SOURCE TYPE = 's')
 reject	reject	engine	tbl_name/url_expr_opt_as_alias!drop-6	DELETE FROM SOURCE(TYPE = 's'
 reject	reject	engine	tbl_name/url_expr_opt_as_alias!insert	DELETE FROM SOURCE(TYPE = 's') zzz
 reject	reject	engine	tbl_name/url_expr_opt_as_alias!swap	DELETE FROM SPARSEVECTOR(TYPE = 's')
-reject	accept	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)	DELETE FROM 's'(FORMAT(TYPE = 's'))
+accept	accept	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)	DELETE FROM 's'(FORMAT(TYPE = 's'))
 reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!drop-1	DELETE FROM(FORMAT(TYPE = 's'))
 reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!drop-2	DELETE FROM 's' FORMAT(TYPE = 's'))
 reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!drop-3	DELETE FROM 's'((TYPE = 's'))
@@ -10798,9 +10798,9 @@ reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!drop-7	DE
 reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!drop-8	DELETE FROM 's'(FORMAT(TYPE = 's')
 reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!insert	DELETE FROM 's'(FORMAT(TYPE = 's')) zzz
 reject	reject	engine	url_expr/STRING_VALUE_(_format_expr_opt_pattern_)!swap	DELETE FROM 's'(FOUND(TYPE = 's'))
-reject	accept	engine	url_expr/url_table_function_expr	DELETE FROM SOURCE(TYPE = 's')
-reject	accept	engine	url_table_function_expr/SOURCE_(_external_properties_list_)	DELETE FROM SOURCE(TYPE = 's')
-reject	accept	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)	DELETE FROM FILES(LOCATION 's' FORMAT(TYPE = 's') PATTERN 's')
+accept	accept	engine	url_expr/url_table_function_expr	DELETE FROM SOURCE(TYPE = 's')
+accept	accept	engine	url_table_function_expr/SOURCE_(_external_properties_list_)	DELETE FROM SOURCE(TYPE = 's')
+accept	accept	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)	DELETE FROM FILES(LOCATION 's' FORMAT(TYPE = 's') PATTERN 's')
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)!drop-1	DELETE FROM(LOCATION 's' FORMAT(TYPE = 's') PATTERN 's')
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)!drop-2	DELETE FROM FILES LOCATION 's' FORMAT(TYPE = 's') PATTERN 's')
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)!drop-3	DELETE FROM FILES('s' FORMAT(TYPE = 's') PATTERN 's')
@@ -10816,7 +10816,7 @@ reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_for
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)!drop-13	DELETE FROM FILES(LOCATION 's' FORMAT(TYPE = 's') PATTERN 's'
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)!insert	DELETE FROM FILES(LOCATION 's' FORMAT(TYPE = 's') PATTERN 's') zzz
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_opt_comma_pattern_expr_)!swap	DELETE FROM FILE_BLOCK_SIZE(LOCATION 's' FORMAT(TYPE = 's') PATTERN 's')
-reject	accept	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_)	DELETE FROM FILES(LOCATION 's' FORMAT(TYPE = 's'))
+accept	accept	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_)	DELETE FROM FILES(LOCATION 's' FORMAT(TYPE = 's'))
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_)!drop-1	DELETE FROM(LOCATION 's' FORMAT(TYPE = 's'))
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_)!drop-2	DELETE FROM FILES LOCATION 's' FORMAT(TYPE = 's'))
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_)!drop-3	DELETE FROM FILES('s' FORMAT(TYPE = 's'))
@@ -10831,8 +10831,8 @@ reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_for
 reject	reject	engine	url_table_function_expr/FILES_(_location_expr_opt_comma_format_expr_)!swap	DELETE FROM FILE_BLOCK_SIZE(LOCATION 's' FORMAT(TYPE = 's'))
 accept	accept	engine	pattern_expr/PATTERN_opt_equal_mark_STRING_VALUE	ALTER TABLE a PATTERN 's'
 accept	accept	engine	format_expr/FORMAT_opt_equal_mark_(_external_file_format_list_)	ALTER TABLE a FORMAT(TYPE = 's')
-reject	accept	engine	opt_as_alias/%empty	DELETE FROM SOURCE(TYPE = 's')
-reject	accept	engine	opt_as_alias/AS_relation_name	DELETE FROM SOURCE(TYPE = 's') AS a
+accept	accept	engine	opt_as_alias/%empty	DELETE FROM SOURCE(TYPE = 's')
+accept	accept	engine	opt_as_alias/AS_relation_name	DELETE FROM SOURCE(TYPE = 's') AS a
 reject	reject	engine	opt_as_alias/AS_relation_name!drop-1	DELETE FROM SOURCE(TYPE = 's') a
 reject	reject	engine	opt_as_alias/AS_relation_name!drop-2	DELETE FROM SOURCE(TYPE = 's') AS
 reject	reject	engine	opt_as_alias/AS_relation_name!insert	DELETE FROM SOURCE(TYPE = 's') AS a zzz
@@ -10875,7 +10875,7 @@ reject	reject	engine	table_subquery/select_with_parens_AS_table_subquery_alias!d
 reject	reject	engine	table_subquery/select_with_parens_AS_table_subquery_alias!drop-6	SELECT a FROM(SELECT a) AS
 reject	reject	engine	table_subquery/select_with_parens_AS_table_subquery_alias!insert	SELECT a FROM(SELECT a) AS a zzz
 reject	reject	engine	table_subquery/select_with_parens_AS_table_subquery_alias!swap	SELECT a FROM(SEMISTRUCT_ENCODING_TYPE a) AS a
-reject	accept	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias	SELECT a FROM(SELECT a) AS OF SNAPSHOT a a
+accept	accept	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias	SELECT a FROM(SELECT a) AS OF SNAPSHOT a a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias!drop-1	SELECT a FROM SELECT a) AS OF SNAPSHOT a a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias!drop-2	SELECT a FROM(a) AS OF SNAPSHOT a a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias!drop-3	SELECT a FROM(SELECT) AS OF SNAPSHOT a a
@@ -10885,7 +10885,7 @@ reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subqu
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias!drop-7	SELECT a FROM(SELECT a) AS OF a a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias!insert	SELECT a FROM(SELECT a) AS OF SNAPSHOT a a zzz
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_table_subquery_alias!swap	SELECT a FROM(SEMISTRUCT_ENCODING_TYPE a) AS OF SNAPSHOT a a
-reject	accept	engine	table_subquery/select_with_parens_use_flashback_AS_table_subquery_alias	SELECT a FROM(SELECT a) AS OF SNAPSHOT a AS a
+accept	accept	engine	table_subquery/select_with_parens_use_flashback_AS_table_subquery_alias	SELECT a FROM(SELECT a) AS OF SNAPSHOT a AS a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_AS_table_subquery_alias!drop-1	SELECT a FROM SELECT a) AS OF SNAPSHOT a AS a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_AS_table_subquery_alias!drop-2	SELECT a FROM(a) AS OF SNAPSHOT a AS a
 reject	reject	engine	table_subquery/select_with_parens_use_flashback_AS_table_subquery_alias!drop-3	SELECT a FROM(SELECT) AS OF SNAPSHOT a AS a
@@ -13639,7 +13639,7 @@ reject	reject	engine	rename_table_actions/rename_table_actions_,_rename_table_ac
 reject	reject	engine	rename_table_actions/rename_table_actions_,_rename_table_action!swap	RENAME TABLE a TOPK a, a TO a
 accept	accept	engine	rename_table_action/relation_factor_TO_relation_factor	RENAME TABLE a TO a
 accept	accept	engine	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_table_actions	ALTER TABLE a
-reject	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_alter_table_actions	ALTER EXTERNAL TABLE a
+accept	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_alter_table_actions	ALTER EXTERNAL TABLE a
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_alter_table_actions!drop-1	EXTERNAL TABLE a
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_alter_table_actions!drop-3	ALTER EXTERNAL a
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_alter_table_actions!drop-4	ALTER EXTERNAL TABLE
@@ -13658,7 +13658,7 @@ reject	reject	engine	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option!drop-10	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option!insert	ALTER TABLE a ADD COLUMN GROUP(ALL COLUMNS) zzz
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_TABLE_relation_factor_alter_column_group_option!swap	ALWAYS TABLE a ADD COLUMN GROUP(ALL COLUMNS)
-reject	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE	ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION 's'
+accept	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE	ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE!drop-1	EXTERNAL TABLE a ADD PARTITION() LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE!drop-2	ALTER TABLE a ADD PARTITION() LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE!drop-3	ALTER EXTERNAL a ADD PARTITION() LOCATION 's'
@@ -13671,7 +13671,7 @@ reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relatio
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE!drop-10	ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE!insert	ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION 's' zzz
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_ADD_PARTITION_(_add_external_table_partition_actions_)_LOCATION_STRING_VALUE!swap	ALWAYS EXTERNAL TABLE a ADD PARTITION() LOCATION 's'
-reject	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE	ALTER EXTERNAL TABLE a DROP PARTITION LOCATION 's'
+accept	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE	ALTER EXTERNAL TABLE a DROP PARTITION LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-1	EXTERNAL TABLE a DROP PARTITION LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-2	ALTER TABLE a DROP PARTITION LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-3	ALTER EXTERNAL a DROP PARTITION LOCATION 's'
@@ -13679,22 +13679,22 @@ reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relatio
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-5	ALTER EXTERNAL TABLE a PARTITION LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-6	ALTER EXTERNAL TABLE a DROP LOCATION 's'
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-7	ALTER EXTERNAL TABLE a DROP PARTITION 's'
-reject	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-8	ALTER EXTERNAL TABLE a DROP PARTITION LOCATION
+accept	accept	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!drop-8	ALTER EXTERNAL TABLE a DROP PARTITION LOCATION
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!insert	ALTER EXTERNAL TABLE a DROP PARTITION LOCATION 's' zzz
 reject	reject	engine	alter_table_stmt/alter_with_opt_hint_EXTERNAL_TABLE_relation_factor_DROP_PARTITION_LOCATION_STRING_VALUE!swap	ALWAYS EXTERNAL TABLE a DROP PARTITION LOCATION 's'
-reject	accept	engine	add_external_table_partition_actions/add_external_table_partition_action	ALTER EXTERNAL TABLE a ADD PARTITION(a 's') LOCATION 's'
+accept	accept	engine	add_external_table_partition_actions/add_external_table_partition_action	ALTER EXTERNAL TABLE a ADD PARTITION(a 's') LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_action!drop-1	ALTER EXTERNAL TABLE a ADD PARTITION('s') LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_action!drop-2	ALTER EXTERNAL TABLE a ADD PARTITION(a) LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_action!truncate	ALTER EXTERNAL TABLE a ADD PARTITION(a
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_action!insert	ALTER EXTERNAL TABLE a ADD PARTITION(a 's' zzz) LOCATION 's'
-reject	accept	engine	add_external_table_partition_actions/add_external_table_partition_actions_,_add_external_table_partition_action	ALTER EXTERNAL TABLE a ADD PARTITION(, a 's') LOCATION 's'
+accept	accept	engine	add_external_table_partition_actions/add_external_table_partition_actions_,_add_external_table_partition_action	ALTER EXTERNAL TABLE a ADD PARTITION(, a 's') LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_actions_,_add_external_table_partition_action!drop-2	ALTER EXTERNAL TABLE a ADD PARTITION(, 's') LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_actions_,_add_external_table_partition_action!drop-3	ALTER EXTERNAL TABLE a ADD PARTITION(, a) LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_actions_,_add_external_table_partition_action!truncate	ALTER EXTERNAL TABLE a ADD PARTITION(, a
 reject	reject	engine	add_external_table_partition_actions/add_external_table_partition_actions_,_add_external_table_partition_action!insert	ALTER EXTERNAL TABLE a ADD PARTITION(, a 's' zzz) LOCATION 's'
-reject	accept	engine	add_external_table_partition_actions/%empty	ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION 's'
+accept	accept	engine	add_external_table_partition_actions/%empty	ALTER EXTERNAL TABLE a ADD PARTITION() LOCATION 's'
 reject	reject	engine	add_external_table_partition_actions/%empty!insert	ALTER EXTERNAL TABLE a ADD PARTITION(zzz) LOCATION 's'
-reject	accept	engine	add_external_table_partition_action/column_name_opt_equal_mark_expr_const	ALTER EXTERNAL TABLE a ADD PARTITION(a 's') LOCATION 's'
+accept	accept	engine	add_external_table_partition_action/column_name_opt_equal_mark_expr_const	ALTER EXTERNAL TABLE a ADD PARTITION(a 's') LOCATION 's'
 accept	accept	engine	alter_table_actions/alter_table_action_list	ALTER TABLE a NOPARALLEL
 accept	accept	engine	alter_table_actions/standalone_alter_action	ALTER TABLE a DROP PARTITION a
 reject	reject	engine	alter_table_actions/standalone_alter_action!drop-1	ALTER TABLE a PARTITION a
@@ -16803,77 +16803,77 @@ accept	accept	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VAL
 reject	reject	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE!drop-1	DROP LOGFILE GROUP a 's'
 reject	reject	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE!insert	DROP LOGFILE GROUP a ENGINE 's' zzz
 reject	reject	engine	opt_ts_engine/opt_storage_ENGINE__opt_equal_mark_STRING_VALUE!swap	DROP LOGFILE GROUP a ENGINES 's'
-reject	accept	engine	method_opt/method_list	FOR COLUMNS
-reject	accept	engine	method_list/method	FOR COLUMNS
-reject	accept	engine	method_list/method_list_method	FOR COLUMNS FOR COLUMNS
+accept	accept	engine	method_opt/method_list	FOR COLUMNS
+accept	accept	engine	method_list/method	FOR COLUMNS
+accept	accept	engine	method_list/method_list_method	FOR COLUMNS FOR COLUMNS
 reject	reject	engine	method_list/method_list_method!drop-1	COLUMNS FOR COLUMNS
 reject	reject	engine	method_list/method_list_method!drop-2	FOR FOR COLUMNS
-reject	accept	engine	method_list/method_list_method!drop-3	FOR COLUMNS COLUMNS
+accept	accept	engine	method_list/method_list_method!drop-3	FOR COLUMNS COLUMNS
 reject	reject	engine	method_list/method_list_method!drop-4	FOR COLUMNS FOR
-reject	accept	engine	method_list/method_list_method!insert	FOR COLUMNS FOR COLUMNS zzz
+accept	accept	engine	method_list/method_list_method!insert	FOR COLUMNS FOR COLUMNS zzz
 reject	reject	engine	method_list/method_list_method!swap	FORCE COLUMNS FOR COLUMNS
-reject	accept	engine	method/for_all	FOR ALL COLUMNS
+accept	accept	engine	method/for_all	FOR ALL COLUMNS
 reject	reject	engine	method/for_all!drop-1	ALL COLUMNS
 reject	reject	engine	method/for_all!drop-3	FOR ALL
 reject	reject	engine	method/for_all!insert	FOR ALL COLUMNS zzz
 reject	reject	engine	method/for_all!swap	FORCE ALL COLUMNS
-reject	accept	engine	method/for_columns	FOR COLUMNS
-reject	accept	engine	for_all/FOR_ALL_opt_indexed_hiddden_COLUMNS_opt_size_clause	FOR ALL COLUMNS
-reject	accept	engine	opt_indexed_hiddden/%empty	FOR ALL COLUMNS
+accept	accept	engine	method/for_columns	FOR COLUMNS
+accept	accept	engine	for_all/FOR_ALL_opt_indexed_hiddden_COLUMNS_opt_size_clause	FOR ALL COLUMNS
+accept	accept	engine	opt_indexed_hiddden/%empty	FOR ALL COLUMNS
 reject	reject	engine	opt_indexed_hiddden/%empty!insert	FOR ALL zzz COLUMNS
-reject	accept	engine	opt_indexed_hiddden/INDEXED	FOR ALL INDEXED COLUMNS
+accept	accept	engine	opt_indexed_hiddden/INDEXED	FOR ALL INDEXED COLUMNS
 reject	reject	engine	opt_indexed_hiddden/INDEXED!insert	FOR ALL INDEXED zzz COLUMNS
 reject	reject	engine	opt_indexed_hiddden/INDEXED!swap	FOR ALL INDEXES COLUMNS
-reject	accept	engine	opt_indexed_hiddden/HIDDEN	FOR ALL HIDDEN COLUMNS
+accept	accept	engine	opt_indexed_hiddden/HIDDEN	FOR ALL HIDDEN COLUMNS
 reject	reject	engine	opt_indexed_hiddden/HIDDEN!insert	FOR ALL HIDDEN zzz COLUMNS
 reject	reject	engine	opt_indexed_hiddden/HIDDEN!swap	FOR ALL HIGH_PRIORITY COLUMNS
-reject	accept	engine	opt_size_clause/%empty	FOR ALL COLUMNS
-reject	accept	engine	opt_size_clause/size_clause	FOR ALL COLUMNS SIZE AUTO
+accept	accept	engine	opt_size_clause/%empty	FOR ALL COLUMNS
+accept	accept	engine	opt_size_clause/size_clause	FOR ALL COLUMNS SIZE AUTO
 reject	reject	engine	opt_size_clause/size_clause!drop-1	FOR ALL COLUMNS AUTO
 reject	reject	engine	opt_size_clause/size_clause!drop-2	FOR ALL COLUMNS SIZE
 reject	reject	engine	opt_size_clause/size_clause!insert	FOR ALL COLUMNS SIZE AUTO zzz
 reject	reject	engine	opt_size_clause/size_clause!swap	FOR ALL COLUMNS SKEWONLY AUTO
-reject	accept	engine	size_clause/SIZE_AUTO	FOR COLUMNS SIZE AUTO
-reject	accept	engine	size_clause/SIZE_AUTO!drop-1	FOR COLUMNS AUTO
-reject	accept	engine	size_clause/SIZE_AUTO!insert	FOR COLUMNS SIZE AUTO zzz
-reject	accept	engine	size_clause/SIZE_AUTO!swap	FOR COLUMNS SKEWONLY AUTO
-reject	accept	engine	size_clause/SIZE_REPEAT	FOR COLUMNS SIZE REPEAT
+accept	accept	engine	size_clause/SIZE_AUTO	FOR COLUMNS SIZE AUTO
+accept	accept	engine	size_clause/SIZE_AUTO!drop-1	FOR COLUMNS AUTO
+accept	accept	engine	size_clause/SIZE_AUTO!insert	FOR COLUMNS SIZE AUTO zzz
+accept	accept	engine	size_clause/SIZE_AUTO!swap	FOR COLUMNS SKEWONLY AUTO
+accept	accept	engine	size_clause/SIZE_REPEAT	FOR COLUMNS SIZE REPEAT
 reject	reject	engine	size_clause/SIZE_REPEAT!drop-1	FOR COLUMNS REPEAT
-reject	accept	engine	size_clause/SIZE_REPEAT!insert	FOR COLUMNS SIZE REPEAT zzz
+accept	accept	engine	size_clause/SIZE_REPEAT!insert	FOR COLUMNS SIZE REPEAT zzz
 reject	reject	engine	size_clause/SIZE_REPEAT!swap	FOR COLUMNS SKEWONLY REPEAT
-reject	accept	engine	size_clause/SIZE_SKEWONLY	FOR COLUMNS SIZE SKEWONLY
-reject	accept	engine	size_clause/SIZE_SKEWONLY!drop-1	FOR COLUMNS SKEWONLY
-reject	accept	engine	size_clause/SIZE_SKEWONLY!insert	FOR COLUMNS SIZE SKEWONLY zzz
-reject	accept	engine	size_clause/SIZE_SKEWONLY!swap	FOR COLUMNS SKEWONLY SKEWONLY
-reject	accept	engine	size_clause/SIZE_number_literal	FOR COLUMNS SIZE 1
+accept	accept	engine	size_clause/SIZE_SKEWONLY	FOR COLUMNS SIZE SKEWONLY
+accept	accept	engine	size_clause/SIZE_SKEWONLY!drop-1	FOR COLUMNS SKEWONLY
+accept	accept	engine	size_clause/SIZE_SKEWONLY!insert	FOR COLUMNS SIZE SKEWONLY zzz
+accept	accept	engine	size_clause/SIZE_SKEWONLY!swap	FOR COLUMNS SKEWONLY SKEWONLY
+accept	accept	engine	size_clause/SIZE_number_literal	FOR COLUMNS SIZE 1
 reject	reject	engine	size_clause/SIZE_number_literal!drop-1	FOR COLUMNS 1
 reject	reject	engine	size_clause/SIZE_number_literal!swap	FOR COLUMNS SKEWONLY 1
-reject	accept	engine	for_columns/FOR_COLUMNS_for_columns_list	FOR COLUMNS a
+accept	accept	engine	for_columns/FOR_COLUMNS_for_columns_list	FOR COLUMNS a
 reject	reject	engine	for_columns/FOR_COLUMNS_for_columns_list!drop-1	COLUMNS a
 reject	reject	engine	for_columns/FOR_COLUMNS_for_columns_list!drop-2	FOR a
-reject	accept	engine	for_columns/FOR_COLUMNS_for_columns_list!insert	FOR COLUMNS a zzz
+accept	accept	engine	for_columns/FOR_COLUMNS_for_columns_list!insert	FOR COLUMNS a zzz
 reject	reject	engine	for_columns/FOR_COLUMNS_for_columns_list!swap	FORCE COLUMNS a
-reject	accept	engine	for_columns/FOR_COLUMNS	FOR COLUMNS
-reject	accept	engine	for_columns_list/for_columns_item	FOR COLUMNS a
-reject	accept	engine	for_columns_list/for_columns_list_for_columns_item	FOR COLUMNS a a
-reject	accept	engine	for_columns_list/for_columns_list_for_columns_item!insert	FOR COLUMNS a a zzz
-reject	accept	engine	for_columns_list/for_columns_list_,_for_columns_item	FOR COLUMNS a, a
+accept	accept	engine	for_columns/FOR_COLUMNS	FOR COLUMNS
+accept	accept	engine	for_columns_list/for_columns_item	FOR COLUMNS a
+accept	accept	engine	for_columns_list/for_columns_list_for_columns_item	FOR COLUMNS a a
+accept	accept	engine	for_columns_list/for_columns_list_for_columns_item!insert	FOR COLUMNS a a zzz
+accept	accept	engine	for_columns_list/for_columns_list_,_for_columns_item	FOR COLUMNS a, a
 reject	reject	engine	for_columns_list/for_columns_list_,_for_columns_item!drop-1	FOR COLUMNS, a
 reject	reject	engine	for_columns_list/for_columns_list_,_for_columns_item!drop-3	FOR COLUMNS a,
-reject	accept	engine	for_columns_list/for_columns_list_,_for_columns_item!insert	FOR COLUMNS a, a zzz
-reject	accept	engine	for_columns_item/column_clause	FOR COLUMNS a
-reject	accept	engine	for_columns_item/size_clause	FOR COLUMNS SIZE AUTO
-reject	accept	engine	for_columns_item/column_clause_size_clause	FOR COLUMNS a SIZE AUTO
-reject	accept	engine	for_columns_item/column_clause_size_clause!drop-2	FOR COLUMNS a AUTO
+accept	accept	engine	for_columns_list/for_columns_list_,_for_columns_item!insert	FOR COLUMNS a, a zzz
+accept	accept	engine	for_columns_item/column_clause	FOR COLUMNS a
+accept	accept	engine	for_columns_item/size_clause	FOR COLUMNS SIZE AUTO
+accept	accept	engine	for_columns_item/column_clause_size_clause	FOR COLUMNS a SIZE AUTO
+accept	accept	engine	for_columns_item/column_clause_size_clause!drop-2	FOR COLUMNS a AUTO
 reject	reject	engine	for_columns_item/column_clause_size_clause!drop-3	FOR COLUMNS a SIZE
-reject	accept	engine	for_columns_item/column_clause_size_clause!insert	FOR COLUMNS a SIZE AUTO zzz
-reject	accept	engine	for_columns_item/column_clause_size_clause!swap	FOR COLUMNS a SKEWONLY AUTO
-reject	accept	engine	column_clause/column_name	FOR COLUMNS a
-reject	accept	engine	column_clause/extension	FOR COLUMNS(a)
+accept	accept	engine	for_columns_item/column_clause_size_clause!insert	FOR COLUMNS a SIZE AUTO zzz
+accept	accept	engine	for_columns_item/column_clause_size_clause!swap	FOR COLUMNS a SKEWONLY AUTO
+accept	accept	engine	column_clause/column_name	FOR COLUMNS a
+accept	accept	engine	column_clause/extension	FOR COLUMNS(a)
 reject	reject	engine	column_clause/extension!drop-1	FOR COLUMNS a)
 reject	reject	engine	column_clause/extension!drop-3	FOR COLUMNS(a
-reject	accept	engine	column_clause/extension!insert	FOR COLUMNS(a) zzz
-reject	accept	engine	extension/(_column_name_list_)	FOR COLUMNS(a)
+accept	accept	engine	column_clause/extension!insert	FOR COLUMNS(a) zzz
+accept	accept	engine	extension/(_column_name_list_)	FOR COLUMNS(a)
 accept	accept	engine	set_transaction_stmt/SET_TRANSACTION_transaction_characteristics	SET TRANSACTION READ ONLY
 accept	accept	engine	set_transaction_stmt/SET_GLOBAL_TRANSACTION_transaction_characteristics	SET GLOBAL TRANSACTION READ ONLY
 reject	reject	engine	set_transaction_stmt/SET_GLOBAL_TRANSACTION_transaction_characteristics!drop-1	GLOBAL TRANSACTION READ ONLY
@@ -17112,11 +17112,11 @@ accept	accept	engine	relation_name/NAME_OB	USE a
 accept	accept	engine	relation_name/unreserved_keyword	USE ACCESS_INFO
 reject	reject	engine	relation_name/unreserved_keyword!insert	USE ACCESS_INFO zzz
 accept	accept	engine	relation_name/unreserved_keyword!swap	USE ACCOUNT
-reject	accept	engine	relation_name_list/relation_name	SELECT a FROM UNNEST(a) a(a)
+accept	accept	engine	relation_name_list/relation_name	SELECT a FROM UNNEST(a) a(a)
 reject	reject	engine	relation_name_list/relation_name!drop-1	SELECT a FROM UNNEST(a) a()
 reject	reject	engine	relation_name_list/relation_name!truncate	SELECT a FROM UNNEST(a) a(
 reject	reject	engine	relation_name_list/relation_name!insert	SELECT a FROM UNNEST(a) a(a zzz)
-reject	accept	engine	relation_name_list/relation_name_list_,_relation_name	SELECT a FROM UNNEST(a) a(a, a)
+accept	accept	engine	relation_name_list/relation_name_list_,_relation_name	SELECT a FROM UNNEST(a) a(a, a)
 reject	reject	engine	relation_name_list/relation_name_list_,_relation_name!drop-1	SELECT a FROM UNNEST(a) a(, a)
 reject	reject	engine	relation_name_list/relation_name_list_,_relation_name!drop-2	SELECT a FROM UNNEST(a) a(a a)
 reject	reject	engine	relation_name_list/relation_name_list_,_relation_name!drop-3	SELECT a FROM UNNEST(a) a(a,)
@@ -17274,7 +17274,7 @@ reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!drop-7	SELECT a FROM JSON_TABLE(a, 's' COLUMNS a FOR ORDINALITY)) a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!drop-8	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(FOR ORDINALITY)) a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!drop-9	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a ORDINALITY)) a
-accept	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!drop-10	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR)) a
+reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!drop-10	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR)) a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!drop-11	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY) a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY)) a zzz
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_relation_name!swap	SELECT a FROM JSON_VALUE(a, 's' COLUMNS(a FOR ORDINALITY)) a
@@ -17288,19 +17288,19 @@ reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-7	SELECT a FROM JSON_TABLE(a, 's' COLUMNS a FOR ORDINALITY)) AS a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-8	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(FOR ORDINALITY)) AS a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-9	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a ORDINALITY)) AS a
-accept	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-10	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR)) AS a
+reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-10	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR)) AS a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-11	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY) AS a
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!drop-14	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY)) AS
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY)) AS a zzz
 reject	reject	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)_AS_relation_name!swap	SELECT a FROM JSON_VALUE(a, 's' COLUMNS(a FOR ORDINALITY)) AS a
-reject	accept	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
-reject	accept	engine	mock_jt_on_error_on_empty/%empty	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
+accept	accept	engine	json_table_expr/JSON_TABLE_(_simple_expr_,_literal_mock_jt_on_error_on_empty_COLUMNS_(_jt_column_list_)_)	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
+accept	accept	engine	mock_jt_on_error_on_empty/%empty	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
 reject	reject	engine	mock_jt_on_error_on_empty/%empty!insert	SELECT a FROM JSON_TABLE(a, 's' zzz COLUMNS(a FOR ORDINALITY))
-reject	accept	engine	jt_column_list/json_table_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
+accept	accept	engine	jt_column_list/json_table_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
 reject	reject	engine	jt_column_list/json_table_column_def!truncate	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR
 reject	reject	engine	jt_column_list/json_table_column_def!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY zzz))
 reject	reject	engine	jt_column_list/json_table_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FORCE ORDINALITY))
-reject	accept	engine	jt_column_list/jt_column_list_,_json_table_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY, a FOR ORDINALITY))
+accept	accept	engine	jt_column_list/jt_column_list_,_json_table_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY, a FOR ORDINALITY))
 reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!drop-1	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(FOR ORDINALITY, a FOR ORDINALITY))
 reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!drop-2	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a ORDINALITY, a FOR ORDINALITY))
 reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!drop-3	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR, a FOR ORDINALITY))
@@ -17311,23 +17311,23 @@ reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!drop-
 reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!truncate	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY, a FOR
 reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY, a FOR ORDINALITY zzz))
 reject	reject	engine	jt_column_list/jt_column_list_,_json_table_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FORCE ORDINALITY, a FOR ORDINALITY))
-reject	accept	engine	json_table_column_def/json_table_ordinality_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
-reject	accept	engine	json_table_column_def/json_table_exists_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 's'))
+accept	accept	engine	json_table_column_def/json_table_ordinality_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
+accept	accept	engine	json_table_column_def/json_table_exists_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_exists_column_def!drop-1	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(TINYINT EXISTS PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_exists_column_def!drop-2	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a EXISTS PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_exists_column_def!drop-4	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS 's'))
 reject	reject	engine	json_table_column_def/json_table_exists_column_def!drop-5	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH))
 reject	reject	engine	json_table_column_def/json_table_exists_column_def!truncate	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH
 reject	reject	engine	json_table_column_def/json_table_exists_column_def!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 's' zzz))
-reject	accept	engine	json_table_column_def/json_table_exists_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT EXISTS PATH 's'))
-reject	accept	engine	json_table_column_def/json_table_value_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
+accept	accept	engine	json_table_column_def/json_table_exists_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT EXISTS PATH 's'))
+accept	accept	engine	json_table_column_def/json_table_value_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_value_column_def!drop-1	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(TINYINT PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_value_column_def!drop-2	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_value_column_def!drop-3	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT 's'))
 reject	reject	engine	json_table_column_def/json_table_value_column_def!drop-4	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH))
 reject	reject	engine	json_table_column_def/json_table_value_column_def!truncate	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH
 reject	reject	engine	json_table_column_def/json_table_value_column_def!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's' zzz))
-reject	accept	engine	json_table_column_def/json_table_value_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT PATH 's'))
+accept	accept	engine	json_table_column_def/json_table_value_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYTEXT PATH 's'))
 reject	reject	engine	json_table_column_def/json_table_nested_column_def	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 's' COLUMNS(a FOR ORDINALITY)))
 reject	reject	engine	json_table_column_def/json_table_nested_column_def!drop-1	SELECT a FROM JSON_TABLE(a, 's' COLUMNS('s' COLUMNS(a FOR ORDINALITY)))
 reject	reject	engine	json_table_column_def/json_table_nested_column_def!drop-2	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED COLUMNS(a FOR ORDINALITY)))
@@ -17340,11 +17340,11 @@ reject	reject	engine	json_table_column_def/json_table_nested_column_def!drop-8	S
 reject	reject	engine	json_table_column_def/json_table_nested_column_def!truncate	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 's' COLUMNS(a FOR ORDINALITY
 reject	reject	engine	json_table_column_def/json_table_nested_column_def!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 's' COLUMNS(a FOR ORDINALITY) zzz))
 reject	reject	engine	json_table_column_def/json_table_nested_column_def!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NETWORK 's' COLUMNS(a FOR ORDINALITY)))
-reject	accept	engine	json_table_ordinality_column_def/column_name_FOR_ORDINALITY	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
-reject	accept	engine	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 's'))
-reject	accept	engine	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
+accept	accept	engine	json_table_ordinality_column_def/column_name_FOR_ORDINALITY	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a FOR ORDINALITY))
+accept	accept	engine	json_table_exists_column_def/column_name_data_type_opt_collation_EXISTS_PATH_literal_mock_jt_on_error_on_empty	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT EXISTS PATH 's'))
+accept	accept	engine	json_table_value_column_def/column_name_data_type_opt_collation_PATH_literal_opt_value_on_empty_or_error_or_mismatch	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
 reject	reject	engine	json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED 's' COLUMNS(a FOR ORDINALITY)))
-reject	accept	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY)))
+accept	accept	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY)))
 reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)!drop-1	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(PATH 's' COLUMNS(a FOR ORDINALITY)))
 reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)!drop-3	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH COLUMNS(a FOR ORDINALITY)))
 reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)!drop-4	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's'(a FOR ORDINALITY)))
@@ -17356,8 +17356,8 @@ reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_
 reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)!truncate	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY
 reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)!insert	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NESTED PATH 's' COLUMNS(a FOR ORDINALITY) zzz))
 reject	reject	engine	json_table_nested_column_def/NESTED_PATH_literal_COLUMNS_(_jt_column_list_)!swap	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(NETWORK PATH 's' COLUMNS(a FOR ORDINALITY)))
-reject	accept	engine	opt_value_on_empty_or_error_or_mismatch/opt_on_empty_or_error_opt_on_mismatch	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
-reject	accept	engine	opt_on_mismatch/%empty	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
+accept	accept	engine	opt_value_on_empty_or_error_or_mismatch/opt_on_empty_or_error_opt_on_mismatch	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
+accept	accept	engine	opt_on_mismatch/%empty	SELECT a FROM JSON_TABLE(a, 's' COLUMNS(a TINYINT PATH 's'))
 accept	accept	engine	vec_index_params/vec_index_param	ALTER TABLE a ADD KEY(a) WITH(a = 1)
 reject	reject	engine	vec_index_params/vec_index_param!truncate	ALTER TABLE a ADD KEY(a) WITH(a =
 reject	reject	engine	vec_index_params/vec_index_param!insert	ALTER TABLE a ADD KEY(a) WITH(a = 1 zzz)
@@ -17665,21 +17665,21 @@ reject	reject	engine	lob_storage_parameters/lob_storage_parameters_lob_storage_p
 reject	reject	engine	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter!insert	ALTER TABLE a JSON(a) STORE AS(CHUNK 1 CHUNK 1 zzz)
 reject	reject	engine	lob_storage_parameters/lob_storage_parameters_lob_storage_parameter!swap	ALTER TABLE a JSON(a) STORE AS(CIPHER 1 CHUNK 1)
 accept	accept	engine	lob_storage_clause/JSON_(_column_name_)_STORE_AS_(_lob_storage_parameters_)	ALTER TABLE a JSON(a) STORE AS(CHUNK 1)
-reject	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)	SELECT a FROM RB_ITERATE(a)
-reject	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name	SELECT a FROM RB_ITERATE(a) a
+accept	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)	SELECT a FROM RB_ITERATE(a)
+accept	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name	SELECT a FROM RB_ITERATE(a) a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name!drop-2	SELECT a FROM RB_ITERATE a) a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name!drop-3	SELECT a FROM RB_ITERATE() a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name!drop-4	SELECT a FROM RB_ITERATE(a a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name!insert	SELECT a FROM RB_ITERATE(a) a zzz
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name!swap	SELECT a FROM RB_OR_AGG(a) a
-reject	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name	SELECT a FROM RB_ITERATE(a) AS a
+accept	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name	SELECT a FROM RB_ITERATE(a) AS a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name!drop-2	SELECT a FROM RB_ITERATE a) AS a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name!drop-3	SELECT a FROM RB_ITERATE() AS a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name!drop-4	SELECT a FROM RB_ITERATE(a AS a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name!drop-6	SELECT a FROM RB_ITERATE(a) AS
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name!insert	SELECT a FROM RB_ITERATE(a) AS a zzz
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name!swap	SELECT a FROM RB_OR_AGG(a) AS a
-reject	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)	SELECT a FROM RB_ITERATE(a) a(a)
+accept	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)	SELECT a FROM RB_ITERATE(a) a(a)
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)!drop-1	SELECT a FROM(a) a(a)
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)!drop-2	SELECT a FROM RB_ITERATE a) a(a)
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)!drop-3	SELECT a FROM RB_ITERATE() a(a)
@@ -17690,7 +17690,7 @@ reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)!drop-8	SELECT a FROM RB_ITERATE(a) a(a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)!insert	SELECT a FROM RB_ITERATE(a) a(a) zzz
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_relation_name_(_relation_name_)!swap	SELECT a FROM RB_OR_AGG(a) a(a)
-reject	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)	SELECT a FROM RB_ITERATE(a) AS a(a)
+accept	accept	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)	SELECT a FROM RB_ITERATE(a) AS a(a)
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)!drop-1	SELECT a FROM(a) AS a(a)
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)!drop-2	SELECT a FROM RB_ITERATE a) AS a(a)
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)!drop-3	SELECT a FROM RB_ITERATE() AS a(a)
@@ -17701,21 +17701,21 @@ reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)!drop-9	SELECT a FROM RB_ITERATE(a) AS a(a
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)!insert	SELECT a FROM RB_ITERATE(a) AS a(a) zzz
 reject	reject	engine	rb_iterate_expr/RB_ITERATE_(_simple_expr_)_AS_relation_name_(_relation_name_)!swap	SELECT a FROM RB_OR_AGG(a) AS a(a)
-reject	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)	SELECT a FROM UNNEST(a)
-reject	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name	SELECT a FROM UNNEST(a) a
+accept	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)	SELECT a FROM UNNEST(a)
+accept	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name	SELECT a FROM UNNEST(a) a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name!drop-2	SELECT a FROM UNNEST a) a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name!drop-3	SELECT a FROM UNNEST() a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name!drop-4	SELECT a FROM UNNEST(a a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name!insert	SELECT a FROM UNNEST(a) a zzz
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name!swap	SELECT a FROM UNSIGNED(a) a
-reject	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name	SELECT a FROM UNNEST(a) AS a
+accept	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name	SELECT a FROM UNNEST(a) AS a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name!drop-2	SELECT a FROM UNNEST a) AS a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name!drop-3	SELECT a FROM UNNEST() AS a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name!drop-4	SELECT a FROM UNNEST(a AS a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name!drop-6	SELECT a FROM UNNEST(a) AS
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name!insert	SELECT a FROM UNNEST(a) AS a zzz
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name!swap	SELECT a FROM UNSIGNED(a) AS a
-reject	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)	SELECT a FROM UNNEST(a) a(a)
+accept	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)	SELECT a FROM UNNEST(a) a(a)
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)!drop-2	SELECT a FROM UNNEST a) a(a)
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)!drop-3	SELECT a FROM UNNEST() a(a)
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)!drop-4	SELECT a FROM UNNEST(a a(a)
@@ -17724,7 +17724,7 @@ reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_rel
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)!drop-8	SELECT a FROM UNNEST(a) a(a
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)!insert	SELECT a FROM UNNEST(a) a(a) zzz
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_relation_name_(_relation_name_list_)!swap	SELECT a FROM UNSIGNED(a) a(a)
-reject	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)	SELECT a FROM UNNEST(a) AS a(a)
+accept	accept	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)	SELECT a FROM UNNEST(a) AS a(a)
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)!drop-2	SELECT a FROM UNNEST a) AS a(a)
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)!drop-3	SELECT a FROM UNNEST() AS a(a)
 reject	reject	engine	unnest_expr/UNNEST_(_simple_expr_list_)_AS_relation_name_(_relation_name_list_)!drop-4	SELECT a FROM UNNEST(a AS a(a)

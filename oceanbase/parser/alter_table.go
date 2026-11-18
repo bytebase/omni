@@ -39,16 +39,31 @@ import (
 //	    | LOCK [=] {DEFAULT | NONE | SHARED | EXCLUSIVE}
 func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	p.advance() // consume TABLE
+	return p.parseAlterTableBody(&nodes.AlterTableStmt{Loc: nodes.Loc{Start: start}})
+}
 
+// parseAlterExternalTableStmt parses ALTER EXTERNAL TABLE, after EXTERNAL. Its
+// body is ALTER TABLE's, plus two actions of its own that readAlterTableBody
+// takes when the table is external.
+//
+// Ref: alter_table_stmt's alter_with_opt_hint EXTERNAL TABLE alternatives in
+// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line 19244).
+func (p *Parser) parseAlterExternalTableStmt(start int) (*nodes.AlterTableStmt, error) {
+	p.advance() // consume TABLE
+	return p.parseAlterTableBody(&nodes.AlterTableStmt{
+		Loc:      nodes.Loc{Start: start},
+		External: true,
+	})
+}
+
+// parseAlterTableBody parses what follows ALTER [EXTERNAL] TABLE: the table's
+// name, then its actions.
+func (p *Parser) parseAlterTableBody(stmt *nodes.AlterTableStmt) (*nodes.AlterTableStmt, error) {
 	// Completion: after ALTER TABLE, offer table_ref.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addRuleCandidate("table_ref")
 		return nil, &ParseError{Message: "collecting"}
-	}
-
-	stmt := &nodes.AlterTableStmt{
-		Loc: nodes.Loc{Start: start},
 	}
 
 	// Table name
@@ -71,6 +86,26 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			break
+		}
+
+		// ALTER EXTERNAL TABLE's two own actions, before the generic ones:
+		// ADD PARTITION (...) LOCATION 's' and DROP PARTITION LOCATION 's'.
+		if stmt.External && (p.cur.Type == kwADD || p.cur.Type == kwDROP) {
+			cmd, ok, err := p.parseAlterExternalPartition()
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				stmt.Commands = append(stmt.Commands, cmd)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+				if p.cur.Type == tokEOF || p.cur.Type == ';' {
+					return nil, p.syntaxErrorAtCur()
+				}
+				continue
+			}
 		}
 
 		if p.cur.Type == kwSET {
@@ -1546,4 +1581,132 @@ func (p *Parser) parseLiteralOnly() (nodes.ExprNode, error) {
 		return p.parsePrimaryExpr()
 	}
 	return nil, p.syntaxErrorAtCur()
+}
+
+// parseAlterExternalPartition reads an ALTER EXTERNAL TABLE action of its own,
+// at ADD or DROP, and reports whether one stood there:
+//
+//	ADD PARTITION '(' add_external_table_partition_actions ')' LOCATION 's'
+//	DROP PARTITION LOCATION 's'
+//
+// The actions list may be empty or open with an empty entry: `ADD PARTITION()`
+// and `ADD PARTITION(, ds = 'x')` both parse. A DROP PARTITION that names a
+// partition called LOCATION is the generic action and not this one, so the
+// action is read here only when a string follows LOCATION.
+//
+// Ref: alter_table_stmt's EXTERNAL alternatives and
+// add_external_table_partition_action in sql_parser_mysql_mode.y (oceanbase
+// v4.3.5_CE_BP6, lines 19244-19313).
+func (p *Parser) parseAlterExternalPartition() (*nodes.AlterTableCmd, bool, error) {
+	if p.cur.Type == kwDROP {
+		if p.peekNext().Type != kwPARTITION {
+			return nil, false, nil
+		}
+		s := p.saveScan()
+		p.advance() // DROP
+		p.advance() // PARTITION
+		literal := p.isBareWord("LOCATION") && p.peekNext().Type == tokSCONST
+		p.restoreScan(s)
+		if !literal {
+			return nil, false, nil
+		}
+		cmd := &nodes.AlterTableCmd{Loc: nodes.Loc{Start: p.pos()}, Type: nodes.ATDropExternalPartition}
+		p.advance() // DROP
+		p.advance() // PARTITION
+		if !p.isBareWord("LOCATION") {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		cmd.Location = p.advance().Str
+		cmd.Loc.End = p.prev.End
+		return cmd, true, nil
+	}
+
+	if !p.atExternalAddPartition() {
+		return nil, false, nil
+	}
+	cmd := &nodes.AlterTableCmd{Loc: nodes.Loc{Start: p.pos()}, Type: nodes.ATAddExternalPartition}
+	p.advance() // ADD
+	p.advance() // PARTITION
+	if _, err := p.expect('('); err != nil {
+		return nil, false, err
+	}
+	// An empty first entry: `ADD PARTITION(, ds = 'x')`.
+	if p.cur.Type == ',' {
+		p.advance()
+		if p.cur.Type == ')' {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+	}
+	for p.cur.Type != ')' {
+		value, err := p.parseExternalPartitionAction()
+		if err != nil {
+			return nil, false, err
+		}
+		cmd.PartitionValues = append(cmd.PartitionValues, value)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+		if p.cur.Type == ')' {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, false, err
+	}
+	if !p.isBareWord("LOCATION") {
+		return nil, false, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != tokSCONST {
+		return nil, false, p.syntaxErrorAtCur()
+	}
+	cmd.Location = p.advance().Str
+	cmd.Loc.End = p.prev.End
+	return cmd, true, nil
+}
+
+// atExternalAddPartition reports whether ADD PARTITION here opens the external
+// action, whose partition list LOCATION 's' follows, rather than the generic
+// ADD PARTITION (partition definitions).
+func (p *Parser) atExternalAddPartition() bool {
+	if p.cur.Type != kwADD || p.peekNext().Type != kwPARTITION {
+		return false
+	}
+	s := p.saveScan()
+	p.advance() // ADD
+	p.advance() // PARTITION
+	if p.cur.Type != '(' {
+		p.restoreScan(s)
+		return false
+	}
+	p.scanParenBlock()
+	external := p.isBareWord("LOCATION") && p.peekNext().Type == tokSCONST
+	p.restoreScan(s)
+	return external
+}
+
+// parseExternalPartitionAction reads add_external_table_partition_action:
+// column_name opt_equal_mark expr_const.
+func (p *Parser) parseExternalPartitionAction() (*nodes.Assignment, error) {
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	nameEnd := p.prev.End
+	p.match('=')
+	value, err := p.parseExprConst()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.Assignment{
+		Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: start, End: nameEnd}, Column: name},
+		Value:  value,
+	}, nil
 }

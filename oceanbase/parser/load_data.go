@@ -80,6 +80,18 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		p.advance()
 	}
 
+	// OceanBase's second load_data_stmt alternative, which reads from a location
+	// rather than an INFILE:
+	//
+	//	LOAD DATA [REPLACE | IGNORE] FROM url_spec INTO TABLE relation_factor
+	//	    [PARTITION (name, ...)] [(fields_or_vars)] [LOG ERRORS [REJECT LIMIT {n | UNLIMITED}]]
+	//
+	// It takes no LOCAL and is LOAD DATA's alone, so LOAD XML keeps the INFILE
+	// and S3 forms.
+	if !isXML && !stmt.Local && p.atLoadDataURLSource() {
+		return p.parseLoadDataURL(stmt)
+	}
+
 	// INFILE 'file_name' | [FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
 	// The FROM-less spelling is documented for LOAD DATA only; LOAD XML
 	// always takes FROM S3.
@@ -514,4 +526,110 @@ func (p *Parser) isUserVariable() bool {
 		return false
 	}
 	return strings.HasPrefix(p.inputText(p.cur.Loc, p.cur.End), "@")
+}
+
+// atLoadDataURLSource reports whether the statement reads from a url_spec: a
+// FROM that one of url_spec's own tokens follows, or a REPLACE or IGNORE that
+// such a FROM follows. A FROM at the cursor with nothing after it is neither, so
+// completion still offers S3 there.
+func (p *Parser) atLoadDataURLSource() bool {
+	if p.cur.Type == kwFROM {
+		return atURLSpecStart(p.peekNext())
+	}
+	if p.cur.Type == kwREPLACE || p.cur.Type == kwIGNORE {
+		s := p.saveScan()
+		p.advance()
+		url := p.cur.Type == kwFROM && atURLSpecStart(p.peekNext())
+		p.restoreScan(s)
+		return url
+	}
+	return false
+}
+
+// atURLSpecStart reports whether tok opens url_spec: SOURCE(...), FILES(...) or
+// the '(' of the query form.
+func atURLSpecStart(tok Token) bool {
+	switch tok.Type {
+	case kwSOURCE, kwFILES, '(':
+		return true
+	}
+	return false
+}
+
+// parseLoadDataURL parses the FROM url_spec form of LOAD DATA, at its REPLACE,
+// IGNORE or FROM. The duplicates come before FROM here, where the INFILE form
+// takes them after the source.
+func (p *Parser) parseLoadDataURL(stmt *nodes.LoadDataStmt) (*nodes.LoadDataStmt, error) {
+	if _, ok := p.match(kwREPLACE); ok {
+		stmt.Replace = true
+	} else if _, ok := p.match(kwIGNORE); ok {
+		stmt.Ignore = true
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	source, query, err := p.parseURLSpec()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Source, stmt.SourceQuery = source, query
+
+	if _, err := p.expect(kwINTO); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
+	table, err := p.parseRelationFactor()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Table = table
+
+	// opt_use_partition.
+	if p.cur.Type == kwPARTITION {
+		p.advance()
+		parts, err := p.parseParenIdentList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partitions = parts
+	}
+
+	// opt_field_or_var_spec: '(' fields_or_vars ')'.
+	cols, err := p.parseColumnOrUserVarList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Columns = cols
+
+	// opt_on_error: LOG ERRORS [REJECT LIMIT {INTNUM | UNLIMITED}].
+	if p.isBareWord("LOG") {
+		p.advance()
+		if !p.isBareWord("ERRORS") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		onError := "LOG ERRORS"
+		if p.isBareWord("REJECT") {
+			p.advance()
+			if !p.isBareWord("LIMIT") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			switch {
+			case p.cur.Type == tokICONST:
+				onError += " REJECT LIMIT " + p.advance().Str
+			case p.isBareWord("UNLIMITED"):
+				p.advance()
+				onError += " REJECT LIMIT UNLIMITED"
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		stmt.OnError = onError
+	}
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
