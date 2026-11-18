@@ -950,20 +950,22 @@ func (p *Parser) parseRedshiftIAMRoleGrantees(allowPublic bool) (*nodes.List, er
 		}
 		p.advance()
 		var value string
+		roletype := nodes.ROLESPEC_IAM_ROLE
 		switch {
-		case p.cur.Type == SCONST || p.cur.Type == DEFAULT:
+		case p.cur.Type == DEFAULT:
+			// IAM_ROLE DEFAULT is the keyword, not the string 'default'.
 			tok := p.advance()
 			value = tok.Str
-			if tok.Type == DEFAULT {
-				value = "default"
-			}
+			roletype = nodes.ROLESPEC_IAM_ROLE_DEFAULT
+		case p.cur.Type == SCONST:
+			value = p.advance().Str
 		case p.isColId():
 			value = p.advance().Str
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_IAM_ROLE),
+			Roletype: int(roletype),
 			Rolename: "iam_role:" + value,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		})

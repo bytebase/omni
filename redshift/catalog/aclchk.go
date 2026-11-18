@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -30,9 +31,10 @@ type Grant struct {
 
 // grantee is one TO or FROM name a GRANT or REVOKE lists.
 type grantee struct {
-	name  string // the identity the catalog matches on: the kind-prefixed name, "" for PUBLIC
-	kind  string // the alternative it was written with, "" for a role name
-	value string // its name without the kind's prefix
+	name            string // the identity the catalog matches on: the kind-prefixed name, "" for PUBLIC
+	kind            string // the alternative it was written with, "" for a role name
+	value           string // its name without the kind's prefix
+	withGrantOption bool   // the grantee itself carried WITH GRANT OPTION
 }
 
 // redshiftGranteeKind is the kind a RoleSpec names, "" for a database role.
@@ -40,6 +42,8 @@ func redshiftGranteeKind(rs *nodes.RoleSpec) string {
 	switch nodes.RoleSpecType(rs.Roletype) {
 	case nodes.ROLESPEC_IAM_ROLE:
 		return "iam_role"
+	case nodes.ROLESPEC_IAM_ROLE_DEFAULT:
+		return "iam_role_default"
 	case nodes.ROLESPEC_NAMESPACE:
 		return "namespace"
 	case nodes.ROLESPEC_ACCOUNT:
@@ -58,7 +62,7 @@ func redshiftGranteeKind(rs *nodes.RoleSpec) string {
 
 // newGrantee reads a grantee from its RoleSpec.
 func newGrantee(rs *nodes.RoleSpec) grantee {
-	g := grantee{name: roleSpecName(rs), kind: redshiftGranteeKind(rs)}
+	g := grantee{name: roleSpecName(rs), kind: redshiftGranteeKind(rs), withGrantOption: rs.WithGrantOption}
 	if g.kind != "" {
 		g.value = strings.TrimPrefix(rs.Rolename, g.kind+":")
 	}
@@ -111,11 +115,20 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 // checkGrantOptionNotPublic refuses WITH GRANT OPTION to PUBLIC.
 // pg: src/backend/catalog/aclchk.c — aclcheck (line 208-211)
 func checkGrantOptionNotPublic(stmt *nodes.GrantStmt, grantees []grantee) error {
-	if !stmt.IsGrant || !stmt.GrantOption {
+	if !stmt.IsGrant {
 		return nil
 	}
+	// The option is the grantee's where the parser recorded it per grantee; a
+	// statement-wide flag handed in directly applies to them all.
+	perGrantee := false
 	for _, g := range grantees {
-		if g.name == "" { // empty string represents PUBLIC
+		perGrantee = perGrantee || g.withGrantOption
+	}
+	for _, g := range grantees {
+		if g.name != "" { // not PUBLIC
+			continue
+		}
+		if g.withGrantOption || (stmt.GrantOption && !perGrantee) {
 			return &Error{Code: CodeInvalidGrantOperation,
 				Message: "grant options can only be granted to roles"}
 		}
@@ -187,7 +200,7 @@ func (c *Catalog) revokeGrants(target nodes.ObjectType, objType byte, objOID uin
 	n := 0
 	for _, g := range c.grants {
 		if g.ObjType == objType && g.ObjOID == objOID && sameGrantTarget(g.Target, target) &&
-			matchGrantee(g, grantees) && matchPriv(g.Privilege, privs) {
+			matchGrantee(g, grantees) && matchPriv(g, privs) {
 			continue // remove
 		}
 		c.grants[n] = g
@@ -219,13 +232,36 @@ func matchGrantee(g Grant, grantees []grantee) bool {
 	return false
 }
 
-func matchPriv(priv string, privs []grantPriv) bool {
+// matchPriv holds a recorded grant's privilege and columns to a REVOKE's: a
+// column grant is revoked by a revoke naming those columns, and ALL PRIVILEGES
+// takes every grant of the privilege.
+func matchPriv(g Grant, privs []grantPriv) bool {
 	for _, p := range privs {
-		if p.name == priv || p.name == "ALL" {
+		if p.name == "ALL" {
+			return true
+		}
+		if p.name == g.Privilege && sameGrantColumns(p.columns, g.Columns) {
 			return true
 		}
 	}
 	return false
+}
+
+// sameGrantColumns reports whether two column lists name the same columns.
+func sameGrantColumns(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	x := append([]string(nil), a...)
+	y := append([]string(nil), b...)
+	sort.Strings(x)
+	sort.Strings(y)
+	for i := range x {
+		if x[i] != y[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // grantPriv holds a privilege name and optional column list.

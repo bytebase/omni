@@ -272,6 +272,7 @@ const (
 	// "account_via_data_catalog:", "admins_of_account:", "datashare:",
 	// "rls_policy:" — the name the catalog and the diff compare.
 	ROLESPEC_IAM_ROLE
+	ROLESPEC_IAM_ROLE_DEFAULT // IAM_ROLE DEFAULT, the keyword, not the string 'default'
 	ROLESPEC_NAMESPACE
 	ROLESPEC_ACCOUNT
 	ROLESPEC_ACCOUNT_VIA_DATA_CATALOG

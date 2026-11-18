@@ -171,6 +171,8 @@ func formatGrantee(g Grant) string {
 	switch g.GranteeKind {
 	case "iam_role":
 		return fmt.Sprintf("IAM_ROLE '%s'", strings.ReplaceAll(name, "'", "''"))
+	case "iam_role_default":
+		return "IAM_ROLE DEFAULT"
 	case "namespace":
 		return fmt.Sprintf("NAMESPACE '%s'", strings.ReplaceAll(name, "'", "''"))
 	case "account":

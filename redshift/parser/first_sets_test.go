@@ -195,12 +195,13 @@ func TestIsRedshiftMultiwordTypenameStart(t *testing.T) {
 	for _, tc := range []struct {
 		cur, next int
 	}{
-		{CHARACTER, IDENT}, // character a: one type, then extra input
-		{IDENT, VARYING},   // x varying: an IDENT is no multiword type lead
-		{IDENT, IDENT},     // a b
-		{INT_P, PRECISION}, // INT takes no second word
-		{CHARACTER, ';'},   // character;
-		{BIT, PRECISION},   // BIT takes VARYING only
+		{CHARACTER, IDENT},  // character a: one type, then extra input
+		{IDENT, VARYING},    // x varying: an IDENT is no multiword type lead
+		{IDENT, IDENT},      // a b
+		{INT_P, PRECISION},  // INT takes no second word
+		{CHARACTER, ';'},    // character;
+		{BIT, PRECISION},    // BIT takes VARYING only
+		{BINARY, PRECISION}, // BINARY takes VARYING only
 	} {
 		p := &Parser{cur: Token{Type: tc.cur}, nextBuf: Token{Type: tc.next}, hasNext: true}
 		if p.isRedshiftMultiwordTypenameStart() {

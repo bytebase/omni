@@ -567,6 +567,7 @@ var redshiftTypenameContinuations = map[int][]int{
 	NATIONAL:  {CHARACTER, CHAR_P},
 	NCHAR:     {VARYING},
 	BIT:       {VARYING},
+	BINARY:    {VARYING},
 	TIMESTAMP: {WITH, WITHOUT},
 	TIME:      {WITH, WITHOUT},
 	INTERVAL:  {YEAR_P, MONTH_P, DAY_P, HOUR_P, MINUTE_P, SECOND_P},

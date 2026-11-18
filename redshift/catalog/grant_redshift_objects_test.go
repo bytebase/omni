@@ -234,3 +234,56 @@ func TestRevokeMatchesRoutineAlias(t *testing.T) {
 		_ = tc
 	}
 }
+
+// TestGrantOptionsBelongToTheirGrantee holds a mixed grantee list: the option on
+// a username does not reach a PUBLIC grantee, and a recorded column grant is
+// revoked by its own columns.
+func TestGrantOptionsBelongToTheirGrantee(t *testing.T) {
+	c := New()
+	if err := execOne(t, c, "GRANT ALTER ON DATASHARE d TO alice WITH GRANT OPTION, PUBLIC"); err != nil {
+		t.Fatalf("mixed datashare grantees: %v", err)
+	}
+	// A token handed in directly, with the statement-wide flag and no per-grantee
+	// flag, still refuses PUBLIC.
+	stmt := &nodes.GrantStmt{
+		IsGrant:     true,
+		GrantOption: true,
+		Objtype:     nodes.OBJECT_TEMPLATE,
+		Privileges:  &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "alter"}}},
+		Grantees:    &nodes.List{Items: []nodes.Node{&nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC)}}},
+	}
+	assertCode(t, c.ExecGrantStmt(stmt), CodeInvalidGrantOperation)
+}
+
+// TestRevokeKeepsOtherColumnGrants holds a column revoke to its own columns.
+func TestRevokeKeepsOtherColumnGrants(t *testing.T) {
+	c := New()
+	for _, sql := range []string{
+		"CREATE SCHEMA spectrum",
+		"CREATE TABLE spectrum.sales (a INT, b INT)",
+		"GRANT SELECT(a) ON EXTERNAL TABLE spectrum.sales TO IAM_ROLE 'r'",
+		"GRANT SELECT(b) ON EXTERNAL TABLE spectrum.sales TO IAM_ROLE 'r'",
+	} {
+		if err := execOne(t, c, sql); err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+	}
+	if err := execOne(t, c, "REVOKE SELECT(a) ON EXTERNAL TABLE spectrum.sales FROM IAM_ROLE 'r'"); err != nil {
+		t.Fatalf("REVOKE: %v", err)
+	}
+	if len(c.grants) != 1 || len(c.grants[0].Columns) != 1 || c.grants[0].Columns[0] != "b" {
+		t.Fatalf("grants = %+v, want only SELECT(b)", c.grants)
+	}
+}
+
+// TestIAMRoleDefaultRendersAsKeyword holds IAM_ROLE DEFAULT to its keyword.
+func TestIAMRoleDefaultRendersAsKeyword(t *testing.T) {
+	g := Grant{Grantee: "iam_role:default", GranteeKind: "iam_role_default"}
+	if got, want := formatGrantee(g), "IAM_ROLE DEFAULT"; got != want {
+		t.Errorf("formatGrantee = %q, want %q", got, want)
+	}
+	g = Grant{Grantee: "iam_role:default", GranteeKind: "iam_role", GranteeName: "default"}
+	if got, want := formatGrantee(g), "IAM_ROLE 'default'"; got != want {
+		t.Errorf("formatGrantee = %q, want %q", got, want)
+	}
+}
