@@ -127,7 +127,10 @@ func TestParseAlterTableAddIndexRejects(t *testing.T) {
 		"ALTER TABLE a ADD INDEX ix CLUSTERED (a) WHERE a IS NULL",
 		"ALTER TABLE a ADD INDEX ix WHERE a OR a",
 		"ALTER TABLE a ADD INDEX ix WHERE a.IS NULL",
+		"ALTER TABLE a ADD INDEX ix WHERE a IS DISTINCT FROM 1 OR b = 2",
 		"ALTER TABLE a ADD INDEX ix ON",
+		"ALTER TABLE a ADD INDEX ix ON ps(a",
+		"ALTER TABLE a ADD INDEX ix ON ps()",
 		"ALTER TABLE a ADD INDEX ix HASH",
 	} {
 		t.Run(sql, func(t *testing.T) {

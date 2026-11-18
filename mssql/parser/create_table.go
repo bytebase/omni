@@ -1518,8 +1518,13 @@ trailingOptions:
 			p.advance()
 			if p.cur.Type == '(' {
 				p.advance()
-				col, _ := p.parseIdentifier()
-				p.expect(')')
+				col, ok := p.parseIdentifier()
+				if !ok {
+					return nil, p.unexpectedToken()
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				idx.OnFilegroup = fg + "(" + col + ")"
 			} else {
 				idx.OnFilegroup = fg

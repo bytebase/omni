@@ -515,6 +515,20 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
 		b.defEffects(r, path, known, d)
+	case ast.ATAddIndex:
+		// ADD INDEX name ...: the index must not already name one of the
+		// table's indexes (1913), and its name then arrives in that space.
+		if a.Index == nil {
+			return false
+		}
+		in, ok := keyed(a.Index.Name)
+		if !ok {
+			return false
+		}
+		if known {
+			b.lacks(spaceIndex, path, in, note(rng, "", text(msgExistsIn("index", ident(a.Index.Name), r.written))))
+		}
+		b.defEffects(r, path, known, &tableDef{indexes: []*ast.InlineIndexDef{a.Index}})
 	case ast.ATAddConstraint:
 		if a.Constraint == nil {
 			return false

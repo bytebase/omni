@@ -157,6 +157,9 @@ func TestWalkThroughFindings(t *testing.T) {
 		{"primary key dropped then added", "ALTER TABLE dbo.t DROP CONSTRAINT pk_t;\nALTER TABLE dbo.t ADD CONSTRAINT pk_t2 PRIMARY KEY (id);", -1, ""},
 		{"nocheck missing constraint", "ALTER TABLE dbo.t NOCHECK CONSTRAINT nosuch;", 0, "Constraint `nosuch` doesn't exist in `dbo.t`."},
 		{"column added then dropped twice", "ALTER TABLE dbo.t ADD x int;\nALTER TABLE dbo.t DROP COLUMN x;\nALTER TABLE dbo.t DROP COLUMN x;", 2, "Column `x` doesn't exist in `dbo.t`."},
+		{"add index", "ALTER TABLE dbo.t ADD INDEX ix_new (b);", -1, ""},
+		{"add index named like one", "ALTER TABLE dbo.t ADD INDEX ix_a (b);", 0, "Index `ix_a` already exists in `dbo.t`."},
+		{"add index keeps the walk going", "ALTER TABLE dbo.t ADD INDEX ix_new (b);\nDROP TABLE dbo.nosuch;", 1, "Table `dbo.nosuch` doesn't exist."},
 		// Indexes.
 		{"index exists", "CREATE INDEX ix_a ON dbo.t (b);", 0, "Index `ix_a` already exists in `dbo.t`."},
 		{"index named like the key", "CREATE INDEX pk_t ON dbo.t (b);", 0, "Index `pk_t` already exists in `dbo.t`."},

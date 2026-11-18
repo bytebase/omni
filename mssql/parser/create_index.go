@@ -453,14 +453,15 @@ func (p *Parser) indexFilterPrimary() (nodes.ExprNode, error) {
 			}
 			return &nodes.IsExpr{Expr: col, TestType: test, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 		}
-		// IS [NOT] DISTINCT FROM NULL | expression
+		// IS [NOT] DISTINCT FROM NULL | expression: the operand is a scalar
+		// expression, so an OR or AND after it belongs to the filter.
 		if _, ok := p.match(kwDISTINCT); !ok {
 			return nil, p.unexpectedToken()
 		}
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err
 		}
-		value, err := p.parseExpr()
+		value, err := p.parseAddition()
 		if err != nil {
 			return nil, err
 		}
