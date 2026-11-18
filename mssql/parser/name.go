@@ -108,6 +108,15 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 	}
 
 	// Assign parts based on count: object, schema.object, db.schema.object, server.db.schema.object
+	assignObjectRefParts(ref, parts)
+
+	ref.Loc.End = p.prevEnd()
+	return ref, nil
+}
+
+// assignObjectRefParts assigns the dot-separated parts of a name to a
+// TableRef: object, schema.object, db.schema.object, server.db.schema.object.
+func assignObjectRefParts(ref *nodes.TableRef, parts []string) {
 	switch len(parts) {
 	case 1:
 		ref.Object = parts[0]
@@ -124,9 +133,63 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 		ref.Schema = parts[2]
 		ref.Object = parts[3]
 	}
+}
 
-	ref.Loc.End = p.prevEnd()
-	return ref, nil
+// parseMultiPartIdentifier parses identifierList (TSql160.g:30325) into its
+// parts, keeping the empty parts of a name such as `.a`, `..a` or `a..b`:
+//
+//	identifierList = identifier ( identifierListElement )*
+//	               | identifierListElement ( identifierListElement )*
+//	identifierListElement = Dot Dot* identifier
+//
+// Each dot after the first joins the part to the previous one; the rest name
+// an empty part, so `a..b` is [a, "", b] and `..a` is ["", "", a].
+//
+// SQL Server reads at most four parts, and refuses the fifth: `a.b.c.d.e` is
+// "The procedure name 'a.b.c.d.e' contains more than the maximum number of
+// prefixes. The maximum is 3." — for an EXEC, for a call by name and for
+// ALTER AUTHORIZATION's securable alike (measured on the pinned server).
+//
+// completionRule is what completion offers after a dot, as parseObjectRef
+// does; "" offers nothing.
+const maxNameParts = 4
+
+func (p *Parser) parseMultiPartIdentifier(completionRule string) ([]string, error) {
+	var parts []string
+	for i := 0; ; i++ {
+		dots := 0
+		for p.cur.Type == '.' {
+			dots++
+			p.advance()
+		}
+		if i > 0 && dots == 0 {
+			return parts, nil
+		}
+		if completionRule != "" && p.collectMode() {
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
+		}
+		empties := dots
+		if i > 0 {
+			empties-- // the dot that joins this part to the previous one
+		}
+		if len(parts)+empties+1 > maxNameParts {
+			return nil, p.newParseError(p.cur.Loc, "a name of more than four parts")
+		}
+		for j := 0; j < empties; j++ {
+			parts = append(parts, "")
+		}
+		id, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, id)
+		if completionRule != "" && i == 0 && p.collectMode() && p.cursorOff <= p.prev.End {
+			// The cursor ends the first part: a qualified name may follow.
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
+		}
+	}
 }
 
 // parseSequenceRef parses a qualified sequence name for NEXT VALUE FOR.

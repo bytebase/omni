@@ -880,6 +880,11 @@ func (p *Parser) parseRevertStmt() (*nodes.SecurityStmt, error) {
 //	    | MESSAGE TYPE | REMOTE SERVICE BINDING | ROLE | ROUTE
 //	    | SCHEMA | SEARCH PROPERTY LIST | SERVER ROLE | SERVICE
 //	    | SYMMETRIC KEY | TYPE | XML SCHEMA COLLECTION }
+//
+// Every clause is required but the class: SQL Server refuses `ALTER
+// AUTHORIZATION ON` (Msg 102), `ALTER AUTHORIZATION ON a` (Msg 102),
+// `ALTER AUTHORIZATION ON a TO` (Msg 102) and `ALTER AUTHORIZATION ON a TO
+// SCHEMA` (Msg 102), and a second word before TO is no entity_name (Msg 156).
 func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 	loc := p.pos()
 	// AUTHORIZATION keyword already consumed by caller
@@ -890,136 +895,105 @@ func (p *Parser) parseAlterAuthorizationStmt() (*nodes.SecurityStmt, error) {
 		Loc:        nodes.Loc{Start: loc, End: -1},
 	}
 
-	// ON [ entity_type :: ] entity_name
-	if p.cur.Type == kwON {
-		p.advance()
-		// Try to detect entity_type :: pattern
-		// Entity types can be multi-word: XML SCHEMA COLLECTION, SEARCH PROPERTY LIST, etc.
-		entityType := p.tryParseAlterAuthEntityType()
-		if entityType != "" {
-			// We have entity_type, now expect ::
-			if p.cur.Type == tokCOLONCOLON {
-				p.advance() // consume ::
-			}
-			stmt.Name = entityType + "::" + p.parseAlterAuthEntityName()
-		} else {
-			// No entity_type, just parse entity_name
-			stmt.Name = p.parseAlterAuthEntityName()
-		}
+	// authorizationTargetObject (TSql160.g:13981): ON [ class :: ] entity_name.
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
 	}
+	class := p.alterAuthorizationClass()
+	parts, err := p.parseMultiPartIdentifier("")
+	if err != nil {
+		return nil, err
+	}
+	name := strings.Join(parts, ".")
+	if class != "" {
+		name = class + "::" + name
+	}
+	stmt.Name = name
 
-	// TO { principal_name | SCHEMA OWNER }
-	if p.cur.Type == kwTO {
-		p.advance()
-		var opts []nodes.Node
-		if p.cur.Type == kwSCHEMA {
-			p.advance()
-			if p.cur.Type == kwOWNER {
-				p.advance()
-				opts = append(opts, &nodes.String{Str: "SCHEMA OWNER"})
-			}
-		} else if p.isIdentLike() || p.cur.Type == tokSCONST {
-			opts = append(opts, &nodes.String{Str: p.cur.Str})
-			p.advance()
-		}
-		if len(opts) > 0 {
-			stmt.Options = &nodes.List{Items: opts}
-		}
+	// TO { principal_name | SCHEMA OWNER }: alterAuthorizationStatement
+	// (TSql160.g:14010) takes `Schema 'OWNER'` or an identifier, so a lone
+	// SCHEMA is one of the words a principal may not be.
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
 	}
+	var principal string
+	switch {
+	case p.cur.Type == kwSCHEMA:
+		p.advance()
+		if p.cur.Type != kwOWNER {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		principal = "SCHEMA OWNER"
+	case p.isIdentLike():
+		principal = p.cur.Str
+		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: principal}}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
 }
 
-// tryParseAlterAuthEntityType checks if the current position has an entity_type :: pattern.
-// If so, consumes the entity type tokens and returns the entity type string.
-// Otherwise returns empty string without consuming anything.
-//
-// Known single-word entity types: OBJECT, ASSEMBLY, CONTRACT, CERTIFICATE, ENDPOINT,
-// ROUTE, SERVICE, TYPE, SCHEMA, DATABASE, ROLE
-// Multi-word: XML SCHEMA COLLECTION, MESSAGE TYPE, REMOTE SERVICE BINDING,
-// FULLTEXT CATALOG, FULLTEXT STOPLIST, SEARCH PROPERTY LIST,
-// SYMMETRIC KEY, ASYMMETRIC KEY, AVAILABILITY GROUP, SERVER ROLE
-func (p *Parser) tryParseAlterAuthEntityType() string {
-	// For single-word entity types, check if next token is ':'
-	if (p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
-		p.cur.Type == kwROLE || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
-		p.peekNext().Type == tokCOLONCOLON {
-		word := strings.ToUpper(p.cur.Str)
-		p.advance() // consume entity type word
-		return word
-	}
-	// For multi-word entity types: check first word, then peek second
-	if p.isIdentLike() || p.cur.Type == kwXML || p.cur.Type == kwSCHEMA {
-		first := strings.ToUpper(p.cur.Str)
-		switch first {
-		case "XML":
-			return p.tryParseMultiWordEntityType(first, []string{"SCHEMA", "COLLECTION"})
-		case "MESSAGE":
-			return p.tryParseMultiWordEntityType(first, []string{"TYPE"})
-		case "REMOTE":
-			return p.tryParseMultiWordEntityType(first, []string{"SERVICE", "BINDING"})
-		case "FULLTEXT":
-			next := p.peekNext()
-			if next.Type == kwCATALOG || next.Type == kwSTOPLIST {
-				return p.tryParseMultiWordEntityType(first, []string{strings.ToUpper(next.Str)})
+// alterAuthorizationClasses are the securables ALTER AUTHORIZATION takes
+// before `::`, the class_type list of its docs and the five more
+// ParseSecurityObjectKind accepts though those docs leave them out (measured
+// on the pinned server, which refuses TRIGGER, AGGREGATE, CREDENTIAL, AUDIT,
+// EXTERNAL ..., SECURITY POLICY, PARTITION ..., TABLE and the like). It is
+// what refuses `ALTER AUTHORIZATION ON a :: a TO a` (Msg 102) although
+// securityStatementPermission (TSql160.g:13924) makes `a` an identifier there.
+var alterAuthorizationClasses = [][]string{
+	{"OBJECT"},
+	{"ASSEMBLY"},
+	{"ASYMMETRIC", "KEY"},
+	{"AVAILABILITY", "GROUP"},
+	{"APPLICATION", "ROLE"},
+	{"CERTIFICATE"},
+	{"CONTRACT"},
+	{"DATABASE"},
+	{"DATABASE", "SCOPED", "CREDENTIAL"},
+	{"ENDPOINT"},
+	{"FULLTEXT", "CATALOG"},
+	{"FULLTEXT", "STOPLIST"},
+	{"LOGIN"},
+	{"MESSAGE", "TYPE"},
+	{"REMOTE", "SERVICE", "BINDING"},
+	{"ROLE"},
+	{"ROUTE"},
+	{"SCHEMA"},
+	{"SEARCH", "PROPERTY", "LIST"},
+	{"SERVER"},
+	{"SERVER", "ROLE"},
+	{"SERVICE"},
+	{"SYMMETRIC", "KEY"},
+	{"TYPE"},
+	{"USER"},
+	{"XML", "SCHEMA", "COLLECTION"},
+}
+
+// alterAuthorizationClass consumes a securable class and its `::` when the
+// current tokens spell one, and returns it. It consumes nothing and returns ""
+// when they do not, so the words are the entity name.
+func (p *Parser) alterAuthorizationClass() string {
+	for _, class := range alterAuthorizationClasses {
+		toks := [4]Token{p.cur, p.peekNext(), p.peekSecond(), p.peekThird()}
+		matches := true
+		for i, word := range class {
+			if toks[i].Str == "" || p.isDelimited(toks[i]) || !strings.EqualFold(toks[i].Str, word) {
+				matches = false
+				break
 			}
-		case "SEARCH":
-			return p.tryParseMultiWordEntityType(first, []string{"PROPERTY", "LIST"})
-		case "SYMMETRIC", "ASYMMETRIC":
-			return p.tryParseMultiWordEntityType(first, []string{"KEY"})
-		case "AVAILABILITY":
-			return p.tryParseMultiWordEntityType(first, []string{"GROUP"})
-		case "SERVER":
-			return p.tryParseMultiWordEntityType(first, []string{"ROLE"})
 		}
+		if !matches || toks[len(class)].Type != tokCOLONCOLON {
+			continue
+		}
+		for range class {
+			p.advance()
+		}
+		p.advance() // consume ::
+		return strings.Join(class, " ")
 	}
 	return ""
-}
-
-// tryParseMultiWordEntityType consumes a multi-word entity type if the next word matches.
-// Validates by peeking before consuming. Returns the entity type or "".
-func (p *Parser) tryParseMultiWordEntityType(first string, remaining []string) string {
-	if len(remaining) == 0 {
-		return ""
-	}
-	// Peek to confirm next token matches first remaining word
-	next := p.peekNext()
-	if next.Type != lookupKeyword(remaining[0]) {
-		return ""
-	}
-
-	// Pattern looks good, consume first word
-	p.advance()
-	parts := []string{first}
-	for _, word := range remaining {
-		if (p.isIdentLike() || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE) &&
-			p.cur.Type == lookupKeyword(word) {
-			parts = append(parts, strings.ToUpper(p.cur.Str))
-			p.advance()
-		} else {
-			break
-		}
-	}
-	return strings.Join(parts, " ")
-}
-
-// parseAlterAuthEntityName parses the entity name (possibly qualified with dots) until TO keyword.
-func (p *Parser) parseAlterAuthEntityName() string {
-	var parts []string
-	for p.cur.Type != tokEOF && p.cur.Type != ';' {
-		if p.cur.Type == kwTO {
-			break
-		}
-		if p.isIdentLike() || p.cur.Type == kwDATABASE || p.cur.Type == kwXML ||
-			p.cur.Type == kwROLE || p.cur.Type == kwSCHEMA || p.cur.Type == kwTYPE {
-			parts = append(parts, p.cur.Str)
-		} else if p.cur.Type == '.' {
-			parts = append(parts, ".")
-		} else {
-			break
-		}
-		p.advance()
-	}
-	return strings.Join(parts, " ")
 }

@@ -353,6 +353,11 @@ func TestDisallowRename(t *testing.T) {
 			},
 		},
 		{
+			name: "sp_rename called by name without EXEC as its batch's first statement",
+			sql:  "sp_rename 'dbo.t', 'moved', 'OBJECT';",
+			want: []finding{{0, "sp_rename 'dbo.t', 'moved', 'OBJECT'", "Renames table `dbo.t` to `moved`.", []int{0}}},
+		},
+		{
 			name: "sp_rename of a column whose name keeps spaces inside brackets",
 			sql:  "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN';",
 			want: []finding{{0, "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN'", "Renames column `[ c ]` of `dbo.t` to `d`.", []int{0}}},
