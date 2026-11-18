@@ -289,15 +289,17 @@ func (h *procedureHead) step(tok Token) {
 			h.state = procHeadNot
 		}
 	case procHeadVerb:
-		// The rule names the procedure with multipartIdentifier, whose parts
-		// are identifiers and identifiers written as keywords.
-		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent || tok.Kind >= 700 {
+		// The rule names the procedure with multipartIdentifier, whose first
+		// part is an identifier (a reserved keyword is none) and whose later
+		// parts may be any keyword (parseMultipartIdentifier,
+		// parseIdentifierQualified).
+		if isIdentifierToken(tok.Kind) {
 			h.state = procHeadNameDone
 		} else {
 			h.state = procHeadNot
 		}
 	case procHeadNamePart:
-		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent || tok.Kind >= 700 {
+		if isIdentifierTokenQualified(tok.Kind) {
 			h.state = procHeadNameDone
 		} else {
 			h.state = procHeadNot
