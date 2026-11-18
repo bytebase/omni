@@ -551,7 +551,7 @@ reject	reject	engine	lastStatement/createDefaultStatement!drop-4	CREATE DEFAULT 
 reject	reject	engine	lastStatement/createDefaultStatement!drop-5	CREATE DEFAULT a AS
 reject	reject	engine	lastStatement/createDefaultStatement!insert	CREATE DEFAULT a AS 1 zzz
 reject	reject	engine	lastStatement/createDefaultStatement!swap	CREATE_INDEX DEFAULT a AS 1
-accept	reject	engine	lastStatement/createRuleStatement	CREATE RULE a AS 1 = 1
+reject	reject	engine	lastStatement/createRuleStatement	CREATE RULE a AS 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-1	RULE a AS 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-2	CREATE a AS 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-3	CREATE RULE AS 1 = 1
@@ -10276,7 +10276,7 @@ reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Co
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!drop-2	SELECT * OPTION(USE HINT('a',))
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!truncate	SELECT * OPTION(USE HINT('a',
 reject	reject	engine	useHintClause(Comma_stringLiteral)*/Comma_stringLiteral_(Comma_stringLiteral)*!insert	SELECT * OPTION(USE HINT('a', 'a' zzz))
-accept	reject	engine	createRuleStatement/Create_Rule_schemaObjectThreePartName_As_booleanExpression	CREATE RULE a AS 1 = 1
+reject	reject	engine	createRuleStatement/Create_Rule_schemaObjectThreePartName_As_booleanExpression	CREATE RULE a AS 1 = 1
 accept	accept	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral	ALTER CRYPTOGRAPHIC PROVIDER a FROM FILE = 'a'
 reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!drop-1	ALTER CRYPTOGRAPHIC PROVIDER a FILE = 'a'
 reject	reject	engine	cryptographicProviderFile/From_File_EqualsSign_stringLiteral!drop-2	ALTER CRYPTOGRAPHIC PROVIDER a FROM = 'a'
@@ -13746,7 +13746,7 @@ accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d6
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/coalesceExpression!swap	SELECT COLLATE(1, 1)
 accept	accept	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression	SELECT CASE 1 WHEN 1 THEN 1 END
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-1	SELECT 1 WHEN 1 THEN 1 END
-accept	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-2	SELECT CASE WHEN 1 THEN 1 END
+reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-2	SELECT CASE WHEN 1 THEN 1 END
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-3	SELECT CASE 1 1 THEN 1 END
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-4	SELECT CASE 1 WHEN THEN 1 END
 reject	reject	engine	expressionPrimary(odbcFunctionCall|literal|castCall_CA~87d662aa)/caseExpression!drop-5	SELECT CASE 1 WHEN 1 1 END

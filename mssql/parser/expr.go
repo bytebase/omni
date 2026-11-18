@@ -1358,6 +1358,12 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if cond == nil {
 			return nil, p.unexpectedToken()
 		}
+		// A searched CASE's WHEN is a search condition, and SQL Server refuses
+		// an expression of no boolean type there: CASE WHEN 1 THEN 1 END is
+		// Msg 4145 (measured).
+		if arg == nil && !procIsCondition(cond) {
+			return nil, p.newParseError(wloc, "an expression of non-boolean type specified in a context where a condition is expected")
+		}
 		if _, err := p.expect(kwTHEN); err != nil {
 			return nil, err
 		}

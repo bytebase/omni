@@ -757,10 +757,30 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 	if expr == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// SQL Server refuses a rule whose condition names no variable: the rule
+	// binds to a column through it, so CREATE RULE a AS 1 = 1 is Msg 160,
+	// "Rule does not contain a variable" (measured).
+	if !exprNamesVariable(expr) {
+		return nil, p.newParseError(loc, "rule does not contain a variable")
+	}
 	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "AS"}, expr}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// exprNamesVariable reports whether the expression names a variable, which a
+// rule's condition must.
+func exprNamesVariable(expr nodes.ExprNode) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if _, ok := n.(*nodes.VariableRef); ok {
+			found = true
+			return false
+		}
+		return !found
+	})
+	return found
 }
 
 // parseEnableDisableTriggerStmt parses ENABLE TRIGGER or DISABLE TRIGGER.
