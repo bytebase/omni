@@ -855,7 +855,21 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	case *nodes.CreateViewStmt:
 		return p.prev.Type == kwAS
 	case *nodes.AlterTableStmt:
-		return p.prev.Type == kwTABLE || p.prev.Type == kwADD || p.prev.Type == kwMODIFY
+		if p.prev.Type == kwTABLE {
+			// MAPPING TABLE ends a MOVE PARTITION action; ALTER TABLE alone
+			// is incomplete.
+			if actions := stmt.(*nodes.AlterTableStmt).Actions; actions != nil && actions.Len() > 0 {
+				if cmd, ok := actions.Items[actions.Len()-1].(*nodes.AlterTableCmd); ok && cmd.Options != nil {
+					for _, item := range cmd.Options.Items {
+						if opt, ok := item.(*nodes.DDLOption); ok && opt.Key == "MAPPING" {
+							return false
+						}
+					}
+				}
+			}
+			return true
+		}
+		return p.prev.Type == kwADD || p.prev.Type == kwMODIFY
 	case *nodes.CreateProcedureStmt, *nodes.CreateFunctionStmt, *nodes.CreatePackageStmt,
 		*nodes.CreateTriggerStmt, *nodes.PLSQLBlock:
 		return p.prev.Type == kwBEGIN || p.prev.Type == kwTHEN

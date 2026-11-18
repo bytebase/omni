@@ -810,7 +810,8 @@ func (p *Parser) parseAlterMviewEvaluation(stmt *nodes.AlterMaterializedViewStmt
 			for p.isIdentLike() {
 				p.advance()
 			}
-		case p.isIdentLike() && !p.atWord("CONSIDER"):
+		case p.isIdentLike() && !p.atWord("CONSIDER") && !p.atWord("ENABLE") && !p.atWord("DISABLE") &&
+			!p.atWord("QUERY") && !p.atWord("COMPILE") && !p.atWord("REFRESH") && !p.atWord("USING") && !p.atWord("MODIFY"):
 			p.advance()
 		}
 		return nil

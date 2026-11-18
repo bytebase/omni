@@ -14932,7 +14932,7 @@ reject@49	reject@49	engine	alterTable_modify_table_subpartition(,_EXPR)*/,_EXPR_
 reject@52	reject@52	engine	alterTable_modify_table_subpartition(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	ALTER TABLE a MODIFY SUBPARTITION a ADD VALUES(1, 1 zzz)
 accept	accept	engine	alterTable_move_table_partition/MOVE_PARTITION_ID_(MAPPING_TABLE)?_(alterTable_table_pa~a10ba322	ALTER TABLE a MOVE PARTITION a
 accept	accept	engine	alterTable_move_table_partition(MAPPING_TABLE)?/%empty	ALTER TABLE a MOVE PARTITION a
-reject@44	accept	engine	alterTable_move_table_partition(MAPPING_TABLE)?/MAPPING_TABLE	ALTER TABLE a MOVE PARTITION a MAPPING TABLE
+accept	accept	engine	alterTable_move_table_partition(MAPPING_TABLE)?/MAPPING_TABLE	ALTER TABLE a MOVE PARTITION a MAPPING TABLE
 reject@31	reject@31	engine	alterTable_move_table_partition(MAPPING_TABLE)?/MAPPING_TABLE!drop-1	ALTER TABLE a MOVE PARTITION a TABLE
 reject@38	reject@38	engine	alterTable_move_table_partition(MAPPING_TABLE)?/MAPPING_TABLE!drop-2	ALTER TABLE a MOVE PARTITION a MAPPING
 reject@45	reject@45	engine	alterTable_move_table_partition(MAPPING_TABLE)?/MAPPING_TABLE!insert	ALTER TABLE a MOVE PARTITION a MAPPING TABLE zzz

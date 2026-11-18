@@ -662,13 +662,6 @@ func (p *Parser) parseATMovePartition(cmd *nodes.AlterTableCmd) error {
 		return err
 	}
 	cmd.ColumnName = name
-	if p.atWord("MAPPING") && p.atNextWord("TABLE") {
-		// Oracle reads MAPPING TABLE and nothing else here (compat.tsv's
-		// MOVE PARTITION a MAPPING TABLE row).
-		p.advance()
-		p.advance()
-		return nil
-	}
 	allowed := atcMappingTable | atcTablePartitionDescription
 	if sub {
 		allowed = atcIndexing | atcPartitioningStorage

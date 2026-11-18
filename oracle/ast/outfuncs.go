@@ -3201,6 +3201,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 		sb.WriteString(" :target ")
 		writeNode(sb, n.Target)
 	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -7062,11 +7065,20 @@ func writeCreateIndextypeStmt(sb *strings.Builder, n *CreateIndextypeStmt) {
 	if n.WithRange {
 		sb.WriteString(" :withRange true")
 	}
+	if n.WithoutLocal {
+		sb.WriteString(" :withoutLocal true")
+	}
+	if n.WithoutRange {
+		sb.WriteString(" :withoutRange true")
+	}
 	if n.StorageTable != "" {
 		sb.WriteString(fmt.Sprintf(" :storageTable %q", n.StorageTable))
 	}
 	if n.ArrayDML {
 		sb.WriteString(" :arrayDML true")
+	}
+	if n.WithoutArrayDML {
+		sb.WriteString(" :withoutArrayDML true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -7112,8 +7124,14 @@ func writeAlterIndextypeStmt(sb *strings.Builder, n *AlterIndextypeStmt) {
 	if n.ArrayDML {
 		sb.WriteString(" :arrayDML true")
 	}
+	if n.WithoutArrayDML {
+		sb.WriteString(" :withoutArrayDML true")
+	}
 	if n.WithLocal {
 		sb.WriteString(" :withLocal true")
+	}
+	if n.WithoutLocal {
+		sb.WriteString(" :withoutLocal true")
 	}
 	if n.StorageTable != "" {
 		sb.WriteString(fmt.Sprintf(" :storageTable %q", n.StorageTable))

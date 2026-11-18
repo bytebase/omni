@@ -318,7 +318,7 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 			if err != nil {
 				return nil, err
 			}
-			_ = sharing
+			stmt.Sharing = sharing
 		}
 	}
 

@@ -441,7 +441,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			}
 			p.advance()
 			if p.isKeywordStr("RANGE") {
-				if !without {
+				if without {
+					stmt.WithoutRange = true
+				} else {
 					stmt.WithRange = true
 				}
 				p.advance()
@@ -450,7 +452,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
-			if !without {
+			if without {
+				stmt.WithoutLocal = true
+			} else {
 				stmt.WithLocal = true
 			}
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
@@ -470,7 +474,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			if err := p.parseArrayDMLTail(); err != nil {
 				return nil, err
 			}
-			if !without {
+			if without {
+				stmt.WithoutArrayDML = true
+			} else {
 				stmt.ArrayDML = true
 			}
 		case p.isKeywordStr("DML"):
@@ -657,7 +663,9 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
-			if !without {
+			if without {
+				stmt.WithoutLocal = true
+			} else {
 				stmt.WithLocal = true
 			}
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
@@ -677,7 +685,9 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 			if err := p.parseArrayDMLTail(); err != nil {
 				return nil, err
 			}
-			if !without {
+			if without {
+				stmt.WithoutArrayDML = true
+			} else {
 				stmt.ArrayDML = true
 			}
 		case p.isKeywordStr("DML"):
