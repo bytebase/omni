@@ -32,6 +32,19 @@ CREATE TABLE metrics_range (
 	PARTITION p_high VALUES LESS THAN MAXVALUE COMMENT 'last'
 );
 
+-- A partition's name order is not its ordinal order: a renderer that sorted the
+-- partitions by name would write p1 (30) before p10 (10), which the server
+-- refuses with "VALUES LESS THAN value must be strictly increasing".
+CREATE TABLE metrics_shard (
+	ts INT NOT NULL,
+	val BIGINT NOT NULL,
+	PRIMARY KEY (ts)
+) PARTITION BY RANGE (ts) (
+	PARTITION p10 VALUES LESS THAN (10) COMMENT 'first tenth',
+	PARTITION p2 VALUES LESS THAN (20),
+	PARTITION p1 VALUES LESS THAN (30)
+);
+
 CREATE SEQUENCE seq_orders START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CACHE 50 CYCLE COMMENT='order seq';
 
 CREATE VIEW v_open_accounts AS

@@ -290,11 +290,34 @@ func TestSelect_TopColumn(t *testing.T) {
 	}
 }
 
-func TestSelect_TopMissingCount(t *testing.T) {
-	// TOP with no count expression must error.
-	_, errs := testParseSelectStmt("SELECT TOP FROM t")
+// TOP is a non-reserved keyword, so without a count it names a column:
+// SELECT top FROM t selects the column top, as Snowflake's reserved and
+// limited keywords table says nothing about TOP.
+// https://docs.snowflake.com/en/sql-reference/reserved-keywords
+func TestSelect_TopAsColumnName(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT top FROM t",
+		"SELECT TOP",
+		"SELECT top, a FROM t",
+		"SELECT a AS top FROM t",
+		"SELECT t.top FROM t",
+		"SELECT top(a) FROM t",
+	} {
+		sel, errs := testParseSelectStmt(sql)
+		if len(errs) > 0 {
+			t.Fatalf("%s: unexpected errors: %v", sql, errs)
+		}
+		if sel.Top != nil {
+			t.Errorf("%s: Top = %v, want nil (top is a column)", sql, sel.Top)
+		}
+	}
+}
+
+func TestSelect_TopMissingTarget(t *testing.T) {
+	// TOP 10 with no select item must error.
+	_, errs := testParseSelectStmt("SELECT TOP 10")
 	if len(errs) == 0 {
-		t.Fatal("expected error for TOP without count")
+		t.Fatal("expected error for TOP with no select item")
 	}
 }
 
