@@ -358,7 +358,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
 			return p.parseCreateMTMV(createTok.Loc)
-		case kwPROCEDURE:
+		case kwPROCEDURE, kwPROC:
 			return p.parseCreateProcedure(createTok.Loc, false, false)
 		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL, kwTABLES, kwSESSION, kwLOCAL:
 			// CREATE SESSION and CREATE LOCAL lead only a function.
@@ -369,7 +369,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			if _, err := p.expect(kwREPLACE); err != nil {
 				return nil, err
 			}
-			if p.cur.Kind == kwPROCEDURE {
+			if p.cur.Kind == kwPROCEDURE || p.cur.Kind == kwPROC {
 				return p.parseCreateProcedure(createTok.Loc, true, false)
 			}
 			return p.parseCreateView(createTok.Loc, true)

@@ -19,7 +19,7 @@ func (n *ProcedureParam) Tag() NodeTag { return T_ProcedureParam }
 // CreateProcedureStmt represents the CREATE and REPLACE forms of the
 // grammar's createProcedure alternative (DorisParser.g4:43):
 //
-//	CREATE [OR REPLACE] PROCEDURE [IF NOT EXISTS] proc_name([param_list])
+//	CREATE [OR REPLACE] PROCEDURE proc_name([param_list])
 //	    [COMMENT 'text']
 //	    BEGIN
 //	        ... procedure body ...
@@ -29,17 +29,17 @@ func (n *ProcedureParam) Tag() NodeTag { return T_ProcedureParam }
 // The rule reads the parameter list and what follows it as free text
 // (LEFT_PAREN .*? RIGHT_PAREN .*?), so a statement that is not a parameter
 // list and a BEGIN...END body — CREATE PROCEDURE a(zzz), CREATE PROCEDURE
-// a() zzz — parses too; its text is kept in RawText.
+// a() zzz — parses too; its text is kept in RawText. The rule has no
+// IF NOT EXISTS, so neither does this node.
 type CreateProcedureStmt struct {
-	Name        *ObjectName
-	IfNotExists bool
-	OrReplace   bool
-	Replace     bool // the REPLACE verb, without CREATE
-	Parameters  []*ProcedureParam
-	Body        string // raw BEGIN...END body text
-	RawText     string // the free text when it is not a parameter list and body
-	Comment     string
-	Loc         Loc
+	Name       *ObjectName
+	OrReplace  bool
+	Replace    bool // the REPLACE verb, without CREATE
+	Parameters []*ProcedureParam
+	Body       string // raw BEGIN...END body text
+	RawText    string // the free text when it is not a parameter list and body
+	Comment    string
+	Loc        Loc
 }
 
 // Tag implements Node.

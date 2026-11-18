@@ -187,9 +187,6 @@ func TestCreateProcedure_Basic(t *testing.T) {
 	if stmt.OrReplace {
 		t.Error("OrReplace should be false")
 	}
-	if stmt.IfNotExists {
-		t.Error("IfNotExists should be false")
-	}
 	if len(stmt.Parameters) != 0 {
 		t.Errorf("Parameters: got %d, want 0", len(stmt.Parameters))
 	}
@@ -266,13 +263,40 @@ END`
 	}
 }
 
-func TestCreateProcedure_IfNotExists(t *testing.T) {
-	stmt := parseCreateProcedureStmt(t, "CREATE PROCEDURE IF NOT EXISTS my_proc() BEGIN SELECT 1; END")
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
+// PROC is the rule's other spelling of PROCEDURE (DorisParser.g4:43), in all
+// three verbs.
+func TestCreateProcedure_ProcSpelling(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROC a()",
+		"CREATE OR REPLACE PROC a()",
+		"REPLACE PROC a()",
+	} {
+		stmt := parseCreateProcedureStmt(t, sql)
+		if stmt.Name.String() != "a" {
+			t.Errorf("Parse(%q): Name = %q, want a", sql, stmt.Name.String())
+		}
 	}
-	if stmt.Name.String() != "my_proc" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_proc")
+}
+
+// The grammar's trailing `.*?` takes what follows a body as well, so a
+// procedure with text after END is still a statement — as REPLACE PROCEDURE
+// a() BEGIN END zzz is for the engine.
+func TestCreateProcedure_TextAfterBody(t *testing.T) {
+	stmt := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a() BEGIN SELECT 1; END zzz")
+	if !strings.Contains(stmt.Body, "SELECT 1") {
+		t.Errorf("Body = %q, want it to contain SELECT 1", stmt.Body)
+	}
+	if stmt.RawText != "zzz" {
+		t.Errorf("RawText = %q, want zzz", stmt.RawText)
+	}
+}
+
+// The rule has no IF NOT EXISTS — the name follows PROCEDURE
+// (DorisParser.g4:43) — so the form this parser used to take is a syntax
+// error, as it is for the engine.
+func TestCreateProcedure_IfNotExistsRejected(t *testing.T) {
+	if _, err := Parse("CREATE PROCEDURE IF NOT EXISTS my_proc() BEGIN SELECT 1; END"); err == nil {
+		t.Error("Parse(CREATE PROCEDURE IF NOT EXISTS ...) succeeded, want a syntax error")
 	}
 }
 

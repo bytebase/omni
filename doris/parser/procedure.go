@@ -17,10 +17,12 @@ import (
 //
 // The rule reads the parameter list and everything after it as free text, so
 // Doris accepts the parameter list and body this parser reads as well as forms
-// it cannot make sense of, and refuses only a name without parentheses
+// it cannot make sense of, and refuses a name without parentheses
 // (compat.tsv's statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)*
 // rows). Both are read here: the parameter list and BEGIN...END body first, so
 // the AST carries them, and the free text when that does not fit, in RawText.
+// The rule has no IF NOT EXISTS: the name follows PROCEDURE, so
+// CREATE PROCEDURE IF NOT EXISTS p() is a syntax error.
 func (p *Parser) parseCreateProcedure(startLoc ast.Loc, orReplace, replace bool) (ast.Node, error) {
 	if _, err := p.expectProcedureKeyword(); err != nil {
 		return nil, err
@@ -30,18 +32,6 @@ func (p *Parser) parseCreateProcedure(startLoc ast.Loc, orReplace, replace bool)
 		OrReplace: orReplace,
 		Replace:   replace,
 		Loc:       startLoc,
-	}
-
-	// Optional IF NOT EXISTS
-	if p.cur.Kind == kwIF {
-		p.advance() // consume IF
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
 	}
 
 	// Procedure name (may be qualified: db.proc_name)
@@ -106,6 +96,10 @@ func (p *Parser) parseProcedureTail(stmt *ast.CreateProcedureStmt) error {
 
 	saved := p.save()
 	if err := p.parseProcedureListAndBody(stmt); err == nil {
+		// The trailing `.*?` takes what follows the body too, so
+		// REPLACE PROCEDURE a() BEGIN END zzz is a statement (the pinned
+		// engine parses whatever stands there).
+		stmt.RawText = p.collectProcedureTail()
 		stmt.Loc.End = p.prev.Loc.End
 		return nil
 	}
