@@ -406,12 +406,14 @@ func (p *Parser) parseGraphLeftRecursivePatterns() ([]nodes.Node, error) {
 }
 
 // isGraphNodeStart reports whether the current token begins a node of a
-// graph pattern: an identifier, or LAST_NODE.
+// graph pattern: an identifier, delimited or not, or LAST_NODE. A node is an
+// identifier (graphMatchNodeExpression, bnf/TSql170.g), and identifier
+// includes QuotedIdentifier, so [a] and "a" name nodes like a does.
 func (p *Parser) isGraphNodeStart() bool {
 	if p.graphWordAhead(graphLastNodeWord) && p.peekNext().Type == '(' {
 		return true
 	}
-	return p.isIdentLike() && !p.isDelimited(p.cur)
+	return p.isIdentLike()
 }
 
 // parseGraphRecursiveQuantifier parses the quantifier of SHORTEST_PATH: + or

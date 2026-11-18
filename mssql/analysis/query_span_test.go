@@ -217,11 +217,13 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 			},
 		},
 		{
-			// An ODBC escape is an expression like its T-SQL spelling.
-			statement: "SELECT {fn UCASE(a)} AS u, {d '2020-01-01'} AS d FROM t",
+			// An ODBC escape is an expression like its T-SQL spelling, and an
+			// unaliased one is named by its text.
+			statement: "SELECT {fn UCASE(a)} AS u, {d '2020-01-01'} AS d, {fn UCASE(b)} FROM t",
 			want: []QuerySpanResult{
 				{Name: "u", SourceColumns: set(column("t", "a"))},
 				{Name: "d", SourceColumns: set()},
+				{Name: "{fnUCASE(b)}", SourceColumns: set(column("t", "b"))},
 			},
 		},
 	}

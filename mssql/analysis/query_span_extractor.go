@@ -2183,6 +2183,10 @@ func expressionNodeLoc(n ast.Node) (ast.Loc, bool) {
 		return v.Loc, true
 	case *ast.FullTextPredicate:
 		return v.Loc, true
+	case *ast.OdbcFunctionCallExpr:
+		return v.Loc, true
+	case *ast.OdbcLiteralExpr:
+		return v.Loc, true
 	case *ast.GraphMatchPredicate:
 		return v.Loc, true
 	case *ast.GraphMatchNodeExpr:

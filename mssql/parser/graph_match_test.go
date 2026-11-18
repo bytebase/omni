@@ -13,6 +13,9 @@ import (
 func TestGraphMatch(t *testing.T) {
 	for _, sql := range []string{
 		"SELECT * FROM a WHERE MATCH(a -(e)-> b)",
+		"SELECT * FROM a WHERE MATCH([a] -([e])-> [b])",
+		"SELECT * FROM a WHERE MATCH(SHORTEST_PATH([a](-([e])->[b]) +))",
+		"SELECT * FROM a WHERE MATCH(SHORTEST_PATH(([a]-([e])->)+[b]))",
 		"SELECT * FROM a WHERE MATCH(a <-(e)- b)",
 		"SELECT * FROM a WHERE MATCH(a -(e)-> b -(e)-> c)",
 		"SELECT * FROM a WHERE MATCH(a -(e)-> b AND b -(e)-> c)",
