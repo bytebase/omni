@@ -708,6 +708,9 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 			if !explainableNode(query) {
 				return nil, p.syntaxErrorAtCur()
 			}
+			if err := p.settleQueryInto(query); err != nil {
+				return nil, err
+			}
 			// StarRocks refuses EXPLAIN ANALYZE over UPDATE and DELETE, while
 			// the plan-only levels stay readable over them.
 			if stmt.Type == "ANALYZE" {

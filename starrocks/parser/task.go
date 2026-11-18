@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -258,8 +259,42 @@ intervalValue:
 		return nil, err
 	}
 
+	seconds, ok := taskIntervalSeconds(schedule.Interval, schedule.Unit)
+	if !ok || seconds < 10 {
+		return nil, &ParseError{
+			Position: value.Loc.Start,
+			End:      value.Loc.End,
+			Message:  "task schedule interval must be at least 10 seconds",
+		}
+	}
+
 	schedule.Loc.End = p.prev.Loc.End
 	return schedule, nil
+}
+
+// taskIntervalSeconds converts a task interval to seconds, reporting false on
+// overflow. StarRocks's default task_min_schedule_interval_s is 10 seconds.
+func taskIntervalSeconds(interval, unit string) (int64, bool) {
+	value, err := strconv.ParseInt(interval, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	factor := int64(1)
+	switch unit {
+	case "SECOND":
+	case "MINUTE":
+		factor = 60
+	case "HOUR":
+		factor = 3600
+	case "DAY":
+		factor = 86400
+	default:
+		return 0, false
+	}
+	if value > math.MaxInt64/factor {
+		return 0, false
+	}
+	return value * factor, true
 }
 
 // isDecimalInteger reports whether s is a bare decimal integer, the only
@@ -570,6 +605,21 @@ func (p *Parser) settleTraceSetOpInto(query ast.Node) error {
 		setOp.Into = into
 		if into.Loc.End > setOp.Loc.End {
 			setOp.Loc.End = into.Loc.End
+		}
+	}
+	return nil
+}
+
+// settleQueryInto validates an INTO OUTFILE already consumed inside a parsed
+// query relation. A SELECT may own the query-level suffix; a set operation
+// takes one from its rightmost arm; a parenthesized subquery may not carry one.
+func (p *Parser) settleQueryInto(query ast.Node) error {
+	switch q := query.(type) {
+	case *ast.SetOpStmt:
+		return p.settleTraceSetOpInto(q)
+	case *ast.ParenSelect:
+		if queryHasInto(q) {
+			return p.syntaxErrorAtCur()
 		}
 	}
 	return nil
