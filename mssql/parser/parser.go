@@ -46,6 +46,11 @@ type Parser struct {
 	procWhileDepth   int
 	procCatchDepth   int
 	procRoutineDepth int
+	// batchStart is set while the statement about to be parsed is the first
+	// of its batch (the start of the text, or after a GO): batch
+	// (TSql160.g:158) takes optSimpleExecute there, a procedure called by
+	// name without EXEC (execute.go, parseImpliedExecStmt).
+	batchStart bool
 	// procedureBatch is set by CREATE or ALTER PROCEDURE and cleared by GO:
 	// a procedure's body runs to the end of its batch, so every statement
 	// after AS is the procedure's (procedureStatementBody, TSql160.g), and a
@@ -76,17 +81,37 @@ func Parse(sql string) (*nodes.List, error) {
 	p.advance()
 
 	var stmts []nodes.Node
+	// A batch begins at the text's start and after each GO: batch
+	// (TSql160.g:158), script (TSql160.g:118). impliedOnly is set once a
+	// batch's first statement is a procedure called by name without EXEC.
+	batchStart := true
+	impliedOnly := false
 	for p.cur.Type != tokEOF {
-		// Skip semicolons
+		// Skip semicolons. A batch's first statement may not follow one: SQL
+		// Server refuses `; my_proc` (Msg 102), so the name is no longer the
+		// batch's first statement (batch, TSql160.g:158).
 		if p.cur.Type == ';' {
 			p.advance()
+			batchStart = false
 			continue
+		}
+		// The batch is the call and nothing else. SQL Server reads a
+		// statement after the call too, and a DECLARE of the batch's after
+		// it (`my_proc DECLARE @a INT` is accepted), but it reports 137 for
+		// a variable a later statement uses and does not declare, and omni
+		// does not resolve a batch's variables: `my_proc; SELECT @a` and
+		// `my_proc; SET @a = 1` would be read as accepted. Every row that
+		// names a call without EXEC is the call alone (testdata/compat.tsv).
+		if impliedOnly && p.cur.Type != kwGO {
+			return nil, p.syntaxErrorAtCur()
 		}
 		// Check for lexer errors before parsing statement.
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
 		}
 		stmtStart := p.cur.Loc
+		first := batchStart
+		p.batchStart = first
 		stmt, err := p.parseStmt()
 		if err != nil {
 			return nil, err
@@ -104,8 +129,17 @@ func Parse(sql string) (*nodes.List, error) {
 			}
 			break
 		}
+		if first {
+			e, ok := stmt.(*nodes.ExecStmt)
+			impliedOnly = ok && e.Implied
+		}
 		if treeTooHigh(stmt, p.prev.End-stmtStart) {
 			return nil, nestedTooDeeply(stmtStart)
+		}
+		_, batchStart = stmt.(*nodes.GoStmt)
+		if batchStart {
+			// A GO starts a batch, and the next statement is its first.
+			impliedOnly = false
 		}
 		stmts = append(stmts, stmt)
 	}
@@ -199,6 +233,10 @@ func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 
 // parseStmt dispatches to statement-specific parsers.
 func (p *Parser) parseStmt() (nodes.StmtNode, error) {
+	// Only the statement Parse asks for is a batch's first; a statement
+	// inside it, as an IF body, is not (control_flow.go).
+	batchStart := p.batchStart
+	p.batchStart = false
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
@@ -500,6 +538,12 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		// kwADD is handled here too
 		if p.cur.Type == kwADD {
 			return p.parseAddStmt()
+		}
+		// A procedure called by name without EXEC as the batch's first
+		// statement (optSimpleExecute, TSql160.g:567). Everything else that
+		// starts with a name is not a statement.
+		if batchStart && (p.isIdentLike() || p.cur.Type == '.') {
+			return p.parseImpliedExecStmt()
 		}
 		return nil, nil
 	}

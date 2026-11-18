@@ -1,10 +1,10 @@
 # pin: default mcr.microsoft.com/mssql/server:2022-CU27-GDR1-ubuntu-22.04 sha256:cf8f0ab2ebe61feec2eed2629061a07d247f791c2a8ddda74a4ac9f06a291718 16.0.4305.5
 # columns: omni, expected, source, rule, statement
 accept	accept	engine	script/batch_(Go_batch)*_EOF	
-reject	accept	engine	script/batch_(Go_batch)*_EOF!insert	zzz
+accept	accept	engine	script/batch_(Go_batch)*_EOF!insert	zzz
 accept	accept	engine	script(Go_batch)*/%empty	
 accept	accept	engine	script(Go_batch)*/Go_batch_(Go_batch)*	GO
-reject	accept	engine	script(Go_batch)*/Go_batch_(Go_batch)*!insert	GO zzz
+accept	accept	engine	script(Go_batch)*/Go_batch_(Go_batch)*!insert	GO zzz
 reject	reject	engine	script(Go_batch)*/Go_batch_(Go_batch)*!swap	GOTO
 accept	accept	engine	batch/(Semicolon)*_((lastStatementOptSemi)|(optSimpleExe~edff3040)	
 accept	accept	engine	batch(Semicolon)*/%empty	
@@ -22,10 +22,10 @@ accept	accept	engine	batch(statementOptSemi)*/statementOptSemi_(statementOptSemi
 accept	accept	engine	batch(statementOptSemi)*/statementOptSemi_(statementOptSemi)*!insert	SELECT 1 zzz
 accept	accept	engine	statementOptSemi/statement_optSemicolons	SELECT 1
 accept	accept	engine	lastStatementOptSemi/lastStatement_optSemicolons	CREATE SCHEMA a
-reject	accept	engine	optSemicolons/(Semicolon)*	a
-reject	accept	engine	optSemicolons/(Semicolon)*!insert	a zzz
-reject	accept	engine	optSemicolons(Semicolon)*/%empty	a
-reject	accept	engine	optSemicolons(Semicolon)*/Semicolon_(Semicolon)*	a;
+accept	accept	engine	optSemicolons/(Semicolon)*	a
+accept	accept	engine	optSemicolons/(Semicolon)*!insert	a zzz
+accept	accept	engine	optSemicolons(Semicolon)*/%empty	a
+accept	accept	engine	optSemicolons(Semicolon)*/Semicolon_(Semicolon)*	a;
 reject	reject	engine	optSemicolons(Semicolon)*/Semicolon_(Semicolon)*!insert	a; zzz
 accept	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036	COPY INTO a FROM 'a'
 reject	reject	engine	copyStatement/COPY_Into_schemaObjectThreePartName_(copyColumnList)?_F~4be79036!drop-1	INTO a FROM 'a'
@@ -159,7 +159,7 @@ reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_A
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-9	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT * zzz
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!swap	CREATE EXTERNAL TABLE a WITHIN(DATA_SOURCE = a) AS SELECT *
-reject	accept	engine	optSimpleExecute/execProc_optSemicolons	a
+accept	accept	engine	optSimpleExecute/execProc_optSemicolons	a
 accept	accept	engine	optSimpleExecute/%empty	
 reject	reject	engine	statement/createTableStatement	CREATE TABLE a AS
 reject	reject	engine	statement/createTableStatement!drop-1	TABLE a AS
@@ -204,10 +204,10 @@ accept	accept	engine	statement/beginStatements!insert	BEGIN TRAN zzz
 reject	reject	engine	statement/beginStatements!swap	BEGIN_DIALOG TRAN
 reject	reject	engine	statement/breakStatement	BREAK
 reject	reject	engine	statement/breakStatement!insert	BREAK zzz
-reject	accept	engine	statement/breakStatement!swap	BROKER
+accept	accept	engine	statement/breakStatement!swap	BROKER
 reject	reject	engine	statement/continueStatement	CONTINUE
 reject	reject	engine	statement/continueStatement!insert	CONTINUE zzz
-reject	accept	engine	statement/continueStatement!swap	CONTRACT
+accept	accept	engine	statement/continueStatement!swap	CONTRACT
 accept	accept	engine	statement/ifStatement	IF 1 = 1 SELECT 1
 reject	reject	engine	statement/ifStatement!drop-1	1 = 1 SELECT 1
 reject	reject	engine	statement/ifStatement!drop-2	IF = 1 SELECT 1
@@ -238,7 +238,7 @@ reject	reject	engine	statement/restoreStatements!insert	RESTORE DATABASE @a zzz
 reject	reject	engine	statement/restoreStatements!swap	RESTRICT DATABASE @a
 accept	reject	engine	statement/gotoStatement	GOTO a
 reject	reject	engine	statement/gotoStatement!insert	GOTO a zzz
-reject	accept	engine	statement/gotoStatement!swap	GOVERNOR a
+accept	accept	engine	statement/gotoStatement!swap	GOVERNOR a
 accept	accept	engine	statement/saveTransactionStatement	SAVE TRAN @a
 reject	reject	engine	statement/saveTransactionStatement!drop-1	TRAN @a
 reject	reject	engine	statement/saveTransactionStatement!drop-2	SAVE @a
@@ -247,10 +247,10 @@ reject	reject	engine	statement/saveTransactionStatement!insert	SAVE TRAN @a zzz
 reject	reject	engine	statement/saveTransactionStatement!swap	SCHEMA TRAN @a
 accept	accept	engine	statement/rollbackTransactionStatement	ROLLBACK
 reject	reject	engine	statement/rollbackTransactionStatement!insert	ROLLBACK zzz
-reject	accept	engine	statement/rollbackTransactionStatement!swap	ROLLUP
+accept	accept	engine	statement/rollbackTransactionStatement!swap	ROLLUP
 accept	accept	engine	statement/commitTransactionStatement	COMMIT
 reject	reject	engine	statement/commitTransactionStatement!insert	COMMIT zzz
-reject	accept	engine	statement/commitTransactionStatement!swap	COMMITTED
+accept	accept	engine	statement/commitTransactionStatement!swap	COMMITTED
 accept	accept	engine	statement/createStatisticsStatement	CREATE STATISTICS a ON a(a)
 reject	reject	engine	statement/createStatisticsStatement!drop-1	STATISTICS a ON a(a)
 reject	reject	engine	statement/createStatisticsStatement!drop-2	CREATE a ON a(a)
@@ -297,7 +297,7 @@ reject	reject	engine	statement/raiseErrorStatement!drop-8	RAISERROR(1, 1, 1
 reject	reject	engine	statement/raiseErrorStatement!insert	RAISERROR(1, 1, 1) zzz
 reject	reject	engine	statement/raiseErrorStatement!swap	RANDOMIZED(1, 1, 1)
 reject	reject	engine	statement/alter2005Statements	ALTER ASSEMBLY a
-reject	accept	engine	statement/alter2005Statements!drop-1	ASSEMBLY a
+accept	accept	engine	statement/alter2005Statements!drop-1	ASSEMBLY a
 reject	reject	engine	statement/alter2005Statements!drop-2	ALTER a
 reject	reject	engine	statement/alter2005Statements!drop-3	ALTER ASSEMBLY
 reject	reject	engine	statement/alter2005Statements!insert	ALTER ASSEMBLY a zzz
@@ -325,12 +325,12 @@ reject	reject	engine	statement/addStatements!insert	ADD SIGNATURE TO a BY CERTIF
 reject	reject	engine	statement/addStatements!swap	ADMIN SIGNATURE TO a BY CERTIFICATE a
 reject	reject	engine	statement/identifierStatements	THROW
 reject	reject	engine	statement/identifierStatements!insert	THROW zzz
-reject	accept	engine	statement/identifierStatements!swap	TIES
+accept	accept	engine	statement/identifierStatements!swap	TIES
 accept	accept	engine	statement/printStatement	PRINT 1
 reject	reject	engine	statement/printStatement!drop-1	1
 reject	reject	engine	statement/printStatement!drop-2	PRINT
 reject	reject	engine	statement/printStatement!insert	PRINT 1 zzz
-reject	accept	engine	statement/printStatement!swap	PRIORITY 1
+accept	accept	engine	statement/printStatement!swap	PRIORITY 1
 reject	reject	engine	statement/waitForStatement	WAITFOR a 'a'
 reject	reject	engine	statement/waitForStatement!drop-2	WAITFOR 'a'
 reject	reject	engine	statement/waitForStatement!drop-3	WAITFOR a
@@ -359,15 +359,15 @@ reject	reject	engine	statement/writeTextStatement!swap	WSDL a 0x00 NULL
 accept	accept	engine	statement/lineNoStatement	LINENO 1
 accept	reject	engine	statement/lineNoStatement!drop-2	LINENO
 reject	reject	engine	statement/lineNoStatement!insert	LINENO 1 zzz
-reject	accept	engine	statement/lineNoStatement!swap	LIST 1
+accept	accept	engine	statement/lineNoStatement!swap	LIST 1
 accept	accept	engine	statement/useStatement	USE a
 reject	reject	engine	statement/useStatement!drop-2	USE
 reject	reject	engine	statement/useStatement!insert	USE a zzz
-reject	accept	engine	statement/useStatement!swap	USED a
+accept	accept	engine	statement/useStatement!swap	USED a
 accept	accept	engine	statement/killStatements	KILL 1
 reject	reject	engine	statement/killStatements!drop-2	KILL
 reject	reject	engine	statement/killStatements!insert	KILL 1 zzz
-reject	accept	engine	statement/killStatements!swap	LANGUAGE 1
+accept	accept	engine	statement/killStatements!swap	LANGUAGE 1
 accept	accept	engine	statement/bulkInsertStatement	BULK INSERT a FROM 1
 reject	reject	engine	statement/bulkInsertStatement!drop-1	INSERT a FROM 1
 reject	reject	engine	statement/bulkInsertStatement!drop-2	BULK a FROM 1
@@ -384,16 +384,16 @@ reject	reject	engine	statement/insertBulkStatement!insert	INSERT BULK a zzz
 reject	reject	engine	statement/insertBulkStatement!swap	INSTEAD BULK a
 accept	accept	engine	statement/checkpointStatement	CHECKPOINT
 reject	reject	engine	statement/checkpointStatement!insert	CHECKPOINT zzz
-reject	accept	engine	statement/checkpointStatement!swap	CLASSIFICATION
+accept	accept	engine	statement/checkpointStatement!swap	CLASSIFICATION
 accept	accept	engine	statement/reconfigureStatement	RECONFIGURE
 reject	reject	engine	statement/reconfigureStatement!insert	RECONFIGURE zzz
-reject	accept	engine	statement/reconfigureStatement!swap	RECOVERY
+accept	accept	engine	statement/reconfigureStatement!swap	RECOVERY
 accept	accept	engine	statement/shutdownStatement	SHUTDOWN
 reject	reject	engine	statement/shutdownStatement!insert	SHUTDOWN zzz
-reject	accept	engine	statement/shutdownStatement!swap	SID
+accept	accept	engine	statement/shutdownStatement!swap	SID
 accept	accept	engine	statement/setUserStatement	SETUSER
 reject	reject	engine	statement/setUserStatement!insert	SETUSER zzz
-reject	accept	engine	statement/setUserStatement!swap	SHARDED
+accept	accept	engine	statement/setUserStatement!swap	SHARDED
 accept	accept	engine	statement/truncateTableStatement	TRUNCATE TABLE a
 reject	reject	engine	statement/truncateTableStatement!drop-1	TABLE a
 reject	reject	engine	statement/truncateTableStatement!drop-2	TRUNCATE a
@@ -421,7 +421,7 @@ reject	reject	engine	statement/revokeStatement90!insert	REVOKE a TO PUBLIC zzz
 reject	reject	engine	statement/revokeStatement90!swap	RIGHT a TO PUBLIC
 accept	accept	engine	statement/returnStatement	RETURN
 reject	reject	engine	statement/returnStatement!insert	RETURN zzz
-reject	accept	engine	statement/returnStatement!swap	RETURNS
+accept	accept	engine	statement/returnStatement!swap	RETURNS
 accept	accept	engine	statement/openStatements	OPEN @a
 reject	reject	engine	statement/openStatements!drop-2	OPEN
 reject	reject	engine	statement/openStatements!insert	OPEN @a zzz
@@ -445,7 +445,7 @@ reject	reject	engine	statement/dropStatements!swap	DROP_INDEX DATABASE a
 accept	accept	engine	statement/dbccStatement	DBCC a
 reject	reject	engine	statement/dbccStatement!drop-2	DBCC
 reject	reject	engine	statement/dbccStatement!insert	DBCC a zzz
-reject	accept	engine	statement/dbccStatement!swap	DB_CHAINING a
+accept	accept	engine	statement/dbccStatement!swap	DB_CHAINING a
 accept	accept	engine	statement/revertStatement	REVERT
 reject	reject	engine	statement/revertStatement!insert	REVERT zzz
 reject	reject	engine	statement/revertStatement!swap	REVOKE
@@ -455,7 +455,7 @@ reject	reject	engine	statement/executeAsStatement!drop-3	EXECUTE AS
 reject	reject	engine	statement/executeAsStatement!insert	EXECUTE AS a zzz
 reject	reject	engine	statement/executeAsStatement!swap	EXISTS AS a
 accept	accept	engine	statement/endConversationStatement	END CONVERSATION 1
-reject	accept	engine	statement/endConversationStatement!drop-1	CONVERSATION 1
+accept	accept	engine	statement/endConversationStatement!drop-1	CONVERSATION 1
 reject	reject	engine	statement/endConversationStatement!drop-2	END 1
 reject	reject	engine	statement/endConversationStatement!drop-3	END CONVERSATION
 reject	reject	engine	statement/endConversationStatement!insert	END CONVERSATION 1 zzz
@@ -476,7 +476,7 @@ accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/deleteStatement	DELETE a
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/deleteStatement!drop-2	DELETE
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/deleteStatement!insert	DELETE a zzz
-reject	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/deleteStatement!swap	DELIMITEDTEXT a
+accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/deleteStatement!swap	DELIMITEDTEXT a
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement	INSERT a DEFAULT VALUES
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-1	a DEFAULT VALUES
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(select|deleteStatement|insertStateme~29258719)/insertStatement!drop-2	INSERT DEFAULT VALUES
@@ -5000,9 +5000,9 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement	ALTER AUTHORIZATION ON a TO a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-1	ALTER ON a TO a
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-2	ALTER AUTHORIZATION a TO a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-3	ALTER AUTHORIZATION ON TO a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-4	ALTER AUTHORIZATION ON a a
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-5	ALTER AUTHORIZATION ON a TO
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-3	ALTER AUTHORIZATION ON TO a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-4	ALTER AUTHORIZATION ON a a
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!drop-5	ALTER AUTHORIZATION ON a TO
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!insert	ALTER AUTHORIZATION ON a TO a zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!swap	ALTER AUTH_REALM ON a TO a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY	ALTER AVAILABILITY GROUP a FAILOVER
@@ -6246,17 +6246,17 @@ reject	reject	engine	permission(columnNameList)?/columnNameList!drop-3	GRANT a(a
 reject	reject	engine	permission(columnNameList)?/columnNameList!truncate	GRANT a(a
 reject	reject	engine	permission(columnNameList)?/columnNameList!insert	GRANT a(a) zzz TO PUBLIC
 accept	accept	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06	ALTER AUTHORIZATION ON a TO a
-accept	reject	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06!truncate	ALTER AUTHORIZATION ON
-accept	reject	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06!insert	ALTER AUTHORIZATION ON a zzz TO a
+reject	reject	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06!truncate	ALTER AUTHORIZATION ON
+reject	reject	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06!insert	ALTER AUTHORIZATION ON a zzz TO a
 reject	reject	engine	securityTargetObjectCommon/On_((securityStatementPermission|securit~888d2aba)?_mul~f646bb06!swap	ALTER AUTHORIZATION ONLINE a TO a
 accept	accept	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/%empty	ALTER AUTHORIZATION ON a TO a
-accept	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/%empty!insert	ALTER AUTHORIZATION ON zzz a TO a
-accept	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon	ALTER AUTHORIZATION ON a :: a TO a
+reject	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/%empty!insert	ALTER AUTHORIZATION ON zzz a TO a
+reject	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon	ALTER AUTHORIZATION ON a :: a TO a
 reject	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!drop-1	ALTER AUTHORIZATION ON :: a TO a
-accept	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!drop-2	ALTER AUTHORIZATION ON a a TO a
-accept	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!truncate	ALTER AUTHORIZATION ON a
-accept	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!insert	ALTER AUTHORIZATION ON a :: zzz a TO a
-accept	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~22945b1e)/securityStatementPermission	ALTER AUTHORIZATION ON a :: a TO a
+reject	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!drop-2	ALTER AUTHORIZATION ON a a TO a
+reject	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!truncate	ALTER AUTHORIZATION ON a
+reject	reject	engine	securityTargetObjectCommon((securityStatementPermission|securit~888d2aba)?/(securityStatementPermission|security~22945b1e)_DoubleColon!insert	ALTER AUTHORIZATION ON a :: zzz a TO a
+reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~22945b1e)/securityStatementPermission	ALTER AUTHORIZATION ON a :: a TO a
 reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~22945b1e)/securityStatementPermission!insert	ALTER AUTHORIZATION ON a zzz :: a TO a
 reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~22945b1e)/securityStatementPermission_(securityStatementPermissio~0dad7ff4	ALTER AUTHORIZATION ON a a :: a TO a
 reject	reject	engine	securityTargetObjectCommon(securityStatementPermission|security~22945b1e)/securityStatementPermission_(securityStatementPermissio~0dad7ff4!insert	ALTER AUTHORIZATION ON a a zzz :: a TO a
@@ -6286,7 +6286,7 @@ reject	reject	engine	principal/identifier!insert	GRANT a TO a zzz
 accept	accept	engine	alterAuthorizationStatement/Authorization_authorizationTargetObject_To_(Schema_OWNE~5adf4360	ALTER AUTHORIZATION ON a TO a
 accept	accept	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER	ALTER AUTHORIZATION ON a TO SCHEMA OWNER
 accept	accept	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!drop-1	ALTER AUTHORIZATION ON a TO OWNER
-accept	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!drop-2	ALTER AUTHORIZATION ON a TO SCHEMA
+reject	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!drop-2	ALTER AUTHORIZATION ON a TO SCHEMA
 reject	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!insert	ALTER AUTHORIZATION ON a TO SCHEMA OWNER zzz
 reject	reject	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/Schema_OWNER!swap	ALTER AUTHORIZATION ON a TO SCHEMABINDING OWNER
 accept	accept	engine	alterAuthorizationStatement(Schema_OWNER|identifier)/identifier	ALTER AUTHORIZATION ON a TO a
@@ -11077,22 +11077,22 @@ reject	reject	engine	cursorProcedureParameter(OUTPUT|OUT)/OUTPUT!swap	CREATE PRO
 accept	accept	engine	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
 reject	reject	engine	cursorProcedureParameter(OUTPUT|OUT)/OUT!insert	CREATE PROC a @a CURSOR VARYING OUT zzz AS
 reject	reject	engine	cursorProcedureParameter(OUTPUT|OUT)/OUT!swap	CREATE PROC a @a CURSOR VARYING OUTER AS
-reject	accept	engine	possibleNegativeConstantOrIdentifier/possibleNegativeConstant	a 1
+accept	accept	engine	possibleNegativeConstantOrIdentifier/possibleNegativeConstant	a 1
 reject	reject	engine	possibleNegativeConstantOrIdentifier/possibleNegativeConstant!insert	a 1 zzz
-reject	accept	engine	possibleNegativeConstantOrIdentifier/identifierLiteral	a a
+accept	accept	engine	possibleNegativeConstantOrIdentifier/identifierLiteral	a a
 reject	reject	engine	possibleNegativeConstantOrIdentifier/identifierLiteral!insert	a a zzz
-reject	accept	engine	identifierLiteral/Identifier	a a
-reject	accept	engine	identifierLiteral/QuotedIdentifier	a [a]
+accept	accept	engine	identifierLiteral/Identifier	a a
+accept	accept	engine	identifierLiteral/QuotedIdentifier	a [a]
 reject	reject	engine	identifierLiteral/QuotedIdentifier!insert	a [a] zzz
 accept	accept	engine	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier	CREATE PROC a @a a = 1 AS
 accept	accept	engine	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 reject	reject	engine	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!insert	CREATE PROC a @a a = DEFAULT zzz AS
 accept	accept	engine	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
-reject	accept	engine	possibleNegativeConstant/literal	a 1
-reject	accept	engine	possibleNegativeConstant/negativeConstant	a - 1
+accept	accept	engine	possibleNegativeConstant/literal	a 1
+accept	accept	engine	possibleNegativeConstant/negativeConstant	a - 1
 reject	reject	engine	possibleNegativeConstant/negativeConstant!drop-2	a -
 reject	reject	engine	possibleNegativeConstant/negativeConstant!insert	a - 1 zzz
-reject	accept	engine	negativeConstant/Minus_subroutineParameterLiteral	a - 1
+accept	accept	engine	negativeConstant/Minus_subroutineParameterLiteral	a - 1
 reject	reject	engine	alterTriggerStatement/Alter_triggerStatementBody	ALTER TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	createTriggerStatement/Create_triggerStatementBody	CREATE TRIGGER a ON a FOR a AS SELECT 1
 reject	reject	engine	createOrAlterTriggerStatement/triggerStatementBody	CREATE OR ALTER TRIGGER a ON a FOR a AS SELECT 1
@@ -11499,7 +11499,7 @@ accept	accept	engine	execStart/Execute	EXECUTE a
 accept	accept	engine	execStart/Execute!insert	EXECUTE zzz a
 accept	accept	engine	execStart/Exec	EXEC a
 accept	accept	engine	execStart/Exec!insert	EXEC zzz a
-reject	accept	engine	execStart/Exec!swap	EXECUTABLE a
+accept	accept	engine	execStart/Exec!swap	EXECUTABLE a
 accept	accept	engine	executeSpecification/execStart_execTypes	EXECUTE a
 accept	accept	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07	EXECUTE('a')
 reject	reject	engine	execTypes/LeftParenthesis_execStrTypes_RightParenthesis_(execStrE~be6dca07!drop-1	EXECUTE 'a')
@@ -11558,15 +11558,15 @@ reject	reject	engine	adhocDataSourceExecproc/adhocDataSource_Dot_procObjectRefer
 reject	reject	engine	adhocDataSourceExecproc(setParamList)?/%empty	EXECUTE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	adhocDataSourceExecproc(setParamList)?/setParamList	EXECUTE OPENDATASOURCE('a', 'a').a 1
 reject	reject	engine	adhocDataSourceExecproc(setParamList)?/setParamList!insert	EXECUTE OPENDATASOURCE('a', 'a').a 1 zzz
-reject	accept	engine	execProc/(procObjectReference|varObjectReference)_(setParamList)?	a
-reject	accept	engine	execProc(procObjectReference|varObjectReference)/procObjectReference	a
+accept	accept	engine	execProc/(procObjectReference|varObjectReference)_(setParamList)?	a
+accept	accept	engine	execProc(procObjectReference|varObjectReference)/procObjectReference	a
 reject	reject	engine	execProc(procObjectReference|varObjectReference)/varObjectReference	@a
 reject	reject	engine	execProc(procObjectReference|varObjectReference)/varObjectReference!insert	@a zzz
-reject	accept	engine	execProc(setParamList)?/%empty	a
-reject	accept	engine	execProc(setParamList)?/setParamList	a 1
-reject	accept	engine	procObjectReference/procedureReference	a
+accept	accept	engine	execProc(setParamList)?/%empty	a
+accept	accept	engine	execProc(setParamList)?/setParamList	a 1
+accept	accept	engine	procObjectReference/procedureReference	a
 reject	reject	engine	varObjectReference/variable	@a
-reject	accept	engine	procedureReference/schemaObjectFourPartName_procNumOpt	a
+accept	accept	engine	procedureReference/schemaObjectFourPartName_procNumOpt	a
 accept	accept	engine	execSqlList/stringOrGlobalVariableOrVariable_(Plus_stringOrGlobalVa~5a41a123	EXECUTE('a')
 accept	accept	engine	execSqlList(Plus_stringOrGlobalVariableOrVariable)*/%empty	EXECUTE('a')
 accept	accept	engine	execSqlList(Plus_stringOrGlobalVariableOrVariable)*/Plus_stringOrGlobalVariableOrVariable_(Plus_stringOrGlo~75dde6ae	EXECUTE('a' + 'a')
@@ -11585,24 +11585,24 @@ accept	accept	engine	integerOrRealOrNumeric/real	SELECT TOP 1E1 *
 reject	reject	engine	integerOrRealOrNumeric/real!insert	SELECT TOP 1E1 zzz *
 accept	accept	engine	integerOrRealOrNumeric/numeric	SELECT TOP 1.5 *
 reject	reject	engine	integerOrRealOrNumeric/numeric!insert	SELECT TOP 1.5 zzz *
-reject	accept	engine	setParamList/setParam_(Comma_setParam)*	a 1
-reject	accept	engine	setParamList(Comma_setParam)*/%empty	a 1
-reject	accept	engine	setParamList(Comma_setParam)*/Comma_setParam_(Comma_setParam)*	a 1, 1
+accept	accept	engine	setParamList/setParam_(Comma_setParam)*	a 1
+accept	accept	engine	setParamList(Comma_setParam)*/%empty	a 1
+accept	accept	engine	setParamList(Comma_setParam)*/Comma_setParam_(Comma_setParam)*	a 1, 1
 reject	reject	engine	setParamList(Comma_setParam)*/Comma_setParam_(Comma_setParam)*!drop-1	a 1 1
 reject	reject	engine	setParamList(Comma_setParam)*/Comma_setParam_(Comma_setParam)*!drop-2	a 1,
 reject	reject	engine	setParamList(Comma_setParam)*/Comma_setParam_(Comma_setParam)*!insert	a 1, 1 zzz
-reject	accept	engine	setParam/(variable_EqualsSign)?_((possibleNegativeConstantOrIden~f17903a3	a 1
-reject	accept	engine	setParam(variable_EqualsSign)?/%empty	a 1
+accept	accept	engine	setParam/(variable_EqualsSign)?_((possibleNegativeConstantOrIden~f17903a3	a 1
+accept	accept	engine	setParam(variable_EqualsSign)?/%empty	a 1
 reject	reject	engine	setParam(variable_EqualsSign)?/%empty!insert	a zzz 1
-reject	accept	engine	setParam(variable_EqualsSign)?/variable_EqualsSign	a @a = 1
+accept	accept	engine	setParam(variable_EqualsSign)?/variable_EqualsSign	a @a = 1
 reject	reject	engine	setParam(variable_EqualsSign)?/variable_EqualsSign!drop-1	a = 1
 reject	reject	engine	setParam(variable_EqualsSign)?/variable_EqualsSign!drop-2	a @a 1
 reject	reject	engine	setParam(variable_EqualsSign)?/variable_EqualsSign!insert	a @a = zzz 1
-reject	accept	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/possibleNegativeConstantOrIdentifier_((OUTPUT|OUT))?	a 1
-reject	accept	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/defaultLiteral	a DEFAULT
+accept	accept	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/possibleNegativeConstantOrIdentifier_((OUTPUT|OUT))?	a 1
+accept	accept	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/defaultLiteral	a DEFAULT
 reject	reject	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/defaultLiteral!insert	a DEFAULT zzz
-reject	accept	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/defaultLiteral!swap	a DEFAULT_DATABASE
-reject	accept	engine	setParam((OUTPUT|OUT))?/%empty	a 1
+accept	accept	engine	setParam((possibleNegativeConstantOrIdentifie~d72651a2)/defaultLiteral!swap	a DEFAULT_DATABASE
+accept	accept	engine	setParam((OUTPUT|OUT))?/%empty	a 1
 reject	reject	engine	setParam((OUTPUT|OUT))?/(OUTPUT|OUT)	a 1 OUTPUT
 reject	reject	engine	setParam((OUTPUT|OUT))?/(OUTPUT|OUT)!insert	a 1 OUTPUT zzz
 reject	reject	engine	setParam((OUTPUT|OUT))?/(OUTPUT|OUT)!swap	a 1 OUTPUT_OPTIONS
@@ -11613,9 +11613,9 @@ reject	reject	engine	setParam(OUTPUT|OUT)/OUT!swap	a 1 OUTER
 reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b	EXECUTE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b!truncate	EXECUTE OPENDATASOURCE('a', 'a'
 reject	reject	engine	adhocDataSource/OpenDataSource_LeftParenthesis_stringLiteral_Comma_stri~fff23d0b!insert	EXECUTE OPENDATASOURCE('a', 'a') zzz.a
-reject	accept	engine	procNumOpt/ProcNameSemicolon_integer	a; 1
-reject	accept	engine	procNumOpt/ProcNameSemicolon_integer!insert	a; 1 zzz
-reject	accept	engine	procNumOpt/%empty	a
+accept	accept	engine	procNumOpt/ProcNameSemicolon_integer	a; 1
+accept	accept	engine	procNumOpt/ProcNameSemicolon_integer!insert	a; 1 zzz
+accept	accept	engine	procNumOpt/%empty	a
 reject	reject	engine	execCtxtStmtType/User	EXECUTE('a') AS USER
 reject	reject	engine	execCtxtStmtType/LOGIN	EXECUTE('a') AS LOGIN
 reject	reject	engine	execCtxtStmtType/LOGIN!insert	EXECUTE('a') AS LOGIN zzz
@@ -13108,19 +13108,19 @@ accept	accept	engine	doubleDataType(max|integer)/integer	DECLARE @a DOUBLE PRECI
 reject	reject	engine	doubleDataType(max|integer)/integer!insert	DECLARE @a DOUBLE PRECISION(1 zzz)
 accept	accept	engine	multiPartIdentifier/identifierList	SELECT a
 accept	accept	engine	multiPartIdentifier/identifierList!insert	SELECT a zzz
-reject	accept	engine	identifierList/identifier_(identifierListElement)*	a
-reject	accept	engine	identifierList/identifierListElement_(identifierListElement)*	.a
+accept	accept	engine	identifierList/identifier_(identifierListElement)*	a
+accept	accept	engine	identifierList/identifierListElement_(identifierListElement)*	.a
 reject	reject	engine	identifierList/identifierListElement_(identifierListElement)*!drop-2	.
-reject	accept	engine	identifierList/identifierListElement_(identifierListElement)*!insert	.a zzz
-reject	accept	engine	identifierList(identifierListElement)*/%empty	a
-reject	accept	engine	identifierList(identifierListElement)*/identifierListElement_(identifierListElement)*	a.a
+accept	accept	engine	identifierList/identifierListElement_(identifierListElement)*!insert	.a zzz
+accept	accept	engine	identifierList(identifierListElement)*/%empty	a
+accept	accept	engine	identifierList(identifierListElement)*/identifierListElement_(identifierListElement)*	a.a
 reject	reject	engine	identifierList(identifierListElement)*/identifierListElement_(identifierListElement)*!drop-2	a.
-reject	accept	engine	identifierList(identifierListElement)*/identifierListElement_(identifierListElement)*!insert	a.a zzz
-reject	accept	engine	identifierListElement/Dot_(Dot)*_identifier	.a
-reject	accept	engine	identifierListElement(Dot)*/%empty	.a
-reject	accept	engine	identifierListElement(Dot)*/%empty!insert	.zzz a
-reject	accept	engine	identifierListElement(Dot)*/Dot_(Dot)*	..a
-reject	accept	engine	identifierListElement(Dot)*/Dot_(Dot)*!insert	..zzz a
+accept	accept	engine	identifierList(identifierListElement)*/identifierListElement_(identifierListElement)*!insert	a.a zzz
+accept	accept	engine	identifierListElement/Dot_(Dot)*_identifier	.a
+accept	accept	engine	identifierListElement(Dot)*/%empty	.a
+accept	accept	engine	identifierListElement(Dot)*/%empty!insert	.zzz a
+accept	accept	engine	identifierListElement(Dot)*/Dot_(Dot)*	..a
+accept	accept	engine	identifierListElement(Dot)*/Dot_(Dot)*!insert	..zzz a
 accept	accept	engine	dataTypeSchemaObjectName/identifier_(Dot_identifier)?	DECLARE @a a
 accept	accept	engine	dataTypeSchemaObjectName(Dot_identifier)?/%empty	DECLARE @a a
 accept	accept	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier	DECLARE @a a.a
@@ -13160,7 +13160,7 @@ reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifi
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!drop-2	ALTER SERVER AUDIT a WHERE a.a.= 1
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!truncate	ALTER SERVER AUDIT a WHERE a.a.
 reject	reject	engine	oneOrTwoOrThreePartObjectName(Dot_identifier)?/Dot_identifier!insert	ALTER SERVER AUDIT a WHERE a.a.a zzz = 1
-reject	accept	engine	schemaObjectFourPartName/identifierList	a
+accept	accept	engine	schemaObjectFourPartName/identifierList	a
 accept	accept	engine	booleanExpression/booleanExpressionWithFlags	IF 1 = 1 SELECT 1
 reject	reject	engine	booleanExpression/booleanExpressionWithFlags!truncate	IF 1 =
 reject	reject	engine	booleanExpression/booleanExpressionWithFlags!insert	IF 1 = 1 zzz SELECT 1
@@ -14349,9 +14349,9 @@ reject	reject	engine	nonEmptyStringOrIdentifier/identifier	CREATE DATABASE a ON(
 reject	reject	engine	nonEmptyStringOrIdentifier/identifier!insert	CREATE DATABASE a ON(NAME = a zzz)
 accept	reject	engine	nonQuotedIdentifier/Identifier	GOTO a
 reject	reject	engine	sqlCommandIdentifier/SqlCommandIdentifier	ALTER DATABASE $(a) SET RESTRICTED_USER
-reject	accept	engine	identifier/Identifier	a
-reject	accept	engine	identifier/QuotedIdentifier	[a]
-reject	accept	engine	identifier/QuotedIdentifier!insert	[a] zzz
+accept	accept	engine	identifier/Identifier	a
+accept	accept	engine	identifier/QuotedIdentifier	[a]
+accept	accept	engine	identifier/QuotedIdentifier!insert	[a] zzz
 accept	accept	engine	seedIncrement/(Minus|Plus)?_integerOrNumeric	ALTER SEQUENCE a CACHE 1
 reject	reject	engine	seedIncrement/(Minus|Plus)?_integerOrNumeric!insert	ALTER SEQUENCE a CACHE 1 zzz
 accept	accept	engine	seedIncrement(Minus|Plus)?/%empty	ALTER SEQUENCE a CACHE 1
@@ -14360,12 +14360,12 @@ reject	reject	engine	seedIncrement(Minus|Plus)?/Minus	ALTER SEQUENCE a CACHE - 1
 reject	reject	engine	seedIncrement(Minus|Plus)?/Minus!insert	ALTER SEQUENCE a CACHE - zzz 1
 reject	reject	engine	seedIncrement(Minus|Plus)?/Plus	ALTER SEQUENCE a CACHE + 1
 reject	reject	engine	seedIncrement(Minus|Plus)?/Plus!insert	ALTER SEQUENCE a CACHE + zzz 1
-reject	accept	engine	subroutineParameterLiteral/integer	a - 1
-reject	accept	engine	subroutineParameterLiteral/numeric	a - 1.5
+accept	accept	engine	subroutineParameterLiteral/integer	a - 1
+accept	accept	engine	subroutineParameterLiteral/numeric	a - 1.5
 reject	reject	engine	subroutineParameterLiteral/numeric!insert	a - 1.5 zzz
-reject	accept	engine	subroutineParameterLiteral/real	a - 1E1
+accept	accept	engine	subroutineParameterLiteral/real	a - 1E1
 reject	reject	engine	subroutineParameterLiteral/real!insert	a - 1E1 zzz
-reject	accept	engine	subroutineParameterLiteral/moneyLiteral	a - $1
+accept	accept	engine	subroutineParameterLiteral/moneyLiteral	a - $1
 reject	reject	engine	subroutineParameterLiteral/moneyLiteral!insert	a - $1 zzz
 accept	accept	engine	max/MAX	DECLARE @a a(MAX)
 accept	accept	engine	binaryOrIntegerOrStringOrVariable/binary	IF CONTAINS(*, 'a', LANGUAGE 0x00) SELECT 1
@@ -14378,18 +14378,18 @@ reject	reject	engine	binaryOrIntegerOrStringOrVariable/variable!insert	IF CONTAI
 accept	accept	engine	integerOrNumeric/integer	ALTER SEQUENCE a CACHE 1
 reject	reject	engine	integerOrNumeric/numeric	ALTER SEQUENCE a CACHE 1.5
 reject	reject	engine	integerOrNumeric/numeric!insert	ALTER SEQUENCE a CACHE 1.5 zzz
-reject	accept	engine	literal/integer	a 1
-reject	accept	engine	literal/numeric	a 1.5
+accept	accept	engine	literal/integer	a 1
+accept	accept	engine	literal/numeric	a 1.5
 reject	reject	engine	literal/numeric!insert	a 1.5 zzz
-reject	accept	engine	literal/real	a 1E1
+accept	accept	engine	literal/real	a 1E1
 reject	reject	engine	literal/real!insert	a 1E1 zzz
-reject	accept	engine	literal/moneyLiteral	a $1
+accept	accept	engine	literal/moneyLiteral	a $1
 reject	reject	engine	literal/moneyLiteral!insert	a $1 zzz
-reject	accept	engine	literal/binary	a 0x00
+accept	accept	engine	literal/binary	a 0x00
 reject	reject	engine	literal/binary!insert	a 0x00 zzz
-reject	accept	engine	literal/stringLiteral	a 'a'
+accept	accept	engine	literal/stringLiteral	a 'a'
 reject	reject	engine	literal/stringLiteral!insert	a 'a' zzz
-reject	accept	engine	literal/nullLiteral	a NULL
+accept	accept	engine	literal/nullLiteral	a NULL
 reject	reject	engine	literal/nullLiteral!insert	a NULL zzz
 reject	reject	engine	literal/nullLiteral!swap	a NULLIF
 reject	reject	engine	literal/globalVariableOrVariableReference	a @a
@@ -14402,28 +14402,28 @@ reject	reject	engine	literal/odbcLiteral!drop-4	a { a 'a'
 reject	reject	engine	literal/odbcLiteral!insert	a { a 'a' } zzz
 reject	reject	engine	globalVariableOrVariableReference/Variable	a @a
 reject	reject	engine	variable/Variable	@a
-reject	accept	engine	integer/Integer	a 1
-reject	accept	engine	numeric/Numeric	a 1.5
-reject	accept	engine	real/Real	a 1E1
+accept	accept	engine	integer/Integer	a 1
+accept	accept	engine	numeric/Numeric	a 1.5
+accept	accept	engine	real/Real	a 1E1
 accept	reject	engine	nonEmptyString/stringLiteral	COPY INTO a FROM 'a'
 accept	reject	engine	defaultValueLiteral/literal	COPY INTO a(a DEFAULT 1) FROM 'a'
 accept	reject	engine	defaultValueLiteral/signedIntegerOrReal	COPY INTO a(a DEFAULT 1) FROM 'a'
-reject	accept	engine	stringLiteral/AsciiStringLiteral	a 'a'
-reject	accept	engine	stringLiteral/UnicodeStringLiteral	a N'a'
+accept	accept	engine	stringLiteral/AsciiStringLiteral	a 'a'
+accept	accept	engine	stringLiteral/UnicodeStringLiteral	a N'a'
 reject	reject	engine	stringLiteral/UnicodeStringLiteral!insert	a N'a' zzz
 accept	accept	engine	stringLiteralOrVariable/stringLiteral	SELECT * FROM a FOR SYSTEM_TIME AS OF 'a'
 accept	accept	engine	stringLiteralOrVariable/variable	SELECT * FROM a FOR SYSTEM_TIME AS OF @a
 accept	accept	engine	stringLiteralOrVariable/variable!insert	SELECT * FROM a FOR SYSTEM_TIME AS OF @a zzz
-reject	accept	engine	binary/HexLiteral	a 0x00
-reject	accept	engine	nullLiteral/Null	a NULL
-reject	accept	engine	moneyLiteral/Money	a $1
+accept	accept	engine	binary/HexLiteral	a 0x00
+accept	accept	engine	nullLiteral/Null	a NULL
+accept	accept	engine	moneyLiteral/Money	a $1
 reject	reject	engine	odbcLiteral/LeftCurly_Identifier_(AsciiStringLiteral|UnicodeStringL~f22f4285	a { a 'a' }
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/AsciiStringLiteral	a { a 'a' }
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/AsciiStringLiteral!truncate	a { a
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/AsciiStringLiteral!insert	a { a 'a' zzz }
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/UnicodeStringLiteral	a { a N'a' }
 reject	reject	engine	odbcLiteral(AsciiStringLiteral|UnicodeStringLiteral)/UnicodeStringLiteral!insert	a { a N'a' zzz }
-reject	accept	engine	defaultLiteral/Default	a DEFAULT
+accept	accept	engine	defaultLiteral/Default	a DEFAULT
 accept	accept	engine	onOffOptionValue/optionOnOff	ALTER SERVER CONFIGURATION SET SOFTNUMA ON
 reject	reject	engine	stringOrDefaultLiteralOptionValue/(stringLiteral|defaultLiteral)	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'
 reject	reject	engine	stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)/stringLiteral	ALTER SERVER CONFIGURATION SET DIAGNOSTICS LOG a = 'a'

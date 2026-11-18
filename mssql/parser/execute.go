@@ -7,6 +7,87 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// parseImpliedExecStmt parses a procedure called by name without EXEC as a
+// batch's first statement. batch (TSql160.g:158) takes optSimpleExecute
+// (TSql160.g:567) before its statements, so
+//
+//	my_proc 1, 2
+//	my_proc
+//
+// runs the procedure `my_proc` when it is the batch's first statement, and
+// the same text elsewhere in a batch is not a statement at all. The predicate
+// on optSimpleExecute keeps its word from being DISABLE, ENABLE, MOVE, GET,
+// RECEIVE, SEND, THROW or RENAME: those start statements of their own, which
+// parseStmt reads first.
+//
+// Grammar: TSql160.g:567 optSimpleExecute, TSql160.g:26318 execProc, which is
+// ( procObjectReference | varObjectReference ) ( setParamList )? — the
+// procedure name with an optional ;number (procNumOpt, TSql160.g:26505) and
+// the arguments of EXEC, without EXEC's WITH options. Parse reads it only for
+// a batch that is the call and nothing else; why is beside that check.
+func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
+	loc := p.pos()
+	stmt := &nodes.ExecStmt{
+		Implied: true,
+		Loc:     nodes.Loc{Start: loc, End: -1},
+	}
+
+	// procedureReference (TSql160.g:26352): schemaObjectFourPartName
+	// procNumOpt. The name may start with dots, as `.a` does. execProc's other
+	// form, varObjectReference (TSql160.g:26342), names a variable, which a
+	// batch beginning here cannot declare: SQL Server reports 137 for it.
+	parts, err := p.parseMultiPartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	ref := &nodes.TableRef{Loc: nodes.Loc{Start: loc, End: -1}}
+	assignObjectRefParts(ref, parts)
+	if p.cur.Type == ';' && p.peekNext().Type == tokICONST {
+		p.advance() // consume ;
+		p.advance() // consume number
+	}
+	ref.Loc.End = p.prevEnd()
+	stmt.Name = ref
+
+	// setParamList (TSql160.g:26422), the arguments EXEC takes.
+	if p.impliedExecHasParams() {
+		args, err := p.parseExecArgList(true)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range args {
+			arg, ok := item.(*nodes.ExecArg)
+			if !ok {
+				continue
+			}
+			// A variable is the batch's to declare, and nothing declares one
+			// before the batch's first statement: SQL Server reports 137 for
+			// `my_proc @a`. A name such as `my_proc @a = 1` is a parameter's,
+			// not a variable (ExecArg.Name), and `@@ROWCOUNT` is the server's.
+			if v, ok := arg.Value.(*nodes.VariableRef); ok && !strings.HasPrefix(v.Name, "@@") {
+				return nil, p.newParseError(v.Loc.Start, "Must declare the scalar variable \""+v.Name+"\".")
+			}
+		}
+		if len(args) > 0 {
+			stmt.Args = &nodes.List{Items: args}
+		}
+	}
+
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// impliedExecHasParams reports whether the current token can begin the
+// setParamList of a procedure called by name, the way parseExecStmt reads the
+// arguments of EXEC.
+func (p *Parser) impliedExecHasParams() bool {
+	switch p.cur.Type {
+	case tokEOF, ';', ')', kwGO, kwEND:
+		return false
+	}
+	return !p.isStatementStart()
+}
+
 // parseExecStmt parses an EXEC/EXECUTE statement.
 //
 // BNF: mssql/parser/bnf/execute-transact-sql.bnf

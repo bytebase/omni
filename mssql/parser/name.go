@@ -108,6 +108,15 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 	}
 
 	// Assign parts based on count: object, schema.object, db.schema.object, server.db.schema.object
+	assignObjectRefParts(ref, parts)
+
+	ref.Loc.End = p.prevEnd()
+	return ref, nil
+}
+
+// assignObjectRefParts assigns the dot-separated parts of a name to a
+// TableRef: object, schema.object, db.schema.object, server.db.schema.object.
+func assignObjectRefParts(ref *nodes.TableRef, parts []string) {
 	switch len(parts) {
 	case 1:
 		ref.Object = parts[0]
@@ -124,9 +133,41 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 		ref.Schema = parts[2]
 		ref.Object = parts[3]
 	}
+}
 
-	ref.Loc.End = p.prevEnd()
-	return ref, nil
+// parseMultiPartIdentifier parses identifierList (TSql160.g:30325) into its
+// parts, keeping the empty parts of a name such as `.a`, `..a` or `a..b`:
+//
+//	identifierList = identifier ( identifierListElement )*
+//	               | identifierListElement ( identifierListElement )*
+//	identifierListElement = Dot Dot* identifier
+//
+// Each dot after the first joins the part to the previous one; the rest name
+// an empty part, so `a..b` is [a, "", b] and `..a` is ["", "", a].
+func (p *Parser) parseMultiPartIdentifier() ([]string, error) {
+	var parts []string
+	for i := 0; ; i++ {
+		dots := 0
+		for p.cur.Type == '.' {
+			dots++
+			p.advance()
+		}
+		if i > 0 && dots == 0 {
+			return parts, nil
+		}
+		empties := dots
+		if i > 0 {
+			empties-- // the dot that joins this part to the previous one
+		}
+		for j := 0; j < empties; j++ {
+			parts = append(parts, "")
+		}
+		id, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, id)
+	}
 }
 
 // parseSequenceRef parses a qualified sequence name for NEXT VALUE FOR.

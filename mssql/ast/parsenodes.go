@@ -1169,6 +1169,7 @@ func (n *WaitForStmt) stmtNode() {}
 type ExecStmt struct {
 	Name         *TableRef
 	ModuleVar    string   // EXEC @module_name_var: the variable holding the module name
+	Implied      bool     // a procedure called by name without EXEC as the batch's first statement (optSimpleExecute, TSql160.g:567)
 	Args         *List    // list of ExecArg
 	ReturnVar    string   // @var = EXEC ...
 	ExecString   ExprNode // EXEC ('string') dynamic SQL
