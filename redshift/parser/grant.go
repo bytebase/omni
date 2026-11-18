@@ -84,6 +84,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	}
 	grantOptionFor := false
 	grantOptionWithoutFor := false
+	grantOptionWithFor := false
 	roleOptionName := "" // non-empty => "<name> OPTION FOR" form
 	if p.cur.Type == GRANT {
 		// r_REVOKE's scoped forms write 'GRANT_OPTION' as one token, and the
@@ -96,6 +97,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		grantOptionFor = true
 		if p.cur.Type == FOR {
 			p.advance()
+			grantOptionWithFor = true
 		} else {
 			grantOptionWithoutFor = true
 		}
@@ -145,6 +147,11 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		return p.parseRedshiftDebugStmt(loc, false)
 	}
 	if p.redshiftScopedPermissionStart() {
+		// r_REVOKE's scoped alternatives take `GRANT OPTION` only, without FOR,
+		// and no other option prefix.
+		if roleOptionName != "" || grantOptionWithFor {
+			return nil, p.syntaxErrorAtCur()
+		}
 		privs, _, err := p.parseRedshiftGrantPrivileges()
 		if err != nil {
 			return nil, err
@@ -163,6 +170,9 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	}
 	switch {
 	case p.cur.Type == FOR:
+		if roleOptionName != "" || grantOptionWithFor {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.finishRedshiftScopedPermission(loc, false, grantOptionFor, privs)
 	case p.cur.Type == ON:
 		p.advance()
@@ -1383,10 +1393,7 @@ func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOpti
 		}
 		grantOption = grantOption || read
 	}
-	behavior := nodes.DropBehavior(0)
-	if !isGrant {
-		behavior = nodes.DropBehavior(p.parseOptDropBehavior())
-	}
+	// A scoped permission ends after its grantees: no CASCADE, no RESTRICT.
 	return &nodes.GrantStmt{
 		IsGrant:     isGrant,
 		Targtype:    nodes.ACL_TARGET_SCOPED,
@@ -1395,7 +1402,6 @@ func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOpti
 		Privileges:  privs,
 		Grantees:    grantees,
 		GrantOption: grantOption,
-		Behavior:    behavior,
 		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
@@ -1817,7 +1823,7 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 	result := &nodes.List{Items: []nodes.Node{priv}}
 	columnListOnly := false
 	for p.cur.Type == ',' {
-		if p.peekNext().Type == '(' && redshiftColumnListPrivilege(priv) {
+		if p.peekNext().Type == '(' && redshiftColumnListPrivilege(priv) && (len(result.Items) == 1 || columnListOnly) {
 			// r_GRANT's column-level alternative repeats the column list after
 			// the privilege:
 			//   { SELECT | UPDATE } ( column [, ...] ) [ , ( column [, ...] ) ... ]

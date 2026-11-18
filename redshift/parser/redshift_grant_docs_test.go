@@ -311,6 +311,11 @@ func TestRedshiftGrantScopedTemplates(t *testing.T) {
 		// Scoped grantees are a username or ROLE.
 		"GRANT CREATE FOR SCHEMAS IN DATABASE d TO GROUP g",
 		"GRANT CREATE FOR SCHEMAS IN DATABASE d TO PUBLIC",
+		// A scoped revoke takes GRANT OPTION only, and ends after its grantees.
+		"REVOKE ADMIN OPTION FOR ALTER FOR TEMPLATES IN SCHEMA s FROM a",
+		"REVOKE GRANT OPTION FOR CREATE FOR SCHEMAS IN DATABASE d FROM a",
+		"REVOKE ALTER FOR TEMPLATES IN SCHEMA s FROM a CASCADE",
+		"REVOKE ALTER FOR TEMPLATES IN SCHEMA s FROM a RESTRICT",
 		// The TEMPLATES alternative takes ALTER, DROP, USAGE or ALL.
 		"GRANT SELECT FOR TEMPLATES IN SCHEMA s TO a",
 	} {
@@ -347,6 +352,7 @@ func TestRedshiftGrantRepeatedColumnLists(t *testing.T) {
 		"GRANT INSERT(a), (b) ON t TO a",
 		"GRANT ALL(a), (b) ON t TO a",
 		"GRANT SELECT(a), (b), INSERT ON t TO a",
+		"GRANT INSERT, SELECT(a), (b) ON t TO u",
 		"GRANT SELECT(a), () ON t TO a",
 	} {
 		if _, err := Parse(sql); err == nil {
