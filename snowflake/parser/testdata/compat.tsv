@@ -35853,7 +35853,7 @@ reject	undocumented	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE
 accept	accept	docs	createExternalTable/CREATE_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_QNAME_((_ID_DATA~1a9b9507	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_QNAME_((_ID_DATA_TY~189965be	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable/CREATE_EXTERNAL_TABLE_(IF_NOT_EXISTS)?_QNAME_((_ID_DATA~6eba8521	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_QNAME_USING_TEMPLAT~2343ff9b	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable/CREATE_(OR_REPLACE)?_EXTERNAL_TABLE_QNAME_USING_TEMPLAT~88dbbbfd	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
 accept	accept	docs	createExternalTable(OR_REPLACE)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
 reject	undocumented	docs	createExternalTable(OR_REPLACE)?/%empty!insert	CREATE zzz EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
 accept	accept	docs	createExternalTable(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
@@ -35888,58 +35888,53 @@ reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExtern
 reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!truncate	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS
 reject	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!insert	CREATE EXTERNAL TABLE a(a INT AS 1, a INT AS 1 zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	undocumented	docs	createExternalTable(,_ID_DATA_TYPE_AS_EXPR_createExterna~7acba5a0)*/,_ID_DATA_TYPE_AS_EXPR_(createExternalTable_inlineConst~d297f116!swap	CREATE EXTERNAL TABLE a(a INT AS 1, a INTEGER AS 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)	CREATE EXTERNAL TABLE a PARTITION BY(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-1	CREATE EXTERNAL TABLE a BY(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-2	CREATE EXTERNAL TABLE a PARTITION(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-3	CREATE EXTERNAL TABLE a PARTITION BY a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-4	CREATE EXTERNAL TABLE a PARTITION BY() LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-5	CREATE EXTERNAL TABLE a PARTITION BY(a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!truncate	CREATE EXTERNAL TABLE a PARTITION BY(a
-accept	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!insert	CREATE EXTERNAL TABLE a PARTITION BY(a) zzz LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!swap	CREATE EXTERNAL TABLE a PARTITION_TYPE BY(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(,_ID)*/%empty	CREATE EXTERNAL TABLE a PARTITION BY(a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID)*/%empty!insert	CREATE EXTERNAL TABLE a PARTITION BY(a zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*	CREATE EXTERNAL TABLE a PARTITION BY(a, a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE EXTERNAL TABLE a PARTITION BY(a a) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE EXTERNAL TABLE a PARTITION BY(a,) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!truncate	CREATE EXTERNAL TABLE a PARTITION BY(a,
-reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!insert	CREATE EXTERNAL TABLE a PARTITION BY(a, a zzz) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a)
+reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a BY(a)
+reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION(a)
+reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY a)
+reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY()
+reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a
+accept	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a) zzz
+reject	undocumented	docs	createExternalTable(PARTITION_BY_(_ID_(,_ID)*_))?/PARTITION_BY_(_ID_(,_ID)*_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION_TYPE BY(a)
+accept	accept	docs	createExternalTable(,_ID)*/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a)
+reject	undocumented	docs	createExternalTable(,_ID)*/%empty!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a zzz)
+accept	accept	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a, a)
+reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a a)
+reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a,)
+reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!truncate	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a,
+reject	undocumented	docs	createExternalTable(,_ID)*/,_ID_(,_ID)*!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PARTITION BY(a, a zzz)
 accept	accept	docs	createExternalTable(WITH)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
 accept	undocumented	docs	createExternalTable(WITH)?/%empty!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) zzz LOCATION = @a
 accept	accept	docs	createExternalTable(WITH)?/WITH	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) WITH LOCATION = @a
 reject	undocumented	docs	createExternalTable(WITH)?/WITH!truncate	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1)
 accept	undocumented	docs	createExternalTable(WITH)?/WITH!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) WITH zzz LOCATION = @a
 accept	undocumented	docs	createExternalTable(WITH)?/WITH!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) WITHIN LOCATION = @a
-accept	accept	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/%empty!insert	CREATE EXTERNAL TABLE a LOCATION = @a zzz FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a = TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE =
-accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = TRUE zzz FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a LOCATION = @a REGION = TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(TRUE|FALSE)/TRUE	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(TRUE|FALSE)/TRUE!swap	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = TRUNCATE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(TRUE|FALSE)/FALSE	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = FALSE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(TRUE|FALSE)/FALSE!insert	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = FALSE zzz FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(TRUE|FALSE)/FALSE!swap	CREATE EXTERNAL TABLE a LOCATION = @a REFRESH_ON_CREATE = FAMILIES FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a LOCATION = @a AUTO_REFRESH = TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a AUTO_REFRESH TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a AUTO_REFRESH = FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!truncate	CREATE EXTERNAL TABLE a LOCATION = @a AUTO_REFRESH =
-accept	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a LOCATION = @a AUTO_REFRESH = TRUE zzz FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a LOCATION = @a AUTO_RESUME = TRUE FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(PATTERN_=_STRING)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING	CREATE EXTERNAL TABLE a LOCATION = @a PATTERN = 's' FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a = 's' FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a PATTERN 's' FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a PATTERN = FILE_FORMAT =(FORMAT_NAME = 's')
-reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!truncate	CREATE EXTERNAL TABLE a LOCATION = @a PATTERN =
-accept	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!insert	CREATE EXTERNAL TABLE a LOCATION = @a PATTERN = 's' zzz FILE_FORMAT =(FORMAT_NAME = 's')
-accept	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!swap	CREATE EXTERNAL TABLE a LOCATION = @a PAT_POLICY = 's' FILE_FORMAT =(FORMAT_NAME = 's')
+accept	accept	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = TRUE
+reject	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a = TRUE
+accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE TRUE
+reject	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE =
+accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = TRUE zzz
+accept	undocumented	docs	createExternalTable(REFRESH_ON_CREATE_=_(TRUE|FALSE))?/REFRESH_ON_CREATE_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REGION = TRUE
+accept	accept	docs	createExternalTable(TRUE|FALSE)/TRUE	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = TRUE
+accept	undocumented	docs	createExternalTable(TRUE|FALSE)/TRUE!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = TRUNCATE
+accept	accept	docs	createExternalTable(TRUE|FALSE)/FALSE	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = FALSE
+accept	undocumented	docs	createExternalTable(TRUE|FALSE)/FALSE!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = FALSE zzz
+accept	undocumented	docs	createExternalTable(TRUE|FALSE)/FALSE!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a REFRESH_ON_CREATE = FAMILIES
+accept	accept	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AUTO_REFRESH = TRUE
+accept	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AUTO_REFRESH TRUE
+reject	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AUTO_REFRESH =
+accept	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AUTO_REFRESH = TRUE zzz
+accept	undocumented	docs	createExternalTable(AUTO_REFRESH_=_(TRUE|FALSE))?/AUTO_REFRESH_=_(TRUE|FALSE)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AUTO_RESUME = TRUE
+accept	accept	docs	createExternalTable(PATTERN_=_STRING)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PATTERN = 's'
+reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a = 's'
+reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PATTERN 's'
+reject	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PATTERN =
+accept	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PATTERN = 's' zzz
+accept	undocumented	docs	createExternalTable(PATTERN_=_STRING)?/PATTERN_=_STRING!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a PAT_POLICY = 's'
 accept	accept	docs	createExternalTable(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~36bd1f8d)/FORMAT_NAME_=_STRING	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~36bd1f8d)/FORMAT_NAME_=_STRING!truncate	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME =
 accept	undocumented	docs	createExternalTable(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~36bd1f8d)/FORMAT_NAME_=_STRING!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's' zzz)
@@ -36012,13 +36007,12 @@ reject	undocumented	docs	createExternalTable(createExternalTable_formatTypeOptio
 reject	undocumented	docs	createExternalTable(createExternalTable_formatTypeOptions_PARQUET)?/createExternalTable_formatTypeOptions_PARQUET!truncate	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(TYPE = PARQUET COMPRESSION =
 accept	undocumented	docs	createExternalTable(createExternalTable_formatTypeOptions_PARQUET)?/createExternalTable_formatTypeOptions_PARQUET!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(TYPE = PARQUET COMPRESSION = AUTO zzz)
 accept	undocumented	docs	createExternalTable(createExternalTable_formatTypeOptions_PARQUET)?/createExternalTable_formatTypeOptions_PARQUET!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(TYPE = PARQUET COMPUTE = AUTO)
-accept	accept	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC = 's'
-reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') = 's'
-reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC 's'
-reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC =
-accept	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC = 's' zzz
-accept	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') AWS_SNS_TOPIC_ARN = 's'
+accept	accept	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AWS_SNS_TOPIC = 's'
+reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AWS_SNS_TOPIC 's'
+reject	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AWS_SNS_TOPIC =
+accept	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AWS_SNS_TOPIC = 's' zzz
+accept	undocumented	docs	createExternalTable(AWS_SNS_TOPIC_=_STRING)?/AWS_SNS_TOPIC_=_STRING!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a AWS_SNS_TOPIC_ARN = 's'
 accept	accept	docs	createExternalTable(COPY_GRANTS)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
 accept	accept	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COPY GRANTS
 accept	undocumented	docs	createExternalTable(COPY_GRANTS)?/COPY_GRANTS!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a GRANTS
@@ -36034,63 +36028,63 @@ reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS
 reject	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COPY =(GRANTS
 accept	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COPY =(GRANTS) zzz
 accept	undocumented	docs	createExternalTable(COPY_=_(_GRANTS_))?/COPY_=_(_GRANTS_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a CORE =(GRANTS)
-accept	accept	docs	createExternalTable(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENT = 's'
-reject	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENT 's'
-reject	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENT =
-accept	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENT = 's' zzz
-accept	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') COMMENTS = 's'
-accept	accept	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY a ON(VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ACCESS POLICY a ON(VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW POLICY a ON(VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS a ON(VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-4	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY ON(VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-5	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY a(VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-6	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY a ON VALUE)
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-7	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY a ON()
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-8	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY a ON(VALUE
-accept	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROW ACCESS POLICY a ON(VALUE) zzz
-reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') ROWS_PER_RESULTSET ACCESS POLICY a ON(VALUE)
-accept	accept	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's')
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')(a = 's')
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG a = 's')
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(= 's')
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-4	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a 's')
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-5	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a =)
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's'
-accept	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's') zzz
-reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAGS(a = 's')
-accept	accept	docs	createExternalTable(,_QNAME_=_STRING)*/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's')
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/%empty!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's' zzz)
-accept	accept	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's', a = 's')
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's' a = 's')
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's', = 's')
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's', a 's')
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's', a =)
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's', a =
-reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') TAG(a = 's', a = 's' zzz)
-accept	accept	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
-accept	accept	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') CONTACT(a = a)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH(a = a)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT a = a)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(= a)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a a)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a =)
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a
-accept	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a) zzz
-reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITHIN CONTACT(a = a)
-accept	accept	docs	createExternalTable(,_ID_=_ID)*/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a)
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/%empty!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a zzz)
-accept	accept	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a, a = a)
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a a = a)
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a, = a)
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a, a a)
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a, a =)
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a, a =
-reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') WITH CONTACT(a = a, a = a zzz)
+accept	accept	docs	createExternalTable(COMMENT_=_STRING)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COMMENT = 's'
+reject	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COMMENT 's'
+reject	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COMMENT =
+accept	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COMMENT = 's' zzz
+accept	undocumented	docs	createExternalTable(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a COMMENTS = 's'
+accept	accept	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY a ON(VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ACCESS POLICY a ON(VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW POLICY a ON(VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS a ON(VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY ON(VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY a(VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-6	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY a ON VALUE)
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-7	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY a ON()
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!drop-8	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY a ON(VALUE
+accept	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROW ACCESS POLICY a ON(VALUE) zzz
+reject	undocumented	docs	createExternalTable(WITH?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_))?/(WITH)?_ROW_ACCESS_POLICY_QNAME_ON_(_VALUE_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a ROWS_PER_RESULTSET ACCESS POLICY a ON(VALUE)
+accept	accept	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's')
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a(a = 's')
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG a = 's')
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(= 's')
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a 's')
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a =)
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!drop-6	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's'
+accept	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's') zzz
+reject	undocumented	docs	createExternalTable(WITH?_TAG_(_QNAME_=_STRING_(,_QNAME_~a914d37b)?/(WITH)?_TAG_(_QNAME_=_STRING_(,_QNAME_=_STRING)*_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAGS(a = 's')
+accept	accept	docs	createExternalTable(,_QNAME_=_STRING)*/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's')
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/%empty!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's' zzz)
+accept	accept	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's', a = 's')
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's' a = 's')
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's', = 's')
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's', a 's')
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's', a =)
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!truncate	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's', a =
+reject	undocumented	docs	createExternalTable(,_QNAME_=_STRING)*/,_QNAME_=_STRING_(,_QNAME_=_STRING)*!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a TAG(a = 's', a = 's' zzz)
+accept	accept	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a CONTACT(a = a)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH(a = a)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT a = a)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(= a)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a a)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-6	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a =)
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!drop-7	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a
+accept	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a) zzz
+reject	undocumented	docs	createExternalTable(WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_))?/WITH_CONTACT_(_ID_=_ID_(,_ID_=_ID)*_)!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITHIN CONTACT(a = a)
+accept	accept	docs	createExternalTable(,_ID_=_ID)*/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a)
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/%empty!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a zzz)
+accept	accept	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a, a = a)
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a a = a)
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a, = a)
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a, a a)
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a, a =)
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!truncate	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a, a =
+reject	undocumented	docs	createExternalTable(,_ID_=_ID)*/,_ID_=_ID_(,_ID_=_ID)*!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a WITH CONTACT(a = a, a = a zzz)
 accept	accept	docs	createExternalTable(IF_NOT_EXISTS)?/%empty	CREATE EXTERNAL TABLE a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	undocumented	docs	createExternalTable(IF_NOT_EXISTS)?/%empty!insert	CREATE EXTERNAL TABLE zzz a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE EXTERNAL TABLE IF NOT EXISTS a LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
@@ -36107,6 +36101,17 @@ accept	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT
 reject	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT_=_DELTA!drop-3	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') TABLE_FORMAT =
 accept	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT_=_DELTA!insert	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') TABLE_FORMAT = DELTA zzz
 accept	undocumented	docs	createExternalTable(TABLE_FORMAT_=_DELTA)?/TABLE_FORMAT_=_DELTA!swap	CREATE EXTERNAL TABLE a LOCATION = @a PARTITION_TYPE = USER_SPECIFIED FILE_FORMAT =(FORMAT_NAME = 's') TABULAR = DELTA
+accept	accept	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/%empty	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a
+accept	accept	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-1	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a =(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-2	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT(FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-3	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT = FORMAT_NAME = 's')
+reject	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-4	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT =(= 's')
+accept	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-5	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME 's')
+reject	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-6	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME =)
+reject	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!drop-7	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's'
+accept	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!insert	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's') zzz
+accept	undocumented	docs	createExternalTable(FILE_FORMAT_=_(_(FORMAT_NAME_=_STRIN~6b82114e)?/FILE_FORMAT_=_(_(FORMAT_NAME_=_STRING|(TYPE_=_CSV_cre~3~6d4ed8c9!swap	CREATE EXTERNAL TABLE a USING TEMPLATE(SELECT 1) LOCATION = @a FILE_PATH =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable_inlineConstraint/(NOT_NULL)?_(CONSTRAINT_ID)?_(UNIQUE|PRIMARY_KEY|(FOREI~c54ba56d	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 accept	accept	docs	createExternalTable_inlineConstraint(NOT_NULL)?/%empty	CREATE EXTERNAL TABLE a(a INT AS 1 UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
 reject	undocumented	docs	createExternalTable_inlineConstraint(NOT_NULL)?/%empty!insert	CREATE EXTERNAL TABLE a(a INT AS 1 zzz UNIQUE) LOCATION = @a FILE_FORMAT =(FORMAT_NAME = 's')
