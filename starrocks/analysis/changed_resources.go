@@ -117,32 +117,26 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			break
 		}
 		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
+		changes.DMLStatements = append(changes.DMLStatements, statementText(nodeText(n, text)))
 
 	case *ast.UpdateStmt:
 		// StarRocks updates a single target; FROM names read sources, not write
 		// targets.
 		addTable(n.Target, false)
 		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
+		changes.DMLStatements = append(changes.DMLStatements, statementText(nodeText(n, text)))
 
 	case *ast.DeleteStmt:
 		// USING names read sources, as FROM does for UPDATE.
 		addTable(n.Target, false)
 		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
+		changes.DMLStatements = append(changes.DMLStatements, statementText(nodeText(n, text)))
 
 	case *ast.ExplainStmt:
 		// Only EXPLAIN ANALYZE runs its statement; the plan-only levels write
 		// nothing.
 		if n.Type == "ANALYZE" && n.Query != nil {
-			// The DML text starts at the child, not at DESC ANALYZE.
-			childText := text
-			if loc := ast.NodeLoc(n.Query); loc.IsValid() && loc.Start >= 0 &&
-				loc.End <= len(text) && loc.Start < loc.End {
-				childText = text[loc.Start:loc.End]
-			}
-			inner := ExtractChangedResources(n.Query, database, childText)
+			inner := ExtractChangedResources(n.Query, database, text)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
 			changes.DMLCount += inner.DMLCount
@@ -160,12 +154,7 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			changes.Resources = append(changes.Resources, ChangedResource{Database: taskDB, DatabaseOnly: true})
 		}
 		if n.Statement != nil {
-			stmtText := text
-			if loc := ast.NodeLoc(n.Statement); loc.IsValid() && loc.Start >= 0 &&
-				loc.End <= len(text) && loc.Start < loc.End {
-				stmtText = text[loc.Start:loc.End]
-			}
-			inner := ExtractChangedResources(n.Statement, taskDatabase, stmtText)
+			inner := ExtractChangedResources(n.Statement, taskDatabase, text)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
 			changes.DMLCount += inner.DMLCount
@@ -216,6 +205,16 @@ func objectName(name *ast.ObjectName, defaultDatabase string) (string, string) {
 		database = parts[len(parts)-2]
 	}
 	return database, parts[len(parts)-1]
+}
+
+// nodeText returns the source text a node covers, so a nested DML statement
+// does not carry its task or plan wrapper into DMLStatements.
+func nodeText(node ast.Node, text string) string {
+	loc := ast.NodeLoc(node)
+	if loc.IsValid() && loc.Start >= 0 && loc.End <= len(text) && loc.Start < loc.End {
+		return text[loc.Start:loc.End]
+	}
+	return text
 }
 
 // statementText returns the text of a statement, ensuring it ends with a

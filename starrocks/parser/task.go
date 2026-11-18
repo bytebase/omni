@@ -528,6 +528,15 @@ func attachInto(node ast.Node, into *ast.IntoOutfileClause) {
 	}
 }
 
+// startsSetOp reports whether kind starts a set-operation tail.
+func startsSetOp(kind TokenKind) bool {
+	switch kind {
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwMINUS:
+		return true
+	}
+	return false
+}
+
 // parseTraceQuery parses the queryRelation optimizerTrace wraps: a SELECT,
 // WITH ... query, or parenthesized query, with any set operations attached.
 // EXPLAIN takes any statement, but TRACE takes a query only.
@@ -537,6 +546,9 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 		selectStmt, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
+		}
+		if selectStmt.Into != nil && startsSetOp(p.cur.Kind) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseSetOpTail(selectStmt)
 	case kwWITH:
@@ -549,6 +561,9 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 			selectStmt, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
+			}
+			if selectStmt.Into != nil && startsSetOp(p.cur.Kind) {
+				return nil, p.syntaxErrorAtCur()
 			}
 			query, err := p.parseSetOpTail(selectStmt)
 			if err != nil {

@@ -93,6 +93,7 @@ func TestExtractChangedResourcesDMLAccounting(t *testing.T) {
 		{name: "delete is a DML statement", statement: "DELETE FROM t WHERE a = 1;", wantDML: 1, wantTexts: []string{"DELETE FROM t WHERE a = 1;"}},
 		{name: "an analyzed insert records the inner DML", statement: "DESC ANALYZE INSERT INTO t SELECT 1;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT 1;"}},
 		{name: "a task records the submitted DML", statement: "SUBMIT TASK AS INSERT INTO t SELECT 1;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT 1;"}},
+		{name: "a task records an analyzed inner DML", statement: "SUBMIT TASK AS DESC ANALYZE INSERT INTO t SELECT 1;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT 1;"}},
 		{name: "DDL is neither", statement: "CREATE TABLE t (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1;"},
 		{
 			name:        "a script accumulates both",
