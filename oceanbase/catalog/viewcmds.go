@@ -152,6 +152,15 @@ func (c *Catalog) createMaterializedViewLog(stmt *nodes.CreateMaterializedViewLo
 		return err
 	}
 	key := toLower(stmt.Table.Name)
+	var referenceColumns []string
+	if stmt.With != nil {
+		referenceColumns = stmt.With.ReferenceColumns
+	}
+	for _, name := range referenceColumns {
+		if db.Tables[key] != nil && db.Tables[key].GetColumn(name) == nil {
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
+		}
+	}
 	if db.MaterializedViewLogsKnown[key] && db.MaterializedViewLogs[key] && !stmt.OrReplace {
 		return errDupTable(stmt.Table.Name)
 	}

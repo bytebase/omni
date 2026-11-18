@@ -161,6 +161,7 @@ func TestExecMaterializedViewLogTarget(t *testing.T) {
 	}{
 		{"CREATE MATERIALIZED VIEW LOG ON missing;", true},
 		{"CREATE MATERIALIZED VIEW LOG ON v;", true},
+		{"CREATE MATERIALIZED VIEW LOG ON t WITH (missing);", true},
 		{"CREATE MATERIALIZED VIEW LOG ON t;", false},
 		{"ALTER MATERIALIZED VIEW LOG ON missing NOPARALLEL;", true},
 		{"ALTER MATERIALIZED VIEW LOG ON v NOPARALLEL;", true},
@@ -283,5 +284,25 @@ func TestExecRenameOntoMaterializedView(t *testing.T) {
 		if len(results) != 1 || results[0].Error == nil {
 			t.Errorf("%q: error = %v, want a duplicate name", sql, results)
 		}
+	}
+}
+
+// TestExecRenameMaterializedViewAtomic pins that a RENAME TABLE with an
+// invalid later pair leaves an earlier materialized-view move untouched.
+func TestExecRenameMaterializedViewAtomic(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE MATERIALIZED VIEW mv AS SELECT 1 AS a;", nil); err != nil {
+		t.Fatal(err)
+	}
+	results, err := c.Exec("RENAME TABLE mv TO mv2, missing TO x;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("RENAME TABLE mv TO mv2, missing TO x: error = %v, want a failure", results)
+	}
+	db := c.GetDatabase("test")
+	if db.Views["mv"] == nil || db.Views["mv2"] != nil {
+		t.Errorf("a failed RENAME TABLE moved the materialized view: mv=%v mv2=%v", db.Views["mv"], db.Views["mv2"])
 	}
 }

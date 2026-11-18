@@ -276,6 +276,7 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 // statement drops.
 func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 	b.Order = walk.Lookups
+	var cleared []walk.Key
 	for _, t := range v.Views {
 		b.Next()
 		r, st := b.ref(t)
@@ -291,7 +292,7 @@ func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 		case b.w.materialized[k]:
 			if f == walk.Present {
 				b.Set(k, walk.Absent, "")
-				delete(b.w.materialized, k)
+				cleared = append(cleared, k)
 			} else if !v.IfExists {
 				b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 			}
@@ -302,6 +303,9 @@ func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 		case !v.IfExists && f == walk.Absent:
 			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 		}
+	}
+	for _, k := range cleared {
+		delete(b.w.materialized, k)
 	}
 	return true
 }
