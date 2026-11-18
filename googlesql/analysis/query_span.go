@@ -1027,12 +1027,24 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 	case *ast.SetOperation:
 		return w.visitSetOp(n)
 	case *ast.TableClause:
-		// The `TABLE t` query primary (table_clause_reserved): a read of the named
-		// table (or of a TVF's table arguments), output columns unresolved.
-		w.recordTableClauseTables(n)
-		if n.Table != nil {
-			w.buildTableExpr(n.Table)
+		// The `TABLE t` query primary (table_clause_reserved) is `SELECT * FROM t`:
+		// build the clause's source relation (which records the table / TVF
+		// arguments and walks pivot/sample expressions) and project it as a bare
+		// star, so the clause's output carries the same lineage as the explicit
+		// SELECT * would — including a CTE's resolved columns.
+		prevFrom, prevLeaves := w.fromAliases, w.leaves
+		w.fromAliases = map[string]bool{}
+		w.leaves = &leafSet{}
+		fromRels := w.buildFromRelations([]ast.Node{n.Table})
+		// A TVF's `TABLE u` argument names a table the call reads; buildFromItem
+		// walks a TVF's ordinary expressions only.
+		w.recordSourceTVFArgs(n.Table)
+		w.walkPredicate(n.Where)
+		w.fromAliases, w.leaves = prevFrom, prevLeaves
+		if w.tablesOnly {
+			return nil
 		}
+		return w.starProjColumns(allColumns(fromRels), nil)
 	}
 	return nil
 }

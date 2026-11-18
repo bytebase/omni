@@ -671,3 +671,52 @@ func containsString(list []string, s string) bool {
 	}
 	return false
 }
+
+// TestGetQuerySpan_TableClauseProjection holds the `TABLE t` query primary to
+// the explicit query it means: `SELECT * FROM t`. The clause's output carries
+// the same columns and lineage — including a CTE's resolved columns, which a
+// span that discarded the relation would lose.
+func TestGetQuerySpan_TableClauseProjection(t *testing.T) {
+	for _, c := range []struct{ clause, explicit string }{
+		{"TABLE t", "SELECT * FROM t"},
+		{"TABLE ds.t", "SELECT * FROM ds.t"},
+		{"TABLE t WHERE a > 1", "SELECT * FROM t WHERE a > 1"},
+		{"TABLE a UNION ALL TABLE b", "SELECT * FROM a UNION ALL SELECT * FROM b"},
+		{"WITH c AS (SELECT secret FROM t) TABLE c", "WITH c AS (SELECT secret FROM t) SELECT * FROM c"},
+	} {
+		t.Run(c.clause, func(t *testing.T) {
+			got, err := GetQuerySpan(c.clause, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.clause, err)
+			}
+			want, err := GetQuerySpan(c.explicit, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.explicit, err)
+			}
+			if !eqStrings(resultNames(got), resultNames(want)) {
+				t.Errorf("results = %v, want %v (as %q)", resultNames(got), resultNames(want), c.explicit)
+			}
+			for i := range got.Results {
+				if i >= len(want.Results) {
+					break
+				}
+				g, w := got.Results[i].SourceColumns, want.Results[i].SourceColumns
+				if len(g) != len(w) {
+					t.Errorf("result %d sources = %v, want %v", i, g, w)
+					continue
+				}
+				for j := range g {
+					if g[j] != w[j] {
+						t.Errorf("result %d source %d = %+v, want %+v", i, j, g[j], w[j])
+					}
+				}
+			}
+			if !eqStrings(tableNames(got), tableNames(want)) {
+				t.Errorf("tables = %v, want %v", tableNames(got), tableNames(want))
+			}
+			if !eqStrings(predicateColumnNames(got), predicateColumnNames(want)) {
+				t.Errorf("predicate columns = %v, want %v", predicateColumnNames(got), predicateColumnNames(want))
+			}
+		})
+	}
+}

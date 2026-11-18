@@ -842,6 +842,12 @@ func TestParseShow(t *testing.T) {
 		t.Errorf("Target = %q, want MATERIALIZED VIEWS", got)
 	}
 
+	// from_path_expression takes maybe_slashed_or_dashed_path_expression, so a
+	// dashed BigQuery project is one path component.
+	if got := parseShow(t, "SHOW TABLES FROM my-project.ds"); len(got.From.Parts) != 2 || got.From.Parts[0] != "my-project" {
+		t.Errorf("From = %+v, want [my-project ds]", got.From.Parts)
+	}
+
 	// A SHOW may carry a pipe suffix (sql_statement_body_maybe_pipe_suffix).
 	n := parseOneStmt(t, "SHOW TABLES |> WHERE a > 1")
 	if _, ok := n.(*ast.PipeStatement); !ok {

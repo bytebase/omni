@@ -83,6 +83,7 @@ func TestClassifySQL(t *testing.T) {
 		{"create proto bundle", "CREATE PROTO BUNDLE (`a.b.C`)", DDL},
 		{"alter proto bundle", "ALTER PROTO BUNDLE INSERT (`a.b.C`)", DDL},
 		{"grant to role", "GRANT SELECT ON TABLE t TO ROLE r", DDL},
+		{"undrop schema", "UNDROP SCHEMA s", DDL},
 		{"grant role to role", "GRANT ROLE a TO ROLE b", DDL},
 		{"revoke role from role", "REVOKE ROLE a FROM ROLE b", DDL},
 

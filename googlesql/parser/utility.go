@@ -490,9 +490,10 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	}
 	stmt.Loc.End = p.prev.Loc.End
 
-	// from_path_expression?
+	// from_path_expression? — FROM maybe_slashed_or_dashed_path_expression, so a
+	// dashed BigQuery project (`SHOW TABLES FROM my-project.ds`) is one path.
 	if _, ok := p.match(kwFROM); ok {
-		from, err := p.parsePathExpr()
+		from, err := p.parseTablePath()
 		if err != nil {
 			return nil, err
 		}

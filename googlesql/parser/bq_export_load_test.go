@@ -456,6 +456,13 @@ func TestExportMetadata(t *testing.T) {
 		t.Errorf("Path = %q, want my-project.ds.t", got)
 	}
 
+	// An OPTIONS value may embed a subquery; it is filled (so lineage can descend
+	// into it) and a malformed one fails the strict parse, like EXPORT DATA /
+	// EXPORT MODEL option values.
+	s = parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1))").(*ast.ExportMetadataStmt)
+	assertSubqueriesFilled(t, s)
+	assertReject(t, "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1 FROM a b c))")
+
 	// EXPORT TABLE FUNCTION METADATA is the grammar's own action error.
 	assertReject(t, "EXPORT TABLE FUNCTION METADATA FROM ds.t")
 	assertReject(t, "EXPORT METADATA FROM ds.t")

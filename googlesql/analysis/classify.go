@@ -200,6 +200,13 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 	case *ast.GrantStmt, *ast.RevokeStmt:
 		return DDL
 
+	// UNDROP restores a dropped schema, which is schema-changing DDL
+	// (undrop_statement sits among the DDL alternatives of
+	// sql_statement_body_no_pipe_suffix). The legacy listener never saw the form
+	// — its AST had no node for it — so there is no parity case to mirror.
+	case *ast.UndropStmt:
+		return DDL
+
 	// GQL graph query (parser-gql node: `GRAPH <name> <ops>`). The legacy
 	// queryTypeListener has NO case for gql_statement, so it falls through its
 	// switch to `default: base.QueryTypeUnknown` — a bare GQL graph read is

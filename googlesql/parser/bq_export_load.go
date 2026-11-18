@@ -55,8 +55,10 @@ func (p *Parser) parseExportStmt() (ast.Node, error) {
 		// subqueries; wrap for fillSubqueries like the other statements here.
 		return p.parseStmtWithSubqueries(p.parseExportModel)
 	default:
-		// EXPORT TABLE [FUNCTION] METADATA FROM … (export_metadata_statement).
-		return p.parseExportMetadata()
+		// EXPORT TABLE [FUNCTION] METADATA FROM … (export_metadata_statement). Its
+		// OPTIONS values may embed subqueries, so wrap for fillSubqueries like the
+		// DATA and MODEL branches.
+		return p.parseStmtWithSubqueries(p.parseExportMetadata)
 	}
 }
 
