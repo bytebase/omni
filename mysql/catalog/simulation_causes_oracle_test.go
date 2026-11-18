@@ -29,6 +29,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 	t.Cleanup(reset)
 
 	oneTable := "CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"
+	// A table with no primary key, for the one a statement adds beside a column.
+	noPrimaryKey := "CREATE TABLE a (c INT, d INT, KEY idx_d (d))"
 	cases := []struct {
 		name  string
 		setup []string
@@ -188,6 +190,33 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1054,
 		},
 		{
+			// A key is judged against the column a later command adds, with the
+			// definition that command writes: a prefix past its length is 1089.
+			name:  "ADD KEY with a prefix past the length of a later-added column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(x(11)), ADD x VARCHAR(10)",
+			code:  1089,
+		},
+		{
+			// A TEXT part with no length is 1170.
+			name:  "ADD KEY over a later-added TEXT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(x), ADD x TEXT",
+			code:  1170,
+		},
+		{
+			name:  "ADD SPATIAL KEY over a later-added nullable column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL KEY(x), ADD x GEOMETRY",
+			code:  1252,
+		},
+		{
+			name:  "ADD PRIMARY KEY over a later-added column",
+			setup: []string{noPrimaryKey},
+			stmt:  "ALTER TABLE a ADD PRIMARY KEY(x2), ADD x2 INT",
+			code:  0,
+		},
+		{
 			// The rename's source is resolved against the table the statement
 			// found, so it answers before the key's columns are read.
 			name:  "ADD KEY over a column the statement adds but a rename cannot take",
@@ -282,6 +311,17 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{"CREATE TABLE a (b INT) PARTITION BY RANGE(b) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10))"},
 			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 VALUES LESS THAN (10) ENGINE InnoDB (SUBPARTITION s0 ENGINE nosuch))",
 			code:  1286,
+		},
+		{
+			// A definition's own errors answer before the table is looked up.
+			name: "ADD PARTITION over a name its bound reads as a column on no table",
+			stmt: "ALTER TABLE a ADD PARTITION (PARTITION p0 VALUES LESS THAN (b))",
+			code: 1054,
+		},
+		{
+			name: "REORGANIZE PARTITION naming an unknown engine on no table",
+			stmt: "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 ENGINE nosuch)",
+			code: 1286,
 		},
 		{
 			name:  "REBUILD PARTITION of a table with none",
@@ -547,6 +587,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 				db := c.GetDatabase("d")
 				if db == nil || db.GetTable("a") == nil || db.GetTable("a").Partitioning != nil {
 					t.Fatalf("catalog kept the table partitioned after %s", tc.stmt)
+				}
+			}
+			if tc.code == 0 && tc.stmt == "ALTER TABLE a ADD PRIMARY KEY(x2), ADD x2 INT" {
+				tbl := c.GetDatabase("d").GetTable("a")
+				if col := tbl.GetColumn("x2"); col == nil || col.Nullable {
+					t.Fatalf("catalog left x2 nullable after %s", tc.stmt)
 				}
 			}
 		})

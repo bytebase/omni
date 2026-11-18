@@ -160,8 +160,53 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	if err := checkKeysOnFinalTable(tbl, stmt.Commands); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
+	return nil
+}
+
+// checkKeysOnFinalTable re-checks the keys a statement added once every command
+// has run. MySQL judges a key against the table the statement leaves, where a
+// column a later command adds carries the definition the check needs: a TEXT
+// part without a length is 1170, a prefix longer than the column 1089, and a
+// SPATIAL key's part must be NOT NULL (1252). A primary key also makes the
+// columns it names NOT NULL, which its own command could not do while a later
+// column was still missing (measured on mysql:8.0.46).
+func checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		for _, con := range alterConstraints(cmd) {
+			if con == nil {
+				continue
+			}
+			switch con.Type {
+			case nodes.ConstrPrimaryKey:
+				cols := extractColumnNames(con)
+				if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+					return err
+				}
+				for _, name := range cols {
+					if col := tbl.GetColumn(name); col != nil {
+						col.Nullable = false
+					}
+				}
+			case nodes.ConstrUnique, nodes.ConstrIndex:
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+					return err
+				}
+			case nodes.ConstrSpatialIndex:
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	return nil
 }
 
@@ -219,6 +264,14 @@ func alterDefinitions(commands []*nodes.AlterTableCmd) error {
 		}
 		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
 			if err := validateStorageEngine(cmd.Option.Value); err != nil {
+				return err
+			}
+		}
+		// A partition definition's own errors answer ahead of the table it would
+		// be added to, as ADD's do: `ALTER TABLE missing ADD PARTITION (PARTITION
+		// p0 VALUES LESS THAN (b))` is 1054, not 1146 (mysql:8.0.46).
+		if cmd.Type == nodes.ATAddPartition || cmd.Type == nodes.ATReorganizePartition {
+			if err := validatePartitionDefinitions(cmd.PartitionDefs); err != nil {
 				return err
 			}
 		}
@@ -1464,12 +1517,6 @@ var _ = strings.ToLower
 
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	// The definitions are judged before the table they are added to: an unknown
-	// column in a bound (1054) or an engine the server does not ship (1286)
-	// answers ahead of 1505 on a table with no partitions (mysql:8.0.46).
-	if err := validatePartitionDefinitions(cmd.PartitionDefs); err != nil {
-		return err
-	}
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
@@ -1562,13 +1609,6 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	// As with ADD PARTITION, the new definitions are judged before the table
-	// they replace partitions of: 1054 for a name its bound reads as a column
-	// and 1286 for an engine the server does not ship answer ahead of 1505
-	// (mysql:8.0.46).
-	if err := validatePartitionDefinitions(cmd.PartitionDefs); err != nil {
-		return err
-	}
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
