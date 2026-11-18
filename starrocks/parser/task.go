@@ -25,6 +25,17 @@ func (p *Parser) parseSubmitTask(startLoc ast.Loc) (ast.Node, error) {
 	}
 
 	stmt := &ast.SubmitTaskStmt{Loc: startLoc}
+	for _, prop := range p.hints {
+		if strings.EqualFold(prop.Key, "warehouse") {
+			return nil, &ParseError{
+				Position: prop.Loc.Start,
+				End:      prop.Loc.End,
+				Message:  "task properties may not set warehouse",
+			}
+		}
+	}
+	stmt.Properties = append(stmt.Properties, p.hints...)
+	p.hints = nil
 
 	// The name is optional. PROPERTIES and SCHEDULE are non-reserved
 	// identifiers, so they are a name unless the token after them opens a
@@ -86,7 +97,7 @@ clausesDone:
 		p.strictCTAS = false
 		if err == nil {
 			ctas, ok := stmt.Statement.(*ast.CreateTableStmt)
-			if !ok || ctas.AsSelect == nil || ctas.External || ctas.Like != nil ||
+			if !ok || ctas.AsSelect == nil || ctas.Temporary || ctas.External || ctas.Like != nil ||
 				ctas.Engine != "" || len(ctas.Rollup) > 0 || len(ctas.BrokerProperties) > 0 ||
 				len(ctas.Columns) > 0 || len(ctas.Constraints) > 0 {
 				return nil, p.syntaxErrorAtCur()

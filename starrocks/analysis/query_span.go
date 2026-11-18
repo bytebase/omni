@@ -354,21 +354,16 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	// its WITH scoped inside the parens, so the spine stops at ParenSelect.
 	if with := leftmostWith(n); with != nil {
 		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-		w.enterScope(scope)
-		defer w.leaveScope(scope)
 		for _, cte := range with.CTEs {
-			if cte == nil {
+			if cte == nil || cte.Name == "" {
 				continue
 			}
-			if cte.Query != nil {
-				w.visitSetOpArm(cte.Query, false)
-			}
-			if cte.Name != "" {
-				name := strings.ToLower(cte.Name)
-				scope.names[name] = true
-				w.cteNames[name]++
-			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
 		}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
 	}
 	w.visitSetOpArms(n, outermost)
 }

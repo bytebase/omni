@@ -62,6 +62,10 @@ type Parser struct {
 	// strictCTAS makes parseCreateTable enforce createTableAsSelectStatement's
 	// clause order and cardinality, which a SUBMIT TASK body needs.
 	strictCTAS bool
+
+	// hints holds SET_VAR values read from optimizer hints before they are
+	// skipped; SUBMIT TASK merges them into its properties.
+	hints []*ast.Property
 }
 
 // typeReplay is a recorded parseDataType result, the state the parse ended
@@ -130,15 +134,61 @@ type rawQuery struct {
 func (p *Parser) nextToken() Token {
 	tok := p.lexer.NextToken()
 	for tok.Kind == tokHintStart {
-		for tok.Kind != tokHintEnd && tok.Kind != tokEOF {
+		var hint []Token
+		for {
 			tok = p.lexer.NextToken()
+			if tok.Kind == tokHintEnd || tok.Kind == tokEOF {
+				break
+			}
+			hint = append(hint, tok)
 		}
 		if tok.Kind == tokEOF {
 			return tok
 		}
+		p.recordHint(hint)
 		tok = p.lexer.NextToken()
 	}
 	return tok
+}
+
+// recordHint reads the SET_VAR assignments from one optimizer hint. Other hint
+// names carry no task properties and are ignored.
+func (p *Parser) recordHint(tokens []Token) {
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i].Kind != kwSET_VAR || i+1 >= len(tokens) || tokens[i+1].Kind != int('(') {
+			continue
+		}
+		i += 2
+		for i < len(tokens) && tokens[i].Kind != int(')') {
+			keyTok := tokens[i]
+			if !isIdentifierToken(keyTok.Kind) {
+				break
+			}
+			i++
+			if i >= len(tokens) || tokens[i].Kind != int('=') {
+				break
+			}
+			i++
+			if i >= len(tokens) || tokens[i].Kind == int(')') || tokens[i].Kind == int(',') {
+				break
+			}
+			valTok := tokens[i]
+			value := valTok.Str
+			if valTok.Kind == int('-') && i+1 < len(tokens) {
+				i++
+				value = "-" + tokens[i].Str
+			}
+			i++
+			p.hints = append(p.hints, &ast.Property{
+				Key:   keyTok.Str,
+				Value: value,
+				Loc:   ast.Loc{Start: keyTok.Loc.Start, End: valTok.Loc.End},
+			})
+			if i < len(tokens) && tokens[i].Kind == int(',') {
+				i++
+			}
+		}
+	}
 }
 
 // advance consumes the current token and moves to the next one.

@@ -113,6 +113,7 @@ func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY date_trunc(c, 'day') AS SELECT 1 AS c",
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY LIST c AS SELECT 1 AS c",
+		"SUBMIT TASK AS CREATE TEMPORARY TABLE t AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY 1 AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) (PARTITION p VALUES LESS THAN (1),) AS SELECT 1 AS c",
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) (PARTITION p VALUES LESS THAN (1) PARTITION q VALUES LESS THAN (2)) AS SELECT 1 AS c",
@@ -251,5 +252,20 @@ func TestSubmitTaskKeywordlessPartitionIsList(t *testing.T) {
 	ctas := stmt.Statement.(*ast.CreateTableStmt)
 	if ctas.PartitionBy == nil || ctas.PartitionBy.Type != "LIST" {
 		t.Errorf("PartitionBy = %+v, want Type LIST", ctas.PartitionBy)
+	}
+}
+
+func TestSubmitTaskSetVarHint(t *testing.T) {
+	file, errs := parseForTest("SUBMIT /*+ SET_VAR(insert_timeout=100000) */ TASK AS INSERT INTO t SELECT 1")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	stmt := file.Stmts[0].(*ast.SubmitTaskStmt)
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "insert_timeout" || stmt.Properties[0].Value != "100000" {
+		t.Errorf("Properties = %+v, want insert_timeout=100000", stmt.Properties)
+	}
+
+	if _, errs := parseForTest("SUBMIT /*+ SET_VAR(warehouse=x) */ TASK AS INSERT INTO t SELECT 1"); len(errs) == 0 {
+		t.Error("hinted warehouse parsed, want rejected")
 	}
 }
