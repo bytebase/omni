@@ -509,6 +509,7 @@ type AlterTableAction struct {
 	Column     *ColumnDef
 	ColName    string
 	Constraint *ConstraintDef
+	Index      *InlineIndexDef // ADD INDEX ...
 	DataType   *DataType
 	Collation  string    // ALTER COLUMN ... COLLATE collation_name
 	Options    *List     // generic options list (e.g., SET options, REBUILD options, WITH options)
@@ -548,6 +549,7 @@ const (
 	ATDropPeriod                // DROP PERIOD FOR SYSTEM_TIME, or a bare name after it in the DROP list (in Names)
 	ATSplitRange                // SPLIT RANGE (boundary_value)
 	ATMergeRange                // MERGE RANGE (boundary_value)
+	ATAddIndex                  // ADD INDEX name [UNIQUE] [CLUSTERED|NONCLUSTERED] (...) [WHERE ...]
 )
 
 // AlterColumnOption represents a typed ADD/DROP option in ALTER COLUMN.
@@ -1763,10 +1765,11 @@ type LikeExpr struct {
 func (n *LikeExpr) nodeTag()  {}
 func (n *LikeExpr) exprNode() {}
 
-// IsExpr represents IS NULL, IS NOT NULL, etc.
+// IsExpr represents IS NULL, IS NOT NULL, IS [NOT] DISTINCT FROM ..., etc.
 type IsExpr struct {
 	Expr     ExprNode
 	TestType IsTestType
+	Value    ExprNode // right operand of IS [NOT] DISTINCT FROM, nil otherwise
 	Loc      Loc
 }
 
@@ -1783,6 +1786,8 @@ const (
 	IsNotTrue
 	IsFalse
 	IsNotFalse
+	IsDistinctFrom    // IS DISTINCT FROM (SQL Server 2022), right operand in Value
+	IsNotDistinctFrom // IS NOT DISTINCT FROM (SQL Server 2022), right operand in Value
 )
 
 // ExistsExpr represents EXISTS (subquery).
@@ -3618,30 +3623,6 @@ type RenameStmt struct {
 
 func (n *RenameStmt) nodeTag()  {}
 func (n *RenameStmt) stmtNode() {}
-
-// CreateExternalTableAsSelectStmt represents a CREATE EXTERNAL TABLE AS SELECT (CETAS) statement.
-//
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-external-table-as-select-transact-sql
-//
-//	CREATE EXTERNAL TABLE { [ [ database_name . [ schema_name ] . ] | schema_name . ] table_name }
-//	    [ (column_name [ , ...n ] ) ]
-//	    WITH (
-//	        LOCATION = 'hdfs_folder' | '<prefix>://<path>[:<port>]' ,
-//	        DATA_SOURCE = external_data_source_name ,
-//	        FILE_FORMAT = external_file_format_name
-//	        [ , <reject_options> [ , ...n ] ]
-//	    )
-//	    AS <select_statement>
-type CreateExternalTableAsSelectStmt struct {
-	Name    *TableRef // table name
-	Columns *List     // optional column name list (*ColumnDef nodes holding a name only)
-	Options *List     // WITH options
-	Query   Node      // the SELECT statement
-	Loc     Loc
-}
-
-func (n *CreateExternalTableAsSelectStmt) nodeTag()  {}
-func (n *CreateExternalTableAsSelectStmt) stmtNode() {}
 
 // CreateTableCloneStmt represents a CREATE TABLE AS CLONE OF statement (Fabric).
 //

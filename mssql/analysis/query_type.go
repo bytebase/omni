@@ -66,7 +66,7 @@ func classifyQueryType(node ast.Node, allSystems bool) QueryType {
 		*ast.CreateAggregateStmt, *ast.DropAggregateStmt,
 		*ast.CreateAssemblyStmt, *ast.AlterAssemblyStmt,
 		*ast.CreateMaterializedViewStmt, *ast.AlterMaterializedViewStmt,
-		*ast.CreateExternalTableAsSelectStmt, *ast.CreateTableCloneStmt,
+		*ast.CreateTableCloneStmt,
 		*ast.CreateTableAsSelectStmt, *ast.CreateRemoteTableAsSelectStmt,
 		*ast.CreateFederationStmt, *ast.AlterFederationStmt, *ast.DropFederationStmt, *ast.UseFederationStmt,
 		*ast.AlterServerConfigurationStmt:

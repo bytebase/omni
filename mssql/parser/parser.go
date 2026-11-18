@@ -1213,13 +1213,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			if p.cur.Type == kwTABLE {
 				p.advance() // consume TABLE
-				// Could be CETAS: CREATE EXTERNAL TABLE ... WITH (...) AS SELECT
-				// Try CETAS parser which falls back to regular external table if no AS SELECT
-				cetasStmt, err := p.parseCreateExternalTableOrCETAS(loc)
+				externalStmt, err := p.parseCreateExternalTableStmt(loc)
 				if err != nil {
 					return nil, err
 				}
-				return cetasStmt, nil
+				return externalStmt, nil
 			}
 			if p.cur.Type == kwFILE {
 				p.advance() // consume FILE
