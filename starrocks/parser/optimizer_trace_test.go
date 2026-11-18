@@ -82,6 +82,18 @@ func TestOptimizerTraceRejectsExpressionSubquery(t *testing.T) {
 
 // queryStatement's explain prefix precedes a queryRelation, so explained DML
 // is not a valid INSERT source or CTAS body.
+// WITH INSERT sources use the same query-level OUTFILE placement rules.
+func TestInsertWithSourceOutfile(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT INTO t WITH c AS (SELECT 1) SELECT * FROM c INTO OUTFILE 'x' UNION SELECT 2",
+		"INSERT INTO t WITH c AS (SELECT 1) SELECT * FROM c UNION (SELECT 2 INTO OUTFILE 'x')",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
 func TestExplainedDMLRejectedInQueryStatement(t *testing.T) {
 	for _, sql := range []string{
 		"INSERT INTO dst EXPLAIN INSERT INTO inner_dst SELECT 1",

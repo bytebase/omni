@@ -140,6 +140,7 @@ type PartitionDesc struct {
 	FuncExprs      []string         // if partition columns include function expressions
 	Partitions     []*PartitionItem // individual partition definitions
 	HasDefinitions bool             // a second parenthesized definition list was present
+	RangeExplicit  bool             // RANGE was written, not inferred from a keywordless form
 	Loc            Loc
 }
 

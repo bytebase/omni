@@ -702,7 +702,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			if err != nil {
 				return err
 			}
-			if p.strictCTAS && partDesc.Type == "RANGE" && !partDesc.HasDefinitions {
+			if p.strictCTAS && partDesc.RangeExplicit && !partDesc.HasDefinitions {
 				return p.syntaxErrorAtCur()
 			}
 			stmt.PartitionBy = partDesc
@@ -852,6 +852,7 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	switch p.cur.Kind {
 	case kwRANGE:
 		pd.Type = "RANGE"
+		pd.RangeExplicit = true
 		p.advance()
 	case kwLIST:
 		pd.Type = "LIST"

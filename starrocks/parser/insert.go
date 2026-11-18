@@ -153,6 +153,9 @@ modifiers:
 		if !isQueryBody(withStmt) {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if err := p.settleQueryInto(withStmt); err != nil {
+			return nil, err
+		}
 		stmt.Query = withStmt
 
 	case kwTRACE:
