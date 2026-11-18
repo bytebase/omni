@@ -300,10 +300,8 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 	case *ast.UnnestExpr:
 		// A table function's outputs are the columns it declares, or, without a
-		// column alias list, the arguments it returns rows from.
-		if t.Alias == "" {
-			return
-		}
+		// column alias list, the arguments it returns rows from. Without an
+		// alias its columns are unqualified.
 		names := t.Columns
 		if len(names) == 0 {
 			for _, arg := range t.Args {
@@ -321,9 +319,6 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: cols})
 	case *ast.RbIterateExpr:
-		if t.Alias == "" {
-			return
-		}
 		name := t.Column
 		if name == "" {
 			name = tableFunctionArgumentName(t.Arg)
@@ -369,6 +364,11 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position in
 
 	// Check for unqualified star: *
 	if _, ok := expr.(*ast.StarExpr); ok {
+		// A source whose columns are known only when the query runs — a table
+		// read from a location — cannot be expanded: the star stays as it is.
+		if sc.hasUnknownColumns() {
+			return []ast.ExprNode{target}
+		}
 		return r.expandStar(sc)
 	}
 

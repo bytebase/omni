@@ -44,3 +44,23 @@ func TestDeparseExternalTableExprs(t *testing.T) {
 		}
 	}
 }
+
+// TestResolverStarOverExternalSource: a star over a source whose columns are
+// known only when the query runs stays a star, instead of expanding to nothing.
+func TestResolverStarOverExternalSource(t *testing.T) {
+	const sql = "SELECT * FROM SOURCE(TYPE = 's') AS e"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*ast.SelectStmt)
+	RewriteSelectStmt(sel)
+	resolver := &Resolver{Lookup: func(string) *ResolverTable { return nil }}
+	resolved := resolver.Resolve(sel)
+	if len(resolved.TargetList) != 1 {
+		t.Fatalf("got %d targets, want the star kept as one", len(resolved.TargetList))
+	}
+	if _, ok := resolved.TargetList[0].(*ast.StarExpr); !ok {
+		t.Errorf("target = %T, want the star kept", resolved.TargetList[0])
+	}
+}

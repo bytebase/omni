@@ -141,10 +141,14 @@ func nameTaken(name string) string {
 // wrongKind reads "`v` is a view, not a table.", and "`v` isn't a table."
 // when the kind it is is not known.
 func wrongKind(name, kind, need string) string {
-	if kind == "" {
-		return review.Code(name) + " isn't a " + need + "."
+	article := "a "
+	if need != "" && strings.ContainsRune("aeiou", rune(need[0])) {
+		article = "an "
 	}
-	return review.Code(name) + " is a " + kind + ", not a " + need + "."
+	if kind == "" {
+		return review.Code(name) + " isn't " + article + need + "."
+	}
+	return review.Code(name) + " is a " + kind + ", not " + article + need + "."
 }
 
 // statesTwice reads "This statement adds column `c` twice.".

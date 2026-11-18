@@ -56,6 +56,11 @@ func TestWalkThroughOceanBase(t *testing.T) {
 	// table too, and the name goes when it is dropped.
 	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\nALTER EXTERNAL TABLE ext2 RENAME TO ext3;\nDROP TABLE ext3;", shop)
 	oneFindingOB(t, "ALTER EXTERNAL TABLE ext RENAME TO t;", 0, "The name `t` is already taken.", shop)
+	// ALTER EXTERNAL TABLE names an external table.
+	oneFindingOB(t, "ALTER EXTERNAL TABLE nosuch ADD COLUMN b INT;", 0, "Table `nosuch` doesn't exist.", shop)
+	oneFindingOB(t, "ALTER EXTERNAL TABLE t ADD COLUMN b INT;", 0, "`t` is a table, not an external table.", shop)
+	// A definition the server refuses is refused here too.
+	oneFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT, a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');", 0, "This statement declares column `a` twice.", shop)
 
 	t.Run("external tables and materialized views", func(t *testing.T) {
 		// They share the tables' namespace, of no kind the walk claims.

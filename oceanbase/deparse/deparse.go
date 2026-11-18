@@ -1572,10 +1572,9 @@ func tableExprName(tbl ast.TableExpr) string {
 	case *ast.RbIterateExpr:
 		return t.Alias
 	case *ast.ExternalTableRef:
-		if t.Alias != "" {
-			return t.Alias
-		}
-		return t.Path
+		// A location is no relation name: with no alias the side keeps its
+		// USING rather than qualifying columns by a path.
+		return t.Alias
 	default:
 		return ""
 	}

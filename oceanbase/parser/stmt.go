@@ -391,9 +391,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
-	} else if p.cur.Type == kwEXTERNAL && p.peekNext().Type == kwTABLE {
+	} else if p.cur.Type == kwEXTERNAL {
 		p.advance()
 		external = true
+		// Completion: after CREATE EXTERNAL, TABLE is the only continuation.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwTABLE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	switch p.cur.Type {
@@ -621,8 +630,16 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	// ALTER EXTERNAL TABLE: alter_table_stmt's EXTERNAL alternative, which takes
 	// the same actions as ALTER TABLE and two of its own.
-	if p.cur.Type == kwEXTERNAL && p.peekNext().Type == kwTABLE {
+	if p.cur.Type == kwEXTERNAL {
 		p.advance()
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwTABLE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseAlterExternalTableStmt(start)
 	}
 

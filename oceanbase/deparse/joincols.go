@@ -89,6 +89,36 @@ func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 	sc.tables = append(sc.tables, scopepkg.Entry{Name: name, Table: table})
 }
 
+// hasUnknownColumns reports whether a FROM item's columns are known only when
+// the query runs.
+func (sc *fromScope) hasUnknownColumns() bool {
+	for _, te := range sc.from {
+		switch t := te.(type) {
+		case *ast.ExternalTableRef:
+			return true
+		case *ast.JoinClause:
+			if t.Left != nil && itemHasUnknownColumns(t.Left) {
+				return true
+			}
+			if t.Right != nil && itemHasUnknownColumns(t.Right) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// itemHasUnknownColumns is hasUnknownColumns for one FROM item.
+func itemHasUnknownColumns(te ast.TableExpr) bool {
+	switch t := te.(type) {
+	case *ast.ExternalTableRef:
+		return true
+	case *ast.JoinClause:
+		return (t.Left != nil && itemHasUnknownColumns(t.Left)) || (t.Right != nil && itemHasUnknownColumns(t.Right))
+	}
+	return false
+}
+
 // span records the tables registered for a FROM item since lo.
 func (sc *fromScope) span(te ast.TableExpr, lo int) {
 	sc.spans[te] = [2]int{lo, len(sc.tables)}

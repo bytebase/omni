@@ -3063,3 +3063,17 @@ func TestComplete_TableFactorSources(t *testing.T) {
 		}
 	}
 }
+
+// TestComplete_AfterExternal: TABLE is the only continuation after CREATE or
+// ALTER EXTERNAL.
+func TestComplete_AfterExternal(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	for _, sql := range []string{"CREATE EXTERNAL ", "ALTER EXTERNAL "} {
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "TABLE", CandidateKeyword) {
+			t.Errorf("%q: missing keyword TABLE; got %v", sql, candidates)
+		}
+	}
+}

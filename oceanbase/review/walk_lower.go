@@ -372,6 +372,11 @@ func (b *builder) createExternalTable(v *ast.CreateTableStmt) bool {
 	if prior == walk.Unknown {
 		b.Optional()
 	}
+	// The definition's own refusals — a column named twice, two primary keys —
+	// are the engine's whoever builds the table.
+	if b.tableTextFails(v, r) {
+		return true
+	}
 	b.Set(k, walk.Present, "")
 	b.Session(func() { b.w.external[k] = true })
 	return true
@@ -396,6 +401,9 @@ func (b *builder) alterExternalTable(v *ast.AlterTableStmt) bool {
 	if v.Table.Schema != "" {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
+	// The relation must be the external table it names: a missing one is 1146,
+	// and a table is the wrong kind for ALTER EXTERNAL TABLE.
+	b.needKind(relKey(r.db, r.name), []string{""}, r.rng, notFound("table", r.written, ""), r.written, "external table")
 	for _, cmd := range v.Commands {
 		if cmd == nil || cmd.Type != ast.ATRenameTable {
 			continue
