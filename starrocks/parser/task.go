@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 	"time"
 
@@ -209,6 +210,15 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 			Position: value.Loc.Start,
 			End:      value.Loc.End,
 			Message:  "interval value must be a decimal integer",
+		}
+	}
+	// StarRocks converts only values through MaxInt64 to an IntLiteral; a
+	// larger one is a LargeIntLiteral and the task builder refuses it.
+	if _, err := strconv.ParseInt(value.Str, 10, 64); err != nil {
+		return nil, &ParseError{
+			Position: value.Loc.Start,
+			End:      value.Loc.End,
+			Message:  "interval value is out of range",
 		}
 	}
 	for range parens {

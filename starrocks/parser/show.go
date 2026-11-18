@@ -720,6 +720,13 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 					}
 				}
 			}
+			if p.cur.Kind == kwINTO {
+				into, err := p.parseIntoOutfileClause()
+				if err != nil {
+					return nil, err
+				}
+				attachInto(query, into)
+			}
 			stmt.Query = query
 		} else if p.strictTrailing {
 			if err == nil {

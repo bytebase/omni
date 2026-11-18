@@ -59,6 +59,7 @@ func TestExtractChangedResourcesTables(t *testing.T) {
 		{"delete names its target, not its source", "DELETE FROM t WHERE a = 1;", []string{"db.t"}},
 		{"submit task insert names its target", "SUBMIT TASK AS INSERT INTO t SELECT 1;", []string{"db.t"}},
 		{"submit task CTAS names its target", "SUBMIT TASK AS CREATE TABLE t AS SELECT 1;", []string{"db.t"}},
+		{"a qualified task runs in its own database", "SUBMIT TASK other.job AS INSERT INTO t SELECT 1;", []string{"other.t"}},
 		{"a view records no table", "CREATE VIEW v AS SELECT 1;", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -108,6 +108,8 @@ func TestExplainedParenthesizedWithQuery(t *testing.T) {
 	for _, sql := range []string{
 		"INSERT INTO dst EXPLAIN WITH c AS (SELECT 1) (SELECT * FROM c)",
 		"CREATE TABLE dst AS EXPLAIN WITH c AS (SELECT 1) (SELECT * FROM c)",
+		"DESC (SELECT 1) INTO OUTFILE 'x'",
+		"DESCRIBE (SELECT 1) INTO OUTFILE 'x'",
 	} {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("%q: unexpected errors: %v", sql, errs)
