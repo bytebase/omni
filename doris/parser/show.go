@@ -733,6 +733,10 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 //	USE db_name
 //	USE catalog_name.db_name
 //	USE db_name@cluster_name
+//	USE @cluster_name
+//
+// The last form is Doris' useCloudCluster with no database
+// (DorisParser.g4:930), which switches the compute cluster alone.
 //
 // On entry, USE has NOT yet been consumed.
 func (p *Parser) parseUse() (ast.Node, error) {
@@ -740,6 +744,18 @@ func (p *Parser) parseUse() (ast.Node, error) {
 	p.advance() // consume USE
 
 	stmt := &ast.UseStmt{Loc: startLoc}
+
+	// USE @cluster_name names the cluster and no database.
+	if p.cur.Kind == int('@') {
+		p.advance() // consume '@'
+		cluster, clusterLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Cluster = cluster
+		stmt.Loc.End = clusterLoc.End
+		return stmt, nil
+	}
 
 	// Parse the name: may be plain, catalog.db, or db@cluster.
 	first, _, err := p.parseIdentifier()

@@ -4834,7 +4834,7 @@ reject	reject	engine	unsupoortedUnsetStatement(ALL|identifier)/ALL!swap	UNSET VA
 accept	accept	engine	unsupoortedUnsetStatement(ALL|identifier)/identifier	UNSET VARIABLE a
 reject	reject	engine	unsupoortedUnsetStatement(ALL|identifier)/identifier!insert	UNSET VARIABLE a zzz
 accept	accept	engine	unsupportedUseStatement/USE_(identifier_DOT)?_identifier	USE a
-reject	accept	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier	USE@a
+accept	accept	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier	USE@a
 reject	reject	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier!drop-1	@a
 reject	reject	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier!drop-3	USE@
 reject	reject	engine	unsupportedUseStatement/USE_((identifier_DOT)?_identifier)?_ATSIGN_identifier!insert	USE@a zzz
@@ -4849,7 +4849,7 @@ accept	accept	engine	unsupportedUseStatement(identifier_DOT)?/identifier_DOT	USE
 reject	reject	engine	unsupportedUseStatement(identifier_DOT)?/identifier_DOT!drop-1	USE.a
 reject	reject	engine	unsupportedUseStatement(identifier_DOT)?/identifier_DOT!drop-2	USE a a
 reject	reject	engine	unsupportedUseStatement(identifier_DOT)?/identifier_DOT!insert	USE a.zzz a
-reject	accept	engine	unsupportedUseStatement((identifier_DOT)?_identifier)?/%empty	USE@a
+accept	accept	engine	unsupportedUseStatement((identifier_DOT)?_identifier)?/%empty	USE@a
 accept	accept	engine	unsupportedUseStatement((identifier_DOT)?_identifier)?/%empty!insert	USE zzz@a
 accept	accept	engine	unsupportedUseStatement((identifier_DOT)?_identifier)?/(identifier_DOT)?_identifier	USE a@a
 reject	reject	engine	unsupportedUseStatement((identifier_DOT)?_identifier)?/(identifier_DOT)?_identifier!insert	USE a zzz@a
@@ -8413,7 +8413,7 @@ accept	accept	engine	stmt/use_stmt	USE a
 reject	reject	engine	stmt/use_stmt!drop-2	USE
 reject	reject	engine	stmt/use_stmt!insert	USE a zzz
 reject	reject	engine	stmt/use_stmt!swap	USER a
-reject	accept	engine	stmt/use_cloud_cluster_stmt	USE@a
+accept	accept	engine	stmt/use_cloud_cluster_stmt	USE@a
 reject	reject	engine	stmt/use_cloud_cluster_stmt!drop-1	@a
 reject	reject	engine	stmt/use_cloud_cluster_stmt!drop-3	USE@
 reject	reject	engine	stmt/use_cloud_cluster_stmt!insert	USE@a zzz
@@ -12731,7 +12731,7 @@ reject	reject	engine	use_stmt/USE_ident_._ident!drop-4	USE a.
 reject	reject	engine	use_stmt/USE_ident_._ident!insert	USE a.a zzz
 reject	reject	engine	use_stmt/USE_ident_._ident!swap	USER a.a
 accept	accept	engine	insert_overwrite_stmt/INSERT_OVERWRITE_TABLE_insert_target_opt_with_label_opt~0c32abf4	INSERT OVERWRITE TABLE a SELECT 1
-reject	accept	engine	use_cloud_cluster_stmt/USE_@_ident	USE@a
+accept	accept	engine	use_cloud_cluster_stmt/USE_@_ident	USE@a
 accept	accept	engine	use_cloud_cluster_stmt/USE_ident_@_ident	USE a@a
 reject	reject	engine	use_cloud_cluster_stmt/USE_ident_@_ident!drop-1	a@a
 reject	reject	engine	use_cloud_cluster_stmt/USE_ident_@_ident!drop-4	USE a@

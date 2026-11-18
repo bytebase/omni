@@ -675,6 +675,10 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 //	USE db_name
 //	USE catalog_name.db_name
 //	USE db_name@cluster_name
+//	USE '<catalog_name>'
+//
+// The last form is StarRocks' useCatalogStatement, which switches the catalog
+// and names no database (StarRocks.g4:335).
 //
 // On entry, USE has NOT yet been consumed.
 func (p *Parser) parseUse() (ast.Node, error) {
@@ -682,6 +686,14 @@ func (p *Parser) parseUse() (ast.Node, error) {
 	p.advance() // consume USE
 
 	stmt := &ast.UseStmt{Loc: startLoc}
+
+	// USE '<catalog_name>' switches the catalog.
+	if p.cur.Kind == tokString {
+		catalog := p.advance()
+		stmt.Catalog = catalog.Str
+		stmt.Loc.End = catalog.Loc.End
+		return stmt, nil
+	}
 
 	// Parse the name: may be plain, catalog.db, or db@cluster.
 	first, _, err := p.parseIdentifier()

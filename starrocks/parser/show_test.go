@@ -595,3 +595,45 @@ func TestSetTypeFromOption(t *testing.T) {
 		}
 	}
 }
+
+// TestParseUseCatalog: StarRocks' useCatalogStatement, USE '<catalog_name>'
+// (StarRocks.g4:335), switches the catalog and names no database.
+func TestParseUseCatalog(t *testing.T) {
+	for _, tc := range []struct {
+		sql     string
+		catalog string
+		db      string
+		cluster string
+	}{
+		{sql: "USE 'cat'", catalog: "cat"},
+		{sql: "USE cat", db: "cat"},
+		{sql: "USE cat.db", catalog: "cat", db: "db"},
+		{sql: "USE db@cluster", db: "db", cluster: "cluster"},
+		{sql: "USE cat.db@cluster", catalog: "cat", db: "db", cluster: "cluster"},
+	} {
+		stmt := mustParseUse(t, tc.sql)
+		if stmt.Catalog != tc.catalog || stmt.Database != tc.db || stmt.Cluster != tc.cluster {
+			t.Errorf("Parse(%q): catalog=%q database=%q cluster=%q, want %q/%q/%q",
+				tc.sql, stmt.Catalog, stmt.Database, stmt.Cluster, tc.catalog, tc.db, tc.cluster)
+		}
+	}
+
+	for _, sql := range []string{"USE", "USE 'cat' 'db'", "USE 'cat'@c"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+func mustParseUse(t *testing.T, sql string) *ast.UseStmt {
+	t.Helper()
+	file, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", sql, err)
+	}
+	stmt, ok := file.Stmts[0].(*ast.UseStmt)
+	if !ok {
+		t.Fatalf("Parse(%q): got %T, want *ast.UseStmt", sql, file.Stmts[0])
+	}
+	return stmt
+}
