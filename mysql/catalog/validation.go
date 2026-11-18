@@ -257,6 +257,14 @@ func validateColumnDisplayWidth(colDef *nodes.ColumnDef) error {
 	switch normalizedTypeName(colDef.TypeName.Name) {
 	case "tinyint", "smallint", "mediumint", "int", "bigint":
 		max = 255
+	case "float", "double":
+		// `FLOAT(256,2)` and `DOUBLE(256,2)` answer 1439 "max = 255"; without a
+		// scale `FLOAT(256)` answers 1063, and only a width past 4294967295 is
+		// 1439 there. The parser keeps no flag for a scale written as 0, so
+		// `FLOAT(256,0)` reads as `FLOAT(256)` here.
+		if colDef.TypeName.Scale > 0 {
+			max = 255
+		}
 	case "bit":
 		max = 64
 	}
@@ -358,7 +366,9 @@ func validateKeyColumnsExist(tbl *Table, leaves map[string]bool, con *nodes.Cons
 // ENGINES: InnoDB, MyISAM, MEMORY, MRG_MYISAM, BLACKHOLE, CSV, ARCHIVE and
 // PERFORMANCE_SCHEMA, with MEMORY's other name HEAP and MRG_MYISAM's MERGE.
 // FEDERATED, NDB and ndbinfo are listed there but disabled, and naming one of
-// them, or any engine the server does not have, is 1286.
+// them, or any engine the server does not have, is 1286. `default` is the
+// sentinel MySQL takes quoted, `ENGINE = 'DEFAULT'`, and ignores: it is the
+// server's configured default engine, not one of the names above.
 var storageEngines = map[string]bool{
 	"innodb":             true,
 	"myisam":             true,
@@ -366,6 +376,7 @@ var storageEngines = map[string]bool{
 	"heap":               true,
 	"mrg_myisam":         true,
 	"merge":              true,
+	"default":            true,
 	"blackhole":          true,
 	"csv":                true,
 	"archive":            true,

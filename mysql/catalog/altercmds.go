@@ -246,13 +246,16 @@ func validatePartitionDefinitions(defs []*nodes.PartitionDef) error {
 }
 
 // validatePartitionEngines refuses an ENGINE a partition or subpartition names
-// and the server does not ship: 1286.
+// and the server does not ship: 1286. Every one of them carries an engine, so a
+// valid parent engine does not stop its subpartitions from being judged.
 func validatePartitionEngines(opts []*nodes.TableOption, subs []*nodes.SubPartitionDef) error {
 	for _, opt := range opts {
 		if opt == nil || !engineOptionName(opt.Name) {
 			continue
 		}
-		return validateStorageEngine(opt.Value)
+		if err := validateStorageEngine(opt.Value); err != nil {
+			return err
+		}
 	}
 	for _, sub := range subs {
 		if sub == nil {
@@ -1106,7 +1109,14 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 	switch toLower(opt.Name) {
 	case "engine":
-		tbl.Engine = opt.Value
+		// `ENGINE = 'DEFAULT'` names the server's configured default engine,
+		// which is the catalog's empty engine, and MySQL switches the table to
+		// it: a MyISAM table reads back InnoDB (measured on mysql:8.0.46).
+		if strings.EqualFold(strings.TrimSpace(opt.Value), "DEFAULT") {
+			tbl.Engine = ""
+		} else {
+			tbl.Engine = opt.Value
+		}
 	case "charset", "character set", "default charset", "default character set":
 		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.

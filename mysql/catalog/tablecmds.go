@@ -32,13 +32,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 	// A loader's statement (DefineTable) is a snapshot of a server that may
-	// ship another engine, so only a CREATE TABLE statement is judged.
+	// ship another engine, so only a CREATE TABLE statement is judged, and its
+	// partitions are judged as ADD PARTITION's are.
 	if declared {
 		for _, opt := range stmt.Options {
 			if opt == nil || !engineOptionName(opt.Name) {
 				continue
 			}
 			if err := validateStorageEngine(opt.Value); err != nil {
+				return err
+			}
+		}
+		if stmt.Partitions != nil {
+			if err := validatePartitionDefinitions(stmt.Partitions.Partitions); err != nil {
 				return err
 			}
 		}
@@ -96,7 +102,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "engine":
-			tbl.Engine = opt.Value
+			// `ENGINE = 'DEFAULT'` names the server's configured default engine,
+			// which MySQL keeps as the engine the table had, not as "DEFAULT".
+			if !strings.EqualFold(strings.TrimSpace(opt.Value), "DEFAULT") {
+				tbl.Engine = opt.Value
+			}
 		case "charset", "character set", "default charset", "default character set":
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true

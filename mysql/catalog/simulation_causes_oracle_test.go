@@ -188,6 +188,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1054,
 		},
 		{
+			// The rename's source is resolved against the table the statement
+			// found, so it answers before the key's columns are read.
+			name:  "ADD KEY over a column the statement adds but a rename cannot take",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(x), ADD COLUMN x INT, RENAME COLUMN x TO y",
+			code:  1054,
+		},
+		{
 			name:  "RENAME COLUMN of no column",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a RENAME COLUMN x TO y",
@@ -268,6 +276,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 VALUES LESS THAN (10))",
 			code:  1505,
+		},
+		{
+			name:  "REORGANIZE PARTITION whose subpartition names an unknown engine",
+			setup: []string{"CREATE TABLE a (b INT) PARTITION BY RANGE(b) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10))"},
+			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 VALUES LESS THAN (10) ENGINE InnoDB (SUBPARTITION s0 ENGINE nosuch))",
+			code:  1286,
 		},
 		{
 			name:  "REBUILD PARTITION of a table with none",
@@ -447,6 +461,48 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "CREATE TABLE with the HEAP engine",
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE s (b INT) ENGINE = HEAP",
+			code:  0,
+		},
+		{
+			name:  "CREATE TABLE whose partition bound reads a name as a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) PARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (b))",
+			code:  1054,
+		},
+		{
+			name:  "CREATE TABLE whose subpartition names an unknown engine",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) PARTITION BY RANGE(b) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10) ENGINE InnoDB (SUBPARTITION s0 ENGINE nosuch))",
+			code:  1286,
+		},
+		{
+			name:  "CREATE TABLE with the DEFAULT engine",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) ENGINE = 'DEFAULT'",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE with the DEFAULT engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE = 'DEFAULT'",
+			code:  0,
+		},
+		{
+			name:  "ADD FLOAT with a scale past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e FLOAT(256,2)",
+			code:  1439,
+		},
+		{
+			name:  "ADD DOUBLE with a scale past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e DOUBLE(256,2)",
+			code:  1439,
+		},
+		{
+			name:  "ADD FLOAT with a scale at its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e FLOAT(255,2)",
 			code:  0,
 		},
 		{
