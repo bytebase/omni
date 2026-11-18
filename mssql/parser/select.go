@@ -79,8 +79,10 @@ func (p *Parser) parseQueryParenthesis() (*nodes.SelectStmt, error) {
 	var inner *nodes.SelectStmt
 	var err error
 	if p.cur.Type == '(' {
-		// queryParenthesis nests: ((SELECT 1)) is a statement too (measured).
-		inner, err = p.parseQueryParenthesis()
+		// queryParenthesis nests, and the inner unit may start a set operation
+		// of its own: ((SELECT 1) UNION SELECT 2) and ((SELECT 1)) are both
+		// statements SQL Server accepts (measured).
+		inner, err = p.parseQueryParenthesisStmt()
 	} else {
 		inner, err = p.parseSelectStmt()
 	}
@@ -687,9 +689,16 @@ func (p *Parser) parseChangeTrackingContext() (nodes.ExprNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		value = v
-	case p.cur.Type == tokICONST && procIsBinary(p.cur):
+	case (p.cur.Type == tokICONST || p.cur.Type == tokFCONST) && procIsBinary(p.cur):
+		// A binary constant of more than 64 bits is a tokFCONST, since it does
+		// not fit an int64, and SQL Server takes it here as it takes 0x00
+		// (measured): its text is the value.
 		tok := p.advance()
-		value = &nodes.Literal{Type: nodes.LitInteger, Str: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+		if tok.Type == tokICONST {
+			value = &nodes.Literal{Type: nodes.LitInteger, Ival: tok.Ival, Str: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+		} else {
+			value = &nodes.Literal{Type: nodes.LitFloat, Str: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+		}
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

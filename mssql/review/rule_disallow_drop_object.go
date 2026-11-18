@@ -173,8 +173,17 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 				return true
 			}
 			for _, item := range v.Actions.Items {
-				if a, ok := item.(*ast.AlterTableAction); ok && a.Type == ast.ATDropColumn {
+				a, ok := item.(*ast.AlterTableAction)
+				if !ok {
+					continue
+				}
+				switch a.Type {
+				case ast.ATDropColumn:
 					reportItems(a.Loc, "column", review.Code(ident(a.ColName))+" of "+review.Code(object(v.Name)))
+				case ast.ATDropIndex:
+					// DROP INDEX name as a table element drops an index as
+					// DROP INDEX name ON table does.
+					reportItems(a.Loc, "index", review.Code(ident(a.IndexName))+" of "+review.Code(object(v.Name)))
 				}
 			}
 		}

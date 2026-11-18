@@ -993,16 +993,37 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		loc := p.pos()
-		p.advance() // consume TSEQUAL
-		expr, err := p.parseFuncCall(p.prev.Str, loc)
+		name := p.advance() // consume TSEQUAL
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		first, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		fc, ok := expr.(*nodes.FuncCallExpr)
-		if !ok || fc.Args == nil || len(fc.Args.Items) != 2 {
+		if first == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
-		return expr, nil
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
+		second, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if second == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// Neither DISTINCT, WITHIN GROUP nor OVER: this is a predicate of its
+		// own, not the generic function call.
+		return &nodes.FuncCallExpr{
+			Name: &nodes.TableRef{Object: name.Str, Loc: nodes.Loc{Start: loc, End: name.End}},
+			Args: &nodes.List{Items: []nodes.Node{first, second}},
+			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+		}, nil
 	case kwTRY_CAST:
 		if p.peekNext().Type == '(' {
 			return p.parseTryCast()
@@ -1520,12 +1541,19 @@ func (p *Parser) parseIif() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
+	// IIF's first argument is a search condition: IIF(1 = 1 AND 2 = 2, 1, 0)
+	// is accepted and IIF(1, 1, 0) is Msg 4145 (measured).
+	p.enterSearchCondition()
 	cond, err := p.parseExpr()
+	p.leaveSearchCondition()
 	if err != nil {
 		return nil, err
 	}
 	if cond == nil {
 		return nil, p.unexpectedToken()
+	}
+	if !procIsCondition(cond) {
+		return nil, p.newParseError(nodes.NodeLoc(cond).Start, "an expression of non-boolean type specified in a context where a condition is expected")
 	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err

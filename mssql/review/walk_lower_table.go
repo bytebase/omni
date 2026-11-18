@@ -477,13 +477,17 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 			if a.Constraint != nil {
 				d.constraints = append(d.constraints, a.Constraint)
 			}
-		case ast.ATDropColumn, ast.ATDropConstraint:
+		case ast.ATDropColumn, ast.ATDropConstraint, ast.ATDropIndex:
 			nm, kind := a.ColName, "column"
 			if a.Type == ast.ATDropConstraint {
 				kind = "constraint"
 				if a.Constraint != nil {
 					nm = a.Constraint.Name
 				}
+			}
+			if a.Type == ast.ATDropIndex {
+				kind = "index"
+				nm = a.IndexName
 			}
 			if dropped[a.Type] == nil {
 				dropped[a.Type] = map[string]bool{}
@@ -543,7 +547,8 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		b.defEffects(r, path, known, d)
 	case ast.ATDropIndex:
 		// DROP INDEX name as a table element: the index must be one of the
-		// table's, and it is gone afterwards.
+		// table's, and it is gone afterwards. Only the named index leaves: the
+		// other indexes of the table stay known.
 		in, ok := keyed(a.IndexName)
 		if !ok {
 			return false
@@ -553,7 +558,6 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		}
 		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(a.IndexName), r.written), nil))
 		b.leave(spaceIndex, path, in)
-		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: path})
 	case ast.ATDropColumn:
 		cn, ok := keyed(a.ColName)
 		if !ok {

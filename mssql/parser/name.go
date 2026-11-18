@@ -79,6 +79,12 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 	// TSql160.g:30332): SQL Server reads FROM .a, FROM ..a and FROM .a() (measured).
 	var leading []string
 	for p.cur.Type == '.' {
+		// A name holds at most four parts, and a fifth is Msg 117: "The object
+		// name '....a' contains more than the maximum number of prefixes"
+		// (measured).
+		if len(leading) == 3 {
+			return nil, p.newParseError(p.cur.Loc, "an object name has at most four parts")
+		}
 		leading = append(leading, "")
 		p.advance() // consume .
 		if p.collectMode() {

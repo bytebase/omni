@@ -343,20 +343,34 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 				continue
 			}
 			switch constraint.Type {
-			case ast.ConstraintPrimaryKey:
-				column.Nullable = false
+			case ast.ConstraintPrimaryKey, ast.ConstraintUnique:
+				primary := constraint.Type == ast.ConstraintPrimaryKey
+				cols := []string{column.Name}
+				if constraint.Columns != nil {
+					// A key written beside a column may name its own columns,
+					// as `ALTER TABLE a ADD x a UNIQUE(x)` does: the list keys
+					// x, not the column it is written beside.
+					cols = stringNodeList(constraint.Columns)
+					if primary {
+						for _, name := range cols {
+							if col := columnByName(table, name); col != nil {
+								col.Nullable = false
+							}
+						}
+					}
+				}
+				if primary && (constraint.Columns == nil || slices.Contains(cols, column.Name)) {
+					column.Nullable = false
+				}
+				prefix := "UQ"
+				if primary {
+					prefix = "PK"
+				}
 				table.Indexes = append(table.Indexes, c.constraintIndexMetadata(
 					constraint,
-					constraintPrefix("PK", table.Name),
-					[]string{column.Name},
-					true,
-				))
-			case ast.ConstraintUnique:
-				table.Indexes = append(table.Indexes, c.constraintIndexMetadata(
-					constraint,
-					constraintPrefix("UQ", table.Name),
-					[]string{column.Name},
-					false,
+					constraintPrefix(prefix, table.Name),
+					cols,
+					primary,
 				))
 			case ast.ConstraintDefault:
 				if constraint.Expr != nil {

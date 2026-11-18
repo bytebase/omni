@@ -286,6 +286,13 @@ func TestDisallowDropObject(t *testing.T) {
 		},
 		{name: "a constraint belongs to DisallowDropConstraint", sql: "ALTER TABLE t DROP CONSTRAINT ck_n;"},
 		{
+			// DROP INDEX name as a table element drops an index as DROP INDEX
+			// name ON table does.
+			name: "a table element's index",
+			sql:  "ALTER TABLE t DROP INDEX ix, ix;",
+			want: []finding{{0, "INDEX ix", "Drops index `ix` of `t`.", []int{0}}},
+		},
+		{
 			name: "a name with a line break",
 			sql:  "DROP TABLE [a\nb];",
 			want: []finding{{0, "DROP TABLE [a\nb]", "Drops table `[a\\nb]`.", []int{0}}},
