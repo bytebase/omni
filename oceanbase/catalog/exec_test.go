@@ -74,3 +74,38 @@ func TestExecMaterializedView(t *testing.T) {
 		t.Error("CREATE MATERIALIZED VIEW did not install the view its query is")
 	}
 }
+
+// TestExecMaterializedViewKind pins that the catalog keeps a materialized view
+// apart from an ordinary view while storing both as a view, so one DROP does
+// not remove the other.
+func TestExecMaterializedViewKind(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE VIEW v AS SELECT 1; CREATE MATERIALIZED VIEW mv AS SELECT 1;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"DROP MATERIALIZED VIEW v;", true},
+		{"DROP VIEW mv;", true},
+		{"DROP MATERIALIZED VIEW IF EXISTS v;", true},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got := len(results) == 1 && results[0].Error != nil; got != tc.wantErr {
+			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
+		}
+	}
+	results, err := c.Exec("DROP MATERIALIZED VIEW mv; DROP VIEW v;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, r := range results {
+		if r.Error != nil {
+			t.Errorf("result[%d] = %v", i, r.Error)
+		}
+	}
+}

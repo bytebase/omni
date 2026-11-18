@@ -54,6 +54,34 @@ func TestCollectAccessTables(t *testing.T) {
 				},
 			},
 		},
+		{
+			statement: "CREATE MATERIALIZED VIEW mv REFRESH FAST START WITH (SELECT 1 FROM schedule) AS SELECT 1;",
+			expected: []tableResource{
+				{Database: "db", Table: "mv"},
+				{Database: "db", Table: "schedule"},
+			},
+		},
+		{
+			statement: "ALTER MATERIALIZED VIEW mv REFRESH START WITH (SELECT 1 FROM schedule);",
+			expected: []tableResource{
+				{Database: "db", Table: "mv"},
+				{Database: "db", Table: "schedule"},
+			},
+		},
+		{
+			statement: "CREATE MATERIALIZED VIEW LOG ON t PURGE START WITH (SELECT 1 FROM schedule);",
+			expected: []tableResource{
+				{Database: "db", Table: "t"},
+				{Database: "db", Table: "schedule"},
+			},
+		},
+		{
+			statement: "ALTER MATERIALIZED VIEW LOG ON t PURGE NEXT (SELECT 1 FROM schedule);",
+			expected: []tableResource{
+				{Database: "db", Table: "t"},
+				{Database: "db", Table: "schedule"},
+			},
+		},
 	}
 
 	for _, test := range tests {

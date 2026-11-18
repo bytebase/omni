@@ -232,7 +232,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateViewStmt:
 		return c.createView(s, source, true)
 	case *nodes.CreateMaterializedViewStmt:
-		return c.createView(materializedViewAsView(s), source, true)
+		return c.createMaterializedView(s, source)
 	case *nodes.AlterViewStmt:
 		return c.alterView(s, source)
 	case *nodes.AlterMaterializedViewStmt:

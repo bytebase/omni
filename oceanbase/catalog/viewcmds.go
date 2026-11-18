@@ -35,7 +35,10 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if _, exists := db.Tables[key]; exists {
 		return errDupTable(stmt.Name.Name)
 	}
-	if _, exists := db.Views[key]; exists {
+	if existing, exists := db.Views[key]; exists {
+		if existing.Materialized {
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, stmt.Name.Name)}
+		}
 		if !stmt.OrReplace {
 			return errDupTable(stmt.Name.Name)
 		}
@@ -105,11 +108,28 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	return nil
 }
 
-// materializedViewAsView turns CREATE MATERIALIZED VIEW into the CREATE VIEW
-// the catalog models. A snapshot's materialized view already installs this way
-// (metadata_load.go): the catalog holds no materialized view, so it holds the
-// view its query is. The refresh options, partitioning, table options and
+// createMaterializedView applies CREATE MATERIALIZED VIEW. The catalog holds no
+// materialized view of its own, so it installs the view the query is and marks
+// it materialized; a snapshot's materialized view installs the same way
+// (metadata_load.go). The refresh options, partitioning, table options and
 // primary key change nothing the catalog tracks.
+func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt, source string) error {
+	view := materializedViewAsView(stmt)
+	if err := c.createView(view, source, true); err != nil {
+		return err
+	}
+	db, err := c.resolveDatabase(view.Name.Schema)
+	if err != nil {
+		return err
+	}
+	if installed := db.Views[toLower(view.Name.Name)]; installed != nil {
+		installed.Materialized = true
+	}
+	return nil
+}
+
+// materializedViewAsView turns CREATE MATERIALIZED VIEW into the CREATE VIEW
+// the catalog models.
 func materializedViewAsView(stmt *nodes.CreateMaterializedViewStmt) *nodes.CreateViewStmt {
 	return &nodes.CreateViewStmt{
 		Loc:         stmt.Loc,
@@ -764,11 +784,19 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
-		if _, exists := db.Views[key]; !exists {
+		installed, exists := db.Views[key]
+		if !exists {
 			if stmt.IfExists {
 				continue
 			}
 			return errUnknownTable(db.Name, ref.Name)
+		}
+		if installed.Materialized != stmt.Materialized {
+			kind := "VIEW"
+			if stmt.Materialized {
+				kind = "MATERIALIZED VIEW"
+			}
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, ref.Name, kind)}
 		}
 		delete(db.Views, key)
 	}

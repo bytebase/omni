@@ -227,6 +227,9 @@ type metadataObject struct {
 	// with: a view's body, and a table's foreign keys.
 	snapshotDatabase string
 
+	// materialized marks a view the snapshot listed as a materialized view.
+	materialized bool
+
 	table     *metadata.TableMetadata
 	view      *metadata.ViewMetadata
 	function  *metadata.FunctionMetadata
@@ -279,10 +282,10 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v, snapshotDatabase: meta.GetName()})
 			}
 		}
-		// The catalog models no materialized view, so a snapshot's materialized view installs
-		// as the view its query is. Without it, a view that reads the materialized view would
-		// name a relation the catalog does not hold; the container table holds its rows, and
-		// the sync no longer lists that as a table.
+		// The catalog models no materialized view of its own, so a snapshot's materialized
+		// view installs as the view its query is, marked materialized. Without it, a view
+		// that reads the materialized view would name a relation the catalog does not hold;
+		// the container table holds its rows, and the sync no longer lists that as a table.
 		for _, v := range s.GetMaterializedViews() {
 			if v.GetName() == "" || v.GetSkipDump() {
 				continue
@@ -290,6 +293,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 			out = append(out, &metadataObject{
 				kind:             metadataView,
 				name:             v.GetName(),
+				materialized:     true,
 				view:             &metadata.ViewMetadata{Name: v.GetName(), Definition: v.GetDefinition()},
 				snapshotDatabase: meta.GetName(),
 			})
@@ -347,7 +351,11 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if err := c.DefineView(stmt); err != nil {
 			return err
 		}
-		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		installed := c.installedView(o.name)
+		if installed != nil {
+			installed.Materialized = o.materialized
+		}
+		nameViewColumns(installed, metadataViewColumnNames(o.view))
 		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)
