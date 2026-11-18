@@ -141,7 +141,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	dropsPK := alterDropsPrimaryKey(stmt.Commands)
 	droppedColumns := alterDroppedColumns(stmt.Commands)
 	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
-	addedColumns := alterAddedColumnNames(stmt.Commands)
+	prospective := alterProspectiveTable(tbl, stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -157,13 +157,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, addedColumns)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, addedColumns); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -193,7 +193,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, addedColumns); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective); err != nil {
 			rollback()
 			return err
 		}
@@ -260,7 +260,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // composite key's columns would leave a half-built key behind; declaredChecks
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, addedColumns map[string]bool) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, prospective *Table) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
@@ -271,7 +271,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, declaredChecks, addedColumns)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks, prospective)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -751,37 +751,64 @@ func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 	return out
 }
 
-// alterAddedColumnNames collects the columns an ALTER introduces anywhere in
-// the statement. MariaDB judges a key against the table the statement leaves,
-// so `ADD KEY k(b), ADD COLUMN b INT` is accepted although the key's clause
-// comes first.
-func alterAddedColumnNames(cmds []*nodes.AlterTableCmd) map[string]bool {
-	out := make(map[string]bool)
+// alterProspectiveTable is the table the ALTER leaves, for checking a key
+// against it: MariaDB reads a key's columns from the statement's completed
+// definition, so `ADD KEY k(b), ADD COLUMN b INT` is accepted although the
+// key's clause comes first. It applies the columns the statement introduces,
+// and returns tbl itself when it introduces none.
+func alterProspectiveTable(tbl *Table, cmds []*nodes.AlterTableCmd) *Table {
+	mutates := false
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn, nodes.ATRenameColumn:
+			mutates = true
+		}
+	}
+	if !mutates {
+		return tbl
+	}
+	p := cloneTable(tbl)
+	pp := &p
+	add := func(def *nodes.ColumnDef) {
+		if def == nil || def.Name == "" || pp.GetColumn(def.Name) != nil {
+			return
+		}
+		col := buildColumnFromDef(pp, def)
+		col.Position = len(pp.Columns) + 1
+		pp.Columns = append(pp.Columns, col)
+	}
 	for _, cmd := range cmds {
 		if cmd == nil {
 			continue
 		}
 		switch cmd.Type {
 		case nodes.ATAddColumn:
-			if cmd.Column != nil {
-				out[toLower(cmd.Column.Name)] = true
+			add(cmd.Column)
+			for _, def := range cmd.Columns {
+				add(def)
 			}
-			for _, col := range cmd.Columns {
-				if col != nil {
-					out[toLower(col.Name)] = true
-				}
+		case nodes.ATModifyColumn, nodes.ATChangeColumn:
+			if cmd.Column == nil {
+				continue
 			}
-		case nodes.ATChangeColumn:
-			if cmd.Column != nil {
-				out[toLower(cmd.Column.Name)] = true
+			if at, ok := pp.colByName[toLower(cmd.Name)]; ok {
+				col := buildColumnFromDef(pp, cmd.Column)
+				col.Position = pp.Columns[at].Position
+				pp.Columns[at] = col
+			} else {
+				add(cmd.Column)
 			}
 		case nodes.ATRenameColumn:
-			if cmd.NewName != "" {
-				out[toLower(cmd.NewName)] = true
+			if at, ok := pp.colByName[toLower(cmd.Name)]; ok {
+				pp.Columns[at].Name = cmd.NewName
 			}
 		}
+		rebuildColIndex(pp)
 	}
-	return out
+	return pp
 }
 
 func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool) error {
@@ -1212,13 +1239,13 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 // UNIQUE and FOREIGN KEY alike. A functional part is an expression, and a
 // WITHOUT OVERLAPS part names the application-time period; neither is a
 // column, and the checks that judge them run later.
-func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn, addedColumns map[string]bool) error {
+func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	for _, ic := range cols {
 		if ic == nil || ic.Functional || ic.WithoutOverlaps {
 			continue
 		}
 		ref, ok := ic.Expr.(*nodes.ColumnRef)
-		if !ok || tbl.GetColumn(ref.Column) != nil || addedColumns[toLower(ref.Column)] {
+		if !ok || tbl.GetColumn(ref.Column) != nil {
 			continue
 		}
 		return errKeyColumnDoesNotExist(ref.Column)
@@ -1226,7 +1253,7 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn, addedColumns
 	return nil
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, addedColumns map[string]bool) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, prospective *Table) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1239,7 +1266,25 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
 		return err
 	}
-	if err := validateAddedKeyColumns(tbl, con.IndexColumns, addedColumns); err != nil {
+	// A FULLTEXT key's parser is looked up before its columns: mariadb:11.8.8
+	// answers 1128 for `ADD FULLTEXT(a) WITH PARSER a` even where a is not a
+	// column, and 1072 only for a key without a parser.
+	if con.Type == nodes.ConstrFulltextIndex {
+		for _, opt := range con.IndexOptions {
+			if strings.EqualFold(opt.Name, "PARSER") {
+				name := ""
+				if s, ok := opt.Value.(*nodes.StringLit); ok {
+					name = s.Value
+				}
+				return errFunctionNotDefined(name)
+			}
+		}
+	}
+	keyTbl := tbl
+	if prospective != nil {
+		keyTbl = prospective
+	}
+	if err := validateAddedKeyColumns(keyTbl, con.IndexColumns); err != nil {
 		return err
 	}
 
@@ -1251,7 +1296,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 				return errMultiplePriKey()
 			}
 		}
-		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+		if err := validatePrimaryKeyColumns(keyTbl, cols); err != nil {
 			return err
 		}
 		// Mark PK columns as NOT NULL.
@@ -1299,7 +1344,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		long, err := validateUniqueIndexColumns(tbl, idxCols)
+		long, err := validateUniqueIndexColumns(keyTbl, idxCols)
 		if err != nil {
 			return err
 		}
@@ -1352,7 +1397,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
 		if c.foreignKeyChecks {
-			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
+			if err := c.validateSingleFK(db, keyTbl, fkCon); err != nil {
 				return err
 			}
 		}
@@ -1364,7 +1409,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// reading one it names that column. Checked before the constraint
 		// goes in, so a refusal leaves the table as it was.
 		fkIdxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+		if err := validateIndexColumns(keyTbl, fkIdxCols, false, false); err != nil {
 			return err
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
@@ -1403,7 +1448,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := validateIndexColumns(keyTbl, idxCols, false, false); err != nil {
 			return err
 		}
 		keyIdx := &Index{
@@ -1455,7 +1500,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateVectorIndex(tbl, idxCols); err != nil {
+		if err := validateVectorIndex(keyTbl, idxCols); err != nil {
 			return err
 		}
 		vecIdx := &Index{
@@ -1482,7 +1527,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+		if err := validateIndexColumns(keyTbl, idxCols, false, true); err != nil {
 			return err
 		}
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {

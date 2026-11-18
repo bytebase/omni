@@ -617,7 +617,7 @@ ok	1005	engine	one_table@table	delete_option/SET_DEFAULT	ALTER TABLE a ADD a INT
 1072	1072	engine	one_table@table	all_key_opt/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE a ADD KEY(a) COMMENT 's';
 1072	1072	engine	one_table@table	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1072	1072	engine	one_table@table	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
-1072	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
 1064	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1072	1072	engine	one_table@table	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1072	1072	engine	one_table@table	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
@@ -980,7 +980,7 @@ ok:f78d26bb30ef	ok:f78d26bb30ef	engine	one_table@column	all_key_opt/KEY_BLOCK_SI
 ok:6ade727c275c	ok:6ade727c275c	engine	one_table@column	all_key_opt/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE a ADD KEY(a) COMMENT 's';
 ok:1c8e88b0261e	ok:1c8e88b0261e	engine	one_table@column	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 ok	1911	engine	one_table@column	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
-ok	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
 1064	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 ok	1210	engine	one_table@column	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:d1cbc87e14ba	ok:d1cbc87e14ba	engine	one_table@column	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
@@ -1343,7 +1343,7 @@ ok:d0122e9af520	ok:d0122e9af520	engine	one_table@index	all_key_opt/KEY_BLOCK_SIZ
 ok:bb737ef05ab6	ok:bb737ef05ab6	engine	one_table@index	all_key_opt/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE a ADD KEY(a) COMMENT 's';
 ok:a79b40ab9f1f	ok:a79b40ab9f1f	engine	one_table@index	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 ok	1911	engine	one_table@index	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
-ok	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
 1064	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 ok	1210	engine	one_table@index	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:27bf6ad5f57e	ok:27bf6ad5f57e	engine	one_table@index	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);

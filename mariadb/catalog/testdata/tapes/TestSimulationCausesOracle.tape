@@ -254,6 +254,44 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
+| CREATE TABLE a (b INT)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY k(x), ADD COLUMN x POINT
+< error
+| 1252 42000 All parts of a SPATIAL index must be NOT NULL
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec

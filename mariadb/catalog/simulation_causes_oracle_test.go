@@ -105,6 +105,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			name:  "ADD SPATIAL KEY before a nullable column it names",
+			setup: []string{"CREATE TABLE a (b INT)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL KEY k(x), ADD COLUMN x POINT",
+			code:  1252,
+		},
+		{
+			name:  "ADD FULLTEXT WITH PARSER over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a",
+			code:  1128,
+		},
+		{
 			name:  "REMOVE PARTITIONING of a table with none",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a REMOVE PARTITIONING",
