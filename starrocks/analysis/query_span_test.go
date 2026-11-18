@@ -1180,3 +1180,19 @@ func TestGetQuerySpanNewStatements(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want src", span.AccessTables)
 	}
 }
+
+// An outer WITH on a parenthesized group and the inner query's own WITH are
+// separate lexical scopes: the inner name must not shadow the outer CTE body.
+func TestGetQuerySpanNestedWithScopes(t *testing.T) {
+	span, err := GetQuerySpan("WITH o AS (SELECT * FROM denied) (WITH denied AS (SELECT * FROM allowed) SELECT * FROM o)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["denied"] || !got["allowed"] {
+		t.Errorf("AccessTables = %+v, want denied and allowed", span.AccessTables)
+	}
+}

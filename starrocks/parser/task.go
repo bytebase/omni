@@ -75,7 +75,7 @@ clausesDone:
 		if err == nil {
 			ctas, ok := stmt.Statement.(*ast.CreateTableStmt)
 			if !ok || ctas.AsSelect == nil || ctas.External || ctas.Like != nil ||
-				ctas.Engine != "" || len(ctas.Rollup) > 0 ||
+				ctas.Engine != "" || len(ctas.Rollup) > 0 || len(ctas.BrokerProperties) > 0 ||
 				len(ctas.Columns) > 0 || len(ctas.Constraints) > 0 {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -90,6 +90,19 @@ clausesDone:
 		stmt.Statement, err = p.parseInsert()
 	case kwCACHE:
 		stmt.Statement, err = p.parseDataCacheSelect()
+	case kwEXPLAIN, kwDESC, kwDESCRIBE:
+		// Only insertStatement, of the three submitted forms, takes an
+		// explainDesc prefix.
+		var explain ast.Node
+		explain, err = p.parseExplain()
+		if err == nil {
+			if explained := explain.(*ast.ExplainStmt); explained.Query == nil {
+				err = p.syntaxErrorAtCur()
+			} else if _, ok := explained.Query.(*ast.InsertStmt); !ok {
+				err = p.syntaxErrorAtCur()
+			}
+		}
+		stmt.Statement = explain
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -417,6 +430,13 @@ func (p *Parser) parseOptimizerTrace(startLoc ast.Loc) (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	if p.cur.Kind == kwINTO {
+		into, err := p.parseIntoOutfileClause()
+		if err != nil {
+			return nil, err
+		}
+		attachInto(query, into)
+	}
 	stmt.Query = query
 
 	stmt.Loc.End = p.prev.Loc.End
@@ -429,26 +449,41 @@ func (p *Parser) parseOptimizerTrace(startLoc ast.Loc) (ast.Node, error) {
 func attachWith(node ast.Node, with *ast.WithClause) {
 	for {
 		switch n := node.(type) {
-		case *ast.SelectStmt:
-			if n.With == nil {
-				n.With = with
-			} else {
-				// An inner WITH under the parentheses keeps its own scope.
-				// Keep both clauses, the outer first, so neither body is lost.
-				n.With = &ast.WithClause{
-					CTEs: append(append([]*ast.CTE(nil), with.CTEs...), n.With.CTEs...),
-					Loc:  with.Loc.Merge(n.With.Loc),
-				}
-			}
+		case *ast.ParenSelect:
+			// The outer clause belongs to the group, above the inner query's
+			// own WITH, so the two lexical scopes stay separate.
+			n.With = with
 			n.Loc.Start = with.Loc.Start
 			return
-		case *ast.ParenSelect:
-			node = n.Sel
+		case *ast.SelectStmt:
+			n.With = with
+			n.Loc.Start = with.Loc.Start
+			return
 		case *ast.SetOpStmt:
 			// A set-operation chain is left-deep, so follow the spine in a
 			// loop; recursing here could exhaust the stack before the parser's
 			// tree-height check runs.
 			node = n.Left
+		default:
+			return
+		}
+	}
+}
+
+// attachInto sets an INTO OUTFILE clause parsed after a parenthesized query on
+// the query's leftmost SELECT, where the set-operation and paren wrappers keep
+// no field for it.
+func attachInto(node ast.Node, into *ast.IntoOutfileClause) {
+	for {
+		switch n := node.(type) {
+		case *ast.ParenSelect:
+			node = n.Sel
+		case *ast.SetOpStmt:
+			node = n.Left
+		case *ast.SelectStmt:
+			n.Into = into
+			n.Loc.End = into.Loc.End
+			return
 		default:
 			return
 		}

@@ -316,7 +316,11 @@ type SetOpStmt struct {
 // (SELECT ... UNION SELECT ...). It distinguishes branch-local clauses
 // (on the inner statement) from outer clauses (on the enclosing SetOpStmt).
 type ParenSelect struct {
-	Sel Node // the inner SelectStmt, SetOpStmt, or nested ParenSelect
+	// With is an outer WITH clause on the group, as in
+	// WITH o AS (...) (WITH d AS (...) SELECT ...). It scopes over the group
+	// and keeps the inner query's own WITH a separate lexical scope.
+	With *WithClause
+	Sel  Node // the inner SelectStmt, SetOpStmt, or nested ParenSelect
 
 	// Trailing clauses applied to the grouped query from OUTSIDE the parens,
 	// as in (SELECT 1 LIMIT 1) LIMIT 2. Kept on the wrapper so a clause the

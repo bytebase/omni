@@ -282,6 +282,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Offset)
 		}
 	case *ParenSelect:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		if n.Sel != nil {
 			Walk(v, n.Sel)
 		}
@@ -324,6 +327,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, r)
 		}
 		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		for _, prop := range n.BrokerProperties {
 			Walk(v, prop)
 		}
 		if n.Like != nil {

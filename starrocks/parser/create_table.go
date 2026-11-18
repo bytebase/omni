@@ -689,12 +689,14 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 
 		case kwBROKER:
-			// BROKER ext_properties -- skip the broker properties clause
+			// BROKER ext_properties
 			p.advance() // consume BROKER
 			if p.cur.Kind == kwPROPERTIES {
-				if _, err := p.parseProperties(); err != nil {
+				props, err := p.parseProperties()
+				if err != nil {
 					return err
 				}
+				stmt.BrokerProperties = props
 			}
 			continue
 

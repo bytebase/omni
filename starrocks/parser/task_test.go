@@ -85,6 +85,33 @@ func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
 		"SUBMIT TASK AS CREATE EXTERNAL TABLE a AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a ENGINE = OLAP AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a ROLLUP (r (x)) AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a BROKER PROPERTIES('x' = 'y') AS SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
+// insertStatement takes an explainDesc prefix, so a submitted task can plan
+// its INSERT; the other submitted forms cannot.
+func TestSubmitTaskExplainedInsert(t *testing.T) {
+	file, errs := parseForTest("SUBMIT TASK AS EXPLAIN INSERT INTO t SELECT 1")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	stmt := file.Stmts[0].(*ast.SubmitTaskStmt)
+	explain, ok := stmt.Statement.(*ast.ExplainStmt)
+	if !ok {
+		t.Fatalf("Statement = %T, want *ast.ExplainStmt", stmt.Statement)
+	}
+	if _, ok := explain.Query.(*ast.InsertStmt); !ok {
+		t.Errorf("explained query = %T, want *ast.InsertStmt", explain.Query)
+	}
+
+	for _, sql := range []string{
+		"SUBMIT TASK AS EXPLAIN SELECT 1",
+		"SUBMIT TASK AS DESC UPDATE t SET a = 1",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

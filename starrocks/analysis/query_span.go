@@ -358,23 +358,48 @@ func (w *spanWalker) visitSetOpArm(node ast.Node, outermost bool) {
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, outermost)
 	case *ast.ParenSelect:
-		if n != nil {
-			w.visitSetOpArm(n.Sel, outermost)
-			// Clauses attached to the wrapper from outside the parens —
-			// (SELECT 1) ORDER BY (SELECT x FROM secret) — carry table
-			// reads of their own.
-			for _, o := range n.OrderBy {
-				if o != nil && o.Expr != nil {
-					w.walkExpr(o.Expr)
-				}
+		w.visitParenSelect(n, outermost)
+	}
+}
+
+// visitParenSelect walks a grouped query, keeping an outer WITH on the group a
+// separate scope above the inner query's own WITH.
+func (w *spanWalker) visitParenSelect(n *ast.ParenSelect, outermost bool) {
+	if n == nil {
+		return
+	}
+	if n.With != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		for _, cte := range n.With.CTEs {
+			if cte == nil || cte.Name == "" {
+				continue
 			}
-			if n.Limit != nil {
-				w.walkExpr(n.Limit)
-			}
-			if n.Offset != nil {
-				w.walkExpr(n.Offset)
+			scope.names[strings.ToLower(cte.Name)] = true
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
+		}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
+		// CTE bodies run in this scope, like visitSelect's.
+		for _, cte := range n.With.CTEs {
+			if cte != nil && cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
 			}
 		}
+	}
+	w.visitSetOpArm(n.Sel, outermost)
+	// Clauses attached to the wrapper from outside the parens —
+	// (SELECT 1) ORDER BY (SELECT x FROM secret) — carry table
+	// reads of their own.
+	for _, o := range n.OrderBy {
+		if o != nil && o.Expr != nil {
+			w.walkExpr(o.Expr)
+		}
+	}
+	if n.Limit != nil {
+		w.walkExpr(n.Limit)
+	}
+	if n.Offset != nil {
+		w.walkExpr(n.Offset)
 	}
 }
 

@@ -23,6 +23,7 @@ func TestOptimizerTrace(t *testing.T) {
 		{"TRACE ALL WITH c AS (SELECT 1) SELECT * FROM c", "ALL", ""},
 		{"TRACE ALL WITH c AS (SELECT 1) (SELECT * FROM c)", "ALL", ""},
 		{"TRACE ALL WITH c AS (SELECT 1) (WITH d AS (SELECT 2) SELECT * FROM c, d)", "ALL", ""},
+		{"TRACE ALL (SELECT 1) INTO OUTFILE 'x'", "ALL", ""},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			file, errs := parseForTest(tc.sql)

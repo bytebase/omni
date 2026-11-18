@@ -39,13 +39,17 @@ type CreateTableStmt struct {
 	DistributedBy *DistributionDesc  // DISTRIBUTED BY HASH/RANDOM
 	Rollup        []*RollupDef       // ROLLUP (...)
 	Properties    []*Property        // PROPERTIES (...)
-	Engine        string             // ENGINE = xxx
-	Comment       string             // COMMENT 'xxx'
-	Like          *ObjectName        // CREATE TABLE ... LIKE other_table
-	AsSelect      *RawQuery          // CREATE TABLE ... AS SELECT ...
-	CTASColumns   []string           // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
-	OrderBy       []string           // ORDER BY (cols)
-	Loc           Loc
+	// BrokerProperties is BROKER PROPERTIES (...) / BROKER ext_properties,
+	// which createTableStatement takes and createTableAsSelectStatement does
+	// not.
+	BrokerProperties []*Property
+	Engine           string      // ENGINE = xxx
+	Comment          string      // COMMENT 'xxx'
+	Like             *ObjectName // CREATE TABLE ... LIKE other_table
+	AsSelect         *RawQuery   // CREATE TABLE ... AS SELECT ...
+	CTASColumns      []string    // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
+	OrderBy          []string    // ORDER BY (cols)
+	Loc              Loc
 }
 
 // Tag implements Node.
