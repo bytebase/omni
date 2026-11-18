@@ -71,28 +71,15 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		return nil, errCollecting
 	}
 
-	// Table name or @table_variable
-	if p.cur.Type == tokVARIABLE {
-		stmt.Relation = p.parseVariableDmlTarget()
-	} else {
-		rel, err := p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-		if rel == nil {
-			return nil, p.newParseError(p.cur.Loc, "expected table name after UPDATE")
-		}
-		stmt.Relation = rel
-
-		// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
-		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			hints, err := p.parseDmlTargetHints()
-			if err != nil {
-				return nil, err
-			}
-			rel.Hints = hints
-		}
+	// Table name, rowset function or @table_variable
+	rel, err := p.parseDmlTarget()
+	if err != nil {
+		return nil, err
 	}
+	if rel == nil {
+		return nil, p.newParseError(p.cur.Loc, "expected table name after UPDATE")
+	}
+	stmt.Relation = rel
 
 	// SET clause, which updateSpecification (TSql160.g:19808) requires.
 	if _, err := p.expect(kwSET); err != nil {
@@ -215,28 +202,15 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		return nil, errCollecting
 	}
 
-	// Table name or @table_variable
-	if p.cur.Type == tokVARIABLE {
-		stmt.Relation = p.parseVariableDmlTarget()
-	} else {
-		rel, err := p.parseTableRef()
-		if err != nil {
-			return nil, err
-		}
-		if rel == nil {
-			return nil, p.newParseError(p.cur.Loc, "expected table name after DELETE")
-		}
-		stmt.Relation = rel
-
-		// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
-		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
-			hints, err := p.parseDmlTargetHints()
-			if err != nil {
-				return nil, err
-			}
-			rel.Hints = hints
-		}
+	// Table name, rowset function or @table_variable
+	rel, err := p.parseDmlTarget()
+	if err != nil {
+		return nil, err
 	}
+	if rel == nil {
+		return nil, p.newParseError(p.cur.Loc, "expected table name after DELETE")
+	}
+	stmt.Relation = rel
 
 	// OUTPUT clause
 	if p.cur.Type == kwOUTPUT {
@@ -282,6 +256,133 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// parseDmlTarget parses the target of an UPDATE or DELETE:
+//
+//	dmlTarget (TSql160.g:20084)
+//	    : schemaObjectDmlTarget | openRowset | variableDmlTarget
+//
+// SQL Server takes the rowset functions here as rowset functions in FROM
+// (measured): OPENQUERY ( linked_server , 'query' ), OPENDATASOURCE ( ... )
+// . table, and a name with an argument list, as in DELETE a(1). It takes no
+// alias after OPENQUERY (Msg 102), no WITH ( hint ) after the call (Msg 319),
+// and no OPENROWSET or OPENXML (Msg 7222 and 156), so a name without an
+// argument list keeps the hints a named table takes.
+func (p *Parser) parseDmlTarget() (nodes.TableExpr, error) {
+	if p.cur.Type == tokVARIABLE {
+		return p.parseVariableDmlTarget(), nil
+	}
+	switch p.cur.Type {
+	case kwOPENDATASOURCE:
+		return p.parseRowsetFunction()
+	case kwOPENQUERY:
+		ref, err := p.parseRowsetFunction()
+		if err != nil {
+			return nil, err
+		}
+		if a, ok := ref.(*nodes.AliasedTableRef); ok && a.Alias != "" {
+			return nil, p.newParseError(a.Loc.End-1, "OPENQUERY takes no alias as a DML target")
+		}
+		return ref, nil
+	}
+
+	rel, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if rel == nil {
+		return nil, nil
+	}
+
+	// A name with an argument list is a function: schemaObjectFunctionDmlTarget's
+	// parenthesizedOptExpressionWithDefaultList.
+	if p.cur.Type == '(' {
+		args, err := p.parseDmlTargetArgs()
+		if err != nil {
+			return nil, err
+		}
+		fc := &nodes.FuncCallExpr{
+			Name: rel,
+			Args: args,
+			Loc:  nodes.Loc{Start: rel.Loc.Start, End: p.prevEnd()},
+		}
+		return fc, nil
+	}
+
+	// Optional WITH ( <Table_Hint_Limited> ) on target — only allowed on named tables.
+	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+		hints, err := p.parseDmlTargetHints()
+		if err != nil {
+			return nil, err
+		}
+		rel.Hints = hints
+	}
+	return rel, nil
+}
+
+// parseDmlTargetArg parses one argument of a DML target's call. SQL Server
+// takes a constant, a variable, DEFAULT or a negated number there and no
+// expression of its own: `DELETE a(zzz)` and `DELETE a(1+1)` are Msg 102,
+// `DELETE a(1)`, a(@x), a('a'), a(NULL), a(-1) and a(DEFAULT) are not
+// (measured).
+func (p *Parser) parseDmlTargetArg() (nodes.ExprNode, error) {
+	switch p.cur.Type {
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokMONEY, kwNULL, kwDEFAULT,
+		tokVARIABLE, tokSYSVARIABLE:
+		return p.parsePrimary()
+	case '-':
+		loc := p.pos()
+		p.advance() // consume '-'
+		switch p.cur.Type {
+		case tokICONST, tokFCONST, tokMONEY:
+			if execIsBinary(p.cur) {
+				return nil, p.syntaxErrorAtCur()
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		operand, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.UnaryExpr{
+			Op:      nodes.UnaryMinus,
+			Operand: operand,
+			Loc:     nodes.Loc{Start: loc, End: p.prevEnd()},
+		}, nil
+	}
+	return nil, nil
+}
+
+// parseDmlTargetArgs parses the argument list a DML target's function call
+// takes: parenthesizedOptExpressionWithDefaultList (TSql160.g), whose
+// expressions may not carry DEFAULT there (Msg 156, measured).
+func (p *Parser) parseDmlTargetArgs() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if _, ok := p.match(')'); ok {
+		return nil, nil
+	}
+	var items []nodes.Node
+	for {
+		arg, err := p.parseDmlTargetArg()
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		items = append(items, arg)
+		if _, ok := p.match(','); !ok {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseWhereClauseBody parses the body of a WHERE clause, handling both

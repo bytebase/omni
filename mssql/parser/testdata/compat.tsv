@@ -9432,13 +9432,13 @@ reject	reject	engine	mergeInsertDmlColumn/multiPartIdentifier!truncate	MERGE a U
 reject	reject	engine	mergeInsertDmlColumn/systemColumn	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN INSERT($IDENTITY) DEFAULT VALUES
 reject	reject	engine	mergeInsertDmlColumn/systemColumn!insert	MERGE a USING @a ON 1 = 1 WHEN MATCHED THEN INSERT($IDENTITY zzz) DEFAULT VALUES
 accept	accept	engine	variableDmlTarget/variable	DELETE @a
-reject	accept	engine	schemaObjectDmlTarget/schemaObjectFunctionDmlTarget	DELETE a()
+accept	accept	engine	schemaObjectDmlTarget/schemaObjectFunctionDmlTarget	DELETE a()
 reject	reject	engine	schemaObjectDmlTarget/schemaObjectFunctionDmlTarget!drop-1	DELETE()
 reject	reject	engine	schemaObjectDmlTarget/schemaObjectFunctionDmlTarget!drop-2	DELETE a)
 reject	reject	engine	schemaObjectDmlTarget/schemaObjectFunctionDmlTarget!drop-3	DELETE a(
 reject	reject	engine	schemaObjectDmlTarget/schemaObjectFunctionDmlTarget!insert	DELETE a() zzz
 accept	accept	engine	schemaObjectDmlTarget/schemaObjectTableDmlTarget	DELETE a
-reject	accept	engine	schemaObjectFunctionDmlTarget/schemaObjectFourPartName_parenthesizedOptExpressionWith~06b8cc82	DELETE a()
+accept	accept	engine	schemaObjectFunctionDmlTarget/schemaObjectFourPartName_parenthesizedOptExpressionWith~06b8cc82	DELETE a()
 accept	accept	engine	schemaObjectTableDmlTarget/schemaObjectFourPartName_(With_tableHints)?	DELETE a
 accept	accept	engine	schemaObjectTableDmlTarget(With_tableHints)?/%empty	DELETE a
 reject	reject	engine	schemaObjectTableDmlTarget(With_tableHints)?/With_tableHints	DELETE a WITH(FORCESEEK)
@@ -9692,7 +9692,7 @@ reject	reject	engine	openJsonSchemaItem(As_JSON)?/As_JSON!truncate	SELECT * FROM
 reject	reject	engine	openJsonSchemaItem(As_JSON)?/As_JSON!insert	SELECT * FROM OPENJSON(1) WITH(a a AS JSON zzz)
 reject	reject	engine	openJsonSchemaItem(As_JSON)?/As_JSON!swap	SELECT * FROM OPENJSON(1) WITH(a a ASC JSON)
 reject	reject	engine	openRowset/openRowsetRowset	DELETE OPENROWSET(a)
-reject	accept	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
+accept	accept	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt	DELETE OPENQUERY(a, 'a')
 reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!drop-1	DELETE(a, 'a')
 reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!drop-2	DELETE OPENQUERY a, 'a')
 reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!drop-3	DELETE OPENQUERY(, 'a')
@@ -9816,7 +9816,7 @@ reject	reject	engine	openRowsetBulkHint/openRowsetBulkHintNoValue	DELETE OPENROW
 reject	reject	engine	openRowsetBulkHint/simpleBulkInsertOptionWithValue	DELETE OPENROWSET(BULK 'a', a = 1)
 reject	reject	engine	openRowsetBulkHint/openRowsetBulkOrderHint	DELETE OPENROWSET(BULK 'a', ORDER(a))
 reject	reject	engine	openRowsetBulkHintNoValue/Identifier	DELETE OPENROWSET(BULK 'a', a)
-reject	accept	engine	openQueryRowset/OpenQuery_LeftParenthesis_identifier_Comma_stringLitera~ef6ae9e0	DELETE OPENQUERY(a, 'a')
+accept	accept	engine	openQueryRowset/OpenQuery_LeftParenthesis_identifier_Comma_stringLitera~ef6ae9e0	DELETE OPENQUERY(a, 'a')
 reject	accept	engine	adhocRowset/adhocDataSource_Dot_objectOrString	DELETE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	openRowsetParams/stringLiteral_Comma_((stringLiteral_Semicolon_(stringLi~88f996fa	DELETE OPENROWSET('a', 'a', a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246	DELETE OPENROWSET('a', 'a';;, a)
@@ -14116,10 +14116,10 @@ reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Com
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!drop-2	SELECT a(1,)
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!truncate	SELECT a(1,
 reject	reject	engine	expressionWithDefaultList(Comma_expressionWithDefault)*/Comma_expressionWithDefault_(Comma_expressionWithDefault)*!insert	SELECT a(1, 1 zzz)
-reject	accept	engine	parenthesizedOptExpressionWithDefaultList/LeftParenthesis_(expressionWithDefaultList)?_RightParenthesis	DELETE a()
-reject	accept	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/%empty	DELETE a()
+accept	accept	engine	parenthesizedOptExpressionWithDefaultList/LeftParenthesis_(expressionWithDefaultList)?_RightParenthesis	DELETE a()
+accept	accept	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/%empty	DELETE a()
 reject	reject	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/%empty!insert	DELETE a(zzz)
-reject	accept	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
+accept	accept	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList	DELETE a(1)
 reject	reject	engine	parenthesizedOptExpressionWithDefaultList(expressionWithDefaultList)?/expressionWithDefaultList!insert	DELETE a(1 zzz)
 accept	accept	engine	nullIfExpression/NullIf_LeftParenthesis_expressionWithFlags_Comma_expres~4ee85fc9	SELECT NULLIF(1, 1)
 accept	accept	engine	coalesceExpression/Coalesce_LeftParenthesis_expressionWithFlags_(Comma_exp~2f43eb19	SELECT COALESCE(1, 1)
