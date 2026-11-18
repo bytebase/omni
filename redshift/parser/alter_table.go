@@ -798,7 +798,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 				INHERIT, NO, ATTACH, DETACH,
 				ENABLE_P, DISABLE_P, FORCE, CLUSTER,
 				SET, RESET, REPLICA, OF, NOT, OPTIONS,
-				RENAME, IDENT,
+				RENAME, IDENT, PARTITION,
 			} {
 				p.addTokenCandidate(t)
 			}

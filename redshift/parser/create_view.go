@@ -422,7 +422,14 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 //
 // Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
 func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, accessMethod string) (*nodes.List, error) {
-	iceberg := strings.EqualFold(accessMethod, "iceberg")
+	if strings.EqualFold(accessMethod, "iceberg") {
+		// The Iceberg clauses follow USING ICEBERG immediately, in their own
+		// order, so they are read once rather than in the loop below.
+		var err error
+		if options, err = p.parseRedshiftIcebergMaterializedViewOptions(options); err != nil {
+			return nil, err
+		}
+	}
 	for {
 		consumed := false
 		attrs, err := p.parseRedshiftCreateTableAttributes()
@@ -448,14 +455,6 @@ func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, a
 			}
 			consumed = true
 		}
-		if iceberg {
-			var icebergConsumed bool
-			options, icebergConsumed, err = p.parseRedshiftIcebergMaterializedViewOptions(options)
-			if err != nil {
-				return nil, err
-			}
-			consumed = consumed || icebergConsumed
-		}
 		if !consumed {
 			return options, nil
 		}
@@ -470,46 +469,50 @@ func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, a
 //	[ PARTITIONED BY ( partition_transform [, ...] ) ]
 //	[ TABLE PROPERTIES ( 'name' = 'value' [, ...] ) ]
 //
-// It reports whether it read one, so its caller's loop knows to go on. The
-// table properties keep the shape ALTER TABLE ... SET TABLE PROPERTIES gives
-// them: a list of one DefElem per 'name' = 'value' pair.
-func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List) (*nodes.List, bool, error) {
-	consumed := false
+// The table properties keep the shape ALTER TABLE ... SET TABLE PROPERTIES
+// gives them: a list of one DefElem per 'name' = 'value' pair.
+func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List) (*nodes.List, error) {
+	// The clauses come in this order and each once, so stage records how far
+	// the last one read got: 0 before LOCATION, 1 before PARTITIONED BY, 2
+	// before TABLE PROPERTIES and 3 after it.
+	stage := 0
 	for {
 		switch {
-		case p.cur.Type == LOCATION:
+		case p.cur.Type == LOCATION && stage == 0:
+			stage = 1
 			p.advance()
 			location, err := p.parseRedshiftStringLiteral()
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 			options = appendToList(options, makeDefElem("location", &nodes.String{Str: location}))
-		case p.redshiftKeywordIs("partitioned"):
+		case p.redshiftKeywordIs("partitioned") && stage <= 1:
 			// PARTITIONED BY is not a PostgreSQL clause; both words are names
 			// there, so neither is a keyword token in this package.
+			stage = 2
 			p.advance()
 			if _, err := p.expect(BY); err != nil {
-				return nil, false, err
+				return nil, err
 			}
 			transforms, err := p.parseRedshiftPartitionTransforms()
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 			options = appendToList(options, makeDefElem("partitioned_by", transforms))
-		case p.cur.Type == TABLE:
+		case p.cur.Type == TABLE && stage <= 2:
+			stage = 3
 			p.advance()
 			if !p.consumeRedshiftWord("properties") {
-				return nil, false, p.syntaxErrorAtCur()
+				return nil, p.syntaxErrorAtCur()
 			}
 			properties, err := p.parseRedshiftStringOptionList()
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 			options = appendToList(options, makeDefElem("table_properties", properties))
 		default:
-			return options, consumed, nil
+			return options, nil
 		}
-		consumed = true
 	}
 }
 

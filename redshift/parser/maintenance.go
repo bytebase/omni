@@ -161,11 +161,15 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 		// with no table for it to belong to. The relation's VaCols hold the
 		// list and its Relation is nil then.
 		if p.cur.Type == '(' {
+			listLoc := p.pos()
 			cols, err := p.parseParenColumnList()
 			if err != nil {
 				return nil, err
 			}
-			n.Rels = &nodes.List{Items: []nodes.Node{&nodes.VacuumRelation{VaCols: cols, Loc: nodes.NoLoc()}}}
+			n.Rels = &nodes.List{Items: []nodes.Node{&nodes.VacuumRelation{
+				VaCols: cols,
+				Loc:    nodes.Loc{Start: listLoc, End: p.prev.End},
+			}}}
 		}
 	}
 	if p.cur.Type == VERBOSE {

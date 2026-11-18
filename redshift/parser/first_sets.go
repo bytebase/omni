@@ -829,7 +829,15 @@ func (p *Parser) isRedshiftPartitionTransformCallStart() bool {
 //
 // Validated by TestIsRedshiftNumberStart in first_sets_test.go.
 func (p *Parser) isRedshiftNumberStart() bool {
-	return p.isNumericOnlyStart() && p.cur.Type != FCONST
+	switch p.cur.Type {
+	case ICONST:
+		return true
+	case '+', '-':
+		// A sign with no integer after it is no NUMBER, and
+		// parseNumericOnly would read it as zero.
+		return p.peekNext().Type == ICONST
+	}
+	return false
 }
 
 // isRedshiftRoleSpecStart reports whether tok begins a RoleSpec, which a

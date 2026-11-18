@@ -173,8 +173,15 @@ func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
 
-	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
+	// The view's storage travels with the statement that names it: the USING
+	// access method and the option list, before AS.
+	options := ""
+	if rel := to.GetRelation(entry.SchemaName, entry.Name); rel != nil {
+		options = deparseMatViewOptions(rel)
+	}
+
+	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
+		qn, options, strings.TrimRight(def, " \t\n\r;"))
 
 	return MigrationOp{
 		Type:          OpCreateView,

@@ -37,6 +37,19 @@ func TestRedshiftSelectExcludeParse(t *testing.T) {
 			}
 		})
 	}
+
+	// The comma list is the parenthesized form's, so a bare pair is no EXCLUDE.
+	if _, err := Parse("SELECT * EXCLUDE a, b FROM t;"); err == nil {
+		t.Error("EXCLUDE a, b parsed, want a syntax error")
+	}
+	for _, sql := range []string{
+		"SELECT * EXCLUDE a,",
+		"SELECT * EXCLUDE (a,)",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
 }
 
 // TestRedshiftSelectConnectByParse pins the hierarchical-query clauses
@@ -168,6 +181,16 @@ func TestRedshiftSelectGroupByAllParse(t *testing.T) {
 				t.Fatalf("GroupClause = %#v, want none beside ALL", sel.GroupClause)
 			}
 		})
+	}
+
+	// ALL also modifies a list, which is how PostgreSQL writes its
+	// set_quantifier, so GROUP BY ALL rollup(a, b) keeps both readings.
+	qualified, ok := singleStmt(t, "SELECT * FROM t GROUP BY ALL rollup(a, b), rollup(a, c);").(*nodes.SelectStmt)
+	if !ok {
+		t.Fatal("expected SelectStmt")
+	}
+	if !qualified.GroupAll || qualified.GroupClause == nil || len(qualified.GroupClause.Items) != 2 {
+		t.Fatalf("GROUP BY ALL rollup(a, b), rollup(a, c) = %#v, want GroupAll over two items", qualified)
 	}
 
 	// DISTINCT still takes its list, as PostgreSQL writes it, and the two markers

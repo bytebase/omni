@@ -217,8 +217,18 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 			d.getGroupingSet(gs, query.TargetList)
 		}
 	} else if query.GroupAll {
-		// Redshift's GROUP BY ALL carries no list of its own.
+		// GROUP BY ALL may stand alone or modify a list, as PostgreSQL's
+		// set_quantifier allows: write the word, then whatever grouping the
+		// query has beside it.
 		d.appendContextKeyword(" GROUP BY ALL", -prettyIndentStd, prettyIndentStd, 0)
+		for i, grp := range query.GroupClause {
+			if i == 0 {
+				d.buf.WriteByte(' ')
+			} else {
+				d.buf.WriteString(", ")
+			}
+			d.getSortGroupClause(grp, query.TargetList, false)
+		}
 	} else if len(query.GroupClause) > 0 {
 		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
 		for i, grp := range query.GroupClause {

@@ -172,6 +172,12 @@ func TestRedshiftCreateMaterializedViewIcebergRejectsOtherTransforms(t *testing.
 		"CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR()) AS SELECT 1",
 		"CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(b, b)) AS SELECT 1",
 		"CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s') AS SELECT 1",
+		// The clauses come in the docs' order, each once.
+		"CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's') LOCATION 's3://b/' AS SELECT 1",
+		"CREATE MATERIALIZED VIEW a USING ICEBERG LOCATION 's3://b/' LOCATION 's3://c/' AS SELECT 1",
+		"CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) PARTITIONED BY(b) AS SELECT 1",
+		// A transform's count is a number.
+		"CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(+, a)) AS SELECT 1",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)

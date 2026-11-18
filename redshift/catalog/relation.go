@@ -1,5 +1,9 @@
 package catalog
 
+import (
+	nodes "github.com/bytebase/omni/redshift/ast"
+)
+
 // InhEntry represents a row in pg_inherits.
 type InhEntry struct {
 	InhRelID  uint32 // child relation OID
@@ -82,6 +86,14 @@ type Relation struct {
 
 	// View options.
 	CheckOption byte // 0=none, 'l'=LOCAL, 'c'=CASCADED (views only)
+
+	// Materialized view storage, Redshift's: the access method CREATE
+	// MATERIALIZED VIEW ... USING names, and the option list the same statement
+	// carries (BACKUP, DISTSTYLE, DISTKEY, SORTKEY, AUTO REFRESH, and the
+	// Iceberg form's LOCATION, PARTITIONED BY and TABLE PROPERTIES). Both are
+	// kept as parsed so a migration re-creates the view as it was written.
+	MatViewAccessMethod string
+	MatViewOptions      *nodes.List
 
 	// ON COMMIT behavior for temp tables.
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop

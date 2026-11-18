@@ -369,10 +369,11 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		if _, err := p.expect(BY); err != nil {
 			return nil, err
 		}
-		// Check for ALL or DISTINCT
+		// GROUP BY takes ALL, DISTINCT or a list. ALL is a modifier in
+		// PostgreSQL's grammar and an alternative to the list in Redshift's docs,
+		// so both readings parse: GROUP BY ALL alone, and GROUP BY ALL
+		// rollup(a, b) from a query written for PostgreSQL.
 		if p.cur.Type == ALL {
-			// GROUP BY ALL groups by every column no aggregate uses, so the
-			// docs let it stand alone; an expression list may still follow.
 			p.advance()
 			stmt.GroupAll = true
 		} else if p.cur.Type == DISTINCT {
@@ -461,7 +462,7 @@ func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 		return nil, err
 	}
 	items := []nodes.Node{&nodes.String{Str: name}}
-	for p.cur.Type == ',' {
+	for parenthesized && p.cur.Type == ',' {
 		p.advance()
 		name, err := p.parseColId()
 		if err != nil {
