@@ -1423,12 +1423,13 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 			idx.Columnstore = true
 			if p.cur.Type == kwORDER {
 				p.advance()
-				if p.cur.Type == '(' {
-					var err error
-					idx.Columns, err = p.parseIndexColumnList()
-					if err != nil {
-						return nil, err
-					}
+				if p.cur.Type != '(' {
+					return nil, p.unexpectedToken()
+				}
+				var err error
+				idx.Columns, err = p.parseIndexColumnList()
+				if err != nil {
+					return nil, err
 				}
 			}
 			goto trailingOptions
@@ -1496,12 +1497,13 @@ trailingOptions:
 	// [ WITH ( <index_option> [ ,...n ] ) ]
 	if p.cur.Type == kwWITH {
 		p.advance()
-		if p.cur.Type == '(' {
-			var err error
-			idx.Options, err = p.parseOptionList()
-			if err != nil {
-				return nil, err
-			}
+		if p.cur.Type != '(' {
+			return nil, p.unexpectedToken()
+		}
+		var err error
+		idx.Options, err = p.indexOptionListRule(inlineIndexOptionRule(idx.Columnstore))
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -1534,12 +1536,19 @@ trailingOptions:
 		}
 	}
 
-	// [ FILESTREAM_ON { ... } ]
+	// [ FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" } ]
+	// fileStreamOn is 'FILESTREAM_ON' stringOrIdentifier (TSql160.g:29200).
 	if p.cur.Type == kwFILESTREAM_ON {
 		p.advance()
-		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
+		switch {
+		case p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST:
 			idx.FilestreamOn = p.cur.Str
 			p.advance()
+		case p.isIdentLike() || p.cur.Type == kwPRIMARY:
+			idx.FilestreamOn = p.cur.Str
+			p.advance()
+		default:
+			return nil, p.unexpectedToken()
 		}
 	}
 

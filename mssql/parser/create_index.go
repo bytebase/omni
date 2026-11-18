@@ -673,6 +673,26 @@ var indexOnOffOptions = indexNameSet("PAD_INDEX", "SORT_IN_TEMPDB", "STATISTICS_
 	"STATISTICS_INCREMENTAL", "DROP_EXISTING", "RESUMABLE", "ALLOW_ROW_LOCKS", "ALLOW_PAGE_LOCKS",
 	"OPTIMIZE_FOR_SEQUENTIAL_KEY", "LOB_COMPACTION", "COMPRESS_ALL_ROW_GROUPS")
 
+// inlineIndexOptionRule is what an inline INDEX of a CREATE TABLE body or an
+// ALTER TABLE ADD list takes in its WITH ( ... ): CREATE INDEX's set, or a
+// CREATE COLUMNSTORE INDEX's for a columnstore, without DROP_EXISTING, which
+// the pinned server refuses there ("'DROP_EXISTING' is not a recognized ALTER
+// TABLE option").
+func inlineIndexOptionRule(columnstore bool) indexOptionRule {
+	rule := indexOptionRules[indexOptCreate]
+	if columnstore {
+		rule = indexOptionRules[indexOptColumnstore]
+	}
+	names := make(map[string]bool, len(rule.names))
+	for n := range rule.names {
+		if n != "DROP_EXISTING" {
+			names[n] = true
+		}
+	}
+	rule.names = names
+	return rule
+}
+
 // indexOptionList parses ( indexOption [ , ...n ] ) (indexOptionList,
 // TSql160.g:17282) for the statement kind given. Each option becomes a
 // String "NAME=VALUE", the shape mssql/review reads DROP_EXISTING from.

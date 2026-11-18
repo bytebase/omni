@@ -89,13 +89,30 @@ func TestParseAlterTableAddIndex(t *testing.T) {
 	})
 
 	t.Run("with_and_filegroup", func(t *testing.T) {
-		sql := "ALTER TABLE a ADD INDEX ix (a) WITH (FILLFACTOR = 1) ON 'a'"
-		idx := addIndexAction(t, ParseAndCheck(t, sql), sql)
-		if idx.Options == nil || idx.Options.Len() == 0 {
-			t.Errorf("Options = %v, want FILLFACTOR", idx.Options)
+		// The options are CREATE INDEX's set without DROP_EXISTING, and a
+		// columnstore's own set on a columnstore, as the server answered.
+		for _, sql := range []string{
+			"ALTER TABLE a ADD INDEX ix (a) WITH (FILLFACTOR = 1) ON 'a'",
+			"ALTER TABLE a ADD INDEX ix (a) WITH (ALLOW_ROW_LOCKS = ON, DATA_COMPRESSION = PAGE)",
+			"ALTER TABLE a ADD INDEX ix COLUMNSTORE (a) WITH (COMPRESSION_DELAY = 1)",
+		} {
+			t.Run(sql, func(t *testing.T) {
+				idx := addIndexAction(t, ParseAndCheck(t, sql), sql)
+				if idx.Options == nil || idx.Options.Len() == 0 {
+					t.Errorf("Options = %v, want an option", idx.Options)
+				}
+			})
 		}
-		if idx.OnFilegroup != "a" {
-			t.Errorf("OnFilegroup = %q, want a", idx.OnFilegroup)
+		for _, sql := range []string{
+			"ALTER TABLE a ADD INDEX ix (a) ON 'a'",
+			"ALTER TABLE a ADD INDEX ix (a) ON ps(a) FILESTREAM_ON 'a'",
+		} {
+			t.Run(sql, func(t *testing.T) {
+				idx := addIndexAction(t, ParseAndCheck(t, sql), sql)
+				if idx.OnFilegroup != "a" && idx.OnFilegroup != "ps(a)" {
+					t.Errorf("OnFilegroup = %q, want the filegroup", idx.OnFilegroup)
+				}
+			})
 		}
 	})
 
@@ -130,6 +147,14 @@ func TestParseAlterTableAddIndexRejects(t *testing.T) {
 		"ALTER TABLE a ADD INDEX ix WHERE a IS DISTINCT FROM 1 OR b = 2",
 		"ALTER TABLE a ADD INDEX ix ON",
 		"ALTER TABLE a ADD INDEX ix ON ps(a",
+		"ALTER TABLE a ADD INDEX ix WITH",
+		"ALTER TABLE a ADD INDEX ix WITH ()",
+		"ALTER TABLE a ADD INDEX ix (a) WITH (FOO = 1)",
+		"ALTER TABLE a ADD INDEX ix (a) WITH (DROP_EXISTING = ON)",
+		"ALTER TABLE a ADD INDEX ix (a) WITH (COMPRESSION_DELAY = 1)",
+		"ALTER TABLE a ADD INDEX ix COLUMNSTORE (a) WITH (FILLFACTOR = 1)",
+		"ALTER TABLE a ADD INDEX ix FILESTREAM_ON",
+		"ALTER TABLE a ADD INDEX ix CLUSTERED COLUMNSTORE ORDER",
 		"ALTER TABLE a ADD INDEX ix ON ps()",
 		"ALTER TABLE a ADD INDEX ix HASH",
 	} {

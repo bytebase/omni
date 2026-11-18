@@ -469,6 +469,10 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 			if a.Column != nil {
 				d.addColumn(a.Column)
 			}
+		case ast.ATAddIndex:
+			if a.Index != nil {
+				d.indexes = append(d.indexes, a.Index)
+			}
 		case ast.ATAddConstraint:
 			if a.Constraint != nil {
 				d.constraints = append(d.constraints, a.Constraint)
