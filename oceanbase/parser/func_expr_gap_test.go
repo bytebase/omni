@@ -36,6 +36,7 @@ func TestFunctionExpressionGaps(t *testing.T) {
 		"SELECT CHECK()",
 		"SELECT ARRAY_AGG()",
 		"SELECT [ ]",
+		"SELECT [INTERVAL 1 DAY]",
 		"SELECT DENSE_RANK() a",
 		"SELECT LISTAGG(a) a",
 		"SELECT LAST_VALUE(1)",

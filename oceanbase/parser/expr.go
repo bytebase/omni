@@ -2879,6 +2879,13 @@ func (p *Parser) parseArrayLiteral() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	for _, arg := range args {
+		// A bare INTERVAL is an operand of date arithmetic, not an
+		// expression of its own, as in the ordinary argument path.
+		if isBareInterval(arg) {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 	if _, err := p.expect(']'); err != nil {
 		return nil, err
 	}
