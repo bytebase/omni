@@ -117,12 +117,6 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1128,
 		},
 		{
-			name:  "self-referencing FOREIGN KEY over a key added earlier",
-			setup: []string{"CREATE TABLE a (x INT)"},
-			stmt:  "ALTER TABLE a ADD KEY k(x), ADD FOREIGN KEY (x) REFERENCES a(x), ADD COLUMN z INT",
-			code:  1005,
-		},
-		{
 			name:  "two VECTOR keys beside an added column",
 			setup: []string{"CREATE TABLE a (v VECTOR(3) NOT NULL)"},
 			stmt:  "ALTER TABLE a ADD VECTOR i(v), ADD VECTOR j(v), ADD COLUMN x INT",

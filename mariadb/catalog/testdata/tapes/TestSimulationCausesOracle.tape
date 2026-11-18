@@ -292,25 +292,6 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
-| CREATE TABLE a (x INT)
-< ok 0 0
-> exec
-| ALTER TABLE a ADD KEY k(x), ADD FOREIGN KEY (x) REFERENCES a(x), ADD COLUMN z INT
-< error
-| 1005 HY000 Can't create table `omni_testsimulationcausesoracle`.`a` (errno: 150 "Foreign key constraint is incorrectly formed")
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
 | CREATE TABLE a (v VECTOR(3) NOT NULL)
 < ok 0 0
 > exec

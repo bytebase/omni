@@ -141,8 +141,16 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	dropsPK := alterDropsPrimaryKey(stmt.Commands)
 	droppedColumns := alterDroppedColumns(stmt.Commands)
 	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
-	prospective := alterProspectiveTable(tbl, stmt.Commands)
-	futureColumns := alterFutureColumnChanges(stmt.Commands)
+	cmdIndex := make(map[*nodes.AlterTableCmd]int, len(stmt.Commands))
+	for i, cmd := range stmt.Commands {
+		cmdIndex[cmd] = i
+	}
+	futureFor := func(cmd *nodes.AlterTableCmd) []futureColumn {
+		if cmd.Type != nodes.ATAddIndex && cmd.Type != nodes.ATAddConstraint {
+			return nil
+		}
+		return alterFutureColumnsAfter(stmt.Commands, cmdIndex[cmd])
+	}
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -158,13 +166,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective, futureColumns[cmd])
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, futureFor(cmd))
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective, futureColumns[cmd]); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, futureFor(cmd)); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -194,7 +202,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective, futureColumns[cmd]); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, futureFor(cmd)); err != nil {
 			rollback()
 			return err
 		}
@@ -261,7 +269,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // composite key's columns would leave a half-built key behind; declaredChecks
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, prospective *Table, future []futureColumn) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, future []futureColumn) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
@@ -272,7 +280,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, declaredChecks, prospective, future)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks, future)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -553,7 +561,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}, declared, nil, nil); err != nil {
+			}, declared, nil); err != nil {
 				return err
 			}
 		}
@@ -752,136 +760,78 @@ func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 	return out
 }
 
-// alterProspectiveTable is the table the ALTER leaves, for checking a key
-// against it: MariaDB reads a key's columns from the statement's completed
-// definition, so `ADD KEY k(b), ADD COLUMN b INT` is accepted although the
-// key's clause comes first. It applies the columns the statement introduces,
-// and returns tbl itself when it introduces none.
-func alterProspectiveTable(tbl *Table, cmds []*nodes.AlterTableCmd) *Table {
-	mutates := false
-	for _, cmd := range cmds {
-		if cmd == nil {
-			continue
-		}
-		switch cmd.Type {
-		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn, nodes.ATRenameColumn:
-			mutates = true
-		}
-	}
-	if !mutates {
-		return tbl
-	}
-	p := cloneTable(tbl)
-	pp := &p
-	add := func(def *nodes.ColumnDef) {
-		if def == nil || def.Name == "" || pp.GetColumn(def.Name) != nil {
-			return
-		}
-		col := buildColumnFromDef(pp, def)
-		col.Position = len(pp.Columns) + 1
-		pp.Columns = append(pp.Columns, col)
-	}
-	for _, cmd := range cmds {
-		if cmd == nil {
-			continue
-		}
-		switch cmd.Type {
-		case nodes.ATAddColumn:
-			add(cmd.Column)
-			for _, def := range cmd.Columns {
-				add(def)
-			}
-		case nodes.ATModifyColumn, nodes.ATChangeColumn:
-			if cmd.Column == nil {
-				continue
-			}
-			if at, ok := pp.colByName[toLower(cmd.Name)]; ok {
-				col := buildColumnFromDef(pp, cmd.Column)
-				col.Position = pp.Columns[at].Position
-				pp.Columns[at] = col
-				if !strings.EqualFold(cmd.Name, cmd.Column.Name) {
-					updateColumnRefsInIndexes(pp, cmd.Name, cmd.Column.Name)
-				}
-			} else {
-				add(cmd.Column)
-			}
-		case nodes.ATRenameColumn:
-			if at, ok := pp.colByName[toLower(cmd.Name)]; ok {
-				pp.Columns[at].Name = cmd.NewName
-				updateColumnRefsInIndexes(pp, cmd.Name, cmd.NewName)
-			}
-		}
-		rebuildColIndex(pp)
-	}
-	return pp
-}
-
 // A futureColumn is a column a later command of the same ALTER introduces or
-// renames. A key is validated against the table the statement leaves for the
-// columns that come after it, but not for a drop that comes after it: an ADD
-// KEY before its ADD COLUMN is accepted, while a drop before the key is
-// already reflected by the live table.
+// changes. A key is validated against the columns the statement leaves behind,
+// but not against a drop that comes after it: `ADD KEY k(b), ADD COLUMN b INT`
+// is accepted, while a drop before the key is already reflected by the live
+// table.
 type futureColumn struct {
-	def      *nodes.ColumnDef // ADD, MODIFY or CHANGE's new definition
-	from, to string           // RENAME's old and new names
+	def         *nodes.ColumnDef // ADD, MODIFY or CHANGE's new definition
+	from        string           // CHANGE's source column; empty for MODIFY/ADD
+	ifNotExists bool             // ADD COLUMN IF NOT EXISTS
 }
 
-// alterFutureColumnChanges maps each command to the columns the commands after
-// it introduce, in statement order.
-func alterFutureColumnChanges(cmds []*nodes.AlterTableCmd) map[*nodes.AlterTableCmd][]futureColumn {
-	out := make(map[*nodes.AlterTableCmd][]futureColumn, len(cmds))
-	for i, cmd := range cmds {
-		var changes []futureColumn
-		for _, later := range cmds[i+1:] {
-			if later == nil {
-				continue
+// alterFutureColumnsAfter returns the columns the commands after cmds[at]
+// introduce, in statement order. It is built only for a command that adds a
+// key, so an ALTER of many columns pays nothing for the ones without keys.
+func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int) []futureColumn {
+	var changes []futureColumn
+	for _, later := range cmds[at+1:] {
+		if later == nil {
+			continue
+		}
+		switch later.Type {
+		case nodes.ATAddColumn:
+			if later.Column != nil {
+				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists})
 			}
-			switch later.Type {
-			case nodes.ATAddColumn:
-				if later.Column != nil {
-					changes = append(changes, futureColumn{def: later.Column})
+			for _, def := range later.Columns {
+				if def != nil {
+					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists})
 				}
-				for _, def := range later.Columns {
-					if def != nil {
-						changes = append(changes, futureColumn{def: def})
-					}
-				}
-			case nodes.ATModifyColumn, nodes.ATChangeColumn:
-				if later.Column != nil {
-					changes = append(changes, futureColumn{def: later.Column})
-				}
-			case nodes.ATRenameColumn:
-				changes = append(changes, futureColumn{from: later.Name, to: later.NewName})
+			}
+		case nodes.ATModifyColumn:
+			if later.Column != nil {
+				changes = append(changes, futureColumn{def: later.Column})
+			}
+		case nodes.ATChangeColumn:
+			if later.Column != nil {
+				changes = append(changes, futureColumn{def: later.Column, from: later.Name})
 			}
 		}
-		out[cmd] = changes
 	}
-	return out
+	return changes
 }
 
-// applyFutureColumns adds a later command's columns to a table cloned from the
-// live one, so a key is judged on the columns the statement leaves behind.
+// applyFutureColumns adds a later command's columns to the key's table.
 func applyFutureColumns(tbl *Table, changes []futureColumn) {
 	for _, ch := range changes {
-		switch {
-		case ch.def != nil:
-			if ch.def.Name == "" {
-				continue
-			}
-			if at, ok := tbl.colByName[toLower(ch.def.Name)]; ok {
+		if ch.def == nil || ch.def.Name == "" {
+			continue
+		}
+		if ch.from != "" {
+			// CHANGE replaces its source definition, and the key may still name
+			// that source: `ADD KEY(a), CHANGE a b INT` checks a's new type
+			// before the rename. The new name is there too for a key naming it.
+			if at, ok := tbl.colByName[toLower(ch.from)]; ok {
 				col := buildColumnFromDef(tbl, ch.def)
+				col.Name = ch.from
 				col.Position = tbl.Columns[at].Position
 				tbl.Columns[at] = col
-			} else {
-				col := buildColumnFromDef(tbl, ch.def)
-				col.Position = len(tbl.Columns) + 1
-				tbl.Columns = append(tbl.Columns, col)
+				rebuildColIndex(tbl)
 			}
-		case ch.to != "":
-			if at, ok := tbl.colByName[toLower(ch.from)]; ok {
-				tbl.Columns[at].Name = ch.to
-				updateColumnRefsInIndexes(tbl, ch.from, ch.to)
+		}
+		if at, ok := tbl.colByName[toLower(ch.def.Name)]; ok {
+			if ch.ifNotExists {
+				continue
 			}
+			col := buildColumnFromDef(tbl, ch.def)
+			col.Position = tbl.Columns[at].Position
+			tbl.Columns[at] = col
+		} else {
+			col := buildColumnFromDef(tbl, ch.def)
+			col.Position = len(tbl.Columns) + 1
+			tbl.Columns = append(tbl.Columns, col)
 		}
 		rebuildColIndex(tbl)
 	}
@@ -1329,7 +1279,7 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	return nil
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, prospective *Table, future []futureColumn) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, future []futureColumn) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1472,17 +1422,10 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			OnDelete:    refActionToString(con.OnDelete),
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
-		// Validate FK before adding (unless foreign_key_checks=0). A
-		// self-reference reads the table's pre-statement indexes, not one an
-		// earlier command of this ALTER adds: mariadb:11.8.8 answers 1005 for
-		// `ADD KEY k(x), ADD FOREIGN KEY (x) REFERENCES a(x), ADD COLUMN z INT`.
+		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
-		fkTbl := keyTbl
-		if prospective != nil && prospective != tbl {
-			fkTbl = prospective
-		}
 		if c.foreignKeyChecks {
-			if err := c.validateSingleFK(db, fkTbl, fkCon); err != nil {
+			if err := c.validateSingleFK(db, keyTbl, fkCon); err != nil {
 				return err
 			}
 		}
