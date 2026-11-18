@@ -64,9 +64,8 @@ import "github.com/bytebase/omni/trino/ast"
 // correctly; treat docs-ahead-of-legacy items as explicit deferred P1
 // extensions":
 //
-//	D1 (JSON_TABLE relation — divergence #3). JSON_TABLE is a relationPrimary
-//	   valid in Trino 481 but ABSENT from the legacy grammar. It is a separate
-//	   P1 extension; this node does not parse it (omni rejects, 481 accepts).
+//	D1 (JSON_TABLE relation). Implemented by json_table.go; it is no longer a
+//	   divergence from Trino 481.
 //	D2 (WITH SESSION — divergence #4). `WITH SESSION prop = v <query>` is a 481
 //	   query prefix absent from the legacy grammar (where WITH is CTE-only). P1
 //	   extension; not parsed here.

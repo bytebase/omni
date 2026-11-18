@@ -112,11 +112,6 @@ var divergenceFlaggedForms = []struct {
 	note string
 }{
 	{
-		name: "JSON_TABLE_relation",
-		sql:  "SELECT * FROM JSON_TABLE('[1]', 'lax $' COLUMNS (a integer))",
-		note: "divergence #3 (D1): JSON_TABLE relationPrimary is 481 but absent from the legacy grammar; deferred P1",
-	},
-	{
 		name: "WITH_SESSION_prefix",
 		sql:  "WITH SESSION foo = 1 SELECT 1",
 		note: "divergence #4 (D2): WITH SESSION query prefix is 481 but absent from the legacy grammar; deferred P1",

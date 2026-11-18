@@ -11,8 +11,7 @@ import "github.com/bytebase/omni/trino/ast"
 // (expr.go) routes the five reserved JSON_* keywords here via parseJSONFunction,
 // and the bodies reuse parseExpr / parseValueExpr / parseType / parseIdentifier
 // from that node. JSON_TABLE is deliberately NOT here — it is a relationPrimary
-// / primaryExpression form owned by parser-select (a P1 extension), not part of
-// this node.
+// form owned by parser-select and implemented in json_table.go.
 //
 // The legacy ANTLR grammar (TrinoParser.g4) the implementation tracks, as the
 // five primaryExpression alternatives plus their helper rules:
@@ -39,6 +38,7 @@ import "github.com/bytebase/omni/trino/ast"
 //	               (RETURNING_ type (FORMAT_ jsonRepresentation)?)? RPAREN_ ;
 //
 //	jsonPathInvocation : jsonValueExpression COMMA_ path = string_
+//	                       (AS_ pathName = identifier)?
 //	                       (PASSING_ jsonArgument (COMMA_ jsonArgument)*)? ;
 //	jsonValueExpression : expression (FORMAT_ jsonRepresentation)? ;
 //	jsonRepresentation  : JSON_ (ENCODING_ (UTF8_ | UTF16_ | UTF32_))? ;
@@ -85,15 +85,18 @@ import "github.com/bytebase/omni/trino/ast"
 // SQL/JSON node types (parser-package Expr values; see expr.go file header)
 // ---------------------------------------------------------------------------
 
-// JSONPathInvocation is the shared `jsonValueExpression , path [PASSING …]`
-// head of every SQL/JSON function (jsonPathInvocation). Input is the JSON input
-// value expression (with its optional FORMAT); Path is the decoded path string
-// literal; Passing carries the named PASSING arguments (nil when absent).
+// JSONPathInvocation is the shared `jsonValueExpression , path [AS pathName]
+// [PASSING …]` head of every SQL/JSON function and of JSON_TABLE
+// (jsonPathInvocation). Input is the JSON input value expression (with its
+// optional FORMAT); Path is the decoded path string literal; PathName is the
+// optional AS identifier JSON_TABLE's PLAN refers to (nil when absent); Passing
+// carries the named PASSING arguments (nil when absent).
 type JSONPathInvocation struct {
-	Input   *JSONValueExpr
-	Path    string // decoded path string-literal content
-	Passing []JSONArgument
-	Loc     ast.Loc
+	Input    *JSONValueExpr
+	Path     string // decoded path string-literal content
+	PathName *ast.Identifier
+	Passing  []JSONArgument
+	Loc      ast.Loc
 }
 
 // JSONValueExpr is `expression [FORMAT jsonRepresentation]` (jsonValueExpression):
@@ -483,10 +486,14 @@ func (p *Parser) parseJSONQuery() (Expr, error) {
 		if _, err := p.expect(kwQUOTES); err != nil {
 			return nil, err
 		}
-		// (ON SCALAR STRING)?
-		if p.cur.Kind == kwON && p.peekNext().Kind == kwSCALAR {
+		// (ON SCALAR STRING)? After QUOTES an ON can only begin this suffix
+		// (behavior clauses start with ERROR/NULL/EMPTY), so ON commits to it
+		// and a bad next keyword is reported there.
+		if p.cur.Kind == kwON {
 			p.advance() // ON
-			p.advance() // SCALAR
+			if _, err := p.expect(kwSCALAR); err != nil {
+				return nil, err
+			}
 			if _, err := p.expect(kwSTRING); err != nil {
 				return nil, err
 			}
@@ -860,6 +867,17 @@ func (p *Parser) parseJSONPathInvocation() (*JSONPathInvocation, error) {
 		Input: input,
 		Path:  pathTok.Str,
 		Loc:   ast.Loc{Start: input.Loc.Start, End: pathTok.Loc.End},
+	}
+
+	// (AS identifier)?
+	if p.cur.Kind == kwAS {
+		p.advance() // consume AS
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		pi.PathName = name
+		pi.Loc.End = name.Loc.End
 	}
 
 	// (PASSING jsonArgument (, jsonArgument)*)?

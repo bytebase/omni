@@ -24,7 +24,8 @@ import "github.com/bytebase/omni/trino/ast"
 //	    | UNNEST ( expression (, …)* ) (WITH ORDINALITY)?  # unnest
 //	    | LATERAL ( query )                          # lateral
 //	    | TABLE ( tableFunctionCall )                # tableFunctionInvocation
-//	    | ( relation )                               # parenthesizedRelation ;
+//	    | ( relation )                               # parenthesizedRelation
+//	    | JSON_TABLE ( jsonPathInvocation COLUMNS ( … ) [PLAN …] [(ERROR|EMPTY) ON ERROR] )  # jsonTable ;
 //
 // The implementation is adjudicated against the live Trino 481 oracle.
 //
@@ -720,6 +721,7 @@ func (p *Parser) atRelationClauseStart() bool {
 //   - UNNEST ( … ) [WITH ORDINALITY]      (unnest)
 //   - LATERAL ( query )                   (lateral)
 //   - TABLE ( tableFunctionCall )         (tableFunctionInvocation)
+//   - JSON_TABLE ( … )                    (jsonTable, see json_table.go)
 //   - ( query ) | ( relation )            (subqueryRelation / parenthesizedRelation)
 //   - qualifiedName [queryPeriod]         (tableName)
 //
@@ -729,8 +731,7 @@ func (p *Parser) atRelationClauseStart() bool {
 // followed by '(') is an ordinary table-name reference (`FROM lateral`,
 // `FROM lateral x`), oracle-confirmed in Trino 481.
 //
-// JSON_TABLE (a 481 relationPrimary absent from the legacy grammar) is the
-// deferred P1 extension D1 (select.go); it is not handled here.
+// JSON_TABLE is reserved, so it unambiguously begins its form (json_table.go).
 func (p *Parser) parseRelationPrimary() (Relation, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -748,6 +749,8 @@ func (p *Parser) parseRelationPrimary() (Relation, error) {
 		return p.parseTableRelation()
 	case kwTABLE:
 		return p.parseTableFunctionInvocation()
+	case kwJSON_TABLE:
+		return p.parseJSONTable()
 	case int('('):
 		return p.parseParenRelationOrSubquery()
 	default:

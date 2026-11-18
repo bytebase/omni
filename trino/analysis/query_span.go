@@ -463,6 +463,11 @@ func (w *spanWalker) visitRelation(rel parser.Relation) {
 		}
 	case *parser.TableFunctionRelation:
 		w.visitTableFunctionCall(n.Call)
+	case *parser.JSONTableRelation:
+		// JSON_TABLE's input expression and PASSING arguments may reference
+		// columns or hold subqueries; its output columns carry no expressions.
+		ew := exprWalk{w: w, followSub: true, onColumn: w.addPredicateColumn}
+		ew.walkJSONPath(n.Path)
 	}
 }
 
