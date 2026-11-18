@@ -198,14 +198,17 @@ func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) 
 	if !allPrivs {
 		privileges = privs
 	}
-	targtype, objtype, objects, err := p.parseGrantTarget()
+	targtype, objtype, objects, err := p.parseGrantTarget(false)
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkTemplatePrivileges(objtype, privileges); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseGranteeList()
+	grantees, err := p.parseTargetGranteeList(objtype)
 	if err != nil {
 		return nil, err
 	}
@@ -222,18 +225,26 @@ func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) 
 }
 
 func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes.List) (nodes.Node, error) {
-	targtype, objtype, objects, err := p.parseGrantTarget()
+	targtype, objtype, objects, err := p.parseGrantTarget(true)
 	if err != nil {
+		return nil, err
+	}
+	if err := p.checkTemplatePrivileges(objtype, privs); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseGranteeList()
+	grantees, err := p.parseTargetGranteeList(objtype)
 	if err != nil {
 		return nil, err
 	}
-	behavior := p.parseOptDropBehavior()
+	var behavior int
+	if objtype != nodes.OBJECT_TEMPLATE {
+		// A template's revoke page ends after the grantees: no CASCADE, no
+		// RESTRICT.
+		behavior = p.parseOptDropBehavior()
+	}
 	return &nodes.GrantStmt{
 		IsGrant: false, Targtype: targtype, Objtype: objtype,
 		Objects: objects, Privileges: privs, Grantees: grantees,
@@ -289,7 +300,7 @@ func (p *Parser) finishRevokeRole(loc int, roles *nodes.List, roleOptionName str
 	}, nil
 }
 
-func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *nodes.List, error) {
+func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.ObjectType, *nodes.List, error) {
 	if p.redshiftWordEqual("datashare") {
 		p.advance()
 		list, err := p.parseGrantObjectAnyNameList()
@@ -305,6 +316,20 @@ func (p *Parser) parseGrantTarget() (nodes.GrantTargetType, nodes.ObjectType, *n
 			return 0, 0, nil, err
 		}
 		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_MODEL, list, nil
+	}
+	// GRANT ... ON TEMPLATE [ <database>. ] [ <schema>. ] <template> [ , ... ]
+	// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
+	//
+	// TEMPLATE is unreserved, so a grant that names no template after it
+	// (`ON TEMPLATE TO a`) stays on the plain object path below, which reads
+	// TEMPLATE as the object's name.
+	if p.cur.Type == TEMPLATE && isColIdToken(p.peekNext()) {
+		p.advance()
+		list, err := p.parseRedshiftTemplateNameList(!isRevoke)
+		if err != nil {
+			return 0, 0, nil, err
+		}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TEMPLATE, list, nil
 	}
 	switch p.cur.Type {
 	case COPY:
@@ -523,6 +548,123 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 	return result, nil
 }
 
+// parseTargetGranteeList parses a grant's grantees: a template takes the plain
+// list, which names a user, a role, a group or PUBLIC and nothing else.
+func (p *Parser) parseTargetGranteeList(objtype nodes.ObjectType) (*nodes.List, error) {
+	if objtype == nodes.OBJECT_TEMPLATE {
+		return p.parseRedshiftPlainGranteeList()
+	}
+	return p.parseGranteeList()
+}
+
+// parseRedshiftPlainGranteeList parses the grantees r_GRANT's TEMPLATE and
+// ASSUMEROLE forms take: a username, ROLE role_name, GROUP group_name or
+// PUBLIC. The generic list also takes an IAM role, a namespace, an account and
+// an RLS policy as grantees of their own, which neither page does.
+func (p *Parser) parseRedshiftPlainGranteeList() (*nodes.List, error) {
+	result := &nodes.List{}
+	for {
+		grantee, err := p.parseRedshiftPlainGrantee()
+		if err != nil {
+			return nil, err
+		}
+		result.Items = append(result.Items, grantee)
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+func (p *Parser) parseRedshiftPlainGrantee() (nodes.Node, error) {
+	loc := p.pos()
+	// ROLE role_name or GROUP group_name; both words are unreserved, so either
+	// names a grantee of that spelling where no name follows.
+	if (p.cur.Type == ROLE || p.cur.Type == GROUP_P) && isColIdToken(p.peekNext()) {
+		p.advance()
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	}
+	// PUBLIC is not a keyword; an unquoted word of that spelling is the
+	// pseudo-role, and a quoted one is a user called public.
+	if p.cur.Type == IDENT && p.cur.End-p.cur.Loc == len("public") && p.cur.Str == "public" {
+		p.advance()
+		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	}
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+}
+
+// checkTemplatePrivileges holds a grant or revoke on a COPY template to the
+// privileges its page lists: ALTER, DROP, USAGE, and ALL PRIVILEGES, with no
+// column list (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html). A
+// nil list is ALL PRIVILEGES.
+func (p *Parser) checkTemplatePrivileges(objtype nodes.ObjectType, privs *nodes.List) error {
+	if objtype != nodes.OBJECT_TEMPLATE || privs == nil {
+		return nil
+	}
+	for _, item := range privs.Items {
+		priv, ok := item.(*nodes.AccessPriv)
+		if !ok {
+			continue
+		}
+		if priv.Cols != nil {
+			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: a template privilege names no column"}
+		}
+		if p.isQuotedAt(priv.Loc) {
+			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: a privilege is a keyword, not a quoted name"}
+		}
+		switch strings.ToLower(priv.PrivName) {
+		case "", "all", "alter", "drop", "usage":
+		default:
+			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: " + priv.PrivName + " is not a template privilege"}
+		}
+	}
+	return nil
+}
+
+// isQuotedAt reports whether the token at loc is a delimited identifier.
+func (p *Parser) isQuotedAt(loc nodes.Loc) bool {
+	return loc.Start >= 0 && loc.Start < loc.End && loc.End <= len(p.source) && p.source[loc.Start] == '"'
+}
+
+// parseRedshiftTemplateNameList parses the template names a GRANT or REVOKE
+// names (r_GRANT). GRANT writes `( <database>. )? ( <schema>. )? <template>`;
+// REVOKE writes a one-part <template>. Either way the names after a comma are
+// one part each, and a name has at most three parts.
+func (p *Parser) parseRedshiftTemplateNameList(qualified bool) (*nodes.List, error) {
+	result := &nodes.List{}
+	for {
+		nameStart := p.pos()
+		parts := &nodes.List{}
+		for {
+			id, err := p.parseColId()
+			if err != nil {
+				return nil, err
+			}
+			parts.Items = append(parts.Items, &nodes.String{Str: id})
+			if p.cur.Type != '.' || len(result.Items) > 0 || !qualified {
+				break
+			}
+			if len(parts.Items) == 3 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume '.'
+		}
+		result.Items = append(result.Items, makeRangeVarFromAnyName(parts, nodes.Loc{Start: nameStart, End: p.prev.End}))
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
 // parseGrantObjectAnyNameList parses the qualified_name_list a GRANT or
 // REVOKE names its tables or sequences by. A comma promises a name.
 func (p *Parser) parseGrantObjectAnyNameList() (*nodes.List, error) {
@@ -691,6 +833,13 @@ func (p *Parser) parseRedshiftScopedPermissionTarget() (nodes.ObjectType, *nodes
 
 func (p *Parser) parseRedshiftAssumeRoleStmt(loc int, isGrant bool) (nodes.Node, error) {
 	p.advance() // consume ASSUMEROLE
+	// ASSUMEROLE's roles are the ON clause's objects:
+	//   GRANT ASSUMEROLE ON { '<role>' [, ...] | DEFAULT | ALL } TO ...
+	// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
+	// ON is read where the page writes it; the shorter spelling without it is
+	// read too, of the forms this fork already answered. A role named 'on' is a
+	// string, so it never stands for the keyword.
+	p.acceptRedshiftKeyword("on")
 	roles, err := p.parseRedshiftAssumeRoleList()
 	if err != nil {
 		return nil, err
@@ -702,15 +851,27 @@ func (p *Parser) parseRedshiftAssumeRoleStmt(loc int, isGrant bool) (nodes.Node,
 	} else if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseGranteeList()
+	grantees, err := p.parseRedshiftPlainGranteeList()
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
-	action := p.parseRedshiftAssumeRoleAction()
-	opts := &nodes.List{Items: []nodes.Node{makeDefElem("for", &nodes.String{Str: action})}}
+	var opts *nodes.List
+	if isGrant {
+		// GRANT's FOR clause takes a list of actions; REVOKE's takes one.
+		opts, err = p.parseRedshiftAssumeRoleActionList()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		action, err := p.parseRedshiftAssumeRoleAction()
+		if err != nil {
+			return nil, err
+		}
+		opts = &nodes.List{Items: []nodes.Node{makeDefElem("for", &nodes.String{Str: action})}}
+	}
 	return &nodes.GrantRoleStmt{
 		GrantedRoles: roles,
 		GranteeRoles: grantees,
@@ -726,6 +887,10 @@ func (p *Parser) parseRedshiftAssumeRoleList() (*nodes.List, error) {
 		return nil, err
 	}
 	items := []nodes.Node{role}
+	// DEFAULT and ALL stand alone; only a string list takes commas.
+	if p.cur.Type == ',' && (role.PrivName == "default" || role.PrivName == "all") {
+		return nil, p.syntaxErrorAtCur()
+	}
 	for p.cur.Type == ',' {
 		p.advance()
 		role, err = p.parseRedshiftAssumeRoleItem()
@@ -754,13 +919,77 @@ func (p *Parser) parseRedshiftAssumeRoleItem() (*nodes.AccessPriv, error) {
 	}
 }
 
-func (p *Parser) parseRedshiftAssumeRoleAction() string {
-	var parts []string
-	for p.cur.Type != 0 && p.cur.Type != ';' {
-		parts = append(parts, strings.ToLower(p.cur.Str))
-		p.advance()
+// parseRedshiftAssumeRoleActionList parses ASSUMEROLE's action list:
+//
+//	{ ALL | COPY | UNLOAD | EXTERNAL FUNCTION | CREATE MODEL } [ , ... ]
+func (p *Parser) parseRedshiftAssumeRoleActionList() (*nodes.List, error) {
+	items := &nodes.List{}
+	for {
+		action, err := p.parseRedshiftAssumeRoleAction()
+		if err != nil {
+			return nil, err
+		}
+		items.Items = append(items.Items, makeDefElem("for", &nodes.String{Str: action}))
+		if p.cur.Type != ',' {
+			return items, nil
+		}
+		p.advance() // consume ','
 	}
-	return strings.Join(parts, "_")
+}
+
+// parseRedshiftAssumeRoleAction reads one action of ASSUMEROLE's FOR clause:
+// one of ALL, COPY, UNLOAD, EXTERNAL FUNCTION and CREATE MODEL, each a whole
+// alternative. A quoted spelling is a name, never one of them.
+func (p *Parser) parseRedshiftAssumeRoleAction() (string, error) {
+	switch {
+	case p.redshiftKeywordIs("all"):
+		p.advance()
+		return "all", nil
+	case p.redshiftKeywordIs("copy"):
+		p.advance()
+		return "copy", nil
+	case p.redshiftKeywordIs("unload"):
+		p.advance()
+		return "unload", nil
+	case p.redshiftKeywordIs("external"):
+		p.advance()
+		if !p.acceptRedshiftKeyword("function") {
+			return "", p.syntaxErrorAtCur()
+		}
+		return "external_function", nil
+	case p.redshiftKeywordIs("create"):
+		p.advance()
+		if !p.acceptRedshiftKeyword("model") {
+			return "", p.syntaxErrorAtCur()
+		}
+		return "create_model", nil
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+}
+
+// redshiftKeywordIs reports whether cur is the unquoted word word: a keyword
+// token, or an unquoted identifier spelled exactly word. A delimited identifier
+// ("all") is a name, never the grammar's keyword.
+func (p *Parser) redshiftKeywordIs(word string) bool {
+	switch {
+	case p.cur.Type == IDENT:
+		return p.cur.End-p.cur.Loc == len(word) && p.redshiftWordEqual(word)
+	case p.cur.Type >= ABORT_P:
+		return p.redshiftWordEqual(word)
+	default:
+		return false
+	}
+}
+
+// acceptRedshiftKeyword consumes the unquoted word word, and reports whether it
+// did.
+func (p *Parser) acceptRedshiftKeyword(word string) bool {
+	if !p.redshiftKeywordIs(word) {
+		return false
+	}
+	p.advance()
+	return true
 }
 
 func (p *Parser) parseNumericOnlyList() (*nodes.List, error) {

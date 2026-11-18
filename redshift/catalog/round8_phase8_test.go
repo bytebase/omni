@@ -434,3 +434,37 @@ func TestExcludeConstraintAMGinRejected(t *testing.T) {
 		t.Errorf("expected 'exclusion' in error message, got: %s", err)
 	}
 }
+
+// TestGrantTemplateOK: a COPY template is no catalog object, so a grant on one
+// keeps the statement and resolves to nothing. Its page's privileges are ALTER,
+// DROP and USAGE (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
+func TestGrantTemplateOK(t *testing.T) {
+	for _, sql := range []string{
+		"GRANT ALTER, DROP, USAGE ON TEMPLATE db.s.t TO u",
+		"GRANT ALL ON TEMPLATE t TO PUBLIC",
+		"REVOKE ALTER ON TEMPLATE t FROM u",
+	} {
+		c := New()
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+		if len(results) != 1 {
+			t.Fatalf("Exec(%q): %d results, want 1", sql, len(results))
+		}
+		if results[0].Error != nil {
+			t.Errorf("Exec(%q): %v", sql, results[0].Error)
+		}
+		if len(c.grants) != 0 {
+			t.Errorf("Exec(%q): %d grants kept, want none (a template is no catalog object)", sql, len(c.grants))
+		}
+	}
+
+	// A template grant is still held to the rules every grant follows.
+	c := New()
+	results, err := c.Exec("GRANT ALTER ON TEMPLATE t TO PUBLIC WITH GRANT OPTION", nil)
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	assertCode(t, results[0].Error, CodeInvalidGrantOperation)
+}

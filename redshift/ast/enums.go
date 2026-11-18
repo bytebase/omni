@@ -233,6 +233,7 @@ const (
 	OBJECT_DATASHARE
 	OBJECT_MODEL
 	OBJECT_COPY_JOB
+	OBJECT_TEMPLATE
 )
 
 // SubLinkType represents types of SubLink.
