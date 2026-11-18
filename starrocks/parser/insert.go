@@ -112,9 +112,11 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 
 		// partitionNames: TEMPORARY? (PARTITION | PARTITIONS) ...
+		temporaryPartition := false
 		if p.cur.Kind == kwTEMPORARY {
 			p.advance() // consume TEMPORARY
 			stmt.TempPartition = true
+			temporaryPartition = true
 		}
 		if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
 			if p.peekNext().Kind == int('(') {
@@ -132,6 +134,8 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 				}
 				stmt.Partition = []string{part}
 			}
+		} else if temporaryPartition {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
