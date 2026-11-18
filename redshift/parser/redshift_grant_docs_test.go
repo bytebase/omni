@@ -57,7 +57,9 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		}
 	}
 
-	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE d TO a WITH GRANT OPTION, ROLE r").(*nodes.GrantStmt); !grant.GrantOption {
+	// WITH GRANT OPTION follows a username, and the AST holds one option for the
+	// statement, so it ends the grantee list.
+	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE d TO ROLE r, a WITH GRANT OPTION").(*nodes.GrantStmt); !grant.GrantOption {
 		t.Error("datashare grant with a username option: GrantOption = false, want true")
 	}
 
@@ -136,6 +138,11 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		// WITH GRANT OPTION follows a username, never ROLE, GROUP or PUBLIC.
 		"GRANT ALTER ON DATASHARE d TO ROLE r WITH GRANT OPTION",
 		"GRANT ALTER ON DATASHARE d TO PUBLIC WITH GRANT OPTION",
+		"GRANT ALTER ON DATASHARE d TO a WITH GRANT OPTION, ROLE r",
+		// CREATE MODEL's option follows a username too.
+		"GRANT CREATE MODEL TO PUBLIC WITH GRANT OPTION",
+		"GRANT CREATE MODEL TO ROLE r WITH GRANT OPTION",
+		"GRANT CREATE MODEL TO GROUP g WITH GRANT OPTION",
 		"REVOKE ALTER ON DATASHARE d FROM ROLE r WITH GRANT OPTION",
 		"REVOKE ALTER ON DATASHARE d FROM GROUP g WITH GRANT OPTION",
 		// The procedure-to-datashare revoke takes no option prefix.

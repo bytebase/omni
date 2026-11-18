@@ -211,7 +211,7 @@ func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, er
 	if kind == redshiftGrantDatashare && !redshiftDatashareUsage(privs) {
 		// r_GRANT writes the producer-side grantee as
 		// ID ( WITH GRANT OPTION )? | ROLE role_name | GROUP group_name | PUBLIC.
-		grantees, grantOption, err = p.parseRedshiftDatashareGrantees()
+		grantees, grantOption, err = p.parseRedshiftOptionableGrantees(true)
 	} else {
 		grantees, procedureDatashare, err = p.parseRedshiftGranteeList(kind, objtype, objects, privs, true, true)
 		if !procedureDatashare && err == nil {
@@ -248,7 +248,7 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor, withRoleOption bo
 		// the option names the grant option it takes back, as GRANT OPTION FOR
 		// does.
 		var withGrantOption bool
-		grantees, withGrantOption, err = p.parseRedshiftDatashareGrantees()
+		grantees, withGrantOption, err = p.parseRedshiftOptionableGrantees(true)
 		grantOptionFor = grantOptionFor || withGrantOption
 	} else {
 		// The procedure-to-datashare form starts at REVOKE: no option prefix.
@@ -295,19 +295,13 @@ func (p *Parser) finishRedshiftModelPrivilege(loc int, privLoc nodes.Loc, isGran
 	} else if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseGranteeList()
+	grantees, read, err := p.parseRedshiftOptionableGrantees(isGrant)
 	if err != nil {
 		return nil, err
 	}
 	stmt.GranteeRoles = grantees
-	grantOption := grantOptionFor
-	if isGrant {
-		read, err := p.parseOptGrantGrantOption()
-		if err != nil {
-			return nil, err
-		}
-		grantOption = grantOption || read
-	} else {
+	grantOption := grantOptionFor || read
+	if !isGrant {
 		stmt.Behavior = nodes.DropBehavior(p.parseOptDropBehavior())
 	}
 	if grantOption {
@@ -842,14 +836,16 @@ func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.
 	return list, false, err
 }
 
-// parseRedshiftDatashareGrantees parses r_GRANT's and r_REVOKE's producer-side
-// datashare grantees:
+// parseRedshiftOptionableGrantees parses the grantees r_GRANT and r_REVOKE write
+// as
 //
 //	ID [ WITH GRANT OPTION ] | ROLE role_name | GROUP group_name | PUBLIC
 //
-// one per comma. The pages write WITH GRANT OPTION after a username only, so a
-// ROLE, GROUP or PUBLIC grantee takes none.
-func (p *Parser) parseRedshiftDatashareGrantees() (*nodes.List, bool, error) {
+// one per comma, for a datashare's producer-side grantees and for CREATE MODEL.
+// The pages write WITH GRANT OPTION after a username only, so a ROLE, GROUP or
+// PUBLIC grantee takes none, and the statement's AST carries one option, as
+// PostgreSQL's does: the option ends the list.
+func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List, bool, error) {
 	result := &nodes.List{}
 	withGrantOption := false
 	for {
@@ -879,7 +875,7 @@ func (p *Parser) parseRedshiftDatashareGrantees() (*nodes.List, bool, error) {
 				return nil, false, err
 			}
 			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name}
-			if p.cur.Type == WITH {
+			if allowOption && p.cur.Type == WITH {
 				p.advance()
 				if _, err := p.expect(GRANT); err != nil {
 					return nil, false, err
@@ -888,6 +884,9 @@ func (p *Parser) parseRedshiftDatashareGrantees() (*nodes.List, bool, error) {
 					return nil, false, err
 				}
 				withGrantOption = true
+				if p.cur.Type == ',' {
+					return nil, false, p.syntaxErrorAtCur()
+				}
 			}
 		}
 		grantee.Loc = nodes.Loc{Start: loc, End: p.prev.End}
