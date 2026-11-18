@@ -288,20 +288,25 @@ var _ Node = (*LoadDataStmt)(nil)
 // EXPORT statement (T6.1)
 // ---------------------------------------------------------------------------
 
-// ExportStmt represents an EXPORT TABLE statement:
+// ExportStmt represents an EXPORT TABLE statement
+// (DorisParser.g4:159-163):
 //
 //	EXPORT TABLE name [PARTITION(p1, p2, ...)] [WHERE expr]
 //	    TO 'path'
 //	    [PROPERTIES(...)]
-//	    [WITH BROKER name (...)]
+//	    [WITH RESOURCE name [(...)] | WITH (S3|HDFS|LOCAL) (...) | WITH BROKER name [(...)]]
+//
+// The storage system's fields are named as LoadDataStmt's are, which takes
+// the same withRemoteStorageSystem clause.
 type ExportStmt struct {
 	Target           *ObjectName // table to export
 	Partition        []string    // optional PARTITION(...)
 	Where            Node        // optional WHERE clause
 	Path             string      // TO 'path'
 	Properties       []*Property // optional PROPERTIES(...)
-	BrokerName       string      // optional WITH BROKER name
-	BrokerProperties []*Property // optional WITH BROKER name (...) list
+	StorageType      string      // BROKER, RESOURCE, S3, HDFS or LOCAL, or ""
+	BrokerName       string      // WITH BROKER or WITH RESOURCE name
+	BrokerProperties []*Property // the storage system's (...) list
 	Loc              Loc
 }
 
