@@ -1568,6 +1568,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 	}
 	if p.cur.Type == '(' {
 		p.advance()
+		var mappingSeen, heapSeen, thresholdSeen, clusterSeen bool
 		for n := 0; ; n++ {
 			if p.cur.Type == ')' && n > 0 {
 				p.advance()
@@ -1592,6 +1593,10 @@ func (p *Parser) parseATNestedTableStorage() error {
 			// threshold, a heap table's cache hint, and the cluster its
 			// storage table belongs to.
 			if p.atWord("MAPPING") {
+				if mappingSeen {
+					return p.syntaxErrorAtCur()
+				}
+				mappingSeen = true
 				p.advance()
 				if err := p.atExpect(kwTABLE); err != nil {
 					return err
@@ -1599,10 +1604,18 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("NOMAPPING") {
+				if mappingSeen {
+					return p.syntaxErrorAtCur()
+				}
+				mappingSeen = true
 				p.advance()
 				continue
 			}
 			if p.atWord("PCTTHRESHOLD") {
+				if thresholdSeen {
+					return p.syntaxErrorAtCur()
+				}
+				thresholdSeen = true
 				p.advance()
 				if err := p.parseATInteger(); err != nil {
 					return err
@@ -1610,10 +1623,18 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("CACHE") || p.atWord("NOCACHE") {
+				if heapSeen {
+					return p.syntaxErrorAtCur()
+				}
+				heapSeen = true
 				p.advance()
 				continue
 			}
 			if p.cur.Type == kwCLUSTER {
+				if clusterSeen {
+					return p.syntaxErrorAtCur()
+				}
+				clusterSeen = true
 				p.advance()
 				if err := p.parseATName(); err != nil {
 					return err
@@ -1671,7 +1692,7 @@ func (p *Parser) parseATObjectProperties() error {
 			}
 		case p.atWord("SUPPLEMENTAL"):
 			p.advance()
-			if err := p.parseATSupplementalLogging(true, nil); err != nil {
+			if err := p.parseATSupplementalLogging(true, true, nil); err != nil {
 				return err
 			}
 		default:
@@ -1730,13 +1751,23 @@ func (p *Parser) parseATObjectInlineConstraint() error {
 			return err
 		}
 	}
+	if named && (p.cur.Type == kwWITH || p.atWord("SCOPE")) {
+		// SCOPE IS and WITH ROWID have no CONSTRAINT name in the page's
+		// inline_ref_constraint.
+		return p.syntaxErrorAtCur()
+	}
 	switch {
 	case p.cur.Type == kwNOT:
 		p.advance()
-		return p.atExpect(kwNULL)
+		if err := p.atExpect(kwNULL); err != nil {
+			return err
+		}
+		var cs constraintState
+		return p.parseConstraintState(&cs)
 	case p.cur.Type == kwNULL:
 		p.advance()
-		return nil
+		var cs constraintState
+		return p.parseConstraintState(&cs)
 	case p.cur.Type == kwWITH:
 		p.advance()
 		return p.atExpect(kwROWID)

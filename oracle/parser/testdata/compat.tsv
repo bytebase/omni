@@ -41228,7 +41228,7 @@ reject@33	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PAC
 reject@7	accept	engine	revoke_revoke_roles_from_programs(PROCEDURE|FUNCTION|PACKAGE)/PACKAGE!swap	REVOKE REVOKE a FROM PACKAGES FUNCTION a
 accept	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/%empty	REVOKE REVOKE a FROM PROCEDURE FUNCTION a
 accept	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.	REVOKE REVOKE a FROM PROCEDURE a.FUNCTION a
-reject@30	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-1	REVOKE REVOKE a FROM PROCEDURE.FUNCTION a
+reject@21	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-1	REVOKE REVOKE a FROM PROCEDURE.FUNCTION a
 reject@33	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!drop-2	REVOKE REVOKE a FROM PROCEDURE a FUNCTION a
 reject@37	accept	engine	revoke_revoke_roles_from_programs(ID_.)?/ID_.!insert	REVOKE REVOKE a FROM PROCEDURE a.zzz FUNCTION a
 reject@7	reject@7	engine	revoke_revokee_clause/(ID|PUBLIC)_(,_(ID|PUBLIC))*	REVOKE REVOKE a FROM a
