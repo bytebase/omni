@@ -52,13 +52,22 @@ func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
 				}
 				p.advance()
 			}
+			// ALTER TABLE's page puts COLUMNS after DATA's list; the
+			// object_properties of a nested table's storage table puts it
+			// inside the parentheses, as its own converted rule does.
+			insideColumns := p.cur.Type == kwCOLUMNS
+			if insideColumns {
+				p.advance()
+			}
 			if err := p.atExpect(')'); err != nil {
 				return err
 			}
 			p.atOption(opts, start)
 			start = p.pos()
-			if err := p.atExpect(kwCOLUMNS); err != nil {
-				return err
+			if !insideColumns {
+				if err := p.atExpect(kwCOLUMNS); err != nil {
+					return err
+				}
 			}
 		case p.cur.Type == kwGROUP:
 			p.advance()

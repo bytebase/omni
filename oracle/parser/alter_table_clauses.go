@@ -1587,6 +1587,42 @@ func (p *Parser) parseATNestedTableStorage() error {
 				}
 				continue
 			}
+			// The rest of physical_properties that ALTER TABLE's clauses
+			// do not share: an index-organized table's mapping table and
+			// threshold, a heap table's cache hint, and the cluster its
+			// storage table belongs to.
+			if p.atWord("MAPPING") {
+				p.advance()
+				if err := p.atExpect(kwTABLE); err != nil {
+					return err
+				}
+				continue
+			}
+			if p.atWord("NOMAPPING") {
+				p.advance()
+				continue
+			}
+			if p.atWord("PCTTHRESHOLD") {
+				p.advance()
+				if err := p.parseATInteger(); err != nil {
+					return err
+				}
+				continue
+			}
+			if p.atWord("CACHE") || p.atWord("NOCACHE") {
+				p.advance()
+				continue
+			}
+			if p.cur.Type == kwCLUSTER {
+				p.advance()
+				if err := p.parseATName(); err != nil {
+					return err
+				}
+				if err := p.parseATNameList(); err != nil {
+					return err
+				}
+				continue
+			}
 			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
 			if err := p.parseATClauses(physical, nil); err != nil {
 				return err
@@ -1610,8 +1646,9 @@ func (p *Parser) parseATNestedTableStorage() error {
 }
 
 // parseATObjectProperties reads ( object_properties ) of a nested table's
-// storage table: ( { column [ DEFAULT expr ] | out_of_line_constraint
-// | out_of_line_ref_constraint } [, ...] ).
+// storage table: ( { column [ DEFAULT expr ] [ inline_constraint ... ]
+// [ inline_ref_constraint ] | out_of_line_constraint
+// | out_of_line_ref_constraint | supplemental_logging_props } [, ...] ).
 func (p *Parser) parseATObjectProperties() error {
 	p.advance() // (
 	for {
@@ -1632,6 +1669,11 @@ func (p *Parser) parseATObjectProperties() error {
 			if tc == nil {
 				return p.syntaxErrorAtCur()
 			}
+		case p.atWord("SUPPLEMENTAL"):
+			p.advance()
+			if err := p.parseATSupplementalLogging(true, nil); err != nil {
+				return err
+			}
 		default:
 			if err := p.parseATName(); err != nil {
 				return err
@@ -1646,13 +1688,73 @@ func (p *Parser) parseATObjectProperties() error {
 					return p.syntaxErrorAtCur()
 				}
 			}
+			for p.isATObjectInlineConstraintStart() {
+				if err := p.parseATObjectInlineConstraint(); err != nil {
+					return err
+				}
+			}
 		}
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
+		if p.cur.Type == ')' {
+			return p.syntaxErrorAtCur()
+		}
 	}
 	return p.atExpect(')')
+}
+
+// isATObjectInlineConstraintStart reports an item of object_properties'
+// inline_constraint or inline_ref_constraint after its column.
+func (p *Parser) isATObjectInlineConstraintStart() bool {
+	switch p.cur.Type {
+	case kwCONSTRAINT, kwNOT, kwNULL, kwUNIQUE, kwPRIMARY, kwCHECK, kwREFERENCES, kwWITH:
+		return true
+	}
+	return p.atWord("SCOPE")
+}
+
+// parseATObjectInlineConstraint reads one inline_constraint or
+// inline_ref_constraint of object_properties. Its column has no declared
+// type here, so the REF-only checks of parseInlineRefConstraint do not
+// apply: SCOPE IS and WITH ROWID are read as the page gives them.
+func (p *Parser) parseATObjectInlineConstraint() error {
+	named := p.cur.Type == kwCONSTRAINT
+	if named {
+		p.advance()
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+	}
+	switch {
+	case p.cur.Type == kwNOT:
+		p.advance()
+		return p.atExpect(kwNULL)
+	case p.cur.Type == kwNULL:
+		p.advance()
+		return nil
+	case p.cur.Type == kwWITH:
+		p.advance()
+		return p.atExpect(kwROWID)
+	case p.atWord("SCOPE"):
+		p.advance()
+		if err := p.atExpect(kwIS); err != nil {
+			return err
+		}
+		return p.parseATQualifiedName()
+	}
+	cc, err := p.parseColumnConstraintInline()
+	if err != nil {
+		return err
+	}
+	if cc == nil {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // isATExternalDataPropStart reports an item of external_table_data_props or
