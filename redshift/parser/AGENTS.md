@@ -13,4 +13,4 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftDocShowStart` | `USER LOCKOUT`, `COLUMN GRANTS`, `{RLS\|MASKING} POLICIES`, and `{CONSTRAINTS\|FUNCTIONS\|PARAMETERS\|PROCEDURES\|TEMPLATE\|TEMPLATES}` before a clause | unquoted keyword check + `isRedshiftShowClauseFollow` | `TestIsRedshiftDocShowStart` |
 | `isRedshiftTemplateLead` | `TEMPLATE` | unquoted `TEMPLATE` token | `TestIsRedshiftTemplateLead` |
 | `isRedshiftMultiwordTypenameStart` | the multiword type map: `DOUBLE PRECISION`, `CHARACTER VARYING`, `NATIONAL CHARACTER`, `BIT VARYING`, the `INTERVAL` fields, `TIMESTAMP`/`TIME WITH TIME ZONE` | the lead's continuation tokens | `TestIsRedshiftMultiwordTypenameStart` |
-| `isRedshiftDatashareGranteeStart` | the unquoted word `DATASHARE` | the word and a name after it | `TestIsRedshiftDatashareGranteeStart` |
+| `isRedshiftDatashareNameStart` | the unquoted word `DATASHARE` | the word and a name after it | `TestIsRedshiftDatashareNameStart` |

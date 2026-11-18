@@ -588,12 +588,13 @@ func (p *Parser) isRedshiftMultiwordTypenameStart() bool {
 	return false
 }
 
-// isRedshiftDatashareGranteeStart reports whether the tokens at a grantee
-// position begin TO DATASHARE datashare_name, which r_GRANT and r_REVOKE write
-// for a procedure added to a datashare. DATASHARE is unreserved, so DATASHARE
-// with no name after it is a grantee of that spelling.
+// isRedshiftDatashareNameStart reports whether the tokens are the unquoted word
+// DATASHARE and one name after it: the target of ON DATASHARE datashare_name,
+// and the grantee of GRANT EXECUTE ON PROCEDURE ... TO DATASHARE datashare_name.
+// DATASHARE is unreserved, so DATASHARE with no name after it is a relation or a
+// grantee of that spelling.
 //
-// Validated by TestIsRedshiftDatashareGranteeStart in first_sets_test.go.
-func (p *Parser) isRedshiftDatashareGranteeStart() bool {
+// Validated by TestIsRedshiftDatashareNameStart in first_sets_test.go.
+func (p *Parser) isRedshiftDatashareNameStart() bool {
 	return p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext())
 }

@@ -406,7 +406,7 @@ func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*n
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
-	if allowPublic && p.redshiftKeywordIs("public") {
+	if allowPublic && p.redshiftKeywordIs("public") && p.peekNext().Type != ':' {
 		p.advance()
 		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
@@ -510,7 +510,7 @@ func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.O
 	// unreserved, so a grant that names no datashare after it
 	// (`ON DATASHARE TO a`) stays on the plain object path below, which reads
 	// DATASHARE as the object's name.
-	if p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext()) {
+	if p.isRedshiftDatashareNameStart() {
 		p.advance()
 		nameStart := p.pos()
 		name, err := p.parseAnyName()
@@ -828,7 +828,7 @@ func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.
 		list, err := p.parseRedshiftPlainGranteeList()
 		return list, false, err
 	}
-	if allowDatashare && p.isRedshiftDatashareGranteeStart() && redshiftProcedureDatashareTarget(objtype, objects, privs) {
+	if allowDatashare && p.isRedshiftDatashareNameStart() && redshiftProcedureDatashareTarget(objtype, objects, privs) {
 		list, err := p.parseRedshiftDatashareGrantee()
 		return list, true, err
 	}
@@ -905,7 +905,7 @@ func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List,
 // redshiftProcedureDatashareTarget reports whether r_GRANT's and r_REVOKE's
 // procedure-to-datashare alternative is the one that fits: one procedure with
 // its argument list, and EXECUTE. The grantee itself is
-// isRedshiftDatashareGranteeStart's.
+// isRedshiftDatashareNameStart's.
 func redshiftProcedureDatashareTarget(objtype nodes.ObjectType, objects, privs *nodes.List) bool {
 	if objtype != nodes.OBJECT_PROCEDURE || !redshiftPrivilegeIs(privs, "execute") {
 		return false
@@ -1154,7 +1154,7 @@ func (p *Parser) checkRedshiftPrivilegeNames(privs *nodes.List, object string, c
 	for _, item := range privs.Items {
 		name := redshiftPrivilegeName(item)
 		if name != "" && !allowed[name] {
-			return p.redshiftPrivilegeError(item, name+" is not a "+object+" privilege")
+			return p.redshiftPrivilegeError(item, name+" is not valid for "+object)
 		}
 	}
 	return p.checkRedshiftPrivilegeShape(privs, columnsAllowed)

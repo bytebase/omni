@@ -83,7 +83,7 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 	// Validate privileges are valid for the object type.
 	// pg: src/backend/catalog/aclchk.c — ExecGrant_Relation, ExecGrant_Sequence, ExecGrant_Function, ExecGrant_Namespace
 	for _, priv := range privs {
-		if !isValidPrivilege(priv.name, objTypeCode) {
+		if !validGrantPrivilege(nodes.ObjectType(stmt.Objtype), priv.name, objTypeCode) {
 			return &Error{Code: CodeInvalidGrantOperation,
 				Message: fmt.Sprintf("invalid privilege type %s for %s", priv.name, grantObjTypeName(objTypeCode))}
 		}
@@ -239,8 +239,15 @@ func grantObjTypeCode(objType nodes.ObjectType) byte {
 		// A COPY template's privileges are ALTER, DROP and USAGE; its grants are
 		// recorded nowhere (see ExecGrantStmt).
 		return 'c'
-	case nodes.OBJECT_FOREIGN_TABLE, nodes.OBJECT_EXTERNAL_SCHEMA, nodes.OBJECT_DATASHARE,
-		nodes.OBJECT_COPY_JOB, nodes.OBJECT_MODEL:
+	case nodes.OBJECT_FOREIGN_TABLE:
+		// An external table is a relation in the loaded metadata, so its grants
+		// are recorded against it; redshiftOnlyPrivileges holds the privileges
+		// r_GRANT and r_REVOKE list for it.
+		return 'r'
+	case nodes.OBJECT_EXTERNAL_SCHEMA:
+		// An external schema is a schema in the loaded metadata, as above.
+		return 'n'
+	case nodes.OBJECT_DATASHARE, nodes.OBJECT_COPY_JOB, nodes.OBJECT_MODEL:
 		// Redshift's own object types: the catalog resolves none of them, so
 		// PostgreSQL's ACL validation has no privilege set to hold them to.
 		return 'x'
@@ -331,6 +338,28 @@ func (c *Catalog) removeGrantsForObject(objType byte, objOID uint32) {
 		n++
 	}
 	c.grants = c.grants[:n]
+}
+
+// redshiftOnlyPrivileges is the privilege set r_GRANT and r_REVOKE list for a
+// Redshift object the catalog resolves as a PostgreSQL one: an external table
+// is a relation and an external schema a schema.
+var redshiftOnlyPrivileges = map[nodes.ObjectType]map[string]bool{
+	nodes.OBJECT_FOREIGN_TABLE: {
+		"SELECT": true, "ALTER": true, "DROP": true, "DELETE": true, "INSERT": true,
+	},
+	nodes.OBJECT_EXTERNAL_SCHEMA: {
+		"CREATE": true, "ALTER": true, "DROP": true,
+	},
+}
+
+// validGrantPrivilege holds a privilege to the object type's own set:
+// Redshift's for an external table or schema, PostgreSQL's otherwise.
+func validGrantPrivilege(objtype nodes.ObjectType, priv string, objTypeCode byte) bool {
+	if set, ok := redshiftOnlyPrivileges[objtype]; ok {
+		p := strings.ToUpper(priv)
+		return p == "ALL" || set[p]
+	}
+	return isValidPrivilege(priv, objTypeCode)
 }
 
 // isValidPrivilege checks whether a privilege name is valid for a given object type code.
