@@ -17521,7 +17521,7 @@ accept	accept	engine	suite:lexer	SELECT $ROWGUID FROM a
 accept	accept	engine	suite:lexer	SELECT $PARTITION.a(1)
 reject	reject	engine	suite:lexer	SELECT $a FROM a
 accept	accept	engine	suite:lexer	a: SELECT 1
-accept	reject	engine	suite:lexer	a : SELECT 1
+reject	reject	engine	suite:lexer	a : SELECT 1
 accept	accept	engine	suite:lexer	SELECT 1;;
 accept	accept	engine	suite:lexer	GO
 accept	accept	engine	suite:lexer	SELECT {fn NOW()}

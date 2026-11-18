@@ -555,7 +555,11 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		// Check for label: identifier followed by ':'
 		if p.isIdentLike() {
 			next := p.peekNext()
-			if next.Type == ':' {
+			// A label's colon touches its name: SQL Server reads `a: SELECT 1`
+			// as a label and `a : SELECT 1` as the name `a` and a stray colon
+			// (Msg 102, measured), so a separated colon is no label here and
+			// the statement falls through to the error.
+			if next.Type == ':' && next.Loc == p.cur.End {
 				// Labels must be identifiers; reject reserved keywords here.
 				if !p.isIdentLike() {
 					return nil, p.syntaxErrorAtCur()
