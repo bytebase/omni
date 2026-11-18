@@ -186,11 +186,14 @@ func (p *Parser) parseURLSpec() (*nodes.ExternalTableRef, *nodes.SelectStmt, err
 		if err != nil {
 			return nil, nil, err
 		}
+		// The query ends at the last token of the source, before the url_spec's
+		// own ')'.
+		end := p.prev.End
 		if _, err := p.expect(')'); err != nil {
 			return nil, nil, err
 		}
 		return nil, &nodes.SelectStmt{
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
+			Loc:        nodes.Loc{Start: start, End: end},
 			TargetList: targets,
 			From:       []nodes.TableExpr{ref},
 		}, nil

@@ -419,3 +419,28 @@ func TestExecExternalTableName(t *testing.T) {
 		t.Fatalf("CREATE TABLE ext succeeded beside the external table")
 	}
 }
+
+// TestExecExternalTableRename pins that a rename through ALTER EXTERNAL TABLE
+// moves the name the catalog holds.
+func TestExecExternalTableRename(t *testing.T) {
+	c := New()
+	sql := "CREATE DATABASE test; USE test;\n" +
+		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\n" +
+		"ALTER EXTERNAL TABLE ext RENAME TO renamed"
+	if _, err := c.Exec(sql, nil); err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	if _, err := c.Exec("CREATE TABLE ext (a INT)", nil); err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	db := c.GetDatabase("test")
+	if db == nil {
+		t.Fatal("GetDatabase(test) = nil")
+	}
+	if db.ExternalTables["ext"] {
+		t.Errorf("the old name is still held")
+	}
+	if !db.ExternalTables["renamed"] {
+		t.Errorf("renamed is not held: %#v", db.ExternalTables)
+	}
+}

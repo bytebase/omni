@@ -38,6 +38,14 @@ func (p *Parser) parseStatsMethod() (*nodes.StatsMethod, error) {
 	method := &nodes.StatsMethod{Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // FOR
 
+	// Completion: after FOR, offer the two methods.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwALL)
+		p.addTokenCandidate(kwCOLUMNS)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	if p.cur.Type == kwALL {
 		method.ForAll = true
 		p.advance()

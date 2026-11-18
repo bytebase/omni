@@ -271,9 +271,10 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropMaterializedViewLog(s)
 	case *nodes.AlterTableStmt:
 		if s.External {
-			// ALTER EXTERNAL TABLE changes a table the catalog keeps no model
-			// for (see CreateTableStmt above).
-			return nil
+			// ALTER EXTERNAL TABLE changes a table the catalog keeps no
+			// definition for (see CreateTableStmt above); only a rename changes
+			// what it does hold, the name.
+			return c.alterExternalTable(s)
 		}
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:

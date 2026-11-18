@@ -1128,3 +1128,20 @@ func TestLoadMetadataMaterializedView(t *testing.T) {
 		t.Fatalf("a view reading the materialized view does not analyze: %v", err)
 	}
 }
+
+// TestLoadMetadataSeedsExternalTableNames pins that a snapshot's external table
+// claims its name even though the catalog holds no definition of it: a CREATE
+// TABLE of the name is 1050 on the server, so the catalog answers it too.
+func TestLoadMetadataSeedsExternalTableNames(t *testing.T) {
+	meta := snapshot(&metadata.SchemaMetadata{
+		ExternalTables: []*metadata.ExternalTableMetadata{{Name: "ext"}},
+	})
+	c, _ := loadMySQLSnapshot(t, meta)
+	results, err := c.Exec("CREATE TABLE ext (a INT)", nil)
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("CREATE TABLE ext = %+v, want the name taken", results)
+	}
+}

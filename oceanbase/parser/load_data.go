@@ -295,7 +295,11 @@ func (p *Parser) parseLoadDataS3Source(stmt *nodes.LoadDataStmt) error {
 		// Completion: LOAD DATA FROM | → the only valid continuation is S3.
 		p.checkCursor()
 		if p.collectMode() {
+			// url_spec's table functions read from a location as S3 does.
 			p.addTokenCandidate(kwS3)
+			p.addTokenCandidate(kwSOURCE)
+			p.addTokenCandidate(kwFILES)
+			p.addTokenCandidate('(')
 			return &ParseError{Message: "collecting"}
 		}
 	}

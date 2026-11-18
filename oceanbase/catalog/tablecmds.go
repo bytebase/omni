@@ -2816,3 +2816,42 @@ func (c *Catalog) createExternalTable(stmt *nodes.CreateTableStmt) error {
 	db.ExternalTables[key] = true
 	return nil
 }
+
+// alterExternalTable applies an ALTER EXTERNAL TABLE: a rename moves the name the
+// catalog holds, and every other action changes a definition it does not hold.
+func (c *Catalog) alterExternalTable(stmt *nodes.AlterTableStmt) error {
+	if stmt.Table == nil {
+		return nil
+	}
+	db, err := c.resolveDatabase(stmt.Table.Schema)
+	if err != nil {
+		return err
+	}
+	old := toLower(stmt.Table.Name)
+	for _, cmd := range stmt.Commands {
+		if cmd == nil || cmd.Type != nodes.ATRenameTable {
+			continue
+		}
+		newName := cmd.NewName
+		to := db
+		if cmd.NewTable != nil {
+			newName = cmd.NewTable.Name
+			if cmd.NewTable.Schema != "" {
+				if to, err = c.resolveDatabase(cmd.NewTable.Schema); err != nil {
+					return err
+				}
+			}
+		}
+		if newName == "" {
+			continue
+		}
+		key := toLower(newName)
+		if to.Tables[key] != nil || to.Views[key] != nil {
+			return errDupTable(newName)
+		}
+		delete(db.ExternalTables, old)
+		to.ExternalTables[key] = true
+		db, old = to, key
+	}
+	return nil
+}
