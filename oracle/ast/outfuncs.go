@@ -4675,6 +4675,16 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 		}
 		sb.WriteString(")")
 	}
+	if n.Options != nil && n.Options.Len() > 0 {
+		sb.WriteString(" :options (")
+		for i, item := range n.Options.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
+	}
 	if n.ScopeColumn != "" {
 		sb.WriteString(fmt.Sprintf(" :scopeColumn %q", n.ScopeColumn))
 	}
