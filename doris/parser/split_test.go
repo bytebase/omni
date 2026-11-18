@@ -284,8 +284,12 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		// is not the terminator of.
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SELECT end FROM t; END CASE; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END loop; END; SELECT 2;",
-		// A CASE nested in an expression's branch is an expression too.
+		// A CASE nested in an expression's branch is an expression too, and
+		// begin and end stand in it as column names.
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN CASE WHEN 2 THEN 3 END END; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN begin ELSE 2 END; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN end THEN CASE WHEN 1 THEN 2 END ELSE 3 END; END; SELECT 9;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END + 1; END; SELECT 2;",
 	} {
 		segments := Split(sql)
 		if len(segments) != 2 {

@@ -295,7 +295,9 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			b.stack = append(b.stack, blockCaseStmt)
 		}
 	case kwBEGIN:
-		if b.startsStatement() {
+		// A branch of an expression CASE holds an expression, where begin
+		// names a column (SELECT CASE WHEN 1 THEN begin ELSE 2 END).
+		if b.top() != blockCaseExpr && b.startsStatement() {
 			b.stack = append(b.stack, blockBegin)
 		}
 	case kwEND:
@@ -307,9 +309,12 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			return b.empty()
 		}
 		if b.top() == blockCaseExpr {
-			// An expression's END closes it wherever it stands; a word after it
-			// is the item's alias (SELECT CASE WHEN 1 THEN 2 END loop).
-			b.pop()
+			// An expression's END closes it, and a word after it is the item's
+			// alias (SELECT CASE WHEN 1 THEN 2 END loop). Where an operand is
+			// due, the word names a column instead (CASE WHEN end THEN ...).
+			if b.endsOperand() {
+				b.pop()
+			}
 			return b.empty()
 		}
 		if isControlFlowEndFollower(follower) {
@@ -340,6 +345,19 @@ func (b *blockFrame) startsStatement() bool {
 		case "LOOP", "REPEAT":
 			return true
 		}
+	}
+	return false
+}
+
+// endsOperand reports whether the last token read ends an operand, so the END
+// that follows closes an expression. BEGIN and END are non-reserved words too,
+// and where one stands in an operand's place it names a column
+// (CASE WHEN end THEN ...).
+func (b *blockFrame) endsOperand() bool {
+	switch b.prev.Kind {
+	case tokInt, tokFloat, tokString, tokIdent, tokQuotedIdent, tokHexLiteral,
+		tokBitLiteral, tokPlaceholder, int(')'), kwEND:
+		return true
 	}
 	return false
 }
