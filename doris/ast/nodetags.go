@@ -642,6 +642,9 @@ const (
 	// T_CreateProcedureStmt is the tag for *CreateProcedureStmt.
 	T_CreateProcedureStmt
 
+	// T_AlterProcedureStmt is the tag for *AlterProcedureStmt.
+	T_AlterProcedureStmt
+
 	// T_CallProcedureStmt is the tag for *CallProcedureStmt.
 	T_CallProcedureStmt
 
@@ -1053,6 +1056,8 @@ func (t NodeTag) String() string {
 		return "ProcedureParam"
 	case T_CreateProcedureStmt:
 		return "CreateProcedureStmt"
+	case T_AlterProcedureStmt:
+		return "AlterProcedureStmt"
 	case T_CallProcedureStmt:
 		return "CallProcedureStmt"
 	case T_DropProcedureStmt:

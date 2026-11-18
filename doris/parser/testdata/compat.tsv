@@ -25,13 +25,13 @@ reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(
 reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!drop-4	CALL a(
 reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!insert	CALL a() zzz
 reject	reject	engine	statement/CALL_multipartIdentifier_LEFT_PAREN_(expression_(COMMA_~2c88524e!swap	CANCEL a()
-reject	accept	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940	ALTER PROCEDURE a()
+accept	accept	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940	ALTER PROCEDURE a()
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-1	PROCEDURE a()
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-2	ALTER a()
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-3	ALTER PROCEDURE()
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-4	ALTER PROCEDURE a)
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!drop-5	ALTER PROCEDURE a(
-reject	accept	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!insert	ALTER PROCEDURE a() zzz
+accept	accept	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!insert	ALTER PROCEDURE a() zzz
 reject	reject	engine	statement/(ALTER|CREATE_(OR_REPLACE)?|REPLACE)_(PROCEDURE|PROC)_m~b4a56940!swap	ALWAYS PROCEDURE a()
 accept	accept	engine	statement/DROP_(PROCEDURE|PROC)_(IF_EXISTS)?_multipartIdentifier	DROP PROCEDURE a
 reject	reject	engine	statement/DROP_(PROCEDURE|PROC)_(IF_EXISTS)?_multipartIdentifier!drop-1	PROCEDURE a
@@ -44,7 +44,7 @@ reject	reject	engine	statement/SHOW_(PROCEDURE|FUNCTION)_STATUS_(LIKE_valueExpre
 reject	reject	engine	statement/SHOW_(PROCEDURE|FUNCTION)_STATUS_(LIKE_valueExpression|~95944cf6!drop-3	SHOW PROCEDURE
 reject	reject	engine	statement/SHOW_(PROCEDURE|FUNCTION)_STATUS_(LIKE_valueExpression|~95944cf6!insert	SHOW PROCEDURE STATUS zzz
 reject	reject	engine	statement/SHOW_(PROCEDURE|FUNCTION)_STATUS_(LIKE_valueExpression|~95944cf6!swap	SIGNED PROCEDURE STATUS
-reject	accept	engine	statement/SHOW_CREATE_PROCEDURE_multipartIdentifier	SHOW CREATE PROCEDURE a
+accept	accept	engine	statement/SHOW_CREATE_PROCEDURE_multipartIdentifier	SHOW CREATE PROCEDURE a
 reject	reject	engine	statement/SHOW_CREATE_PROCEDURE_multipartIdentifier!drop-1	CREATE PROCEDURE a
 reject	reject	engine	statement/SHOW_CREATE_PROCEDURE_multipartIdentifier!drop-2	SHOW PROCEDURE a
 reject	reject	engine	statement/SHOW_CREATE_PROCEDURE_multipartIdentifier!drop-3	SHOW CREATE a
@@ -69,16 +69,16 @@ reject	reject	engine	statement(COMMA_expression)*/COMMA_expression_(COMMA_expres
 reject	reject	engine	statement(COMMA_expression)*/COMMA_expression_(COMMA_expression)*!truncate	CALL a(CURRENT_DATE,
 reject	reject	engine	statement(COMMA_expression)*/COMMA_expression_(COMMA_expression)*!insert	CALL a(CURRENT_DATE, CURRENT_DATE zzz)
 accept	accept	engine	statement(COMMA_expression)*/COMMA_expression_(COMMA_expression)*!swap	CALL a(CURRENT_DATE, CURRENT_TIME)
-reject	accept	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/ALTER	ALTER PROCEDURE a()
+accept	accept	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/ALTER	ALTER PROCEDURE a()
 reject	reject	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/ALTER!insert	ALTER zzz PROCEDURE a()
-reject	accept	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/CREATE_(OR_REPLACE)?	CREATE PROCEDURE a()
+accept	accept	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/CREATE_(OR_REPLACE)?	CREATE PROCEDURE a()
 reject	reject	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/CREATE_(OR_REPLACE)?!insert	CREATE zzz PROCEDURE a()
 reject	reject	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/CREATE_(OR_REPLACE)?!swap	CREATION PROCEDURE a()
-reject	accept	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE	REPLACE PROCEDURE a()
+accept	accept	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE	REPLACE PROCEDURE a()
 reject	reject	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE!insert	REPLACE zzz PROCEDURE a()
 reject	reject	engine	statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE!swap	REPLACE_IF_NOT_NULL PROCEDURE a()
-reject	accept	engine	statement(OR_REPLACE)?/%empty	CREATE PROCEDURE a()
-reject	accept	engine	statement(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROCEDURE a()
+accept	accept	engine	statement(OR_REPLACE)?/%empty	CREATE PROCEDURE a()
+accept	accept	engine	statement(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE PROCEDURE a()
 reject	reject	engine	statement(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE PROCEDURE a()
 reject	reject	engine	statement(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR PROCEDURE a()
 reject	reject	engine	statement(OR_REPLACE)?/OR_REPLACE!truncate	CREATE OR
@@ -88,12 +88,12 @@ accept	accept	engine	statement(PROCEDURE|PROC)/PROCEDURE	DROP PROCEDURE a
 reject	reject	engine	statement(PROCEDURE|PROC)/PROCEDURE!truncate	DROP
 reject	reject	engine	statement(PROCEDURE|PROC)/PROCEDURE!insert	DROP PROCEDURE zzz a
 reject	reject	engine	statement(PROCEDURE|PROC)/PROCEDURE!swap	DROP PROCESS a
-reject	accept	engine	statement(PROCEDURE|PROC)/PROC	DROP PROC a
+accept	accept	engine	statement(PROCEDURE|PROC)/PROC	DROP PROC a
 reject	reject	engine	statement(PROCEDURE|PROC)/PROC!insert	DROP PROC zzz a
-reject	accept	engine	statement(.)*/%empty	ALTER PROCEDURE a()
-reject	accept	engine	statement(.)*/%empty!insert	ALTER PROCEDURE a(zzz)
-reject	accept	engine	statement(.)*/._(.)*	ALTER PROCEDURE a(a)
-reject	accept	engine	statement(.)*/._(.)*!insert	ALTER PROCEDURE a(a zzz)
+accept	accept	engine	statement(.)*/%empty	ALTER PROCEDURE a()
+accept	accept	engine	statement(.)*/%empty!insert	ALTER PROCEDURE a(zzz)
+accept	accept	engine	statement(.)*/._(.)*	ALTER PROCEDURE a(a)
+accept	accept	engine	statement(.)*/._(.)*!insert	ALTER PROCEDURE a(a zzz)
 accept	accept	engine	statement(IF_EXISTS)?/%empty	DROP PROCEDURE a
 accept	accept	engine	statement(IF_EXISTS)?/IF_EXISTS	DROP PROCEDURE IF EXISTS a
 reject	reject	engine	statement(IF_EXISTS)?/IF_EXISTS!drop-1	DROP PROCEDURE EXISTS a
@@ -4859,7 +4859,7 @@ reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(iden
 reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!drop-2	COPY a FROM@a
 reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!drop-3	COPY INTO FROM@a
 reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!drop-4	COPY INTO a@a
-accept	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!drop-5	COPY INTO a FROM a
+reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!drop-5	COPY INTO a FROM a
 reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!drop-6	COPY INTO a FROM@
 reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!insert	COPY INTO a FROM@a zzz
 reject	reject	engine	unsupportedDmlStatement/COPY_INTO_multipartIdentifier_(identifierList)?_FROM_(s~d0960a0c!swap	COUNT INTO a FROM@a
@@ -4871,14 +4871,14 @@ reject	reject	engine	unsupportedDmlStatement(specifiedPartition)?/specifiedParti
 accept	reject	engine	unsupportedDmlStatement(specifiedPartition)?/specifiedPartition!swap	TRUNCATE TABLE a PARTITIONS a
 accept	accept	engine	unsupportedDmlStatement(identifierList)?/%empty	COPY INTO a FROM@a
 reject	reject	engine	unsupportedDmlStatement(identifierList)?/%empty!insert	COPY INTO a zzz FROM@a
-reject	accept	engine	unsupportedDmlStatement(identifierList)?/identifierList	COPY INTO a(a) FROM@a
+accept	accept	engine	unsupportedDmlStatement(identifierList)?/identifierList	COPY INTO a(a) FROM@a
 reject	reject	engine	unsupportedDmlStatement(identifierList)?/identifierList!drop-1	COPY INTO a a) FROM@a
 reject	reject	engine	unsupportedDmlStatement(identifierList)?/identifierList!drop-2	COPY INTO a() FROM@a
 reject	reject	engine	unsupportedDmlStatement(identifierList)?/identifierList!drop-3	COPY INTO a(a FROM@a
 reject	reject	engine	unsupportedDmlStatement(identifierList)?/identifierList!truncate	COPY INTO a(a
 reject	reject	engine	unsupportedDmlStatement(identifierList)?/identifierList!insert	COPY INTO a(a) zzz FROM@a
 accept	accept	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/stageAndPattern	COPY INTO a FROM@a
-reject	accept	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a)
+accept	accept	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a)
 reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce!drop-1	COPY INTO a FROM SELECT CURRENT_DATE FROM@a)
 reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce!drop-2	COPY INTO a FROM(CURRENT_DATE FROM@a)
 reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce!drop-3	COPY INTO a FROM(SELECT FROM@a)
@@ -4888,9 +4888,9 @@ reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_
 reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce!drop-7	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a
 reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce!insert	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a) zzz
 reject	reject	engine	unsupportedDmlStatement(stageAndPattern|(LEFT_PAREN_SELECT_s~649b2a52)/LEFT_PAREN_SELECT_selectColumnClause_FROM_stageAndPatte~ddf027ce!swap	COPY INTO a FROM(SEMI CURRENT_DATE FROM@a)
-reject	accept	engine	unsupportedDmlStatement(whereClause)?/%empty	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a)
+accept	accept	engine	unsupportedDmlStatement(whereClause)?/%empty	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a)
 reject	reject	engine	unsupportedDmlStatement(whereClause)?/%empty!insert	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a zzz)
-reject	accept	engine	unsupportedDmlStatement(whereClause)?/whereClause	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a WHERE CURRENT_DATE)
+accept	accept	engine	unsupportedDmlStatement(whereClause)?/whereClause	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a WHERE CURRENT_DATE)
 reject	reject	engine	unsupportedDmlStatement(whereClause)?/whereClause!drop-1	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a CURRENT_DATE)
 reject	reject	engine	unsupportedDmlStatement(whereClause)?/whereClause!drop-2	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a WHERE)
 reject	reject	engine	unsupportedDmlStatement(whereClause)?/whereClause!truncate	COPY INTO a FROM(SELECT CURRENT_DATE FROM@a WHERE
@@ -4908,10 +4908,10 @@ reject	reject	engine	unsupportedDmlStatement(propertyClause)?/propertyClause!ins
 reject	reject	engine	unsupportedDmlStatement(propertyClause)?/propertyClause!swap	COPY INTO a FROM@a PROPERTY(a = a)
 accept	accept	engine	stageAndPattern/ATSIGN_(identifier|TILDE)_(LEFT_PAREN_STRING_LITERAL_RI~5c2fce93	COPY INTO a FROM@a
 accept	accept	engine	stageAndPattern(identifier|TILDE)/identifier	COPY INTO a FROM@a
-reject	accept	engine	stageAndPattern(identifier|TILDE)/TILDE	COPY INTO a FROM@~
+accept	accept	engine	stageAndPattern(identifier|TILDE)/TILDE	COPY INTO a FROM@~
 reject	reject	engine	stageAndPattern(identifier|TILDE)/TILDE!insert	COPY INTO a FROM@~ zzz
 accept	accept	engine	stageAndPattern(LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN)?/%empty	COPY INTO a FROM@a
-reject	accept	engine	stageAndPattern(LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN)?/LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN	COPY INTO a FROM@a('a')
+accept	accept	engine	stageAndPattern(LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN)?/LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN	COPY INTO a FROM@a('a')
 reject	reject	engine	stageAndPattern(LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN)?/LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN!drop-1	COPY INTO a FROM@a 'a')
 reject	reject	engine	stageAndPattern(LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN)?/LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN!drop-2	COPY INTO a FROM@a()
 reject	reject	engine	stageAndPattern(LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN)?/LEFT_PAREN_STRING_LITERAL_RIGHT_PAREN!drop-3	COPY INTO a FROM@a('a'
@@ -5272,7 +5272,7 @@ reject	reject	engine	grantUserIdentify(PASSWORD)?/PASSWORD!insert	CREATE USER a 
 reject	reject	engine	grantUserIdentify(PASSWORD)?/PASSWORD!swap	CREATE USER a IDENTIFIED BY PASSWORD_EXPIRE 'a'
 accept	accept	engine	explain/explainCommand_(planType)?_(VERBOSE|TREE|GRAPH|PLAN|DUM~64b36abb	EXPLAIN SELECT CURRENT_DATE
 accept	accept	engine	explain(planType)?/%empty	EXPLAIN SELECT CURRENT_DATE
-accept	reject	engine	explain(planType)?/planType	EXPLAIN PARSED SELECT CURRENT_DATE
+reject	reject	engine	explain(planType)?/planType	EXPLAIN PARSED SELECT CURRENT_DATE
 reject	reject	engine	explain(planType)?/planType!insert	EXPLAIN PARSED zzz SELECT CURRENT_DATE
 reject	reject	engine	explain(planType)?/planType!swap	EXPLAIN PARTITION SELECT CURRENT_DATE
 accept	accept	engine	explain(VERBOSE|TREE|GRAPH|PLAN|DUMP)?/%empty	EXPLAIN SELECT CURRENT_DATE
@@ -5302,26 +5302,26 @@ reject	reject	engine	explainCommand/DESC!insert	DESC zzz a
 accept	accept	engine	explainCommand/DESCRIBE	DESCRIBE a
 reject	reject	engine	explainCommand/DESCRIBE!insert	DESCRIBE zzz a
 reject	reject	engine	explainCommand/DESCRIBE!swap	DIAGNOSE a
-accept	reject	engine	planType/PARSED	EXPLAIN PARSED SELECT CURRENT_DATE
-accept	reject	engine	planType/ANALYZED	EXPLAIN ANALYZED SELECT CURRENT_DATE
+reject	reject	engine	planType/PARSED	EXPLAIN PARSED SELECT CURRENT_DATE
+reject	reject	engine	planType/ANALYZED	EXPLAIN ANALYZED SELECT CURRENT_DATE
 reject	reject	engine	planType/ANALYZED!insert	EXPLAIN ANALYZED zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/ANALYZED!swap	EXPLAIN ANALYZER SELECT CURRENT_DATE
-accept	reject	engine	planType/REWRITTEN	EXPLAIN REWRITTEN SELECT CURRENT_DATE
+reject	reject	engine	planType/REWRITTEN	EXPLAIN REWRITTEN SELECT CURRENT_DATE
 reject	reject	engine	planType/REWRITTEN!insert	EXPLAIN REWRITTEN zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/REWRITTEN!swap	EXPLAIN RIGHT SELECT CURRENT_DATE
 reject	reject	engine	planType/LOGICAL	EXPLAIN LOGICAL SELECT CURRENT_DATE
 reject	reject	engine	planType/LOGICAL!insert	EXPLAIN LOGICAL zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/LOGICAL!swap	EXPLAIN LOW_PRIORITY SELECT CURRENT_DATE
-accept	reject	engine	planType/OPTIMIZED	EXPLAIN OPTIMIZED SELECT CURRENT_DATE
+reject	reject	engine	planType/OPTIMIZED	EXPLAIN OPTIMIZED SELECT CURRENT_DATE
 reject	reject	engine	planType/OPTIMIZED!insert	EXPLAIN OPTIMIZED zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/OPTIMIZED!swap	EXPLAIN OR SELECT CURRENT_DATE
-accept	reject	engine	planType/PHYSICAL	EXPLAIN PHYSICAL SELECT CURRENT_DATE
+reject	reject	engine	planType/PHYSICAL	EXPLAIN PHYSICAL SELECT CURRENT_DATE
 reject	reject	engine	planType/PHYSICAL!insert	EXPLAIN PHYSICAL zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/PHYSICAL!swap	EXPLAIN PI SELECT CURRENT_DATE
-accept	reject	engine	planType/SHAPE	EXPLAIN SHAPE SELECT CURRENT_DATE
+reject	reject	engine	planType/SHAPE	EXPLAIN SHAPE SELECT CURRENT_DATE
 reject	reject	engine	planType/SHAPE!insert	EXPLAIN SHAPE zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/SHAPE!swap	EXPLAIN SHOW SELECT CURRENT_DATE
-accept	reject	engine	planType/MEMO	EXPLAIN MEMO SELECT CURRENT_DATE
+reject	reject	engine	planType/MEMO	EXPLAIN MEMO SELECT CURRENT_DATE
 reject	reject	engine	planType/MEMO!insert	EXPLAIN MEMO zzz SELECT CURRENT_DATE
 reject	reject	engine	planType/MEMO!swap	EXPLAIN MERGE SELECT CURRENT_DATE
 reject	reject	engine	planType/DISTRIBUTED	EXPLAIN DISTRIBUTED SELECT CURRENT_DATE
@@ -8715,7 +8715,7 @@ reject	reject	engine	stmt/copy_stmt!drop-1	INTO a FROM@a
 reject	reject	engine	stmt/copy_stmt!drop-2	COPY a FROM@a
 reject	reject	engine	stmt/copy_stmt!drop-3	COPY INTO FROM@a
 reject	reject	engine	stmt/copy_stmt!drop-4	COPY INTO a@a
-accept	reject	engine	stmt/copy_stmt!drop-5	COPY INTO a FROM a
+reject	reject	engine	stmt/copy_stmt!drop-5	COPY INTO a FROM a
 reject	reject	engine	stmt/copy_stmt!drop-6	COPY INTO a FROM@
 reject	reject	engine	stmt/copy_stmt!insert	COPY INTO a FROM@a zzz
 reject	reject	engine	stmt/copy_stmt!swap	COUNT INTO a FROM@a
@@ -10093,11 +10093,11 @@ reject	reject	engine	copy_from_param/(_SELECT_copy_select_expr_list_FROM_stage_a
 reject	reject	engine	copy_from_param/(_SELECT_copy_select_expr_list_FROM_stage_and_pattern_w~26fe3893!insert	COPY INTO a FROM(SELECT FROM@a) zzz
 reject	reject	engine	copy_from_param/(_SELECT_copy_select_expr_list_FROM_stage_and_pattern_w~26fe3893!swap	COPY INTO a FROM(SEMI FROM@a)
 accept	accept	engine	stage_name/@_ident	COPY INTO a FROM@a
-reject	accept	engine	stage_name/@_~	COPY INTO a FROM@~
+accept	accept	engine	stage_name/@_~	COPY INTO a FROM@~
 reject	reject	engine	stage_name/@_~!drop-1	COPY INTO a FROM ~
 reject	reject	engine	stage_name/@_~!insert	COPY INTO a FROM@~ zzz
 accept	accept	engine	stage_and_pattern/stage_name	COPY INTO a FROM@a
-reject	accept	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)	COPY INTO a FROM@a('a')
+accept	accept	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)	COPY INTO a FROM@a('a')
 reject	reject	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)!drop-1	COPY INTO a FROM a('a')
 reject	reject	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)!drop-2	COPY INTO a FROM@('a')
 reject	reject	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)!drop-3	COPY INTO a FROM@a 'a')
@@ -10105,11 +10105,11 @@ reject	reject	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)!drop-4	COPY
 reject	reject	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)!drop-5	COPY INTO a FROM@a('a'
 reject	reject	engine	stage_and_pattern/stage_name_(_STRING_LITERAL_)!insert	COPY INTO a FROM@a('a') zzz
 reject	reject	engine	copy_select_expr_list/%empty	COPY INTO a FROM(SELECT FROM@a)
-reject	accept	engine	copy_select_expr_list/%empty!insert	COPY INTO a FROM(SELECT zzz FROM@a)
-reject	accept	engine	copy_select_expr_list/*	COPY INTO a FROM(SELECT * FROM@a)
+accept	accept	engine	copy_select_expr_list/%empty!insert	COPY INTO a FROM(SELECT zzz FROM@a)
+accept	accept	engine	copy_select_expr_list/*	COPY INTO a FROM(SELECT * FROM@a)
 reject	reject	engine	copy_select_expr_list/*!truncate	COPY INTO a FROM(SELECT
 reject	reject	engine	copy_select_expr_list/*!insert	COPY INTO a FROM(SELECT * zzz FROM@a)
-reject	accept	engine	copy_select_expr_list/expr_list	COPY INTO a FROM(SELECT 1 FROM@a)
+accept	accept	engine	copy_select_expr_list/expr_list	COPY INTO a FROM(SELECT 1 FROM@a)
 reject	reject	engine	copy_select_expr_list/expr_list!insert	COPY INTO a FROM(SELECT 1 zzz FROM@a)
 accept	accept	engine	data_desc_list/data_desc	LOAD LABEL a(DATA FROM TABLE a INTO TABLE a)
 reject	reject	engine	data_desc_list/data_desc!truncate	LOAD LABEL a(DATA FROM TABLE a INTO TABLE

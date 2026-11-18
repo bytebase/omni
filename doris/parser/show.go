@@ -249,6 +249,19 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 		}
 		typeWord = "CREATE MATERIALIZED VIEW"
 		materializedView = true
+	case kwPROCEDURE:
+		// SHOW CREATE PROCEDURE name (DorisParser.g4:47), a statement of its
+		// own and not handed to the CUP parser. The name is required, so SHOW
+		// CREATE PROCEDURE is a syntax error.
+		p.advance() // consume PROCEDURE
+		target, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Type = "CREATE PROCEDURE"
+		stmt.Target = target
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	case kwFUNCTION, kwGLOBAL, kwSESSION, kwLOCAL:
 		// SHOW CREATE [GLOBAL | SESSION | LOCAL] FUNCTION name(args) [(FROM | IN) db]
 		return p.parseShowCreateFunction(stmt)
@@ -869,8 +882,7 @@ func (p *Parser) describeExplains() bool {
 
 // parseExplain parses EXPLAIN statements.
 //
-//	EXPLAIN [VERBOSE|GRAPH|PARSED|ANALYZED|REWRITTEN|PLAN|PHYSICAL|
-//	         MEMO|SHAPE|DUMP|OPTIMIZED|PLAN PROCESS] query
+//	EXPLAIN [VERBOSE|GRAPH|TREE|PLAN|DUMP] [PROCESS] query
 //
 // On entry, EXPLAIN has NOT yet been consumed.
 func (p *Parser) parseExplain() (ast.Node, error) {
@@ -884,35 +896,18 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 // parseExplainBody reads the modifiers and the explained statement of an
 // explain command — EXPLAIN, DESCRIBE or DESC alike (DorisParser.g4:1061
 // explain, :1067 explainCommand).
+//
+// The grammar also derives a planType before the level (DorisParser.g4:1073):
+// PARSED, ANALYZED, REWRITTEN, LOGICAL, OPTIMIZED, PHYSICAL, SHAPE, MEMO,
+// DISTRIBUTED and ALL. The pinned server refuses every one of them —
+// EXPLAIN PARSED SELECT CURRENT_DATE and its siblings are syntax errors
+// (compat.tsv's planType/* rows), the legacy planner's plan types being gone —
+// so none is read: the word after EXPLAIN is a level or the planned statement.
 func (p *Parser) parseExplainBody(stmt *ast.ExplainStmt) (ast.Node, error) {
 	// explain : explainCommand planType? level=(VERBOSE|TREE|GRAPH|PLAN|DUMP)?
-	// PROCESS? (DorisParser.g4:1061), so the options are read in that order
-	// and Type keeps the ones stated, space-separated — the same sequence
-	// describeExplains looks ahead through.
+	// PROCESS? (DorisParser.g4:1061), so Type keeps the levels stated,
+	// space-separated — the same sequence describeExplains looks ahead through.
 	var options []string
-	switch p.cur.Kind {
-	case kwPARSED:
-		options = append(options, "PARSED")
-		p.advance()
-	case kwANALYZED:
-		options = append(options, "ANALYZED")
-		p.advance()
-	case kwREWRITTEN:
-		options = append(options, "REWRITTEN")
-		p.advance()
-	case kwOPTIMIZED:
-		options = append(options, "OPTIMIZED")
-		p.advance()
-	case kwPHYSICAL:
-		options = append(options, "PHYSICAL")
-		p.advance()
-	case kwSHAPE:
-		options = append(options, "SHAPE")
-		p.advance()
-	case kwMEMO:
-		options = append(options, "MEMO")
-		p.advance()
-	}
 	switch p.cur.Kind {
 	case kwVERBOSE, kwTREE, kwGRAPH, kwDUMP:
 		options = append(options, strings.ToUpper(p.advance().Str))

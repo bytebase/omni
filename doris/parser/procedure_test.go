@@ -117,6 +117,64 @@ func TestDropProcedure_IfExists(t *testing.T) {
 	}
 }
 
+// DROP (PROCEDURE | PROC) (DorisParser.g4:44): PROC is the rule's other
+// spelling (compat.tsv's statement(PROCEDURE|PROC)/PROC row).
+func TestDropProcedure_ProcSpelling(t *testing.T) {
+	stmt := parseDropProcedureStmt(t, "DROP PROC my_proc")
+	if stmt.Name.String() != "my_proc" {
+		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_proc")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ALTER PROCEDURE
+// ---------------------------------------------------------------------------
+
+func parseAlterProcedureStmt(t *testing.T, sql string) *ast.AlterProcedureStmt {
+	t.Helper()
+	file, errs := parseForTest(sql)
+	if len(errs) != 0 {
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
+	}
+	stmt, ok := file.Stmts[0].(*ast.AlterProcedureStmt)
+	if !ok {
+		t.Fatalf("expected *ast.AlterProcedureStmt, got %T", file.Stmts[0])
+	}
+	return stmt
+}
+
+// ALTER PROCEDURE reads everything after the name as free text
+// (DorisParser.g4:43), which is what the engine takes: it parses ALTER
+// PROCEDURE a() and ALTER PROCEDURE a(a zzz) (compat.tsv's statement(.)* rows)
+// and refuses a name without parentheses.
+func TestAlterProcedure(t *testing.T) {
+	tests := []struct {
+		sql     string
+		name    string
+		rawText string
+	}{
+		{"ALTER PROCEDURE a()", "a", ""},
+		{"ALTER PROCEDURE a(zzz)", "a", "zzz"},
+		{"ALTER PROCEDURE a(a zzz)", "a", "a zzz"},
+		{"ALTER PROCEDURE a() zzz", "a", "zzz"},
+		{"ALTER PROC db.a()", "db.a", ""},
+	}
+	for _, tc := range tests {
+		stmt := parseAlterProcedureStmt(t, tc.sql)
+		if stmt.Name.String() != tc.name {
+			t.Errorf("Parse(%q): Name = %q, want %q", tc.sql, stmt.Name.String(), tc.name)
+		}
+		if stmt.RawText != tc.rawText {
+			t.Errorf("Parse(%q): RawText = %q, want %q", tc.sql, stmt.RawText, tc.rawText)
+		}
+	}
+	for _, sql := range []string{"ALTER PROCEDURE a", "ALTER PROCEDURE a(", "ALTER PROCEDURE ()"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // CREATE PROCEDURE
 // ---------------------------------------------------------------------------
@@ -218,6 +276,58 @@ func TestCreateProcedure_IfNotExists(t *testing.T) {
 	}
 }
 
+// The grammar reads the parameter list and the text after it freely
+// (DorisParser.g4:43 LEFT_PAREN .*? RIGHT_PAREN .*?), so Doris takes a
+// procedure with no body (compat.tsv's statement(OR_REPLACE)?/%empty row) and
+// one whose parentheses hold text that is no parameter list. Both keep that
+// text in RawText.
+func TestCreateProcedure_FreeText(t *testing.T) {
+	tests := []struct {
+		sql     string
+		rawText string
+	}{
+		{"CREATE PROCEDURE a()", ""},
+		{"CREATE PROCEDURE a(zzz)", "zzz"},
+		{"CREATE PROCEDURE a(a zzz)", "a zzz"},
+		{"CREATE PROCEDURE a() zzz", "zzz"},
+	}
+	for _, tc := range tests {
+		stmt := parseCreateProcedureStmt(t, tc.sql)
+		if stmt.RawText != tc.rawText {
+			t.Errorf("Parse(%q): RawText = %q, want %q", tc.sql, stmt.RawText, tc.rawText)
+		}
+		if stmt.Body != "" || len(stmt.Parameters) != 0 {
+			t.Errorf("Parse(%q): Body = %q Parameters = %d, want neither", tc.sql, stmt.Body, len(stmt.Parameters))
+		}
+	}
+}
+
+// REPLACE PROCEDURE is the grammar's third verb (DorisParser.g4:43), and
+// compat.tsv's statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE row says
+// the engine takes it.
+func TestCreateProcedure_Replace(t *testing.T) {
+	stmt := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a()")
+	if !stmt.Replace {
+		t.Error("Replace should be true")
+	}
+	if stmt.OrReplace {
+		t.Error("OrReplace should be false")
+	}
+	if stmt.Name.String() != "a" {
+		t.Errorf("Name = %q, want a", stmt.Name.String())
+	}
+}
+
+// The name and its parentheses are not free: the engine refuses
+// CREATE PROCEDURE a (compat.tsv's SHOW_CREATE_PROCEDURE...!drop-1 row).
+func TestCreateProcedure_NeedsParentheses(t *testing.T) {
+	for _, sql := range []string{"CREATE PROCEDURE a", "CREATE PROCEDURE a("} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Node tags
 // ---------------------------------------------------------------------------
@@ -234,6 +344,10 @@ func TestProcedureNodeTags(t *testing.T) {
 	dp := &ast.DropProcedureStmt{}
 	if dp.Tag() != ast.T_DropProcedureStmt {
 		t.Errorf("DropProcedureStmt.Tag() = %v, want T_DropProcedureStmt", dp.Tag())
+	}
+	ap := &ast.AlterProcedureStmt{}
+	if ap.Tag() != ast.T_AlterProcedureStmt {
+		t.Errorf("AlterProcedureStmt.Tag() = %v, want T_AlterProcedureStmt", ap.Tag())
 	}
 	pp := &ast.ProcedureParam{}
 	if pp.Tag() != ast.T_ProcedureParam {

@@ -63,12 +63,17 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 // COPY INTO (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseCopyInto parses:
+// parseCopyInto parses Doris's copyInto (DorisParser.g4:936):
 //
-//	COPY INTO target FROM @stage_or_path
-//	    [FILES = ('f1', 'f2')]
-//	    [PATTERN = 'glob']
-//	    [PROPERTIES(...)]
+//	COPY INTO name=multipartIdentifier columns=identifierList? FROM
+//	    (stageAndPattern | (LEFT_PAREN SELECT selectColumnClause
+//	        FROM stageAndPattern whereClause? RIGHT_PAREN))
+//	    properties=propertyClause?
+//
+// The source is a stage and what it names — @stage (stageAndPattern, :942) or
+// a query of the stage's files — never the bare word it looks like the CUP
+// parser's copy_from_param would take there: COPY INTO a FROM a is refused
+// (compat.tsv's ..._FROM_(s...!drop-5 rows).
 //
 // The COPY keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseCopyInto() (ast.Node, error) {
@@ -83,57 +88,61 @@ func (p *Parser) parseCopyInto() (ast.Node, error) {
 		Loc: ast.Loc{Start: copyTok.Loc.Start},
 	}
 
-	// Target table name
 	target, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Target = target
 
-	// Required FROM keyword
+	// identifierList? — the columns the load fills, in the target's order.
+	if p.cur.Kind == int('(') {
+		columns, err := p.parseLoadIdentifierList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Columns = columns
+	}
+
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
 
-	// Source: @stage, 'path', or bare identifier
-	// Handle leading @ sign for stage references like @stage_name
-	source, err := p.parseCopySource()
-	if err != nil {
-		return nil, err
+	if p.cur.Kind == int('(') {
+		// (SELECT selectColumnClause FROM stageAndPattern whereClause?)
+		p.advance() // consume '('
+		if _, err := p.expect(kwSELECT); err != nil {
+			return nil, err
+		}
+		items, err := p.parseCopySelectList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.SelectItems = items
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+		if stmt.Stage, stmt.Pattern, err = p.parseCopyStage(); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == kwWHERE {
+			p.advance() // consume WHERE
+			if stmt.Where, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	} else {
+		if stmt.Stage, stmt.Pattern, err = p.parseCopyStage(); err != nil {
+			return nil, err
+		}
 	}
-	stmt.Source = source
 
-	// Optional FILES = ('f1', 'f2', ...)
-	for p.cur.Kind != tokEOF {
-		if isIdentText(p, "files") || p.cur.Kind == kwFILE {
-			p.advance() // consume FILES/FILE
-			if _, err := p.expect(int('=')); err != nil {
-				return nil, err
-			}
-			files, err := p.parseStringList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Files = files
-		} else if isIdentText(p, "pattern") || p.cur.Kind == kwPATH {
-			// PATTERN = '...'
-			p.advance() // consume PATTERN
-			if _, err := p.expect(int('=')); err != nil {
-				return nil, err
-			}
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Pattern = p.cur.Str
-			p.advance()
-		} else if p.cur.Kind == kwPROPERTIES {
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = props
-		} else {
-			break
+	// propertyClause? — PROPERTIES(...), the form Doris configures a load with.
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.Properties, err = p.parseProperties(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -141,58 +150,65 @@ func (p *Parser) parseCopyInto() (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseCopySource parses the FROM source in COPY INTO.
-// Handles: @stage_name, 'string_path', or bare identifier.
-func (p *Parser) parseCopySource() (string, error) {
-	// @stage_name: '@' is not a keyword, it's ASCII 64
-	if p.cur.Kind == int('@') {
-		p.advance() // consume '@'
-		name, _, err := p.parseIdentifier()
+// parseCopySelectList parses the selectColumnClause of a COPY INTO source
+// (DorisParser.g4:1215), as the legacy parser's copy_select_expr_list
+// (DorisLegacyParser.g4:625) also takes it. Doris parses a COPY INTO with both
+// grammars, so the clause is a bare '*' or a list of expressions: the grammar
+// takes an alias, and COPY INTO a FROM (SELECT 1 zzz FROM @a) is refused
+// (compat.tsv's copy_select_expr_list/expr_list!insert row).
+func (p *Parser) parseCopySelectList() ([]*ast.SelectItem, error) {
+	if p.cur.Kind == int('*') {
+		star := p.advance()
+		return []*ast.SelectItem{{Star: true, Loc: star.Loc}}, nil
+	}
+	var items []*ast.SelectItem
+	for {
+		expr, err := p.parseExpr()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		// Handle @stage/path segments
-		var sb strings.Builder
-		sb.WriteByte('@')
-		sb.WriteString(name)
-		// Consume optional sub-path segments (slash-separated)
-		for p.cur.Kind == int('/') {
-			p.advance()
-			sb.WriteByte('/')
-			if p.cur.Kind == tokString || p.cur.Kind == tokIdent || isIdentifierToken(p.cur.Kind) {
-				sb.WriteString(p.cur.Str)
-				p.advance()
-			}
+		items = append(items, &ast.SelectItem{Expr: expr, Loc: ast.NodeLoc(expr)})
+		if p.cur.Kind != int(',') {
+			return items, nil
 		}
-		return sb.String(), nil
+		p.advance() // consume ','
 	}
-
-	// String literal path: 'path'
-	if p.cur.Kind == tokString {
-		s := p.cur.Str
-		p.advance()
-		return s, nil
-	}
-
-	// Bare identifier (stage name without @)
-	if isIdentifierToken(p.cur.Kind) {
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return "", err
-		}
-		return name, nil
-	}
-
-	return "", p.syntaxErrorAtCur()
 }
 
-// isIdentText checks whether cur is an identifier with the given lowercase text.
-// Used for pseudo-keywords like FILES and PATTERN that may appear as bare idents.
-func isIdentText(p *Parser, lower string) bool {
-	if p.cur.Kind == tokIdent || (p.cur.Kind >= 700 && !IsReserved(p.cur.Kind)) {
-		return strings.ToLower(p.cur.Str) == lower
+// parseCopyStage parses a stageAndPattern (DorisParser.g4:942):
+//
+//	ATSIGN (stage=identifier | TILDE) (LEFT_PAREN pattern=STRING_LITERAL RIGHT_PAREN)?
+//
+// returning the stage as written ("@stage" or "@~") and the glob it takes,
+// or "" for one without a pattern. cur must be on the '@'.
+func (p *Parser) parseCopyStage() (stage, pattern string, err error) {
+	if p.cur.Kind != int('@') {
+		return "", "", p.syntaxErrorAtCur()
 	}
-	return false
+	p.advance() // consume '@'
+
+	if p.cur.Kind == int('~') {
+		p.advance()
+		stage = "@~"
+	} else {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return "", "", err
+		}
+		stage = "@" + name
+	}
+
+	if p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		if p.cur.Kind != tokString {
+			return "", "", p.syntaxErrorAtCur()
+		}
+		pattern = p.advance().Str
+		if _, err := p.expect(int(')')); err != nil {
+			return "", "", err
+		}
+	}
+	return stage, pattern, nil
 }
 
 // parseStringList parses '(' STRING_LITERAL (',' STRING_LITERAL)* ')': at
