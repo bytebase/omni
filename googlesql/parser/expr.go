@@ -1674,7 +1674,7 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !isAnyKeywordIdentifier(p.cur.Type) {
+	if !isIdentifierStart(p.cur.Type) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	fromTok := p.advance()
@@ -1685,7 +1685,7 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 	ie := &ast.IntervalExpr{Value: val, From: fromPart, Loc: ast.Loc{Start: intervalTok.Loc.Start, End: fromTok.Loc.End}}
 	if p.cur.Type == kwTO {
 		p.advance()
-		if !isAnyKeywordIdentifier(p.cur.Type) {
+		if !isIdentifierStart(p.cur.Type) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		toTok := p.advance()
@@ -1992,7 +1992,9 @@ func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) 
 		bc.Loc.Start = typeRef.Loc.Start
 	}
 	for p.cur.Type != int('}') && p.cur.Type != tokEOF {
-		// Extension field: ( path ).
+		// braced_constructor_field:
+		//   (braced_constructor_extension_expression | generalized_path_expression)
+		//   ("*" | "?")? (":" expression | braced_constructor)
 		if p.cur.Type == int('(') {
 			p.advance()
 			path, err := p.parsePathExpr()
@@ -2003,30 +2005,51 @@ func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) 
 				return nil, err
 			}
 			bc.Fields = append(bc.Fields, path)
+			if p.cur.Type == int('[') {
+				p.advance()
+				idx, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.expect(int(']')); err != nil {
+					return nil, err
+				}
+				bc.Fields = append(bc.Fields, idx)
+			}
+			if p.cur.Type == int('.') {
+				p.advance()
+				sub, err := p.parsePathExpr()
+				if err != nil {
+					return nil, err
+				}
+				bc.Fields = append(bc.Fields, sub)
+			}
 		} else {
-			// path { … } | path : expr.
 			lhs, err := p.parsePathExpr()
 			if err != nil {
 				return nil, err
 			}
 			bc.Fields = append(bc.Fields, lhs)
-			switch p.cur.Type {
-			case int(':'):
-				p.advance()
-				val, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				bc.Fields = append(bc.Fields, val)
-			case int('{'):
-				nested, err := p.parseBracedConstructor(nil)
-				if err != nil {
-					return nil, err
-				}
-				bc.Fields = append(bc.Fields, nested)
-			default:
-				return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == int('*') || p.cur.Type == int('?') {
+			p.advance()
+		}
+		switch p.cur.Type {
+		case int(':'):
+			p.advance()
+			val, err := p.parseExpr()
+			if err != nil {
+				return nil, err
 			}
+			bc.Fields = append(bc.Fields, val)
+		case int('{'):
+			nested, err := p.parseBracedConstructor(nil)
+			if err != nil {
+				return nil, err
+			}
+			bc.Fields = append(bc.Fields, nested)
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 		// Optional comma between fields (also a trailing comma before '}').
 		if p.cur.Type == int(',') {
@@ -2162,17 +2185,17 @@ func (p *Parser) parseParenOrSubquery() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Bare struct tuple: two or more comma-separated elements.
+	// Bare struct tuple: two or more comma-separated expressions (no AS alias).
 	if p.cur.Type == int(',') {
 		se := &ast.StructExpr{HasStruct: false, Loc: openTok.Loc}
 		se.Fields = append(se.Fields, &ast.StructFieldExpr{Value: first, Loc: nodeLoc(first)})
 		for p.cur.Type == int(',') {
 			p.advance()
-			field, err := p.parseStructArg()
+			elem, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			se.Fields = append(se.Fields, field)
+			se.Fields = append(se.Fields, &ast.StructFieldExpr{Value: elem, Loc: nodeLoc(elem)})
 		}
 		closeTok, err := p.expect(int(')'))
 		if err != nil {
@@ -2655,7 +2678,7 @@ func (p *Parser) skipHint() *ParseError {
 	switch {
 	case next.Type == int('{'):
 		p.advance() // '@'
-		return p.skipBalancedBraces(hintStart)
+		return p.parseHintBody(hintStart, "empty hint", "unterminated hint")
 	case next.Type == int('['):
 		p.advance() // '@'
 		p.advance() // '['
@@ -2667,7 +2690,7 @@ func (p *Parser) skipHint() *ParseError {
 		}
 		p.advance() // ']'
 		if p.cur.Type == int('{') {
-			return p.skipBalancedBraces(hintStart)
+			return p.parseHintBody(hintStart, "empty hint", "unterminated hint")
 		}
 		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated hint"}
 	case next.Type == tokInteger:

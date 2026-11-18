@@ -124,7 +124,7 @@ func (p *Parser) analyzeLeadingIsOptionsList() bool {
 	if first.Type == int(')') {
 		return true // OPTIONS() — empty options-list
 	}
-	if !isAnyKeywordIdentifier(first.Type) {
+	if !isIdentifierInHints(first.Type) {
 		return false
 	}
 	switch lx.NextToken().Type {

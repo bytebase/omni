@@ -15,7 +15,7 @@ reject	reject	engine	statement_level_hint/hint!truncate	@
 reject	reject	engine	statement_level_hint/hint!insert	@1 zzz BEGIN
 accept	accept	engine	unterminated_sql_statement/sql_statement_body	BEGIN
 accept	accept	engine	unterminated_sql_statement/statement_level_hint_sql_statement_body	@1 BEGIN
-accept	reject	engine	unterminated_sql_statement/statement_level_hint_sql_statement_body!drop-3	@1
+reject	reject	engine	unterminated_sql_statement/statement_level_hint_sql_statement_body!drop-3	@1
 reject	accept	engine	unterminated_sql_statement/statement_level_hint_sql_statement_body!insert	@1 BEGIN zzz
 reject	reject	engine	unterminated_sql_statement/statement_level_hint_sql_statement_body!swap	@1 BETWEEN
 reject	reject	engine	unterminated_sql_statement/DEFINE_MACRO	DEFINE MACRO
@@ -933,7 +933,7 @@ reject	reject	engine	schema_object_kind/SEQUENCE!swap	DROP SET a
 accept	accept	engine	schema_object_kind/VIEW	DROP VIEW a
 reject	reject	engine	schema_object_kind/VIEW!insert	DROP VIEW zzz a
 reject	reject	engine	schema_object_kind/VIEW!swap	DROP VIEWS a
-reject	accept	engine	schema_object_kind/PROPERTY_GRAPH	DROP PROPERTY GRAPH a
+accept	accept	engine	schema_object_kind/PROPERTY_GRAPH	DROP PROPERTY GRAPH a
 reject	reject	engine	schema_object_kind/PROPERTY_GRAPH!drop-1	DROP GRAPH a
 reject	reject	engine	schema_object_kind/PROPERTY_GRAPH!drop-2	DROP PROPERTY a
 reject	reject	engine	schema_object_kind/PROPERTY_GRAPH!truncate	DROP PROPERTY
@@ -1645,7 +1645,7 @@ reject	reject	engine	element_table_definition(dest_node_table_clause)?/dest_node
 reject	reject	engine	element_table_definition(dest_node_table_clause)?/dest_node_table_clause!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DESTINATION KEY(a) REFERENCES a zzz)
 reject	reject	engine	element_table_definition(dest_node_table_clause)?/dest_node_table_clause!swap	CREATE PROPERTY GRAPH a NODE TABLES(a DETERMINISTIC KEY(a) REFERENCES a)
 accept	accept	engine	element_table_definition(dynamic_label_and_properties)?/%empty	CREATE PROPERTY GRAPH a NODE TABLES(a)
-reject	accept	engine	element_table_definition(dynamic_label_and_properties)?/dynamic_label_and_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
+accept	accept	engine	element_table_definition(dynamic_label_and_properties)?/dynamic_label_and_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
 reject	reject	engine	element_table_definition(dynamic_label_and_properties)?/dynamic_label_and_properties!drop-1	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL(NULL))
 reject	reject	engine	element_table_definition(dynamic_label_and_properties)?/dynamic_label_and_properties!drop-2	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC(NULL))
 reject	reject	engine	element_table_definition(dynamic_label_and_properties)?/dynamic_label_and_properties!drop-3	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL NULL))
@@ -1665,30 +1665,30 @@ reject	reject	engine	opt_label_and_properties_clause/properties_clause!drop-2	CR
 reject	reject	engine	opt_label_and_properties_clause/properties_clause!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a NO
 reject	reject	engine	opt_label_and_properties_clause/properties_clause!insert	CREATE PROPERTY GRAPH a NODE TABLES(a NO PROPERTIES zzz)
 reject	reject	engine	opt_label_and_properties_clause/properties_clause!swap	CREATE PROPERTY GRAPH a NODE TABLES(a NODE PROPERTIES)
-reject	accept	engine	opt_label_and_properties_clause/(label_and_properties)+	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
+accept	accept	engine	opt_label_and_properties_clause/(label_and_properties)+	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
 reject	reject	engine	opt_label_and_properties_clause/(label_and_properties)+!drop-1	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL)
 reject	reject	engine	opt_label_and_properties_clause/(label_and_properties)+!drop-2	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT)
 reject	reject	engine	opt_label_and_properties_clause/(label_and_properties)+!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT
-accept	reject	engine	opt_label_and_properties_clause/(label_and_properties)+!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL zzz)
+reject	reject	engine	opt_label_and_properties_clause/(label_and_properties)+!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL zzz)
 reject	reject	engine	opt_label_and_properties_clause/(label_and_properties)+!swap	CREATE PROPERTY GRAPH a NODE TABLES(a DEFINE LABEL)
-reject	accept	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
-reject	accept	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL DEFAULT LABEL)
+accept	accept	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
+accept	accept	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL DEFAULT LABEL)
 reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!drop-1	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL DEFAULT LABEL)
 reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!drop-2	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT DEFAULT LABEL)
-accept	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!drop-3	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL LABEL)
+reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!drop-3	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL LABEL)
 reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!drop-4	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL DEFAULT)
 reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL DEFAULT
 reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL DEFAULT LABEL zzz)
 reject	reject	engine	opt_label_and_properties_clause(label_and_properties)+/label_and_properties_(label_and_properties)+!swap	CREATE PROPERTY GRAPH a NODE TABLES(a DEFINE LABEL DEFAULT LABEL)
-reject	accept	engine	label_and_properties/(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)_(proper~b19e86c4	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
-reject	accept	engine	label_and_properties(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)/DEFAULT_LABEL_opt_options_list	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
+accept	accept	engine	label_and_properties/(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)_(proper~b19e86c4	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
+accept	accept	engine	label_and_properties(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)/DEFAULT_LABEL_opt_options_list	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
 accept	accept	engine	label_and_properties(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)/LABEL_identifier	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL a)
 reject	reject	engine	label_and_properties(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)/LABEL_identifier!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL
 reject	reject	engine	label_and_properties(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)/LABEL_identifier!insert	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL a zzz)
 reject	reject	engine	label_and_properties(DEFAULT_LABEL_opt_options_list|LABEL~3519876c)/LABEL_identifier!swap	CREATE PROPERTY GRAPH a NODE TABLES(a LABELED a)
-reject	accept	engine	label_and_properties(properties_clause)?/%empty	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
-reject	accept	engine	label_and_properties(properties_clause)?/properties_clause	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL NO PROPERTIES)
-accept	reject	engine	label_and_properties(properties_clause)?/properties_clause!drop-1	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL PROPERTIES)
+accept	accept	engine	label_and_properties(properties_clause)?/%empty	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL)
+accept	accept	engine	label_and_properties(properties_clause)?/properties_clause	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL NO PROPERTIES)
+reject	reject	engine	label_and_properties(properties_clause)?/properties_clause!drop-1	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL PROPERTIES)
 reject	reject	engine	label_and_properties(properties_clause)?/properties_clause!drop-2	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL NO)
 reject	reject	engine	label_and_properties(properties_clause)?/properties_clause!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL NO
 reject	reject	engine	label_and_properties(properties_clause)?/properties_clause!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DEFAULT LABEL NO PROPERTIES zzz)
@@ -1746,8 +1746,8 @@ reject	reject	engine	derived_property(as_alias_with_required_as)?/as_alias_with_
 reject	reject	engine	derived_property(as_alias_with_required_as)?/as_alias_with_required_as!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a PROPERTIES(NULL AS
 reject	reject	engine	derived_property(as_alias_with_required_as)?/as_alias_with_required_as!insert	CREATE PROPERTY GRAPH a NODE TABLES(a PROPERTIES(NULL AS a zzz))
 reject	reject	engine	derived_property(as_alias_with_required_as)?/as_alias_with_required_as!swap	CREATE PROPERTY GRAPH a NODE TABLES(a PROPERTIES(NULL ASC a))
-reject	accept	engine	dynamic_label_or_properties/DYNAMIC_LABEL_(_dynamic_label_)	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
-reject	accept	engine	dynamic_label_or_properties/DYNAMIC_PROPERTIES_(_dynamic_property_)	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULL))
+accept	accept	engine	dynamic_label_or_properties/DYNAMIC_LABEL_(_dynamic_label_)	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
+accept	accept	engine	dynamic_label_or_properties/DYNAMIC_PROPERTIES_(_dynamic_property_)	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULL))
 reject	reject	engine	dynamic_label_or_properties/DYNAMIC_PROPERTIES_(_dynamic_property_)!drop-3	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES NULL))
 reject	reject	engine	dynamic_label_or_properties/DYNAMIC_PROPERTIES_(_dynamic_property_)!drop-4	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES())
 reject	reject	engine	dynamic_label_or_properties/DYNAMIC_PROPERTIES_(_dynamic_property_)!drop-5	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULL)
@@ -1770,7 +1770,7 @@ reject	reject	engine	static_label_or_properties_keywords/LABEL!swap	CREATE PROPE
 reject	reject	engine	static_label_or_properties_keywords/PROPERTIES	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL) PROPERTIES)
 reject	reject	engine	static_label_or_properties_keywords/PROPERTIES!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL) PROPERTIES zzz)
 reject	reject	engine	static_label_or_properties_keywords/PROPERTIES!swap	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL) PROPERTY)
-reject	accept	engine	dynamic_label_and_properties/dynamic_label_or_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
+accept	accept	engine	dynamic_label_and_properties/dynamic_label_or_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
 reject	accept	engine	dynamic_label_and_properties/dynamic_label_and_properties_dynamic_label_or_properties	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL) DYNAMIC LABEL(NULL))
 reject	reject	engine	dynamic_label_and_properties/dynamic_label_and_properties_dynamic_label_or_properties!drop-1	CREATE PROPERTY GRAPH a NODE TABLES(a LABEL(NULL) DYNAMIC LABEL(NULL))
 reject	reject	engine	dynamic_label_and_properties/dynamic_label_and_properties_dynamic_label_or_properties!drop-2	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC(NULL) DYNAMIC LABEL(NULL))
@@ -1792,11 +1792,11 @@ reject	reject	engine	dynamic_label_and_properties/dynamic_label_or_properties_st
 reject	reject	engine	dynamic_label_and_properties/dynamic_label_or_properties_static_label_or_properties_keywords!drop-4	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL() LABEL)
 reject	reject	engine	dynamic_label_and_properties/dynamic_label_or_properties_static_label_or_properties_keywords!drop-5	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL LABEL)
 reject	reject	engine	dynamic_label_and_properties/dynamic_label_or_properties_static_label_or_properties_keywords!swap	CREATE PROPERTY GRAPH a NODE TABLES(a EDGE LABEL(NULL) LABEL)
-reject	accept	engine	dynamic_label/expression	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
+accept	accept	engine	dynamic_label/expression	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL))
 reject	reject	engine	dynamic_label/expression!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(
 reject	reject	engine	dynamic_label/expression!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULL zzz))
 reject	reject	engine	dynamic_label/expression!swap	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC LABEL(NULLS))
-reject	accept	engine	dynamic_property/expression	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULL))
+accept	accept	engine	dynamic_property/expression	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULL))
 reject	reject	engine	dynamic_property/expression!truncate	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(
 reject	reject	engine	dynamic_property/expression!insert	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULL zzz))
 reject	reject	engine	dynamic_property/expression!swap	CREATE PROPERTY GRAPH a NODE TABLES(a DYNAMIC PROPERTIES(NULLS))
@@ -2669,25 +2669,25 @@ reject	reject	engine	index_order_by_and_options_prefix/index_order_by_and_option
 reject	reject	engine	index_order_by_and_options_prefix/index_order_by_and_options_prefix_,_column_ordering_and~8462442d!swap	CREATE INDEX a ON a(NULLS, NULL)
 accept	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL))
 reject	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!drop-1	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS NULL))
-accept	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!drop-2	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS())
+reject	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!drop-2	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS())
 reject	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!drop-3	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL)
 reject	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!truncate	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL
-accept	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!insert	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL) zzz)
-accept	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!swap	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULLS))
+reject	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!insert	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL) zzz)
+reject	reject	engine	all_column_column_options/index_order_by_and_options_prefix_)!swap	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULLS))
 accept	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL))
-accept	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!drop-1	CREATE INDEX a ON a(ALL COLUMNS COLUMN OPTIONS(NULL))
-accept	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!drop-2	CREATE INDEX a ON a(ALL COLUMNS WITH OPTIONS(NULL))
-accept	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!drop-3	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN(NULL))
-accept	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!swap	CREATE INDEX a ON a(ALL COLUMNS WRITE COLUMN OPTIONS(NULL))
+reject	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!drop-1	CREATE INDEX a ON a(ALL COLUMNS COLUMN OPTIONS(NULL))
+reject	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!drop-2	CREATE INDEX a ON a(ALL COLUMNS WITH OPTIONS(NULL))
+reject	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!drop-3	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN(NULL))
+reject	reject	engine	with_column_options/WITH_COLUMN_OPTIONS_all_column_column_options!swap	CREATE INDEX a ON a(ALL COLUMNS WRITE COLUMN OPTIONS(NULL))
 accept	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)	CREATE INDEX a ON a(ALL COLUMNS)
 reject	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!drop-1	CREATE INDEX a ON a ALL COLUMNS)
 accept	accept	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!drop-2	CREATE INDEX a ON a(COLUMNS)
-accept	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!drop-3	CREATE INDEX a ON a(ALL)
+reject	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!drop-3	CREATE INDEX a ON a(ALL)
 reject	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!drop-4	CREATE INDEX a ON a(ALL COLUMNS
 reject	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!insert	CREATE INDEX a ON a(ALL COLUMNS) zzz
 reject	reject	engine	index_all_columns/(_ALL_COLUMNS_(with_column_options)?_)!swap	CREATE INDEX a ON a(ALTER COLUMNS)
 accept	reject	engine	index_all_columns(with_column_options)?/%empty	CREATE INDEX a ON a(ALL COLUMNS)
-accept	reject	engine	index_all_columns(with_column_options)?/%empty!insert	CREATE INDEX a ON a(ALL COLUMNS zzz)
+reject	reject	engine	index_all_columns(with_column_options)?/%empty!insert	CREATE INDEX a ON a(ALL COLUMNS zzz)
 accept	reject	engine	index_all_columns(with_column_options)?/with_column_options	CREATE INDEX a ON a(ALL COLUMNS WITH COLUMN OPTIONS(NULL))
 accept	reject	engine	index_order_by_and_options/index_order_by_and_options_prefix_)	CREATE INDEX a ON a(NULL)
 accept	reject	engine	index_order_by_and_options/index_all_columns	CREATE INDEX a ON a(ALL COLUMNS)
@@ -3650,7 +3650,7 @@ accept	accept	engine	opt_select_as_clause/%empty	SELECT NULL
 accept	reject	engine	extra_identifier_in_hints_name/HASH	ANALYZE OPTIONS(HASH = PROTO)
 reject	reject	engine	extra_identifier_in_hints_name/HASH!drop-1	ANALYZE OPTIONS(= PROTO)
 reject	reject	engine	extra_identifier_in_hints_name/HASH!insert	ANALYZE OPTIONS(HASH zzz = PROTO)
-accept	reject	engine	extra_identifier_in_hints_name/HASH!swap	ANALYZE OPTIONS(HAVING = PROTO)
+reject	reject	engine	extra_identifier_in_hints_name/HASH!swap	ANALYZE OPTIONS(HAVING = PROTO)
 accept	reject	engine	extra_identifier_in_hints_name/PROTO	ANALYZE OPTIONS(PROTO = PROTO)
 reject	reject	engine	extra_identifier_in_hints_name/PROTO!insert	ANALYZE OPTIONS(PROTO zzz = PROTO)
 accept	reject	engine	extra_identifier_in_hints_name/PROTO!swap	ANALYZE OPTIONS(PUBLIC = PROTO)
@@ -3661,21 +3661,21 @@ accept	reject	engine	identifier_in_hints/identifier	ANALYZE OPTIONS(a = PROTO)
 reject	reject	engine	identifier_in_hints/identifier!insert	ANALYZE OPTIONS(a zzz = PROTO)
 accept	reject	engine	identifier_in_hints/extra_identifier_in_hints_name	ANALYZE OPTIONS(HASH = PROTO)
 accept	accept	engine	hint_entry/identifier_in_hints_=_expression	@{ a = NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_=_expression!drop-1	@{ = NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_=_expression!drop-2	@{ a NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_=_expression!drop-3	@{ a = } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_=_expression!drop-1	@{ = NULL } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_=_expression!drop-2	@{ a NULL } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_=_expression!drop-3	@{ a = } BEGIN
 reject	reject	engine	hint_entry/identifier_in_hints_=_expression!truncate	@{ a =
-accept	reject	engine	hint_entry/identifier_in_hints_=_expression!insert	@{ a = NULL zzz } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_=_expression!swap	@{ a = NULLS } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_=_expression!insert	@{ a = NULL zzz } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_=_expression!swap	@{ a = NULLS } BEGIN
 accept	accept	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression	@{ a.a = NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-1	@{.a = NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-2	@{ a a = NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-3	@{ a.= NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-4	@{ a.a NULL } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-5	@{ a.a = } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-1	@{.a = NULL } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-2	@{ a a = NULL } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-3	@{ a.= NULL } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-4	@{ a.a NULL } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!drop-5	@{ a.a = } BEGIN
 reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!truncate	@{ a.a =
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!insert	@{ a.a = NULL zzz } BEGIN
-accept	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!swap	@{ a.a = NULLS } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!insert	@{ a.a = NULL zzz } BEGIN
+reject	reject	engine	hint_entry/identifier_in_hints_._identifier_in_hints_=_expression!swap	@{ a.a = NULLS } BEGIN
 reject	accept	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54	@1@{ a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54!drop-1	1@{ a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/OPEN_INTEGER_PREFIX_HINT_integer_literal_KW_OPEN_HINT_{~5b5edd54!drop-2	@@{ a = NULL } BEGIN
@@ -3693,16 +3693,16 @@ reject	reject	engine	hint_with_body_prefix/KW_OPEN_HINT_{_hint_entry!drop-2	@a =
 accept	accept	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry	@{ a = NULL, a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-1	{ a = NULL, a = NULL } BEGIN
 reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-2	@a = NULL, a = NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-3	@{ = NULL, a = NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-4	@{ a NULL, a = NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-5	@{ a =, a = NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-6	@{ a = NULL a = NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-7	@{ a = NULL, = NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-8	@{ a = NULL, a NULL } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-9	@{ a = NULL, a = } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-3	@{ = NULL, a = NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-4	@{ a NULL, a = NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-5	@{ a =, a = NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-6	@{ a = NULL a = NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-7	@{ a = NULL, = NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-8	@{ a = NULL, a NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!drop-9	@{ a = NULL, a = } BEGIN
 reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!truncate	@{ a = NULL, a =
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!insert	@{ a = NULL, a = NULL zzz } BEGIN
-accept	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!swap	@{ a = NULLS, a = NULL } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!insert	@{ a = NULL, a = NULL zzz } BEGIN
+reject	reject	engine	hint_with_body_prefix/hint_with_body_prefix_,_hint_entry!swap	@{ a = NULLS, a = NULL } BEGIN
 accept	accept	engine	hint_with_body/hint_with_body_prefix_}	@{ a = NULL } BEGIN
 reject	reject	engine	hint_with_body/hint_with_body_prefix_}!drop-6	@{ a = NULL BEGIN
 reject	reject	engine	hint_with_body/hint_with_body_prefix_}!truncate	@{ a = NULL
@@ -6205,7 +6205,7 @@ accept	accept	engine	unparenthesized_expression_higher_prec_than_and/extract_exp
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/extract_expression!swap	SELECT FALSE(NULL FROM NULL)
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/with_expression	SELECT WITH(a AS NULL, NULL)
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/replace_fields_expression	SELECT REPLACE_FIELDS(NULL, NULL AS a)
-accept	reject	engine	unparenthesized_expression_higher_prec_than_and/replace_fields_expression!drop-1	SELECT(NULL, NULL AS a)
+reject	reject	engine	unparenthesized_expression_higher_prec_than_and/replace_fields_expression!drop-1	SELECT(NULL, NULL AS a)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/replace_fields_expression!drop-2	SELECT REPLACE_FIELDS NULL, NULL AS a)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/replace_fields_expression!drop-3	SELECT REPLACE_FIELDS(, NULL AS a)
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/replace_fields_expression!drop-4	SELECT REPLACE_FIELDS(NULL NULL AS a)
@@ -6514,8 +6514,8 @@ accept	accept	engine	date_or_time_literal/date_or_time_literal_kind_string_liter
 accept	accept	engine	interval_expression/INTERVAL_expression_identifier	SELECT INTERVAL NULL a
 accept	accept	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier	SELECT INTERVAL NULL a TO a
 reject	reject	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-1	SELECT NULL a TO a
-accept	reject	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-2	SELECT INTERVAL a TO a
-accept	reject	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-3	SELECT INTERVAL NULL TO a
+reject	reject	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-2	SELECT INTERVAL a TO a
+reject	reject	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-3	SELECT INTERVAL NULL TO a
 accept	accept	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-4	SELECT INTERVAL NULL a a
 reject	reject	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!drop-5	SELECT INTERVAL NULL a TO
 accept	accept	engine	interval_expression/INTERVAL_expression_identifier_TO_identifier!insert	SELECT INTERVAL NULL a TO a zzz
@@ -6732,23 +6732,23 @@ accept	accept	engine	new_constructor/new_constructor_prefix_)	SELECT NEW a(NULL)
 reject	reject	engine	new_constructor/new_constructor_prefix_)!drop-5	SELECT NEW a(NULL
 accept	accept	engine	new_constructor/new_constructor_prefix_)!insert	SELECT NEW a(NULL) zzz
 accept	accept	engine	new_constructor/new_constructor_prefix_no_arg_)	SELECT NEW a()
-reject	accept	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf	SELECT {(a) : NULL }
+accept	accept	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf	SELECT {(a) : NULL }
 reject	reject	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf!drop-1	SELECT { a) : NULL }
 reject	reject	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf!drop-2	SELECT {() : NULL }
 reject	reject	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf!drop-3	SELECT {(a : NULL }
 reject	reject	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf!truncate	SELECT {(a
-accept	reject	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf!insert	SELECT {(a) zzz : NULL }
-reject	accept	engine	braced_constructor_extension_expression([_expression_])?/%empty	SELECT {(a) : NULL }
-reject	accept	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]	SELECT {(a) [ NULL ] : NULL }
+reject	reject	engine	braced_constructor_extension_expression/(_path_expression_)_([_expression_])?_(._generalized_pa~3fc716cf!insert	SELECT {(a) zzz : NULL }
+accept	accept	engine	braced_constructor_extension_expression([_expression_])?/%empty	SELECT {(a) : NULL }
+accept	accept	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]	SELECT {(a) [ NULL ] : NULL }
 reject	reject	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]!drop-1	SELECT {(a) NULL ] : NULL }
 reject	reject	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]!drop-2	SELECT {(a) [ ] : NULL }
 reject	reject	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]!drop-3	SELECT {(a) [ NULL : NULL }
 reject	reject	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]!truncate	SELECT {(a) [ NULL
 reject	reject	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]!insert	SELECT {(a) [ NULL ] zzz : NULL }
 reject	reject	engine	braced_constructor_extension_expression([_expression_])?/[_expression_]!swap	SELECT {(a) [ NULLS ] : NULL }
-reject	accept	engine	braced_constructor_extension_expression(._generalized_path_expression)?/%empty	SELECT {(a) : NULL }
-reject	accept	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression	SELECT {(a).a : NULL }
-accept	reject	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression!drop-1	SELECT {(a) a : NULL }
+accept	accept	engine	braced_constructor_extension_expression(._generalized_path_expression)?/%empty	SELECT {(a) : NULL }
+accept	accept	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression	SELECT {(a).a : NULL }
+reject	reject	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression!drop-1	SELECT {(a) a : NULL }
 reject	reject	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression!drop-2	SELECT {(a).: NULL }
 reject	reject	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression!truncate	SELECT {(a).
 reject	reject	engine	braced_constructor_extension_expression(._generalized_path_expression)?/._generalized_path_expression!insert	SELECT {(a).a zzz : NULL }
@@ -6759,14 +6759,14 @@ reject	reject	engine	braced_constructor_field/(braced_constructor_extension_expr
 reject	reject	engine	braced_constructor_field/(braced_constructor_extension_express~7885451a)_(*|?)?_~ea5cd07d!truncate	SELECT { a :
 reject	reject	engine	braced_constructor_field/(braced_constructor_extension_express~7885451a)_(*|?)?_~ea5cd07d!insert	SELECT { a : NULL zzz }
 reject	reject	engine	braced_constructor_field/(braced_constructor_extension_express~7885451a)_(*|?)?_~ea5cd07d!swap	SELECT { a : NULLS }
-reject	accept	engine	braced_constructor_field(braced_constructor_extension_express~7885451a)/braced_constructor_extension_expression	SELECT {(a) : NULL }
+accept	accept	engine	braced_constructor_field(braced_constructor_extension_express~7885451a)/braced_constructor_extension_expression	SELECT {(a) : NULL }
 accept	accept	engine	braced_constructor_field(braced_constructor_extension_express~7885451a)/generalized_path_expression	SELECT { a : NULL }
 reject	reject	engine	braced_constructor_field(braced_constructor_extension_express~7885451a)/generalized_path_expression!insert	SELECT { a zzz : NULL }
 accept	accept	engine	braced_constructor_field(*|?)?/%empty	SELECT { a : NULL }
-reject	accept	engine	braced_constructor_field(*|?)?/*	SELECT { a * : NULL }
+accept	accept	engine	braced_constructor_field(*|?)?/*	SELECT { a * : NULL }
 reject	reject	engine	braced_constructor_field(*|?)?/*!truncate	SELECT { a
 reject	reject	engine	braced_constructor_field(*|?)?/*!insert	SELECT { a * zzz : NULL }
-reject	accept	engine	braced_constructor_field(*|?)?/?	SELECT { a ? : NULL }
+accept	accept	engine	braced_constructor_field(*|?)?/?	SELECT { a ? : NULL }
 reject	reject	engine	braced_constructor_field(*|?)?/?!insert	SELECT { a ? zzz : NULL }
 accept	accept	engine	braced_constructor_field(COLON_expression|braced_constructor)/COLON_expression	SELECT { a : NULL }
 accept	accept	engine	braced_constructor_field(COLON_expression|braced_constructor)/braced_constructor	SELECT { a { } }
@@ -6783,10 +6783,10 @@ reject	reject	engine	braced_constructor_field_following_omitted_comma/generalize
 reject	reject	engine	braced_constructor_field_following_omitted_comma/generalized_path_expression_(*|?)?_(COLON_expression|br~c5edd038!swap	SELECT { a : NULL a : NULLS }
 accept	accept	engine	braced_constructor_field_following_omitted_comma(*|?)?/%empty	SELECT { a : NULL a : NULL }
 reject	reject	engine	braced_constructor_field_following_omitted_comma(*|?)?/%empty!insert	SELECT { a : NULL a zzz : NULL }
-reject	accept	engine	braced_constructor_field_following_omitted_comma(*|?)?/*	SELECT { a : NULL a * : NULL }
+accept	accept	engine	braced_constructor_field_following_omitted_comma(*|?)?/*	SELECT { a : NULL a * : NULL }
 reject	reject	engine	braced_constructor_field_following_omitted_comma(*|?)?/*!truncate	SELECT { a : NULL a
 reject	reject	engine	braced_constructor_field_following_omitted_comma(*|?)?/*!insert	SELECT { a : NULL a * zzz : NULL }
-reject	accept	engine	braced_constructor_field_following_omitted_comma(*|?)?/?	SELECT { a : NULL a ? : NULL }
+accept	accept	engine	braced_constructor_field_following_omitted_comma(*|?)?/?	SELECT { a : NULL a ? : NULL }
 reject	reject	engine	braced_constructor_field_following_omitted_comma(*|?)?/?!insert	SELECT { a : NULL a ? zzz : NULL }
 accept	accept	engine	braced_constructor_field_following_omitted_comma(COLON_expression|braced_constructor)/COLON_expression	SELECT { a : NULL a : NULL }
 accept	accept	engine	braced_constructor_field_following_omitted_comma(COLON_expression|braced_constructor)/braced_constructor	SELECT { a : NULL a { } }
@@ -6954,7 +6954,7 @@ reject	reject	engine	replace_fields_arg/expression_AS_generalized_extension_path
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_extension_path!swap	SELECT REPLACE_FIELDS(NULL, NULLS AS(a))
 accept	accept	engine	replace_fields_prefix/REPLACE_FIELDS_(_expression_,_replace_fields_arg	SELECT REPLACE_FIELDS(NULL, NULL AS a)
 accept	accept	engine	replace_fields_prefix/replace_fields_prefix_,_replace_fields_arg	SELECT REPLACE_FIELDS(NULL, NULL AS a, NULL AS a)
-accept	reject	engine	replace_fields_prefix/replace_fields_prefix_,_replace_fields_arg!drop-1	SELECT(NULL, NULL AS a, NULL AS a)
+reject	reject	engine	replace_fields_prefix/replace_fields_prefix_,_replace_fields_arg!drop-1	SELECT(NULL, NULL AS a, NULL AS a)
 reject	reject	engine	replace_fields_prefix/replace_fields_prefix_,_replace_fields_arg!drop-2	SELECT REPLACE_FIELDS NULL, NULL AS a, NULL AS a)
 reject	reject	engine	replace_fields_prefix/replace_fields_prefix_,_replace_fields_arg!drop-3	SELECT REPLACE_FIELDS(, NULL AS a, NULL AS a)
 reject	reject	engine	replace_fields_prefix/replace_fields_prefix_,_replace_fields_arg!drop-4	SELECT REPLACE_FIELDS(NULL NULL AS a, NULL AS a)

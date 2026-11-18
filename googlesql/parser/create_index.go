@@ -100,11 +100,31 @@ func (p *Parser) parseCreateIndex(create Token, orReplace bool, scope string) (a
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.peekNext().Type == kwALL {
-		// index_all_columns: ( ALL COLUMNS [WITH COLUMN OPTIONS …] ). A BigQuery
-		// SEARCH-index form; recognized structurally (consume the parenthesized
-		// run) and flagged.
+		// index_all_columns: ( ALL COLUMNS [WITH COLUMN OPTIONS ( key_part, … )] ).
+		p.advance() // '('
+		p.advance() // ALL
+		if _, err := p.expect(kwCOLUMNS); err != nil {
+			return nil, err
+		}
 		stmt.AllColumns = true
-		if err := p.skipBalancedParens(); err != nil {
+		if p.cur.Type == kwWITH {
+			p.advance() // WITH
+			if _, err := p.expect(kwCOLUMN); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwOPTIONS); err != nil {
+				return nil, err
+			}
+			keys, err := p.parseKeyPartList(false)
+			if err != nil {
+				return nil, err
+			}
+			if len(keys) == 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Keys = keys
+		}
+		if _, err := p.expect(int(')')); err != nil {
 			return nil, err
 		}
 	} else {

@@ -864,7 +864,7 @@ func TestCreatePropertyGraph_EdgeTablesWithSourceDest(t *testing.T) {
 func TestCreatePropertyGraph_Labels(t *testing.T) {
 	sql := "CREATE PROPERTY GRAPH g NODE TABLES (" +
 		"Person AS P LABEL Human PROPERTIES (name, age AS years) " +
-		"DEFAULT LABEL Entity)"
+		"DEFAULT LABEL NO PROPERTIES)"
 	pg := createPropertyGraphOf(t, sql)
 	def := pg.NodeTables[0]
 	if def.Alias != "P" {
@@ -879,8 +879,13 @@ func TestCreatePropertyGraph_Labels(t *testing.T) {
 	if len(def.Labels[0].PropsList) != 2 || def.Labels[0].PropsList[1].Alias != "years" {
 		t.Errorf("label[0] props = %+v, want name, age AS years", def.Labels[0].PropsList)
 	}
-	if !def.Labels[1].Default || def.Labels[1].LabelName != "Entity" {
-		t.Errorf("label[1] = %+v, want DEFAULT LABEL Entity", def.Labels[1])
+	if !def.Labels[1].Default || def.Labels[1].LabelName != "" || def.Labels[1].Kind != ast.LabelPropsNone {
+		t.Errorf("label[1] = %+v, want DEFAULT LABEL NO PROPERTIES", def.Labels[1])
+	}
+
+	pg = createPropertyGraphOf(t, "CREATE PROPERTY GRAPH g NODE TABLES (T DYNAMIC LABEL(lbl) DYNAMIC PROPERTIES(props))")
+	if pg.NodeTables[0].DynamicLabel == nil || pg.NodeTables[0].DynamicProperties == nil {
+		t.Errorf("dynamic label/properties = %+v, want both set", pg.NodeTables[0])
 	}
 }
 

@@ -368,3 +368,39 @@ func TestParse_ProceduralBodyParsedAsOneSegment(t *testing.T) {
 		t.Errorf("statement is %T, want *ast.CreateProcedureStmt", res.File.Stmts[0])
 	}
 }
+
+func TestParse_StrictGrammarTightenings(t *testing.T) {
+	valid := []string{
+		"@{a.b = 1, hash = 2, proto = 'x', partition = true} SELECT 1",
+		"SELECT {(ext.path)[0].sub : 1, (ext.other)? { a : 2 }}",
+		"CREATE INDEX idx ON t(ALL COLUMNS WITH COLUMN OPTIONS (c1 OPTIONS (k = 1)))",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t OPTIONS (k = 1) DEFAULT LABEL OPTIONS (k = 2) PROPERTIES (x AS y OPTIONS (k = 3)) DYNAMIC LABEL(lbl) DYNAMIC PROPERTIES(p))",
+		"DROP PROPERTY GRAPH IF EXISTS g CASCADE",
+	}
+	for _, sql := range valid {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) failed: %v", sql, err)
+		}
+	}
+
+	invalid := []string{
+		"@1",
+		"@{a = 1}",
+		"@{a NULL} SELECT 1",
+		"@{a = 1,} SELECT 1",
+		"@{HAVING = 1} SELECT 1",
+		"SELECT (1, 2 AS b)",
+		"SELECT INTERVAL 1 TO DAY",
+		"SELECT {(a) b : 1}",
+		"CREATE INDEX idx ON t(ALL)",
+		"CREATE INDEX idx ON t(ALL COLUMNS WITH COLUMN OPTIONS ())",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t DEFAULT LABEL zzz)",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t DYNAMIC LABEL(a) DYNAMIC LABEL(b))",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t `DYNAMIC` LABEL(a))",
+	}
+	for _, sql := range invalid {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want syntax error", sql)
+		}
+	}
+}

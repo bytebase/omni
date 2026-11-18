@@ -1394,7 +1394,7 @@ func (p *Parser) parseOptionsList() ([]*ast.OptionsEntry, error) {
 // keyword-as-identifier (identifier_in_hints is permissive); the operator is one
 // of `=`, `+=`, `-=`; the value is an expression or the bare PROTO keyword.
 func (p *Parser) parseOptionsEntry() (*ast.OptionsEntry, error) {
-	if !isAnyKeywordIdentifier(p.cur.Type) {
+	if !isIdentifierInHints(p.cur.Type) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	keyTok := p.advance()

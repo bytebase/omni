@@ -384,6 +384,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DerivedProperty:
 		Walk(v, n.Expr)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *DescribeStmt:
 		if n.Path != nil {
 			Walk(v, n.Path)
@@ -422,9 +425,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, c := range n.DefaultLabelOptions {
+			Walk(v, c)
+		}
 		for _, c := range n.Labels {
 			Walk(v, c)
 		}
+		Walk(v, n.DynamicLabel)
+		Walk(v, n.DynamicProperties)
 	case *ElseIfClause:
 		Walk(v, n.Cond)
 		walkNodes(v, n.Then)
@@ -675,6 +683,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 	case *LabelAndProperties:
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 		for _, c := range n.PropsList {
 			Walk(v, c)
 		}

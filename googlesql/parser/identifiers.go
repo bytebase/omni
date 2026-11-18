@@ -47,6 +47,16 @@ func isIdentifierStart(tokenType int) bool {
 	return tokenType >= keywordBase && !keywordReserved[tokenType]
 }
 
+// isIdentifierInHints reports whether tokenType matches `identifier_in_hints`
+// (googlesql.tm: identifier | "HASH" | "PROTO" | "PARTITION").
+func isIdentifierInHints(tokenType int) bool {
+	switch tokenType {
+	case kwHASH, kwPROTO, kwPARTITION:
+		return true
+	}
+	return isIdentifierStart(tokenType)
+}
+
 // isAnyKeywordIdentifier reports whether tokenType may stand in as an
 // identifier when EVERY word-keyword — reserved or not — is permitted. A few
 // GoogleSQL contexts (notably dotted path components after the first, and

@@ -289,7 +289,7 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 	switch {
 	case next.Type == int('{'):
 		p.advance() // consume '@'
-		return p.skipBalancedBraces(hintStart)
+		return p.parseHintBody(hintStart, "empty statement hint", "unterminated statement hint")
 	case next.Type == int('['):
 		// @[ int @] { ... }
 		p.advance() // consume '@'
@@ -303,7 +303,7 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 		}
 		p.advance() // consume ']'
 		if p.cur.Type == int('{') {
-			return p.skipBalancedBraces(hintStart)
+			return p.parseHintBody(hintStart, "empty statement hint", "unterminated statement hint")
 		}
 		// `@[ … @]` with no following `{` body: a hint preamble must carry a
 		// brace body, so this is malformed.
@@ -315,48 +315,88 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 	return nil
 }
 
-// skipBalancedBraces consumes a '{' ... '}' run with balanced nesting starting
-// at the current token (which must be '{'). It returns a *ParseError anchored at
-// hintStart when:
-//   - EOF is reached before the matching '}' (an unterminated hint), or
-//   - the body is EMPTY — the closing '}' immediately follows the opening '{'
-//     with nothing but whitespace/comments between (the lexer drops both). A
-//     GoogleSQL hint requires at least one entry, so `@{}` is a syntax error
-//     (oracle: the Spanner emulator rejects `@{} SELECT 1` with
-//     `Syntax error: Unexpected "}"`). Without this guard the empty hint is
-//     skipped, dispatch reaches EOF, and the invalid input draws no diagnostic.
-//
-// It returns nil on a clean close of a non-empty body, or when cur is not '{'.
-// Validating the body's internal `key=value` entry shape is deferred to the
-// later hint-parsing node; this only enforces non-emptiness and termination.
-func (p *Parser) skipBalancedBraces(hintStart ast.Loc) *ParseError {
+// parseHintBody parses `{ hint_entry (, hint_entry)* }`, where
+// `hint_entry: identifier_in_hints [. identifier_in_hints] = expression`
+// (googlesql.tm §hint_entry). On an interior syntax error it drains the
+// remaining balanced braces so best-effort callers land right after '}'.
+func (p *Parser) parseHintBody(hintStart ast.Loc, emptyMsg, untermMsg string) *ParseError {
 	if p.cur.Type != int('{') {
 		return nil
 	}
-	// Empty body: the closing '}' immediately follows the opening '{' (the lexer
-	// has already dropped any whitespace/comments between them). Detect it by the
-	// token right after '{' rather than by counting interior tokens, so a body
-	// that merely STARTS with a brace (e.g. `@{{…}}`) is treated as non-empty —
-	// its malformed `key=value` shape is the later hint node's concern, not an
-	// emptiness error.
-	if p.peekNext().Type == int('}') {
-		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "empty statement hint"}
-	}
+	// First locate the matching outer '}' so unterminated hints always report
+	// untermMsg and error recovery always stops right after the outer '}'.
+	lx := NewLexerWithOffset(p.input[absIndex(p, p.cur.Loc.Start):], p.cur.Loc.Start)
 	depth := 0
-	for p.cur.Type != tokEOF {
-		switch p.cur.Type {
+	closeEnd := -1
+	for {
+		tok := lx.NextToken()
+		if tok.Type == tokEOF {
+			break
+		}
+		switch tok.Type {
 		case int('{'):
 			depth++
 		case int('}'):
 			depth--
 			if depth == 0 {
-				p.advance()
-				return nil
+				closeEnd = tok.Loc.End
 			}
 		}
-		p.advance()
+		if closeEnd >= 0 {
+			break
+		}
 	}
-	return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated statement hint"}
+	if closeEnd < 0 {
+		for p.cur.Type != tokEOF {
+			p.advance()
+		}
+		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: untermMsg}
+	}
+
+	p.advance() // consume '{'
+	if p.cur.Type == int('}') {
+		end := p.advance().Loc.End
+		return &ParseError{Position: hintStart.Start, End: end, Message: emptyMsg}
+	}
+	drain := func(firstErr *ParseError) *ParseError {
+		for p.cur.Type != tokEOF && p.prev.Loc.End < closeEnd {
+			p.advance()
+		}
+		return firstErr
+	}
+	for {
+		if !isIdentifierInHints(p.cur.Type) {
+			return drain(p.syntaxErrorAtCur())
+		}
+		p.advance() // consume identifier_in_hints
+		if p.cur.Type == int('.') {
+			p.advance() // consume '.'
+			if !isIdentifierInHints(p.cur.Type) {
+				return drain(p.syntaxErrorAtCur())
+			}
+			p.advance() // consume second identifier_in_hints
+		}
+		if p.cur.Type != int('=') {
+			return drain(p.syntaxErrorAtCur())
+		}
+		p.advance() // consume '='
+		if _, err := p.parseExpr(); err != nil {
+			pe, ok := err.(*ParseError)
+			if !ok {
+				pe = p.syntaxErrorAtCur()
+			}
+			return drain(pe)
+		}
+		switch p.cur.Type {
+		case int(','):
+			p.advance() // consume ','
+		case int('}'):
+			p.advance() // consume '}'
+			return nil
+		default:
+			return drain(p.syntaxErrorAtCur())
+		}
+	}
 }
 
 // parseStmt parses one top-level statement by dispatching on the leading
@@ -881,11 +921,15 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 	first := p.cur
 
 	var result ast.Node
+	hadHint := false
 	if p.cur.Type != tokEOF {
+		beforeHint := p.cur.Loc
 		if hintErr := p.skipStatementLevelHint(); hintErr != nil {
 			// An unterminated hint consumed the rest of the segment; record the
 			// diagnostic and stop (cur is at EOF, so dispatch is skipped below).
 			p.errors = append(p.errors, *hintErr)
+		} else if p.cur.Loc != beforeHint {
+			hadHint = true
 		}
 	}
 	if p.cur.Type != tokEOF {
@@ -929,6 +973,8 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 			node = nil
 		}
 		result = node
+	} else if hadHint && len(p.errors) == 0 {
+		p.errors = append(p.errors, *p.syntaxErrorAtCur())
 	}
 
 	return result, p.errors
