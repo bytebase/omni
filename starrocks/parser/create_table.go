@@ -870,6 +870,11 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	// parenthesized list is the form omni reads, so PARTITION BY with
 	// nothing after it is refused.
 	if p.cur.Kind != int('(') {
+		// LIST takes identifierList only; RANGE may take a primary expression,
+		// and a keywordless clause may take a partitionExpr.
+		if explicitType && pd.Type == "LIST" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// FUNCTION call or partition expression: PARTITION BY functionCall
 		// or PARTITION BY partitionExpr (',' partitionExpr)*.
 		if !isPartitionExprStart(p.cur.Kind) {

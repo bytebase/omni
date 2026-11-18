@@ -50,6 +50,8 @@ func TestOptimizerTrace(t *testing.T) {
 func TestOptimizerTraceInQueryStatementPositions(t *testing.T) {
 	for _, sql := range []string{
 		"INSERT INTO dst TRACE ALL SELECT * FROM src",
+		"CREATE VIEW v AS TRACE ALL SELECT 1",
+		"ALTER VIEW v AS TRACE ALL SELECT 1",
 		"INSERT INTO dst EXPLAIN SELECT * FROM src",
 		"INSERT INTO dst DESC ANALYZE SELECT * FROM src",
 		"CREATE TABLE dst AS TRACE ALL SELECT 1",

@@ -163,6 +163,19 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 // own.
 func (p *Parser) parseViewQuery() (ast.Node, error) {
 	switch p.cur.Kind {
+	case kwTRACE:
+		traceTok := p.advance() // consume TRACE
+		return p.parseOptimizerTrace(traceTok.Loc)
+	case kwEXPLAIN, kwDESC, kwDESCRIBE:
+		explain, err := p.parseExplain()
+		if err != nil {
+			return nil, err
+		}
+		exp := explain.(*ast.ExplainStmt)
+		if exp.Query == nil || !isQueryBody(exp.Query) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return explain, nil
 	case kwWITH:
 		with, err := p.parseWithSelect()
 		if err != nil {
