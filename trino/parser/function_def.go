@@ -298,6 +298,7 @@ func (p *Parser) parseWithFunctionQuery() (ast.Node, error) {
 // query`. WITH FUNCTION is current when the leading WITH is the inline-routine
 // prefix; otherwise this is an ordinary query.
 func (p *Parser) parseRootQuery() (*Query, error) {
+	start := p.cur.Loc.Start
 	var functions []FunctionSpecification
 	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwFUNCTION {
 		p.advance() // consume WITH
@@ -325,6 +326,9 @@ func (p *Parser) parseRootQuery() (*Query, error) {
 		}
 	}
 	q.Functions = functions
+	if len(functions) > 0 {
+		q.Loc.Start = start
+	}
 	return q, nil
 }
 

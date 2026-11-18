@@ -1179,15 +1179,15 @@ func (p *Parser) parseExtract() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !validExtractField(field.String()) {
+	if !validExtractField(field.Value) {
 		return nil, &ParseError{
 			Position: field.Loc.Start,
 			End:      field.Loc.End,
-			Message:  "invalid EXTRACT field " + field.String(),
+			Message:  "invalid EXTRACT field " + field.Value,
 		}
 	}
 	return &ExtractExpr{
-		Field:  field.String(),
+		Field:  field.Value,
 		Source: source,
 		Loc:    ast.Loc{Start: extractTok.Loc.Start, End: closeTok.Loc.End},
 	}, nil
