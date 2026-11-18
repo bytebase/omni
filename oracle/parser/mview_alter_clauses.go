@@ -471,9 +471,13 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 	if err := p.atExpect('('); err != nil {
 		return nil, err
 	}
+	carryDrop := false
 	for first := true; ; first = false {
 		start := p.pos()
 		op := ""
+		if carryDrop {
+			op = "DROP"
+		}
 		var name, value string
 		var valueLoc nodes.Loc
 		hasValue := false
@@ -543,6 +547,7 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 				}
 			}
 		}
+		carryDrop = op == "DROP"
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 		if hasValue {
 			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: value, Loc: valueLoc}}}

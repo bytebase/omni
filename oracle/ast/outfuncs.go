@@ -471,6 +471,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterIndextypeStmt(sb, n)
 	case *IndextypeOp:
 		writeIndextypeOp(sb, n)
+	case *ArrayDMLTypePair:
+		writeArrayDMLTypePair(sb, n)
 	case *IndextypeModOp:
 		writeIndextypeModOp(sb, n)
 	case *CreateOperatorStmt:
@@ -7125,6 +7127,20 @@ func writeIndextypeOp(sb *strings.Builder, n *IndextypeOp) {
 	}
 	if len(n.ParamTypes) > 0 {
 		sb.WriteString(fmt.Sprintf(" :paramTypes %q", strings.Join(n.ParamTypes, ",")))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeArrayDMLTypePair(sb *strings.Builder, n *ArrayDMLTypePair) {
+	sb.WriteString("{ARRAY_DML_TYPE_PAIR")
+	if n.Type != nil {
+		sb.WriteString(" :type ")
+		writeNode(sb, n.Type)
+	}
+	if n.VarrayType != nil {
+		sb.WriteString(" :varrayType ")
+		writeNode(sb, n.VarrayType)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

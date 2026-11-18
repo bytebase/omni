@@ -519,7 +519,7 @@ func (p *Parser) parseStorageTableTail() (string, error) {
 //
 // The page allows a list of pairs; Oracle takes one (WITH ARRAY DML (a, a),
 // (a, a) is refused at the second).
-func (p *Parser) parseArrayDMLTail() ([]*nodes.List, error) {
+func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 	p.advance() // ARRAY
 	if err := p.ixWord("DML"); err != nil {
 		return nil, err
@@ -527,10 +527,11 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.List, error) {
 	if p.cur.Type != '(' {
 		return nil, nil
 	}
-	var pairs []*nodes.List
+	var pairs []*nodes.ArrayDMLTypePair
 	for {
 		p.advance() // consume (
-		var names [2]string
+		var names [2]*nodes.ObjectName
+		pairStart := p.pos()
 		for i := 0; i < 2; i++ {
 			if i > 0 {
 				if p.cur.Type != ',' {
@@ -538,6 +539,7 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.List, error) {
 				}
 				p.advance()
 			}
+			typeStart := p.pos()
 			name, err := p.parseOperatorType()
 			if err != nil {
 				return nil, err
@@ -545,9 +547,9 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.List, error) {
 			if name == "" {
 				return nil, p.syntaxErrorAtCur()
 			}
-			names[i] = name
+			names[i] = &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: typeStart, End: p.prev.End}}
 		}
-		pairs = append(pairs, &nodes.List{Items: []nodes.Node{&nodes.String{Str: names[0]}, &nodes.String{Str: names[1]}}})
+		pairs = append(pairs, &nodes.ArrayDMLTypePair{Type: names[0], VarrayType: names[1], Loc: nodes.Loc{Start: pairStart, End: p.prev.End}})
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}

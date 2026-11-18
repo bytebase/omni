@@ -4386,20 +4386,20 @@ func (n *AlterTypeStmt) stmtNode() {}
 //	    [ storage_table_clause ]
 //	    [ array_DML_clause ]
 type CreateIndextypeStmt struct {
-	OrReplace       bool           // OR REPLACE
-	IfNotExists     bool           // IF NOT EXISTS
-	Name            *ObjectName    // indextype name
-	Sharing         string         // METADATA or NONE
-	Operators       []*IndextypeOp // FOR operator_list
-	UsingType       *ObjectName    // USING implementation_type
-	WithLocal       bool           // WITH LOCAL PARTITION
-	WithRange       bool           // WITH LOCAL RANGE PARTITION
-	WithoutLocal    bool           // WITHOUT LOCAL PARTITION
-	WithoutRange    bool           // WITHOUT LOCAL RANGE PARTITION
-	StorageTable    string         // "SYSTEM" or "USER"
-	ArrayDML        bool           // WITH ARRAY DML
-	ArrayDMLTypes   []*List        // ARRAY DML type pairs, each a list of two *String
-	WithoutArrayDML bool           // WITHOUT ARRAY DML
+	OrReplace       bool                // OR REPLACE
+	IfNotExists     bool                // IF NOT EXISTS
+	Name            *ObjectName         // indextype name
+	Sharing         string              // METADATA or NONE
+	Operators       []*IndextypeOp      // FOR operator_list
+	UsingType       *ObjectName         // USING implementation_type
+	WithLocal       bool                // WITH LOCAL PARTITION
+	WithRange       bool                // WITH LOCAL RANGE PARTITION
+	WithoutLocal    bool                // WITHOUT LOCAL PARTITION
+	WithoutRange    bool                // WITHOUT LOCAL RANGE PARTITION
+	StorageTable    string              // "SYSTEM" or "USER"
+	ArrayDML        bool                // WITH ARRAY DML
+	ArrayDMLTypes   []*ArrayDMLTypePair // ARRAY DML type pairs
+	WithoutArrayDML bool                // WITHOUT ARRAY DML
 	Loc             Loc
 }
 
@@ -4416,6 +4416,15 @@ type IndextypeOp struct {
 }
 
 func (n *IndextypeOp) nodeTag() {}
+
+// ArrayDMLTypePair is one ( type , varray_type ) pair of an ARRAY DML clause.
+type ArrayDMLTypePair struct {
+	Type       *ObjectName // array type
+	VarrayType *ObjectName // varray type
+	Loc        Loc
+}
+
+func (n *ArrayDMLTypePair) nodeTag() {}
 
 // ---------------------------------------------------------------------------
 // ALTER INDEXTYPE statement
@@ -4434,17 +4443,17 @@ func (n *IndextypeOp) nodeTag() {}
 //	    [ WITH LOCAL PARTITION ]
 //	    [ storage_table_clause ]
 type AlterIndextypeStmt struct {
-	IfExists        bool              // IF EXISTS
-	Name            *ObjectName       // indextype name
-	Action          string            // "ADD_DROP" or "COMPILE"
-	Modifications   []*IndextypeModOp // ADD/DROP operators
-	UsingType       *ObjectName       // USING implementation_type
-	ArrayDML        bool              // WITH ARRAY DML
-	ArrayDMLTypes   []*List           // ARRAY DML type pairs, each a list of two *String
-	WithoutArrayDML bool              // WITHOUT ARRAY DML
-	WithLocal       bool              // WITH LOCAL PARTITION
-	WithoutLocal    bool              // WITHOUT LOCAL PARTITION
-	StorageTable    string            // "SYSTEM" or "USER"
+	IfExists        bool                // IF EXISTS
+	Name            *ObjectName         // indextype name
+	Action          string              // "ADD_DROP" or "COMPILE"
+	Modifications   []*IndextypeModOp   // ADD/DROP operators
+	UsingType       *ObjectName         // USING implementation_type
+	ArrayDML        bool                // WITH ARRAY DML
+	ArrayDMLTypes   []*ArrayDMLTypePair // ARRAY DML type pairs
+	WithoutArrayDML bool                // WITHOUT ARRAY DML
+	WithLocal       bool                // WITH LOCAL PARTITION
+	WithoutLocal    bool                // WITHOUT LOCAL PARTITION
+	StorageTable    string              // "SYSTEM" or "USER"
 	Loc             Loc
 }
 
