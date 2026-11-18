@@ -362,35 +362,72 @@ func validateKeyColumnsExist(tbl *Table, leaves map[string]bool, con *nodes.Cons
 	return validateKeyPartsExist(tbl, leaves, con.IndexColumns)
 }
 
-// storageEngines are the engines mysql:8.0.46 ships as usable, from its SHOW
-// ENGINES: InnoDB, MyISAM, MEMORY, MRG_MYISAM, BLACKHOLE, CSV, ARCHIVE and
-// PERFORMANCE_SCHEMA, with MEMORY's other name HEAP and MRG_MYISAM's MERGE.
-// FEDERATED, NDB and ndbinfo are listed there but disabled, and naming one of
-// them, or any engine the server does not have, is 1286. `default` is the
-// sentinel MySQL takes quoted, `ENGINE = 'DEFAULT'`, and ignores: it is the
-// server's configured default engine, not one of the names above.
+// storageEngines are the engines a table may keep on mysql:8.0.46, from its SHOW
+// ENGINES: InnoDB, MyISAM, MEMORY, MRG_MYISAM, BLACKHOLE, CSV and ARCHIVE, with
+// MEMORY's other name HEAP and MRG_MYISAM's MERGE. FEDERATED, NDB and ndbinfo
+// are listed there but disabled, and naming one of them, or any engine the
+// server does not have, is 1286. `default` is the sentinel MySQL takes quoted,
+// `ENGINE = 'DEFAULT'`, for the server's configured default engine.
+// PERFORMANCE_SCHEMA is listed as usable but holds the performance schema's own
+// tables only: CREATE TABLE answers 1683 for it and ALTER TABLE 1031, so it is
+// refused where those are, not while the statement is prepared.
 var storageEngines = map[string]bool{
-	"innodb":             true,
-	"myisam":             true,
-	"memory":             true,
-	"heap":               true,
-	"mrg_myisam":         true,
-	"merge":              true,
-	"default":            true,
-	"blackhole":          true,
-	"csv":                true,
-	"archive":            true,
-	"performance_schema": true,
+	"innodb":     true,
+	"myisam":     true,
+	"memory":     true,
+	"heap":       true,
+	"mrg_myisam": true,
+	"merge":      true,
+	"default":    true,
+	"blackhole":  true,
+	"csv":        true,
+	"archive":    true,
 }
 
 // validateStorageEngine refuses an ENGINE option naming an engine the pinned
 // server does not ship: 1286. MySQL answers it while preparing the statement, so
-// it comes before the table is looked up and before the database is resolved.
-func validateStorageEngine(name string) error {
-	if storageEngines[strings.ToLower(strings.TrimSpace(name))] {
+// it comes before the table is looked up and before the database is resolved —
+// unless the session's sql_mode leaves NO_ENGINE_SUBSTITUTION out, and then it
+// substitutes the default engine and takes the statement with a warning.
+func validateStorageEngine(name string, refuseUnknown bool) error {
+	key := strings.ToLower(strings.TrimSpace(name))
+	if storageEngines[key] || key == performanceSchemaEngine {
 		return nil
 	}
-	return errUnknownStorageEngine(name)
+	if refuseUnknown {
+		return errUnknownStorageEngine(name)
+	}
+	return nil
+}
+
+// performanceSchemaEngine is the engine the performance schema's own tables use.
+const performanceSchemaEngine = "performance_schema"
+
+// storedEngineName is the engine a table or partition keeps for an ENGINE
+// option: the name written when it is one a table may keep, and the catalog's
+// empty default for `DEFAULT` and for a name MySQL substitutes.
+func storedEngineName(name string) string {
+	if storageEngines[strings.ToLower(strings.TrimSpace(name))] && !strings.EqualFold(strings.TrimSpace(name), "default") {
+		return name
+	}
+	return ""
+}
+
+// noEngineSubstitution reports whether the session's sql_mode refuses an engine
+// the server does not ship. The server's default mode, `DEFAULT`, has it; a list
+// without it — an empty one included — makes MySQL substitute the default engine
+// and take the statement.
+func (c *Catalog) noEngineSubstitution() bool {
+	mode := strings.ToUpper(strings.TrimSpace(c.session.SQLMode))
+	if mode == "DEFAULT" {
+		return true
+	}
+	for _, part := range strings.Split(mode, ",") {
+		if strings.TrimSpace(part) == "NO_ENGINE_SUBSTITUTION" {
+			return true
+		}
+	}
+	return false
 }
 
 // engineOptionName reports whether a table option is the engine, as the table

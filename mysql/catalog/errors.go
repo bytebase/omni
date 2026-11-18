@@ -27,7 +27,9 @@ const (
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
+	ErrTableStorageEngineOption          = 1031
 	ErrUnknownStorageEngine              = 1286
+	ErrInvalidPerformanceSchema          = 1683
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
 	ErrKeyColumnDoesNotExist             = 1072
@@ -78,7 +80,9 @@ var sqlStateMap = map[int]string{
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
+	ErrTableStorageEngineOption:          "HY000",
 	ErrUnknownStorageEngine:              "42000",
+	ErrInvalidPerformanceSchema:          "HY000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrKeyColumnDoesNotExist:             "42000",
@@ -218,6 +222,21 @@ func errNonUniqueTable(name string) error {
 func errUnknownStorageEngine(name string) error {
 	return &Error{Code: ErrUnknownStorageEngine, SQLState: sqlState(ErrUnknownStorageEngine),
 		Message: fmt.Sprintf("Unknown storage engine '%s'", name)}
+}
+
+// errTableStorageEngineOption is 1031, what ALTER TABLE answers for an ENGINE it
+// cannot put on a table that exists: mysql:8.0.46 says "Table storage engine for
+// 'a' doesn't have this option" for PERFORMANCE_SCHEMA.
+func errTableStorageEngineOption(table string) error {
+	return &Error{Code: ErrTableStorageEngineOption, SQLState: sqlState(ErrTableStorageEngineOption),
+		Message: fmt.Sprintf("Table storage engine for '%s' doesn't have this option", table)}
+}
+
+// errInvalidPerformanceSchema is 1683, what CREATE TABLE answers for the engine
+// the performance schema keeps its own tables in.
+func errInvalidPerformanceSchema() error {
+	return &Error{Code: ErrInvalidPerformanceSchema, SQLState: sqlState(ErrInvalidPerformanceSchema),
+		Message: "Invalid performance_schema usage."}
 }
 
 // errKeyColumnDoesNotExist is 1072, a key part naming a column the table does

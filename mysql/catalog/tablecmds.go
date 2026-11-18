@@ -21,9 +21,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// database and the table it names: 1128 for a FULLTEXT key whose parser it
 	// does not have, 1439 for `CREATE TABLE nosuchdb.a (a INT(256))`, and 1286
 	// for an engine it does not ship (mysql:8.0.46).
-	for _, con := range stmt.Constraints {
-		if err := validateFulltextParser(con); err != nil {
-			return err
+	if declared {
+		// A loader's table may carry a parser plugin another server installs.
+		for _, con := range stmt.Constraints {
+			if err := validateFulltextParser(con); err != nil {
+				return err
+			}
 		}
 	}
 	for _, colDef := range stmt.Columns {
@@ -39,12 +42,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			if opt == nil || !engineOptionName(opt.Name) {
 				continue
 			}
-			if err := validateStorageEngine(opt.Value); err != nil {
+			if err := validateStorageEngine(opt.Value, c.noEngineSubstitution()); err != nil {
 				return err
 			}
 		}
 		if stmt.Partitions != nil {
-			if err := validatePartitionDefinitions(stmt.Partitions.Partitions); err != nil {
+			if err := validatePartitionDefinitions(stmt.Partitions.Partitions, c.noEngineSubstitution()); err != nil {
 				return err
 			}
 		}
@@ -102,11 +105,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "engine":
-			// `ENGINE = 'DEFAULT'` names the server's configured default engine,
-			// which MySQL keeps as the engine the table had, not as "DEFAULT".
-			if !strings.EqualFold(strings.TrimSpace(opt.Value), "DEFAULT") {
-				tbl.Engine = opt.Value
-			}
+			tbl.Engine = storedEngineName(opt.Value)
 		case "charset", "character set", "default charset", "default character set":
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
@@ -706,6 +705,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		}
 	}
 
+	// PERFORMANCE_SCHEMA holds the performance schema's own tables, which MySQL
+	// refuses with 1683 once the table's own definition is accepted
+	// (mysql:8.0.46).
+	if declared {
+		for _, opt := range stmt.Options {
+			if opt == nil || !engineOptionName(opt.Name) {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(opt.Value), performanceSchemaEngine) {
+				return errInvalidPerformanceSchema()
+			}
+		}
+	}
+
 	if c.generateGIPK {
 		if tbl.GetColumn(generatedInvisiblePrimaryKeyColumnName) != nil {
 			return errGIPKColumnNameReserved()
@@ -963,7 +976,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
 			case "engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = storedEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -984,7 +997,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
-					spdi.Engine = opt.Value
+					spdi.Engine = storedEngineName(opt.Value)
 				case "comment":
 					spdi.Comment = opt.Value
 				}

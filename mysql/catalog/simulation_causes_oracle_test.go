@@ -20,7 +20,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -34,8 +34,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 	cases := []struct {
 		name  string
 		setup []string
-		stmt  string
-		code  int
+		// session runs on the connection before the statement, for the cases
+		// whose answer depends on the session's sql_mode.
+		session []string
+		stmt    string
+		code    int
 	}{
 		{
 			name:  "ALTER VIEW over a table",
@@ -485,6 +488,47 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1439,
 		},
 		{
+			// PERFORMANCE_SCHEMA holds the performance schema's own tables.
+			name:  "CREATE TABLE with the PERFORMANCE_SCHEMA engine",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) ENGINE = PERFORMANCE_SCHEMA",
+			code:  1683,
+		},
+		{
+			name:  "ALTER TABLE with the PERFORMANCE_SCHEMA engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE = PERFORMANCE_SCHEMA",
+			code:  1031,
+		},
+		{
+			name: "ALTER TABLE with the PERFORMANCE_SCHEMA engine on no table",
+			stmt: "ALTER TABLE a ENGINE = PERFORMANCE_SCHEMA",
+			code: 1146,
+		},
+		{
+			// Without NO_ENGINE_SUBSTITUTION, MySQL substitutes the default
+			// engine and takes the statement with a warning.
+			name:    "CREATE TABLE with an unknown engine where the session substitutes",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "CREATE TABLE s (b INT) ENGINE = nosuch",
+			code:    0,
+		},
+		{
+			name:    "ALTER TABLE with an unknown engine where the session substitutes",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "ALTER TABLE a ENGINE = nosuch",
+			code:    0,
+		},
+		{
+			name:    "ALTER TABLE with an unknown engine where the session refuses it",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'"},
+			stmt:    "ALTER TABLE a ENGINE = nosuch",
+			code:    1286,
+		},
+		{
 			// MERGE is MRG_MYISAM's other name, as HEAP is MEMORY's.
 			name:  "CREATE TABLE with the MERGE engine",
 			setup: []string{oneTable},
@@ -567,6 +611,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 					t.Fatalf("%s: %v", stmt, err)
 				}
 			}
+			for _, stmt := range tc.session {
+				if _, err := conn.ExecContext(ctx, stmt); err != nil {
+					t.Fatalf("%s: %v", stmt, err)
+				}
+			}
 			_, err := conn.ExecContext(ctx, tc.stmt)
 			engineCode, engineMessage := simulationEngineRefusal(t, tc.stmt, err)
 			if engineCode != tc.code {
@@ -576,6 +625,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 			c := New()
 			execAlterClauses(t, c, "CREATE DATABASE d; USE d;")
 			for _, stmt := range tc.setup {
+				execAlterClauses(t, c, stmt)
+			}
+			for _, stmt := range tc.session {
 				execAlterClauses(t, c, stmt)
 			}
 			catalogCode, catalogMessage := simulationCatalogRefusal(t, c, tc.stmt)
@@ -632,4 +684,36 @@ func simulationCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, strin
 		t.Fatalf("%s: not a catalog error: %v", stmt, results[0].Error)
 	}
 	return refusal.Code, refusal.Message
+}
+
+// TestDefineTableKeepsWhatOnlyItsServerHas: a snapshot describes a server that
+// may ship a storage engine or a FULLTEXT parser the pinned one does not, and
+// DefineTable installs it as it stands. A CREATE TABLE statement is judged
+// against the pin instead.
+func TestDefineTableKeepsWhatOnlyItsServerHas(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d;")
+
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE s (b TEXT, FULLTEXT KEY ft (b) WITH PARSER mecab)")); err != nil {
+		t.Fatalf("DefineTable with a parser only another server has: %v", err)
+	}
+	if tbl := c.GetDatabase("d").GetTable("s"); tbl == nil || len(tbl.Indexes) != 1 {
+		t.Fatalf("DefineTable did not install the fulltext key: %+v", tbl)
+	}
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE s2 (b INT) ENGINE = MyRocks")); err != nil {
+		t.Fatalf("DefineTable with an engine only another server has: %v", err)
+	}
+
+	for _, stmt := range []string{
+		"CREATE TABLE s3 (b TEXT, FULLTEXT KEY ft (b) WITH PARSER mecab)",
+		"CREATE TABLE s4 (b INT) ENGINE = MyRocks",
+	} {
+		results, err := c.Exec(stmt, nil)
+		if err != nil {
+			t.Fatalf("Exec(%q): %v", stmt, err)
+		}
+		if results[0].Error == nil {
+			t.Errorf("Exec(%q) took what the pinned server does not have", stmt)
+		}
+	}
 }

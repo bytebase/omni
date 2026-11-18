@@ -12,7 +12,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// The checks MySQL makes while preparing the statement answer ahead of the
 	// table it names and of the database: mysql:8.0.46 answers 1439 for
 	// `ALTER TABLE nosuchdb.a ADD a INT(256)`.
-	if err := alterDefinitions(stmt.Commands); err != nil {
+	if err := c.alterDefinitions(stmt.Commands); err != nil {
 		return err
 	}
 	// Resolve database.
@@ -37,6 +37,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	tbl := db.Tables[key]
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
+	}
+	// PERFORMANCE_SCHEMA holds the performance schema's own tables: on a table
+	// that exists MySQL answers 1031 for it, after the prepare-time checks and
+	// before the commands (mysql:8.0.46).
+	if err := validateTableEngineReplaceable(tbl, stmt.Commands); err != nil {
+		return err
 	}
 	// A column the statement adds is not one it can drop, rename or change:
 	// MySQL resolves those against the table the statement found, so
@@ -71,6 +77,20 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		// The catalog does not apply a repartition, so the partitioning it keeps no
 		// longer says which columns a unique key needs.
 		tbl.Partitioning.keyColumns = nil
+	}
+	return nil
+}
+
+// validateTableEngineReplaceable refuses an ENGINE the table cannot take:
+// PERFORMANCE_SCHEMA, which holds the performance schema's own tables (1031).
+func validateTableEngineReplaceable(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil || !engineOptionName(cmd.Option.Name) {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(cmd.Option.Value), performanceSchemaEngine) {
+			return errTableStorageEngineOption(tbl.Name)
+		}
 	}
 	return nil
 }
@@ -242,7 +262,7 @@ func alterExchangeSelf(c *Catalog, db *Database, stmt *nodes.AlterTableStmt) err
 // display width (1439) and an ENGINE the server does not ship (1286). Measured
 // on mysql:8.0.46: `ALTER TABLE a ADD e INT(256), ENGINE = nosuch` answers 1439
 // where `ALTER TABLE a ENGINE = nosuch, ADD e INT(256)` answers 1286.
-func alterDefinitions(commands []*nodes.AlterTableCmd) error {
+func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 	for _, cmd := range commands {
 		if cmd == nil {
 			continue
@@ -263,7 +283,7 @@ func alterDefinitions(commands []*nodes.AlterTableCmd) error {
 			}
 		}
 		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
-			if err := validateStorageEngine(cmd.Option.Value); err != nil {
+			if err := validateStorageEngine(cmd.Option.Value, c.noEngineSubstitution()); err != nil {
 				return err
 			}
 		}
@@ -271,7 +291,7 @@ func alterDefinitions(commands []*nodes.AlterTableCmd) error {
 		// be added to, as ADD's do: `ALTER TABLE missing ADD PARTITION (PARTITION
 		// p0 VALUES LESS THAN (b))` is 1054, not 1146 (mysql:8.0.46).
 		if cmd.Type == nodes.ATAddPartition || cmd.Type == nodes.ATReorganizePartition {
-			if err := validatePartitionDefinitions(cmd.PartitionDefs); err != nil {
+			if err := validatePartitionDefinitions(cmd.PartitionDefs, c.noEngineSubstitution()); err != nil {
 				return err
 			}
 		}
@@ -283,7 +303,7 @@ func alterDefinitions(commands []*nodes.AlterTableCmd) error {
 // definitions before it judges the table they are added to: a name its bound
 // reads as a column (1054), then an engine it does not ship (1286). Measured on
 // mysql:8.0.46, both answer ahead of 1505.
-func validatePartitionDefinitions(defs []*nodes.PartitionDef) error {
+func validatePartitionDefinitions(defs []*nodes.PartitionDef, refuseUnknownEngine bool) error {
 	for _, pd := range defs {
 		if pd == nil {
 			continue
@@ -291,7 +311,7 @@ func validatePartitionDefinitions(defs []*nodes.PartitionDef) error {
 		if name, ok := partitionBoundColumn(pd.Values); ok {
 			return errNoSuchColumn(name, "partition function")
 		}
-		if err := validatePartitionEngines(pd.Options, pd.SubPartitions); err != nil {
+		if err := validatePartitionEngines(pd.Options, pd.SubPartitions, refuseUnknownEngine); err != nil {
 			return err
 		}
 	}
@@ -301,12 +321,12 @@ func validatePartitionDefinitions(defs []*nodes.PartitionDef) error {
 // validatePartitionEngines refuses an ENGINE a partition or subpartition names
 // and the server does not ship: 1286. Every one of them carries an engine, so a
 // valid parent engine does not stop its subpartitions from being judged.
-func validatePartitionEngines(opts []*nodes.TableOption, subs []*nodes.SubPartitionDef) error {
+func validatePartitionEngines(opts []*nodes.TableOption, subs []*nodes.SubPartitionDef, refuseUnknownEngine bool) error {
 	for _, opt := range opts {
 		if opt == nil || !engineOptionName(opt.Name) {
 			continue
 		}
-		if err := validateStorageEngine(opt.Value); err != nil {
+		if err := validateStorageEngine(opt.Value, refuseUnknownEngine); err != nil {
 			return err
 		}
 	}
@@ -314,7 +334,7 @@ func validatePartitionEngines(opts []*nodes.TableOption, subs []*nodes.SubPartit
 		if sub == nil {
 			continue
 		}
-		if err := validatePartitionEngines(sub.Options, nil); err != nil {
+		if err := validatePartitionEngines(sub.Options, nil, refuseUnknownEngine); err != nil {
 			return err
 		}
 	}
@@ -1164,12 +1184,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "engine":
 		// `ENGINE = 'DEFAULT'` names the server's configured default engine,
 		// which is the catalog's empty engine, and MySQL switches the table to
-		// it: a MyISAM table reads back InnoDB (measured on mysql:8.0.46).
-		if strings.EqualFold(strings.TrimSpace(opt.Value), "DEFAULT") {
-			tbl.Engine = ""
-		} else {
-			tbl.Engine = opt.Value
-		}
+		// it: a MyISAM table reads back InnoDB (measured on mysql:8.0.46). A
+		// name the server substitutes for reads as that default too.
+		tbl.Engine = storedEngineName(opt.Value)
 	case "charset", "character set", "default charset", "default character set":
 		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.
@@ -1545,7 +1562,7 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 			// STORAGE ENGINE is the other spelling of ENGINE, and names the
 			// same engine.
 			case "engine", "storage engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = storedEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -1646,7 +1663,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 			// STORAGE ENGINE is the other spelling of ENGINE, and names the
 			// same engine.
 			case "engine", "storage engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = storedEngineName(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
