@@ -53,6 +53,11 @@ type fromScope struct {
 	// firsts caches, for an input of a NATURAL or USING join, each lowered
 	// column name to the first column of that name in the input's result.
 	firsts map[ast.TableExpr]map[string]joinColumn
+
+	// unknownColumns holds the lowered names of the derived tables whose
+	// columns are known only when the query runs, because a source inside them
+	// names a location.
+	unknownColumns map[string]bool
 }
 
 // joinColumn is one column of a FROM item's result.
@@ -75,10 +80,11 @@ func (c joinColumn) key() colKey {
 
 func newFromScope(from []ast.TableExpr) *fromScope {
 	return &fromScope{
-		Scope:   scopepkg.New(),
-		from:    from,
-		entries: make(map[ast.TableExpr]int),
-		spans:   make(map[ast.TableExpr][2]int),
+		Scope:          scopepkg.New(),
+		from:           from,
+		entries:        make(map[ast.TableExpr]int),
+		spans:          make(map[ast.TableExpr][2]int),
+		unknownColumns: make(map[string]bool),
 	}
 }
 
@@ -92,6 +98,9 @@ func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 // hasUnknownColumns reports whether a FROM item's columns are known only when
 // the query runs.
 func (sc *fromScope) hasUnknownColumns() bool {
+	if len(sc.unknownColumns) > 0 {
+		return true
+	}
 	for _, te := range sc.from {
 		switch t := te.(type) {
 		case *ast.ExternalTableRef:
@@ -115,6 +124,8 @@ func itemHasUnknownColumns(te ast.TableExpr) bool {
 		return true
 	case *ast.JoinClause:
 		return (t.Left != nil && itemHasUnknownColumns(t.Left)) || (t.Right != nil && itemHasUnknownColumns(t.Right))
+	case *ast.SubqueryExpr:
+		return selectHasUnknownColumns(t.Select)
 	}
 	return false
 }

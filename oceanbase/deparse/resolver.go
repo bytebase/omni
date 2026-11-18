@@ -291,8 +291,13 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 	case *ast.SubqueryExpr:
 		// Derived table: resolve the inner SELECT, then build a virtual table
 		// from its target list so outer queries can reference derived columns.
+		// A derived table over a source whose columns are known only when the
+		// query runs has no columns to expand either.
 		if t.Select != nil {
 			r.Resolve(t.Select)
+			if t.Alias != "" && selectHasUnknownColumns(t.Select) {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			vt := buildDerivedVirtualTable(t)
 			if vt != nil && t.Alias != "" {
 				sc.add(t, t.Alias, vt)
@@ -359,6 +364,9 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position in
 
 	// Check for qualified star: t1.*
 	if col, ok := expr.(*ast.ColumnRef); ok && col.Star {
+		if sc.unknownColumns[strings.ToLower(col.Table)] {
+			return []ast.ExprNode{target}
+		}
 		return r.expandQualifiedStar(col.Table, sc)
 	}
 
@@ -972,4 +980,22 @@ func tableFunctionArgumentName(arg ast.ExprNode) string {
 		return col.Column
 	}
 	return ""
+}
+
+// selectHasUnknownColumns reports whether a query reads a relation whose columns
+// are known only when it runs, directly or through a derived table.
+func selectHasUnknownColumns(sel *ast.SelectStmt) bool {
+	if sel == nil {
+		return false
+	}
+	return itemHasUnknownColumnsInList(sel.From)
+}
+
+func itemHasUnknownColumnsInList(items []ast.TableExpr) bool {
+	for _, te := range items {
+		if itemHasUnknownColumns(te) {
+			return true
+		}
+	}
+	return false
 }

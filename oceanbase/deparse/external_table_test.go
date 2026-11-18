@@ -64,3 +64,24 @@ func TestResolverStarOverExternalSource(t *testing.T) {
 		t.Errorf("target = %T, want the star kept", resolved.TargetList[0])
 	}
 }
+
+// TestResolverStarThroughDerivedSource: a derived table over a source with
+// unknown columns cannot expand d.* either, so the star stays.
+func TestResolverStarThroughDerivedSource(t *testing.T) {
+	const sql = "SELECT d.* FROM (SELECT * FROM SOURCE(TYPE = 's')) AS d"
+	list, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*ast.SelectStmt)
+	RewriteSelectStmt(sel)
+	resolver := &Resolver{Lookup: func(string) *ResolverTable { return nil }}
+	resolved := resolver.Resolve(sel)
+	if len(resolved.TargetList) != 1 {
+		t.Fatalf("got %d targets, want d.* kept as one", len(resolved.TargetList))
+	}
+	col, ok := resolved.TargetList[0].(*ast.ColumnRef)
+	if !ok || !col.Star {
+		t.Errorf("target = %T, want the qualified star kept", resolved.TargetList[0])
+	}
+}
