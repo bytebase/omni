@@ -111,6 +111,29 @@ func TestTraceOutfileLoc(t *testing.T) {
 	}
 }
 
+// Hoisting a right-arm OUTFILE onto the set operation shrinks the arm.
+func TestTraceSetOpOutfileLoc(t *testing.T) {
+	file, errs := parseForTest("TRACE ALL SELECT 1 UNION SELECT 2 INTO OUTFILE 'x'")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	trace := file.Stmts[0].(*ast.OptimizerTraceStmt)
+	setOp, ok := trace.Query.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SetOpStmt", trace.Query)
+	}
+	if setOp.Into == nil {
+		t.Fatal("SetOp.Into is nil")
+	}
+	right := setOp.Right.(*ast.SelectStmt)
+	if right.Loc.End > setOp.Into.Loc.Start {
+		t.Errorf("right arm End = %d, OUTFILE starts = %d", right.Loc.End, setOp.Into.Loc.Start)
+	}
+	if right.Into != nil {
+		t.Error("right arm still carries Into")
+	}
+}
+
 func TestOptimizerTraceRejects(t *testing.T) {
 	for _, sql := range []string{
 		"TRACE SELECT 1",

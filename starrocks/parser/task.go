@@ -583,6 +583,9 @@ func takeRightmostSelectInto(node ast.Node) *ast.IntoOutfileClause {
 		case *ast.SelectStmt:
 			into := n.Into
 			n.Into = nil
+			if into != nil {
+				n.Loc.End = into.Loc.Start
+			}
 			return into
 		default:
 			return nil
@@ -602,6 +605,15 @@ func (p *Parser) settleTraceSetOpInto(query ast.Node) error {
 		return p.syntaxErrorAtCur()
 	}
 	if into != nil {
+		// The arm and the right spine below the root no longer own the clause.
+		for node := setOp.Right; ; {
+			next, ok := node.(*ast.SetOpStmt)
+			if !ok {
+				break
+			}
+			next.Loc.End = into.Loc.Start
+			node = next.Right
+		}
 		setOp.Into = into
 		if into.Loc.End > setOp.Loc.End {
 			setOp.Loc.End = into.Loc.End
