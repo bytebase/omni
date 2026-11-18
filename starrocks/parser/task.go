@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -259,44 +258,11 @@ intervalValue:
 		return nil, err
 	}
 
-	seconds, ok := taskIntervalSeconds(schedule.Interval, schedule.Unit)
-	if !ok || seconds < 10 {
-		return nil, &ParseError{
-			Position: value.Loc.Start,
-			End:      value.Loc.End,
-			Message:  "task schedule interval must be at least 10 seconds",
-		}
-	}
-
+	// The minimum interval is the cluster's mutable
+	// task_min_schedule_interval_s, so it is left to the engine rather than
+	// fixed to its default here.
 	schedule.Loc.End = p.prev.Loc.End
 	return schedule, nil
-}
-
-// taskIntervalSeconds converts a task interval to seconds, reporting false on
-// overflow. StarRocks's default task_min_schedule_interval_s is 10 seconds.
-func taskIntervalSeconds(interval, unit string) (int64, bool) {
-	value, err := strconv.ParseInt(interval, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	factor := int64(1)
-	switch unit {
-	case "SECOND":
-	case "MINUTE":
-		factor = 60
-	case "HOUR":
-		factor = 3600
-	case "DAY":
-		factor = 86400
-	default:
-		return 0, false
-	}
-	if value > math.MaxInt64/factor {
-		// Java's TimeUnit conversion saturates a positive overflow to
-		// Long.MAX_VALUE, so the engine accepts these intervals.
-		return math.MaxInt64, true
-	}
-	return value * factor, true
 }
 
 // isDecimalInteger reports whether s is a bare decimal integer, the only
@@ -739,9 +705,10 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 				return nil, err
 			}
 			// An OUTFILE inside the parentheses belongs to a subquery, which
-			// has no outfile clause; only the query-level suffix is allowed.
-			if queryHasInto(query) {
-				return nil, p.syntaxErrorAtCur()
+			// has no outfile clause; a genuine query-level suffix on the
+			// rightmost unparenthesized arm is hoisted.
+			if err := p.settleQueryInto(query); err != nil {
+				return nil, err
 			}
 			attachWith(query, with)
 			return query, nil
@@ -758,8 +725,8 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 		}
 		// OUTFILE inside the parentheses is a subquery suffix, not the
 		// query-level one queryStatement allows.
-		if queryHasInto(query) {
-			return nil, p.syntaxErrorAtCur()
+		if err := p.settleQueryInto(query); err != nil {
+			return nil, err
 		}
 		return query, nil
 	}

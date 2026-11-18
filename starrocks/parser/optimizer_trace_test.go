@@ -17,6 +17,7 @@ func TestOptimizerTrace(t *testing.T) {
 	}{
 		{"TRACE ALL SELECT 1", "ALL", ""},
 		{"TRACE ALL SELECT 1 UNION SELECT 2 INTO OUTFILE 'x'", "ALL", ""},
+		{"TRACE ALL (SELECT 1) UNION SELECT 2 INTO OUTFILE 'x'", "ALL", ""},
 		{"TRACE LOGS SELECT 1", "LOGS", ""},
 		{"TRACE TIMES SELECT 1", "TIMES", ""},
 		{"TRACE VALUES SELECT 1", "VALUES", ""},
