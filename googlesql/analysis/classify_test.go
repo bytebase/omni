@@ -187,6 +187,10 @@ func TestClassifyRecordsTheSpanTables(t *testing.T) {
 		"SELECT a FROM t UNION ALL (SELECT a FROM u EXCEPT DISTINCT SELECT a FROM v) UNION ALL SELECT * FROM w",
 		"INSERT INTO t SELECT * FROM u JOIN v USING (a)",
 		"UPDATE t SET a = (SELECT 1 FROM s) FROM u, u.arr AS x WHERE x.b = 1",
+		"SELECT x FROM t |> JOIN u ON true |> WHERE x IN (SELECT x FROM v)",
+		"|> UNION ALL TABLE u, (SELECT 1 FROM v)",
+		"|> WITH c AS (SELECT 1 FROM v) |> JOIN u",
+		"SELECT 1 |> INSERT t (x)",
 	} {
 		file, err := parseFile(sql)
 		if err != nil {

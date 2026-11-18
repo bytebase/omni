@@ -87,6 +87,12 @@ func RewriteResultLimit(statement string, limitCount int) string {
 	if !ok || query.ForUpdate {
 		return statement
 	}
+	// A pipe query's LIMIT must be a `|> LIMIT` operator: a bare LIMIT after a
+	// pipe operator does not parse (it is not a query-level clause), so
+	// appending one would change the statement. Leave it alone.
+	if query.Pipe != nil {
+		return statement
+	}
 	if query.Limit == nil {
 		end := query.Loc.End
 		return statement[:end] + " LIMIT " + strconv.Itoa(limitCount) + statement[end:]

@@ -113,6 +113,17 @@ func (p *Parser) parseQuery() (*ast.QueryStmt, error) {
 		q.Loc.End = updTok.Loc.End
 	}
 
+	// Trailing pipe suffix (query → query pipe_and_pipe_operator*). The
+	// operators run on the query's output; see pipe.go.
+	if p.cur.Type == tokPipe {
+		pipe, err := p.parseSubpipelineNoParens()
+		if err != nil {
+			return nil, err
+		}
+		q.Pipe = pipe
+		q.Loc.End = pipe.Loc.End
+	}
+
 	return q, nil
 }
 
@@ -209,6 +220,77 @@ func (p *Parser) parseQueryPrimary() (ast.Node, error) {
 // SELECT is the current token. ORDER BY / LIMIT / FOR UPDATE are NOT consumed
 // here — they belong to the enclosing query (parseQuery).
 func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
+	stmt, err := p.parseSelectClause()
+	if err != nil {
+		return nil, err
+	}
+
+	// FROM clause (from_join.go).
+	if p.cur.Type == kwFROM {
+		from, err := p.parseFromClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = from
+	}
+
+	// WHERE → GROUP BY → HAVING → QUALIFY → WINDOW (opt_clauses_following_from).
+	// The grammar fixes this order; each clause is optional.
+	if p.cur.Type == kwWHERE {
+		p.advance()
+		where, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Where = where
+	}
+	if p.cur.Type == kwGROUP {
+		gb, err := p.parseGroupByClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GroupBy = gb
+	}
+	if p.cur.Type == kwHAVING {
+		p.advance()
+		having, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Having = having
+	}
+	if p.cur.Type == kwQUALIFY {
+		// QUALIFY: valid BigQuery, parses in the union grammar; Spanner
+		// feature-rejects (divergence #9). We accept it here.
+		p.advance()
+		qualify, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Qualify = qualify
+	}
+	if p.cur.Type == kwWINDOW {
+		wins, err := p.parseWindowClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Window = wins
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseSelectClause parses a select_clause — the part of a SELECT block before
+// its FROM and following clauses:
+//
+//	SELECT [hint] [WITH <name> [OPTIONS(…)]] [ALL|DISTINCT] [AS STRUCT|VALUE|path]
+//	  <select_list>
+//
+// It returns a *SelectStmt holding only those fields; the caller parses the
+// rest. The pipe SELECT operator (`|> SELECT …`) uses this rule directly, which
+// is why it is separate from parseSelectStmt.
+func (p *Parser) parseSelectClause() (*ast.SelectStmt, error) {
 	selectTok, err := p.expect(kwSELECT)
 	if err != nil {
 		return nil, err
@@ -273,58 +355,6 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		return nil, err
 	}
 	stmt.Items = items
-
-	// FROM clause (from_join.go).
-	if p.cur.Type == kwFROM {
-		from, err := p.parseFromClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.From = from
-	}
-
-	// WHERE → GROUP BY → HAVING → QUALIFY → WINDOW (opt_clauses_following_from).
-	// The grammar fixes this order; each clause is optional.
-	if p.cur.Type == kwWHERE {
-		p.advance()
-		where, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Where = where
-	}
-	if p.cur.Type == kwGROUP {
-		gb, err := p.parseGroupByClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.GroupBy = gb
-	}
-	if p.cur.Type == kwHAVING {
-		p.advance()
-		having, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Having = having
-	}
-	if p.cur.Type == kwQUALIFY {
-		// QUALIFY: valid BigQuery, parses in the union grammar; Spanner
-		// feature-rejects (divergence #9). We accept it here.
-		p.advance()
-		qualify, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Qualify = qualify
-	}
-	if p.cur.Type == kwWINDOW {
-		wins, err := p.parseWindowClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Window = wins
-	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -785,6 +815,19 @@ func (p *Parser) parseGroupingSetInto(gi *ast.GroupingItem) error {
 // the expressions node's parseInlineWindowSpec / named-reference machinery via
 // parseWindowSpecBody.
 func (p *Parser) parseWindowClause() ([]*ast.WindowDef, error) {
+	return p.parseWindowClauseBody(false)
+}
+
+// parseWindowClauseWithTrailingComma parses the pipe form of the clause
+// (opt_window_clause_with_trailing_comma), which allows a comma after the last
+// definition.
+func (p *Parser) parseWindowClauseWithTrailingComma() ([]*ast.WindowDef, error) {
+	return p.parseWindowClauseBody(true)
+}
+
+// parseWindowClauseBody parses a WINDOW clause; allowTrailingComma admits the
+// pipe form's trailing comma.
+func (p *Parser) parseWindowClauseBody(allowTrailingComma bool) ([]*ast.WindowDef, error) {
 	p.advance() // WINDOW
 	var defs []*ast.WindowDef
 	for {
@@ -808,6 +851,9 @@ func (p *Parser) parseWindowClause() ([]*ast.WindowDef, error) {
 			break
 		}
 		p.advance()
+		if allowTrailingComma && !isIdentifierStart(p.cur.Type) {
+			break
+		}
 	}
 	return defs, nil
 }

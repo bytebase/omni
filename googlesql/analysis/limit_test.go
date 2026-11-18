@@ -71,7 +71,10 @@ func TestRewriteResultLimit(t *testing.T) {
 			want:      "SELECT x FROM t ORDER BY x FOR UPDATE",
 		},
 		{
-			name:      "unparsable query is unchanged",
+			// A pipe query parses, but its LIMIT has to be a `|> LIMIT`
+			// operator: a bare LIMIT after `|> WHERE …` is not a query-level
+			// clause, so the rewrite leaves the statement alone.
+			name:      "pipe query is unchanged",
 			statement: "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
 			want:      "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
 		},

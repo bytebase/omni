@@ -57,6 +57,17 @@ const (
 // ClassifySQL returns Unknown for these too, so it cannot gate the list.
 func StatementTypeOf(node ast.Node) StatementType {
 	switch n := node.(type) {
+	case *ast.SubpipelineStmt:
+		return pipeStatementType(n.Pipeline)
+	case *ast.PipeStatement:
+		return pipeStatementType(n.Pipeline)
+	case *ast.QueryStmt:
+		// A query only makes a change through a pipe operator that writes
+		// (`SELECT … |> INSERT t`); everything else is a read.
+		if n.Pipe != nil {
+			return pipeStatementType(n.Pipe)
+		}
+		return StatementTypeUnspecified
 	case *ast.InsertStmt:
 		return Insert
 	case *ast.UpdateStmt:
@@ -113,6 +124,50 @@ func StatementTypeOf(node ast.Node) StatementType {
 	default:
 		return StatementTypeUnspecified
 	}
+}
+
+// pipeStatementType reports the change a pipe suffix makes. A pipe INSERT
+// writes rows and a pipe CREATE TABLE creates one; a nested branch that does
+// either makes the whole statement that kind. Every other operator only reads
+// or transforms the pipeline, so it reports Unspecified like a query does.
+func pipeStatementType(p *ast.Subpipeline) StatementType {
+	if p == nil {
+		return StatementTypeUnspecified
+	}
+	for _, op := range p.Ops {
+		switch n := op.(type) {
+		case *ast.PipeInsert:
+			return Insert
+		case *ast.PipeCreateTable:
+			return CreateTable
+		case *ast.PipeLog:
+			if t := pipeStatementType(n.Pipeline); t != StatementTypeUnspecified {
+				return t
+			}
+		case *ast.PipeIf:
+			for _, c := range n.Cases {
+				if t := pipeStatementType(c.Then); t != StatementTypeUnspecified {
+					return t
+				}
+			}
+			if t := pipeStatementType(n.Else); t != StatementTypeUnspecified {
+				return t
+			}
+		case *ast.PipeFork:
+			for _, branch := range n.Pipelines {
+				if t := pipeStatementType(branch); t != StatementTypeUnspecified {
+					return t
+				}
+			}
+		case *ast.PipeTee:
+			for _, branch := range n.Pipelines {
+				if t := pipeStatementType(branch); t != StatementTypeUnspecified {
+					return t
+				}
+			}
+		}
+	}
+	return StatementTypeUnspecified
 }
 
 func alterStatementType(kind ast.AlterObjectKind) StatementType {

@@ -412,11 +412,171 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 	case *ast.TruncateStmt:
 		w.recordTable(n.Target, "")
 		w.walkPredicate(n.Where)
+	case *ast.SubpipelineStmt:
+		// A statement that is only a pipe suffix runs against an input table it
+		// never names, so its output columns cannot be resolved. The tables its
+		// operators do name (a pipe JOIN, a CALL, a set operation's TABLE
+		// operand) are still recorded, and the span fails closed.
+		w.visitPipe(n.Pipeline)
+		w.failClosed(fmt.Errorf("a pipe statement's input table is not named, so its output columns cannot be resolved (fail closed)"))
+	case *ast.PipeStatement:
+		// Same for a table-returning statement followed by a pipe suffix.
+		w.visitPipe(n.Pipeline)
+		w.failClosed(fmt.Errorf("a statement followed by a pipe suffix does not expose resolved output columns (fail closed)"))
 	default:
 		// DDL and everything else: walk for table references generically. The
 		// generic table-discovery pass records every PathExpr that sits in a
 		// table position (CTAS source, VIEW body, the target name).
 		w.discoverTables(node)
+	}
+}
+
+// visitPipe records the tables a pipe suffix names and recurses into the
+// operators that hold another subpipeline. A pipe operator's input is the
+// pipeline itself, so most operators name no table; the ones that do are a
+// JOIN, a CALL, a set operation's query/TABLE operand, a recursive union's
+// operand, a CTE list, and the statements a pipe operator can carry (INSERT,
+// CREATE TABLE). A pipe operator's expressions (WHERE, EXTEND, AGGREGATE, SET,
+// ASSERT, IF conditions, MATCH_RECOGNIZE …) are walked for predicate-column
+// references and embedded subqueries.
+func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
+	if p == nil {
+		return
+	}
+	for _, op := range p.Ops {
+		switch n := op.(type) {
+		case *ast.PipeWhere:
+			w.walkPredicate(n.Expr)
+		case *ast.PipeSelect:
+			w.walkPipeSelect(n.Select)
+		case *ast.PipeExtend:
+			w.walkPipeSelect(n.Select)
+		case *ast.PipeAggregate:
+			w.walkPipeSelect(n.Select)
+		case *ast.PipeWindow:
+			for _, item := range n.Items {
+				if item != nil {
+					w.walkPredicate(item.Expr)
+				}
+			}
+		case *ast.PipeOrderBy:
+			for _, item := range n.Items {
+				if item != nil {
+					w.walkPredicate(item.Expr)
+				}
+			}
+		case *ast.PipeLimitOffset:
+			w.walkPredicate(n.Limit)
+			w.walkPredicate(n.Offset)
+		case *ast.PipeAssert:
+			for _, cond := range n.Conditions {
+				w.walkPredicate(cond)
+			}
+		case *ast.PipeSet:
+			for _, item := range n.Items {
+				if item != nil {
+					w.walkPredicate(item.Value)
+				}
+			}
+		case *ast.PipeJoin:
+			if n.Join != nil {
+				w.buildFromItem(n.Join.Right)
+				w.walkPredicate(n.Join.On)
+			}
+		case *ast.PipeCall:
+			w.buildTableExpr(n.Call)
+		case *ast.PipeSetOperation:
+			for _, rhs := range n.Right {
+				w.visitPipeOperand(rhs)
+			}
+		case *ast.PipeRecursiveUnion:
+			w.visitPipeOperand(n.RHS)
+		case *ast.PipeWith:
+			if n.With != nil {
+				for _, cte := range n.With.CTEs {
+					if cte != nil && cte.Query != nil {
+						w.visitBody(cte.Query)
+					}
+				}
+			}
+		case *ast.PipeInsert:
+			w.discoverTables(n.Insert)
+		case *ast.PipeCreateTable:
+			w.discoverTables(n.Create)
+		case *ast.PipeLog:
+			w.visitPipe(n.Pipeline)
+		case *ast.PipeIf:
+			for _, c := range n.Cases {
+				w.walkPredicate(c.Condition)
+				w.visitPipe(c.Then)
+			}
+			w.visitPipe(n.Else)
+		case *ast.PipeFork:
+			for _, branch := range n.Pipelines {
+				w.visitPipe(branch)
+			}
+		case *ast.PipeTee:
+			for _, branch := range n.Pipelines {
+				w.visitPipe(branch)
+			}
+		case *ast.PipeMatchRecognize:
+			if n.Clause != nil {
+				for _, expr := range n.Clause.PartitionBy {
+					w.walkPredicate(expr)
+				}
+				for _, item := range n.Clause.OrderBy {
+					if item != nil {
+						w.walkPredicate(item.Expr)
+					}
+				}
+				for _, item := range n.Clause.Measures {
+					if item != nil {
+						w.walkPredicate(item.Expr)
+					}
+				}
+				for _, def := range n.Clause.Definitions {
+					if def != nil {
+						w.walkPredicate(def.Expr)
+					}
+				}
+			}
+		}
+	}
+}
+
+// walkPipeSelect walks the item list and GROUP BY of a pipe operator that holds
+// a *SelectStmt (SELECT / EXTEND / AGGREGATE).
+func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
+	if sel == nil {
+		return
+	}
+	for _, item := range sel.Items {
+		if item != nil {
+			w.walkPredicate(item.Expr)
+		}
+	}
+	if sel.GroupBy != nil {
+		for _, gi := range sel.GroupBy.Items {
+			if gi != nil {
+				w.walkPredicate(gi.Expr)
+			}
+		}
+	}
+}
+
+// visitPipeOperand walks one operand of a pipe set operation or recursive
+// union: a parenthesized query body, a TABLE clause, or a nested subpipeline.
+func (w *spanWalker) visitPipeOperand(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.QueryStmt:
+		w.visitBody(n)
+	case *ast.TableClause:
+		if n != nil {
+			w.buildTableExpr(n.Table)
+			w.walkPredicate(n.Where)
+		}
+	case *ast.Subpipeline:
+		w.visitPipe(n)
 	}
 }
 
@@ -469,6 +629,14 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	}
 
 	results := w.visitBody(q.Body)
+
+	// A query's pipe suffix transforms the query's output. The head query's
+	// projection is kept (a superset of the columns a `|> SELECT`/`|> DROP`
+	// leaves, and the base of what `|> EXTEND`/`|> AGGREGATE` add), and the
+	// tables the operators name are recorded.
+	if q.Pipe != nil {
+		w.visitPipe(q.Pipe)
+	}
 
 	// Query-level ORDER BY / LIMIT / OFFSET keys may reference columns.
 	for _, item := range q.OrderBy {

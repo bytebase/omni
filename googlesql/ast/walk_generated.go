@@ -618,6 +618,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *GroupingItem:
 		Walk(v, n.Expr)
+		if n.Order != nil {
+			Walk(v, n.Order)
+		}
 		walkNodes(v, n.Items)
 	case *HavingModifier:
 		Walk(v, n.Expr)
@@ -723,6 +726,25 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *LoopStmt:
 		walkNodes(v, n.Body)
+	case *MatchRecognizeClause:
+		walkNodes(v, n.PartitionBy)
+		for _, c := range n.OrderBy {
+			Walk(v, c)
+		}
+		for _, c := range n.Measures {
+			Walk(v, c)
+		}
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
+		for _, c := range n.Definitions {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *MatchRecognizeDefine:
+		Walk(v, n.Expr)
 	case *MergeAction:
 		if n.InsertRow != nil {
 			Walk(v, n.InsertRow)
@@ -768,6 +790,125 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Collate)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *PipeAggregate:
+		if n.Select != nil {
+			Walk(v, n.Select)
+		}
+	case *PipeAssert:
+		walkNodes(v, n.Conditions)
+	case *PipeCall:
+		if n.Call != nil {
+			Walk(v, n.Call)
+		}
+	case *PipeCreateTable:
+		if n.Create != nil {
+			Walk(v, n.Create)
+		}
+	case *PipeExportData:
+		if n.Export != nil {
+			Walk(v, n.Export)
+		}
+	case *PipeExtend:
+		if n.Select != nil {
+			Walk(v, n.Select)
+		}
+	case *PipeFork:
+		for _, c := range n.Pipelines {
+			Walk(v, c)
+		}
+	case *PipeIf:
+		for _, c := range n.Cases {
+			Walk(v, c)
+		}
+		if n.Else != nil {
+			Walk(v, n.Else)
+		}
+	case *PipeIfCase:
+		Walk(v, n.Condition)
+		if n.Then != nil {
+			Walk(v, n.Then)
+		}
+	case *PipeInsert:
+		if n.Insert != nil {
+			Walk(v, n.Insert)
+		}
+	case *PipeJoin:
+		if n.Join != nil {
+			Walk(v, n.Join)
+		}
+	case *PipeLimitOffset:
+		Walk(v, n.Limit)
+		Walk(v, n.Offset)
+	case *PipeLog:
+		if n.Pipeline != nil {
+			Walk(v, n.Pipeline)
+		}
+	case *PipeMatchRecognize:
+		if n.Clause != nil {
+			Walk(v, n.Clause)
+		}
+	case *PipeOrderBy:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *PipePivot:
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+	case *PipeRecursiveUnion:
+		if n.Set != nil {
+			Walk(v, n.Set)
+		}
+		if n.Depth != nil {
+			Walk(v, n.Depth)
+		}
+		Walk(v, n.RHS)
+	case *PipeRename:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *PipeSelect:
+		if n.Select != nil {
+			Walk(v, n.Select)
+		}
+	case *PipeSet:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *PipeSetItem:
+		Walk(v, n.Value)
+	case *PipeSetOperation:
+		if n.Set != nil {
+			Walk(v, n.Set)
+		}
+		walkNodes(v, n.Right)
+	case *PipeStatement:
+		Walk(v, n.Head)
+		if n.Pipeline != nil {
+			Walk(v, n.Pipeline)
+		}
+	case *PipeTablesample:
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *PipeTee:
+		for _, c := range n.Pipelines {
+			Walk(v, c)
+		}
+	case *PipeUnpivot:
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+	case *PipeWhere:
+		Walk(v, n.Expr)
+	case *PipeWindow:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *PipeWith:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 	case *PivotClause:
 		for _, c := range n.Aggregates {
 			Walk(v, c)
@@ -788,6 +929,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Limit)
 		Walk(v, n.Offset)
+		if n.Pipe != nil {
+			Walk(v, n.Pipe)
+		}
 	case *RaiseStmt:
 		Walk(v, n.Message)
 	case *RecursionDepth:
@@ -820,6 +964,18 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *RowPattern:
+		if n.Left != nil {
+			Walk(v, n.Left)
+		}
+		if n.Right != nil {
+			Walk(v, n.Right)
+		}
+		if n.Quantifier != nil {
+			Walk(v, n.Quantifier)
+		}
+	case *RowPatternQuantifier:
+		Walk(v, n.Count)
 	case *SampleClause:
 		Walk(v, n.Size)
 		walkNodes(v, n.PartitionBy)
@@ -843,6 +999,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 		if n.Modifiers != nil {
 			Walk(v, n.Modifiers)
+		}
+		if n.Order != nil {
+			Walk(v, n.Order)
 		}
 	case *SelectStmt:
 		if n.AsTypeName != nil {
@@ -891,12 +1050,23 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *StructFieldExpr:
 		Walk(v, n.Value)
+	case *Subpipeline:
+		walkNodes(v, n.Ops)
+	case *SubpipelineStmt:
+		if n.Pipeline != nil {
+			Walk(v, n.Pipeline)
+		}
 	case *SubqueryExpr:
 		Walk(v, n.Query)
 	case *TableAndColumnInfo:
 		if n.Path != nil {
 			Walk(v, n.Path)
 		}
+	case *TableClause:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		Walk(v, n.Where)
 	case *TableConstraint:
 		for _, c := range n.KeyParts {
 			Walk(v, c)

@@ -1249,6 +1249,19 @@ func (p *Parser) parsePartitionBy() ([]ast.Node, error) {
 // (order_by_clause). ORDER is the current token. Each item is
 // `expr [COLLATE c] [ASC|DESC] [NULLS FIRST|LAST]`.
 func (p *Parser) parseOrderByClause() ([]*ast.OrderItem, error) {
+	return p.parseOrderByClauseBody(false)
+}
+
+// parseOrderByClauseWithTrailingComma parses the pipe form of the clause
+// (order_by_clause_with_opt_comma), which allows a comma after the last item.
+func (p *Parser) parseOrderByClauseWithTrailingComma() ([]*ast.OrderItem, error) {
+	return p.parseOrderByClauseBody(true)
+}
+
+// parseOrderByClauseBody parses an ORDER BY clause; allowTrailingComma admits
+// the pipe form's trailing comma, recognized by the token after it ending the
+// operator (`|>`, `)`, `;`, or end of input).
+func (p *Parser) parseOrderByClauseBody(allowTrailingComma bool) ([]*ast.OrderItem, error) {
 	p.advance() // ORDER
 	if p.cur.Type == int('@') {
 		if herr := p.skipHint(); herr != nil {
@@ -1269,6 +1282,9 @@ func (p *Parser) parseOrderByClause() ([]*ast.OrderItem, error) {
 			break
 		}
 		p.advance()
+		if allowTrailingComma && (p.cur.Type == tokPipe || p.cur.Type == int(')') || p.cur.Type == int(';') || p.cur.Type == tokEOF) {
+			break
+		}
 	}
 	return items, nil
 }

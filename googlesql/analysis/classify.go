@@ -127,11 +127,37 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 	if node == nil {
 		return Unknown
 	}
-	switch node.(type) {
+	switch n := node.(type) {
 	// Query (query_statement) — Select, possibly promoted to SelectInfoSchema.
-	case *ast.QueryStmt, *ast.SelectStmt, *ast.SetOperation:
+	// A query with a pipe suffix is Select unless one of its operators writes
+	// (a pipe INSERT is DML, a pipe CREATE TABLE is DDL).
+	case *ast.QueryStmt:
+		if n.Pipe != nil {
+			if t := classifyPipe(n.Pipe); t != Select {
+				return t
+			}
+		}
 		if isAllSystemQuery(node, dialect) {
 			return SelectInfoSchema
+		}
+		return Select
+	case *ast.SelectStmt, *ast.SetOperation:
+		if isAllSystemQuery(node, dialect) {
+			return SelectInfoSchema
+		}
+		return Select
+
+	// A statement that is only a pipe suffix, and a table-returning statement
+	// followed by one (sql_statement_body). Their classification is the
+	// operators': a read unless an operator writes.
+	case *ast.SubpipelineStmt:
+		return classifyPipe(n.Pipeline)
+	case *ast.PipeStatement:
+		if t := classifyPipe(n.Pipeline); t != Select {
+			return t
+		}
+		if head, ok := n.Head.(*ast.QueryStmt); ok {
+			return Classify(head, dialect)
 		}
 		return Select
 
@@ -189,6 +215,52 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 	default:
 		return Unknown
 	}
+}
+
+// classifyPipe classifies a pipe suffix by what its operators do. It is Select
+// unless an operator writes rows (pipe INSERT → DML) or schema (pipe CREATE
+// TABLE → DDL). EXPORT DATA writes outside the database and has no
+// classification of its own elsewhere in this package, so it stays Unknown.
+func classifyPipe(p *ast.Subpipeline) QueryType {
+	if p == nil {
+		return Select
+	}
+	for _, op := range p.Ops {
+		switch n := op.(type) {
+		case *ast.PipeInsert:
+			return DML
+		case *ast.PipeCreateTable:
+			return DDL
+		case *ast.PipeExportData:
+			return Unknown
+		case *ast.PipeLog:
+			if t := classifyPipe(n.Pipeline); t != Select {
+				return t
+			}
+		case *ast.PipeIf:
+			for _, c := range n.Cases {
+				if t := classifyPipe(c.Then); t != Select {
+					return t
+				}
+			}
+			if t := classifyPipe(n.Else); t != Select {
+				return t
+			}
+		case *ast.PipeFork:
+			for _, branch := range n.Pipelines {
+				if t := classifyPipe(branch); t != Select {
+					return t
+				}
+			}
+		case *ast.PipeTee:
+			for _, branch := range n.Pipelines {
+				if t := classifyPipe(branch); t != Select {
+					return t
+				}
+			}
+		}
+	}
+	return Select
 }
 
 // ClassifySQL parses sql and returns the QueryType of its first statement in

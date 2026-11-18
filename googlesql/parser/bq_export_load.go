@@ -65,6 +65,32 @@ func (p *Parser) parseExportStmt() (ast.Node, error) {
 //
 // cur is at EXPORT.
 func (p *Parser) parseExportData() (ast.Node, error) {
+	stmt, err := p.parseExportDataNoQuery()
+	if err != nil {
+		return nil, err
+	}
+
+	// as_query — AS query (required).
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	q, err := p.parseQuery()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Query = q
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseExportDataNoQuery parses export_data_no_query:
+//
+//	EXPORT DATA with_connection_clause? opt_options_list?
+//
+// cur is at EXPORT. The caller adds the AS query (parseExportData) or, for the
+// pipe EXPORT DATA operator, nothing: the exported rows are the pipe input.
+func (p *Parser) parseExportDataNoQuery() (*ast.ExportDataStmt, error) {
 	export := p.advance() // EXPORT
 	p.advance()           // DATA
 
@@ -89,16 +115,6 @@ func (p *Parser) parseExportData() (ast.Node, error) {
 		}
 		stmt.Options = opts
 	}
-
-	// as_query — AS query (required).
-	if _, err := p.expect(kwAS); err != nil {
-		return nil, err
-	}
-	q, err := p.parseQuery()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Query = q
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
