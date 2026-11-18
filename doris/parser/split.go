@@ -129,6 +129,11 @@ func SplitAll(input string) []Segment {
 			proc.step(tok)
 			switch tok.Kind {
 			case kwBEGIN:
+				if proc.inParens {
+					// A BEGIN inside a procedure's parentheses is text the
+					// rule's `.*?` takes, not a compound block.
+					break
+				}
 				next := peekToken()
 				// BEGIN WITH LABEL x is the transaction form. WITH alone does
 				// not decide — a compound block's first statement can be a
@@ -146,7 +151,7 @@ func SplitAll(input string) []Segment {
 					proc.reset()
 				}
 			case int(';'):
-				if proc.parens > 0 {
+				if proc.inParens {
 					// A ';' inside a procedure's parentheses separates
 					// nothing: it is part of the statement
 					// (DorisParser.g4:43 LEFT_PAREN .*? RIGHT_PAREN).
@@ -203,10 +208,11 @@ func isDorisTCLBeginFollower(tok Token) bool {
 // DorisLexer.g4's SEMICOLON is otherwise only a statement delimiter
 // (DorisParser.g4:29-33), so the rule's `.*?` is the one place a ';' stands
 // inside a statement: CREATE PROCEDURE a(x;y) is one statement for Doris, and
-// Split keeps it that way.
+// Split keeps it that way. The `.*?` closes at the first ')', so nothing inside
+// the parentheses nests, and a BEGIN there is text, not a compound block.
 type procedureHead struct {
-	state  procedureHeadState
-	parens int // > 0 inside the procedure's parentheses
+	state    procedureHeadState
+	inParens bool // the procedure's '(' has been read and not closed yet
 }
 
 type procedureHeadState int
@@ -216,6 +222,8 @@ const (
 	procHeadCreate                                    // CREATE
 	procHeadCreateOr                                  // CREATE OR
 	procHeadCreateOrReplace                           // CREATE OR REPLACE
+	procHeadAlter                                     // ALTER
+	procHeadReplace                                   // REPLACE
 	procHeadVerb                                      // PROCEDURE or PROC
 	procHeadName                                      // in the name
 	procHeadNot                                       // not a procedure statement
@@ -223,12 +231,10 @@ const (
 
 // step advances the reading with one top-level token.
 func (h *procedureHead) step(tok Token) {
-	if h.parens > 0 {
-		switch tok.Kind {
-		case int('('):
-			h.parens++
-		case int(')'):
-			h.parens--
+	if h.inParens {
+		if tok.Kind == int(')') {
+			h.inParens = false
+			h.state = procHeadNot
 		}
 		return
 	}
@@ -237,8 +243,10 @@ func (h *procedureHead) step(tok Token) {
 		switch tok.Kind {
 		case kwCREATE:
 			h.state = procHeadCreate
-		case kwALTER, kwREPLACE:
-			h.state = procHeadVerb
+		case kwALTER:
+			h.state = procHeadAlter
+		case kwREPLACE:
+			h.state = procHeadReplace
 		default:
 			h.state = procHeadNot
 		}
@@ -257,7 +265,7 @@ func (h *procedureHead) step(tok Token) {
 		} else {
 			h.state = procHeadNot
 		}
-	case procHeadCreateOrReplace:
+	case procHeadCreateOrReplace, procHeadAlter, procHeadReplace:
 		if tok.Kind == kwPROCEDURE || tok.Kind == kwPROC {
 			h.state = procHeadVerb
 		} else {
@@ -274,7 +282,7 @@ func (h *procedureHead) step(tok Token) {
 	case procHeadName:
 		switch {
 		case tok.Kind == int('('):
-			h.parens = 1
+			h.inParens = true
 		case tok.Kind == int('.'), tok.Kind == tokIdent, tok.Kind == tokQuotedIdent, tok.Kind >= 700:
 			// Another part of the name.
 		default:

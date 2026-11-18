@@ -213,6 +213,9 @@ func TestProcedureTextFollowsSplit(t *testing.T) {
 		"CREATE PROCEDURE a(x;y); SELECT 1;",
 		"ALTER PROCEDURE a(x;y) zzz; SELECT 1;",
 		"REPLACE PROC a(x;y); SELECT 1;",
+		"ALTER PROCEDURE a(BEGIN x); SELECT 1;",
+		// The `.*?` closes at the first ')', so a '(' inside it nests nothing.
+		"ALTER PROCEDURE a((x); SELECT 1;",
 	} {
 		segments := Split(sql)
 		if len(segments) == 0 {
@@ -223,6 +226,13 @@ func TestProcedureTextFollowsSplit(t *testing.T) {
 				t.Errorf("Parse(Split(%q) segment %q) = %v, want it accepted", sql, segment.Text, err)
 			}
 		}
+	}
+
+	// ALTER and REPLACE reach a procedure only through PROCEDURE or PROC, so
+	// other ALTER statements keep their separators even when their text leaves
+	// a parenthesis open.
+	if got := Split("ALTER TABLE t ADD COLUMN c DECIMAL(10; SELECT 1;"); len(got) != 2 {
+		t.Errorf("Split(ALTER TABLE ... DECIMAL(10; SELECT 1;) = %+v, want 2 segments", got)
 	}
 }
 
