@@ -1810,8 +1810,15 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 			w.recordTable(n.Name, "")
 		}
 	case *ast.ExportMetadataStmt:
-		// The exported table is the statement's source; its metadata is read.
+		// The exported table is the statement's source; its metadata is read. An
+		// OPTIONS value may hold a subquery, which the parser fills, so walk the
+		// values for the tables those subqueries read.
 		w.recordTable(n.Path, "")
+		for _, opt := range n.Options {
+			if opt != nil {
+				w.walkSubqueriesOnly(opt.Value)
+			}
+		}
 	case *ast.CreateSchemaStmt, *ast.CreateDatabaseStmt:
 		// Schema/Database creates have no table reference of lineage interest.
 	default:

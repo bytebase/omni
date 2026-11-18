@@ -526,7 +526,10 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 	stmt.Loc.End = p.prev.Loc.End
 
 	// from_path_expression? — FROM maybe_slashed_or_dashed_path_expression, so a
-	// dashed BigQuery project (`SHOW TABLES FROM my-project.ds`) is one path.
+	// dashed BigQuery project (`SHOW TABLES FROM my-project.ds`) is one path. The
+	// rule's slashed alternative (`FROM /span/global/foo`) is the same deliberate
+	// gap parseDescribeStmt documents: parseTablePath reads the dotted and dashed
+	// forms only.
 	if _, ok := p.match(kwFROM); ok {
 		from, err := p.parseTablePath()
 		if err != nil {
