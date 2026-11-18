@@ -161,6 +161,7 @@ type PartitionItem struct {
 	InValues   [][]string // for IN partitions: list of value lists
 	// Step partition fields
 	IsStep       bool
+	FromStep     bool // Doris's FROM ... TO ... INTERVAL form, not StarRocks's START ... END ... EVERY
 	FromValues   []string
 	ToValues     []string
 	Interval     string      // interval amount

@@ -297,6 +297,9 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.DataCacheSelectStmt:
 			w.visitDataCacheSelect(q)
 			return false
+		case *ast.ParenSelect:
+			w.visitParenSelect(q, false)
+			return false
 		case *ast.OptimizerTraceStmt:
 			w.visitWrappedQuery(q.Query)
 			return false

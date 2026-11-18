@@ -1285,3 +1285,14 @@ func TestGetQuerySpanCTEDoesNotLeakAcrossStatements(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want real and c", span.AccessTables)
 	}
 }
+
+// A grouped WITH under a non-query statement keeps its scope.
+func TestGetQuerySpanNestedParenSelectScope(t *testing.T) {
+	span, err := GetQuerySpan("INSERT INTO dst WITH c AS (SELECT * FROM secret) (SELECT * FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Errorf("AccessTables = %+v, want secret", span.AccessTables)
+	}
+}

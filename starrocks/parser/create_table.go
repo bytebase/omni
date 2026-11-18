@@ -709,7 +709,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				for _, item := range partDesc.Partitions {
 					switch partDesc.Type {
 					case "RANGE":
-						if len(item.InValues) > 0 ||
+						if item.FromStep || len(item.InValues) > 0 ||
 							(!item.IsMaxValue && len(item.Values) == 0 && !item.IsStep) {
 							return p.syntaxErrorAtCur()
 						}
@@ -1181,6 +1181,7 @@ func (p *Parser) parseStepPartition(startLoc ast.Loc) (*ast.PartitionItem, error
 
 	item := &ast.PartitionItem{
 		IsStep:     true,
+		FromStep:   true,
 		FromValues: fromVals,
 		ToValues:   toVals,
 		Loc:        startLoc,
