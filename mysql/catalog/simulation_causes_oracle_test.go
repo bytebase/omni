@@ -142,6 +142,34 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1072,
 		},
 		{
+			// MySQL judges a key against the columns the statement leaves, so a
+			// key may name a column a later command adds.
+			name:  "ADD KEY over a column a later command adds",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c2), ADD c2 INT",
+			code:  0,
+		},
+		{
+			name:  "ADD KEY over a column the statement drops",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c), DROP COLUMN c",
+			code:  1072,
+		},
+		{
+			name:  "ADD KEY over a column the statement drops and adds again",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c), DROP COLUMN c, ADD COLUMN c INT",
+			code:  0,
+		},
+		{
+			// A DROP COLUMN is resolved against the table the statement found,
+			// so a column it adds cannot be dropped by it.
+			name:  "DROP COLUMN of a column the statement adds",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x",
+			code:  1091,
+		},
+		{
 			name:  "CREATE TABLE with a FULLTEXT key's unknown parser",
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE s (b INT, FULLTEXT(b) WITH PARSER a)",
@@ -292,6 +320,63 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name: "CREATE TABLE with a column past its display width",
 			stmt: "CREATE TABLE s (b INT(256))",
 			code: 1439,
+		},
+		{
+			// The bound is a constant expression, so MySQL reads a name in it
+			// as a column of the partition function, even a column the table has.
+			name:  "ADD PARTITION over a name its bound reads as a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PARTITION (PARTITION p1 VALUES LESS THAN (b))",
+			code:  1054,
+		},
+		{
+			name:  "ADD PARTITION naming an engine the server does not ship",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PARTITION (PARTITION p1 ENGINE nosuch)",
+			code:  1286,
+		},
+		{
+			name:  "ADD PARTITION whose bound column is judged before its engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PARTITION (PARTITION p1 VALUES LESS THAN (b) ENGINE nosuch)",
+			code:  1054,
+		},
+		{
+			name:  "ALTER TABLE naming an engine the server does not ship",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE = nosuch",
+			code:  1286,
+		},
+		{
+			name: "ALTER TABLE naming an engine the server does not ship on no table",
+			stmt: "ALTER TABLE a ENGINE = nosuch",
+			code: 1286,
+		},
+		{
+			name:  "CREATE TABLE naming an engine the server does not ship",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) ENGINE = nosuch",
+			code:  1286,
+		},
+		{
+			// The checks run in the statement's order, both being made while it
+			// is prepared.
+			name:  "ADD past its display width before an engine the server does not ship",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT(256), ENGINE = nosuch",
+			code:  1439,
+		},
+		{
+			name:  "an engine the server does not ship before an ADD past its display width",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE = nosuch, ADD e INT(256)",
+			code:  1286,
+		},
+		{
+			name:  "CREATE TABLE with a column past its display width and an unknown engine",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT(256)) ENGINE = nosuch",
+			code:  1439,
 		},
 		{
 			name:  "ADD INT at its display width",

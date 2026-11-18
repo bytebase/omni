@@ -27,6 +27,7 @@ const (
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
+	ErrUnknownStorageEngine              = 1286
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
 	ErrKeyColumnDoesNotExist             = 1072
@@ -77,6 +78,7 @@ var sqlStateMap = map[int]string{
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
+	ErrUnknownStorageEngine:              "42000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrKeyColumnDoesNotExist:             "42000",
@@ -209,6 +211,13 @@ func errWrongObject(db, name, kind string) error {
 func errNonUniqueTable(name string) error {
 	return &Error{Code: ErrNonUniqueTable, SQLState: sqlState(ErrNonUniqueTable),
 		Message: fmt.Sprintf("Not unique table/alias: '%s'", name)}
+}
+
+// errUnknownStorageEngine is 1286, an ENGINE option naming an engine the pinned
+// server does not ship.
+func errUnknownStorageEngine(name string) error {
+	return &Error{Code: ErrUnknownStorageEngine, SQLState: sqlState(ErrUnknownStorageEngine),
+		Message: fmt.Sprintf("Unknown storage engine '%s'", name)}
 }
 
 // errKeyColumnDoesNotExist is 1072, a key part naming a column the table does

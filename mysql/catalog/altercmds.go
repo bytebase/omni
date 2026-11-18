@@ -38,6 +38,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	// A column this statement adds cannot be dropped by it: MySQL resolves a
+	// DROP COLUMN against the table the statement found, so
+	// `ALTER TABLE a ADD COLUMN x INT, DROP COLUMN x` answers 1091 "Can't DROP
+	// 'x'" (mysql:8.0.46). The answer comes before the key checks below.
+	if err := validateAlterDropColumns(tbl, stmt.Commands); err != nil {
+		return err
+	}
 
 	repartition := alterRepartition(stmt.Commands)
 	if tbl.Partitioning == nil && repartition == nil {
@@ -67,14 +74,68 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	return nil
 }
 
+// validateAlterDropColumns refuses a DROP COLUMN of a name the table the
+// statement found does not hold: 1091. A column an earlier command of the same
+// statement adds is not one of them, so MySQL refuses to drop it.
+func validateAlterDropColumns(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATDropColumn {
+			continue
+		}
+		if cmd.IfExists {
+			continue
+		}
+		if tbl.GetColumn(cmd.Name) == nil {
+			return errCantDropKey(cmd.Name)
+		}
+	}
+	return nil
+}
+
+// alterFinalColumns is the set of columns the statement leaves, which MySQL
+// judges the keys it adds against: `ALTER TABLE a ADD KEY(c2), ADD c2 INT` is
+// taken, and a key on a column the statement drops answers 1072
+// (mysql:8.0.46).
+func alterFinalColumns(tbl *Table, commands []*nodes.AlterTableCmd) map[string]bool {
+	cols := make(map[string]bool, len(tbl.Columns))
+	for _, col := range tbl.Columns {
+		cols[toLower(col.Name)] = true
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn:
+			for _, colDef := range alterColumnDefs(cmd) {
+				if colDef != nil {
+					cols[toLower(colDef.Name)] = true
+				}
+			}
+		case nodes.ATDropColumn:
+			delete(cols, toLower(cmd.Name))
+		case nodes.ATRenameColumn:
+			delete(cols, toLower(cmd.Name))
+			cols[toLower(cmd.NewName)] = true
+		case nodes.ATChangeColumn:
+			if cmd.Column != nil {
+				delete(cols, toLower(cmd.Name))
+				cols[toLower(cmd.Column.Name)] = true
+			}
+		}
+	}
+	return cols
+}
+
 // alterTableCommands runs the commands of an ALTER TABLE on tbl, found under key in db.
 func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) == 0 {
 		return nil
 	}
+	leaves := alterFinalColumns(tbl, stmt.Commands)
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
-		return c.execAlterCmd(db, tbl, stmt.Commands[0])
+		return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
 	}
 
 	// Multi-command ALTER: MySQL treats this as atomic.
@@ -83,7 +144,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	origKey := key
 
 	for _, cmd := range stmt.Commands {
-		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, leaves); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
@@ -120,9 +181,22 @@ func alterExchangeSelf(c *Catalog, db *Database, stmt *nodes.AlterTableStmt) err
 }
 
 // alterDefinitions runs the checks MySQL makes before it opens the table an
-// ALTER TABLE names, so each answers ahead of 1146: a column's display width
-// (1439) and a FULLTEXT key's parser (1128).
+// ALTER TABLE names, so each answers ahead of 1146: a FULLTEXT key's parser
+// (1128), which its parser looks up, then, in the statement's order, a column's
+// display width (1439) and an ENGINE the server does not ship (1286). Measured
+// on mysql:8.0.46: `ALTER TABLE a ADD e INT(256), ENGINE = nosuch` answers 1439
+// where `ALTER TABLE a ENGINE = nosuch, ADD e INT(256)` answers 1286.
 func alterDefinitions(commands []*nodes.AlterTableCmd) error {
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		for _, con := range alterConstraints(cmd) {
+			if err := validateFulltextParser(con); err != nil {
+				return err
+			}
+		}
+	}
 	for _, cmd := range commands {
 		if cmd == nil {
 			continue
@@ -132,10 +206,49 @@ func alterDefinitions(commands []*nodes.AlterTableCmd) error {
 				return err
 			}
 		}
-		for _, con := range alterConstraints(cmd) {
-			if err := validateFulltextParser(con); err != nil {
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
+			if err := validateStorageEngine(cmd.Option.Value); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+// validatePartitionDefinitions runs the checks MySQL makes on an ADD PARTITION's
+// definitions before it judges the table they are added to: a name its bound
+// reads as a column (1054), then an engine it does not ship (1286). Measured on
+// mysql:8.0.46, both answer ahead of 1505.
+func validatePartitionDefinitions(defs []*nodes.PartitionDef) error {
+	for _, pd := range defs {
+		if pd == nil {
+			continue
+		}
+		if name, ok := partitionBoundColumn(pd.Values); ok {
+			return errNoSuchColumn(name, "partition function")
+		}
+		if err := validatePartitionEngines(pd.Options, pd.SubPartitions); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validatePartitionEngines refuses an ENGINE a partition or subpartition names
+// and the server does not ship: 1286.
+func validatePartitionEngines(opts []*nodes.TableOption, subs []*nodes.SubPartitionDef) error {
+	for _, opt := range opts {
+		if opt == nil || !engineOptionName(opt.Name) {
+			continue
+		}
+		return validateStorageEngine(opt.Value)
+	}
+	for _, sub := range subs {
+		if sub == nil {
+			continue
+		}
+		if err := validatePartitionEngines(sub.Options, nil); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -179,10 +292,10 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 	db.Tables[key] = tbl
 }
 
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
-		return c.alterAddColumn(tbl, cmd)
+		return c.alterAddColumn(tbl, cmd, leaves)
 	case nodes.ATDropColumn:
 		return c.alterDropColumn(tbl, cmd)
 	case nodes.ATModifyColumn:
@@ -190,7 +303,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd)
+		return c.alterAddConstraint(tbl, cmd, leaves)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -251,7 +364,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 }
 
 // alterAddColumn adds a new column to the table.
-func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
 	// The parenthesized form reads a table element list, so it carries the
 	// constraints written beside the columns:
 	// `ADD COLUMN (a1 INT, PRIMARY KEY (a1))` adds both. The columns come
@@ -267,7 +380,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}); err != nil {
+			}, leaves); err != nil {
 				return err
 			}
 		}
@@ -561,7 +674,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 }
 
 // alterAddConstraint adds a constraint or index to the table.
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -577,7 +690,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errMultiplePriKey()
 			}
 		}
-		if err := validateKeyColumnsExist(tbl, con); err != nil {
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
 		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
@@ -626,7 +739,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
-		if err := validateKeyColumnsExist(tbl, con); err != nil {
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
 		idxCols := buildIndexColumns(con)
@@ -660,7 +773,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
 			return errFKDupName(conName)
 		}
-		if err := validateKeyColumnsExist(tbl, con); err != nil {
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
 		refDBName := ""
@@ -722,7 +835,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
-		if err := validateKeyColumnsExist(tbl, con); err != nil {
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
 		idxCols := buildIndexColumns(con)
@@ -754,7 +867,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
-		if err := validateKeyColumnsExist(tbl, con); err != nil {
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
 		idxCols := buildIndexColumns(con)
@@ -781,7 +894,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return errDupKeyName(idxName)
 			}
 		}
-		if err := validateKeyColumnsExist(tbl, con); err != nil {
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
 		idxCols := buildIndexColumns(con)
@@ -1330,6 +1443,12 @@ var _ = strings.ToLower
 
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// The definitions are judged before the table they are added to: an unknown
+	// column in a bound (1054) or an engine the server does not ship (1286)
+	// answers ahead of 1505 on a table with no partitions (mysql:8.0.46).
+	if err := validatePartitionDefinitions(cmd.PartitionDefs); err != nil {
+		return err
+	}
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}

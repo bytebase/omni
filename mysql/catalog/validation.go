@@ -308,10 +308,16 @@ func validateFulltextParser(con *nodes.Constraint) error {
 // validateKeyPartsExist refuses a key part that names a column the table does
 // not have: 1072. A functional part is an expression, and names no column.
 //
-// The check is made where the command runs, so a key naming a column a later
-// command of the same ALTER TABLE adds is refused; MySQL judges the columns of
-// the table the statement leaves. No statement of simulate.tsv reaches that.
-func validateKeyPartsExist(tbl *Table, parts []*nodes.IndexColumn) error {
+// leaves, when not nil, is the columns the statement leaves (alterFinalColumns),
+// which MySQL judges the keys of an ALTER TABLE against: a key may name a column
+// a later command adds, and may not name one the statement drops.
+func validateKeyPartsExist(tbl *Table, leaves map[string]bool, parts []*nodes.IndexColumn) error {
+	has := func(name string) bool {
+		if leaves != nil {
+			return leaves[toLower(name)]
+		}
+		return tbl.GetColumn(name) != nil
+	}
 	for _, ic := range parts {
 		if ic == nil || ic.Functional {
 			continue
@@ -320,7 +326,7 @@ func validateKeyPartsExist(tbl *Table, parts []*nodes.IndexColumn) error {
 		if !ok {
 			continue
 		}
-		if tbl.GetColumn(ref.Column) == nil {
+		if !has(ref.Column) {
 			return errKeyColumnDoesNotExist(ref.Column)
 		}
 	}
@@ -329,19 +335,89 @@ func validateKeyPartsExist(tbl *Table, parts []*nodes.IndexColumn) error {
 
 // validateKeyColumnsExist is validateKeyPartsExist for a constraint, whose key
 // parts may also be written as a plain column list.
-func validateKeyColumnsExist(tbl *Table, con *nodes.Constraint) error {
+func validateKeyColumnsExist(tbl *Table, leaves map[string]bool, con *nodes.Constraint) error {
 	if con == nil {
 		return nil
 	}
 	if len(con.IndexColumns) == 0 {
 		for _, name := range con.Columns {
-			if tbl.GetColumn(name) == nil {
+			if leaves != nil {
+				if !leaves[toLower(name)] {
+					return errKeyColumnDoesNotExist(name)
+				}
+			} else if tbl.GetColumn(name) == nil {
 				return errKeyColumnDoesNotExist(name)
 			}
 		}
 		return nil
 	}
-	return validateKeyPartsExist(tbl, con.IndexColumns)
+	return validateKeyPartsExist(tbl, leaves, con.IndexColumns)
+}
+
+// storageEngines are the engines mysql:8.0.46 ships as usable, from its SHOW
+// ENGINES: InnoDB, MyISAM, MEMORY, MRG_MYISAM, BLACKHOLE, CSV, ARCHIVE and
+// PERFORMANCE_SCHEMA, plus HEAP, which is MEMORY's other name. FEDERATED, NDB
+// and ndbinfo are listed there but disabled, and naming one of them, or any
+// engine the server does not have, is 1286.
+var storageEngines = map[string]bool{
+	"innodb":             true,
+	"myisam":             true,
+	"memory":             true,
+	"heap":               true,
+	"mrg_myisam":         true,
+	"blackhole":          true,
+	"csv":                true,
+	"archive":            true,
+	"performance_schema": true,
+}
+
+// validateStorageEngine refuses an ENGINE option naming an engine the pinned
+// server does not ship: 1286. MySQL answers it while preparing the statement, so
+// it comes before the table is looked up and before the database is resolved.
+func validateStorageEngine(name string) error {
+	if storageEngines[strings.ToLower(strings.TrimSpace(name))] {
+		return nil
+	}
+	return errUnknownStorageEngine(name)
+}
+
+// engineOptionName reports whether a table option is the engine, as the table
+// and its partitions spell it.
+func engineOptionName(name string) bool {
+	return strings.EqualFold(name, "engine") || strings.EqualFold(name, "storage engine")
+}
+
+// partitionBoundColumn returns the first column a partition definition's bound
+// names, if it names one. A bound is a constant expression, so MySQL reads a
+// name in it as a column of the partition function and answers 1054 "Unknown
+// column 'x' in 'partition function'" for it — even for a name the table has.
+func partitionBoundColumn(v nodes.Node) (string, bool) {
+	found := ""
+	var visit func(nodes.Node)
+	visit = func(n nodes.Node) {
+		if found != "" || n == nil {
+			return
+		}
+		switch node := n.(type) {
+		case *nodes.List:
+			for _, item := range node.Items {
+				visit(item)
+			}
+		case nodes.ExprNode:
+			nodes.Inspect(node, func(n nodes.Node) bool {
+				if found != "" {
+					return false
+				}
+				if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+					found = ref.Column
+					return false
+				}
+				return true
+			})
+		}
+	}
+	visit(v)
+	return found, found != ""
 }
 
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {

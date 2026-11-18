@@ -41,7 +41,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	// A key part that names a column the table does not have is 1072, checked
 	// after the key's name: mysql:8.0.46 answers 1061 for a name the table
 	// already has and 1072 only for one it does not.
-	if err := validateKeyPartsExist(tbl, stmt.Columns); err != nil {
+	if err := validateKeyPartsExist(tbl, nil, stmt.Columns); err != nil {
 		return err
 	}
 

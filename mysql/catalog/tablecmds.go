@@ -16,18 +16,31 @@ const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
 // its keys in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
-	// MySQL checks a column's display width and a FULLTEXT key's parser while
-	// preparing the statement, so both answer ahead of the database and the
-	// table it names: 1439 for `CREATE TABLE nosuchdb.a (a INT(256))` and 1128
-	// for a FULLTEXT key whose parser it does not have.
+	// MySQL checks a FULLTEXT key's parser, a column's display width and an
+	// ENGINE while preparing the statement, so each answers ahead of the
+	// database and the table it names: 1128 for a FULLTEXT key whose parser it
+	// does not have, 1439 for `CREATE TABLE nosuchdb.a (a INT(256))`, and 1286
+	// for an engine it does not ship (mysql:8.0.46).
+	for _, con := range stmt.Constraints {
+		if err := validateFulltextParser(con); err != nil {
+			return err
+		}
+	}
 	for _, colDef := range stmt.Columns {
 		if err := validateColumnDisplayWidth(colDef); err != nil {
 			return err
 		}
 	}
-	for _, con := range stmt.Constraints {
-		if err := validateFulltextParser(con); err != nil {
-			return err
+	// A loader's statement (DefineTable) is a snapshot of a server that may
+	// ship another engine, so only a CREATE TABLE statement is judged.
+	if declared {
+		for _, opt := range stmt.Options {
+			if opt == nil || !engineOptionName(opt.Name) {
+				continue
+			}
+			if err := validateStorageEngine(opt.Value); err != nil {
+				return err
+			}
 		}
 	}
 	// Resolve database.
@@ -444,7 +457,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if !declared {
 			return nil
 		}
-		return validateKeyColumnsExist(tbl, con)
+		return validateKeyColumnsExist(tbl, nil, con)
 	}
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
