@@ -2292,24 +2292,49 @@ func (p *Parser) parseUnnestExpression() (ast.Node, error) {
 
 // atQueryStart reports whether the current token begins a query (so a following
 // '(' opens a parenthesized_query rather than a parenthesized expression). A
-// query head is SELECT, WITH, FROM (the FROM-query form), GRAPH (GQL), or a
-// nested '(' that itself opens a query. This is the disambiguator the grammar's
-// LALR(1) lookahead applies.
+// query head is SELECT, WITH, TABLE (the `TABLE t` query primary), FROM (the
+// FROM-query form), GRAPH (GQL), or a nested '(' that itself opens a query. This
+// is the disambiguator the grammar's LALR(1) lookahead applies.
 func (p *Parser) atQueryStart() bool {
 	switch p.cur.Type {
 	case kwSELECT, kwWITH, kwFROM, kwGRAPH:
 		return true
+	case kwTABLE:
+		// `TABLE <path|tvf>` is a query_primary; a bare TABLE (or one that begins a
+		// field access, `TABLE.x`) is the non-reserved keyword as an identifier
+		// expression, so a name must follow.
+		return tableClauseFollows(p.peekNext().Type)
 	case int('('):
 		// A nested '(' could open a parenthesized query — but it could also open a
-		// parenthesized expression or a struct tuple. Peek one token: a SELECT/WITH
-		// after the nested '(' indicates a query.
-		switch p.peekNext().Type {
-		case kwSELECT, kwWITH, kwFROM:
+		// parenthesized expression or a struct tuple. Peek one token (two for TABLE,
+		// which needs its name): a query head after the nested '(' means a query.
+		switch next := p.peekNext().Type; {
+		case next == kwSELECT, next == kwWITH, next == kwFROM:
 			return true
+		case next == kwTABLE:
+			return tableClauseFollows(p.peekSecond().Type)
 		}
 		return false
 	}
 	return false
+}
+
+// tableClauseFollows reports whether the token after a TABLE keyword begins
+// table_clause_no_keyword: a path_expression, or the reserved word IF standing in
+// for the tvf's name.
+func tableClauseFollows(tokenType int) bool {
+	return isIdentifierStart(tokenType) || tokenType == kwIF
+}
+
+// peekSecond returns the token two positions after the current one, leaving the
+// parser's one-token lookahead buffer and its error list as they were.
+func (p *Parser) peekSecond() Token {
+	cp := p.checkpoint()
+	p.advance() // the current token
+	p.advance() // the one peekNext returns
+	tok := p.cur
+	p.restore(cp)
+	return tok
 }
 
 // parseSubqueryBody parses a parenthesized query body after the opening '(' has

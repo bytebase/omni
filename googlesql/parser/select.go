@@ -20,6 +20,8 @@ func qLoc(n ast.Node) ast.Loc {
 		return v.Loc
 	case *ast.TableExpr:
 		return v.Loc
+	case *ast.TableClause:
+		return v.Loc
 	case *ast.UnnestExpr:
 		return v.Loc
 	case *ast.JoinExpr:
@@ -163,10 +165,13 @@ func (p *Parser) parseQueryPrimaryOrSetOp() (ast.Node, error) {
 
 // parseQueryPrimary parses a query_primary:
 //
-//	select | ( query ) [AS alias]
+//	select | table_clause_reserved | ( query ) [AS alias]
 //
-// A leading SELECT builds an ast.SelectStmt; a leading '(' parses a nested query
-// and returns it as a parenthesized ast.QueryStmt (Parens=true). The optional
+// A leading SELECT builds an ast.SelectStmt; a leading TABLE builds the
+// table_clause_reserved alternative as an *ast.TableClause (query_primary wraps
+// the clause in an ASTQuery, which the enclosing *ast.QueryStmt is here); a
+// leading '(' parses a nested query and returns it as a parenthesized
+// ast.QueryStmt (Parens=true). The optional
 // `AS alias` after a parenthesized primary is accepted (grammar:
 // `query_primary: ( parenthesized_query ) [AS alias]`) — the alias is consumed
 // but, lacking an alias slot on QueryStmt, is not retained (it is only meaningful
@@ -175,6 +180,12 @@ func (p *Parser) parseQueryPrimary() (ast.Node, error) {
 	switch p.cur.Type {
 	case kwSELECT:
 		return p.parseSelectStmt()
+	case kwTABLE:
+		// table_clause_reserved: `TABLE <path|tvf> [alias] [PIVOT|UNPIVOT …]
+		// [WHERE expr]`, the query read `TABLE t` (a shorthand for `SELECT * FROM
+		// t`). The same rule builds a pipe set operation's TABLE operand, so the
+		// parser lives in pipe.go.
+		return p.parseTableClauseOperand()
 	case int('('):
 		openTok := p.advance() // '('
 		inner, err := p.parseQuery()

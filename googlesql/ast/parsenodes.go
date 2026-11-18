@@ -1177,8 +1177,9 @@ var (
 //	[WITH [RECURSIVE] cte, …] <body> [ORDER BY …] [LIMIT n [OFFSET m]] [FOR UPDATE]
 //
 // With is the optional leading WITH clause (nil if absent). Body is the query
-// body — a *SelectStmt, a *SetOperation, or a nested *QueryStmt (a parenthesized
-// `( query )` query_primary). OrderBy / Limit / Offset are the trailing
+// body — a *SelectStmt, a *SetOperation, a *TableClause (the `TABLE t` query
+// primary), or a nested *QueryStmt (a parenthesized `( query )` query_primary).
+// OrderBy / Limit / Offset are the trailing
 // query-level modifiers (nil/absent when not present). ForUpdate records a
 // trailing `FOR UPDATE` (Spanner row-locking; parses in the union grammar).
 type QueryStmt struct {
@@ -3803,6 +3804,69 @@ type DescribeStmt struct {
 // Tag implements Node.
 func (n *DescribeStmt) Tag() NodeTag { return T_DescribeStmt }
 
+// ShowStmt is a SHOW statement (grammar: show_statement):
+//
+//	SHOW show_target [FROM path_expression] [LIKE string_literal]
+//
+// Target is the show_target: an identifier (normalized, backticks removed), or
+// the two-word "MATERIALIZED VIEWS". From is the optional `FROM <path>`
+// qualifier; nil if absent. Like is the optional LIKE string literal (*Literal);
+// nil if absent.
+type ShowStmt struct {
+	Target string    // show_target text (e.g. "TABLES" or "MATERIALIZED VIEWS")
+	From   *PathExpr // FROM path_expression; nil if absent
+	Like   Node      // LIKE string_literal; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ShowStmt) Tag() NodeTag { return T_ShowStmt }
+
+// ImportKind is the `import_type` of an IMPORT statement: MODULE or PROTO.
+type ImportKind int
+
+const (
+	// ImportModule is `IMPORT MODULE` (the ZetaSQL module system).
+	ImportModule ImportKind = iota + 1
+	// ImportProto is `IMPORT PROTO`.
+	ImportProto
+)
+
+// ImportStmt is an IMPORT statement (grammar: import_statement):
+//
+//	IMPORT import_type path_expression_or_string [AS|INTO identifier] [OPTIONS(...)]
+//
+// Kind is MODULE or PROTO. Name is the imported module's path (*PathExpr) or,
+// where the grammar takes a string literal, a *Literal. Alias is the optional
+// alias name ("" if absent) and AliasKeyword records which word introduced it
+// ("AS" or "INTO", "" if absent). Options is the optional OPTIONS(...) list.
+type ImportStmt struct {
+	Kind         ImportKind
+	Name         Node            // *PathExpr | *Literal (string_literal)
+	Alias        string          // alias identifier; "" if absent
+	AliasKeyword string          // "AS" | "INTO" | ""
+	Options      []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *ImportStmt) Tag() NodeTag { return T_ImportStmt }
+
+// ModuleStmt is a MODULE statement (grammar: module_statement):
+//
+//	MODULE path_expression [OPTIONS(...)]
+//
+// A module declares the path it defines; Options is the optional OPTIONS(...)
+// list.
+type ModuleStmt struct {
+	Name    *PathExpr       // module path
+	Options []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ModuleStmt) Tag() NodeTag { return T_ModuleStmt }
+
 // RenameStmt is a RENAME statement (grammar: rename_statement):
 //
 //	RENAME <object-kind> <path> TO <path>
@@ -3818,6 +3882,28 @@ type RenameStmt struct {
 
 // Tag implements Node.
 func (n *RenameStmt) Tag() NodeTag { return T_RenameStmt }
+
+// UndropStmt is an UNDROP statement (grammar: undrop_statement):
+//
+//	UNDROP schema_object_kind opt_if_not_exists path_expression
+//	  at_system_time? opt_options_list
+//
+// The grammar's action allows only the SCHEMA kind ("UNDROP <kind> is not
+// supported" otherwise), so ObjectKind is always "SCHEMA" here; it is kept so
+// the statement round-trips. IfNotExists records `IF NOT EXISTS`. Name is the
+// restored schema's path. ForSystemTime is the optional `FOR SYSTEM_TIME AS OF
+// expr`; nil if absent. Options is the optional OPTIONS(...) list.
+type UndropStmt struct {
+	ObjectKind    string          // the schema_object_kind spelling (SCHEMA)
+	IfNotExists   bool            // IF NOT EXISTS was present
+	Name          *PathExpr       // the restored object's path
+	ForSystemTime Node            // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Options       []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
 
 // CallArgKind discriminates the non-expression shapes of a CALL argument
 // (tvf_argument). A plain expression / named argument is carried directly as the
@@ -3899,13 +3985,14 @@ var (
 //	    aux_load_data_from_files_options_list opt_external_table_with_clauses?
 //	clone_data_statement:   CLONE DATA INTO maybe_dashed_path_expression FROM clone_data_source_list
 //
-// All four are BigQuery-ONLY at the GoogleSQL union level (oracle.md): the
-// Spanner emulator hard-syntax-rejects them, so the union parser accepts them on
-// the authority of the legacy .g4 + the BigQuery truth1 corpus (OTHER-001 EXPORT
-// DATA, OTHER-003 LOAD DATA). bytebase does not consume these today (P1 parity),
-// but the parser must accept-and-model them so Diagnose reports them as valid
-// rather than a false syntax error, and GetQuerySpan can reach the embedded
-// query of EXPORT DATA / the table targets of LOAD/CLONE.
+// All four are BigQuery-only at the GoogleSQL union level (oracle.md), and the
+// Spanner emulator gives no syntax verdict on them: it answers "Statement not
+// supported: …Stmt" from statement dispatch, before it parses a body (it accepts
+// `LOAD DATA INTO FROM FILES()` too). The union parser accepts them on the
+// authority of the grammar + the BigQuery truth1 corpus (OTHER-001 EXPORT DATA,
+// OTHER-003 LOAD DATA), so Diagnose reports them as valid rather than a false
+// syntax error, and GetQuerySpan can reach the embedded query of EXPORT DATA /
+// the table targets of LOAD/CLONE.
 
 // ExportDataStmt is `EXPORT DATA [WITH CONNECTION conn] [OPTIONS(...)] AS query`
 // (export_data_statement). The query is required (export_data_statement =
@@ -3933,6 +4020,26 @@ type ExportModelStmt struct {
 
 // Tag implements Node.
 func (n *ExportModelStmt) Tag() NodeTag { return T_ExportModelStmt }
+
+// ExportMetadataStmt is `EXPORT TABLE METADATA FROM <path>` (grammar:
+// export_metadata_statement):
+//
+//	EXPORT (TABLE | TABLE FUNCTION) METADATA FROM maybe_dashed_path_expression
+//	  [WITH CONNECTION conn] [OPTIONS(...)]
+//
+// The `TABLE FUNCTION` form is a grammar action error and never reaches this
+// node. Path is the exported table; HasConnection / ConnectionName and Options
+// are the same optional clauses ExportDataStmt carries.
+type ExportMetadataStmt struct {
+	Path           *PathExpr       // the exported table (maybe_dashed_path_expression)
+	HasConnection  bool            // a WITH CONNECTION clause was present
+	ConnectionName string          // connection path text, or "DEFAULT"; "" if absent
+	Options        []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *ExportMetadataStmt) Tag() NodeTag { return T_ExportMetadataStmt }
 
 // LoadDataStmt is a `LOAD DATA { INTO | OVERWRITE } …` statement
 // (aux_load_data_statement). It loads external files (FROM FILES (options)) into
@@ -3994,6 +4101,7 @@ func (n *CloneDataSource) Tag() NodeTag { return T_CloneDataSource }
 var (
 	_ Node = (*ExportDataStmt)(nil)
 	_ Node = (*ExportModelStmt)(nil)
+	_ Node = (*ExportMetadataStmt)(nil)
 	_ Node = (*LoadDataStmt)(nil)
 	_ Node = (*CloneDataStmt)(nil)
 	_ Node = (*CloneDataSource)(nil)

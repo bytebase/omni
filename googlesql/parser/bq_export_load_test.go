@@ -428,19 +428,65 @@ func TestExportModel_DashedPathRejected(t *testing.T) {
 	}
 }
 
-// --- EXPORT dispatch boundary ---
+// TestExportDataGQLQuery covers query_after_as's gql_query alternative: the AS
+// clause takes a GQL query as well as a SQL one, and the statement's Loc ends at
+// the GQL query's last token.
+func TestExportDataGQLQuery(t *testing.T) {
+	sql := "EXPORT DATA AS GRAPH g MATCH (n) RETURN n"
+	s := parseOneStmt(t, sql).(*ast.ExportDataStmt)
+	if _, ok := s.Query.(*ast.GQLStmt); !ok {
+		t.Fatalf("Query = %T, want *ast.GQLStmt", s.Query)
+	}
+	if s.Loc.End != len(sql) {
+		t.Errorf("Loc.End = %d, want %d", s.Loc.End, len(sql))
+	}
+}
 
-func TestExportMetadata_RecognizedButUnsupported(t *testing.T) {
-	// EXPORT … METADATA is a valid BigQuery statement owned by the parser-utility
-	// node; this node routes it to the unsupported stub (recognized, not unknown).
-	_, errs := parseForTest("EXPORT TABLE METADATA FROM ds.t")
-	if len(errs) == 0 {
-		t.Fatal("want an error for the not-yet-supported EXPORT METADATA")
+// --- EXPORT METADATA ---
+
+func TestExportMetadata(t *testing.T) {
+	// EXPORT TABLE METADATA FROM <path> (export_metadata_statement). The statement
+	// is BigQuery-only; its compat row (export_metadata_statement/…) was judged
+	// accepted by the Spanner emulator, which takes the statement at dispatch and
+	// never parses it, so the grammar governs the shape.
+	n := parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t")
+	s, ok := n.(*ast.ExportMetadataStmt)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ExportMetadataStmt", n)
 	}
-	// It must be the not-yet-supported message, not an unknown-statement message.
-	if !strings.Contains(errs[0].Error(), "EXPORT METADATA") {
-		t.Errorf("error = %q, want it to mention EXPORT METADATA", errs[0].Error())
+	if s.Path == nil || strings.Join(s.Path.Parts, ".") != "ds.t" {
+		t.Errorf("Path = %+v, want ds.t", s.Path)
 	}
+
+	// The optional WITH CONNECTION and OPTIONS clauses, and a dashed path.
+	s = parseOneStmt(t, "EXPORT TABLE METADATA FROM my-project.ds.t WITH CONNECTION c OPTIONS(a = 1)").(*ast.ExportMetadataStmt)
+	if !s.HasConnection || s.ConnectionName != "c" {
+		t.Errorf("connection = (%v, %q), want (true, c)", s.HasConnection, s.ConnectionName)
+	}
+	if len(s.Options) != 1 {
+		t.Errorf("Options = %+v, want 1 entry", s.Options)
+	}
+	if got := strings.Join(s.Path.Parts, "."); got != "my-project.ds.t" {
+		t.Errorf("Path = %q, want my-project.ds.t", got)
+	}
+
+	// An OPTIONS value may embed a subquery; it is filled (so lineage can descend
+	// into it) and a malformed one fails the strict parse, like EXPORT DATA /
+	// EXPORT MODEL option values.
+	s = parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1))").(*ast.ExportMetadataStmt)
+	assertSubqueriesFilled(t, s)
+	assertReject(t, "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1 FROM a b c))")
+
+	// connection_clause takes a path_expression, so an unquoted dashed project is
+	// not a connection name; the backtick-quoted spelling is.
+	assertReject(t, "EXPORT TABLE METADATA FROM ds.t WITH CONNECTION my-project.us.c")
+	if s := parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t WITH CONNECTION `my-project.us.c`").(*ast.ExportMetadataStmt); s.ConnectionName != "my-project.us.c" {
+		t.Errorf("ConnectionName = %q, want my-project.us.c", s.ConnectionName)
+	}
+
+	// EXPORT TABLE FUNCTION METADATA is the grammar's own action error.
+	assertReject(t, "EXPORT TABLE FUNCTION METADATA FROM ds.t")
+	assertReject(t, "EXPORT METADATA FROM ds.t")
 }
 
 // --- Rejects ---

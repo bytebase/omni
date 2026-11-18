@@ -446,13 +446,27 @@ func TestParseBeginExceptionEnd(t *testing.T) {
 	}
 }
 
-// TestParseBeginExceptionEmptyRejected pins the fix for the empty-handler
-// over-accept (Codex review): opt_exception_handler's statement_list is non-empty
-// in the .g4 (unterminated_non_empty_statement_list ';'), so `EXCEPTION WHEN
-// ERROR THEN` with no handler statement is a syntax error. The Spanner emulator's
-// BeginStmt recognizer is shallow here (divergence #161), so the grammar governs.
-func TestParseBeginExceptionEmptyRejected(t *testing.T) {
-	assertReject(t, "BEGIN EXCEPTION WHEN ERROR THEN END")
+// TestParseBeginExceptionEmptyAccepted pins the grammar's empty handler: a
+// statement_list has an empty alternative (googlesql.tm:12749, GoogleSQL.g4:4949),
+// so `EXCEPTION WHEN ERROR THEN` with no handler statement — and a block with no
+// body at all — is valid GoogleSQL. The row it closes is
+// `begin_end_block(exception_handler)?/exception_handler` in testdata/compat.tsv;
+// the Spanner emulator feature-rejects every BeginStmt from dispatch (it accepts
+// `BEGIN zzz` too), so the grammar governs.
+func TestParseBeginExceptionEmptyAccepted(t *testing.T) {
+	n := parseOneScript(t, "BEGIN EXCEPTION WHEN ERROR THEN END")
+	b := n.(*ast.BeginEndBlock)
+	if !b.HasException {
+		t.Fatalf("HasException = false, want true")
+	}
+	if len(b.Exception) != 0 {
+		t.Fatalf("Exception = %+v, want an empty handler", b.Exception)
+	}
+	// An empty block body is valid too.
+	empty := parseOneScript(t, "BEGIN END")
+	if got := empty.(*ast.BeginEndBlock); len(got.Body) != 0 || got.HasException {
+		t.Errorf("BEGIN END = %+v, want an empty block with no handler", got)
+	}
 	// A non-empty handler is still accepted.
 	parseOneScript(t, "BEGIN EXCEPTION WHEN ERROR THEN SELECT 1; END")
 }
