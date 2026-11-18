@@ -283,6 +283,13 @@ func isDecimalInteger(s string) bool {
 // accepts: yyyyMMdd, yyyy-MM-dd, yyyyMMddHHmmss, yyyy-MM-dd HH:mm:ss, or the
 // same with microseconds.
 func validTaskStart(s string) bool {
+	if dot := strings.IndexByte(s, '.'); dot >= 0 {
+		// DateUtils's %f is capped at microseconds; Go's time.Parse would
+		// otherwise accept a longer fraction through a layout without one.
+		if frac := s[dot+1:]; len(frac) == 0 || len(frac) > 6 {
+			return false
+		}
+	}
 	layouts := []string{
 		"20060102", "06-01-02", "20060102150405",
 		"2006-01-02",
