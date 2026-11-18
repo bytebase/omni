@@ -120,6 +120,16 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 		if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
 			if p.peekNext().Kind == int('(') {
+				if p.cur.Kind == kwPARTITIONS {
+					mark := p.save()
+					p.advance() // consume PARTITIONS
+					p.advance() // consume '('
+					star := p.cur.Kind == int('*')
+					p.restore(mark)
+					if star {
+						return nil, p.syntaxErrorAtCur()
+					}
+				}
 				partitions, star, err := p.parseInsertPartition()
 				if err != nil {
 					return nil, err

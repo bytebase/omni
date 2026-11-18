@@ -168,6 +168,7 @@ func TestOptimizerTraceRejects(t *testing.T) {
 		"TRACE ALL SELECT 1 UNION (SELECT 2 INTO OUTFILE 'x')",
 		"DESC (SELECT 1 INTO OUTFILE 'x')",
 		"DESC SELECT 1 INTO OUTFILE 'x' UNION SELECT 2",
+		"CREATE MATERIALIZED VIEW mv AS (SELECT 1 INTO OUTFILE 'x')",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)
