@@ -1044,6 +1044,14 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 		if w.tablesOnly {
 			return nil
 		}
+		if len(fromRels) == 0 {
+			// A TVF source's output columns are unknowable (buildTableExpr returns no
+			// relation for a function call), so the clause's projection cannot be
+			// resolved: fail closed rather than report an empty column list, which a
+			// masking consumer would read as "nothing to mask".
+			w.failClosed(fmt.Errorf("a TABLE clause over a table-valued function has no resolvable output columns (fail closed)"))
+			return nil
+		}
 		return w.starProjColumns(allColumns(fromRels), nil)
 	}
 	return nil
@@ -1819,6 +1827,22 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 		w.walkOptionsSubqueries(n.Options)
 	case *ast.ModuleStmt:
 		w.walkOptionsSubqueries(n.Options)
+	case *ast.CallStmt:
+		// A CALL's tvf_argument list may name tables — positionally (`TABLE t`) or
+		// as a named argument whose value is a table_clause (`arg => TABLE t`) —
+		// and its argument expressions may embed subqueries.
+		for _, arg := range n.Args {
+			w.recordTVFArgument(arg)
+			if na, ok := arg.(*ast.NamedArg); ok {
+				w.walkSubqueriesOnly(na.Value)
+				continue
+			}
+			if _, ok := arg.(*ast.CallArg); ok {
+				// A clause, not an expression.
+				continue
+			}
+			w.walkSubqueriesOnly(arg)
+		}
 	case *ast.UndropStmt:
 		// UNDROP names a schema, not a table; its AS OF expression and OPTIONS
 		// values may embed subqueries.

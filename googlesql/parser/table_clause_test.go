@@ -76,6 +76,33 @@ func TestParseTableClause_Path(t *testing.T) {
 	if _, ok := so.Body.(*ast.SetOperation); !ok {
 		t.Errorf("body = %T, want *ast.SetOperation", so.Body)
 	}
+	// A TABLE primary is a query_primary, so a parenthesized query, a FROM source
+	// and an expression subquery can all hold one (the emulator parses each of
+	// these and stops at "TABLE statements are not supported").
+	expr := parseOneStmt(t, "SELECT (TABLE t)").(*ast.QueryStmt).Body.(*ast.SelectStmt).Items[0].Expr
+	sq, ok := expr.(*ast.SubqueryExpr)
+	if !ok {
+		t.Fatalf("select item = %T, want *ast.SubqueryExpr", expr)
+	}
+	if q, ok := sq.Query.(*ast.QueryStmt); !ok {
+		t.Errorf("subquery = %T, want *ast.QueryStmt", sq.Query)
+	} else if _, ok := q.Body.(*ast.TableClause); !ok {
+		t.Errorf("subquery body = %T, want *ast.TableClause", q.Body)
+	}
+	from := parseOneStmt(t, "SELECT * FROM (TABLE t) AS x").(*ast.QueryStmt)
+	sel := from.Body.(*ast.SelectStmt)
+	te, ok := sel.From[0].(*ast.TableExpr)
+	if !ok || te.Subquery == nil {
+		t.Fatalf("FROM = %+v, want a table_subquery", sel.From[0])
+	}
+	sub, ok := te.Subquery.(*ast.QueryStmt)
+	if !ok {
+		t.Fatalf("subquery = %T, want *ast.QueryStmt", te.Subquery)
+	}
+	if _, ok := sub.Body.(*ast.TableClause); !ok {
+		t.Errorf("subquery body = %T, want *ast.TableClause", sub.Body)
+	}
+
 	// A leading WITH clause takes a TABLE primary too.
 	with := parseOneStmt(t, "WITH c AS (SELECT 1 AS n) TABLE c").(*ast.QueryStmt)
 	if with.With == nil || len(with.With.CTEs) != 1 {

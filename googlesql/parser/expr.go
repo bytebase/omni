@@ -2292,19 +2292,19 @@ func (p *Parser) parseUnnestExpression() (ast.Node, error) {
 
 // atQueryStart reports whether the current token begins a query (so a following
 // '(' opens a parenthesized_query rather than a parenthesized expression). A
-// query head is SELECT, WITH, FROM (the FROM-query form), GRAPH (GQL), or a
-// nested '(' that itself opens a query. This is the disambiguator the grammar's
-// LALR(1) lookahead applies.
+// query head is SELECT, WITH, TABLE (the `TABLE t` query primary), FROM (the
+// FROM-query form), GRAPH (GQL), or a nested '(' that itself opens a query. This
+// is the disambiguator the grammar's LALR(1) lookahead applies.
 func (p *Parser) atQueryStart() bool {
 	switch p.cur.Type {
-	case kwSELECT, kwWITH, kwFROM, kwGRAPH:
+	case kwSELECT, kwWITH, kwTABLE, kwFROM, kwGRAPH:
 		return true
 	case int('('):
 		// A nested '(' could open a parenthesized query — but it could also open a
-		// parenthesized expression or a struct tuple. Peek one token: a SELECT/WITH
-		// after the nested '(' indicates a query.
+		// parenthesized expression or a struct tuple. Peek one token: a SELECT/WITH/
+		// TABLE after the nested '(' indicates a query.
 		switch p.peekNext().Type {
-		case kwSELECT, kwWITH, kwFROM:
+		case kwSELECT, kwWITH, kwTABLE, kwFROM:
 			return true
 		}
 		return false

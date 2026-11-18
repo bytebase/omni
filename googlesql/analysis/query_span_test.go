@@ -94,7 +94,9 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 		{"table clause", "TABLE t", DialectBigQuery, []string{"t"}},
 		{"table clause qualified", "TABLE ds.t", DialectBigQuery, []string{"ds.t"}},
 		{"table clause set op", "TABLE a UNION ALL TABLE b", DialectBigQuery, []string{"a", "b"}},
-		{"table clause tvf argument", "TABLE f(TABLE u)", DialectBigQuery, []string{"u"}},
+		// A TABLE primary inside a parenthesized query or a FROM subquery.
+		{"parenthesized table clause", "SELECT * FROM (TABLE t)", DialectBigQuery, []string{"t"}},
+		{"table clause in an expression subquery", "SELECT (TABLE t)", DialectBigQuery, []string{"t"}},
 		// EXPORT TABLE METADATA reads the metadata of the table it names.
 		{"export table metadata", "EXPORT TABLE METADATA FROM ds.t", DialectBigQuery, []string{"ds.t"}},
 		// An OPTIONS value's subquery is filled, so the table it reads is recorded.
@@ -113,6 +115,49 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 			got := tableNames(span)
 			if !eqStrings(got, tc.wantTables) {
 				t.Errorf("GetQuerySpan(%q) tables = %v, want %v", tc.sql, got, tc.wantTables)
+			}
+		})
+	}
+}
+
+// TestGetQuerySpan_TableClauseTVFFailsClosed pins the one TABLE clause shape whose
+// projection cannot be resolved: a table-valued function's output columns are
+// unknowable without a signature, so the span fails closed rather than reporting
+// no columns at all (which a masking consumer would read as nothing to mask).
+func TestGetQuerySpan_TableClauseTVFFailsClosed(t *testing.T) {
+	for _, sql := range []string{"TABLE f()", "TABLE f(TABLE u)", "TABLE f(a => 1)"} {
+		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			t.Errorf("GetQuerySpan(%q): want a fail-closed error, got none", sql)
+		}
+	}
+	// The same clause as a pipe set operation's operand still records its table
+	// argument (it resolves no projection there either, and fails closed is the
+	// surrounding statement's business).
+	if got := ClassifySQL("TABLE f(TABLE u)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL = %v, want Select", got)
+	}
+}
+
+// TestGetQuerySpan_CallTableArguments records the tables a CALL's tvf_argument
+// list names: positionally (`TABLE t`) and as a named table_clause argument
+// (`arg => TABLE t`).
+func TestGetQuerySpan_CallTableArguments(t *testing.T) {
+	for _, c := range []struct {
+		sql  string
+		want []string
+	}{
+		{"CALL p(TABLE u)", []string{"u"}},
+		{"CALL p(a => TABLE u)", []string{"u"}},
+		{"CALL p(1, TABLE u, b => TABLE v)", []string{"u", "v"}},
+		{"CALL p(a => INPUT TABLE)", nil},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
+			}
+			if got := tableNames(span); !eqStrings(got, c.want) {
+				t.Errorf("tables = %v, want %v", got, c.want)
 			}
 		})
 	}
