@@ -209,7 +209,7 @@ func (p *Parser) collectProcedureTail() {
 			continue
 		}
 		tok := p.advance() // p.cur is the token after this one
-		frame.step(tok.Kind, p.cur)
+		frame.step(tok, p.cur)
 	}
 }
 
@@ -328,7 +328,7 @@ func (p *Parser) collectProcedureBody() (string, ast.Loc, error) {
 			}
 		}
 		tok := p.advance() // p.cur is the token after this one
-		if frame.step(tok.Kind, p.cur) {
+		if frame.step(tok, p.cur) {
 			endTok = tok
 			break
 		}

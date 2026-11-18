@@ -242,6 +242,9 @@ func TestProcedureTextFollowsSplit(t *testing.T) {
 		"ALTER PROCEDURE a. (; SELECT 1;",
 		"ALTER PROCEDURE SELECT (; SELECT 1;",
 		"ALTER PROCEDURE a(x; SELECT 1;",
+		// END CASE with no CASE open closes what it can, here the block, so
+		// the statement after it keeps its own segment.
+		"BEGIN SELECT 1; END CASE; SELECT 2;",
 	} {
 		if got := Split(sql); len(got) != 2 {
 			t.Errorf("Split(%q) = %+v, want 2 segments", sql, got)
@@ -266,6 +269,14 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		"CREATE PROCEDURE p() BEGIN SELECT t.case FROM t; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN SELECT t.begin FROM t; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN SELECT t.end FROM t; END; SELECT 2;",
+		// So are BEGIN and END standing inside a statement, since both are
+		// non-reserved words Doris reads as identifiers.
+		"CREATE PROCEDURE p() BEGIN SELECT begin FROM t; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT end FROM t; END; SELECT 2;",
+		// A BEGIN a control-flow statement puts before its body still opens a
+		// block.
+		"CREATE PROCEDURE p() BEGIN IF a THEN BEGIN SELECT 1; END; END IF; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN LOOP BEGIN SELECT 1; END; END LOOP; END; SELECT 2;",
 	} {
 		segments := Split(sql)
 		if len(segments) != 2 {

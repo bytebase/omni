@@ -193,7 +193,7 @@ func SplitAll(input string) []Segment {
 			}
 
 		case stateInBlock:
-			if frame.step(tok.Kind, peekToken()) {
+			if frame.step(tok, peekToken()) {
 				state = stateTop
 				frame.reset()
 			}
@@ -232,15 +232,21 @@ func isDorisTCLBeginFollower(tok Token) bool {
 }
 
 // blockFrame follows the text inside the compound block a BEGIN opened. The
-// constructs it can hold are ordered: a BEGIN block, and a CASE expression or
-// statement, which ends at a bare END (SELECT CASE WHEN 1 THEN 2 END) or at END
-// CASE. An END closes the innermost one, so a CASE branch holding a nested BEGIN
-// gives that block's END to the block, and the frame says when the outer block
-// has closed.
+// constructs it can hold are ordered on a stack: a BEGIN block, and a CASE
+// expression or statement, which ends at a bare END (SELECT CASE WHEN 1 THEN 2
+// END) or at END CASE. An END closes the innermost one, so a CASE branch holding
+// a nested BEGIN gives that block's END to the block, and the frame says when
+// the outer block has closed.
+//
+// BEGIN and END are also non-reserved words Doris reads as identifiers (SELECT
+// begin FROM t), so the frame reads them as constructs only where one can
+// stand: at the start of a statement (after a separator, after the block's own
+// BEGIN, or after the word a control-flow statement puts before its body) or,
+// for CASE, anywhere but after a dot.
 type blockFrame struct {
 	stack   []blockConstruct // innermost last
 	endCase bool             // the last token was the END of an END CASE
-	prev    TokenKind        // the last token read
+	prev    Token            // the last token read
 }
 
 // blockConstruct is one of the constructs an END inside a block can close.
@@ -252,39 +258,54 @@ const (
 )
 
 // open starts the frame on the BEGIN the caller has read.
-func (b *blockFrame) open() { b.stack = append(b.stack[:0], blockBegin) }
+func (b *blockFrame) open() {
+	b.stack = append(b.stack[:0], blockBegin)
+	b.prev = Token{Kind: kwBEGIN}
+}
 
-func (b *blockFrame) reset() { b.stack = b.stack[:0] }
+func (b *blockFrame) reset() { *b = blockFrame{} }
 
 // empty reports whether the block the frame started on has closed.
 func (b *blockFrame) empty() bool { return len(b.stack) == 0 }
 
 // step reads one token of the block and reports whether it closed it. follower
 // is the token after it.
-func (b *blockFrame) step(kind TokenKind, follower Token) bool {
-	defer func() { b.prev = kind }()
-	if suppressed := b.endCase; suppressed {
+func (b *blockFrame) step(tok Token, follower Token) bool {
+	defer func() { b.prev = tok }()
+	kind := tok.Kind
+	if b.endCase {
 		b.endCase = false
 		if kind == kwCASE {
 			// The CASE that names what END CASE closed.
 			return false
 		}
 	}
-	// A qualified name is a field: SELECT t.case, t.begin and t.end from t name
-	// columns, and open and close nothing.
-	if b.prev == int('.') {
+	if b.prev.Kind == int('.') {
+		// A qualified name: SELECT t.case, t.begin and t.end name fields.
 		return false
 	}
 	switch kind {
 	case kwCASE:
 		b.stack = append(b.stack, blockCase)
 	case kwBEGIN:
-		b.stack = append(b.stack, blockBegin)
+		if b.startsStatement() {
+			b.stack = append(b.stack, blockBegin)
+		}
 	case kwEND:
+		if b.top() == blockCase && follower.Kind != kwCASE {
+			// An expression's END closes the CASE wherever it stands.
+			b.pop()
+			return b.empty()
+		}
 		if follower.Kind == kwCASE {
-			// END CASE closes the CASE, and the CASE after it names it.
+			// END CASE closes the CASE, and the CASE after it names it. With
+			// no CASE open it closes whatever it can: a block.
 			b.pop()
 			b.endCase = true
+			return b.empty()
+		}
+		if !b.startsStatement() {
+			// An END that names a column (SELECT end FROM t) closes nothing.
 			return false
 		}
 		if isControlFlowEndFollower(follower) {
@@ -296,6 +317,30 @@ func (b *blockFrame) step(kind TokenKind, follower Token) bool {
 		return b.empty()
 	}
 	return false
+}
+
+// startsStatement reports whether a construct can begin where the frame stands:
+// after a separator, after the block's own BEGIN, or after the word a
+// control-flow statement puts before its body (THEN, ELSE, DO, LOOP, REPEAT).
+func (b *blockFrame) startsStatement() bool {
+	switch b.prev.Kind {
+	case kwBEGIN, int(';'), kwTHEN, kwELSE, kwDO:
+		return true
+	case tokIdent:
+		switch strings.ToUpper(b.prev.Str) {
+		case "LOOP", "REPEAT":
+			return true
+		}
+	}
+	return false
+}
+
+// top returns the innermost open construct.
+func (b *blockFrame) top() blockConstruct {
+	if len(b.stack) == 0 {
+		return blockBegin
+	}
+	return b.stack[len(b.stack)-1]
 }
 
 // pop ends the innermost construct: an END closes the last thing opened.
