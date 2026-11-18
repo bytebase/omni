@@ -110,11 +110,18 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 		return nil, err
 	}
 
+	defaultDatabase := opts.DefaultDatabase
+	if submit, ok := node.(*ast.SubmitTaskStmt); ok {
+		// A qualified task name selects the database its statement runs in.
+		if taskDB, _ := objectName(submit.Name, ""); taskDB != "" {
+			defaultDatabase = taskDB
+		}
+	}
 	sources := make(SourceColumnSet, len(span.AccessTables))
 	for _, table := range span.AccessTables {
 		database := table.Database
 		if database == "" {
-			database = opts.DefaultDatabase
+			database = defaultDatabase
 		}
 		sources[ColumnResource{Database: database, Table: table.Table}] = true
 	}

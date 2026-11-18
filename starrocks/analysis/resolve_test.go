@@ -115,6 +115,11 @@ func TestResolveQuerySpanTables(t *testing.T) {
 			want:      []string{"testdb.t1", "testdb.t2"},
 		},
 		{
+			name:      "a submitted statement runs in the task database",
+			statement: "SUBMIT TASK other.job AS INSERT INTO dst SELECT * FROM src",
+			want:      []string{"other.src"},
+		},
+		{
 			name:      "subquery in WHERE",
 			statement: "SELECT a FROM t WHERE b IN (SELECT b FROM other)",
 			want:      []string{"testdb.t", "testdb.other"},

@@ -657,8 +657,12 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 			stmt.KeyDesc = keyDesc
-			// Optional CLUSTER BY (cols) -- skip for now
+			// Optional CLUSTER BY (cols) -- skip for now. CTAS's keyDesc ends
+			// at its identifier list, so strictCTAS refuses the suffix.
 			if p.cur.Kind == kwCLUSTER {
+				if p.strictCTAS {
+					return p.syntaxErrorAtCur()
+				}
 				p.advance()
 				if _, err := p.expect(kwBY); err != nil {
 					return err
