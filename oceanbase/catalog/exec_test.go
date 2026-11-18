@@ -191,6 +191,7 @@ func TestExecMaterializedViewLogState(t *testing.T) {
 		wantErr bool
 	}{
 		{"CREATE MATERIALIZED VIEW LOG ON t;", false},
+		{"CREATE TABLE IF NOT EXISTS t (a INT);", false},
 		{"CREATE MATERIALIZED VIEW LOG ON t;", true},
 		{"CREATE OR REPLACE MATERIALIZED VIEW LOG ON t;", false},
 		{"ALTER MATERIALIZED VIEW LOG ON t NOPARALLEL;", false},

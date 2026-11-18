@@ -514,6 +514,10 @@ func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
 		b.databaseNeeds(to.db, dest.Schema, to.rng) // 1049; 1025 on 5.7
 	}
 	b.needFree(relKey(to.db, to.name), to.rng, to.written, relTable) // 1050
+	if state, ok := b.w.materializedLogs[relKey(r.db, r.name)]; ok {
+		delete(b.w.materializedLogs, relKey(r.db, r.name))
+		b.w.materializedLogs[relKey(to.db, to.name)] = state
+	}
 	b.moveTable(r, to, relTable)
 	return true
 }
@@ -656,6 +660,10 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 		}
 		switch {
 		case f == walk.Present && kind == relView:
+		case f == walk.Present && kind == "" && b.w.materialized[k]:
+			// DROP TABLE of a materialized view is a no-op: the object stays,
+			// with its marker.
+			continue
 		case f == walk.Present && kind == "", f == walk.Unknown && v.IfExists:
 			// It may be a view, which DROP TABLE IF EXISTS leaves with a
 			// note (verified).
