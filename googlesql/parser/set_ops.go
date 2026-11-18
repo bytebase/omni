@@ -106,6 +106,13 @@ func (p *Parser) tryParseSetOpMetadata() (*ast.SetOperation, bool, error) {
 			p.advance() // OUTER
 			outerMode = "OUTER"
 		}
+	case kwINNER:
+		// INNER is a set-operation propagation mode when a set operator
+		// follows; otherwise it is a join's INNER.
+		if p.peekNext().Type == kwUNION || p.peekNext().Type == kwINTERSECT || p.peekNext().Type == kwEXCEPT {
+			p.advance() // INNER
+			outerMode = "INNER"
+		}
 	}
 
 	var op ast.SetOp

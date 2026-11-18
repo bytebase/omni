@@ -132,6 +132,9 @@ type AlterTableStmt struct {
 
 	// SET AUTHORIZATION
 	Authorization *Principal
+	// EntityKind records the owned entity kind of the generic
+	// `ALTER <kind> name SET AUTHORIZATION` form.
+	EntityKind string
 
 	// SET PROPERTIES
 	Properties []*Property

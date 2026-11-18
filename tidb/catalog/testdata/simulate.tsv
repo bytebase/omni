@@ -432,9 +432,9 @@ ok	1113	engine	one_table@missing	CreateTableOptionListOpt/TableOptionList	CREATE
 1146	1146	engine	one_table@missing	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1146	1146	engine	one_table@missing	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
-ok	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
-ok	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
-ok	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
+1505	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
+1505	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
+1505	1505	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT	ALTER TABLE ident COMPACT
 1146	1146	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT!drop-3	ALTER TABLE COMPACT
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_TIFLASH_REPLICA	ALTER TABLE ident COMPACT TIFLASH REPLICA
@@ -445,12 +445,12 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AttributesOpt/ATTRIBUTES_
 ok	8237	engine	one_table@table	AttributesOpt/ATTRIBUTES_EqOpt_stringLit	ALTER TABLE ident ATTRIBUTES 'binary'
 ok	8200	engine	one_table@table	StatsOptionsOpt/STATS_OPTIONS_EqOpt_DEFAULT	ALTER TABLE ident STATS_OPTIONS DEFAULT
 ok	8200	engine	one_table@table	StatsOptionsOpt/STATS_OPTIONS_EqOpt_stringLit	ALTER TABLE ident STATS_OPTIONS 'binary'
-ok	1505	engine	one_table@table	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
+1505	1505	engine	one_table@table	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
 ok:b23b9790ed01	ok:b23b9790ed01	engine	one_table@table	AlterTableSpecSingleOpt/REMOVE_PARTITIONING!swap	ALTER TABLE ident RENAME PARTITIONING
-error	1505	engine	one_table@table	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
+1505	1505	engine	one_table@table	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
 ok	8200	engine	one_table@table	AlterTableSpecSingleOpt/SPLIT_MAXVALUE_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 ok	8200	engine	one_table@table	AlterTableSpecSingleOpt/MERGE_FIRST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident MERGE FIRST PARTITION LESS THAN(ident)
-ok	1505	engine	one_table@table	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
+1505	1505	engine	one_table@table	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpecSingleOpt/PARTITION_Identifier_PartDefOptionList	ALTER TABLE ident PARTITION ident
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpecSingleOpt/REMOVE_TTL	ALTER TABLE ident REMOVE TTL
 ok:d4886c0c2ee6	ok:d4886c0c2ee6	engine	one_table@table	AlterTableSpecSingleOpt/REMOVE_TTL!swap	ALTER TABLE ident RENAME TTL
@@ -463,19 +463,19 @@ ok:c90f337b9db6	ok:c90f337b9db6	engine	one_table@table	AlterTableSpec/ADD_Column
 ok:c90f337b9db6	ok:c90f337b9db6	engine	one_table@table	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
 1072	1072	engine	one_table@table	AlterTableSpec/ADD_ConstraintVectorIndex!drop-2	ALTER TABLE ident ADD INDEX(ident)
-error	1505	engine	one_table@table	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
-error	1505	engine	one_table@table	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
-ok	1505	engine	one_table@table	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+1505	1505	engine	one_table@table	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
+1505	1505	engine	one_table@table	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
+1505	1505	engine	one_table@table	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
 ok	1105	engine	one_table@table	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
 ok	8200	engine	one_table@table	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
-error	1505	engine	one_table@table	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
+1505	1505	engine	one_table@table	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
 1091	1091	engine	one_table@table	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt	ALTER TABLE ident DROP ident
 8200	8200	engine	one_table@table	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
-error	1505	engine	one_table@table	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
-ok	1505	engine	one_table@table	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
+1505	1505	engine	one_table@table	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
+1505	1505	engine	one_table@table	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 ok	1105	engine	one_table@table	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
-error	1505	engine	one_table@table	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
-error	1505	engine	one_table@table	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	one_table@table	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
+1505	1505	engine	one_table@table	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
 ok	8200	engine	one_table@table	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 ok	8200	engine	one_table@table	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 ok	8200	engine	one_table@table	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
@@ -511,10 +511,10 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/DROP_Check
 1061	1176	engine	one_table@table	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok	ok:d2478a522161	engine	one_table@table	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterTableSpec/NOCACHE	ALTER TABLE ident NOCACHE
-error	1505	engine	one_table@table	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
+1505	1505	engine	one_table@table	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
 ok	8200	engine	one_table@table	AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident CHECK PARTITION ident
-error	1505	engine	one_table@table	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
-error	1505	engine	one_table@table	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
+1505	1505	engine	one_table@table	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
+1505	1505	engine	one_table@table	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
 1068	8200	engine	one_table@table	WithClustered/CLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED
 1068	8200	engine	one_table@table	WithClustered/NONCLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY NONCLUSTERED
 1068	8200	engine	one_table@table	GlobalOrLocalOpt/%empty	ALTER TABLE ident ADD ident TINYINT KEY
@@ -632,10 +632,10 @@ ok	ok:acad9839805b	engine	one_table@table	PartitionKeyAlgorithmOpt/ALGORITHM_eq_
 8200	1054	engine	one_table@table	MaxValPartOpt/MAXVALUE_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) MAXVALUE PARTITION
 8200	1054	engine	one_table@table	FirstAndLastPartOpt/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_LAST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) FIRST PARTITION LESS THAN(ident) LAST PARTITION LESS THAN(ident)
 ok	ok:acad9839805b	engine	one_table@table	LinearOpt/LINEAR	ALTER TABLE ident PARTITION BY LINEAR KEY()
-error	1505	engine	one_table@table	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
-error	1505	engine	one_table@table	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
-error	1505	engine	one_table@table	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
-error	1505	engine	one_table@table	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
+1505	1505	engine	one_table@table	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
+1505	1505	engine	one_table@table	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
+1505	1505	engine	one_table@table	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
+1505	1505	engine	one_table@table	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
 ok	1105	engine	one_table@table	PartDefOptionList/PartDefOptionList_PartDefOption	ALTER TABLE ident PARTITION ident COMMENT 'binary'
 ok	1286	engine	one_table@table	PartDefOption/ENGINE_EqOpt_StringName	ALTER TABLE ident ENGINE 'binary'
 ok	1286	engine	one_table@table	PartDefOption/STORAGE_ENGINE_EqOpt_StringName	ALTER TABLE ident STORAGE ENGINE 'binary'
@@ -647,12 +647,12 @@ ok	8200	engine	one_table@table	PartDefOption/MIN_ROWS_EqOpt_LengthNum	ALTER TABL
 ok	8200	engine	one_table@table	PartDefOption/TABLESPACE_EqOpt_Identifier	ALTER TABLE ident TABLESPACE ident
 ok	8200	engine	one_table@table	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TABLE ident NODEGROUP 1
 8241	8239	engine	one_table@table	PartDefOption/PlacementPolicyOption	ALTER TABLE ident PLACEMENT POLICY 'binary'
-error	1505	engine	one_table@table	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@table	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
-error	1505	engine	one_table@table	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
-error	1505	engine	one_table@table	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
-error	1505	engine	one_table@table	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
-error	1505	engine	one_table@table	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
+1505	1505	engine	one_table@table	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@table	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
+1505	1505	engine	one_table@table	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
+1505	1505	engine	one_table@table	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
+1505	1505	engine	one_table@table	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
+1505	1505	engine	one_table@table	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
 1050	1113	engine	one_table@table	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
 1050	1113	engine	one_table@table	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
 1050	1113	engine	one_table@table	AsOpt/AS	CREATE TABLE ident AS
@@ -681,14 +681,14 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropTableStmt/DROP_OptTem
 ok	1347	engine	one_table@table	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	RestrictOrCascadeOpt/CASCADE	DROP TABLE ident CASCADE
-error	1505	engine	one_table@table	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
-error	1505	engine	one_table@table	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
-error	1505	engine	one_table@table	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
-error	1505	engine	one_table@table	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
-error	1505	engine	one_table@table	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
-error	1505	engine	one_table@table	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
-error	1505	engine	one_table@table	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
-error	1505	engine	one_table@table	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
+1505	1505	engine	one_table@table	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
+1505	1505	engine	one_table@table	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
+1505	1505	engine	one_table@table	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
+1505	1505	engine	one_table@table	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
+1505	1505	engine	one_table@table	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
+1505	1505	engine	one_table@table	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
+1505	1505	engine	one_table@table	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
+1505	1505	engine	one_table@table	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	IgnoreOptional/IGNORE	ALTER IGNORE TABLE ident
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	IndexName/Identifier	ALTER TABLE ident ADD FULLTEXT ident(ident)
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	IndexOptionList/IndexOptionList_IndexOption	ALTER TABLE ident ADD FULLTEXT(ident) VISIBLE
@@ -863,9 +863,9 @@ ok:fa9bcc04d504	ok:fa9bcc04d504	engine	one_table@table	TextString/hexLit	ALTER T
 ok:fa9bcc04d504	ok:fa9bcc04d504	engine	one_table@table	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 ok	1291	engine	one_table@table	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
-ok	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
-ok	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
-ok	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
+1505	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
+1505	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
+1505	1505	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT	ALTER TABLE ident COMPACT
 1146	1146	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT!drop-3	ALTER TABLE COMPACT
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_TIFLASH_REPLICA	ALTER TABLE ident COMPACT TIFLASH REPLICA
@@ -876,12 +876,12 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AttributesOpt/ATTRIBUTES
 ok	8237	engine	one_table@column	AttributesOpt/ATTRIBUTES_EqOpt_stringLit	ALTER TABLE ident ATTRIBUTES 'binary'
 ok	8200	engine	one_table@column	StatsOptionsOpt/STATS_OPTIONS_EqOpt_DEFAULT	ALTER TABLE ident STATS_OPTIONS DEFAULT
 ok	8200	engine	one_table@column	StatsOptionsOpt/STATS_OPTIONS_EqOpt_stringLit	ALTER TABLE ident STATS_OPTIONS 'binary'
-ok	1505	engine	one_table@column	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
+1505	1505	engine	one_table@column	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
 ok:e8962278a18f	ok:e8962278a18f	engine	one_table@column	AlterTableSpecSingleOpt/REMOVE_PARTITIONING!swap	ALTER TABLE ident RENAME PARTITIONING
-error	1505	engine	one_table@column	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
+1505	1505	engine	one_table@column	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
 ok	8200	engine	one_table@column	AlterTableSpecSingleOpt/SPLIT_MAXVALUE_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 ok	8200	engine	one_table@column	AlterTableSpecSingleOpt/MERGE_FIRST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident MERGE FIRST PARTITION LESS THAN(ident)
-ok	1505	engine	one_table@column	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
+1505	1505	engine	one_table@column	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpecSingleOpt/PARTITION_Identifier_PartDefOptionList	ALTER TABLE ident PARTITION ident
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpecSingleOpt/REMOVE_TTL	ALTER TABLE ident REMOVE TTL
 ok:26372f93fd08	ok:26372f93fd08	engine	one_table@column	AlterTableSpecSingleOpt/REMOVE_TTL!swap	ALTER TABLE ident RENAME TTL
@@ -894,19 +894,19 @@ ok	8200	engine	one_table@column	AlterTableSpec/CONVERT_TO_CharsetKw_CharsetName_
 1060	1060	engine	one_table@column	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
 ok:66e9306595c8	ok:66e9306595c8	engine	one_table@column	AlterTableSpec/ADD_ConstraintVectorIndex!drop-2	ALTER TABLE ident ADD INDEX(ident)
-error	1505	engine	one_table@column	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
-error	1505	engine	one_table@column	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
-ok	1505	engine	one_table@column	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+1505	1505	engine	one_table@column	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
+1505	1505	engine	one_table@column	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
+1505	1505	engine	one_table@column	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
 ok	1105	engine	one_table@column	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
 ok	8200	engine	one_table@column	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
-error	1505	engine	one_table@column	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
+1505	1505	engine	one_table@column	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
 ok:37aac6b805e7	ok:37aac6b805e7	engine	one_table@column	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt	ALTER TABLE ident DROP ident
 8200	8200	engine	one_table@column	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
-error	1505	engine	one_table@column	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
-ok	1505	engine	one_table@column	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
+1505	1505	engine	one_table@column	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
+1505	1505	engine	one_table@column	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 ok	1105	engine	one_table@column	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
-error	1505	engine	one_table@column	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
-error	1505	engine	one_table@column	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	one_table@column	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
+1505	1505	engine	one_table@column	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
 ok	8200	engine	one_table@column	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 ok	8200	engine	one_table@column	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 ok	8200	engine	one_table@column	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
@@ -942,10 +942,10 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/DROP_Chec
 1061	1176	engine	one_table@column	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok	ok:bcbcd7436311	engine	one_table@column	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterTableSpec/NOCACHE	ALTER TABLE ident NOCACHE
-error	1505	engine	one_table@column	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
+1505	1505	engine	one_table@column	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
 ok	8200	engine	one_table@column	AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident CHECK PARTITION ident
-error	1505	engine	one_table@column	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
-error	1505	engine	one_table@column	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
+1505	1505	engine	one_table@column	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
+1505	1505	engine	one_table@column	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
 1060	8200	engine	one_table@column	WithClustered/CLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED
 1060	8200	engine	one_table@column	WithClustered/NONCLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY NONCLUSTERED
 1060	8200	engine	one_table@column	GlobalOrLocalOpt/%empty	ALTER TABLE ident ADD ident TINYINT KEY
@@ -1063,10 +1063,10 @@ ok	ok:c58d9662e615	engine	one_table@column	PartitionKeyAlgorithmOpt/ALGORITHM_eq
 8200	8200	engine	one_table@column	MaxValPartOpt/MAXVALUE_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) MAXVALUE PARTITION
 8200	1054	engine	one_table@column	FirstAndLastPartOpt/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_LAST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) FIRST PARTITION LESS THAN(ident) LAST PARTITION LESS THAN(ident)
 ok	ok:c58d9662e615	engine	one_table@column	LinearOpt/LINEAR	ALTER TABLE ident PARTITION BY LINEAR KEY()
-error	1505	engine	one_table@column	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
-error	1505	engine	one_table@column	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
-error	1505	engine	one_table@column	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
-error	1505	engine	one_table@column	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
+1505	1505	engine	one_table@column	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
+1505	1505	engine	one_table@column	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
+1505	1505	engine	one_table@column	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
+1505	1505	engine	one_table@column	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
 ok	1105	engine	one_table@column	PartDefOptionList/PartDefOptionList_PartDefOption	ALTER TABLE ident PARTITION ident COMMENT 'binary'
 ok	1286	engine	one_table@column	PartDefOption/ENGINE_EqOpt_StringName	ALTER TABLE ident ENGINE 'binary'
 ok	1286	engine	one_table@column	PartDefOption/STORAGE_ENGINE_EqOpt_StringName	ALTER TABLE ident STORAGE ENGINE 'binary'
@@ -1078,12 +1078,12 @@ ok	8200	engine	one_table@column	PartDefOption/MIN_ROWS_EqOpt_LengthNum	ALTER TAB
 ok	8200	engine	one_table@column	PartDefOption/TABLESPACE_EqOpt_Identifier	ALTER TABLE ident TABLESPACE ident
 ok	8200	engine	one_table@column	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TABLE ident NODEGROUP 1
 8241	8239	engine	one_table@column	PartDefOption/PlacementPolicyOption	ALTER TABLE ident PLACEMENT POLICY 'binary'
-error	1505	engine	one_table@column	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@column	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
-error	1505	engine	one_table@column	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
-error	1505	engine	one_table@column	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
-error	1505	engine	one_table@column	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
-error	1505	engine	one_table@column	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
+1505	1505	engine	one_table@column	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@column	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
+1505	1505	engine	one_table@column	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
+1505	1505	engine	one_table@column	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
+1505	1505	engine	one_table@column	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
+1505	1505	engine	one_table@column	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
 1050	1113	engine	one_table@column	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
 1050	1113	engine	one_table@column	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
 1050	1113	engine	one_table@column	AsOpt/AS	CREATE TABLE ident AS
@@ -1112,14 +1112,14 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropTableStmt/DROP_OptTe
 ok	1347	engine	one_table@column	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	RestrictOrCascadeOpt/CASCADE	DROP TABLE ident CASCADE
-error	1505	engine	one_table@column	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
-error	1505	engine	one_table@column	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
-error	1505	engine	one_table@column	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
-error	1505	engine	one_table@column	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
-error	1505	engine	one_table@column	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
-error	1505	engine	one_table@column	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
-error	1505	engine	one_table@column	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
-error	1505	engine	one_table@column	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
+1505	1505	engine	one_table@column	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
+1505	1505	engine	one_table@column	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
+1505	1505	engine	one_table@column	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
+1505	1505	engine	one_table@column	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
+1505	1505	engine	one_table@column	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
+1505	1505	engine	one_table@column	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
+1505	1505	engine	one_table@column	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
+1505	1505	engine	one_table@column	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	IgnoreOptional/IGNORE	ALTER IGNORE TABLE ident
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	IndexName/Identifier	ALTER TABLE ident ADD FULLTEXT ident(ident)
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	IndexOptionList/IndexOptionList_IndexOption	ALTER TABLE ident ADD FULLTEXT(ident) VISIBLE
@@ -1294,9 +1294,9 @@ ok	8200	engine	one_table@column	OptCollate/COLLATE_CollationName	ALTER TABLE ide
 1060	1060	engine	one_table@column	TextString/bitLit	ALTER TABLE ident ADD ident ENUM(b'1')
 1060	1060	engine	one_table@column	TextStringList/TextStringList_,_TextString	ALTER TABLE ident ADD ident ENUM('binary', 'binary')
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_AlterTableSpecListOpt_AlterTableSpecSingleOpt	ALTER TABLE ident
-ok	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
-ok	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
-ok	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
+1505	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident
+1505	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt	ALTER TABLE ident ANALYZE PARTITION ident INDEX
+1505	1505	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_ANALYZE_PARTITION_PartitionNameList_INDEX_IndexNameList_AnalyzeOptionListOpt!insert	ALTER TABLE ident ANALYZE PARTITION ident INDEX zzz
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT	ALTER TABLE ident COMPACT
 1146	1146	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT!drop-3	ALTER TABLE COMPACT
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableStmt/ALTER_IgnoreOptional_TABLE_TableName_COMPACT_TIFLASH_REPLICA	ALTER TABLE ident COMPACT TIFLASH REPLICA
@@ -1307,12 +1307,12 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AttributesOpt/ATTRIBUTES_
 ok	8237	engine	one_table@index	AttributesOpt/ATTRIBUTES_EqOpt_stringLit	ALTER TABLE ident ATTRIBUTES 'binary'
 ok	8200	engine	one_table@index	StatsOptionsOpt/STATS_OPTIONS_EqOpt_DEFAULT	ALTER TABLE ident STATS_OPTIONS DEFAULT
 ok	8200	engine	one_table@index	StatsOptionsOpt/STATS_OPTIONS_EqOpt_stringLit	ALTER TABLE ident STATS_OPTIONS 'binary'
-ok	1505	engine	one_table@index	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
+1505	1505	engine	one_table@index	AlterTableSpecSingleOpt/REMOVE_PARTITIONING	ALTER TABLE ident REMOVE PARTITIONING
 ok:8e99023d1c30	ok:8e99023d1c30	engine	one_table@index	AlterTableSpecSingleOpt/REMOVE_PARTITIONING!swap	ALTER TABLE ident RENAME PARTITIONING
-error	1505	engine	one_table@index	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
+1505	1505	engine	one_table@index	AlterTableSpecSingleOpt/REORGANIZE_PARTITION_NoWriteToBinLogAliasOpt_ReorganizePartitionRuleOpt	ALTER TABLE ident REORGANIZE PARTITION
 ok	8200	engine	one_table@index	AlterTableSpecSingleOpt/SPLIT_MAXVALUE_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident SPLIT MAXVALUE PARTITION LESS THAN(ident)
 ok	8200	engine	one_table@index	AlterTableSpecSingleOpt/MERGE_FIRST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident MERGE FIRST PARTITION LESS THAN(ident)
-ok	1505	engine	one_table@index	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
+1505	1505	engine	one_table@index	AlterTableSpecSingleOpt/PARTITION_Identifier_AttributesOpt	ALTER TABLE ident PARTITION ident ATTRIBUTES DEFAULT
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpecSingleOpt/PARTITION_Identifier_PartDefOptionList	ALTER TABLE ident PARTITION ident
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpecSingleOpt/REMOVE_TTL	ALTER TABLE ident REMOVE TTL
 ok:833341db46ce	ok:833341db46ce	engine	one_table@index	AlterTableSpecSingleOpt/REMOVE_TTL!swap	ALTER TABLE ident RENAME TTL
@@ -1325,19 +1325,19 @@ ok	8200	engine	one_table@index	AlterTableSpec/CONVERT_TO_CharsetKw_CharsetName_O
 1060	1060	engine	one_table@index	AlterTableSpec/ADD_ColumnKeywordOpt_IfNotExists_(_TableElementList_)	ALTER TABLE ident ADD(ident TINYINT)
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/ADD_Constraint	ALTER TABLE ident ADD FULLTEXT(ident)
 ok:d93962c1a6fd	ok:d93962c1a6fd	engine	one_table@index	AlterTableSpec/ADD_ConstraintVectorIndex!drop-2	ALTER TABLE ident ADD INDEX(ident)
-error	1505	engine	one_table@index	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
-error	1505	engine	one_table@index	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
-ok	1505	engine	one_table@index	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
+1505	1505	engine	one_table@index	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PartitionDefinitionListOpt	ALTER TABLE ident ADD PARTITION
+1505	1505	engine	one_table@index	AlterTableSpec/ADD_PARTITION_IfNotExists_NoWriteToBinLogAliasOpt_PARTITIONS_NUM	ALTER TABLE ident ADD PARTITION PARTITIONS 1
+1505	1505	engine	one_table@index	AlterTableSpec/LAST_PARTITION_LESS_THAN_(_BitExpr_)_NoWriteToBinLogAliasOpt	ALTER TABLE ident LAST PARTITION LESS THAN(ident)
 ok	1105	engine	one_table@index	AlterTableSpec/ADD_STATS_EXTENDED_IfNotExists_Identifier_StatsType_(_ColumnNameList_)	ALTER TABLE ident ADD STATS_EXTENDED ident CARDINALITY(ident)
 ok	8200	engine	one_table@index	AlterTableSpec/CHECK_PARTITION_AllOrPartitionNameList	ALTER TABLE ident CHECK PARTITION ALL
-error	1505	engine	one_table@index	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
+1505	1505	engine	one_table@index	AlterTableSpec/COALESCE_PARTITION_NoWriteToBinLogAliasOpt_NUM	ALTER TABLE ident COALESCE PARTITION 1
 ok:13661c7ab487	ok:13661c7ab487	engine	one_table@index	AlterTableSpec/DROP_ColumnKeywordOpt_IfExists_ColumnName_RestrictOrCascadeOpt	ALTER TABLE ident DROP ident
 8200	8200	engine	one_table@index	AlterTableSpec/DROP_PRIMARY_KEY	ALTER TABLE ident DROP PRIMARY KEY
-error	1505	engine	one_table@index	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
-ok	1505	engine	one_table@index	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
+1505	1505	engine	one_table@index	AlterTableSpec/DROP_PARTITION_IfExists_PartitionNameList	ALTER TABLE ident DROP PARTITION ident
+1505	1505	engine	one_table@index	AlterTableSpec/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_IfExists	ALTER TABLE ident FIRST PARTITION LESS THAN(ident)
 ok	1105	engine	one_table@index	AlterTableSpec/DROP_STATS_EXTENDED_IfExists_Identifier	ALTER TABLE ident DROP STATS_EXTENDED ident
-error	1505	engine	one_table@index	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
-error	1505	engine	one_table@index	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
+1505	1505	engine	one_table@index	AlterTableSpec/EXCHANGE_PARTITION_Identifier_WITH_TABLE_TableName_WithValidationOpt	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident
+1505	1505	engine	one_table@index	AlterTableSpec/TRUNCATE_PARTITION_AllOrPartitionNameList	ALTER TABLE ident TRUNCATE PARTITION ALL
 ok	8200	engine	one_table@index	AlterTableSpec/OPTIMIZE_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident OPTIMIZE PARTITION ALL
 ok	8200	engine	one_table@index	AlterTableSpec/REPAIR_PARTITION_NoWriteToBinLogAliasOpt_AllOrPartitionNameList	ALTER TABLE ident REPAIR PARTITION ALL
 ok	8200	engine	one_table@index	AlterTableSpec/IMPORT_PARTITION_AllOrPartitionNameList_TABLESPACE	ALTER TABLE ident IMPORT PARTITION ALL TABLESPACE
@@ -1373,10 +1373,10 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/DROP_Check
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/ALTER_INDEX_Identifier_IndexInvisible	ALTER TABLE ident ALTER INDEX ident VISIBLE
 ok	ok:a87858d0f85f	engine	one_table@index	AlterTableSpec/CACHE	ALTER TABLE ident CACHE
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterTableSpec/NOCACHE	ALTER TABLE ident NOCACHE
-error	1505	engine	one_table@index	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
+1505	1505	engine	one_table@index	ReorganizePartitionRuleOpt/PartitionNameList_INTO_(_PartitionDefinitionList_)	ALTER TABLE ident REORGANIZE PARTITION ident INTO(PARTITION ident)
 ok	8200	engine	one_table@index	AllOrPartitionNameList/PartitionNameList	ALTER TABLE ident CHECK PARTITION ident
-error	1505	engine	one_table@index	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
-error	1505	engine	one_table@index	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
+1505	1505	engine	one_table@index	WithValidationOpt/WithValidation	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITH VALIDATION
+1505	1505	engine	one_table@index	WithValidation/WITHOUT_VALIDATION	ALTER TABLE ident EXCHANGE PARTITION ident WITH TABLE ident WITHOUT VALIDATION
 1060	8200	engine	one_table@index	WithClustered/CLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY CLUSTERED
 1060	8200	engine	one_table@index	WithClustered/NONCLUSTERED	ALTER TABLE ident ADD ident TINYINT KEY NONCLUSTERED
 1060	8200	engine	one_table@index	GlobalOrLocalOpt/%empty	ALTER TABLE ident ADD ident TINYINT KEY
@@ -1494,10 +1494,10 @@ ok	ok:af023d0766da	engine	one_table@index	PartitionKeyAlgorithmOpt/ALGORITHM_eq_
 8200	8200	engine	one_table@index	MaxValPartOpt/MAXVALUE_PARTITION	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) MAXVALUE PARTITION
 8200	1054	engine	one_table@index	FirstAndLastPartOpt/FIRST_PARTITION_LESS_THAN_(_BitExpr_)_LAST_PARTITION_LESS_THAN_(_BitExpr_)	ALTER TABLE ident PARTITION BY RANGE(ident) INTERVAL(ident) FIRST PARTITION LESS THAN(ident) LAST PARTITION LESS THAN(ident)
 ok	ok:af023d0766da	engine	one_table@index	LinearOpt/LINEAR	ALTER TABLE ident PARTITION BY LINEAR KEY()
-error	1505	engine	one_table@index	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
-error	1505	engine	one_table@index	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
-error	1505	engine	one_table@index	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
-error	1505	engine	one_table@index	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
+1505	1505	engine	one_table@index	PartitionDefinitionListOpt/(_PartitionDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident)
+1505	1505	engine	one_table@index	PartitionDefinitionList/PartitionDefinitionList_,_PartitionDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident, PARTITION ident)
+1505	1505	engine	one_table@index	SubPartDefinitionListOpt/(_SubPartDefinitionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident))
+1505	1505	engine	one_table@index	SubPartDefinitionList/SubPartDefinitionList_,_SubPartDefinition	ALTER TABLE ident ADD PARTITION(PARTITION ident(SUBPARTITION ident, SUBPARTITION ident))
 ok	1105	engine	one_table@index	PartDefOptionList/PartDefOptionList_PartDefOption	ALTER TABLE ident PARTITION ident COMMENT 'binary'
 ok	1286	engine	one_table@index	PartDefOption/ENGINE_EqOpt_StringName	ALTER TABLE ident ENGINE 'binary'
 ok	1286	engine	one_table@index	PartDefOption/STORAGE_ENGINE_EqOpt_StringName	ALTER TABLE ident STORAGE ENGINE 'binary'
@@ -1509,12 +1509,12 @@ ok	8200	engine	one_table@index	PartDefOption/MIN_ROWS_EqOpt_LengthNum	ALTER TABL
 ok	8200	engine	one_table@index	PartDefOption/TABLESPACE_EqOpt_Identifier	ALTER TABLE ident TABLESPACE ident
 ok	8200	engine	one_table@index	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TABLE ident NODEGROUP 1
 8241	8239	engine	one_table@index	PartDefOption/PlacementPolicyOption	ALTER TABLE ident PLACEMENT POLICY 'binary'
-error	1505	engine	one_table@index	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
-error	1505	engine	one_table@index	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
-error	1505	engine	one_table@index	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
-error	1505	engine	one_table@index	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
-error	1505	engine	one_table@index	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
-error	1505	engine	one_table@index	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
+1505	1505	engine	one_table@index	PartDefValuesOpt/VALUES_LESS_THAN_MAXVALUE	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN MAXVALUE)
+1505	1505	engine	one_table@index	PartDefValuesOpt/VALUES_LESS_THAN_(_MaxValueOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE))
+1505	1505	engine	one_table@index	PartDefValuesOpt/DEFAULT	ALTER TABLE ident ADD PARTITION(PARTITION ident DEFAULT)
+1505	1505	engine	one_table@index	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
+1505	1505	engine	one_table@index	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
+1505	1505	engine	one_table@index	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
 1050	1113	engine	one_table@index	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
 1050	1113	engine	one_table@index	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
 1050	1113	engine	one_table@index	AsOpt/AS	CREATE TABLE ident AS
@@ -1543,14 +1543,14 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	DropTableStmt/DROP_OptTem
 ok	1347	engine	one_table@index	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	RestrictOrCascadeOpt/CASCADE	DROP TABLE ident CASCADE
-error	1505	engine	one_table@index	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
-error	1505	engine	one_table@index	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
-error	1505	engine	one_table@index	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
-error	1505	engine	one_table@index	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
-error	1505	engine	one_table@index	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
-error	1505	engine	one_table@index	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
-error	1505	engine	one_table@index	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
-error	1505	engine	one_table@index	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
+1505	1505	engine	one_table@index	DefaultOrExpression/DEFAULT!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED))
+1505	1505	engine	one_table@index	DefaultOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(ident))
+1505	1505	engine	one_table@index	MaxValueOrExpression/MAXVALUE!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR))
+1505	1505	engine	one_table@index	MaxValueOrExpression/BitExpr	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(ident))
+1505	1505	engine	one_table@index	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAXVALUE, MAXVALUE))
+1505	1505	engine	one_table@index	MaxValueOrExpressionList/MaxValueOrExpressionList_,_MaxValueOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES LESS THAN(MAX_CONNECTIONS_PER_HOUR, MAXVALUE))
+1505	1505	engine	one_table@index	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT, DEFAULT))
+1505	1505	engine	one_table@index	DefaultOrExpressionList/DefaultOrExpressionList_,_DefaultOrExpression!swap	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFINED, DEFAULT))
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	IgnoreOptional/IGNORE	ALTER IGNORE TABLE ident
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	IndexName/Identifier	ALTER TABLE ident ADD FULLTEXT ident(ident)
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	IndexOptionList/IndexOptionList_IndexOption	ALTER TABLE ident ADD FULLTEXT(ident) VISIBLE

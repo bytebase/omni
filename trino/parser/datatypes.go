@@ -823,8 +823,11 @@ func (p *Parser) parseDateTimeType() (*DataType, error) {
 		dt.Loc.End = closeTok.Loc.End
 	}
 
-	// Optional WITH/WITHOUT TIME ZONE.
-	if p.cur.Kind == kwWITH || p.cur.Kind == kwWITHOUT {
+	// Optional WITH/WITHOUT TIME ZONE. WITH is also a column-definition clause
+	// (`a TIMESTAMP WITH (props)`), so a WITH followed by '(' is left to the
+	// column parser; any other WITH is the time-zone clause and reports a missing
+	// TIME where Trino does.
+	if p.cur.Kind == kwWITHOUT || (p.cur.Kind == kwWITH && p.peekNext().Kind != int('(')) {
 		withTok := p.advance()
 		if _, err := p.expect(kwTIME); err != nil {
 			return nil, err

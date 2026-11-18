@@ -23,11 +23,20 @@ const (
 	ErrDupColumn                         = 1060
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
+	ErrNonUniqueTable                    = 1066
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
+	ErrTableStorageEngineOption          = 1031
+	ErrUnknownStorageEngine              = 1286
+	ErrInvalidPerformanceSchema          = 1683
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
+	ErrKeyColumnDoesNotExist             = 1072
+	ErrFunctionNotDefined                = 1128
+	ErrWrongObject                       = 1347
+	ErrTooBigDisplayWidth                = 1439
+	ErrPartitionMgmtOnNonPartitioned     = 1505
 	ErrNoDatabaseSelected                = 1046
 	ErrCantRemoveAllFields               = 1090
 	ErrDupIndex                          = 1831
@@ -50,6 +59,7 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrCannotPartOfFulltext              = 1283
 	ErrWrongNameForIndex                 = 1280
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
@@ -67,11 +77,20 @@ var sqlStateMap = map[int]string{
 	ErrDupColumn:                         "42S21",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
+	ErrNonUniqueTable:                    "42000",
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
+	ErrTableStorageEngineOption:          "HY000",
+	ErrUnknownStorageEngine:              "42000",
+	ErrInvalidPerformanceSchema:          "HY000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
+	ErrKeyColumnDoesNotExist:             "42000",
+	ErrFunctionNotDefined:                "HY000",
+	ErrWrongObject:                       "HY000",
+	ErrTooBigDisplayWidth:                "42000",
+	ErrPartitionMgmtOnNonPartitioned:     "HY000",
 	ErrNoDatabaseSelected:                "3D000",
 	ErrCantRemoveAllFields:               "42000",
 	ErrDupIndex:                          "42000",
@@ -90,6 +109,7 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrCannotPartOfFulltext:              "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
@@ -184,6 +204,76 @@ func errNoSuchColumn(name, context string) error {
 func errUnknownTable(db, name string) error {
 	return &Error{Code: ErrUnknownTable, SQLState: sqlState(ErrUnknownTable),
 		Message: fmt.Sprintf("Unknown table '%s.%s'", db, name)}
+}
+
+// errWrongObject is what ALTER VIEW and DROP VIEW answer for a name a table
+// holds: mysql:8.0.46 says "'db.a' is not VIEW".
+func errWrongObject(db, name, kind string) error {
+	return &Error{Code: ErrWrongObject, SQLState: sqlState(ErrWrongObject),
+		Message: fmt.Sprintf("'%s.%s' is not %s", db, name, kind)}
+}
+
+// errNonUniqueTable is 1066, the same table named twice in one statement.
+func errNonUniqueTable(name string) error {
+	return &Error{Code: ErrNonUniqueTable, SQLState: sqlState(ErrNonUniqueTable),
+		Message: fmt.Sprintf("Not unique table/alias: '%s'", name)}
+}
+
+// errUnknownStorageEngine is 1286, an ENGINE option naming an engine the pinned
+// server does not ship.
+func errUnknownStorageEngine(name string) error {
+	return &Error{Code: ErrUnknownStorageEngine, SQLState: sqlState(ErrUnknownStorageEngine),
+		Message: fmt.Sprintf("Unknown storage engine '%s'", name)}
+}
+
+// errTableStorageEngineOption is 1031, what ALTER TABLE answers for an ENGINE it
+// cannot put on a table that exists: mysql:8.0.46 says "Table storage engine for
+// 'a' doesn't have this option" for PERFORMANCE_SCHEMA.
+func errTableStorageEngineOption(table string) error {
+	return &Error{Code: ErrTableStorageEngineOption, SQLState: sqlState(ErrTableStorageEngineOption),
+		Message: fmt.Sprintf("Table storage engine for '%s' doesn't have this option", table)}
+}
+
+// errInvalidPerformanceSchema is 1683, what CREATE TABLE answers for the engine
+// the performance schema keeps its own tables in.
+func errInvalidPerformanceSchema() error {
+	return &Error{Code: ErrInvalidPerformanceSchema, SQLState: sqlState(ErrInvalidPerformanceSchema),
+		Message: "Invalid performance_schema usage."}
+}
+
+// errCannotPartOfFulltext is 1283, a FULLTEXT key over a column whose type it
+// cannot index.
+func errCannotPartOfFulltext(name string) error {
+	return &Error{Code: ErrCannotPartOfFulltext, SQLState: sqlState(ErrCannotPartOfFulltext),
+		Message: fmt.Sprintf("Column '%s' cannot be part of FULLTEXT index", name)}
+}
+
+// errKeyColumnDoesNotExist is 1072, a key part naming a column the table does
+// not have.
+func errKeyColumnDoesNotExist(name string) error {
+	return &Error{Code: ErrKeyColumnDoesNotExist, SQLState: sqlState(ErrKeyColumnDoesNotExist),
+		Message: fmt.Sprintf("Key column '%s' doesn't exist in table", name)}
+}
+
+// errFunctionNotDefined is 1128, what MySQL answers for a function or a
+// fulltext parser plugin it does not have.
+func errFunctionNotDefined(name string) error {
+	return &Error{Code: ErrFunctionNotDefined, SQLState: sqlState(ErrFunctionNotDefined),
+		Message: fmt.Sprintf("Function '%s' is not defined", name)}
+}
+
+// errTooBigDisplayWidth is 1439, a type's length argument past what MySQL holds
+// for it; max is the widest the type takes.
+func errTooBigDisplayWidth(name string, max int) error {
+	return &Error{Code: ErrTooBigDisplayWidth, SQLState: sqlState(ErrTooBigDisplayWidth),
+		Message: fmt.Sprintf("Display width out of range for column '%s' (max = %d)", name, max)}
+}
+
+// errPartitionMgmtOnNonPartitioned is 1505, a partition action on a table that
+// has no partitions.
+func errPartitionMgmtOnNonPartitioned() error {
+	return &Error{Code: ErrPartitionMgmtOnNonPartitioned, SQLState: sqlState(ErrPartitionMgmtOnNonPartitioned),
+		Message: "Partition management on a not partitioned table is not possible"}
 }
 
 func errFKCannotDropParent(table, fkName, refTable string) error {

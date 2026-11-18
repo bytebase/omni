@@ -29,6 +29,7 @@ const (
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
+	ErrPartitionMgmtOnNonPartitioned     = 1505
 	ErrDupIndex                          = 1831
 	ErrFKNoRefTable                      = 1824
 	ErrCantDropKey                       = 1091
@@ -153,6 +154,7 @@ var sqlStateMap = map[int]string{
 	ErrNoSuchTable:                         "42S02",
 	ErrNoSuchColumn:                        "42S22",
 	ErrNoDatabaseSelected:                  "3D000",
+	ErrPartitionMgmtOnNonPartitioned:       "HY000",
 	ErrDupIndex:                            "42000",
 	ErrFKNoRefTable:                        "HY000",
 	ErrCantDropKey:                         "42000",
@@ -253,6 +255,13 @@ func errDupTableQualified(db, name string) error {
 func errNoSuchTable(db, name string) error {
 	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable),
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
+}
+
+// errPartitionMgmtOnNonPartitioned is 1505, a partition action on a table that
+// has no partitions: TiDB v8.5.5 answers it with MySQL's message.
+func errPartitionMgmtOnNonPartitioned() error {
+	return &Error{Code: ErrPartitionMgmtOnNonPartitioned, SQLState: sqlState(ErrPartitionMgmtOnNonPartitioned),
+		Message: "Partition management on a not partitioned table is not possible"}
 }
 
 func errWrongDBName(name string) error {

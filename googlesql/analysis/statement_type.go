@@ -57,6 +57,25 @@ const (
 // ClassifySQL returns Unknown for these too, so it cannot gate the list.
 func StatementTypeOf(node ast.Node) StatementType {
 	switch n := node.(type) {
+	case *ast.SubpipelineStmt:
+		return pipeStatementType(n.Pipeline)
+	case *ast.PipeStatement:
+		t, conflict := pipeStatementResult(n.Pipeline)
+		if conflict {
+			return StatementTypeUnspecified
+		}
+		if t != StatementTypeUnspecified {
+			return t
+		}
+		// A reading suffix keeps the head's type: a piped CALL still executes.
+		return StatementTypeOf(n.Head)
+	case *ast.QueryStmt:
+		// A query only makes a change through a pipe operator that writes
+		// (`SELECT … |> INSERT t`); everything else is a read.
+		if n.Pipe != nil {
+			return pipeStatementType(n.Pipe)
+		}
+		return StatementTypeUnspecified
 	case *ast.InsertStmt:
 		return Insert
 	case *ast.UpdateStmt:
@@ -113,6 +132,92 @@ func StatementTypeOf(node ast.Node) StatementType {
 	default:
 		return StatementTypeUnspecified
 	}
+}
+
+// pipeStatementType reports the change a pipe suffix makes. A pipe INSERT
+// writes rows and a pipe CREATE TABLE creates one; a nested branch that does
+// either makes the whole statement that kind. Every other operator only reads
+// or transforms the pipeline, so it reports Unspecified like a query does.
+type pipeStatementTypes struct {
+	t        StatementType
+	conflict bool
+}
+
+// add records one path's type.
+func (a *pipeStatementTypes) add(t StatementType) {
+	if t == StatementTypeUnspecified {
+		return
+	}
+	switch {
+	case a.t == StatementTypeUnspecified:
+		a.t = t
+	case a.t != t:
+		a.conflict = true
+	}
+}
+
+// addAll records the types of a nested pipeline; its own conflict carries over.
+func (a *pipeStatementTypes) addAll(o pipeStatementTypes) {
+	if o.conflict {
+		a.conflict = true
+	}
+	a.add(o.t)
+}
+
+func (a pipeStatementTypes) result() StatementType {
+	if a.conflict {
+		return StatementTypeUnspecified
+	}
+	return a.t
+}
+
+// pipeStatementType reports the change a pipe suffix makes. A pipe INSERT
+// writes rows and a pipe CREATE TABLE creates one; a nested branch that does
+// either makes the whole statement that kind. Every other operator only reads
+// or transforms the pipeline, so it reports Unspecified like a query does. Two
+// different writes on different runtime paths conflict (no single type covers
+// both) and report Unspecified.
+func pipeStatementType(p *ast.Subpipeline) StatementType {
+	t, _ := pipeStatementResult(p)
+	return t
+}
+
+// pipeStatementResult reports the pipe suffix's type and whether two runtime
+// paths make different changes, which no single type describes.
+func pipeStatementResult(p *ast.Subpipeline) (StatementType, bool) {
+	acc := pipeStatementTypesOf(p)
+	return acc.result(), acc.conflict
+}
+
+func pipeStatementTypesOf(p *ast.Subpipeline) pipeStatementTypes {
+	var acc pipeStatementTypes
+	if p == nil {
+		return acc
+	}
+	for _, op := range p.Ops {
+		switch n := op.(type) {
+		case *ast.PipeInsert:
+			acc.add(Insert)
+		case *ast.PipeCreateTable:
+			acc.add(CreateTable)
+		case *ast.PipeLog:
+			acc.addAll(pipeStatementTypesOf(n.Pipeline))
+		case *ast.PipeIf:
+			for _, c := range n.Cases {
+				acc.addAll(pipeStatementTypesOf(c.Then))
+			}
+			acc.addAll(pipeStatementTypesOf(n.Else))
+		case *ast.PipeFork:
+			for _, branch := range n.Pipelines {
+				acc.addAll(pipeStatementTypesOf(branch))
+			}
+		case *ast.PipeTee:
+			for _, branch := range n.Pipelines {
+				acc.addAll(pipeStatementTypesOf(branch))
+			}
+		}
+	}
+	return acc
 }
 
 func alterStatementType(kind ast.AlterObjectKind) StatementType {

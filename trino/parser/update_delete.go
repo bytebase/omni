@@ -43,10 +43,8 @@ import (
 // assignment value (`UPDATE … SET m = (SELECT …)`) parse via the expression
 // node's SubqueryExpr placeholder, exactly as in SELECT predicates.
 //
-// FLAGGED divergence (ledger #5): `@ branch_name` after the target table —
-// `DELETE FROM orders @ audit`, `UPDATE purchases @ audit SET …` — is accepted
-// by Trino 481 but rejected by omni because the lexer emits no '@' token. See
-// the insert.go file header.
+// The optional `@ branch_name` after the target table is parsed by
+// parseOptionalBranch (divergence ledger #5, now resolved).
 
 // ---------------------------------------------------------------------------
 // DELETE
@@ -58,7 +56,8 @@ import (
 // all rows).
 type DeleteStmt struct {
 	Target *ast.QualifiedName
-	Where  Expr // nil when there is no WHERE clause
+	Branch *ast.Identifier // optional `@ branch`, nil when absent
+	Where  Expr            // nil when there is no WHERE clause
 	Loc    ast.Loc
 }
 
@@ -87,6 +86,7 @@ type UpdateAssignment struct {
 // the optional row filter (nil when absent).
 type UpdateStmt struct {
 	Target      *ast.QualifiedName
+	Branch      *ast.Identifier // optional `@ branch`, nil when absent
 	Assignments []UpdateAssignment
 	Where       Expr // nil when there is no WHERE clause
 	Loc         ast.Loc
@@ -123,7 +123,14 @@ func (p *Parser) parseDeleteStmt() (ast.Node, error) {
 		return nil, err
 	}
 
-	stmt := &DeleteStmt{Target: target, Loc: ast.Loc{Start: deleteTok.Loc.Start, End: target.Loc.End}}
+	branch, err := p.parseOptionalBranch()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &DeleteStmt{Target: target, Branch: branch, Loc: ast.Loc{Start: deleteTok.Loc.Start, End: target.Loc.End}}
+	if branch != nil {
+		stmt.Loc.End = branch.Loc.End
+	}
 
 	if p.cur.Kind == kwWHERE {
 		p.advance() // consume WHERE
@@ -153,12 +160,19 @@ func (p *Parser) parseUpdateStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	branch, err := p.parseOptionalBranch()
+	if err != nil {
+		return nil, err
+	}
 
 	if _, err := p.expect(kwSET); err != nil {
 		return nil, err
 	}
 
-	stmt := &UpdateStmt{Target: target, Loc: ast.Loc{Start: updateTok.Loc.Start, End: target.Loc.End}}
+	stmt := &UpdateStmt{Target: target, Branch: branch, Loc: ast.Loc{Start: updateTok.Loc.Start, End: target.Loc.End}}
+	if branch != nil {
+		stmt.Loc.End = branch.Loc.End
+	}
 
 	// One or more comma-separated assignments (the list is non-empty: D-UPD2).
 	for {

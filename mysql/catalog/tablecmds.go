@@ -16,6 +16,42 @@ const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
 // its keys in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
+	// MySQL checks a FULLTEXT key's parser, a column's display width and an
+	// ENGINE while preparing the statement, so each answers ahead of the
+	// database and the table it names: 1128 for a FULLTEXT key whose parser it
+	// does not have, 1439 for `CREATE TABLE nosuchdb.a (a INT(256))`, and 1286
+	// for an engine it does not ship (mysql:8.0.46).
+	if declared {
+		// A loader's table may carry a parser plugin another server installs.
+		for _, con := range stmt.Constraints {
+			if err := validateFulltextParser(con); err != nil {
+				return err
+			}
+		}
+	}
+	for _, colDef := range stmt.Columns {
+		if err := validateColumnDisplayWidth(colDef); err != nil {
+			return err
+		}
+	}
+	// A loader's statement (DefineTable) is a snapshot of a server that may
+	// ship another engine, so only a CREATE TABLE statement is judged, and its
+	// partitions are judged as ADD PARTITION's are.
+	if declared {
+		for _, opt := range stmt.Options {
+			if opt == nil || !engineOptionName(opt.Name) {
+				continue
+			}
+			if err := validateStorageEngine(opt.Value, c.noEngineSubstitution()); err != nil {
+				return err
+			}
+		}
+		if stmt.Partitions != nil {
+			if err := validatePartitionDefinitions(stmt.Partitions.Partitions, c.noEngineSubstitution()); err != nil {
+				return err
+			}
+		}
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -69,7 +105,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "engine":
-			tbl.Engine = opt.Value
+			// A loader's snapshot keeps the engine its server reported, which the
+			// pinned one may not ship; an authored statement keeps what the
+			// pinned server would store.
+			if declared {
+				tbl.Engine = storedEngineName(opt.Value)
+			} else {
+				tbl.Engine = opt.Value
+			}
 		case "charset", "character set", "default charset", "default character set":
 			tbl.Charset = normalizeCharsetName(opt.Value)
 			tblCharsetExplicit = true
@@ -422,6 +465,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	}
 
 	// Process table-level constraints.
+	//
+	// A loader's statement (DefineTable) keeps a key part it could not read as a
+	// column (metadataIndexConstraint), so which columns a key names is judged
+	// only for a CREATE TABLE statement.
+	checkKeyColumns := func(con *nodes.Constraint) error {
+		if !declared {
+			return nil
+		}
+		return validateKeyColumnsExist(tbl, nil, con)
+	}
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
 
@@ -429,6 +482,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		case nodes.ConstrPrimaryKey:
 			if hasPK {
 				return errMultiplePriKey()
+			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
 			}
 			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 				return err
@@ -477,6 +533,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
@@ -511,6 +570,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			}
 			if foreignKeyConstraintNameExists(db, tbl, conName) {
 				return errFKDupName(conName)
+			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
 			}
 			refDB := ""
 			refTable := ""
@@ -565,6 +627,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
@@ -594,7 +659,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -618,6 +689,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 					return errDupKeyName(idxName)
 				}
 			}
+			if err := checkKeyColumns(con); err != nil {
+				return err
+			}
 			idxCols := buildIndexColumns(con)
 			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
 				return err
@@ -638,6 +712,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return &Error{Code: 3500, SQLState: "HY000", Message: "Index type not supported for spatial index"}
 			}
 			tbl.Indexes = append(tbl.Indexes, spIdx)
+		}
+	}
+
+	// PERFORMANCE_SCHEMA holds the performance schema's own tables, which MySQL
+	// refuses with 1683 once the table's own definition is accepted
+	// (mysql:8.0.46).
+	if declared {
+		for _, opt := range stmt.Options {
+			if opt == nil || !engineOptionName(opt.Name) {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(opt.Value), performanceSchemaEngine) {
+				return errInvalidPerformanceSchema()
+			}
 		}
 	}
 
@@ -683,7 +771,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
 		}
-		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions)
+		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions, declared)
 	}
 
 	// Phase 3: analyze DEFAULT, GENERATED, and CHECK expressions now that all
@@ -822,7 +910,7 @@ func (c *Catalog) analyzeTableExpressions(tbl *Table, stmt *nodes.CreateTableStm
 }
 
 // buildPartitionInfo converts an AST PartitionClause to a catalog PartitionInfo.
-func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
+func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *PartitionInfo {
 	pi := &PartitionInfo{
 		Linear:     pc.Linear,
 		NumParts:   pc.NumParts,
@@ -894,11 +982,12 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 		if pd.Values != nil {
 			pdi.ValueExpr = partitionValueToString(pd.Values, pc.Type)
 		}
-		// Options.
+		// Options. A loader's snapshot keeps the engine its server reported,
+		// which the pinned one may not ship.
 		for _, opt := range pd.Options {
 			switch toLower(opt.Name) {
 			case "engine":
-				pdi.Engine = opt.Value
+				pdi.Engine = partitionEngineName(opt.Value, declared)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -919,7 +1008,7 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
-					spdi.Engine = opt.Value
+					spdi.Engine = partitionEngineName(opt.Value, declared)
 				case "comment":
 					spdi.Comment = opt.Value
 				}
@@ -1819,6 +1908,11 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		if col == nil {
 			continue
 		}
+		// A FULLTEXT key takes the character types only: BLOB, VARBINARY, ENUM,
+		// SET and every non-string type are 1283 (measured on mysql:8.0.46).
+		if fulltext && !isFulltextColumnType(col.DataType) {
+			return errCannotPartOfFulltext(ic.Name)
+		}
 		if spatial {
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
@@ -1835,6 +1929,17 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		}
 	}
 	return nil
+}
+
+// isFulltextColumnType reports whether a column's type may be part of a
+// FULLTEXT index: the character types, beside which MySQL refuses BLOB, VARBINARY,
+// ENUM and SET with 1283.
+func isFulltextColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return true
+	}
+	return false
 }
 
 func fixedLengthStringColumnLimit(col *Column) (int, bool) {
