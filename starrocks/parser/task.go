@@ -516,6 +516,23 @@ func attachWith(node ast.Node, with *ast.WithClause) {
 	}
 }
 
+// parseQuerySuffixInto consumes a query-level INTO OUTFILE left after a
+// grouped query relation.
+func (p *Parser) parseQuerySuffixInto(query ast.Node) error {
+	if p.cur.Kind != kwINTO {
+		return nil
+	}
+	if queryHasInto(query) {
+		return p.syntaxErrorAtCur()
+	}
+	into, err := p.parseIntoOutfileClause()
+	if err != nil {
+		return err
+	}
+	attachInto(query, into)
+	return nil
+}
+
 // queryHasInto reports whether the query already carries an INTO OUTFILE
 // clause, including one on an arm or inside a parenthesized group.
 func queryHasInto(node ast.Node) bool {

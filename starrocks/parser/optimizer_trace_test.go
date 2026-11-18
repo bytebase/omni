@@ -51,6 +51,7 @@ func TestOptimizerTraceInQueryStatementPositions(t *testing.T) {
 	for _, sql := range []string{
 		"INSERT INTO dst TRACE ALL SELECT * FROM src",
 		"CREATE VIEW v AS TRACE ALL SELECT 1",
+		"CREATE MATERIALIZED VIEW mv AS TRACE ALL SELECT 1",
 		"SUBMIT TASK AS INSERT INTO t (SELECT 1)",
 		"SUBMIT TASK AS INSERT INTO BLACKHOLE() SELECT 1",
 		"ALTER VIEW v AS TRACE ALL SELECT 1",

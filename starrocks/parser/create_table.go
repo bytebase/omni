@@ -709,11 +709,12 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				for _, item := range partDesc.Partitions {
 					switch partDesc.Type {
 					case "RANGE":
-						if len(item.InValues) > 0 {
+						if len(item.InValues) > 0 ||
+							(!item.IsMaxValue && len(item.Values) == 0 && !item.IsStep) {
 							return p.syntaxErrorAtCur()
 						}
 					case "LIST":
-						if item.IsMaxValue || len(item.Values) > 0 || item.IsStep {
+						if len(item.InValues) == 0 || item.IsMaxValue || len(item.Values) > 0 || item.IsStep {
 							return p.syntaxErrorAtCur()
 						}
 					}

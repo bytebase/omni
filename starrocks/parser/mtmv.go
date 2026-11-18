@@ -100,21 +100,41 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	var queryNode ast.Node
-	if p.cur.Kind == kwWITH {
-		wq, err := p.parseWithSelect()
-		if err != nil {
-			return nil, err
+	switch p.cur.Kind {
+	case kwTRACE:
+		traceTok := p.advance() // consume TRACE
+		queryNode, err = p.parseOptimizerTrace(traceTok.Loc)
+	case kwEXPLAIN, kwDESC, kwDESCRIBE:
+		var explain ast.Node
+		explain, err = p.parseExplain()
+		if err == nil {
+			exp := explain.(*ast.ExplainStmt)
+			if exp.Query == nil || !isQueryBody(exp.Query) {
+				err = p.syntaxErrorAtCur()
+			} else {
+				queryNode = explain
+			}
 		}
-		queryNode = wq
-	} else {
-		query, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
+	case kwWITH:
+		queryNode, err = p.parseWithStatement()
+		if err == nil && !isQueryBody(queryNode) {
+			err = p.syntaxErrorAtCur()
 		}
-		queryNode, err = p.parseSetOpTail(query)
-		if err != nil {
-			return nil, err
+	case int('('):
+		var paren *ast.ParenSelect
+		paren, err = p.parseParenSelect()
+		if err == nil {
+			queryNode, err = p.parseSetOpTail(paren)
 		}
+	default:
+		var query *ast.SelectStmt
+		query, err = p.parseSelectStmt()
+		if err == nil {
+			queryNode, err = p.parseSetOpTail(query)
+		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	stmt.Query = queryNode
 

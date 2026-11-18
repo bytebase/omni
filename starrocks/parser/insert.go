@@ -168,6 +168,9 @@ modifiers:
 		if err := p.settleQueryInto(result); err != nil {
 			return nil, err
 		}
+		if err := p.parseQuerySuffixInto(result); err != nil {
+			return nil, err
+		}
 		stmt.Query = result
 
 	case kwWITH:
@@ -179,6 +182,9 @@ modifiers:
 			return nil, p.syntaxErrorAtCur()
 		}
 		if err := p.settleQueryInto(withStmt); err != nil {
+			return nil, err
+		}
+		if err := p.parseQuerySuffixInto(withStmt); err != nil {
 			return nil, err
 		}
 		stmt.Query = withStmt
@@ -203,12 +209,8 @@ modifiers:
 		if err := p.settleQueryInto(result); err != nil {
 			return nil, err
 		}
-		if p.cur.Kind == kwINTO {
-			into, err := p.parseIntoOutfileClause()
-			if err != nil {
-				return nil, err
-			}
-			attachInto(result, into)
+		if err := p.parseQuerySuffixInto(result); err != nil {
+			return nil, err
 		}
 		stmt.Query = result
 
