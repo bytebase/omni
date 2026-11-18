@@ -55,6 +55,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateKeyPartPrefixes(stmt.Columns, stmt.Spatial); err != nil {
 		return err
 	}
+	// A FULLTEXT key's parser is looked up before its columns, as the ALTER
+	// path's is.
+	if stmt.Fulltext {
+		if err := validateFulltextParser(stmt.Options); err != nil {
+			return err
+		}
+	}
 	long := false
 	if stmt.Unique && !stmt.Fulltext && !stmt.Spatial && !stmt.Vector {
 		var err error

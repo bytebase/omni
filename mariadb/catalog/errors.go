@@ -54,6 +54,9 @@ const (
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
 	ErrWrongNameForIndex                 = 1280
+	ErrCannotPartOfFulltext              = 1283
+	ErrUnknownStorageEngine              = 1286
+	ErrKeyRefMismatch                    = 1239
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
 	// The window-reference errors, measured on mariadb:11.8.8.
@@ -147,6 +150,9 @@ var sqlStateMap = map[int]string{
 	ErrPeriodFieldsDifferentTypes:        "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
+	ErrCannotPartOfFulltext:              "HY000",
+	ErrUnknownStorageEngine:              "42000",
+	ErrKeyRefMismatch:                    "42000",
 	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
 	ErrFKDupName:                         "HY000",
@@ -381,6 +387,27 @@ func errFKCannotDropParent(table, fkName, refTable string) error {
 func errCantDropKey(kind, name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
 		Message: fmt.Sprintf("Can't DROP %s `%s`; check that it exists", kind, name)}
+}
+
+// errCannotPartOfFulltext is 1283, a FULLTEXT key over a column whose type it
+// cannot index: every type but the character ones, BLOB and VARBINARY included.
+func errCannotPartOfFulltext(name string) error {
+	return &Error{Code: ErrCannotPartOfFulltext, SQLState: sqlState(ErrCannotPartOfFulltext),
+		Message: fmt.Sprintf("Column '%s' cannot be part of FULLTEXT index", name)}
+}
+
+// errUnknownStorageEngine is 1286, an ENGINE option naming an engine the pinned
+// server does not ship.
+func errUnknownStorageEngine(name string) error {
+	return &Error{Code: ErrUnknownStorageEngine, SQLState: sqlState(ErrUnknownStorageEngine),
+		Message: fmt.Sprintf("Unknown storage engine '%s'", name)}
+}
+
+// errKeyRefMismatch is 1239, a foreign key whose local columns and referenced
+// columns do not count the same: `FOREIGN KEY (a) REFERENCES z(a, a)`.
+func errKeyRefMismatch(name string) error {
+	return &Error{Code: ErrKeyRefMismatch, SQLState: sqlState(ErrKeyRefMismatch),
+		Message: fmt.Sprintf("Incorrect foreign key definition for '%s': Key reference and table reference don't match", name)}
 }
 
 func errCantRemoveAllFields() error {
