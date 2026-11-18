@@ -1187,7 +1187,7 @@ func (p *Parser) parseExtract() (Expr, error) {
 		}
 	}
 	return &ExtractExpr{
-		Field:  field.Value,
+		Field:  field.String(),
 		Source: source,
 		Loc:    ast.Loc{Start: extractTok.Loc.Start, End: closeTok.Loc.End},
 	}, nil

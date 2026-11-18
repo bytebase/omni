@@ -1050,7 +1050,7 @@ func joinProjection(left, right *starProjection, n *parser.Join) *starProjection
 		if !ok {
 			return nil
 		}
-		out = append(out, outCol{name: l[li].name, sources: unionRefs(l[li].sources, r[ri].sources)})
+		out = append(out, outCol{name: l[li].name, quoted: l[li].quoted, sources: unionRefs(l[li].sources, r[ri].sources)})
 		usedLeft[li] = true
 		usedRight[ri] = true
 	}
@@ -1106,10 +1106,10 @@ func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Ident
 	for i, a := range colAliases {
 		name := identName(a)
 		if n.WithOrdinality && i == len(colAliases)-1 {
-			cols = append(cols, outCol{name: name})
+			cols = append(cols, outCol{name: name, quoted: a.Quoted})
 			continue
 		}
-		cols = append(cols, outCol{name: name, sources: srcs})
+		cols = append(cols, outCol{name: name, quoted: a.Quoted, sources: srcs})
 	}
 	return cols
 }
@@ -1142,7 +1142,7 @@ func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast
 			case parser.JSONTableNestedColumn:
 				walk(col.Columns)
 			case parser.JSONTableOrdinalityColumn:
-				cols = append(cols, outCol{name: identName(col.Name)})
+				cols = append(cols, outCol{name: identName(col.Name), quoted: col.Name != nil && col.Name.Quoted})
 			default:
 				sources := append([]ColumnRef(nil), input...)
 				if col.OnEmpty != nil {
@@ -1151,7 +1151,7 @@ func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast
 				if col.OnError != nil {
 					sources = append(sources, s.resolveExprRefs(col.OnError.Default)...)
 				}
-				cols = append(cols, outCol{name: identName(col.Name), sources: sources})
+				cols = append(cols, outCol{name: identName(col.Name), quoted: col.Name != nil && col.Name.Quoted, sources: sources})
 			}
 		}
 	}
