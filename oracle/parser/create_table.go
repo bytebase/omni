@@ -224,7 +224,7 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			return p.parseCreateViewStmt(start, orReplace)
 		}
 		// Check for EDITIONABLE / NONEDITIONABLE [ PUBLIC ] SYNONYM
-		if !public && (p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE")) {
+		if !public && (p.isKeywordStr("EDITIONABLE") || p.isKeywordStr("NONEDITIONABLE")) {
 			next := p.peekNext()
 			if next.Type == kwSYNONYM ||
 				(next.Type == kwPUBLIC && len(p.peekAhead(2)) == 2 && p.peekAhead(2)[1].Type == kwSYNONYM) {

@@ -565,7 +565,7 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 // parseArrayDMLType reads one ARRAY DML type: a name that may be qualified,
 // which unlike a parameter type is never two words such as LONG RAW.
 func (p *Parser) parseArrayDMLType() (*nodes.ObjectName, error) {
-	if !p.isIdentLike() {
+	if !p.isATNameStart() && !isOracleTypeToken(p.cur.Type) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	start := p.pos()
@@ -574,7 +574,7 @@ func (p *Parser) parseArrayDMLType() (*nodes.ObjectName, error) {
 	on := &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 	if p.cur.Type == '.' {
 		p.advance()
-		if !p.isIdentLike() {
+		if !p.isATNameStart() && !isOracleTypeToken(p.cur.Type) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		on.Schema = name

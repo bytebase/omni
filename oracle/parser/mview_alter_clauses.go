@@ -476,16 +476,16 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 	if err := p.atExpect('('); err != nil {
 		return nil, err
 	}
-	carryDrop := false
+	carryOp := ""
 	for first := true; ; first = false {
 		start := p.pos()
 		op := ""
-		if carryDrop {
+		if carryOp != "" {
 			if p.cur.Type == kwADD || p.cur.Type == kwDROP || p.atWord("REPLACE") ||
 				p.atWord("REMOVE") {
 				return nil, p.syntaxErrorAtCur()
 			}
-			op = "DROP"
+			op = carryOp
 		}
 		var name, value string
 		var valueLoc nodes.Loc
@@ -570,7 +570,11 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 				}
 			}
 		}
-		carryDrop = op == "DROP"
+		if op == "DROP" || op == "DROP IF EXISTS" {
+			carryOp = op
+		} else {
+			carryOp = ""
+		}
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 		if hasValue {
 			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: value, Loc: valueLoc}}}
