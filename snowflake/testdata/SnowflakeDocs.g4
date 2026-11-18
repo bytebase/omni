@@ -1554,12 +1554,12 @@ alterJoinPolicy
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-listing
-// fix: the version names the version to add and FROM takes a stage location, as the parameters say; the brackets made both optional
+// fix: FROM takes a stage location, as the parameters say; the version name stays optional because Snowflake generates it
 // fix: TARGETS takes the manifest string, as the parameters say, not an identifier
 alterListing
     : 'ALTER' 'LISTING' ('IF' 'EXISTS')? ID (('PUBLISH' | 'UNPUBLISH' | 'REVIEW'))?
     | 'ALTER' 'LISTING' ('IF' 'EXISTS')? ID 'AS' STRING ('PUBLISH' '=' ('TRUE' | 'FALSE'))? ('REVIEW' '=' ('TRUE' | 'FALSE'))? ('COMMENT' '=' STRING)?
-    | 'ALTER' 'LISTING' ID 'ADD' 'VERSION' ('IF' 'NOT' 'EXISTS')? ID 'FROM' STAGE ('COMMENT' '=' STRING)?
+    | 'ALTER' 'LISTING' ID 'ADD' 'VERSION' (('IF' 'NOT' 'EXISTS')? ID)? 'FROM' STAGE ('COMMENT' '=' STRING)?
     | 'ALTER' 'LISTING' ('IF' 'EXISTS')? ID ('ADD' | 'REMOVE') 'TARGETS' STRING
     | 'ALTER' 'LISTING' ('IF' 'EXISTS')? ID 'RENAME' 'TO' ID
     | 'ALTER' 'LISTING' ('IF' 'EXISTS')? ID 'SET' 'COMMENT' '=' STRING
@@ -5350,10 +5350,9 @@ executeAlert
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-dbt-project
-// fix: the workspace form names its project after FROM WORKSPACE; the brackets made a bare EXECUTE DBT PROJECT with no target
 executeDbtProject
     : 'EXECUTE' 'DBT' 'PROJECT' ('IF' 'EXISTS')? QNAME ('ARGS' '=' STRING)? ('DBT_VERSION' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('ENVIRONMENT' '=' STRING)? ('ENV_VARS' '=' '(' STRING '=' STRING (',' STRING '=' STRING)* ')')? ('IMPORTS' '=' '(' (STRING | ID) ('AS' STRING)? (',' (STRING | ID) ('AS' STRING)?)* ')')? ('WRITEBACK' '=' ('TRUE' | 'FALSE'))?
-    | 'EXECUTE' 'DBT' 'PROJECT' ('IF' 'EXISTS')? 'FROM' 'WORKSPACE' QNAME ('ARGS' '=' STRING)? ('DBT_VERSION' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('ENVIRONMENT' '=' STRING)? ('ENV_VARS' '=' '(' STRING '=' STRING (',' STRING '=' STRING)* ')')? ('IMPORTS' '=' '(' (STRING | ID) ('AS' STRING)? (',' (STRING | ID) ('AS' STRING)?)* ')')? ('PROJECT_ROOT' '=' STRING)?
+    | 'EXECUTE' 'DBT' 'PROJECT' ('IF' 'EXISTS')? ('FROM' 'WORKSPACE' QNAME)? ('ARGS' '=' STRING)? ('DBT_VERSION' '=' STRING)? ('EXTERNAL_ACCESS_INTEGRATIONS' '=' '(' ID (',' ID)* ')')? ('ENVIRONMENT' '=' STRING)? ('ENV_VARS' '=' '(' STRING '=' STRING (',' STRING '=' STRING)* ')')? ('IMPORTS' '=' '(' (STRING | ID) ('AS' STRING)? (',' (STRING | ID) ('AS' STRING)?)* ')')? ('PROJECT_ROOT' '=' STRING)?
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-dcm-project

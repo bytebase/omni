@@ -4100,12 +4100,12 @@ reject	undocumented	docs	statement/executeAlert!drop-2	EXECUTE a
 reject	undocumented	docs	statement/executeAlert!drop-3	EXECUTE ALERT
 reject	undocumented	docs	statement/executeAlert!insert	EXECUTE ALERT a zzz
 reject	undocumented	docs	statement/executeAlert!swap	EXECUTE_AS_ROLE ALERT a
-accept	accept	docs	statement/executeDbtProject	EXECUTE DBT PROJECT a
-reject	undocumented	docs	statement/executeDbtProject!drop-2	EXECUTE PROJECT a
-reject	undocumented	docs	statement/executeDbtProject!drop-3	EXECUTE DBT a
-accept	undocumented	docs	statement/executeDbtProject!drop-4	EXECUTE DBT PROJECT
-reject	undocumented	docs	statement/executeDbtProject!insert	EXECUTE DBT PROJECT a zzz
-reject	undocumented	docs	statement/executeDbtProject!swap	EXECUTE_AS_ROLE DBT PROJECT a
+accept	accept	docs	statement/executeDbtProject	EXECUTE DBT PROJECT
+reject	undocumented	docs	statement/executeDbtProject!drop-1	DBT PROJECT
+reject	undocumented	docs	statement/executeDbtProject!drop-2	EXECUTE PROJECT
+reject	undocumented	docs	statement/executeDbtProject!drop-3	EXECUTE DBT
+accept	accept	docs	statement/executeDbtProject!insert	EXECUTE DBT PROJECT zzz
+reject	undocumented	docs	statement/executeDbtProject!swap	EXECUTE_AS_ROLE DBT PROJECT
 accept	accept	docs	statement/executeDcmProject	EXECUTE DCM PROJECT a PURGE
 reject	undocumented	docs	statement/executeDcmProject!drop-1	DCM PROJECT a PURGE
 reject	undocumented	docs	statement/executeDcmProject!drop-2	EXECUTE PROJECT a PURGE
@@ -15824,16 +15824,16 @@ reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(P
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31!drop-5	ALTER LISTING a AS
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31!insert	ALTER LISTING a AS 's' zzz
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_AS_STRING_(PUBLISH_=_(TRU~ac0dea31!swap	ALWAYS LISTING a AS 's'
-accept	accept	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7	ALTER LISTING a ADD VERSION a FROM @a
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-1	LISTING a ADD VERSION a FROM @a
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-3	ALTER LISTING ADD VERSION a FROM @a
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-4	ALTER LISTING a VERSION a FROM @a
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-5	ALTER LISTING a ADD a FROM @a
-accept	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-6	ALTER LISTING a ADD VERSION FROM @a
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-7	ALTER LISTING a ADD VERSION a @a
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!drop-8	ALTER LISTING a ADD VERSION a FROM
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!insert	ALTER LISTING a ADD VERSION a FROM @a zzz
-reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_(IF_NOT_EXISTS)?_ID_FROM_S~b0e43ca7!swap	ALWAYS LISTING a ADD VERSION a FROM @a
+accept	accept	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac	ALTER LISTING a ADD VERSION FROM @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-1	LISTING a ADD VERSION FROM @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-2	ALTER a ADD VERSION FROM @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-3	ALTER LISTING ADD VERSION FROM @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-4	ALTER LISTING a VERSION FROM @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-5	ALTER LISTING a ADD FROM @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-6	ALTER LISTING a ADD VERSION @a
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!drop-7	ALTER LISTING a ADD VERSION FROM
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!insert	ALTER LISTING a ADD VERSION FROM @a zzz
+reject	undocumented	docs	alterListing/ALTER_LISTING_ID_ADD_VERSION_((IF_NOT_EXISTS)?_ID)?_FRO~55f18aac!swap	ALWAYS LISTING a ADD VERSION FROM @a
 accept	accept	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)_TARGETS_STRING	ALTER LISTING a ADD TARGETS 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)_TARGETS_STRING!drop-1	LISTING a ADD TARGETS 's'
 reject	undocumented	docs	alterListing/ALTER_LISTING_(IF_EXISTS)?_ID_(ADD|REMOVE)_TARGETS_STRING!drop-2	ALTER a ADD TARGETS 's'
@@ -15904,6 +15904,11 @@ reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2
 reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER LISTING a AS 's' COMMENT =
 reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER LISTING a AS 's' COMMENT = 's' zzz
 reject	undocumented	docs	alterListing(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER LISTING a AS 's' COMMENTS = 's'
+accept	accept	docs	alterListing((IF_NOT_EXISTS)?_ID)?/%empty	ALTER LISTING a ADD VERSION FROM @a
+accept	accept	docs	alterListing((IF_NOT_EXISTS)?_ID)?/%empty!insert	ALTER LISTING a ADD VERSION zzz FROM @a
+accept	accept	docs	alterListing((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID	ALTER LISTING a ADD VERSION a FROM @a
+reject	undocumented	docs	alterListing((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID!truncate	ALTER LISTING a ADD VERSION
+reject	undocumented	docs	alterListing((IF_NOT_EXISTS)?_ID)?/(IF_NOT_EXISTS)?_ID!insert	ALTER LISTING a ADD VERSION a zzz FROM @a
 accept	accept	docs	alterListing(IF_NOT_EXISTS)?/%empty	ALTER LISTING a ADD VERSION a FROM @a
 reject	undocumented	docs	alterListing(IF_NOT_EXISTS)?/%empty!insert	ALTER LISTING a ADD VERSION zzz a FROM @a
 accept	accept	docs	alterListing(IF_NOT_EXISTS)?/IF_NOT_EXISTS	ALTER LISTING a ADD VERSION IF NOT EXISTS a FROM @a
@@ -52769,104 +52774,98 @@ reject	undocumented	docs	dropWarehouse(IF_EXISTS)?/IF_EXISTS!insert	DROP WAREHOU
 reject	undocumented	docs	dropWarehouse(IF_EXISTS)?/IF_EXISTS!swap	DROP WAREHOUSE IGNORE EXISTS a
 accept	accept	docs	executeAlert/EXECUTE_ALERT_QNAME	EXECUTE ALERT a
 accept	accept	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_QNAME_(ARGS_=_STRING)?~2ec72556	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda	EXECUTE DBT PROJECT FROM WORKSPACE a
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!drop-1	DBT PROJECT FROM WORKSPACE a
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!drop-2	EXECUTE PROJECT FROM WORKSPACE a
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!drop-3	EXECUTE DBT FROM WORKSPACE a
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!drop-4	EXECUTE DBT PROJECT WORKSPACE a
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!drop-5	EXECUTE DBT PROJECT FROM a
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!drop-6	EXECUTE DBT PROJECT FROM WORKSPACE
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!insert	EXECUTE DBT PROJECT FROM WORKSPACE a zzz
-reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_FROM_WORKSPACE_QNAME_(~f0411bda!swap	EXECUTE_AS_ROLE DBT PROJECT FROM WORKSPACE a
-accept	accept	docs	executeDbtProject(IF_EXISTS)?/%empty	EXECUTE DBT PROJECT a
-reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/%empty!insert	EXECUTE DBT PROJECT zzz a
-accept	accept	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS	EXECUTE DBT PROJECT IF EXISTS a
-reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!drop-1	EXECUTE DBT PROJECT EXISTS a
-reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!drop-2	EXECUTE DBT PROJECT IF a
-accept	accept	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!truncate	EXECUTE DBT PROJECT IF
-reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!insert	EXECUTE DBT PROJECT IF EXISTS zzz a
-reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!swap	EXECUTE DBT PROJECT IGNORE EXISTS a
-accept	accept	docs	executeDbtProject(ARGS_=_STRING)?/%empty	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING	EXECUTE DBT PROJECT a ARGS = 's'
-reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-1	EXECUTE DBT PROJECT a = 's'
-reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-2	EXECUTE DBT PROJECT a ARGS 's'
-reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-3	EXECUTE DBT PROJECT a ARGS =
-reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!insert	EXECUTE DBT PROJECT a ARGS = 's' zzz
-reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!swap	EXECUTE DBT PROJECT a ARGUMENTS = 's'
-accept	accept	docs	executeDbtProject(DBT_VERSION_=_STRING)?/%empty	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING	EXECUTE DBT PROJECT a DBT_VERSION = 's'
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-2	EXECUTE DBT PROJECT a DBT_VERSION 's'
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-3	EXECUTE DBT PROJECT a DBT_VERSION =
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!insert	EXECUTE DBT PROJECT a DBT_VERSION = 's' zzz
-reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!swap	EXECUTE DBT PROJECT a DCM = 's'
-accept	accept	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/%empty	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a)
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-1	EXECUTE DBT PROJECT a =(a)
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-2	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS(a)
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-3	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS = a)
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =()
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-5	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!insert	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a) zzz
-reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	EXECUTE DBT PROJECT a EXTERNAL_OAUTH =(a)
-accept	accept	docs	executeDbtProject(,_ID)*/%empty	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a)
-reject	undocumented	docs	executeDbtProject(,_ID)*/%empty!insert	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a zzz)
-accept	accept	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a, a)
-reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!drop-1	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a a)
-reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!drop-2	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a,)
-reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!truncate	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a,
-reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!insert	EXECUTE DBT PROJECT a EXTERNAL_ACCESS_INTEGRATIONS =(a, a zzz)
-accept	accept	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/%empty	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING	EXECUTE DBT PROJECT a ENVIRONMENT = 's'
-reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!drop-2	EXECUTE DBT PROJECT a ENVIRONMENT 's'
-reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!drop-3	EXECUTE DBT PROJECT a ENVIRONMENT =
-reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!insert	EXECUTE DBT PROJECT a ENVIRONMENT = 's' zzz
-reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!swap	EXECUTE DBT PROJECT a ENV_VARS = 's'
-accept	accept	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/%empty	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's')
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-1	EXECUTE DBT PROJECT a =('s' = 's')
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-2	EXECUTE DBT PROJECT a ENV_VARS('s' = 's')
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-3	EXECUTE DBT PROJECT a ENV_VARS = 's' = 's')
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-4	EXECUTE DBT PROJECT a ENV_VARS =(= 's')
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-5	EXECUTE DBT PROJECT a ENV_VARS =('s' 's')
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-6	EXECUTE DBT PROJECT a ENV_VARS =('s' =)
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-7	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's'
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!insert	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's') zzz
-reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!swap	EXECUTE DBT PROJECT a EQUALITY =('s' = 's')
-accept	accept	docs	executeDbtProject(,_STRING_=_STRING)*/%empty	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's')
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/%empty!insert	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's' zzz)
-accept	accept	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's', 's' = 's')
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-1	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's' 's' = 's')
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-2	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's', = 's')
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-3	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's', 's' 's')
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-4	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's', 's' =)
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!truncate	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's', 's' =
-reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!insert	EXECUTE DBT PROJECT a ENV_VARS =('s' = 's', 's' = 's' zzz)
-accept	accept	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/%empty	EXECUTE DBT PROJECT a
-accept	accept	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644	EXECUTE DBT PROJECT a IMPORTS =('s')
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-1	EXECUTE DBT PROJECT a =('s')
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-2	EXECUTE DBT PROJECT a IMPORTS('s')
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-3	EXECUTE DBT PROJECT a IMPORTS = 's')
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-4	EXECUTE DBT PROJECT a IMPORTS =()
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-5	EXECUTE DBT PROJECT a IMPORTS =('s'
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!insert	EXECUTE DBT PROJECT a IMPORTS =('s') zzz
-reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!swap	EXECUTE DBT PROJECT a IN =('s')
-accept	accept	docs	executeDbtProject(STRING|ID)/STRING	EXECUTE DBT PROJECT a IMPORTS =('s')
-reject	undocumented	docs	executeDbtProject(STRING|ID)/STRING!truncate	EXECUTE DBT PROJECT a IMPORTS =(
-reject	undocumented	docs	executeDbtProject(STRING|ID)/STRING!insert	EXECUTE DBT PROJECT a IMPORTS =('s' zzz)
-reject	accept	docs	executeDbtProject(STRING|ID)/ID	EXECUTE DBT PROJECT a IMPORTS =(a)
-reject	undocumented	docs	executeDbtProject(STRING|ID)/ID!insert	EXECUTE DBT PROJECT a IMPORTS =(a zzz)
-accept	accept	docs	executeDbtProject(AS_STRING)?/%empty	EXECUTE DBT PROJECT a IMPORTS =('s')
-accept	accept	docs	executeDbtProject(AS_STRING)?/AS_STRING	EXECUTE DBT PROJECT a IMPORTS =('s' AS 's')
-reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!drop-1	EXECUTE DBT PROJECT a IMPORTS =('s' 's')
-reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!drop-2	EXECUTE DBT PROJECT a IMPORTS =('s' AS)
-reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!truncate	EXECUTE DBT PROJECT a IMPORTS =('s' AS
-reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!insert	EXECUTE DBT PROJECT a IMPORTS =('s' AS 's' zzz)
-reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!swap	EXECUTE DBT PROJECT a IMPORTS =('s' ASC 's')
-accept	accept	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/%empty	EXECUTE DBT PROJECT a IMPORTS =('s')
-accept	accept	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*	EXECUTE DBT PROJECT a IMPORTS =('s', 's')
-reject	undocumented	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*!drop-2	EXECUTE DBT PROJECT a IMPORTS =('s',)
-reject	undocumented	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*!truncate	EXECUTE DBT PROJECT a IMPORTS =('s',
-reject	undocumented	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*!insert	EXECUTE DBT PROJECT a IMPORTS =('s', 's' zzz)
+reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_QNAME_(ARGS_=_STRING)?~2ec72556!drop-2	EXECUTE PROJECT a
+reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_QNAME_(ARGS_=_STRING)?~2ec72556!drop-3	EXECUTE DBT a
+reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_QNAME_(ARGS_=_STRING)?~2ec72556!insert	EXECUTE DBT PROJECT a zzz
+reject	undocumented	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_QNAME_(ARGS_=_STRING)?~2ec72556!swap	EXECUTE_AS_ROLE DBT PROJECT a
+accept	accept	docs	executeDbtProject/EXECUTE_DBT_PROJECT_(IF_EXISTS)?_(FROM_WORKSPACE_QNAME)~f790d3d5	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(IF_EXISTS)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS	EXECUTE DBT PROJECT IF EXISTS
+accept	undocumented	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!drop-1	EXECUTE DBT PROJECT EXISTS
+accept	accept	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!drop-2	EXECUTE DBT PROJECT IF
+accept	accept	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!insert	EXECUTE DBT PROJECT IF EXISTS zzz
+reject	undocumented	docs	executeDbtProject(IF_EXISTS)?/IF_EXISTS!swap	EXECUTE DBT PROJECT IGNORE EXISTS
+accept	accept	docs	executeDbtProject(ARGS_=_STRING)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING	EXECUTE DBT PROJECT ARGS = 's'
+reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-1	EXECUTE DBT PROJECT = 's'
+reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-2	EXECUTE DBT PROJECT ARGS 's'
+reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!drop-3	EXECUTE DBT PROJECT ARGS =
+reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!insert	EXECUTE DBT PROJECT ARGS = 's' zzz
+reject	undocumented	docs	executeDbtProject(ARGS_=_STRING)?/ARGS_=_STRING!swap	EXECUTE DBT PROJECT ARGUMENTS = 's'
+accept	accept	docs	executeDbtProject(DBT_VERSION_=_STRING)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING	EXECUTE DBT PROJECT DBT_VERSION = 's'
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-2	EXECUTE DBT PROJECT DBT_VERSION 's'
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!drop-3	EXECUTE DBT PROJECT DBT_VERSION =
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!insert	EXECUTE DBT PROJECT DBT_VERSION = 's' zzz
+reject	undocumented	docs	executeDbtProject(DBT_VERSION_=_STRING)?/DBT_VERSION_=_STRING!swap	EXECUTE DBT PROJECT DCM = 's'
+accept	accept	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a)
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-1	EXECUTE DBT PROJECT =(a)
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-2	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS(a)
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-3	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS = a)
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-4	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =()
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!drop-5	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!insert	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a) zzz
+reject	undocumented	docs	executeDbtProject(EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_))?/EXTERNAL_ACCESS_INTEGRATIONS_=_(_ID_(,_ID)*_)!swap	EXECUTE DBT PROJECT EXTERNAL_OAUTH =(a)
+accept	accept	docs	executeDbtProject(,_ID)*/%empty	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a)
+reject	undocumented	docs	executeDbtProject(,_ID)*/%empty!insert	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a zzz)
+accept	accept	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a, a)
+reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!drop-1	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a a)
+reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!drop-2	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a,)
+reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!truncate	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a,
+reject	undocumented	docs	executeDbtProject(,_ID)*/,_ID_(,_ID)*!insert	EXECUTE DBT PROJECT EXTERNAL_ACCESS_INTEGRATIONS =(a, a zzz)
+accept	accept	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING	EXECUTE DBT PROJECT ENVIRONMENT = 's'
+reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!drop-2	EXECUTE DBT PROJECT ENVIRONMENT 's'
+reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!drop-3	EXECUTE DBT PROJECT ENVIRONMENT =
+reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!insert	EXECUTE DBT PROJECT ENVIRONMENT = 's' zzz
+reject	undocumented	docs	executeDbtProject(ENVIRONMENT_=_STRING)?/ENVIRONMENT_=_STRING!swap	EXECUTE DBT PROJECT ENV_VARS = 's'
+accept	accept	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)	EXECUTE DBT PROJECT ENV_VARS =('s' = 's')
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-1	EXECUTE DBT PROJECT =('s' = 's')
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-2	EXECUTE DBT PROJECT ENV_VARS('s' = 's')
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-3	EXECUTE DBT PROJECT ENV_VARS = 's' = 's')
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-4	EXECUTE DBT PROJECT ENV_VARS =(= 's')
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-5	EXECUTE DBT PROJECT ENV_VARS =('s' 's')
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-6	EXECUTE DBT PROJECT ENV_VARS =('s' =)
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-7	EXECUTE DBT PROJECT ENV_VARS =('s' = 's'
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!insert	EXECUTE DBT PROJECT ENV_VARS =('s' = 's') zzz
+reject	undocumented	docs	executeDbtProject(ENV_VARS_=_(_STRING_=_STRING_(,_STRI~efb7c414)?/ENV_VARS_=_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!swap	EXECUTE DBT PROJECT EQUALITY =('s' = 's')
+accept	accept	docs	executeDbtProject(,_STRING_=_STRING)*/%empty	EXECUTE DBT PROJECT ENV_VARS =('s' = 's')
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/%empty!insert	EXECUTE DBT PROJECT ENV_VARS =('s' = 's' zzz)
+accept	accept	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*	EXECUTE DBT PROJECT ENV_VARS =('s' = 's', 's' = 's')
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-1	EXECUTE DBT PROJECT ENV_VARS =('s' = 's' 's' = 's')
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-2	EXECUTE DBT PROJECT ENV_VARS =('s' = 's', = 's')
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-3	EXECUTE DBT PROJECT ENV_VARS =('s' = 's', 's' 's')
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-4	EXECUTE DBT PROJECT ENV_VARS =('s' = 's', 's' =)
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!truncate	EXECUTE DBT PROJECT ENV_VARS =('s' = 's', 's' =
+reject	undocumented	docs	executeDbtProject(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!insert	EXECUTE DBT PROJECT ENV_VARS =('s' = 's', 's' = 's' zzz)
+accept	accept	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/%empty	EXECUTE DBT PROJECT
+reject	accept	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644	EXECUTE DBT PROJECT IMPORTS =('s')
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-1	EXECUTE DBT PROJECT =('s')
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-2	EXECUTE DBT PROJECT IMPORTS('s')
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-3	EXECUTE DBT PROJECT IMPORTS = 's')
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-4	EXECUTE DBT PROJECT IMPORTS =()
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!drop-5	EXECUTE DBT PROJECT IMPORTS =('s'
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!insert	EXECUTE DBT PROJECT IMPORTS =('s') zzz
+reject	undocumented	docs	executeDbtProject(IMPORTS_=_(_(STRING|ID)_(AS_STRING)?~90bcf201)?/IMPORTS_=_(_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS~376af644!swap	EXECUTE DBT PROJECT IN =('s')
+reject	accept	docs	executeDbtProject(STRING|ID)/STRING	EXECUTE DBT PROJECT IMPORTS =('s')
+reject	undocumented	docs	executeDbtProject(STRING|ID)/STRING!truncate	EXECUTE DBT PROJECT IMPORTS =(
+reject	undocumented	docs	executeDbtProject(STRING|ID)/STRING!insert	EXECUTE DBT PROJECT IMPORTS =('s' zzz)
+reject	accept	docs	executeDbtProject(STRING|ID)/ID	EXECUTE DBT PROJECT IMPORTS =(a)
+reject	undocumented	docs	executeDbtProject(STRING|ID)/ID!insert	EXECUTE DBT PROJECT IMPORTS =(a zzz)
+reject	accept	docs	executeDbtProject(AS_STRING)?/%empty	EXECUTE DBT PROJECT IMPORTS =('s')
+reject	accept	docs	executeDbtProject(AS_STRING)?/AS_STRING	EXECUTE DBT PROJECT IMPORTS =('s' AS 's')
+reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!drop-1	EXECUTE DBT PROJECT IMPORTS =('s' 's')
+reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!drop-2	EXECUTE DBT PROJECT IMPORTS =('s' AS)
+reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!truncate	EXECUTE DBT PROJECT IMPORTS =('s' AS
+reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!insert	EXECUTE DBT PROJECT IMPORTS =('s' AS 's' zzz)
+reject	undocumented	docs	executeDbtProject(AS_STRING)?/AS_STRING!swap	EXECUTE DBT PROJECT IMPORTS =('s' ASC 's')
+reject	accept	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/%empty	EXECUTE DBT PROJECT IMPORTS =('s')
+reject	accept	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*	EXECUTE DBT PROJECT IMPORTS =('s', 's')
+reject	undocumented	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*!drop-2	EXECUTE DBT PROJECT IMPORTS =('s',)
+reject	undocumented	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*!truncate	EXECUTE DBT PROJECT IMPORTS =('s',
+reject	undocumented	docs	executeDbtProject(,_(STRING|ID)_(AS_STRING)?)*/,_(STRING|ID)_(AS_STRING)?_(,_(STRING|ID)_(AS_STRING)?)*!insert	EXECUTE DBT PROJECT IMPORTS =('s', 's' zzz)
 accept	accept	docs	executeDbtProject(WRITEBACK_=_(TRUE|FALSE))?/%empty	EXECUTE DBT PROJECT a
 accept	accept	docs	executeDbtProject(WRITEBACK_=_(TRUE|FALSE))?/WRITEBACK_=_(TRUE|FALSE)	EXECUTE DBT PROJECT a WRITEBACK = TRUE
 reject	undocumented	docs	executeDbtProject(WRITEBACK_=_(TRUE|FALSE))?/WRITEBACK_=_(TRUE|FALSE)!drop-1	EXECUTE DBT PROJECT a = TRUE
@@ -52879,13 +52878,19 @@ reject	undocumented	docs	executeDbtProject(TRUE|FALSE)/TRUE!swap	EXECUTE DBT PRO
 accept	accept	docs	executeDbtProject(TRUE|FALSE)/FALSE	EXECUTE DBT PROJECT a WRITEBACK = FALSE
 reject	undocumented	docs	executeDbtProject(TRUE|FALSE)/FALSE!insert	EXECUTE DBT PROJECT a WRITEBACK = FALSE zzz
 reject	undocumented	docs	executeDbtProject(TRUE|FALSE)/FALSE!swap	EXECUTE DBT PROJECT a WRITEBACK = FAMILIES
-accept	accept	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/%empty	EXECUTE DBT PROJECT FROM WORKSPACE a
-accept	accept	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING	EXECUTE DBT PROJECT FROM WORKSPACE a PROJECT_ROOT = 's'
-reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!drop-1	EXECUTE DBT PROJECT FROM WORKSPACE a = 's'
-reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!drop-2	EXECUTE DBT PROJECT FROM WORKSPACE a PROJECT_ROOT 's'
-reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!drop-3	EXECUTE DBT PROJECT FROM WORKSPACE a PROJECT_ROOT =
-reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!insert	EXECUTE DBT PROJECT FROM WORKSPACE a PROJECT_ROOT = 's' zzz
-reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!swap	EXECUTE DBT PROJECT FROM WORKSPACE a PROPAGATE = 's'
+accept	accept	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/FROM_WORKSPACE_QNAME	EXECUTE DBT PROJECT FROM WORKSPACE a
+reject	undocumented	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/FROM_WORKSPACE_QNAME!drop-1	EXECUTE DBT PROJECT WORKSPACE a
+reject	undocumented	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/FROM_WORKSPACE_QNAME!drop-2	EXECUTE DBT PROJECT FROM a
+reject	undocumented	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/FROM_WORKSPACE_QNAME!drop-3	EXECUTE DBT PROJECT FROM WORKSPACE
+reject	undocumented	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/FROM_WORKSPACE_QNAME!insert	EXECUTE DBT PROJECT FROM WORKSPACE a zzz
+reject	undocumented	docs	executeDbtProject(FROM_WORKSPACE_QNAME)?/FROM_WORKSPACE_QNAME!swap	EXECUTE DBT PROJECT FROZEN WORKSPACE a
+accept	accept	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/%empty	EXECUTE DBT PROJECT
+accept	accept	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING	EXECUTE DBT PROJECT PROJECT_ROOT = 's'
+reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!drop-2	EXECUTE DBT PROJECT PROJECT_ROOT 's'
+reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!drop-3	EXECUTE DBT PROJECT PROJECT_ROOT =
+reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!insert	EXECUTE DBT PROJECT PROJECT_ROOT = 's' zzz
+reject	undocumented	docs	executeDbtProject(PROJECT_ROOT_=_STRING)?/PROJECT_ROOT_=_STRING!swap	EXECUTE DBT PROJECT PROPAGATE = 's'
 accept	accept	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PLAN_(DELTA)?_(executeDcmProj~de49c497	EXECUTE DCM PROJECT a PLAN FROM 's'
 reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PLAN_(DELTA)?_(executeDcmProj~de49c497!drop-1	DCM PROJECT a PLAN FROM 's'
 reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PLAN_(DELTA)?_(executeDcmProj~de49c497!drop-2	EXECUTE PROJECT a PLAN FROM 's'
