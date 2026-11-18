@@ -1160,10 +1160,13 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 //	PURGE { TABLE [ schema. ] table
 //	      | INDEX [ schema. ] index
 //	      | TABLESPACE tablespace [ USER user ]
-//	      | TABLESPACE SET tablespace_set [ USER user ]
 //	      | RECYCLEBIN
 //	      | DBA_RECYCLEBIN
 //	      } ;
+//
+// USER names the schema whose objects in the tablespace are purged. Oracle
+// 23ai takes no TABLESPACE SET here, which the page lists: PURGE TABLESPACE
+// SET a answers ORA-00922 at a, where SET is the tablespace's name.
 func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume PURGE
@@ -1208,6 +1211,17 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 		}
 		if stmt.Name == nil || stmt.Name.Name == "" {
 			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type == kwUSER {
+			p.advance() // consume USER
+			user, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if user == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.User = user
 		}
 	default:
 

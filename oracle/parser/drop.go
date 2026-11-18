@@ -220,6 +220,14 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 			if err := p.expectWords("INVALIDATION"); err != nil {
 				return nil, err
 			}
+		} else if stmt.ObjectType == nodes.OBJECT_MATERIALIZED_VIEW && p.isKeywordStr("PRESERVE") {
+			// DROP MATERIALIZED VIEW ... [ PRESERVE TABLE ] keeps the
+			// materialized view's table.
+			p.advance() // consume PRESERVE
+			if err := p.expectWords("TABLE"); err != nil {
+				return nil, err
+			}
+			stmt.PreserveTable = true
 		} else {
 			break
 		}
@@ -267,6 +275,32 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) (*node
 	}
 
 	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseDropRestorePointStmt parses DROP RESTORE POINT, after the words that
+// name it.
+//
+// BNF: oracle/parser/bnf/DROP-RESTORE-POINT.bnf
+//
+//	DROP RESTORE POINT restore_point [ FOR PLUGGABLE DATABASE pdb_name ] ;
+func (p *Parser) parseDropRestorePointStmt(start int) (*nodes.DropStmt, error) {
+	stmt, err := p.parseDropSimpleStmt(nodes.OBJECT_RESTORE_POINT, start)
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		if err := p.expectWords("PLUGGABLE", "DATABASE"); err != nil {
+			return nil, err
+		}
+		name, err := p.parseUnqualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForPDB = name.Name
+		stmt.Loc.End = p.prev.End
+	}
 	return stmt, nil
 }
 

@@ -2860,6 +2860,12 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 	if n.Invalidation != "" {
 		sb.WriteString(fmt.Sprintf(" :invalidation %q", n.Invalidation))
 	}
+	if n.PreserveTable {
+		sb.WriteString(" :preserveTable true")
+	}
+	if n.ForPDB != "" {
+		sb.WriteString(fmt.Sprintf(" :forPDB %q", n.ForPDB))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -4098,6 +4104,9 @@ func writePurgeStmt(sb *strings.Builder, n *PurgeStmt) {
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
+	}
+	if n.User != "" {
+		sb.WriteString(fmt.Sprintf(" :user %q", n.User))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

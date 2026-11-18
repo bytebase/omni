@@ -650,30 +650,39 @@ func (p *Parser) isMviewXmlschemaSpecStart() bool {
 
 // parseMviewJSONStorage reads a JSON_storage_clause.
 //
-//	JSON ( json_column [, json_column ] ... ) STORE AS
-//	    { LOB_segname [ ( JSON_parameters ) ] | ( JSON_parameters ) }
+//	JSON ( json_column [, json_column ] ... ) [ STORE ] AS
+//	    [ LOB_segname [ ( JSON_parameters ) ] | ( JSON_parameters ) ]
 //
 // JSON_parameters are the LOB_storage_parameters of a SECUREFILE LOB.
+// Oracle takes STORE and what follows AS as optional, the page's
+// json_storage_clause with its parameters left out: JSON (b) STORE AS
+// followed by the view's own AS SELECT parses on the pinned server
+// (ORA-00904 at the column it resolves), as JSON (b) AS AS SELECT does.
+// One AS alone is the clause's, and leaves the view without its own
+// (ORA-00906 at what follows).
 func (p *Parser) parseMviewJSONStorage() error {
 	p.advance() // consume JSON
 	if err := p.parseCreateTableColumnNames(); err != nil {
 		return err
 	}
-	if err := p.expectCreateTableWord("STORE"); err != nil {
-		return err
+	if p.isKeywordStr("STORE") {
+		p.advance()
 	}
 	if err := p.expectCreateTableToken(kwAS); err != nil {
 		return err
 	}
-	if p.cur.Type != '(' {
+	if p.cur.Type == '(' {
+		return p.parseCreateTableLobStorageParameters()
+	}
+	if p.isCreateTableNameStart() {
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
-		if p.cur.Type != '(' {
-			return nil
+		if p.cur.Type == '(' {
+			return p.parseCreateTableLobStorageParameters()
 		}
 	}
-	return p.parseCreateTableLobStorageParameters()
+	return nil
 }
 
 // parseMviewUsingIndex reads the index attributes after USING INDEX.

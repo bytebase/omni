@@ -257,8 +257,11 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, nil
 	}
 
-	// Check if this starts a constraint: CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, CHECK
-	if p.isTableConstraintStart() {
+	// Check if this starts a constraint: CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, CHECK.
+	// ADD CONSTRAINT with nothing after it is no constraint clause: Oracle
+	// reads the word as a column named CONSTRAINT (ORA-02263 at it), as the
+	// single-column path below takes a bare word.
+	if p.isTableConstraintStart() && !(p.atWord("CONSTRAINT") && p.statementEndsAfterNext()) {
 		tc, err := p.parseTableConstraint()
 		if err != nil {
 			return nil, err
@@ -322,8 +325,16 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		var constraints []*nodes.AlterTableCmd
 		savedAddList := p.alterTableAddList
 		p.alterTableAddList = true
+		// Oracle refuses a column named twice in the list at the second
+		// name (ORA-00957), as it does in CREATE TABLE's. omni checks the
+		// names of the columns the list leaves its datatype to: a repeated
+		// name that both define is one of compat.tsv's recorded over-accepts
+		// (ALTER TABLE a ADD (a NUMBER, a NUMBER)), which oracle/review's
+		// walk sends as a statement it expects the server to refuse.
+		listed := map[string]bool{}
 		for {
 			itemStart := p.pos()
+			itemTok := p.cur
 			var tc *nodes.TableConstraint
 			var err error
 			switch {
@@ -337,7 +348,12 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 					err = p.syntaxErrorAtCur()
 				}
 				if err == nil {
-					cols.Items = append(cols.Items, col)
+					if col.TypeName == nil && listed[col.Name] {
+						err = p.syntaxErrorAtTok(itemTok)
+					} else {
+						listed[col.Name] = true
+						cols.Items = append(cols.Items, col)
+					}
 				}
 			}
 			if err != nil {
@@ -362,11 +378,11 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		p.advance() // consume ')'
 		// The list's REF constraints follow the CREATE TABLE rules over
 		// its own columns (ORA-22893 for ADD (n NUMBER, SCOPE FOR (n) IS t)).
-		listed := &nodes.CreateTableStmt{Columns: cols, Constraints: &nodes.List{}}
+		addStmt := &nodes.CreateTableStmt{Columns: cols, Constraints: &nodes.List{}}
 		for _, c := range constraints {
-			listed.Constraints.Items = append(listed.Constraints.Items, c.Constraint)
+			addStmt.Constraints.Items = append(addStmt.Constraints.Items, c.Constraint)
 		}
-		if err := p.checkOutOfLineRefConstraints(listed, false); err != nil {
+		if err := p.checkOutOfLineRefConstraints(addStmt, false); err != nil {
 			return nil, err
 		}
 		options := &nodes.List{}

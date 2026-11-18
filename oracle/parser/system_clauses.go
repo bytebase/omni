@@ -420,6 +420,13 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 			return nil, err
 		}
 	}
+	// The two outline settings take no value at all: Oracle answers ALTER
+	// SESSION SET USE_PRIVATE_OUTLINES = with no error, where a plain
+	// parameter's missing value is ORA-00921 at the end (optimizer_mode) and
+	// a named one's own check (ORA-02248).
+	if outline && p.sysAtEnd() {
+		return &nodes.SetParam{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	}
 	value, err := p.parseAlterSessionValue(name)
 	if err != nil {
 		return nil, err
