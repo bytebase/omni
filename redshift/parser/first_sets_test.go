@@ -346,3 +346,24 @@ func TestIsRedshiftNamedGranteeStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftScopedPermissionStart holds the scoped-permission lead to the
+// clause it reads: FOR straight after the first privilege.
+func TestIsRedshiftScopedPermissionStart(t *testing.T) {
+	newStmtParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance() // GRANT
+		p.advance() // the privilege
+		return p
+	}
+	for _, sql := range []string{"GRANT CREATE FOR SCHEMAS IN DATABASE d TO a", "GRANT SELECT FOR TABLES IN SCHEMA s TO a"} {
+		if !newStmtParser(sql).isRedshiftScopedPermissionStart() {
+			t.Errorf("isRedshiftScopedPermissionStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"GRANT CREATE ON DATABASE d TO a", "GRANT SELECT ON t TO a", "GRANT CREATE, USAGE FOR SCHEMAS IN DATABASE d TO a"} {
+		if newStmtParser(sql).isRedshiftScopedPermissionStart() {
+			t.Errorf("isRedshiftScopedPermissionStart(%q) = true, want false", sql)
+		}
+	}
+}

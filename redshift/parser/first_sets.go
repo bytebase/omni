@@ -659,3 +659,13 @@ func (p *Parser) isRedshiftRoleGranteeStart() bool {
 func (p *Parser) isRedshiftGroupGranteeStart() bool {
 	return p.cur.Type == GROUP_P && isColIdToken(p.peekNext())
 }
+
+// isRedshiftScopedPermissionStart reports whether the tokens begin a scoped
+// permission, whose privilege list is followed by FOR: the leading privilege
+// with FOR right after it. A longer privilege list is read first and reaches the
+// same clause with its own FOR.
+//
+// Validated by TestIsRedshiftScopedPermissionStart in first_sets_test.go.
+func (p *Parser) isRedshiftScopedPermissionStart() bool {
+	return p.peekNext().Type == FOR
+}

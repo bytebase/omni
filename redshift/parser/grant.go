@@ -33,7 +33,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	if p.isRedshiftDebugStart() {
 		return p.parseRedshiftDebugStmt(loc, true)
 	}
-	if p.redshiftScopedPermissionStart() {
+	if p.isRedshiftScopedPermissionStart() {
 		privs, _, err := p.parseRedshiftGrantPrivileges()
 		if err != nil {
 			return nil, err
@@ -146,7 +146,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		// no ADMIN OPTION FOR prefix.
 		return p.parseRedshiftDebugStmt(loc, false)
 	}
-	if p.redshiftScopedPermissionStart() {
+	if p.isRedshiftScopedPermissionStart() {
 		// r_REVOKE's scoped alternatives take `GRANT OPTION` only, without FOR,
 		// and no other option prefix.
 		if roleOptionName != "" || grantOptionWithFor {
@@ -255,9 +255,9 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor, withRoleOption bo
 		return nil, err
 	}
 	var behavior int
-	if objtype != nodes.OBJECT_TEMPLATE && !procedureDatashare {
-		// A template's revoke page and a procedure's datashare page end after
-		// the grantees: no CASCADE, no RESTRICT.
+	if objtype != nodes.OBJECT_TEMPLATE && kind == redshiftGrantObject && !procedureDatashare {
+		// A template's revoke page, a procedure's datashare page and an external
+		// table's or schema's end after the grantees: no CASCADE, no RESTRICT.
 		behavior = p.parseOptDropBehavior()
 	}
 	return &nodes.GrantStmt{
@@ -761,6 +761,17 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 	return result, nil
 }
 
+// objLocOf is the source range of a parsed object, for a diagnosis.
+func objLocOf(n nodes.Node) int {
+	if loc, ok := n.(interface{ GetLoc() nodes.Loc }); ok {
+		return loc.GetLoc().Start
+	}
+	if rv, ok := n.(*nodes.RangeVar); ok {
+		return rv.Loc.Start
+	}
+	return -1
+}
+
 // parseRedshiftObjectGranteeList parses an object grant's grantees, each with the
 // WITH GRANT OPTION the page puts after a username:
 //
@@ -769,6 +780,10 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 // It also reports whether any grantee carried the option, and whether the
 // grantees were the procedure-to-datashare form, which ends the statement.
 func (p *Parser) parseRedshiftObjectGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, objects, privs *nodes.List) (*nodes.List, bool, bool, error) {
+	if kind == redshiftGrantExternalTable && redshiftPrivilegesNameColumns(privs) && len(objects.Items) != 1 {
+		// The column-level alternative names one external table.
+		return nil, false, false, &ParseError{Position: objLocOf(objects.Items[1]), Message: "syntax error: an external table's column grant names one table"}
+	}
 	grantees, procedureDatashare, err := p.parseRedshiftGranteeList(kind, objtype, objects, privs, true, true)
 	if err != nil || procedureDatashare {
 		return grantees, procedureDatashare, false, err
@@ -1388,10 +1403,6 @@ func (p *Parser) redshiftSystemPrivilegeStart() bool {
 		p.redshiftWordEqual("cancel") ||
 		p.redshiftWordEqual("ignore") ||
 		p.redshiftWordEqual("explain")
-}
-
-func (p *Parser) redshiftScopedPermissionStart() bool {
-	return p.peekNext().Type == FOR
 }
 
 // finishRedshiftScopedPermission finishes a scoped permission, whose privileges
