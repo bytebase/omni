@@ -58,6 +58,19 @@ CREATE TABLE `metrics_range` (
  PARTITION p_high VALUES LESS THAN MAXVALUE ENGINE=InnoDB COMMENT 'last') */;
 
 --
+-- Table structure for `metrics_shard`
+--
+CREATE TABLE `metrics_shard` (
+  `ts` int NOT NULL,
+  `val` bigint NOT NULL,
+  PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+/*!50100 PARTITION BY RANGE (`ts`)
+(PARTITION p10 VALUES LESS THAN (10) ENGINE=InnoDB COMMENT 'first tenth',
+ PARTITION p2 VALUES LESS THAN (20) ENGINE=InnoDB,
+ PARTITION p1 VALUES LESS THAN (30) ENGINE=InnoDB) */;
+
+--
 -- Table structure for `sharded_events`
 --
 CREATE TABLE `sharded_events` (

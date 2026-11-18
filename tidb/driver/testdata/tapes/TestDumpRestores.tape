@@ -42,6 +42,20 @@
 | );
 < ok 0 0
 > exec
+| -- A partition's name order is not its ordinal order: a renderer that sorted the
+| -- partitions by name would write p1 (30) before p10 (10), which the server
+| -- refuses with "VALUES LESS THAN value must be strictly increasing".
+| CREATE TABLE metrics_shard (
+| 	ts INT NOT NULL,
+| 	val BIGINT NOT NULL,
+| 	PRIMARY KEY (ts)
+| ) PARTITION BY RANGE (ts) (
+| 	PARTITION p10 VALUES LESS THAN (10) COMMENT 'first tenth',
+| 	PARTITION p2 VALUES LESS THAN (20),
+| 	PARTITION p1 VALUES LESS THAN (30)
+| );
+< ok 0 0
+> exec
 | CREATE SEQUENCE seq_orders START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CACHE 50 CYCLE COMMENT='order seq';
 < ok 0 0
 > exec
@@ -143,6 +157,19 @@
 < row
 : bytes
 | metrics_range
+: bytes
+| PRIMARY
+: bytes
+| ts
+: int64 1
+: int64 0
+: bytes
+|
+: null
+: null
+< row
+: bytes
+| metrics_shard
 : bytes
 | PRIMARY
 : bytes
@@ -470,6 +497,48 @@
 < row
 : bytes
 | metrics_range
+: bytes
+| val
+: int64 2
+: null
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| metrics_shard
+: bytes
+| ts
+: int64 1
+: null
+: bytes
+| NO
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| metrics_shard
 : bytes
 | val
 : int64 2
@@ -835,6 +904,54 @@
 | MAXVALUE
 : bytes
 | last
+< row
+: bytes
+| metrics_shard
+: bytes
+| p10
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 10
+: bytes
+| first tenth
+< row
+: bytes
+| metrics_shard
+: bytes
+| p2
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 20
+: bytes
+|
+< row
+: bytes
+| metrics_shard
+: bytes
+| p1
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 30
+: bytes
+|
 > query
 |
 | 		SELECT
@@ -892,6 +1009,27 @@
 < row
 : bytes
 | metrics_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| NOT_SHARDED(PK_IS_HANDLE)
+: bytes
+| CLUSTERED
+< row
+: bytes
+| metrics_shard
 : bytes
 | BASE TABLE
 : bytes
@@ -1093,6 +1231,17 @@
 |  PARTITION p_high VALUES LESS THAN MAXVALUE ENGINE=InnoDB COMMENT 'last') */
 < ok 0 0
 > exec
+| CREATE TABLE `metrics_shard` (
+|   `ts` int NOT NULL,
+|   `val` bigint NOT NULL,
+|   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| /*!50100 PARTITION BY RANGE (`ts`)
+| (PARTITION p10 VALUES LESS THAN (10) ENGINE=InnoDB COMMENT 'first tenth',
+|  PARTITION p2 VALUES LESS THAN (20) ENGINE=InnoDB,
+|  PARTITION p1 VALUES LESS THAN (30) ENGINE=InnoDB) */
+< ok 0 0
+> exec
 | CREATE TABLE `sharded_events` (
 |   `id` bigint NOT NULL /*T![auto_rand] AUTO_RANDOM(5) */,
 |   `account_id` bigint NOT NULL,
@@ -1214,6 +1363,19 @@
 < row
 : bytes
 | metrics_range
+: bytes
+| PRIMARY
+: bytes
+| ts
+: int64 1
+: int64 0
+: bytes
+|
+: null
+: null
+< row
+: bytes
+| metrics_shard
 : bytes
 | PRIMARY
 : bytes
@@ -1541,6 +1703,48 @@
 < row
 : bytes
 | metrics_range
+: bytes
+| val
+: int64 2
+: null
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| metrics_shard
+: bytes
+| ts
+: int64 1
+: null
+: bytes
+| NO
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| metrics_shard
 : bytes
 | val
 : int64 2
@@ -1906,6 +2110,54 @@
 | MAXVALUE
 : bytes
 | last
+< row
+: bytes
+| metrics_shard
+: bytes
+| p10
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 10
+: bytes
+| first tenth
+< row
+: bytes
+| metrics_shard
+: bytes
+| p2
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 20
+: bytes
+|
+< row
+: bytes
+| metrics_shard
+: bytes
+| p1
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 30
+: bytes
+|
 > query
 |
 | 		SELECT
@@ -1963,6 +2215,27 @@
 < row
 : bytes
 | metrics_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| NOT_SHARDED(PK_IS_HANDLE)
+: bytes
+| CLUSTERED
+< row
+: bytes
+| metrics_shard
 : bytes
 | BASE TABLE
 : bytes
