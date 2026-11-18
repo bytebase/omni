@@ -625,11 +625,11 @@ func (p *Parser) parseAddStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume ADD
 
-	// ADD SENSITIVITY CLASSIFICATION
+	// ADD SENSITIVITY CLASSIFICATION: both words, as the grammar names them.
 	if p.cur.Type == kwSENSITIVITY {
 		p.advance() // consume SENSITIVITY
-		if p.cur.Type == kwCLASSIFICATION {
-			p.advance() // consume CLASSIFICATION
+		if _, err := p.expect(kwCLASSIFICATION); err != nil {
+			return nil, err
 		}
 		stmt, err := p.parseAddSensitivityClassificationStmt()
 		if err != nil {
@@ -2531,12 +2531,12 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			}
 			return nil, nil
 		}
-		// DROP SENSITIVITY CLASSIFICATION
+		// DROP SENSITIVITY CLASSIFICATION: both words, as the grammar names them.
 		if next.Type == kwSENSITIVITY {
 			p.advance() // consume DROP
 			p.advance() // consume SENSITIVITY
-			if p.cur.Type == kwCLASSIFICATION {
-				p.advance() // consume CLASSIFICATION
+			if _, err := p.expect(kwCLASSIFICATION); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropSensitivityClassificationStmt()
 			if err != nil {

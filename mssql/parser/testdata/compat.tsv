@@ -607,11 +607,11 @@ accept	accept	engine	lastStatement/createSchemaStatement	CREATE SCHEMA a
 accept	reject	engine	lastStatement/createIdentifierStatement	CREATE FEDERATION a(a a RANGE)
 reject	reject	engine	lastStatement/createIdentifierStatement!drop-1	FEDERATION a(a a RANGE)
 reject	reject	engine	lastStatement/createIdentifierStatement!drop-2	CREATE a(a a RANGE)
-accept	reject	engine	lastStatement/createIdentifierStatement!drop-3	CREATE FEDERATION(a a RANGE)
-accept	reject	engine	lastStatement/createIdentifierStatement!drop-4	CREATE FEDERATION a a a RANGE)
-accept	reject	engine	lastStatement/createIdentifierStatement!drop-5	CREATE FEDERATION a(a RANGE)
-accept	reject	engine	lastStatement/createIdentifierStatement!drop-7	CREATE FEDERATION a(a a)
-accept	reject	engine	lastStatement/createIdentifierStatement!drop-8	CREATE FEDERATION a(a a RANGE
+reject	reject	engine	lastStatement/createIdentifierStatement!drop-3	CREATE FEDERATION(a a RANGE)
+reject	reject	engine	lastStatement/createIdentifierStatement!drop-4	CREATE FEDERATION a a a RANGE)
+reject	reject	engine	lastStatement/createIdentifierStatement!drop-5	CREATE FEDERATION a(a RANGE)
+reject	reject	engine	lastStatement/createIdentifierStatement!drop-7	CREATE FEDERATION a(a a)
+reject	reject	engine	lastStatement/createIdentifierStatement!drop-8	CREATE FEDERATION a(a a RANGE
 reject	reject	engine	lastStatement/createIdentifierStatement!insert	CREATE FEDERATION a(a a RANGE) zzz
 reject	reject	engine	lastStatement/createIdentifierStatement!swap	CREATE_INDEX FEDERATION a(a a RANGE)
 reject	reject	engine	lastStatement/alterIdentifierStatement	ALTER MATERIALIZED VIEW a REBUILD
@@ -660,14 +660,14 @@ reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MAT
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterMaterializedViewStatement_MATERIALIZED!swap	ALTER MAX VIEW a REBUILD
 accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION	ALTER FEDERATION a SPLIT AT(a = 1)
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-1	ALTER a SPLIT AT(a = 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-2	ALTER FEDERATION SPLIT AT(a = 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-3	ALTER FEDERATION a AT(a = 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-4	ALTER FEDERATION a SPLIT(a = 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-5	ALTER FEDERATION a SPLIT AT a = 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-6	ALTER FEDERATION a SPLIT AT(= 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-7	ALTER FEDERATION a SPLIT AT(a 1)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-8	ALTER FEDERATION a SPLIT AT(a =)
-accept	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-9	ALTER FEDERATION a SPLIT AT(a = 1
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-2	ALTER FEDERATION SPLIT AT(a = 1)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-3	ALTER FEDERATION a AT(a = 1)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-4	ALTER FEDERATION a SPLIT(a = 1)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-5	ALTER FEDERATION a SPLIT AT a = 1)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-6	ALTER FEDERATION a SPLIT AT(= 1)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-7	ALTER FEDERATION a SPLIT AT(a 1)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-8	ALTER FEDERATION a SPLIT AT(a =)
+reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!drop-9	ALTER FEDERATION a SPLIT AT(a = 1
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!insert	ALTER FEDERATION a SPLIT AT(a = 1) zzz
 reject	reject	engine	alterIdentifierStatement(alterMaterializedViewStatement_MATER~9627793e)/alterFederationStatement_FEDERATION!swap	ALTER FETCH a SPLIT AT(a = 1)
 accept	accept	engine	createOrAlterStatements/Create_Or_Alter_(createOrAlterFunctionStatement|creat~bea47e32)	CREATE OR ALTER PROC a AS
@@ -1110,7 +1110,7 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY	CREATE SECURITY POLICY a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!drop-1	CREATE POLICY a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!drop-2	CREATE SECURITY a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!drop-3	CREATE SECURITY POLICY
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!drop-3	CREATE SECURITY POLICY
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!insert	CREATE SECURITY POLICY a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSecurityPolicyStatement_SECURITY!swap	CREATE SECURITY_LOG POLICY a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createUserStatement	CREATE USER a
@@ -2238,14 +2238,14 @@ reject	reject	engine	alterDatabaseEncryptionKey(ENCRYPTION_By_dekEncryptor)?/ENC
 reject	reject	engine	alterDatabaseEncryptionKey(ENCRYPTION_By_dekEncryptor)?/ENCRYPTION_By_dekEncryptor!drop-5	ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = a ENCRYPTION BY SERVER CERTIFICATE
 reject	reject	engine	alterDatabaseEncryptionKey(ENCRYPTION_By_dekEncryptor)?/ENCRYPTION_By_dekEncryptor!insert	ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = a ENCRYPTION BY SERVER CERTIFICATE a zzz
 reject	reject	engine	alterDatabaseEncryptionKey(ENCRYPTION_By_dekEncryptor)?/ENCRYPTION_By_dekEncryptor!swap	ALTER DATABASE ENCRYPTION KEY REGENERATE WITH ALGORITHM = a ENCRYPTION_TYPE BY SERVER CERTIFICATE a
-accept	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
+reject	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
 reject	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!drop-1	ADD SENSITIVITY CLASSIFICATION TO a WITH(= 'a')
-accept	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!drop-2	ADD SENSITIVITY CLASSIFICATION TO a WITH(a 'a')
-accept	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!drop-3	ADD SENSITIVITY CLASSIFICATION TO a WITH(a =)
-accept	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!truncate	ADD SENSITIVITY CLASSIFICATION TO a WITH(a =
+reject	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!drop-2	ADD SENSITIVITY CLASSIFICATION TO a WITH(a 'a')
+reject	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!drop-3	ADD SENSITIVITY CLASSIFICATION TO a WITH(a =)
+reject	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!truncate	ADD SENSITIVITY CLASSIFICATION TO a WITH(a =
 reject	reject	engine	sensitivityClassificationOption/Identifier_EqualsSign_(nonEmptyString|Identifier)!insert	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a' zzz)
-accept	reject	engine	sensitivityClassificationOption(nonEmptyString|Identifier)/nonEmptyString	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
-accept	reject	engine	sensitivityClassificationOption(nonEmptyString|Identifier)/Identifier	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = a)
+reject	reject	engine	sensitivityClassificationOption(nonEmptyString|Identifier)/nonEmptyString	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
+reject	reject	engine	sensitivityClassificationOption(nonEmptyString|Identifier)/Identifier	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = a)
 reject	reject	engine	sensitivityClassificationOption(nonEmptyString|Identifier)/Identifier!insert	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = a zzz)
 accept	accept	engine	createDatabaseStatements/Create_Database_(createDatabaseAuditSpecification_AUD~57ee26f2)	CREATE DATABASE a
 accept	accept	engine	createDatabaseStatements(createDatabaseAuditSpecification_AUD~57ee26f2)/createDatabaseAuditSpecification_AUDIT	CREATE DATABASE AUDIT SPECIFICATION a FOR SERVER AUDIT a
@@ -5198,11 +5198,11 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY	ALTER SECURITY POLICY a ADD NOT FOR REPLICATION
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-1	ALTER POLICY a ADD NOT FOR REPLICATION
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-2	ALTER SECURITY a ADD NOT FOR REPLICATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-3	ALTER SECURITY POLICY ADD NOT FOR REPLICATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-4	ALTER SECURITY POLICY a NOT FOR REPLICATION
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-3	ALTER SECURITY POLICY ADD NOT FOR REPLICATION
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-4	ALTER SECURITY POLICY a NOT FOR REPLICATION
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-5	ALTER SECURITY POLICY a ADD FOR REPLICATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-6	ALTER SECURITY POLICY a ADD NOT REPLICATION
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-7	ALTER SECURITY POLICY a ADD NOT FOR
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-6	ALTER SECURITY POLICY a ADD NOT REPLICATION
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!drop-7	ALTER SECURITY POLICY a ADD NOT FOR
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!insert	ALTER SECURITY POLICY a ADD NOT FOR REPLICATION zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY!swap	ALTER SECURITY_LOG POLICY a ADD NOT FOR REPLICATION
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterColumnEncryptionKeyStatement	ALTER COLUMN ENCRYPTION KEY a DROP VALUE(COLUMN_MASTER_KEY = a)
@@ -6547,14 +6547,14 @@ reject	reject	engine	cursorId/GLOBAL_identifier!insert	OPEN GLOBAL a zzz
 reject	reject	engine	cursorId/GLOBAL_identifier!swap	OPEN GO a
 accept	accept	engine	cursorId/identifierOrVariable	OPEN @a
 accept	accept	engine	addStatements/Add_(addSensitivityClassificationStatemen~d894e546)	ADD SIGNATURE TO a BY CERTIFICATE a
-accept	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
+reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
 reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-1	ADD CLASSIFICATION TO a WITH(a = 'a')
-accept	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-2	ADD SENSITIVITY TO a WITH(a = 'a')
-accept	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-3	ADD SENSITIVITY CLASSIFICATION a WITH(a = 'a')
-accept	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-4	ADD SENSITIVITY CLASSIFICATION TO WITH(a = 'a')
+reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-2	ADD SENSITIVITY TO a WITH(a = 'a')
+reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-3	ADD SENSITIVITY CLASSIFICATION a WITH(a = 'a')
+reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-4	ADD SENSITIVITY CLASSIFICATION TO WITH(a = 'a')
 reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-5	ADD SENSITIVITY CLASSIFICATION TO a(a = 'a')
 reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-6	ADD SENSITIVITY CLASSIFICATION TO a WITH a = 'a')
-accept	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-10	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a'
+reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!drop-10	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a'
 reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!insert	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a') zzz
 reject	reject	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSensitivityClassificationStatement_SENSITIVITY!swap	ADD SENT CLASSIFICATION TO a WITH(a = 'a')
 accept	accept	engine	addStatements(addSensitivityClassificationStatemen~d894e546)/addSignatureStatement	ADD SIGNATURE TO a BY CERTIFICATE a
@@ -6758,13 +6758,13 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!insert	DROP SEQUENCE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!swap	DROP SEQUENCE_NUMBER_COLUMN_NAME a
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION	DROP FEDERATION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!drop-2	DROP FEDERATION
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!drop-2	DROP FEDERATION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!insert	DROP FEDERATION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!swap	DROP FETCH a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY	DROP SECURITY POLICY a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!drop-1	DROP POLICY a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!drop-2	DROP SECURITY a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!drop-3	DROP SECURITY POLICY
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!drop-3	DROP SECURITY POLICY
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!insert	DROP SECURITY POLICY a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!swap	DROP SECURITY_LOG POLICY a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropColumnStatements	DROP COLUMN MASTER KEY a
@@ -6779,11 +6779,11 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement!drop-3	DROP EXTERNAL TABLE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement!insert	DROP EXTERNAL TABLE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropExternalStatement!swap	DROP EXTERNAL_MONITOR TABLE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY	DROP SENSITIVITY CLASSIFICATION FROM a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY	DROP SENSITIVITY CLASSIFICATION FROM a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-1	DROP CLASSIFICATION FROM a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-2	DROP SENSITIVITY FROM a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-3	DROP SENSITIVITY CLASSIFICATION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-4	DROP SENSITIVITY CLASSIFICATION FROM
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-2	DROP SENSITIVITY FROM a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-3	DROP SENSITIVITY CLASSIFICATION a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!drop-4	DROP SENSITIVITY CLASSIFICATION FROM
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!insert	DROP SENSITIVITY CLASSIFICATION FROM a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSensitivityClassificationStatement_SENSITIVITY!swap	DROP SENT CLASSIFICATION FROM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropServerStatements	DROP SERVER AUDIT a
@@ -10601,7 +10601,7 @@ reject	reject	engine	alterColumnEncryptionKeyAddStatement/Add_VALUE_createColumn
 accept	accept	engine	alterColumnEncryptionKeyDropStatement/Drop_VALUE_LeftParenthesis_columnMasterKeyNameParameter~c0f60b88	ALTER COLUMN ENCRYPTION KEY a DROP VALUE(COLUMN_MASTER_KEY = a)
 reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement	CREATE SECURITY POLICY a ADD a PREDICATE a() ON a
 reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-1	CREATE SECURITY POLICY a a PREDICATE a() ON a
-accept	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-2	CREATE SECURITY POLICY a ADD PREDICATE a() ON a
+reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-2	CREATE SECURITY POLICY a ADD PREDICATE a() ON a
 reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-3	CREATE SECURITY POLICY a ADD a a() ON a
 reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-4	CREATE SECURITY POLICY a ADD a PREDICATE() ON a
 reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-5	CREATE SECURITY POLICY a ADD a PREDICATE a) ON a
@@ -10612,7 +10612,7 @@ reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurit
 reject	reject	engine	createSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!swap	CREATE SECURITY POLICY a ADMIN a PREDICATE a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement	ALTER SECURITY POLICY a ADD a PREDICATE a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-1	ALTER SECURITY POLICY a a PREDICATE a() ON a
-accept	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-2	ALTER SECURITY POLICY a ADD PREDICATE a() ON a
+reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-2	ALTER SECURITY POLICY a ADD PREDICATE a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-3	ALTER SECURITY POLICY a ADD a a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-4	ALTER SECURITY POLICY a ADD a PREDICATE() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!drop-5	ALTER SECURITY POLICY a ADD a PREDICATE a) ON a
@@ -10622,7 +10622,7 @@ reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurity
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!insert	ALTER SECURITY POLICY a ADD a PREDICATE a() ON a zzz
 reject	reject	engine	alterSecurityPredicateListElement/Add_createOrAltersecurityPredicateListElement!swap	ALTER SECURITY POLICY a ADMIN a PREDICATE a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement	ALTER SECURITY POLICY a ALTER a PREDICATE a() ON a
-accept	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement!drop-2	ALTER SECURITY POLICY a ALTER PREDICATE a() ON a
+reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement!drop-2	ALTER SECURITY POLICY a ALTER PREDICATE a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement!drop-3	ALTER SECURITY POLICY a ALTER a a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement!drop-4	ALTER SECURITY POLICY a ALTER a PREDICATE() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement!drop-5	ALTER SECURITY POLICY a ALTER a PREDICATE a) ON a
@@ -10633,7 +10633,7 @@ reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecuri
 reject	reject	engine	alterSecurityPredicateListElement/Alter_createOrAltersecurityPredicateListElement!swap	ALTER SECURITY POLICY a ALWAYS a PREDICATE a() ON a
 reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement	ALTER SECURITY POLICY a DROP a PREDICATE ON a
 reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!drop-1	ALTER SECURITY POLICY a a PREDICATE ON a
-accept	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!drop-2	ALTER SECURITY POLICY a DROP PREDICATE ON a
+reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!drop-2	ALTER SECURITY POLICY a DROP PREDICATE ON a
 reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!drop-3	ALTER SECURITY POLICY a DROP a ON a
 reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!drop-4	ALTER SECURITY POLICY a DROP a PREDICATE a
 reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!drop-5	ALTER SECURITY POLICY a DROP a PREDICATE ON
@@ -10641,27 +10641,27 @@ reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicat
 reject	reject	engine	alterSecurityPredicateListElement/Drop_dropSecurityPredicateListElement!swap	ALTER SECURITY POLICY a DROP_INDEX a PREDICATE ON a
 accept	accept	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b	ALTER SECURITY POLICY a WITH(STATE = ON)
 reject	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!drop-1	ALTER SECURITY POLICY a WITH(= ON)
-accept	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!drop-2	ALTER SECURITY POLICY a WITH(STATE ON)
-accept	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!drop-3	ALTER SECURITY POLICY a WITH(STATE =)
-accept	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!truncate	ALTER SECURITY POLICY a WITH(STATE =
+reject	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!drop-2	ALTER SECURITY POLICY a WITH(STATE ON)
+reject	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!drop-3	ALTER SECURITY POLICY a WITH(STATE =)
+reject	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!truncate	ALTER SECURITY POLICY a WITH(STATE =
 reject	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!insert	ALTER SECURITY POLICY a WITH(STATE = ON zzz)
-accept	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!swap	ALTER SECURITY POLICY a WITH(STATEMENT = ON)
+reject	reject	engine	securityPolicyOptionsList/securityPolicyOptionListElement_(Comma_securityPolicyOp~6f234c0b!swap	ALTER SECURITY POLICY a WITH(STATEMENT = ON)
 accept	accept	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/%empty	ALTER SECURITY POLICY a WITH(STATE = ON)
-accept	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01	ALTER SECURITY POLICY a WITH(STATE = ON, STATE = ON)
+reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01	ALTER SECURITY POLICY a WITH(STATE = ON, STATE = ON)
 reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!drop-1	ALTER SECURITY POLICY a WITH(STATE = ON STATE = ON)
 reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!drop-2	ALTER SECURITY POLICY a WITH(STATE = ON, = ON)
-accept	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!drop-3	ALTER SECURITY POLICY a WITH(STATE = ON, STATE ON)
-accept	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!drop-4	ALTER SECURITY POLICY a WITH(STATE = ON, STATE =)
-accept	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!truncate	ALTER SECURITY POLICY a WITH(STATE = ON, STATE =
+reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!drop-3	ALTER SECURITY POLICY a WITH(STATE = ON, STATE ON)
+reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!drop-4	ALTER SECURITY POLICY a WITH(STATE = ON, STATE =)
+reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!truncate	ALTER SECURITY POLICY a WITH(STATE = ON, STATE =
 reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!insert	ALTER SECURITY POLICY a WITH(STATE = ON, STATE = ON zzz)
-accept	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!swap	ALTER SECURITY POLICY a WITH(STATE = ON, STATEMENT = ON)
+reject	reject	engine	securityPolicyOptionsList(Comma_securityPolicyOptionListElement)*/Comma_securityPolicyOptionListElement_(Comma_securityPo~463b1a01!swap	ALTER SECURITY POLICY a WITH(STATE = ON, STATEMENT = ON)
 accept	accept	engine	securityPolicyOptionListElement/(STATE|SCHEMABINDING)_EqualsSign_optionOnOff	ALTER SECURITY POLICY a WITH(STATE = ON)
 accept	accept	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE	ALTER SECURITY POLICY a WITH(STATE = ON)
-accept	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE!truncate	ALTER SECURITY POLICY a WITH(
+reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE!truncate	ALTER SECURITY POLICY a WITH(
 reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/STATE!insert	ALTER SECURITY POLICY a WITH(STATE zzz = ON)
-accept	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/SCHEMABINDING	ALTER SECURITY POLICY a WITH(SCHEMABINDING = ON)
+reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/SCHEMABINDING	ALTER SECURITY POLICY a WITH(SCHEMABINDING = ON)
 reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/SCHEMABINDING!insert	ALTER SECURITY POLICY a WITH(SCHEMABINDING zzz = ON)
-accept	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/SCHEMABINDING!swap	ALTER SECURITY POLICY a WITH(SCHEME = ON)
+reject	reject	engine	securityPolicyOptionListElement(STATE|SCHEMABINDING)/SCHEMABINDING!swap	ALTER SECURITY POLICY a WITH(SCHEME = ON)
 reject	reject	engine	createOrAltersecurityPredicateListElement/Identifier_PREDICATE_schemaObjectThreePartName_userFunc~ef8aa87a	ALTER SECURITY POLICY a ADD a PREDICATE a() ON a
 reject	reject	engine	createOrAltersecurityPredicateListElement/Identifier_PREDICATE_schemaObjectThreePartName_userFunc~ef8aa87a!swap	ALTER SECURITY POLICY a ADD a PREDICT a() ON a
 reject	reject	engine	createOrAltersecurityPredicateListElement(securityPredicateOperation)?/%empty	ALTER SECURITY POLICY a ADD a PREDICATE a() ON a
@@ -14951,22 +14951,22 @@ reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE
 reject	reject	engine	alterMaterializedViewStatement_MATERIALIZED(REBUILD|DISABLE)/DISABLE!swap	ALTER MATERIALIZED VIEW a DISABLED
 accept	reject	engine	alterFederationStatement_FEDERATION/FEDERATION_identifier_(SPLIT_AT_LeftParenthesis|Drop_AT~acf65172	ALTER FEDERATION a SPLIT AT(a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis	ALTER FEDERATION a SPLIT AT(a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!truncate	ALTER FEDERATION a SPLIT AT
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!insert	ALTER FEDERATION a SPLIT AT(zzz a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!truncate	ALTER FEDERATION a SPLIT AT
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!insert	ALTER FEDERATION a SPLIT AT(zzz a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/SPLIT_AT_LeftParenthesis!swap	ALTER FEDERATION a SQL AT(a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)	ALTER FEDERATION a DROP AT(LOW a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-1	ALTER FEDERATION a AT(LOW a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-2	ALTER FEDERATION a DROP(LOW a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-3	ALTER FEDERATION a DROP AT LOW a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-4	ALTER FEDERATION a DROP AT(a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!truncate	ALTER FEDERATION a DROP AT(
-accept	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!insert	ALTER FEDERATION a DROP AT(LOW zzz a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-2	ALTER FEDERATION a DROP(LOW a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-3	ALTER FEDERATION a DROP AT LOW a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!drop-4	ALTER FEDERATION a DROP AT(a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!truncate	ALTER FEDERATION a DROP AT(
+reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!insert	ALTER FEDERATION a DROP AT(LOW zzz a = 1)
 reject	reject	engine	alterFederationStatement_FEDERATION(SPLIT_AT_LeftParenthesis|Drop_AT_Lef~e6a517a9)/Drop_AT_LeftParenthesis_(LOW|HIGH)!swap	ALTER FEDERATION a DROP_INDEX AT(LOW a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/LOW	ALTER FEDERATION a DROP AT(LOW a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/LOW!swap	ALTER FEDERATION a DROP AT(MAINTAIN_INDEX a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/LOW!swap	ALTER FEDERATION a DROP AT(MAINTAIN_INDEX a = 1)
 accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH	ALTER FEDERATION a DROP AT(HIGH a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!insert	ALTER FEDERATION a DROP AT(HIGH zzz a = 1)
-accept	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!swap	ALTER FEDERATION a DROP AT(HINT a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!insert	ALTER FEDERATION a DROP AT(HIGH zzz a = 1)
+reject	reject	engine	alterFederationStatement_FEDERATION(LOW|HIGH)/HIGH!swap	ALTER FEDERATION a DROP AT(HINT a = 1)
 accept	accept	engine	disableTriggerStatement_DISABLE/DISABLE_enableDisableTriggerBody	DISABLE TRIGGER a ON a
 accept	accept	engine	enableTriggerStatement_ENABLE/ENABLE_enableDisableTriggerBody	ENABLE TRIGGER a ON a
 accept	accept	engine	moveConversationStatement_MOVE/MOVE_CONVERSATION_expression_To_expression	MOVE CONVERSATION 1 TO 1
@@ -15472,16 +15472,16 @@ accept	accept	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-1	CREATE SECURITY POLICY a(STATE = ON)
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-2	CREATE SECURITY POLICY a WITH STATE = ON)
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-3	CREATE SECURITY POLICY a WITH(= ON)
-accept	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-4	CREATE SECURITY POLICY a WITH(STATE ON)
-accept	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-5	CREATE SECURITY POLICY a WITH(STATE =)
-accept	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-6	CREATE SECURITY POLICY a WITH(STATE = ON
+reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-4	CREATE SECURITY POLICY a WITH(STATE ON)
+reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-5	CREATE SECURITY POLICY a WITH(STATE =)
+reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-6	CREATE SECURITY POLICY a WITH(STATE = ON
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!insert	CREATE SECURITY POLICY a WITH(STATE = ON) zzz
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(With_LeftParenthesis_securityPolicyO~4d9001f0)?/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!swap	CREATE SECURITY POLICY a WITHIN(STATE = ON)
 accept	accept	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/%empty	CREATE SECURITY POLICY a
 accept	accept	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication	CREATE SECURITY POLICY a NOT FOR REPLICATION
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!drop-1	CREATE SECURITY POLICY a FOR REPLICATION
-accept	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!drop-2	CREATE SECURITY POLICY a NOT REPLICATION
-accept	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!drop-3	CREATE SECURITY POLICY a NOT FOR
+reject	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!drop-2	CREATE SECURITY POLICY a NOT REPLICATION
+reject	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!drop-3	CREATE SECURITY POLICY a NOT FOR
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!insert	CREATE SECURITY POLICY a NOT FOR REPLICATION zzz
 reject	reject	engine	createSecurityPolicyStatement_SECURITY(Not_For_Replication)?/Not_For_Replication!swap	CREATE SECURITY POLICY a NOTIFICATION FOR REPLICATION
 accept	accept	engine	assemblyEncryptionSource_ASSEMBLY/ASSEMBLY_identifier	CREATE ASYMMETRIC KEY a FROM ASSEMBLY a
@@ -16559,7 +16559,7 @@ accept	accept	engine	alterSecurityPolicyStatement_SECURITY/SECURITY_POLICY_schem
 accept	accept	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis	ALTER SECURITY POLICY a WITH(STATE = ON)
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-1	ALTER SECURITY POLICY a(STATE = ON)
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-2	ALTER SECURITY POLICY a WITH STATE = ON)
-accept	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-6	ALTER SECURITY POLICY a WITH(STATE = ON
+reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!drop-6	ALTER SECURITY POLICY a WITH(STATE = ON
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!insert	ALTER SECURITY POLICY a WITH(STATE = ON) zzz
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/With_LeftParenthesis_securityPolicyOptionsList_RightParenthesis!swap	ALTER SECURITY POLICY a WITHIN(STATE = ON)
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/alterSecurityPredicateListElement_(Comma_alterSecurityP~14a1faa2	ALTER SECURITY POLICY a DROP a PREDICATE ON a
@@ -16567,8 +16567,8 @@ accept	accept	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Add_Not_For_Replication!swap	ALTER SECURITY POLICY a ADMIN NOT FOR REPLICATION
 accept	accept	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication	ALTER SECURITY POLICY a DROP NOT FOR REPLICATION
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!drop-2	ALTER SECURITY POLICY a DROP FOR REPLICATION
-accept	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!drop-3	ALTER SECURITY POLICY a DROP NOT REPLICATION
-accept	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!drop-4	ALTER SECURITY POLICY a DROP NOT FOR
+reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!drop-3	ALTER SECURITY POLICY a DROP NOT REPLICATION
+reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!drop-4	ALTER SECURITY POLICY a DROP NOT FOR
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!insert	ALTER SECURITY POLICY a DROP NOT FOR REPLICATION zzz
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY((With_LeftParenthesis_securityPolicy~0bbc602d)/Drop_Not_For_Replication!swap	ALTER SECURITY POLICY a DROP_INDEX NOT FOR REPLICATION
 reject	reject	engine	alterSecurityPolicyStatement_SECURITY(Comma_alterSecurityPredicateListElement)*/%empty	ALTER SECURITY POLICY a DROP a PREDICATE ON a
@@ -16658,21 +16658,21 @@ reject	reject	engine	killQueryNotificationSubscriptionStatement_QUERY(All|intege
 accept	accept	engine	openMasterKeyStatement_MASTER/MASTER_Key_DECRYPTION_By_PASSWORD_EqualsSign_stringLiteral	OPEN MASTER KEY DECRYPTION BY PASSWORD = 'a'
 accept	accept	engine	openSymmetricKeyStatement_SYMMETRIC/SYMMETRIC_Key_identifier_DECRYPTION_By_decryptionMechanism	OPEN SYMMETRIC KEY a DECRYPTION BY CERTIFICATE a
 accept	accept	engine	closeMasterKeyStatement_MASTER/MASTER_Key	CLOSE MASTER KEY
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY/SENSITIVITY_CLASSIFICATION_To_column_(Comma_column)*_Wi~fd16f81e	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/%empty	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY/SENSITIVITY_CLASSIFICATION_To_column_(Comma_column)*_Wi~fd16f81e	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/%empty	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/%empty!insert	ADD SENSITIVITY CLASSIFICATION TO a zzz WITH(a = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*	ADD SENSITIVITY CLASSIFICATION TO a, a WITH(a = 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*	ADD SENSITIVITY CLASSIFICATION TO a, a WITH(a = 'a')
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!drop-1	ADD SENSITIVITY CLASSIFICATION TO a a WITH(a = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!drop-2	ADD SENSITIVITY CLASSIFICATION TO a, WITH(a = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!truncate	ADD SENSITIVITY CLASSIFICATION TO a,
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!drop-2	ADD SENSITIVITY CLASSIFICATION TO a, WITH(a = 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!truncate	ADD SENSITIVITY CLASSIFICATION TO a,
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!insert	ADD SENSITIVITY CLASSIFICATION TO a, a zzz WITH(a = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/%empty	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a = 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/%empty	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a = 'a')
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!drop-1	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a' a = 'a')
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!drop-2	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', = 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!drop-3	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a 'a')
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!drop-4	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a =)
-accept	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!truncate	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a =
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!drop-3	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a 'a')
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!drop-4	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a =)
+reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!truncate	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a =
 reject	reject	engine	addSensitivityClassificationStatement_SENSITIVITY(Comma_sensitivityClassificationOption)*/Comma_sensitivityClassificationOption_(Comma_sensitivit~6bbe005a!insert	ADD SENSITIVITY CLASSIFICATION TO a WITH(a = 'a', a = 'a' zzz)
 accept	accept	engine	dropAggregateStatement_AGGREGATE/AGGREGATE_(If_Exists)?_dropObjectList	DROP AGGREGATE a
 accept	accept	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/%empty	DROP AGGREGATE a
@@ -16781,15 +16781,15 @@ accept	accept	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/%empty	DRO
 reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/%empty!insert	DROP SECURITY POLICY zzz a
 accept	accept	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists	DROP SECURITY POLICY IF EXISTS a
 reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!drop-1	DROP SECURITY POLICY EXISTS a
-accept	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!drop-2	DROP SECURITY POLICY IF a
-accept	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!truncate	DROP SECURITY POLICY IF
+reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!drop-2	DROP SECURITY POLICY IF a
+reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!truncate	DROP SECURITY POLICY IF
 reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!insert	DROP SECURITY POLICY IF EXISTS zzz a
 reject	reject	engine	dropSecurityPolicyStatement_SECURITY(If_Exists)?/If_Exists!swap	DROP SECURITY POLICY IGNORE EXISTS a
-accept	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY/SENSITIVITY_CLASSIFICATION_From_column_(Comma_column)*	DROP SENSITIVITY CLASSIFICATION FROM a
-accept	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/%empty	DROP SENSITIVITY CLASSIFICATION FROM a
-accept	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*	DROP SENSITIVITY CLASSIFICATION FROM a, a
+reject	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY/SENSITIVITY_CLASSIFICATION_From_column_(Comma_column)*	DROP SENSITIVITY CLASSIFICATION FROM a
+reject	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/%empty	DROP SENSITIVITY CLASSIFICATION FROM a
+reject	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*	DROP SENSITIVITY CLASSIFICATION FROM a, a
 reject	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!drop-1	DROP SENSITIVITY CLASSIFICATION FROM a a
-accept	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!drop-2	DROP SENSITIVITY CLASSIFICATION FROM a,
+reject	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!drop-2	DROP SENSITIVITY CLASSIFICATION FROM a,
 reject	reject	engine	dropSensitivityClassificationStatement_SENSITIVITY(Comma_column)*/Comma_column_(Comma_column)*!insert	DROP SENSITIVITY CLASSIFICATION FROM a, a zzz
 accept	accept	engine	dropServerAuditSpecificationStatement_SPECIFICATION/SPECIFICATION_identifier	DROP SERVER AUDIT SPECIFICATION a
 accept	accept	engine	dropDatabaseAuditSpecificationStatement_AUDIT/AUDIT_SPECIFICATION_identifier	DROP DATABASE AUDIT SPECIFICATION a
