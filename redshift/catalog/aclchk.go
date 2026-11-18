@@ -35,22 +35,32 @@ type grantee struct {
 	value string // its name without the kind's prefix
 }
 
-// redshiftGranteeKinds are the grantee prefixes redshift/parser writes into a
-// RoleSpec, longest first so a prefix resolves before one it starts with.
-var redshiftGranteeKinds = []string{
-	"account_via_data_catalog", "admins_of_account", "iam_role", "namespace", "account", "datashare", "rls_policy",
+// redshiftGranteeKind is the kind a RoleSpec names, "" for a database role.
+func redshiftGranteeKind(rs *nodes.RoleSpec) string {
+	switch nodes.RoleSpecType(rs.Roletype) {
+	case nodes.ROLESPEC_IAM_ROLE:
+		return "iam_role"
+	case nodes.ROLESPEC_NAMESPACE:
+		return "namespace"
+	case nodes.ROLESPEC_ACCOUNT:
+		return "account"
+	case nodes.ROLESPEC_ACCOUNT_VIA_DATA_CATALOG:
+		return "account_via_data_catalog"
+	case nodes.ROLESPEC_ADMINS_OF_ACCOUNT:
+		return "admins_of_account"
+	case nodes.ROLESPEC_DATASHARE:
+		return "datashare"
+	case nodes.ROLESPEC_RLS_POLICY:
+		return "rls_policy"
+	}
+	return ""
 }
 
 // newGrantee reads a grantee from its RoleSpec.
 func newGrantee(rs *nodes.RoleSpec) grantee {
-	g := grantee{name: roleSpecName(rs)}
-	g.value = g.name
-	for _, kind := range redshiftGranteeKinds {
-		if rest, ok := strings.CutPrefix(g.name, kind+":"); ok {
-			g.kind = kind
-			g.value = rest
-			break
-		}
+	g := grantee{name: roleSpecName(rs), kind: redshiftGranteeKind(rs)}
+	if g.kind != "" {
+		g.value = strings.TrimPrefix(rs.Rolename, g.kind+":")
 	}
 	return g
 }

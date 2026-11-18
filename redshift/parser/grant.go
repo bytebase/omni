@@ -401,7 +401,7 @@ func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*n
 			return nil, err
 		}
 		return &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Roletype: int(nodes.ROLESPEC_ADMINS_OF_ACCOUNT),
 			Rolename: "admins_of_account:" + id,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
@@ -951,7 +951,7 @@ func (p *Parser) parseRedshiftIAMRoleGrantees(allowPublic bool) (*nodes.List, er
 			return nil, p.syntaxErrorAtCur()
 		}
 		result.Items = append(result.Items, &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Roletype: int(nodes.ROLESPEC_IAM_ROLE),
 			Rolename: "iam_role:" + value,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		})
@@ -971,7 +971,7 @@ func (p *Parser) parseRedshiftDatashareGrantee() (*nodes.List, error) {
 		return nil, err
 	}
 	return &nodes.List{Items: []nodes.Node{&nodes.RoleSpec{
-		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Roletype: int(nodes.ROLESPEC_DATASHARE),
 		Rolename: "datashare:" + name,
 		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}}}, nil
@@ -1026,17 +1026,20 @@ func (p *Parser) parseRedshiftDatashareConsumer(prefix string, loc int) (*nodes.
 		return nil, err
 	}
 	name := prefix + ":" + id
+	roletype := nodes.ROLESPEC_NAMESPACE
 	if prefix == "account" {
+		roletype = nodes.ROLESPEC_ACCOUNT
 		via, err := p.parseRedshiftViaDataCatalog()
 		if err != nil {
 			return nil, err
 		}
 		if via {
+			roletype = nodes.ROLESPEC_ACCOUNT_VIA_DATA_CATALOG
 			name = "account_via_data_catalog:" + id
 		}
 	}
 	return &nodes.RoleSpec{
-		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Roletype: int(roletype),
 		Rolename: name,
 		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
@@ -1972,7 +1975,7 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 			return nil, err
 		}
 		return &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Roletype: int(nodes.ROLESPEC_RLS_POLICY),
 			Rolename: "rls_policy:" + name,
 			Loc:      nodes.Loc{Start: loc, End: p.pos()},
 		}, nil
@@ -1985,12 +1988,17 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 			return p.parseRoleSpec()
 		}
 		tok := p.advance()
-		if prefix == "account" && p.consumeRedshiftWord("via") {
-			p.consumeRedshiftWord("data_catalog")
+		roletype := nodes.ROLESPEC_NAMESPACE
+		name := prefix + ":" + tok.Str
+		if prefix == "account" {
+			roletype = nodes.ROLESPEC_ACCOUNT
+			if p.consumeRedshiftWord("via") {
+				p.consumeRedshiftWord("data_catalog")
+			}
 		}
 		return &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
-			Rolename: prefix + ":" + tok.Str,
+			Roletype: int(roletype),
+			Rolename: name,
 			Loc:      nodes.Loc{Start: loc, End: p.pos()},
 		}, nil
 	}
@@ -2005,7 +2013,7 @@ func (p *Parser) parseGrantee() (*nodes.RoleSpec, error) {
 			}
 		}
 		return &nodes.RoleSpec{
-			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Roletype: int(nodes.ROLESPEC_IAM_ROLE),
 			Rolename: "iam_role:" + value,
 			Loc:      nodes.Loc{Start: loc, End: p.pos()},
 		}, nil

@@ -140,6 +140,8 @@ func formatGrantPrivilege(g Grant) string {
 // Redshift objects whose code alone does not say how they are written.
 func formatGrantObjectRef(g Grant, objName string) string {
 	switch g.Target {
+	case nodes.OBJECT_PROCEDURE:
+		return fmt.Sprintf("PROCEDURE %s", objName)
 	case nodes.OBJECT_FOREIGN_TABLE:
 		return fmt.Sprintf("EXTERNAL TABLE %s", formatQualifiedDescription(objName))
 	case nodes.OBJECT_EXTERNAL_SCHEMA:
@@ -166,9 +168,6 @@ func formatGrantObjectRef(g Grant, objName string) string {
 // admins of an account, a datashare, or a role name.
 func formatGrantee(g Grant) string {
 	name := g.GranteeName
-	if name == "" && g.GranteeKind == "" {
-		return "PUBLIC"
-	}
 	switch g.GranteeKind {
 	case "iam_role":
 		return fmt.Sprintf("IAM_ROLE '%s'", strings.ReplaceAll(name, "'", "''"))

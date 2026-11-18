@@ -266,6 +266,18 @@ const (
 	// ROLESPEC_IDC_ROLE is an AWS IAM Identity Center role (a group identity),
 	// the grantee GRANT CONNECT and DEBUG write as ROLE <prefix>:<name>.
 	ROLESPEC_IDC_ROLE
+
+	// Redshift's grantees that are not database roles. Rolename holds the
+	// value with the kind's prefix — "iam_role:", "namespace:", "account:",
+	// "account_via_data_catalog:", "admins_of_account:", "datashare:",
+	// "rls_policy:" — the name the catalog and the diff compare.
+	ROLESPEC_IAM_ROLE
+	ROLESPEC_NAMESPACE
+	ROLESPEC_ACCOUNT
+	ROLESPEC_ACCOUNT_VIA_DATA_CATALOG
+	ROLESPEC_ADMINS_OF_ACCOUNT
+	ROLESPEC_DATASHARE
+	ROLESPEC_RLS_POLICY
 )
 
 // AlterTableType represents ALTER TABLE command types.

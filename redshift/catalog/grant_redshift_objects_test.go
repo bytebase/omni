@@ -160,3 +160,31 @@ func TestExternalTableGrantRendersItsOwnSyntax(t *testing.T) {
 		t.Error("external and plain grants share a key, want two")
 	}
 }
+
+// TestGranteeKindIsTheRoleSpecKind holds a plain role whose quoted name looks
+// like a kind's prefixed value apart from the kind a RoleSpec names.
+func TestGranteeKindIsTheRoleSpecKind(t *testing.T) {
+	c := New()
+	if err := execOne(t, c, "CREATE SCHEMA s"); err != nil {
+		t.Fatal(err)
+	}
+	if err := execOne(t, c, "CREATE TABLE s.t (id INT)"); err != nil {
+		t.Fatal(err)
+	}
+	if err := execOne(t, c, `GRANT SELECT ON s.t TO "iam_role:r"`); err != nil {
+		t.Fatal(err)
+	}
+	g := c.grants[0]
+	if g.GranteeKind != "" || g.GranteeName != "" {
+		t.Fatalf("grantee = %+v, want a plain role", g)
+	}
+	if got, want := formatGrantee(g), `"iam_role:r"`; got != want {
+		t.Errorf("formatGrantee = %q, want %q", got, want)
+	}
+
+	// A procedure grant renders as a procedure, not a function.
+	proc := Grant{ObjType: 'f', Target: nodes.OBJECT_PROCEDURE}
+	if got, want := formatGrantObjectRef(proc, "s.p()"), "PROCEDURE s.p()"; got != want {
+		t.Errorf("procedure grant ON clause = %q, want %q", got, want)
+	}
+}
