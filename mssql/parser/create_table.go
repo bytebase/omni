@@ -1515,7 +1515,7 @@ trailingOptions:
 		case p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST:
 			idx.OnFilegroup = p.cur.Str
 			p.advance()
-		case p.isIdentLike() || p.cur.Type == kwPRIMARY:
+		case p.isIdentLike():
 			fg := p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
@@ -1544,7 +1544,7 @@ trailingOptions:
 		case p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST:
 			idx.FilestreamOn = p.cur.Str
 			p.advance()
-		case p.isIdentLike() || p.cur.Type == kwPRIMARY:
+		case p.isIdentLike():
 			idx.FilestreamOn = p.cur.Str
 			p.advance()
 		default:

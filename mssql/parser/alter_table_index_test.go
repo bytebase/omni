@@ -103,14 +103,15 @@ func TestParseAlterTableAddIndex(t *testing.T) {
 				}
 			})
 		}
-		for _, sql := range []string{
-			"ALTER TABLE a ADD INDEX ix (a) ON 'a'",
-			"ALTER TABLE a ADD INDEX ix (a) ON ps(a) FILESTREAM_ON 'a'",
+		for _, tt := range []struct{ sql, filegroup string }{
+			{"ALTER TABLE a ADD INDEX ix (a) ON 'a'", "a"},
+			{"ALTER TABLE a ADD INDEX ix (a) ON [PRIMARY]", "PRIMARY"},
+			{"ALTER TABLE a ADD INDEX ix (a) ON ps(a) FILESTREAM_ON 'a'", "ps(a)"},
 		} {
-			t.Run(sql, func(t *testing.T) {
-				idx := addIndexAction(t, ParseAndCheck(t, sql), sql)
-				if idx.OnFilegroup != "a" && idx.OnFilegroup != "ps(a)" {
-					t.Errorf("OnFilegroup = %q, want the filegroup", idx.OnFilegroup)
+			t.Run(tt.sql, func(t *testing.T) {
+				idx := addIndexAction(t, ParseAndCheck(t, tt.sql), tt.sql)
+				if idx.OnFilegroup != tt.filegroup {
+					t.Errorf("OnFilegroup = %q, want %q", idx.OnFilegroup, tt.filegroup)
 				}
 			})
 		}
@@ -154,6 +155,9 @@ func TestParseAlterTableAddIndexRejects(t *testing.T) {
 		"ALTER TABLE a ADD INDEX ix (a) WITH (COMPRESSION_DELAY = 1)",
 		"ALTER TABLE a ADD INDEX ix COLUMNSTORE (a) WITH (FILLFACTOR = 1)",
 		"ALTER TABLE a ADD INDEX ix FILESTREAM_ON",
+		"ALTER TABLE a ADD INDEX ix (a) FILESTREAM_ON PRIMARY",
+		"ALTER TABLE a ADD INDEX ix (a) ON PRIMARY",
+		"ALTER TABLE a ADD INDEX ix (a) ON DEFAULT",
 		"ALTER TABLE a ADD INDEX ix CLUSTERED COLUMNSTORE ORDER",
 		"ALTER TABLE a ADD INDEX ix ON ps()",
 		"ALTER TABLE a ADD INDEX ix HASH",
