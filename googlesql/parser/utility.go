@@ -340,6 +340,10 @@ func (p *Parser) parseCallStmt() (ast.Node, error) {
 // expression, which parseExpr handles.)
 func (p *Parser) parseCallArg() (ast.Node, error) {
 	switch p.cur.Type {
+	case kwINPUT:
+		if p.peekNext().Type == kwTABLE {
+			return p.parseCallInputTableArg()
+		}
 	case kwTABLE:
 		if isIdentifierStart(p.peekNext().Type) {
 			return p.parseCallTableArg()
@@ -417,6 +421,14 @@ func (p *Parser) parseNamedTVFArg() (ast.Node, error) {
 		end = nodeLoc(v).End
 	}
 	return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: end}}, nil
+}
+
+// parseCallInputTableArg parses input_table_argument, `INPUT TABLE`, the tvf
+// argument that names the call's input table. INPUT is the current token.
+func (p *Parser) parseCallInputTableArg() (ast.Node, error) {
+	start := p.advance().Loc.Start // INPUT
+	p.advance()                    // TABLE
+	return &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
 }
 
 // parseCallTableArg parses table_clause as a CALL argument: `TABLE path_expression`

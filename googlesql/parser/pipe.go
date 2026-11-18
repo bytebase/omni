@@ -1224,9 +1224,7 @@ func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
 		return p.parseTableClauseOperand()
 	}
 	if p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE {
-		start := p.advance().Loc.Start // INPUT
-		p.advance()                    // TABLE
-		return &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
+		return p.parseCallInputTableArg()
 	}
 	if isIdentifierStart(p.cur.Type) && p.peekNext().Type == tokFatArrow {
 		return p.parseNamedTVFArg()

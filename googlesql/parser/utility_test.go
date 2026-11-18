@@ -626,6 +626,23 @@ func TestCall(t *testing.T) {
 	// named_argument: `identifier => input_table_argument` and
 	// named_non_expr_argument: `identifier => table_clause` — the two non-expression
 	// value shapes a named tvf_argument has besides an expression / lambda.
+	t.Run("positional input table", func(t *testing.T) {
+		c := parseCall(t, "CALL p(INPUT TABLE, 1)")
+		if len(c.Args) != 2 {
+			t.Fatalf("Args = %d, want 2", len(c.Args))
+		}
+		ca, ok := c.Args[0].(*ast.CallArg)
+		if !ok || ca.Kind != ast.CallArgInputTable {
+			t.Errorf("Args[0] = %+v, want an INPUT TABLE CallArg", c.Args[0])
+		}
+		// A bare INPUT is the non-reserved keyword as an identifier expression.
+		if c := parseCall(t, "CALL p(INPUT)"); len(c.Args) != 1 {
+			t.Errorf("Args = %d, want 1", len(c.Args))
+		} else if _, isClause := c.Args[0].(*ast.CallArg); isClause {
+			t.Error("CALL p(INPUT): Args[0] is a clause, want an identifier expression")
+		}
+	})
+
 	t.Run("named input table and table clause", func(t *testing.T) {
 		c := parseCall(t, "CALL p(a => INPUT TABLE, b => TABLE t, c => 1)")
 		if len(c.Args) != 3 {

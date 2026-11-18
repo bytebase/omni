@@ -150,6 +150,7 @@ func TestGetQuerySpan_CallTableArguments(t *testing.T) {
 		{"CALL p(a => TABLE u)", []string{"u"}},
 		{"CALL p(1, TABLE u, b => TABLE v)", []string{"u", "v"}},
 		{"CALL p(a => INPUT TABLE)", nil},
+		{"CALL p(INPUT TABLE)", nil},
 	} {
 		t.Run(c.sql, func(t *testing.T) {
 			span, err := GetQuerySpan(c.sql, DialectBigQuery)
