@@ -439,7 +439,7 @@ reject	reject	engine	statement/fetchCursorStatement!insert	FETCH @a zzz
 reject	reject	engine	statement/fetchCursorStatement!swap	FILE @a
 accept	accept	engine	statement/dropStatements	DROP DATABASE a
 accept	reject	engine	statement/dropStatements!drop-2	DROP a
-accept	reject	engine	statement/dropStatements!drop-3	DROP DATABASE
+reject	reject	engine	statement/dropStatements!drop-3	DROP DATABASE
 reject	reject	engine	statement/dropStatements!insert	DROP DATABASE a zzz
 reject	reject	engine	statement/dropStatements!swap	DROP_INDEX DATABASE a
 accept	accept	engine	statement/dbccStatement	DBCC a
@@ -6571,35 +6571,35 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropStatisticsStatement!insert	DROP STATISTICS a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropStatisticsStatement!swap	DROP STATS a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTableStatement	DROP TABLE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTableStatement!drop-2	DROP TABLE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTableStatement!drop-2	DROP TABLE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTableStatement!insert	DROP TABLE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTableStatement!swap	DROP TABLESAMPLE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropProcedureStatement	DROP PROCEDURE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropProcedureStatement!drop-2	DROP PROCEDURE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropProcedureStatement!drop-2	DROP PROCEDURE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropProcedureStatement!insert	DROP PROCEDURE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropProcedureStatement!swap	DROP PROCESS a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFunctionStatement	DROP FUNCTION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFunctionStatement!drop-2	DROP FUNCTION
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFunctionStatement!drop-2	DROP FUNCTION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFunctionStatement!insert	DROP FUNCTION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFunctionStatement!swap	DROP GB a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropViewStatement	DROP VIEW a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropViewStatement!drop-2	DROP VIEW
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropViewStatement!drop-2	DROP VIEW
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropViewStatement!insert	DROP VIEW a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropViewStatement!swap	DROP WAITFOR a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropDefaultStatement	DROP DEFAULT a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropDefaultStatement!drop-2	DROP DEFAULT
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropDefaultStatement!drop-2	DROP DEFAULT
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropDefaultStatement!insert	DROP DEFAULT a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropDefaultStatement!swap	DROP DEFAULT_DATABASE a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRuleStatement	DROP RULE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRuleStatement!drop-2	DROP RULE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRuleStatement!drop-2	DROP RULE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRuleStatement!insert	DROP RULE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropRuleStatement!swap	DROP SAFETY a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTriggerStatement	DROP TRIGGER a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTriggerStatement!drop-2	DROP TRIGGER
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTriggerStatement!drop-2	DROP TRIGGER
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTriggerStatement!insert	DROP TRIGGER a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTriggerStatement!swap	DROP TRIM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement	DROP SCHEMA a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement!drop-2	DROP SCHEMA
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement!drop-2	DROP SCHEMA
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement!insert	DROP SCHEMA a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement!swap	DROP SCHEMABINDING a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE	DROP AGGREGATE a
@@ -6607,7 +6607,7 @@ accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE!insert	DROP AGGREGATE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE!swap	DROP ALGORITHM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY	DROP ASSEMBLY a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY!drop-2	DROP ASSEMBLY
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY!drop-2	DROP ASSEMBLY
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY!insert	DROP ASSEMBLY a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY!swap	DROP ASYMMETRIC a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY	DROP AVAILABILITY GROUP a
@@ -6618,11 +6618,11 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!swap	DROP AVAILABILITY_MODE GROUP a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION	DROP PARTITION FUNCTION a
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!drop-2	DROP PARTITION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!drop-3	DROP PARTITION FUNCTION
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!drop-3	DROP PARTITION FUNCTION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!insert	DROP PARTITION FUNCTION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!swap	DROP PARTITIONS FUNCTION a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM	DROP SYNONYM a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM!drop-2	DROP SYNONYM
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM!drop-2	DROP SYNONYM
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM!insert	DROP SYNONYM a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSynonymStatement_SYNONYM!swap	DROP SYSTEM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropApplicationRoleStatement_APPLICATION	DROP APPLICATION ROLE a
@@ -6690,14 +6690,14 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropCredentialStatement_CREDENTIAL!insert	DROP CREDENTIAL a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropCredentialStatement_CREDENTIAL!swap	DROP CREDENTIAL_NAME a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTypeStatement_TYPE	DROP TYPE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTypeStatement_TYPE!drop-2	DROP TYPE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTypeStatement_TYPE!drop-2	DROP TYPE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTypeStatement_TYPE!insert	DROP TYPE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropTypeStatement_TYPE!swap	DROP UNBOUNDED a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML	DROP XML SCHEMA COLLECTION a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-1	DROP SCHEMA COLLECTION a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-2	DROP XML COLLECTION a
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-3	DROP XML SCHEMA a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-4	DROP XML SCHEMA COLLECTION
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-4	DROP XML SCHEMA COLLECTION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!insert	DROP XML SCHEMA COLLECTION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!swap	DROP XMLNAMESPACES SCHEMA COLLECTION a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropContractStatement_CONTRACT	DROP CONTRACT a
@@ -6754,13 +6754,13 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!insert	DROP SEARCH PROPERTY LIST a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSearchPropertyListStatement_SEARCH!swap	DROP SECONDARY_ROLE PROPERTY LIST a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE	DROP SEQUENCE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!drop-2	DROP SEQUENCE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!drop-2	DROP SEQUENCE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!insert	DROP SEQUENCE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSequenceStatement_SEQUENCE!swap	DROP SEQUENCE_NUMBER_COLUMN_NAME a
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION	DROP FEDERATION a
 accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!drop-2	DROP FEDERATION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!insert	DROP FEDERATION a zzz
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!swap	DROP FETCH a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropFederationStatement_FEDERATION!swap	DROP FETCH a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY	DROP SECURITY POLICY a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!drop-1	DROP POLICY a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSecurityPolicyStatement_SECURITY!drop-2	DROP SECURITY a
@@ -6851,13 +6851,13 @@ reject	reject	engine	dropDatabaseStatement(If_Exists)?/%empty!insert	DROP DATABA
 accept	accept	engine	dropDatabaseStatement(If_Exists)?/If_Exists	DROP DATABASE IF EXISTS a
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!drop-1	DROP DATABASE EXISTS a
 accept	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!drop-2	DROP DATABASE IF a
-accept	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!truncate	DROP DATABASE IF
+reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!truncate	DROP DATABASE IF
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!insert	DROP DATABASE IF EXISTS zzz a
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!swap	DROP DATABASE IGNORE EXISTS a
 accept	accept	engine	dropDatabaseStatement(Comma_identifier)*/%empty	DROP DATABASE a
 accept	accept	engine	dropDatabaseStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*	DROP DATABASE a, a
 reject	reject	engine	dropDatabaseStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-1	DROP DATABASE a a
-accept	reject	engine	dropDatabaseStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	DROP DATABASE a,
+reject	reject	engine	dropDatabaseStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	DROP DATABASE a,
 reject	reject	engine	dropDatabaseStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	DROP DATABASE a, a zzz
 accept	accept	engine	dropDatabaseEncryptionKeyStatement/ENCRYPTION_Key	DROP DATABASE ENCRYPTION KEY
 reject	reject	engine	dropIndexStatement/Index_(If_Exists)?_dropIndexClause_(Comma_dropIndexClause)*	DROP INDEX a
@@ -6971,7 +6971,7 @@ reject	reject	engine	dropTableStatement(If_Exists)?/If_Exists!insert	DROP TABLE 
 reject	reject	engine	dropTableStatement(If_Exists)?/If_Exists!swap	DROP TABLE IGNORE EXISTS a
 accept	accept	engine	dropProcedureStatement/(Procedure|Proc)_(If_Exists)?_dropObjectList	DROP PROCEDURE a
 accept	accept	engine	dropProcedureStatement(Procedure|Proc)/Procedure	DROP PROCEDURE a
-accept	reject	engine	dropProcedureStatement(Procedure|Proc)/Procedure!truncate	DROP
+reject	reject	engine	dropProcedureStatement(Procedure|Proc)/Procedure!truncate	DROP
 reject	reject	engine	dropProcedureStatement(Procedure|Proc)/Procedure!insert	DROP PROCEDURE zzz a
 accept	accept	engine	dropProcedureStatement(Procedure|Proc)/Proc	DROP PROC a
 reject	reject	engine	dropProcedureStatement(Procedure|Proc)/Proc!insert	DROP PROC zzz a
@@ -7039,14 +7039,14 @@ accept	accept	engine	dropObjectList/dropObject_(Comma_dropObject)*	DROP TABLE a
 accept	accept	engine	dropObjectList(Comma_dropObject)*/%empty	DROP TABLE a
 accept	accept	engine	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*	DROP TABLE a, a
 reject	reject	engine	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*!drop-1	DROP TABLE a a
-accept	reject	engine	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*!drop-2	DROP TABLE a,
+reject	reject	engine	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*!drop-2	DROP TABLE a,
 reject	reject	engine	dropObjectList(Comma_dropObject)*/Comma_dropObject_(Comma_dropObject)*!insert	DROP TABLE a, a zzz
 accept	accept	engine	dropObject/schemaObjectThreePartName	DROP TABLE a
 reject	reject	engine	indexDropObject/childObjectNameWithThreePrefixes	DROP INDEX a
 accept	accept	engine	dropPartitionFunctionStatement/Function_identifier	DROP PARTITION FUNCTION a
 reject	reject	engine	dropPartitionFunctionStatement/Function_identifier!swap	DROP PARTITION GB a
 accept	accept	engine	dropPartitionSchemeStatement/SCHEME_identifier	DROP PARTITION SCHEME a
-accept	reject	engine	dropPartitionSchemeStatement/SCHEME_identifier!drop-2	DROP PARTITION SCHEME
+reject	reject	engine	dropPartitionSchemeStatement/SCHEME_identifier!drop-2	DROP PARTITION SCHEME
 reject	reject	engine	dropPartitionSchemeStatement/SCHEME_identifier!insert	DROP PARTITION SCHEME a zzz
 reject	reject	engine	dropPartitionSchemeStatement/SCHEME_identifier!swap	DROP PARTITION SCOPED a
 accept	accept	engine	dropFulltextCatalogStatement/CATALOG_identifier	DROP FULLTEXT CATALOG a

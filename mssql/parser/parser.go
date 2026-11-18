@@ -2110,22 +2110,24 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			p.addRuleCandidate("database_ref")
 			return nil, errCollecting
 		}
+		// DROP DATABASE names at least one database, and a comma promises
+		// another; with neither, SQL Server answers "Incorrect syntax near the
+		// end of the statement".
 		var nameItems []nodes.Node
 		for {
 			ref, err := p.parseTableRef()
 			if err != nil {
 				return nil, err
 			}
-			if ref != nil {
-				nameItems = append(nameItems, ref)
+			if ref == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
+			nameItems = append(nameItems, ref)
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		if len(nameItems) > 0 {
-			dropStmt.Names = &nodes.List{Items: nameItems}
-		}
+		dropStmt.Names = &nodes.List{Items: nameItems}
 		dropStmt.Loc.End = p.prevEnd()
 		return dropStmt, nil
 	case kwUSER:
