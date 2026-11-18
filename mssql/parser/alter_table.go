@@ -278,8 +278,11 @@ func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 				return nil, err
 			}
 		} else if p.cur.Type == kwPRIMARY || p.cur.Type == kwUNIQUE ||
-			p.cur.Type == kwFOREIGN || p.cur.Type == kwCHECK || p.cur.Type == kwDEFAULT {
-			// Unnamed constraint
+			p.cur.Type == kwFOREIGN || p.cur.Type == kwCHECK || p.cur.Type == kwDEFAULT ||
+			p.cur.Type == kwCONNECTION {
+			// Unnamed constraint, the graph edge constraint CONNECTION (...) among
+			// them: SQL Server reads `ALTER TABLE a ADD CONNECTION(a TO a)` as one
+			// (measured), as it reads the named CONSTRAINT c CONNECTION(...) form.
 			action.Type = nodes.ATAddConstraint
 			action.WithCheck = withCheck
 			var err error
@@ -431,6 +434,23 @@ func (p *Parser) parseAlterTableDrop() ([]nodes.Node, error) {
 // kind is the kind of the item before it, which an item without a keyword
 // inherits; the item's own kind is stored back into it.
 func (p *Parser) parseAlterTableDropItem(kind *nodes.AlterTableActionType) (*nodes.AlterTableAction, error) {
+	// INDEX name: an index of the table, which SQL Server takes here as it
+	// takes a constraint. alterTableDropTableElement's `Index identifier`
+	// (TSql160.g:28417); a bare name after the comma is still a constraint,
+	// so this form does not become the list's kind.
+	if p.cur.Type == kwINDEX {
+		loc := p.pos()
+		p.advance() // consume INDEX
+		name, ok := p.parseIdentifier()
+		if !ok {
+			return nil, p.unexpectedToken()
+		}
+		return &nodes.AlterTableAction{
+			Type:      nodes.ATDropIndex,
+			IndexName: name,
+			Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
+		}, nil
+	}
 	// PERIOD FOR SYSTEM_TIME
 	if p.cur.Type == kwPERIOD && p.peekNext().Type == kwFOR {
 		loc := p.pos()

@@ -3247,6 +3247,9 @@ func writeAlterTableAction(sb *strings.Builder, n *AlterTableAction) {
 		sb.WriteString(" :index ")
 		writeNode(sb, n.Index)
 	}
+	if n.IndexName != "" {
+		sb.WriteString(fmt.Sprintf(" :indexName \"%s\"", escapeString(n.IndexName)))
+	}
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")
 		writeNode(sb, n.DataType)

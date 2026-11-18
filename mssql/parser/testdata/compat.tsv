@@ -12400,7 +12400,7 @@ accept	accept	engine	alterTableDropTableElement/Column_(If_Exists)?_identifier	A
 reject	reject	engine	alterTableDropTableElement/Column_(If_Exists)?_identifier!drop-2	ALTER TABLE a DROP COLUMN
 reject	reject	engine	alterTableDropTableElement/Column_(If_Exists)?_identifier!insert	ALTER TABLE a DROP COLUMN a zzz
 reject	reject	engine	alterTableDropTableElement/Column_(If_Exists)?_identifier!swap	ALTER TABLE a DROP COLUMNSTORE a
-reject	accept	engine	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
+accept	accept	engine	alterTableDropTableElement/Index_identifier	ALTER TABLE a DROP INDEX a
 reject	reject	engine	alterTableDropTableElement/Index_identifier!drop-2	ALTER TABLE a DROP INDEX
 reject	reject	engine	alterTableDropTableElement/Index_identifier!insert	ALTER TABLE a DROP INDEX a zzz
 reject	reject	engine	alterTableDropTableElement/Index_identifier!swap	ALTER TABLE a DROP INFINITE a
@@ -12685,7 +12685,7 @@ reject	reject	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45
 accept	accept	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 reject	reject	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?!insert	ALTER TABLE a ADD a a SPARSE zzz
 reject	reject	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?!swap	ALTER TABLE a ADD a a SPATIAL
-reject	accept	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+accept	accept	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 reject	reject	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET!drop-1	ALTER TABLE a ADD a a FOR ALL_SPARSE_COLUMNS
 reject	reject	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET!drop-2	ALTER TABLE a ADD a a COLUMN_SET ALL_SPARSE_COLUMNS
 reject	reject	engine	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET!drop-3	ALTER TABLE a ADD a a COLUMN_SET FOR
@@ -12798,7 +12798,7 @@ accept	accept	engine	tableConstraint(Constraint_identifier)?/Constraint_identifi
 reject	reject	engine	tableConstraint(Constraint_identifier)?/Constraint_identifier!drop-2	ALTER TABLE a ADD CONSTRAINT UNIQUE(a)
 reject	reject	engine	tableConstraint(Constraint_identifier)?/Constraint_identifier!truncate	ALTER TABLE a ADD CONSTRAINT
 reject	reject	engine	tableConstraint(Constraint_identifier)?/Constraint_identifier!insert	ALTER TABLE a ADD CONSTRAINT a zzz UNIQUE(a)
-reject	accept	engine	tableConstraint(Constraint_identifier)?/Constraint_identifier!swap	ALTER TABLE a ADD CONTAINED a UNIQUE(a)
+accept	accept	engine	tableConstraint(Constraint_identifier)?/Constraint_identifier!swap	ALTER TABLE a ADD CONTAINED a UNIQUE(a)
 accept	accept	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/uniqueTableConstraint	ALTER TABLE a ADD UNIQUE(a)
 accept	accept	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/defaultTableConstraint	ALTER TABLE a ADD DEFAULT 1 FOR a
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/defaultTableConstraint!drop-1	ALTER TABLE a ADD 1 FOR a
@@ -12823,7 +12823,7 @@ reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6ca
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/checkConstraint!drop-6	ALTER TABLE a ADD CHECK(1 = 1
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/checkConstraint!insert	ALTER TABLE a ADD CHECK(1 = 1) zzz
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/checkConstraint!swap	ALTER TABLE a ADD CHECKPOINT(1 = 1)
-reject	accept	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
+accept	accept	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint	ALTER TABLE a ADD CONNECTION(a TO a)
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint!drop-1	ALTER TABLE a ADD(a TO a)
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint!drop-2	ALTER TABLE a ADD CONNECTION a TO a)
 reject	reject	engine	tableConstraint(uniqueTableConstraint|defaultTableCo~34c6cadc)/graphConnectionConstraint!drop-3	ALTER TABLE a ADD CONNECTION(TO a)
@@ -13007,19 +13007,19 @@ reject	reject	engine	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintCol
 reject	reject	engine	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/Foreign_Key_foreignConstraintColumnsOpt!insert	ALTER TABLE a ADD a FOREIGN KEY zzz REFERENCES a
 reject	reject	engine	foreignKeyColumnConstraint(Foreign_Key_foreignConstraintColumnsOpt)?/Foreign_Key_foreignConstraintColumnsOpt!swap	ALTER TABLE a ADD a FORMAT KEY REFERENCES a
 accept	accept	engine	foreignKeyTableConstraint/Foreign_Key_foreignConstraintColumnsOpt_foreignKeyConst~256b42a0	ALTER TABLE a ADD FOREIGN KEY REFERENCES a
-reject	accept	engine	graphConnectionConstraint/CONNECTION_graphConnectionFromNodeToNodeList_(On_Delete~4fd5b53b	ALTER TABLE a ADD CONNECTION(a TO a)
-reject	accept	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/%empty	ALTER TABLE a ADD CONNECTION(a TO a)
-reject	accept	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
+accept	accept	engine	graphConnectionConstraint/CONNECTION_graphConnectionFromNodeToNodeList_(On_Delete~4fd5b53b	ALTER TABLE a ADD CONNECTION(a TO a)
+accept	accept	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/%empty	ALTER TABLE a ADD CONNECTION(a TO a)
+accept	accept	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!drop-1	ALTER TABLE a ADD CONNECTION(a TO a) DELETE CASCADE
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!drop-2	ALTER TABLE a ADD CONNECTION(a TO a) ON CASCADE
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!drop-3	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!insert	ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE CASCADE zzz
 reject	reject	engine	graphConnectionConstraint(On_Delete_deleteUpdateAction)?/On_Delete_deleteUpdateAction!swap	ALTER TABLE a ADD CONNECTION(a TO a) ONLINE DELETE CASCADE
-reject	accept	engine	graphConnectionFromNodeToNodeList/LeftParenthesis_graphConnectionFromToNodeItem_(Comma_gr~6bff6da5	ALTER TABLE a ADD CONNECTION(a TO a)
+accept	accept	engine	graphConnectionFromNodeToNodeList/LeftParenthesis_graphConnectionFromToNodeItem_(Comma_gr~6bff6da5	ALTER TABLE a ADD CONNECTION(a TO a)
 reject	reject	engine	graphConnectionFromNodeToNodeList/LeftParenthesis_graphConnectionFromToNodeItem_(Comma_gr~6bff6da5!swap	ALTER TABLE a ADD CONNECTION(a TOP a)
-reject	accept	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/%empty	ALTER TABLE a ADD CONNECTION(a TO a)
+accept	accept	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/%empty	ALTER TABLE a ADD CONNECTION(a TO a)
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/%empty!insert	ALTER TABLE a ADD CONNECTION(a TO a zzz)
-reject	accept	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
+accept	accept	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89	ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89!drop-1	ALTER TABLE a ADD CONNECTION(a TO a a TO a)
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89!drop-2	ALTER TABLE a ADD CONNECTION(a TO a, TO a)
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89!drop-3	ALTER TABLE a ADD CONNECTION(a TO a, a a)
@@ -13027,7 +13027,7 @@ reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFrom
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89!truncate	ALTER TABLE a ADD CONNECTION(a TO a, a TO
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89!insert	ALTER TABLE a ADD CONNECTION(a TO a, a TO a zzz)
 reject	reject	engine	graphConnectionFromNodeToNodeList(Comma_graphConnectionFromToNodeItem)*/Comma_graphConnectionFromToNodeItem_(Comma_graphConnect~6543ec89!swap	ALTER TABLE a ADD CONNECTION(a TO a, a TOP a)
-reject	accept	engine	graphConnectionFromToNodeItem/schemaObjectThreePartName_To_schemaObjectThreePartName	ALTER TABLE a ADD CONNECTION(a TO a)
+accept	accept	engine	graphConnectionFromToNodeItem/schemaObjectThreePartName_To_schemaObjectThreePartName	ALTER TABLE a ADD CONNECTION(a TO a)
 reject	reject	engine	graphConnectionFromToNodeItem/schemaObjectThreePartName_To_schemaObjectThreePartName!truncate	ALTER TABLE a ADD CONNECTION(a TO
 accept	accept	engine	foreignConstraintColumnsOpt/(columnNameList)?	ALTER TABLE a ADD FOREIGN KEY REFERENCES a
 reject	reject	engine	foreignConstraintColumnsOpt/(columnNameList)?!insert	ALTER TABLE a ADD FOREIGN KEY zzz REFERENCES a
@@ -17367,7 +17367,7 @@ reject	reject	engine	sparseAndFilestreamStorage_FILESTREAM(FILESTREAM|SPARSE)/SP
 reject	reject	engine	sparseAndFilestreamStorage_FILESTREAM(FILESTREAM|SPARSE)/SPARSE!insert	ALTER TABLE a ADD a a FILESTREAM SPARSE zzz
 reject	reject	engine	sparseAndFilestreamStorage_FILESTREAM(FILESTREAM|SPARSE)/SPARSE!swap	ALTER TABLE a ADD a a FILESTREAM SPATIAL
 accept	accept	engine	sparseStorage_SPARSE/SPARSE	ALTER TABLE a ADD a a SPARSE
-reject	accept	engine	allSparseStorage_COLUMN_SET/COLUMN_SET_For_ALL_SPARSE_COLUMNS	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
+accept	accept	engine	allSparseStorage_COLUMN_SET/COLUMN_SET_For_ALL_SPARSE_COLUMNS	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
 reject	reject	engine	filestreamStorage_FILESTREAM/FILESTREAM	ALTER TABLE a ADD a a FILESTREAM
 reject	reject	engine	columnEncryptionKeyNameParameter_COLUMN_ENCRYPTION_KEY/COLUMN_ENCRYPTION_KEY_EqualsSign_identifier	ALTER TABLE a ADD a a ENCRYPTED WITH(COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)
 reject	reject	engine	columnEncryptionTypeParameter_ENCRYPTION_TYPE/ENCRYPTION_TYPE_EqualsSign_(DETERMINISTIC|RANDOMIZED)	ALTER TABLE a ADD a a ENCRYPTED WITH(ENCRYPTION_TYPE = DETERMINISTIC, COLUMN_ENCRYPTION_KEY = a, COLUMN_ENCRYPTION_KEY = a)

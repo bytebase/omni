@@ -510,6 +510,7 @@ type AlterTableAction struct {
 	ColName    string
 	Constraint *ConstraintDef
 	Index      *InlineIndexDef // ADD INDEX ...
+	IndexName  string          // DROP INDEX name
 	DataType   *DataType
 	Collation  string    // ALTER COLUMN ... COLLATE collation_name
 	Options    *List     // generic options list (e.g., SET options, REBUILD options, WITH options)
@@ -550,6 +551,7 @@ const (
 	ATSplitRange                // SPLIT RANGE (boundary_value)
 	ATMergeRange                // MERGE RANGE (boundary_value)
 	ATAddIndex                  // ADD INDEX name [UNIQUE] [CLUSTERED|NONCLUSTERED] (...) [WHERE ...]
+	ATDropIndex                 // DROP INDEX name
 )
 
 // AlterColumnOption represents a typed ADD/DROP option in ALTER COLUMN.

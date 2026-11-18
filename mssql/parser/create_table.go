@@ -559,15 +559,17 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		return nil, errCollecting
 	}
 
-	// column_set_definition: column_set_name XML COLUMN_SET FOR ALL_SPARSE_COLUMNS
-	if col.DataType != nil && strings.EqualFold(col.DataType.Name, "xml") &&
-		p.cur.Type == kwCOLUMN_SET {
+	// column_set_definition: column_set_name XML COLUMN_SET FOR ALL_SPARSE_COLUMNS.
+	// SQL Server checks neither the type name (it takes `a a COLUMN_SET FOR
+	// ALL_SPARSE_COLUMNS`) nor the words before FOR, but it requires FOR ALL_SPARSE_COLUMNS:
+	// `a a COLUMN_SET` is Msg 102, and SPARSE COLUMN_SET is too.
+	if p.cur.Type == kwCOLUMN_SET {
 		p.advance() // COLUMN_SET
-		if p.cur.Type == kwFOR {
-			p.advance() // FOR
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
 		}
-		if p.cur.Type == kwALL_SPARSE_COLUMNS {
-			p.advance()
+		if _, err := p.expect(kwALL_SPARSE_COLUMNS); err != nil {
+			return nil, err
 		}
 		col.IsColumnSet = true
 		col.Loc.End = p.prevEnd()
@@ -961,12 +963,18 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 		}
 		cd.Type = nodes.ConstraintPrimaryKey
 		p.parseClusteredOption(cd)
+		if err := p.parseColumnConstraintColumnList(cd); err != nil {
+			return nil, err
+		}
 		p.parseConstraintWithOptions(cd)
 		p.parseConstraintOnFilegroup(cd)
 	case kwUNIQUE:
 		p.advance()
 		cd.Type = nodes.ConstraintUnique
 		p.parseClusteredOption(cd)
+		if err := p.parseColumnConstraintColumnList(cd); err != nil {
+			return nil, err
+		}
 		p.parseConstraintWithOptions(cd)
 		p.parseConstraintOnFilegroup(cd)
 	case kwCHECK:
@@ -1028,7 +1036,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 				return nil, pilErr
 			}
 		}
-		p.parseReferentialActions(cd)
+		if err := p.parseReferentialActions(cd); err != nil {
+			return nil, err
+		}
 		// [ NOT FOR REPLICATION ]
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
 			p.advance() // NOT
@@ -1084,6 +1094,23 @@ func (p *Parser) parseConstraintOnFilegroup(cd *nodes.ConstraintDef) {
 			cd.OnFilegroup = name
 		}
 	}
+}
+
+// parseColumnConstraintColumnList parses the column list SQL Server also
+// takes on a PRIMARY KEY or UNIQUE constraint written beside a column, as
+// `ALTER TABLE a ADD x a UNIQUE(x)` and `ADD CONTAINED a PRIMARY KEY(a)`
+// (measured): the constraint is then a table constraint with no columns of
+// its own, and the list names them.
+func (p *Parser) parseColumnConstraintColumnList(cd *nodes.ConstraintDef) error {
+	if p.cur.Type != '(' {
+		return nil
+	}
+	cols, err := p.parseIndexColumnList()
+	if err != nil {
+		return err
+	}
+	cd.Columns = cols
+	return nil
 }
 
 // parseTableConstraint parses a table-level constraint.
@@ -1219,7 +1246,9 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 					return nil, pilErr
 				}
 			}
-			p.parseReferentialActions(cd)
+			if err := p.parseReferentialActions(cd); err != nil {
+				return nil, err
+			}
 		}
 		// [ NOT FOR REPLICATION ]
 		if p.cur.Type == kwNOT && p.peekNext().Type == kwFOR {
@@ -1261,7 +1290,9 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			if ecErr != nil {
 				return nil, ecErr
 			}
-			p.parseReferentialActions(cd)
+			if err := p.parseReferentialActions(cd); err != nil {
+				return nil, err
+			}
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -1290,10 +1321,18 @@ func (p *Parser) parseEdgeConstraintConnections() (*nodes.List, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.match(kwTO)
+		if fromTable == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		toTable, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
+		}
+		if toTable == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 		conn := &nodes.EdgeConnectionDef{
 			FromTable: fromTable,
@@ -1326,19 +1365,28 @@ func (p *Parser) parseClusteredOption(cd *nodes.ConstraintDef) {
 }
 
 // parseReferentialActions parses ON DELETE/UPDATE actions.
-func (p *Parser) parseReferentialActions(cd *nodes.ConstraintDef) {
+func (p *Parser) parseReferentialActions(cd *nodes.ConstraintDef) error {
 	for p.cur.Type == kwON {
 		p.advance()
 		if p.cur.Type == kwDELETE {
 			p.advance()
 			cd.OnDelete = p.parseRefAction()
+			if cd.OnDelete == nodes.RefActNone {
+				return p.syntaxErrorAtCur()
+			}
 		} else if p.cur.Type == kwUPDATE {
 			p.advance()
 			cd.OnUpdate = p.parseRefAction()
+			if cd.OnUpdate == nodes.RefActNone {
+				return p.syntaxErrorAtCur()
+			}
 		} else {
-			break
+			// ON with neither DELETE nor UPDATE: SQL Server refuses it
+			// (Msg 102), as it refuses an action word it does not know.
+			return p.syntaxErrorAtCur()
 		}
 	}
+	return nil
 }
 
 // parseRefAction parses a referential action (CASCADE, SET NULL, SET DEFAULT, NO ACTION).

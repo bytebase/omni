@@ -541,6 +541,19 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
 		b.defEffects(r, path, known, d)
+	case ast.ATDropIndex:
+		// DROP INDEX name as a table element: the index must be one of the
+		// table's, and it is gone afterwards.
+		in, ok := keyed(a.IndexName)
+		if !ok {
+			return false
+		}
+		if !known {
+			return true
+		}
+		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(a.IndexName), r.written), nil))
+		b.leave(spaceIndex, path, in)
+		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: path})
 	case ast.ATDropColumn:
 		cn, ok := keyed(a.ColName)
 		if !ok {
