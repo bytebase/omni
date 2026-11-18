@@ -1791,7 +1791,22 @@ func (p *Parser) nestedPhysicalPhase(allowed atClauses, phase int) int {
 // storage table: ( { column [ DEFAULT expr ] [ inline_constraint ... ]
 // [ inline_ref_constraint ] | out_of_line_constraint
 // | out_of_line_ref_constraint | supplemental_logging_props } [, ...] ).
+//
+// Under ALTER TABLE's upgrade_table_clause Oracle judges no item of it: the
+// option it belongs to (UPGRADE [ NOT ] INCLUDING DATA) answers ORA-01735 at
+// byte 0 on the pinned server whatever the group holds, on a table that
+// holds the nested table column as on one that does not. Measured with a
+// table of an object type whose nested table column c is stored as one,
+// ((c NULL)) and ((1 2 3)) answer it alike, as ((a zzz)), ((UNIQUE())) and
+// ((SUPPLEMENTAL LOG GROUP a(a LOG))) do on a heap table. Nothing there is
+// judged, and the alterTable_object_properties and
+// alterTable_supplemental_logging_props rows of compat.tsv, whose statements
+// hold just such text, are the judge's acceptances for it. ALTER TABLE's
+// column_clauses run, and hold the group to the page's items there.
 func (p *Parser) parseATObjectProperties() error {
+	if p.upgradeIncludingData {
+		return p.skipATObjectProperties()
+	}
 	p.advance() // (
 	for {
 		switch {
@@ -1846,6 +1861,28 @@ func (p *Parser) parseATObjectProperties() error {
 		}
 	}
 	return p.atExpect(')')
+}
+
+// skipATObjectProperties reads the balanced text of the object_properties
+// group Oracle does not judge under upgrade_table_clause
+// (parseATObjectProperties): the tokens up to the group's own ')'.
+func (p *Parser) skipATObjectProperties() error {
+	p.advance() // (
+	for depth := 1; depth > 0; {
+		switch p.cur.Type {
+		case tokEOF:
+			return p.syntaxErrorAtCur()
+		case ';':
+			// A ';' ends the statement, so it cannot stand in the group.
+			return p.syntaxErrorAtCur()
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		p.advance()
+	}
+	return nil
 }
 
 // isATObjectInlineConstraintStart reports an item of object_properties'

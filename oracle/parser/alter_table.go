@@ -1615,6 +1615,10 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			if err := p.atExpectWord("DATA"); err != nil {
 				return nil, err
 			}
+			// Oracle reads no item of a nested table's object_properties
+			// here: parseATObjectProperties takes it as text.
+			defer func(saved bool) { p.upgradeIncludingData = saved }(p.upgradeIncludingData)
+			p.upgradeIncludingData = true
 			if err := p.parseATColumnProperties(options); err != nil {
 				return nil, err
 			}
