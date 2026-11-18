@@ -16,7 +16,7 @@ type PartitionInfo struct {
 
 // PartitionBound stores partition bound for a partition child.
 type PartitionBound struct {
-	Strategy   byte     // must match parent's strategy
+	Strategy   byte // must match parent's strategy
 	IsDefault  bool
 	ListValues []string // deparsed datum strings (LIST)
 	LowerBound []string // deparsed lower bound values (RANGE)
@@ -27,27 +27,27 @@ type PartitionBound struct {
 
 // Column represents a table column.
 type Column struct {
-	AttNum      int16
-	Name        string
-	TypeOID     uint32
-	TypeMod     int32
-	NotNull     bool
-	HasDefault  bool
-	Default     string
-	Len         int16
-	ByVal       bool
-	Align       byte
-	Storage     byte
-	Collation   uint32
+	AttNum          int16
+	Name            string
+	TypeOID         uint32
+	TypeMod         int32
+	NotNull         bool
+	HasDefault      bool
+	Default         string
+	Len             int16
+	ByVal           bool
+	Align           byte
+	Storage         byte
+	Collation       uint32
 	DefaultAnalyzed AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
 	Generated       byte         // 's' = stored generated, 0 = none
-	Identity    byte // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
-	IsLocal     bool // true if defined locally (not only inherited)
-	InhCount    int  // number of inheritance ancestors that define this column
-	Compression    byte   // attcompression: 'p'=pglz, 'l'=lz4, 0=default
-	GenerationExpr string // expression text for generated columns
-	CollationName  string // explicit collation name (empty = type default)
-	Ndims          int16  // attndims — declared array dimensions
+	Identity        byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
+	IsLocal         bool         // true if defined locally (not only inherited)
+	InhCount        int          // number of inheritance ancestors that define this column
+	Compression     byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
+	GenerationExpr  string       // expression text for generated columns
+	CollationName   string       // explicit collation name (empty = type default)
+	Ndims           int16        // attndims — declared array dimensions
 }
 
 // Relation represents a table, view, or other relation.
@@ -87,14 +87,48 @@ type Relation struct {
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop
 
 	// Relation flags (pg_class).
-	Owner        uint32 // relowner
-	HasRules     bool   // relhasrules
-	HasSubclass  bool   // relhassubclass — has child tables/partitions
-	IsPopulated  bool   // relispopulated — matview populated state
-	IsPartition  bool   // relispartition
+	Owner       uint32 // relowner
+	HasRules    bool   // relhasrules
+	HasSubclass bool   // relhassubclass — has child tables/partitions
+	IsPopulated bool   // relispopulated — matview populated state
+	IsPartition bool   // relispartition
 }
 
-// findRelation locates a relation by schema (or search path) and name.
+// relationNamespaceKind returns the relkind a schema's relation namespace
+// holds a name under, or false when it holds none. PostgreSQL keeps tables,
+// views, materialized views, composite types, sequences and indexes in one
+// namespace (pg_class), so a name it holds is never free: 'S' is a sequence
+// and 'i' an index, the kinds another map in this catalog stores.
+func relationNamespaceKind(s *Schema, name string) (byte, bool) {
+	if rel := s.Relations[name]; rel != nil {
+		return rel.RelKind, true
+	}
+	if s.Indexes[name] != nil {
+		return 'i', true
+	}
+	if s.Sequences[name] != nil {
+		return 'S', true
+	}
+	return 0, false
+}
+
+// findNamedIndex returns the index a schema's relation namespace holds a
+// name under. An index name PostgreSQL resolves to a table, view or sequence
+// is 42809, not a missing index.
+func (c *Catalog) findNamedIndex(schema *Schema, name string) (*Index, error) {
+	if idx := schema.Indexes[name]; idx != nil {
+		return idx, nil
+	}
+	if _, ok := relationNamespaceKind(schema, name); ok {
+		return nil, errWrongObjectType(name, "an index")
+	}
+	return nil, errUndefinedObject("index", name)
+}
+
+// findRelation locates a relation by schema (or search path) and name. A
+// name the namespace holds as another kind is 42809, not a missing relation:
+// PostgreSQL finds the index or sequence and then says it is not the object
+// the statement needs.
 func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, error) {
 	if schemaName != "" {
 		s := c.schemaByName[schemaName]
@@ -103,6 +137,9 @@ func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, 
 		}
 		r := s.Relations[relName]
 		if r == nil {
+			if _, ok := relationNamespaceKind(s, relName); ok {
+				return nil, nil, errWrongObjectType(relName, "a table")
+			}
 			return nil, nil, errUndefinedTable(relName)
 		}
 		return s, r, nil
@@ -114,6 +151,9 @@ func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, 
 		}
 		if r := s.Relations[relName]; r != nil {
 			return s, r, nil
+		}
+		if _, ok := relationNamespaceKind(s, relName); ok {
+			return nil, nil, errWrongObjectType(relName, "a table")
 		}
 	}
 	return nil, nil, errUndefinedTable(relName)

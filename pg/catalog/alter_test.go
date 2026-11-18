@@ -1162,10 +1162,19 @@ func TestSetSchemaEnum(t *testing.T) {
 
 func TestSetSchemaTargetNotFound(t *testing.T) {
 	c := New()
-	// Target schema does not exist.
+	// The object is resolved before the target schema, so it must exist for
+	// the missing schema to be the error.
+	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{
+		{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}},
+	}, nil, false), 'r')
 	err := c.ExecAlterObjectSchemaStmt(makeAlterObjectSchemaStmt(
 		nodes.OBJECT_TABLE, "", "t", "nosuch"))
 	assertErrorCode(t, err, CodeUndefinedSchema)
+
+	// A relation that does not exist is 42P01 before the target schema is read.
+	err = c.ExecAlterObjectSchemaStmt(makeAlterObjectSchemaStmt(
+		nodes.OBJECT_TABLE, "", "nosuch", "nosuch2"))
+	assertErrorCode(t, err, CodeUndefinedTable)
 }
 
 // --- ExecuteTruncate helpers ---

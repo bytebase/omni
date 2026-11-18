@@ -90,13 +90,13 @@ func (c *Catalog) removeIndexObjects(stmt *nodes.DropStmt) error {
 			return err
 		}
 
-		idx, exists := schema.Indexes[idxName]
-		if !exists {
-			if stmt.Missing_ok {
+		idx, err := c.findNamedIndex(schema, idxName)
+		if err != nil {
+			if stmt.Missing_ok && missingObject(err) {
 				c.addWarning(CodeWarningSkip, fmt.Sprintf("index %q does not exist, skipping", idxName))
 				continue
 			}
-			return errUndefinedObject("index", idxName)
+			return err
 		}
 
 		if idx.ConstraintOID != 0 {
@@ -122,11 +122,9 @@ func (c *Catalog) removeSequenceObjects(stmt *nodes.DropStmt) error {
 
 		seq, err := c.findSequence(schemaName, seqName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("sequence %q does not exist, skipping", seqName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("sequence %q does not exist, skipping", seqName))
+				continue
 			}
 			return err
 		}

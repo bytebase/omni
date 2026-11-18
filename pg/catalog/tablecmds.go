@@ -20,6 +20,19 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	}
 	relName := rv.Relname
 
+	// A typed table resolves its type before the target name is checked:
+	// CREATE TABLE a OF a on table a is 42809 ("a" is not a composite type),
+	// not a duplicate. IF NOT EXISTS skips the whole statement instead.
+	if stmt.OfTypename != nil && !stmt.IfNotExists {
+		oid, _, err := c.resolveTypeName(stmt.OfTypename)
+		if err != nil {
+			return err
+		}
+		if _, err := c.checkOfType(oid); err != nil {
+			return err
+		}
+	}
+
 	// Check duplicate relation name.
 	if _, exists := schema.Relations[relName]; exists {
 		if stmt.IfNotExists {
@@ -488,6 +501,17 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
+	// PostgreSQL keeps indexes and sequences in the relation namespace, so a
+	// name one holds is not free. The check comes after the columns' types and
+	// the parents are resolved, as PostgreSQL resolves them first: CREATE
+	// TABLE a(a a) on an index a is 42704 for the type, and PARTITION OF an
+	// index is 42809, before either is a duplicate name.
+	if !stmt.IfNotExists {
+		if _, ok := relationNamespaceKind(schema, relName); ok {
+			return errDuplicateTable(relName)
+		}
+	}
+
 	// Check column count limit.
 	// pg: src/backend/commands/tablecmds.c — DefineRelation (MaxHeapAttributeNumber check)
 	if len(columns) > MaxHeapAttributeNumber {
@@ -840,11 +864,9 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 
 		schema, rel, err := c.findRelation(schemaName, relName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", relName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", relName))
+				continue
 			}
 			return err
 		}

@@ -197,7 +197,7 @@ func TestDropSequence(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = c.findSequence("", "s")
-	assertCode(t, err, CodeUndefinedObject)
+	assertCode(t, err, CodeUndefinedTable)
 }
 
 func TestDropSequenceIfExists(t *testing.T) {
@@ -211,7 +211,7 @@ func TestDropSequenceIfExists(t *testing.T) {
 func TestDropSequenceNonexistent(t *testing.T) {
 	c := New()
 	err := c.RemoveObjects(makeDropSeqStmt("", "nope", false, false))
-	assertCode(t, err, CodeUndefinedObject)
+	assertCode(t, err, CodeUndefinedTable)
 }
 
 func TestAlterSequence(t *testing.T) {
@@ -323,7 +323,7 @@ func TestDropTableCascadeDropsOwnedSequence(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = c.findSequence("", "t_id_seq")
-	assertCode(t, err, CodeUndefinedObject)
+	assertCode(t, err, CodeUndefinedTable)
 }
 
 func TestSequenceConflictsWithRelation(t *testing.T) {

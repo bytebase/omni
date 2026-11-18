@@ -273,9 +273,13 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	}
 
 	// If MissingOk is set and the sequence doesn't exist, silently succeed.
+	// A name that holds another kind of relation is not missing.
 	if stmt.MissingOk {
 		_, err := c.findSequence(schemaName, seqName)
 		if err != nil {
+			if !missingObject(err) {
+				return err
+			}
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", seqName))
 			return nil
 		}
@@ -415,18 +419,16 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	return nil
 }
 
-// findSequence locates a sequence by schema (or search path) and name.
+// findSequence locates a sequence by schema (or search path) and name. A
+// sequence is a relation in PostgreSQL: a name no relation holds is 42P01,
+// and a name a table, view or index holds is 42809.
 func (c *Catalog) findSequence(schemaName, seqName string) (*Sequence, error) {
 	if schemaName != "" {
 		s := c.schemaByName[schemaName]
 		if s == nil {
 			return nil, errUndefinedSchema(schemaName)
 		}
-		seq := s.Sequences[seqName]
-		if seq == nil {
-			return nil, errUndefinedSequence(seqName)
-		}
-		return seq, nil
+		return sequenceInSchema(s, seqName)
 	}
 	for _, nsOID := range c.searchPathWithCatalog() {
 		s := c.schemas[nsOID]
@@ -436,8 +438,23 @@ func (c *Catalog) findSequence(schemaName, seqName string) (*Sequence, error) {
 		if seq := s.Sequences[seqName]; seq != nil {
 			return seq, nil
 		}
+		if _, ok := relationNamespaceKind(s, seqName); ok {
+			return nil, errWrongObjectType(seqName, "a sequence")
+		}
 	}
-	return nil, errUndefinedSequence(seqName)
+	return nil, errUndefinedTable(seqName)
+}
+
+// sequenceInSchema finds a sequence in one schema, or says why the name is
+// not one.
+func sequenceInSchema(s *Schema, name string) (*Sequence, error) {
+	if seq := s.Sequences[name]; seq != nil {
+		return seq, nil
+	}
+	if _, ok := relationNamespaceKind(s, name); ok {
+		return nil, errWrongObjectType(name, "a sequence")
+	}
+	return nil, errUndefinedTable(name)
 }
 
 func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, error) {

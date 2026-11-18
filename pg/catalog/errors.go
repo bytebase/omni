@@ -1,6 +1,9 @@
 package catalog
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Warning represents a non-fatal notice emitted during DDL processing,
 // analogous to PostgreSQL's NOTICE/WARNING messages.
@@ -165,6 +168,22 @@ func errWrongObjectType(name, expected string) error {
 
 func errInvalidFunctionDefinition(msg string) *Error {
 	return &Error{Code: CodeInvalidFunctionDefinition, Message: msg}
+}
+
+// missingObject reports whether err is a lookup failure an IF EXISTS form
+// skips: no such relation, index, object or schema. A name that holds another
+// kind of object is not missing, and PostgreSQL refuses it even with IF
+// EXISTS.
+func missingObject(err error) bool {
+	var e *Error
+	if !errors.As(err, &e) {
+		return false
+	}
+	switch e.Code {
+	case CodeUndefinedTable, CodeUndefinedObject, CodeUndefinedSchema:
+		return true
+	}
+	return false
 }
 func errUndefinedTrigger(trigName, tableName string) error {
 	return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("trigger %q on relation %q does not exist", trigName, tableName)}

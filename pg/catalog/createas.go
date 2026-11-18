@@ -25,27 +25,31 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		return err
 	}
 
-	// Check for existing relation.
-	if _, exists := schema.Relations[mvName]; exists {
-		if stmt.IfNotExists {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
-			return nil
-		}
-		return errDuplicateTable(mvName)
-	}
-
-	// Check conflict with existing type name.
-	if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
-		if stmt.IfNotExists {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
-			return nil
-		}
-		return errDuplicateTable(mvName)
-	}
-
 	// Analyze the query to infer column types (same approach as DefineView).
 	selStmt, ok := stmt.Query.(*nodes.SelectStmt)
 	if !ok {
+		// A prepared statement is run only after the target name is checked.
+		if _, exists := schema.Relations[mvName]; exists {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+				return nil
+			}
+			return errDuplicateTable(mvName)
+		}
+		if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+				return nil
+			}
+			return errDuplicateTable(mvName)
+		}
+		if _, held := relationNamespaceKind(schema, mvName); held {
+			if stmt.IfNotExists {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+				return nil
+			}
+			return errDuplicateTable(mvName)
+		}
 		return errInvalidParameterValue("CREATE MATERIALIZED VIEW requires a SELECT query")
 	}
 
@@ -54,6 +58,38 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	analyzedQuery, err := c.analyzeSelectStmt(selStmt)
 	if err != nil {
 		return err
+	}
+
+	// The query is read before the target name is checked: CREATE TABLE a AS
+	// SELECT zzz names a column that does not exist even when a does. Only
+	// then is a name another relation holds a duplicate (42P07), whether that
+	// relation is a table or an index.
+	if _, exists := schema.Relations[mvName]; exists {
+		if stmt.IfNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+			return nil
+		}
+		return errDuplicateTable(mvName)
+	}
+	if c.typeByName[typeKey{ns: schema.OID, name: mvName}] != nil {
+		if stmt.IfNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+			return nil
+		}
+		return errDuplicateTable(mvName)
+	}
+	if _, ok := relationNamespaceKind(schema, mvName); ok {
+		if stmt.IfNotExists {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", mvName))
+			return nil
+		}
+		return errDuplicateTable(mvName)
+	}
+	if err := c.checkTablespace(into.TableSpaceName); err != nil {
+		return err
+	}
+	if into.AccessMethod != "" && c.accessMethodByName[into.AccessMethod] == nil {
+		return errUndefinedObject("access method", into.AccessMethod)
 	}
 
 	// Extract column types from analyzed query target entries.

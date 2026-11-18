@@ -177,9 +177,9 @@ func (c *Catalog) resolveIndexConstraintAttnums(schema *Schema, rel *Relation, d
 		return attnums, nil, err
 	}
 
-	idx := schema.Indexes[def.IndexName]
-	if idx == nil {
-		return nil, nil, errUndefinedObject("index", def.IndexName)
+	idx, err := c.findNamedIndex(schema, def.IndexName)
+	if err != nil {
+		return nil, nil, err
 	}
 	if idx.RelOID != rel.OID {
 		return nil, nil, errInvalidObjectDefinition(fmt.Sprintf("index %q does not belong to table %q", def.IndexName, rel.Name))

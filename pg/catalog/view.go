@@ -134,6 +134,14 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		return c.replaceView(schema, existing, cols, analyzedQuery)
 	}
 
+	// An index or sequence holds the name in the relation namespace.
+	if _, held := relationNamespaceKind(schema, viewName); held {
+		if stmt.Replace {
+			return errWrongObjectType(viewName, "a view")
+		}
+		return errDuplicateTable(viewName)
+	}
+
 	// Check conflict with existing type name.
 	if c.typeByName[typeKey{ns: schema.OID, name: viewName}] != nil {
 		return errDuplicateTable(viewName)

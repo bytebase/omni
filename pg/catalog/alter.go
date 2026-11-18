@@ -144,6 +144,9 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	}
 	if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_SEQUENCE {
 		_, err := c.findSequence(schemaName, relName)
+		if err != nil && stmt.Missing_ok && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -262,9 +265,12 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 	if err != nil {
 		return err
 	}
-	parentIdx := schema.Indexes[stmt.Relation.Relname]
-	if parentIdx == nil {
-		return errUndefinedObject("index", stmt.Relation.Relname)
+	parentIdx, err := c.findNamedIndex(schema, stmt.Relation.Relname)
+	if err != nil {
+		if stmt.Missing_ok && missingObject(err) {
+			return nil
+		}
+		return err
 	}
 	if stmt.Cmds == nil {
 		return nil
@@ -302,9 +308,9 @@ func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.Partiti
 	if err != nil {
 		return err
 	}
-	childIdx := childSchema.Indexes[pc.Name.Relname]
-	if childIdx == nil {
-		return errUndefinedObject("index", pc.Name.Relname)
+	childIdx, err := c.findNamedIndex(childSchema, pc.Name.Relname)
+	if err != nil {
+		return err
 	}
 	childRel := c.findRelByOID(childIdx.RelOID)
 	if childRel == nil {
@@ -646,6 +652,9 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 	case nodes.AT_DropExpression:
 		return c.atDropExpression(rel, atc.Name, atc.Missing_ok)
 
+	case nodes.AT_SetTableSpace:
+		return c.checkTablespace(atc.Name)
+
 	case nodes.AT_SetLogged:
 		rel.Persistence = 'p'
 		return nil
@@ -745,8 +754,8 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		// IF EXISTS: PG reports "relation does not exist, skipping" and
 		// succeeds, for both relation and column renames, including when
 		// the schema itself is missing (RangeVarGetRelidExtended with
-		// missing_ok).
-		if stmt.MissingOk {
+		// missing_ok). A name another kind of relation holds is not missing.
+		if stmt.MissingOk && missingObject(err) {
 			return nil
 		}
 		return err
@@ -936,9 +945,12 @@ func (c *Catalog) renameIndex(stmt *nodes.RenameStmt) error {
 		return err
 	}
 
-	idx := schema.Indexes[idxName]
-	if idx == nil {
-		return errUndefinedObject("index", idxName)
+	idx, err := c.findNamedIndex(schema, idxName)
+	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
+		return err
 	}
 	return c.renameIndexRelation(schema, idx, newName)
 }
@@ -1006,6 +1018,9 @@ func (c *Catalog) renameSequence(stmt *nodes.RenameStmt) error {
 
 	seq, err := c.findSequence(schemaName, seqName)
 	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -2142,6 +2157,17 @@ func (c *Catalog) shiftAttnumsAfterDrop(rel *Relation, attnum int16) {
 //
 // pg: src/backend/commands/alter.c — ExecAlterObjectSchemaStmt
 func (c *Catalog) ExecAlterObjectSchemaStmt(stmt *nodes.AlterObjectSchemaStmt) error {
+	// PostgreSQL resolves the object and checks its kind before it reads the
+	// target schema, and IF EXISTS skips a missing object before either. So
+	// ALTER SEQUENCE on a table is 42809, not "schema does not exist".
+	skip, err := c.checkSchemaMoveObject(stmt)
+	if err != nil {
+		return err
+	}
+	if skip {
+		return nil
+	}
+
 	newSchema := c.schemaByName[stmt.Newschema]
 	if newSchema == nil {
 		return errUndefinedSchema(stmt.Newschema)
@@ -2159,6 +2185,54 @@ func (c *Catalog) ExecAlterObjectSchemaStmt(stmt *nodes.AlterObjectSchemaStmt) e
 	}
 }
 
+// checkSchemaMoveObject resolves the object a SET SCHEMA moves and checks
+// that its kind is the one the statement names. A missing object under IF
+// EXISTS skips the whole statement, before the target schema is read.
+func (c *Catalog) checkSchemaMoveObject(stmt *nodes.AlterObjectSchemaStmt) (skip bool, err error) {
+	var schemaName, name string
+	if stmt.Relation != nil {
+		schemaName = stmt.Relation.Schemaname
+		name = stmt.Relation.Relname
+	}
+	switch stmt.ObjectType {
+	case nodes.OBJECT_SEQUENCE:
+		_, err := c.findSequence(schemaName, name)
+		if err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return true, nil
+			}
+			return false, err
+		}
+	case nodes.OBJECT_TABLE, nodes.OBJECT_VIEW, nodes.OBJECT_MATVIEW, nodes.OBJECT_FOREIGN_TABLE:
+		_, rel, err := c.findRelation(schemaName, name)
+		if err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return true, nil
+			}
+			return false, err
+		}
+		switch stmt.ObjectType {
+		case nodes.OBJECT_TABLE:
+			if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'f' {
+				return false, errWrongObjectType(name, "a table")
+			}
+		case nodes.OBJECT_VIEW:
+			if rel.RelKind != 'v' {
+				return false, errWrongObjectType(name, "a view")
+			}
+		case nodes.OBJECT_MATVIEW:
+			if rel.RelKind != 'm' {
+				return false, errWrongObjectType(name, "a materialized view")
+			}
+		case nodes.OBJECT_FOREIGN_TABLE:
+			if rel.RelKind != 'f' {
+				return false, errWrongObjectType(name, "a foreign table")
+			}
+		}
+	}
+	return false, nil
+}
+
 // alterRelationNamespace moves a relation (table/view/matview/sequence) to a new schema.
 //
 // pg: src/backend/commands/tablecmds.c — AlterTableNamespace
@@ -2173,7 +2247,7 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 	if stmt.ObjectType == nodes.OBJECT_SEQUENCE {
 		seq, err := c.findSequence(schemaName, relName)
 		if err != nil {
-			if stmt.MissingOk {
+			if stmt.MissingOk && missingObject(err) {
 				return nil
 			}
 			return err
@@ -2189,7 +2263,7 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 
 	oldSchema, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
-		if stmt.MissingOk {
+		if stmt.MissingOk && missingObject(err) {
 			return nil
 		}
 		return err
@@ -2337,9 +2411,10 @@ func (c *Catalog) atAddInherit(rel *Relation, rv *nodes.RangeVar) error {
 		return errWrongObjectType(rv.Relname, "a table")
 	}
 
-	// Circularity check: walk parent's inheritance tree.
-	if c.isAncestor(parent.OID, rel.OID) {
-		return errInvalidObjectDefinition(fmt.Sprintf("circular inheritance not allowed"))
+	// Circularity check: an inherited table is already a child of itself,
+	// and a parent that already has this child makes a cycle.
+	if parent.OID == rel.OID || c.isAncestor(parent.OID, rel.OID) {
+		return &Error{Code: CodeDuplicateTable, Message: "circular inheritance not allowed"}
 	}
 
 	// Merge parent columns into child (type must match, increment InhCount).
@@ -2487,14 +2562,17 @@ func (c *Catalog) atClusterOn(rel *Relation, indexName string) error {
 	for _, idx := range c.indexesByRel[rel.OID] {
 		idx.IsClustered = false
 	}
-	// Find and set the named index.
-	for _, idx := range c.indexesByRel[rel.OID] {
-		if idx.Name == indexName {
-			idx.IsClustered = true
-			return nil
-		}
+	// Find and set the named index. PostgreSQL resolves the name in the
+	// relation namespace, so a table or sequence of that name is 42809.
+	idx, err := c.findNamedIndex(rel.Schema, indexName)
+	if err != nil {
+		return err
 	}
-	return errUndefinedObject("index", indexName)
+	if idx.RelOID != rel.OID {
+		return errUndefinedObject("index", indexName)
+	}
+	idx.IsClustered = true
+	return nil
 }
 
 // atDropCluster clears the clustered index on a relation.
@@ -2518,17 +2596,19 @@ func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) err
 
 	if atc.Name != "" {
 		// USING INDEX variant.
-		rel.ReplicaIdentity = 'i'
-		for _, idx := range c.indexesByRel[rel.OID] {
-			if idx.Name == atc.Name {
-				if !idx.IsUnique {
-					return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", atc.Name))
-				}
-				idx.IsReplicaIdent = true
-				return nil
-			}
+		idx, err := c.findNamedIndex(rel.Schema, atc.Name)
+		if err != nil {
+			return err
 		}
-		return errUndefinedObject("index", atc.Name)
+		if idx.RelOID != rel.OID {
+			return errUndefinedObject("index", atc.Name)
+		}
+		if !idx.IsUnique {
+			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", atc.Name))
+		}
+		rel.ReplicaIdentity = 'i'
+		idx.IsReplicaIdent = true
+		return nil
 	}
 
 	// DEFAULT/FULL/NOTHING — pgparser doesn't distinguish, default to 'd'.

@@ -100,6 +100,10 @@ type Catalog struct {
 	// baseline a member's comment is compared with.
 	extensionComments map[commentKey]string
 
+	// Tablespaces: the two the server starts with and the ones CREATE
+	// TABLESPACE names. Objects store no tablespace of their own.
+	tablespaces map[string]bool
+
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod
 	accessMethodByName map[string]*AccessMethod
@@ -171,6 +175,7 @@ func New() *Catalog {
 		extByName:          make(map[string]*Extension),
 		extensionMembers:   make(map[uint32]string),
 		extensionComments:  make(map[commentKey]string),
+		tablespaces:        map[string]bool{"pg_default": true, "pg_global": true},
 		accessMethods:      make(map[uint32]*AccessMethod),
 		accessMethodByName: make(map[string]*AccessMethod),
 		opFamilies:         make(map[uint32]*OpFamily),
@@ -214,6 +219,7 @@ func New() *Catalog {
 	// Register built-in access methods using PG's real OIDs.
 	// pg: src/include/catalog/pg_am.dat
 	for _, am := range []AccessMethod{
+		{OID: 2, Name: "heap", Type: 't'},
 		{OID: 403, Name: "btree", Type: 'i'},
 		{OID: 405, Name: "hash", Type: 'i'},
 		{OID: 783, Name: "gist", Type: 'i'},

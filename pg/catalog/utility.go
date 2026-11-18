@@ -198,17 +198,13 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 
 	// ---- Tablespaces ----
 	case *nodes.CreateTableSpaceStmt:
-		// CREATE TABLESPACE: no-op for pgddl (physical storage)
-		return nil
+		return c.DefineTablespace(s)
 	case *nodes.DropTableSpaceStmt:
-		// DROP TABLESPACE: no-op for pgddl (physical storage)
-		return nil
+		return c.RemoveTablespace(s)
 	case *nodes.AlterTableSpaceOptionsStmt:
-		// ALTER TABLESPACE ... SET/RESET: no-op for pgddl
-		return nil
+		return c.AlterTablespaceOptions(s)
 	case *nodes.AlterTableMoveAllStmt:
-		// ALTER TABLE ALL IN TABLESPACE ... SET TABLESPACE: no-op for pgddl
-		return nil
+		return c.MoveAllTablespaces(s)
 
 	// ---- Roles/Databases ----
 	case *nodes.CreateRoleStmt:

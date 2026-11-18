@@ -378,6 +378,11 @@ func (c *Catalog) Clone() *Catalog {
 	clone.extensionComments = maps.Clone(c.extensionComments)
 
 	// --- Access methods: share built-in, deep copy user-created ---
+	clone.tablespaces = make(map[string]bool, len(c.tablespaces))
+	for name := range c.tablespaces {
+		clone.tablespaces[name] = true
+	}
+
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))
 	clone.accessMethodByName = make(map[string]*AccessMethod, len(c.accessMethodByName))
 	for oid, am := range c.accessMethods {
