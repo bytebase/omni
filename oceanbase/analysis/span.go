@@ -163,6 +163,11 @@ func (p *pseudoTable) GetTableName() string                  { return p.Name }
 func (*pseudoTable) GetDatabaseName() string                 { return "" }
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
+// unknownColumnsTable is a relation whose columns are known only when the query
+// runs: a table read from an external location. A column reference to it
+// resolves and reads no column this analysis can name.
+type unknownColumnsTable struct{ pseudoTable }
+
 // physicalView is a catalog view with its resolved columns.
 type physicalView struct {
 	Database string

@@ -29,8 +29,16 @@ func StatementMergeAlterTable(stmts []ast.Node) []v1review.Finding {
 		creates := false
 		switch n := stmt.(type) {
 		case *ast.CreateTableStmt:
+			if n.External {
+				// An external table is not the kind the rule counts, and its
+				// partition actions are whole statements.
+				continue
+			}
 			table, creates = n.Table, true
 		case *ast.AlterTableStmt:
+			if n.External {
+				continue
+			}
 			table = n.Table
 		}
 		if table == nil {

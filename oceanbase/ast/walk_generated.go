@@ -92,6 +92,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.PartitionBy != nil {
 			Walk(v, n.PartitionBy)
 		}
+		for _, item := range n.PartitionValues {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *AlterTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -486,6 +491,19 @@ func walkChildren(v Visitor, node Node) {
 	case *ExplainStmt:
 		Walk(v, n.StatementID)
 		Walk(v, n.Stmt)
+	case *ExternalProperty:
+		Walk(v, n.Value)
+	case *ExternalTableRef:
+		for _, item := range n.Source {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.Format {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *ExtractExpr:
 		Walk(v, n.Expr)
 	case *FlushStmt:
@@ -687,6 +705,12 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, item)
 		}
 	case *LoadDataStmt:
+		if n.Source != nil {
+			Walk(v, n.Source)
+		}
+		if n.SourceQuery != nil {
+			Walk(v, n.SourceQuery)
+		}
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
@@ -732,6 +756,12 @@ func walkChildren(v Visitor, node Node) {
 	case *MemberOfExpr:
 		Walk(v, n.Value)
 		Walk(v, n.Array)
+	case *MethodOptStmt:
+		for _, item := range n.Methods {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *MlogPurge:
 		Walk(v, n.StartWith)
 		Walk(v, n.Next)
@@ -788,6 +818,8 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.BeforeExpr)
 	case *RawStmt:
 		Walk(v, n.Stmt)
+	case *RbIterateExpr:
+		Walk(v, n.Arg)
 	case *RenameTablePair:
 		if n.Old != nil {
 			Walk(v, n.Old)
@@ -925,6 +957,12 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *StatsMethod:
+		for _, item := range n.Items {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 	case *SubPartitionDef:
 		Walk(v, n.Values)
 		for _, item := range n.Options {
@@ -935,6 +973,9 @@ func walkChildren(v Visitor, node Node) {
 	case *SubqueryExpr:
 		if n.Select != nil {
 			Walk(v, n.Select)
+		}
+		if n.Flashback != nil {
+			Walk(v, n.Flashback)
 		}
 	case *TableFlashback:
 		Walk(v, n.Snapshot)
@@ -978,6 +1019,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *UnaryExpr:
 		Walk(v, n.Operand)
+	case *UnnestExpr:
+		for _, item := range n.Args {
+			Walk(v, item)
+		}
 	case *UpdateStmt:
 		for _, item := range n.Tables {
 			Walk(v, item)

@@ -369,3 +369,23 @@ func TestExecAlterRenameLogRollback(t *testing.T) {
 		t.Fatalf("CREATE MATERIALIZED VIEW LOG ON t after rollback: error = %v, want a duplicate", results)
 	}
 }
+
+// TestExecRefusesExternalTables pins that the catalog refuses the external-table
+// statements rather than applying one as a plain table: their definitions live in
+// metadata.ExternalTableMetadata, which it holds from a sync, not from DDL.
+func TestExecRefusesExternalTables(t *testing.T) {
+	c := New()
+	for _, sql := range []string{
+		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV')",
+		"ALTER EXTERNAL TABLE ext ADD COLUMN b INT",
+	} {
+		results, err := c.Exec("CREATE DATABASE test; USE test;\n"+sql, nil)
+		if err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+		last := results[len(results)-1]
+		if last.Error == nil {
+			t.Errorf("Exec(%q) succeeded, want the catalog's refusal", sql)
+		}
+	}
+}

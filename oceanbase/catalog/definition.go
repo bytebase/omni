@@ -2114,6 +2114,12 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 			expose(n.Alias)
 		case *nodes.JsonTableExpr:
 			expose(n.Alias)
+		case *nodes.ExternalTableRef:
+			expose(n.Alias)
+		case *nodes.RbIterateExpr:
+			expose(n.Alias)
+		case *nodes.UnnestExpr:
+			expose(n.Alias)
 		}
 		return true
 	})

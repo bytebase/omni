@@ -16,12 +16,16 @@ import (
 //	    LIKE old_tbl_name
 //	CREATE [TEMPORARY] TABLE [IF NOT EXISTS] tbl_name
 //	    [AS] query_expression
-func (p *Parser) parseCreateTableStmt(start int, temporary bool) (*nodes.CreateTableStmt, error) {
+//
+// parseCreateTableStmt parses create_table_stmt and create_table_like_stmt, after
+// CREATE and after special_table_type's TEMPORARY or EXTERNAL.
+func (p *Parser) parseCreateTableStmt(start int, temporary, external bool) (*nodes.CreateTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &nodes.CreateTableStmt{
 		Loc:       nodes.Loc{Start: start},
 		Temporary: temporary,
+		External:  external,
 	}
 
 	// IF NOT EXISTS
