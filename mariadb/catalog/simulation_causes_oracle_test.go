@@ -117,6 +117,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1128,
 		},
 		{
+			name:  "two VECTOR keys beside an added column",
+			setup: []string{"CREATE TABLE a (v VECTOR(3) NOT NULL)"},
+			stmt:  "ALTER TABLE a ADD VECTOR i(v), ADD VECTOR j(v), ADD COLUMN x INT",
+			code:  1235,
+		},
+		{
 			name:  "REMOVE PARTITIONING of a table with none",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a REMOVE PARTITIONING",

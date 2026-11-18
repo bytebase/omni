@@ -292,6 +292,25 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
+| CREATE TABLE a (v VECTOR(3) NOT NULL)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD VECTOR i(v), ADD VECTOR j(v), ADD COLUMN x INT
+< error
+| 1235 42000 This version of MariaDB doesn't yet support 'multiple VECTOR indexes'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec

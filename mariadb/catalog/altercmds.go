@@ -798,12 +798,16 @@ func alterProspectiveTable(tbl *Table, cmds []*nodes.AlterTableCmd) *Table {
 				col := buildColumnFromDef(pp, cmd.Column)
 				col.Position = pp.Columns[at].Position
 				pp.Columns[at] = col
+				if !strings.EqualFold(cmd.Name, cmd.Column.Name) {
+					updateColumnRefsInIndexes(pp, cmd.Name, cmd.Column.Name)
+				}
 			} else {
 				add(cmd.Column)
 			}
 		case nodes.ATRenameColumn:
 			if at, ok := pp.colByName[toLower(cmd.Name)]; ok {
 				pp.Columns[at].Name = cmd.NewName
+				updateColumnRefsInIndexes(pp, cmd.Name, cmd.NewName)
 			}
 		}
 		rebuildColIndex(pp)
@@ -1281,8 +1285,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		}
 	}
 	keyTbl := tbl
-	if prospective != nil {
-		keyTbl = prospective
+	if prospective != nil && prospective != tbl {
+		// The prospective table has the columns the statement introduces, but
+		// its indexes and constraints are the pre-statement ones. Keep the
+		// live index state, which an earlier command of this ALTER may have
+		// changed, for the checks that read it.
+		kt := *prospective
+		kt.Indexes = tbl.Indexes
+		kt.Constraints = tbl.Constraints
+		keyTbl = &kt
 	}
 	if err := validateAddedKeyColumns(keyTbl, con.IndexColumns); err != nil {
 		return err
