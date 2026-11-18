@@ -25,7 +25,7 @@ reject	reject	engine	statement/useDatabaseStatement!drop-2	USE;
 reject	reject	engine	statement/useDatabaseStatement!truncate	USE
 reject	reject	engine	statement/useDatabaseStatement!insert	USE a zzz;
 reject	reject	engine	statement/useDatabaseStatement!swap	USER a;
-reject	accept	engine	statement/useCatalogStatement	USE 'a';
+accept	accept	engine	statement/useCatalogStatement	USE 'a';
 reject	reject	engine	statement/useCatalogStatement!drop-1	'a';
 reject	reject	engine	statement/useCatalogStatement!insert	USE 'a' zzz;
 reject	reject	engine	statement/useCatalogStatement!swap	USER 'a';
@@ -1574,7 +1574,7 @@ accept	accept	engine	statement/unsupportedStatement	BEGIN;
 reject	reject	engine	statement/unsupportedStatement!insert	BEGIN zzz;
 reject	reject	engine	statement/unsupportedStatement!swap	BETWEEN;
 accept	accept	engine	useDatabaseStatement/USE_qualifiedName	USE a;
-reject	accept	engine	useCatalogStatement/USE_string	USE 'a';
+accept	accept	engine	useCatalogStatement/USE_string	USE 'a';
 accept	accept	engine	setCatalogStatement/SET_CATALOG_identifierOrString	SET CATALOG a;
 accept	accept	engine	showDatabasesStatement/SHOW_DATABASES_((FROM|IN)_qualifiedName)?_((LIKE_string~0bbb5ed3	SHOW DATABASES;
 accept	accept	engine	showDatabasesStatement/SHOW_SCHEMAS_((LIKE_string)|(WHERE_expression))?	SHOW SCHEMAS;

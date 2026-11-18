@@ -595,3 +595,39 @@ func TestSetTypeFromOption(t *testing.T) {
 		}
 	}
 }
+
+// TestParseUseCloudCluster: Doris' useCloudCluster form with no database,
+// USE @cluster (DorisParser.g4:930), switches the compute cluster alone.
+func TestParseUseCloudCluster(t *testing.T) {
+	for _, tc := range []struct {
+		sql     string
+		catalog string
+		db      string
+		cluster string
+	}{
+		{sql: "USE @cluster", cluster: "cluster"},
+		{sql: "USE db", db: "db"},
+		{sql: "USE cat.db", catalog: "cat", db: "db"},
+		{sql: "USE db@cluster", db: "db", cluster: "cluster"},
+		{sql: "USE cat.db@cluster", catalog: "cat", db: "db", cluster: "cluster"},
+	} {
+		file, err := Parse(tc.sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", tc.sql, err)
+		}
+		stmt, ok := file.Stmts[0].(*ast.UseStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): got %T, want *ast.UseStmt", tc.sql, file.Stmts[0])
+		}
+		if stmt.Catalog != tc.catalog || stmt.Database != tc.db || stmt.Cluster != tc.cluster {
+			t.Errorf("Parse(%q): catalog=%q database=%q cluster=%q, want %q/%q/%q",
+				tc.sql, stmt.Catalog, stmt.Database, stmt.Cluster, tc.catalog, tc.db, tc.cluster)
+		}
+	}
+
+	for _, sql := range []string{"USE", "USE @", "USE @"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
