@@ -36,10 +36,24 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropIndex(v)
 	case *ast.CreateViewStmt:
 		return b.createView(v)
+	case *ast.CreateMaterializedViewStmt:
+		return b.createMaterializedView(v)
 	case *ast.AlterViewStmt:
 		return b.alterView(v)
+	case *ast.AlterMaterializedViewStmt:
+		return b.alterMaterializedView(v)
 	case *ast.DropViewStmt:
 		return b.dropView(v)
+	case *ast.CreateMaterializedViewLogStmt:
+		var columns []string
+		if v.With != nil {
+			columns = v.With.ReferenceColumns
+		}
+		return b.materializedViewLog(v.Table, materializedLogCreate, v.OrReplace, columns)
+	case *ast.AlterMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table, materializedLogAlter, false, nil)
+	case *ast.DropMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table, materializedLogDrop, false, nil)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.DropTriggerStmt:
@@ -158,6 +172,16 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 func (b *builder) clearDatabase(d string) {
 	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
+	}
+	for k := range b.w.materialized {
+		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+			delete(b.w.materialized, k)
+		}
+	}
+	for k := range b.w.materializedLogs {
+		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+			delete(b.w.materializedLogs, k)
+		}
 	}
 }
 
@@ -297,6 +321,9 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if prior == walk.Unknown {
 		b.Next()
 		b.Set(k, walk.Present, "")
+	} else {
+		// A new base table has no materialized view log.
+		b.w.materializedLogs[k] = materializedLogAbsent
 	}
 	return true
 }

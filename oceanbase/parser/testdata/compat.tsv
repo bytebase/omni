@@ -178,7 +178,7 @@ reject	reject	engine	stmt/alter_table_stmt!drop-2	ALTER a
 reject	reject	engine	stmt/alter_table_stmt!drop-3	ALTER TABLE
 reject	reject	engine	stmt/alter_table_stmt!insert	ALTER TABLE a zzz
 reject	reject	engine	stmt/alter_table_stmt!swap	ALWAYS TABLE a
-reject	accept	engine	stmt/alter_mview_stmt	ALTER MATERIALIZED VIEW a NOPARALLEL
+accept	accept	engine	stmt/alter_mview_stmt	ALTER MATERIALIZED VIEW a NOPARALLEL
 reject	reject	engine	stmt/alter_mview_stmt!drop-1	MATERIALIZED VIEW a NOPARALLEL
 reject	reject	engine	stmt/alter_mview_stmt!drop-2	ALTER VIEW a NOPARALLEL
 reject	reject	engine	stmt/alter_mview_stmt!drop-3	ALTER MATERIALIZED a NOPARALLEL
@@ -186,7 +186,7 @@ reject	reject	engine	stmt/alter_mview_stmt!drop-4	ALTER MATERIALIZED VIEW NOPARA
 reject	reject	engine	stmt/alter_mview_stmt!drop-5	ALTER MATERIALIZED VIEW a
 reject	reject	engine	stmt/alter_mview_stmt!insert	ALTER MATERIALIZED VIEW a NOPARALLEL zzz
 reject	reject	engine	stmt/alter_mview_stmt!swap	ALWAYS MATERIALIZED VIEW a NOPARALLEL
-reject	accept	engine	stmt/alter_mlog_stmt	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	stmt/alter_mlog_stmt	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
 reject	reject	engine	stmt/alter_mlog_stmt!drop-1	MATERIALIZED VIEW LOG ON a NOPARALLEL
 reject	reject	engine	stmt/alter_mlog_stmt!drop-2	ALTER VIEW LOG ON a NOPARALLEL
 reject	reject	engine	stmt/alter_mlog_stmt!drop-3	ALTER MATERIALIZED LOG ON a NOPARALLEL
@@ -330,7 +330,7 @@ accept	accept	engine	stmt/kill_stmt	KILL a
 reject	reject	engine	stmt/kill_stmt!drop-2	KILL
 reject	reject	engine	stmt/kill_stmt!insert	KILL a zzz
 reject	reject	engine	stmt/kill_stmt!swap	KVCACHE a
-reject	accept	engine	stmt/create_mlog_stmt	CREATE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	stmt/create_mlog_stmt	CREATE MATERIALIZED VIEW LOG ON a
 reject	reject	engine	stmt/create_mlog_stmt!drop-1	MATERIALIZED VIEW LOG ON a
 reject	reject	engine	stmt/create_mlog_stmt!drop-2	CREATE VIEW LOG ON a
 reject	reject	engine	stmt/create_mlog_stmt!drop-3	CREATE MATERIALIZED LOG ON a
@@ -339,7 +339,7 @@ reject	reject	engine	stmt/create_mlog_stmt!drop-5	CREATE MATERIALIZED VIEW LOG a
 reject	reject	engine	stmt/create_mlog_stmt!drop-6	CREATE MATERIALIZED VIEW LOG ON
 reject	reject	engine	stmt/create_mlog_stmt!insert	CREATE MATERIALIZED VIEW LOG ON a zzz
 reject	reject	engine	stmt/create_mlog_stmt!swap	CREATE_TIMESTAMP MATERIALIZED VIEW LOG ON a
-reject	accept	engine	stmt/drop_mlog_stmt	DROP MATERIALIZED VIEW LOG ON a
+accept	accept	engine	stmt/drop_mlog_stmt	DROP MATERIALIZED VIEW LOG ON a
 reject	reject	engine	stmt/drop_mlog_stmt!drop-2	DROP VIEW LOG ON a
 reject	reject	engine	stmt/drop_mlog_stmt!drop-3	DROP MATERIALIZED LOG ON a
 reject	reject	engine	stmt/drop_mlog_stmt!drop-4	DROP MATERIALIZED VIEW ON a
@@ -361,14 +361,14 @@ reject	reject	engine	stmt/create_view_stmt!drop-5	CREATE VIEW a AS a
 reject	reject	engine	stmt/create_view_stmt!drop-6	CREATE VIEW a AS SELECT
 accept	accept	engine	stmt/create_view_stmt!insert	CREATE VIEW a AS SELECT a zzz
 reject	reject	engine	stmt/create_view_stmt!swap	CREATE_TIMESTAMP VIEW a AS SELECT a
-reject	accept	engine	stmt/create_mview_stmt	CREATE MATERIALIZED VIEW a AS SELECT a
+accept	accept	engine	stmt/create_mview_stmt	CREATE MATERIALIZED VIEW a AS SELECT a
 reject	reject	engine	stmt/create_mview_stmt!drop-1	MATERIALIZED VIEW a AS SELECT a
 reject	reject	engine	stmt/create_mview_stmt!drop-3	CREATE MATERIALIZED a AS SELECT a
 reject	reject	engine	stmt/create_mview_stmt!drop-4	CREATE MATERIALIZED VIEW AS SELECT a
 reject	reject	engine	stmt/create_mview_stmt!drop-5	CREATE MATERIALIZED VIEW a SELECT a
 reject	reject	engine	stmt/create_mview_stmt!drop-6	CREATE MATERIALIZED VIEW a AS a
 reject	reject	engine	stmt/create_mview_stmt!drop-7	CREATE MATERIALIZED VIEW a AS SELECT
-reject	accept	engine	stmt/create_mview_stmt!insert	CREATE MATERIALIZED VIEW a AS SELECT a zzz
+accept	accept	engine	stmt/create_mview_stmt!insert	CREATE MATERIALIZED VIEW a AS SELECT a zzz
 reject	reject	engine	stmt/create_mview_stmt!swap	CREATE_TIMESTAMP MATERIALIZED VIEW a AS SELECT a
 accept	accept	engine	stmt/create_tenant_stmt	CREATE TENANT a
 reject	reject	engine	stmt/create_tenant_stmt!drop-1	TENANT a
@@ -6956,8 +6956,8 @@ reject	reject	engine	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_defi
 reject	reject	engine	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!drop-6	ALTER VIEW a AS SELECT
 accept	accept	engine	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!insert	ALTER VIEW a AS SELECT a zzz
 reject	reject	engine	create_view_stmt/alter_with_opt_hint_opt_algorithm_opt_definer_opt_sql_security_VIEW_view_name_opt_column_list_opt_table_id_AS_view_select_stmt_opt_check_option!swap	ALWAYS VIEW a AS SELECT a
-reject	accept	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_create_mview_opts_AS_view_select_stmt_opt_check_option	CREATE MATERIALIZED VIEW a AS SELECT a
-reject	accept	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
+accept	accept	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_create_mview_opts_AS_view_select_stmt_opt_check_option	CREATE MATERIALIZED VIEW a AS SELECT a
+accept	accept	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!drop-1	MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!drop-2	CREATE VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!drop-3	CREATE MATERIALIZED a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
@@ -6970,11 +6970,11 @@ reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_vi
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!drop-10	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) SELECT a
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!drop-11	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS a
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!drop-12	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT
-reject	accept	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!insert	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
+accept	accept	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!insert	CREATE MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a zzz
 reject	reject	engine	create_mview_stmt/create_with_opt_hint_MATERIALIZED_VIEW_view_name_opt_mv_column_list_opt_table_option_list_opt_partition_option_with_column_group_create_mview_opts_AS_view_select_stmt_opt_check_option!swap	CREATE_TIMESTAMP MATERIALIZED VIEW a WITH COLUMN GROUP(ALL COLUMNS) AS SELECT a
-reject	accept	engine	create_mview_opts/mview_refresh_opt	CREATE MATERIALIZED VIEW a AS SELECT a
+accept	accept	engine	create_mview_opts/mview_refresh_opt	CREATE MATERIALIZED VIEW a AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt!insert	CREATE MATERIALIZED VIEW a zzz AS SELECT a
-reject	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION AS SELECT a
+accept	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION!drop-1	CREATE MATERIALIZED VIEW a ON QUERY COMPUTATION AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION!drop-2	CREATE MATERIALIZED VIEW a DISABLE QUERY COMPUTATION AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION!drop-3	CREATE MATERIALIZED VIEW a DISABLE ON COMPUTATION AS SELECT a
@@ -6982,14 +6982,14 @@ reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION!truncate	CREATE MATERIALIZED VIEW a DISABLE ON QUERY
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION!insert	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION zzz AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION!swap	CREATE MATERIALIZED VIEW a DISABLE_PARALLEL_DAS_DML ON QUERY COMPUTATION AS SELECT a
-reject	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE AS SELECT a
+accept	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE!drop-1	CREATE MATERIALIZED VIEW a QUERY REWRITE AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE!drop-2	CREATE MATERIALIZED VIEW a DISABLE REWRITE AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE!drop-3	CREATE MATERIALIZED VIEW a DISABLE QUERY AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE!truncate	CREATE MATERIALIZED VIEW a DISABLE QUERY
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE!insert	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE zzz AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE!swap	CREATE MATERIALIZED VIEW a DISABLE_PARALLEL_DAS_DML QUERY REWRITE AS SELECT a
-reject	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION DISABLE QUERY REWRITE AS SELECT a
+accept	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION DISABLE QUERY REWRITE AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE!drop-1	CREATE MATERIALIZED VIEW a ON QUERY COMPUTATION DISABLE QUERY REWRITE AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE!drop-2	CREATE MATERIALIZED VIEW a DISABLE QUERY COMPUTATION DISABLE QUERY REWRITE AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE!drop-3	CREATE MATERIALIZED VIEW a DISABLE ON COMPUTATION DISABLE QUERY REWRITE AS SELECT a
@@ -7000,7 +7000,7 @@ reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE!truncate	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION DISABLE QUERY
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE!insert	CREATE MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION DISABLE QUERY REWRITE zzz AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_ON_QUERY_COMPUTATION_mview_enable_disable_QUERY_REWRITE!swap	CREATE MATERIALIZED VIEW a DISABLE_PARALLEL_DAS_DML ON QUERY COMPUTATION DISABLE QUERY REWRITE AS SELECT a
-reject	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE DISABLE ON QUERY COMPUTATION AS SELECT a
+accept	accept	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE DISABLE ON QUERY COMPUTATION AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION!drop-1	CREATE MATERIALIZED VIEW a QUERY REWRITE DISABLE ON QUERY COMPUTATION AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION!drop-2	CREATE MATERIALIZED VIEW a DISABLE REWRITE DISABLE ON QUERY COMPUTATION AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION!drop-3	CREATE MATERIALIZED VIEW a DISABLE QUERY DISABLE ON QUERY COMPUTATION AS SELECT a
@@ -7011,127 +7011,127 @@ reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QU
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION!truncate	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE DISABLE ON QUERY
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION!insert	CREATE MATERIALIZED VIEW a DISABLE QUERY REWRITE DISABLE ON QUERY COMPUTATION zzz AS SELECT a
 reject	reject	engine	create_mview_opts/mview_refresh_opt_mview_enable_disable_QUERY_REWRITE_mview_enable_disable_ON_QUERY_COMPUTATION!swap	CREATE MATERIALIZED VIEW a DISABLE_PARALLEL_DAS_DML QUERY REWRITE DISABLE ON QUERY COMPUTATION AS SELECT a
-reject	accept	engine	mview_enable_disable/DISABLE	ALTER MATERIALIZED VIEW a DISABLE QUERY REWRITE
+accept	accept	engine	mview_enable_disable/DISABLE	ALTER MATERIALIZED VIEW a DISABLE QUERY REWRITE
 reject	reject	engine	mview_enable_disable/DISABLE!drop-1	ALTER MATERIALIZED VIEW a QUERY REWRITE
 reject	reject	engine	mview_enable_disable/DISABLE!insert	ALTER MATERIALIZED VIEW a DISABLE zzz QUERY REWRITE
 reject	reject	engine	mview_enable_disable/DISABLE!swap	ALTER MATERIALIZED VIEW a DISABLE_PARALLEL_DAS_DML QUERY REWRITE
-reject	accept	engine	mview_enable_disable/ENABLE	ALTER MATERIALIZED VIEW a ENABLE QUERY REWRITE
+accept	accept	engine	mview_enable_disable/ENABLE	ALTER MATERIALIZED VIEW a ENABLE QUERY REWRITE
 reject	reject	engine	mview_enable_disable/ENABLE!insert	ALTER MATERIALIZED VIEW a ENABLE zzz QUERY REWRITE
 reject	reject	engine	mview_enable_disable/ENABLE!swap	ALTER MATERIALIZED VIEW a ENABLE_ARBITRATION_SERVICE QUERY REWRITE
-reject	accept	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval	CREATE MATERIALIZED VIEW a REFRESH FAST AS SELECT a
+accept	accept	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval	CREATE MATERIALIZED VIEW a REFRESH FAST AS SELECT a
 reject	reject	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval!drop-1	CREATE MATERIALIZED VIEW a FAST AS SELECT a
 reject	reject	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval!drop-2	CREATE MATERIALIZED VIEW a REFRESH AS SELECT a
 reject	reject	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval!truncate	CREATE MATERIALIZED VIEW a REFRESH
 reject	reject	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval!insert	CREATE MATERIALIZED VIEW a REFRESH FAST zzz AS SELECT a
 reject	reject	engine	mview_refresh_opt/REFRESH_mv_refresh_method_mv_nested_refresh_opt_mv_refresh_on_clause_mv_refresh_interval!swap	CREATE MATERIALIZED VIEW a REGEXP FAST AS SELECT a
-reject	accept	engine	mview_refresh_opt/NEVER_REFRESH	CREATE MATERIALIZED VIEW a NEVER REFRESH AS SELECT a
+accept	accept	engine	mview_refresh_opt/NEVER_REFRESH	CREATE MATERIALIZED VIEW a NEVER REFRESH AS SELECT a
 reject	reject	engine	mview_refresh_opt/NEVER_REFRESH!drop-2	CREATE MATERIALIZED VIEW a NEVER AS SELECT a
 reject	reject	engine	mview_refresh_opt/NEVER_REFRESH!truncate	CREATE MATERIALIZED VIEW a NEVER
 reject	reject	engine	mview_refresh_opt/NEVER_REFRESH!insert	CREATE MATERIALIZED VIEW a NEVER REFRESH zzz AS SELECT a
 reject	reject	engine	mview_refresh_opt/NEVER_REFRESH!swap	CREATE MATERIALIZED VIEW a NEW REFRESH AS SELECT a
-reject	accept	engine	mview_refresh_opt/%empty	CREATE MATERIALIZED VIEW a AS SELECT a
-reject	accept	engine	mv_refresh_on_clause/ON_mv_refresh_mode	CREATE MATERIALIZED VIEW a REFRESH FAST ON DEMAND AS SELECT a
+accept	accept	engine	mview_refresh_opt/%empty	CREATE MATERIALIZED VIEW a AS SELECT a
+accept	accept	engine	mv_refresh_on_clause/ON_mv_refresh_mode	CREATE MATERIALIZED VIEW a REFRESH FAST ON DEMAND AS SELECT a
 reject	reject	engine	mv_refresh_on_clause/ON_mv_refresh_mode!drop-1	CREATE MATERIALIZED VIEW a REFRESH FAST DEMAND AS SELECT a
 reject	reject	engine	mv_refresh_on_clause/ON_mv_refresh_mode!drop-2	CREATE MATERIALIZED VIEW a REFRESH FAST ON AS SELECT a
 reject	reject	engine	mv_refresh_on_clause/ON_mv_refresh_mode!truncate	CREATE MATERIALIZED VIEW a REFRESH FAST ON
 reject	reject	engine	mv_refresh_on_clause/ON_mv_refresh_mode!insert	CREATE MATERIALIZED VIEW a REFRESH FAST ON DEMAND zzz AS SELECT a
 reject	reject	engine	mv_refresh_on_clause/ON_mv_refresh_mode!swap	CREATE MATERIALIZED VIEW a REFRESH FAST ONE DEMAND AS SELECT a
-reject	accept	engine	mv_refresh_on_clause/%empty	CREATE MATERIALIZED VIEW a REFRESH FAST AS SELECT a
-reject	accept	engine	mv_nested_refresh_opt/mview_nested_refresh_mode	CREATE MATERIALIZED VIEW a REFRESH FAST INDIVIDUAL AS SELECT a
+accept	accept	engine	mv_refresh_on_clause/%empty	CREATE MATERIALIZED VIEW a REFRESH FAST AS SELECT a
+accept	accept	engine	mv_nested_refresh_opt/mview_nested_refresh_mode	CREATE MATERIALIZED VIEW a REFRESH FAST INDIVIDUAL AS SELECT a
 reject	reject	engine	mv_nested_refresh_opt/mview_nested_refresh_mode!truncate	CREATE MATERIALIZED VIEW a REFRESH FAST
 reject	reject	engine	mv_nested_refresh_opt/mview_nested_refresh_mode!insert	CREATE MATERIALIZED VIEW a REFRESH FAST INDIVIDUAL zzz AS SELECT a
 reject	reject	engine	mv_nested_refresh_opt/mview_nested_refresh_mode!swap	CREATE MATERIALIZED VIEW a REFRESH FAST INFILE AS SELECT a
-reject	accept	engine	mv_nested_refresh_opt/%empty	CREATE MATERIALIZED VIEW a REFRESH FAST AS SELECT a
-reject	accept	engine	mview_nested_refresh_mode/INDIVIDUAL	ALTER MATERIALIZED VIEW a REFRESH INDIVIDUAL
+accept	accept	engine	mv_nested_refresh_opt/%empty	CREATE MATERIALIZED VIEW a REFRESH FAST AS SELECT a
+accept	accept	engine	mview_nested_refresh_mode/INDIVIDUAL	ALTER MATERIALIZED VIEW a REFRESH INDIVIDUAL
 reject	reject	engine	mview_nested_refresh_mode/INDIVIDUAL!insert	ALTER MATERIALIZED VIEW a REFRESH INDIVIDUAL zzz
 reject	reject	engine	mview_nested_refresh_mode/INDIVIDUAL!swap	ALTER MATERIALIZED VIEW a REFRESH INFILE
-reject	accept	engine	mview_nested_refresh_mode/INCONSISTENT	ALTER MATERIALIZED VIEW a REFRESH INCONSISTENT
+accept	accept	engine	mview_nested_refresh_mode/INCONSISTENT	ALTER MATERIALIZED VIEW a REFRESH INCONSISTENT
 reject	reject	engine	mview_nested_refresh_mode/INCONSISTENT!insert	ALTER MATERIALIZED VIEW a REFRESH INCONSISTENT zzz
 reject	reject	engine	mview_nested_refresh_mode/INCONSISTENT!swap	ALTER MATERIALIZED VIEW a REFRESH INCR
-reject	accept	engine	mview_nested_refresh_mode/CONSISTENT	ALTER MATERIALIZED VIEW a REFRESH CONSISTENT
+accept	accept	engine	mview_nested_refresh_mode/CONSISTENT	ALTER MATERIALIZED VIEW a REFRESH CONSISTENT
 reject	reject	engine	mview_nested_refresh_mode/CONSISTENT!insert	ALTER MATERIALIZED VIEW a REFRESH CONSISTENT zzz
 reject	reject	engine	mview_nested_refresh_mode/CONSISTENT!swap	ALTER MATERIALIZED VIEW a REFRESH CONSTRAINT
-reject	accept	engine	mv_refresh_method/FAST	ALTER MATERIALIZED VIEW a REFRESH FAST
+accept	accept	engine	mv_refresh_method/FAST	ALTER MATERIALIZED VIEW a REFRESH FAST
 reject	reject	engine	mv_refresh_method/FAST!insert	ALTER MATERIALIZED VIEW a REFRESH FAST zzz
 reject	reject	engine	mv_refresh_method/FAST!swap	ALTER MATERIALIZED VIEW a REFRESH FAST_MINMAX
-reject	accept	engine	mv_refresh_method/COMPLETE	ALTER MATERIALIZED VIEW a REFRESH COMPLETE
+accept	accept	engine	mv_refresh_method/COMPLETE	ALTER MATERIALIZED VIEW a REFRESH COMPLETE
 reject	reject	engine	mv_refresh_method/COMPLETE!insert	ALTER MATERIALIZED VIEW a REFRESH COMPLETE zzz
 reject	reject	engine	mv_refresh_method/COMPLETE!swap	ALTER MATERIALIZED VIEW a REFRESH COMPLETION
-reject	accept	engine	mv_refresh_method/FORCE	ALTER MATERIALIZED VIEW a REFRESH FORCE
+accept	accept	engine	mv_refresh_method/FORCE	ALTER MATERIALIZED VIEW a REFRESH FORCE
 reject	reject	engine	mv_refresh_method/FORCE!insert	ALTER MATERIALIZED VIEW a REFRESH FORCE zzz
 reject	reject	engine	mv_refresh_method/FORCE!swap	ALTER MATERIALIZED VIEW a REFRESH FORCE_REFRESH_LOCATION_CACHE
-reject	accept	engine	mv_refresh_mode/DEMAND	CREATE MATERIALIZED VIEW a REFRESH FAST ON DEMAND AS SELECT a
+accept	accept	engine	mv_refresh_mode/DEMAND	CREATE MATERIALIZED VIEW a REFRESH FAST ON DEMAND AS SELECT a
 reject	reject	engine	mv_refresh_mode/DEMAND!swap	CREATE MATERIALIZED VIEW a REFRESH FAST ON DENSE_RANK AS SELECT a
-reject	accept	engine	mv_refresh_mode/COMMIT	CREATE MATERIALIZED VIEW a REFRESH FAST ON COMMIT AS SELECT a
+accept	accept	engine	mv_refresh_mode/COMMIT	CREATE MATERIALIZED VIEW a REFRESH FAST ON COMMIT AS SELECT a
 reject	reject	engine	mv_refresh_mode/COMMIT!insert	CREATE MATERIALIZED VIEW a REFRESH FAST ON COMMIT zzz AS SELECT a
 reject	reject	engine	mv_refresh_mode/COMMIT!swap	CREATE MATERIALIZED VIEW a REFRESH FAST ON COMMITTED AS SELECT a
-reject	accept	engine	mv_refresh_mode/STATEMENT	CREATE MATERIALIZED VIEW a REFRESH FAST ON STATEMENT AS SELECT a
+accept	accept	engine	mv_refresh_mode/STATEMENT	CREATE MATERIALIZED VIEW a REFRESH FAST ON STATEMENT AS SELECT a
 reject	reject	engine	mv_refresh_mode/STATEMENT!insert	CREATE MATERIALIZED VIEW a REFRESH FAST ON STATEMENT zzz AS SELECT a
 reject	reject	engine	mv_refresh_mode/STATEMENT!swap	CREATE MATERIALIZED VIEW a REFRESH FAST ON STATEMENTS AS SELECT a
-reject	accept	engine	mv_refresh_interval/mv_start_clause_mv_next_clause	ALTER MATERIALIZED VIEW a REFRESH
+accept	accept	engine	mv_refresh_interval/mv_start_clause_mv_next_clause	ALTER MATERIALIZED VIEW a REFRESH
 reject	reject	engine	mv_refresh_interval/mv_start_clause_mv_next_clause!insert	ALTER MATERIALIZED VIEW a REFRESH zzz
-reject	accept	engine	mv_start_clause/START_WITH_bit_expr	ALTER MATERIALIZED VIEW a REFRESH START WITH a
+accept	accept	engine	mv_start_clause/START_WITH_bit_expr	ALTER MATERIALIZED VIEW a REFRESH START WITH a
 reject	reject	engine	mv_start_clause/START_WITH_bit_expr!drop-1	ALTER MATERIALIZED VIEW a REFRESH WITH a
 reject	reject	engine	mv_start_clause/START_WITH_bit_expr!drop-2	ALTER MATERIALIZED VIEW a REFRESH START a
 reject	reject	engine	mv_start_clause/START_WITH_bit_expr!drop-3	ALTER MATERIALIZED VIEW a REFRESH START WITH
 reject	reject	engine	mv_start_clause/START_WITH_bit_expr!insert	ALTER MATERIALIZED VIEW a REFRESH START WITH a zzz
 reject	reject	engine	mv_start_clause/START_WITH_bit_expr!swap	ALTER MATERIALIZED VIEW a REFRESH STARTING WITH a
-reject	accept	engine	mv_start_clause/%empty	ALTER MATERIALIZED VIEW a REFRESH
-reject	accept	engine	mv_next_clause/NEXT_bit_expr	ALTER MATERIALIZED VIEW a REFRESH NEXT a
+accept	accept	engine	mv_start_clause/%empty	ALTER MATERIALIZED VIEW a REFRESH
+accept	accept	engine	mv_next_clause/NEXT_bit_expr	ALTER MATERIALIZED VIEW a REFRESH NEXT a
 reject	reject	engine	mv_next_clause/NEXT_bit_expr!drop-1	ALTER MATERIALIZED VIEW a REFRESH a
 reject	reject	engine	mv_next_clause/NEXT_bit_expr!drop-2	ALTER MATERIALIZED VIEW a REFRESH NEXT
 reject	reject	engine	mv_next_clause/NEXT_bit_expr!insert	ALTER MATERIALIZED VIEW a REFRESH NEXT a zzz
 reject	reject	engine	mv_next_clause/NEXT_bit_expr!swap	ALTER MATERIALIZED VIEW a REFRESH NGRAM_TOKEN_SIZE a
-reject	accept	engine	mv_next_clause/%empty	ALTER MATERIALIZED VIEW a REFRESH
-reject	accept	engine	alter_mview_stmt/alter_with_opt_hint_MATERIALIZED_VIEW_view_name_alter_mview_actions	ALTER MATERIALIZED VIEW a NOPARALLEL
-reject	accept	engine	alter_mview_actions/alter_mview_action_list	ALTER MATERIALIZED VIEW a NOPARALLEL
+accept	accept	engine	mv_next_clause/%empty	ALTER MATERIALIZED VIEW a REFRESH
+accept	accept	engine	alter_mview_stmt/alter_with_opt_hint_MATERIALIZED_VIEW_view_name_alter_mview_actions	ALTER MATERIALIZED VIEW a NOPARALLEL
+accept	accept	engine	alter_mview_actions/alter_mview_action_list	ALTER MATERIALIZED VIEW a NOPARALLEL
 reject	reject	engine	alter_mview_actions/alter_mview_action_list!swap	ALTER MATERIALIZED VIEW a NORMAL
-reject	accept	engine	alter_mview_action_list/alter_mview_action	ALTER MATERIALIZED VIEW a NOPARALLEL
-reject	accept	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action	ALTER MATERIALIZED VIEW a NOPARALLEL, NOPARALLEL
+accept	accept	engine	alter_mview_action_list/alter_mview_action	ALTER MATERIALIZED VIEW a NOPARALLEL
+accept	accept	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action	ALTER MATERIALIZED VIEW a NOPARALLEL, NOPARALLEL
 reject	reject	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action!drop-1	ALTER MATERIALIZED VIEW a, NOPARALLEL
 reject	reject	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action!drop-2	ALTER MATERIALIZED VIEW a NOPARALLEL NOPARALLEL
 reject	reject	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action!drop-3	ALTER MATERIALIZED VIEW a NOPARALLEL,
 reject	reject	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action!insert	ALTER MATERIALIZED VIEW a NOPARALLEL, NOPARALLEL zzz
 reject	reject	engine	alter_mview_action_list/alter_mview_actions_,_alter_mview_action!swap	ALTER MATERIALIZED VIEW a NORMAL, NOPARALLEL
-reject	accept	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION	ALTER MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION
+accept	accept	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION	ALTER MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION
 reject	reject	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION!drop-1	ALTER MATERIALIZED VIEW a ON QUERY COMPUTATION
 reject	reject	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION!drop-2	ALTER MATERIALIZED VIEW a DISABLE QUERY COMPUTATION
 reject	reject	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION!drop-3	ALTER MATERIALIZED VIEW a DISABLE ON COMPUTATION
 reject	reject	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION!drop-4	ALTER MATERIALIZED VIEW a DISABLE ON QUERY
 reject	reject	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION!insert	ALTER MATERIALIZED VIEW a DISABLE ON QUERY COMPUTATION zzz
 reject	reject	engine	alter_mview_action/mview_enable_disable_ON_QUERY_COMPUTATION!swap	ALTER MATERIALIZED VIEW a DISABLE_PARALLEL_DAS_DML ON QUERY COMPUTATION
-reject	accept	engine	alter_mview_action/mview_enable_disable_QUERY_REWRITE	ALTER MATERIALIZED VIEW a DISABLE QUERY REWRITE
+accept	accept	engine	alter_mview_action/mview_enable_disable_QUERY_REWRITE	ALTER MATERIALIZED VIEW a DISABLE QUERY REWRITE
 reject	reject	engine	alter_mview_action/mview_enable_disable_QUERY_REWRITE!drop-2	ALTER MATERIALIZED VIEW a DISABLE REWRITE
 reject	reject	engine	alter_mview_action/mview_enable_disable_QUERY_REWRITE!drop-3	ALTER MATERIALIZED VIEW a DISABLE QUERY
 reject	reject	engine	alter_mview_action/mview_enable_disable_QUERY_REWRITE!insert	ALTER MATERIALIZED VIEW a DISABLE QUERY REWRITE zzz
-reject	accept	engine	alter_mview_action/opt_set_parallel_option	ALTER MATERIALIZED VIEW a NOPARALLEL
-reject	accept	engine	alter_mview_action/REFRESH_mv_refresh_method	ALTER MATERIALIZED VIEW a REFRESH FAST
+accept	accept	engine	alter_mview_action/opt_set_parallel_option	ALTER MATERIALIZED VIEW a NOPARALLEL
+accept	accept	engine	alter_mview_action/REFRESH_mv_refresh_method	ALTER MATERIALIZED VIEW a REFRESH FAST
 reject	reject	engine	alter_mview_action/REFRESH_mv_refresh_method!drop-1	ALTER MATERIALIZED VIEW a FAST
 reject	reject	engine	alter_mview_action/REFRESH_mv_refresh_method!swap	ALTER MATERIALIZED VIEW a REGEXP FAST
-reject	accept	engine	alter_mview_action/NEVER_REFRESH	ALTER MATERIALIZED VIEW a NEVER REFRESH
+accept	accept	engine	alter_mview_action/NEVER_REFRESH	ALTER MATERIALIZED VIEW a NEVER REFRESH
 reject	reject	engine	alter_mview_action/NEVER_REFRESH!drop-2	ALTER MATERIALIZED VIEW a NEVER
 reject	reject	engine	alter_mview_action/NEVER_REFRESH!insert	ALTER MATERIALIZED VIEW a NEVER REFRESH zzz
 reject	reject	engine	alter_mview_action/NEVER_REFRESH!swap	ALTER MATERIALIZED VIEW a NEW REFRESH
-reject	accept	engine	alter_mview_action/REFRESH_mv_refresh_interval	ALTER MATERIALIZED VIEW a REFRESH
+accept	accept	engine	alter_mview_action/REFRESH_mv_refresh_interval	ALTER MATERIALIZED VIEW a REFRESH
 reject	reject	engine	alter_mview_action/REFRESH_mv_refresh_interval!swap	ALTER MATERIALIZED VIEW a REGEXP
-reject	accept	engine	alter_mview_action/REFRESH_mview_nested_refresh_mode	ALTER MATERIALIZED VIEW a REFRESH INDIVIDUAL
+accept	accept	engine	alter_mview_action/REFRESH_mview_nested_refresh_mode	ALTER MATERIALIZED VIEW a REFRESH INDIVIDUAL
 reject	reject	engine	alter_mview_action/REFRESH_mview_nested_refresh_mode!drop-1	ALTER MATERIALIZED VIEW a INDIVIDUAL
 reject	reject	engine	alter_mview_action/REFRESH_mview_nested_refresh_mode!swap	ALTER MATERIALIZED VIEW a REGEXP INDIVIDUAL
-reject	accept	engine	alter_mlog_stmt/alter_with_opt_hint_MATERIALIZED_VIEW_LOG_ON_relation_factor_alter_mlog_actions	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
-reject	accept	engine	alter_mlog_actions/alter_mlog_action_list	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	alter_mlog_stmt/alter_with_opt_hint_MATERIALIZED_VIEW_LOG_ON_relation_factor_alter_mlog_actions	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	alter_mlog_actions/alter_mlog_action_list	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
 reject	reject	engine	alter_mlog_actions/alter_mlog_action_list!swap	ALTER MATERIALIZED VIEW LOG ON a NORMAL
-reject	accept	engine	alter_mlog_action_list/alter_mlog_action	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
-reject	accept	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL, NOPARALLEL
+accept	accept	engine	alter_mlog_action_list/alter_mlog_action	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL, NOPARALLEL
 reject	reject	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action!drop-1	ALTER MATERIALIZED VIEW LOG ON a, NOPARALLEL
 reject	reject	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action!drop-2	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL NOPARALLEL
 reject	reject	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action!drop-3	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL,
 reject	reject	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action!insert	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL, NOPARALLEL zzz
 reject	reject	engine	alter_mlog_action_list/alter_mlog_actions_,_alter_mlog_action!swap	ALTER MATERIALIZED VIEW LOG ON a NORMAL, NOPARALLEL
-reject	accept	engine	alter_mlog_action/parallel_option	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
-reject	accept	engine	alter_mlog_action/PURGE_mv_refresh_interval	ALTER MATERIALIZED VIEW LOG ON a PURGE
+accept	accept	engine	alter_mlog_action/parallel_option	ALTER MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	alter_mlog_action/PURGE_mv_refresh_interval	ALTER MATERIALIZED VIEW LOG ON a PURGE
 reject	reject	engine	alter_mlog_action/PURGE_mv_refresh_interval!insert	ALTER MATERIALIZED VIEW LOG ON a PURGE zzz
 reject	reject	engine	alter_mlog_action/PURGE_mv_refresh_interval!swap	ALTER MATERIALIZED VIEW LOG ON a PUSHDOWN
-reject	accept	engine	alter_mlog_action/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER MATERIALIZED VIEW LOG ON a LOB_INROW_THRESHOLD 1
+accept	accept	engine	alter_mlog_action/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM	ALTER MATERIALIZED VIEW LOG ON a LOB_INROW_THRESHOLD 1
 reject	reject	engine	alter_mlog_action/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM!drop-1	ALTER MATERIALIZED VIEW LOG ON a 1
 reject	reject	engine	alter_mlog_action/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM!drop-2	ALTER MATERIALIZED VIEW LOG ON a LOB_INROW_THRESHOLD
 reject	reject	engine	alter_mlog_action/LOB_INROW_THRESHOLD_opt_equal_mark_INTNUM!insert	ALTER MATERIALIZED VIEW LOG ON a LOB_INROW_THRESHOLD 1 zzz
@@ -7203,20 +7203,20 @@ reject	reject	engine	opt_replace/OR_REPLACE!insert	CREATE OR REPLACE zzz OUTLINE
 reject	reject	engine	opt_replace/OR_REPLACE!swap	CREATE ORDER REPLACE OUTLINE a ON SELECT a
 accept	accept	engine	opt_replace/%empty	CREATE OUTLINE a ON SELECT a
 reject	reject	engine	opt_replace/%empty!insert	CREATE zzz OUTLINE a ON SELECT a
-reject	accept	engine	view_name/relation_factor	ALTER MATERIALIZED VIEW a NOPARALLEL
+accept	accept	engine	view_name/relation_factor	ALTER MATERIALIZED VIEW a NOPARALLEL
 reject	reject	engine	view_name/relation_factor!truncate	ALTER MATERIALIZED VIEW
 reject	reject	engine	view_name/relation_factor!insert	ALTER MATERIALIZED VIEW a zzz NOPARALLEL
-reject	accept	engine	opt_mv_column_list/(_mv_column_list_)	CREATE MATERIALIZED VIEW a(a) AS SELECT a
+accept	accept	engine	opt_mv_column_list/(_mv_column_list_)	CREATE MATERIALIZED VIEW a(a) AS SELECT a
 reject	reject	engine	opt_mv_column_list/(_mv_column_list_)!drop-1	CREATE MATERIALIZED VIEW a a) AS SELECT a
 reject	reject	engine	opt_mv_column_list/(_mv_column_list_)!drop-2	CREATE MATERIALIZED VIEW a() AS SELECT a
 reject	reject	engine	opt_mv_column_list/(_mv_column_list_)!drop-3	CREATE MATERIALIZED VIEW a(a AS SELECT a
 reject	reject	engine	opt_mv_column_list/(_mv_column_list_)!truncate	CREATE MATERIALIZED VIEW a(a
 reject	reject	engine	opt_mv_column_list/(_mv_column_list_)!insert	CREATE MATERIALIZED VIEW a(a) zzz AS SELECT a
-reject	accept	engine	opt_mv_column_list/%empty	CREATE MATERIALIZED VIEW a AS SELECT a
-reject	accept	engine	mv_column_list/column_name_list	CREATE MATERIALIZED VIEW a(a) AS SELECT a
+accept	accept	engine	opt_mv_column_list/%empty	CREATE MATERIALIZED VIEW a AS SELECT a
+accept	accept	engine	mv_column_list/column_name_list	CREATE MATERIALIZED VIEW a(a) AS SELECT a
 reject	reject	engine	mv_column_list/column_name_list!truncate	CREATE MATERIALIZED VIEW a(
 reject	reject	engine	mv_column_list/column_name_list!insert	CREATE MATERIALIZED VIEW a(a zzz) AS SELECT a
-reject	accept	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE MATERIALIZED VIEW a(a, PRIMARY KEY(a)) AS SELECT a
+accept	accept	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE MATERIALIZED VIEW a(a, PRIMARY KEY(a)) AS SELECT a
 reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!drop-1	CREATE MATERIALIZED VIEW a(, PRIMARY KEY(a)) AS SELECT a
 reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!drop-2	CREATE MATERIALIZED VIEW a(a PRIMARY KEY(a)) AS SELECT a
 reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!drop-3	CREATE MATERIALIZED VIEW a(a, KEY(a)) AS SELECT a
@@ -7227,7 +7227,7 @@ reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_usi
 reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!truncate	CREATE MATERIALIZED VIEW a(a, PRIMARY KEY(a
 reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!insert	CREATE MATERIALIZED VIEW a(a, PRIMARY KEY(a) zzz) AS SELECT a
 reject	reject	engine	mv_column_list/column_name_list_,_PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!swap	CREATE MATERIALIZED VIEW a(a, PRIMARY_ZONE KEY(a)) AS SELECT a
-reject	accept	engine	mv_column_list/PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE MATERIALIZED VIEW a(PRIMARY KEY(a)) AS SELECT a
+accept	accept	engine	mv_column_list/PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment	CREATE MATERIALIZED VIEW a(PRIMARY KEY(a)) AS SELECT a
 reject	reject	engine	mv_column_list/PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!drop-1	CREATE MATERIALIZED VIEW a(KEY(a)) AS SELECT a
 reject	reject	engine	mv_column_list/PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!drop-2	CREATE MATERIALIZED VIEW a(PRIMARY(a)) AS SELECT a
 reject	reject	engine	mv_column_list/PRIMARY_KEY_opt_index_using_algorithm_(_column_name_list_)_opt_index_using_algorithm_opt_comment!drop-3	CREATE MATERIALIZED VIEW a(PRIMARY KEY a)) AS SELECT a
@@ -7585,8 +7585,8 @@ reject	reject	engine	opt_temporary/TEMPORARY!insert	DROP TEMPORARY zzz TABLE a
 reject	reject	engine	opt_temporary/TEMPORARY!swap	DROP TEMPTABLE TABLE a
 accept	accept	engine	opt_temporary/%empty	DROP TABLE a
 reject	reject	engine	opt_temporary/%empty!insert	DROP zzz TABLE a
-reject	accept	engine	create_mlog_stmt/create_with_opt_hint_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge	CREATE MATERIALIZED VIEW LOG ON a
-reject	accept	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge	CREATE OR REPLACE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	create_mlog_stmt/create_with_opt_hint_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge	CREATE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge	CREATE OR REPLACE MATERIALIZED VIEW LOG ON a
 reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge!drop-1	OR REPLACE MATERIALIZED VIEW LOG ON a
 reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge!drop-2	CREATE REPLACE MATERIALIZED VIEW LOG ON a
 reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge!drop-3	CREATE OR MATERIALIZED VIEW LOG ON a
@@ -7597,99 +7597,99 @@ reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZ
 reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge!drop-8	CREATE OR REPLACE MATERIALIZED VIEW LOG ON
 reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge!insert	CREATE OR REPLACE MATERIALIZED VIEW LOG ON a zzz
 reject	reject	engine	create_mlog_stmt/create_with_opt_hint_OR_REPLACE_MATERIALIZED_VIEW_LOG_ON_relation_factor_opt_mlog_option_list_opt_mlog_with_opt_mlog_new_values_opt_mlog_purge!swap	CREATE_TIMESTAMP OR REPLACE MATERIALIZED VIEW LOG ON a
-reject	accept	engine	opt_mlog_option_list/%empty	CREATE MATERIALIZED VIEW LOG ON a
-reject	accept	engine	opt_mlog_option_list/opt_mlog_options	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	opt_mlog_option_list/%empty	CREATE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	opt_mlog_option_list/opt_mlog_options	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL
 reject	reject	engine	opt_mlog_option_list/opt_mlog_options!insert	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL zzz
 reject	reject	engine	opt_mlog_option_list/opt_mlog_options!swap	CREATE MATERIALIZED VIEW LOG ON a NORMAL
-reject	accept	engine	opt_mlog_options/mlog_option	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL
-reject	accept	engine	opt_mlog_options/opt_mlog_options_mlog_option	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL NOPARALLEL
+accept	accept	engine	opt_mlog_options/mlog_option	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	opt_mlog_options/opt_mlog_options_mlog_option	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL NOPARALLEL
 reject	reject	engine	opt_mlog_options/opt_mlog_options_mlog_option!insert	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL NOPARALLEL zzz
 reject	reject	engine	opt_mlog_options/opt_mlog_options_mlog_option!swap	CREATE MATERIALIZED VIEW LOG ON a NORMAL NOPARALLEL
-reject	accept	engine	mlog_option/parallel_option	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL
-reject	accept	engine	opt_mlog_with/%empty	CREATE MATERIALIZED VIEW LOG ON a
-reject	accept	engine	opt_mlog_with/WITH_mlog_with_values	CREATE MATERIALIZED VIEW LOG ON a WITH
+accept	accept	engine	mlog_option/parallel_option	CREATE MATERIALIZED VIEW LOG ON a NOPARALLEL
+accept	accept	engine	opt_mlog_with/%empty	CREATE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	opt_mlog_with/WITH_mlog_with_values	CREATE MATERIALIZED VIEW LOG ON a WITH
 reject	reject	engine	opt_mlog_with/WITH_mlog_with_values!insert	CREATE MATERIALIZED VIEW LOG ON a WITH zzz
 reject	reject	engine	opt_mlog_with/WITH_mlog_with_values!swap	CREATE MATERIALIZED VIEW LOG ON a WITHOUT
-reject	accept	engine	mlog_with_values/mlog_with_special_columns_mlog_with_reference_columns	CREATE MATERIALIZED VIEW LOG ON a WITH
-reject	accept	engine	mlog_with_special_columns/%empty	CREATE MATERIALIZED VIEW LOG ON a WITH
-reject	accept	engine	mlog_with_special_columns/mlog_with_special_column_list	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID
+accept	accept	engine	mlog_with_values/mlog_with_special_columns_mlog_with_reference_columns	CREATE MATERIALIZED VIEW LOG ON a WITH
+accept	accept	engine	mlog_with_special_columns/%empty	CREATE MATERIALIZED VIEW LOG ON a WITH
+accept	accept	engine	mlog_with_special_columns/mlog_with_special_column_list	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID
 reject	reject	engine	mlog_with_special_columns/mlog_with_special_column_list!insert	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID zzz
 reject	reject	engine	mlog_with_special_columns/mlog_with_special_column_list!swap	CREATE MATERIALIZED VIEW LOG ON a WITH ROWS
-reject	accept	engine	mlog_with_special_column_list/mlog_with_special_column	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID
-reject	accept	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID, ROWID
+accept	accept	engine	mlog_with_special_column_list/mlog_with_special_column	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID
+accept	accept	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID, ROWID
 reject	reject	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list!drop-1	CREATE MATERIALIZED VIEW LOG ON a WITH, ROWID
 reject	reject	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list!drop-2	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID ROWID
 reject	reject	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list!drop-3	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID,
 reject	reject	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list!insert	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID, ROWID zzz
 reject	reject	engine	mlog_with_special_column_list/mlog_with_special_column_,_mlog_with_special_column_list!swap	CREATE MATERIALIZED VIEW LOG ON a WITH ROWS, ROWID
-reject	accept	engine	mlog_with_special_column/PRIMARY_KEY	CREATE MATERIALIZED VIEW LOG ON a WITH PRIMARY KEY
+accept	accept	engine	mlog_with_special_column/PRIMARY_KEY	CREATE MATERIALIZED VIEW LOG ON a WITH PRIMARY KEY
 reject	reject	engine	mlog_with_special_column/PRIMARY_KEY!drop-1	CREATE MATERIALIZED VIEW LOG ON a WITH KEY
 reject	reject	engine	mlog_with_special_column/PRIMARY_KEY!drop-2	CREATE MATERIALIZED VIEW LOG ON a WITH PRIMARY
 reject	reject	engine	mlog_with_special_column/PRIMARY_KEY!insert	CREATE MATERIALIZED VIEW LOG ON a WITH PRIMARY KEY zzz
 reject	reject	engine	mlog_with_special_column/PRIMARY_KEY!swap	CREATE MATERIALIZED VIEW LOG ON a WITH PRIMARY_ZONE KEY
-reject	accept	engine	mlog_with_special_column/ROWID	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID
-reject	accept	engine	mlog_with_special_column/SEQUENCE	CREATE MATERIALIZED VIEW LOG ON a WITH SEQUENCE
+accept	accept	engine	mlog_with_special_column/ROWID	CREATE MATERIALIZED VIEW LOG ON a WITH ROWID
+accept	accept	engine	mlog_with_special_column/SEQUENCE	CREATE MATERIALIZED VIEW LOG ON a WITH SEQUENCE
 reject	reject	engine	mlog_with_special_column/SEQUENCE!insert	CREATE MATERIALIZED VIEW LOG ON a WITH SEQUENCE zzz
 reject	reject	engine	mlog_with_special_column/SEQUENCE!swap	CREATE MATERIALIZED VIEW LOG ON a WITH SEQUENCES
-reject	accept	engine	mlog_with_reference_columns/%empty	CREATE MATERIALIZED VIEW LOG ON a WITH
-reject	accept	engine	mlog_with_reference_columns/(_)	CREATE MATERIALIZED VIEW LOG ON a WITH()
+accept	accept	engine	mlog_with_reference_columns/%empty	CREATE MATERIALIZED VIEW LOG ON a WITH
+accept	accept	engine	mlog_with_reference_columns/(_)	CREATE MATERIALIZED VIEW LOG ON a WITH()
 reject	reject	engine	mlog_with_reference_columns/(_)!drop-1	CREATE MATERIALIZED VIEW LOG ON a WITH)
 reject	reject	engine	mlog_with_reference_columns/(_)!drop-2	CREATE MATERIALIZED VIEW LOG ON a WITH(
 reject	reject	engine	mlog_with_reference_columns/(_)!insert	CREATE MATERIALIZED VIEW LOG ON a WITH() zzz
-reject	accept	engine	mlog_with_reference_columns/(_mlog_with_reference_column_list_)	CREATE MATERIALIZED VIEW LOG ON a WITH(a)
+accept	accept	engine	mlog_with_reference_columns/(_mlog_with_reference_column_list_)	CREATE MATERIALIZED VIEW LOG ON a WITH(a)
 reject	reject	engine	mlog_with_reference_columns/(_mlog_with_reference_column_list_)!drop-1	CREATE MATERIALIZED VIEW LOG ON a WITH a)
 reject	reject	engine	mlog_with_reference_columns/(_mlog_with_reference_column_list_)!drop-3	CREATE MATERIALIZED VIEW LOG ON a WITH(a
 reject	reject	engine	mlog_with_reference_columns/(_mlog_with_reference_column_list_)!insert	CREATE MATERIALIZED VIEW LOG ON a WITH(a) zzz
-reject	accept	engine	mlog_with_reference_column_list/mlog_with_reference_column	CREATE MATERIALIZED VIEW LOG ON a WITH(a)
+accept	accept	engine	mlog_with_reference_column_list/mlog_with_reference_column	CREATE MATERIALIZED VIEW LOG ON a WITH(a)
 reject	reject	engine	mlog_with_reference_column_list/mlog_with_reference_column!insert	CREATE MATERIALIZED VIEW LOG ON a WITH(a zzz)
-reject	accept	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list	CREATE MATERIALIZED VIEW LOG ON a WITH(a, a)
+accept	accept	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list	CREATE MATERIALIZED VIEW LOG ON a WITH(a, a)
 reject	reject	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list!drop-1	CREATE MATERIALIZED VIEW LOG ON a WITH(, a)
 reject	reject	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list!drop-2	CREATE MATERIALIZED VIEW LOG ON a WITH(a a)
 reject	reject	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list!drop-3	CREATE MATERIALIZED VIEW LOG ON a WITH(a,)
 reject	reject	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list!truncate	CREATE MATERIALIZED VIEW LOG ON a WITH(a,
 reject	reject	engine	mlog_with_reference_column_list/mlog_with_reference_column_,_mlog_with_reference_column_list!insert	CREATE MATERIALIZED VIEW LOG ON a WITH(a, a zzz)
-reject	accept	engine	mlog_with_reference_column/column_name	CREATE MATERIALIZED VIEW LOG ON a WITH(a)
-reject	accept	engine	opt_mlog_new_values/%empty	CREATE MATERIALIZED VIEW LOG ON a
-reject	accept	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES	CREATE MATERIALIZED VIEW LOG ON a INCLUDING NEW VALUES
+accept	accept	engine	mlog_with_reference_column/column_name	CREATE MATERIALIZED VIEW LOG ON a WITH(a)
+accept	accept	engine	opt_mlog_new_values/%empty	CREATE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES	CREATE MATERIALIZED VIEW LOG ON a INCLUDING NEW VALUES
 reject	reject	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES!drop-1	CREATE MATERIALIZED VIEW LOG ON a NEW VALUES
 reject	reject	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES!drop-2	CREATE MATERIALIZED VIEW LOG ON a INCLUDING VALUES
 reject	reject	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES!drop-3	CREATE MATERIALIZED VIEW LOG ON a INCLUDING NEW
 reject	reject	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES!insert	CREATE MATERIALIZED VIEW LOG ON a INCLUDING NEW VALUES zzz
 reject	reject	engine	opt_mlog_new_values/mlog_including_or_excluding_NEW_VALUES!swap	CREATE MATERIALIZED VIEW LOG ON a INCONSISTENT NEW VALUES
-reject	accept	engine	mlog_including_or_excluding/INCLUDING	CREATE MATERIALIZED VIEW LOG ON a INCLUDING NEW VALUES
+accept	accept	engine	mlog_including_or_excluding/INCLUDING	CREATE MATERIALIZED VIEW LOG ON a INCLUDING NEW VALUES
 reject	reject	engine	mlog_including_or_excluding/INCLUDING!insert	CREATE MATERIALIZED VIEW LOG ON a INCLUDING zzz NEW VALUES
-reject	accept	engine	mlog_including_or_excluding/EXCLUDING	CREATE MATERIALIZED VIEW LOG ON a EXCLUDING NEW VALUES
+accept	accept	engine	mlog_including_or_excluding/EXCLUDING	CREATE MATERIALIZED VIEW LOG ON a EXCLUDING NEW VALUES
 reject	reject	engine	mlog_including_or_excluding/EXCLUDING!insert	CREATE MATERIALIZED VIEW LOG ON a EXCLUDING zzz NEW VALUES
 reject	reject	engine	mlog_including_or_excluding/EXCLUDING!swap	CREATE MATERIALIZED VIEW LOG ON a EXCLUSIVE NEW VALUES
-reject	accept	engine	opt_mlog_purge/%empty	CREATE MATERIALIZED VIEW LOG ON a
-reject	accept	engine	opt_mlog_purge/PURGE_mlog_purge_values	CREATE MATERIALIZED VIEW LOG ON a PURGE
+accept	accept	engine	opt_mlog_purge/%empty	CREATE MATERIALIZED VIEW LOG ON a
+accept	accept	engine	opt_mlog_purge/PURGE_mlog_purge_values	CREATE MATERIALIZED VIEW LOG ON a PURGE
 reject	reject	engine	opt_mlog_purge/PURGE_mlog_purge_values!insert	CREATE MATERIALIZED VIEW LOG ON a PURGE zzz
 reject	reject	engine	opt_mlog_purge/PURGE_mlog_purge_values!swap	CREATE MATERIALIZED VIEW LOG ON a PUSHDOWN
-reject	accept	engine	mlog_purge_values/IMMEDIATE_mlog_purge_immediate_sync_or_async	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE
+accept	accept	engine	mlog_purge_values/IMMEDIATE_mlog_purge_immediate_sync_or_async	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE
 reject	reject	engine	mlog_purge_values/IMMEDIATE_mlog_purge_immediate_sync_or_async!insert	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE zzz
 reject	reject	engine	mlog_purge_values/IMMEDIATE_mlog_purge_immediate_sync_or_async!swap	CREATE MATERIALIZED VIEW LOG ON a PURGE IMPORT
-reject	accept	engine	mlog_purge_values/mlog_purge_start_mlog_purge_next	CREATE MATERIALIZED VIEW LOG ON a PURGE
-reject	accept	engine	mlog_purge_immediate_sync_or_async/%empty	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE
-reject	accept	engine	mlog_purge_immediate_sync_or_async/SYNCHRONOUS	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE SYNCHRONOUS
+accept	accept	engine	mlog_purge_values/mlog_purge_start_mlog_purge_next	CREATE MATERIALIZED VIEW LOG ON a PURGE
+accept	accept	engine	mlog_purge_immediate_sync_or_async/%empty	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE
+accept	accept	engine	mlog_purge_immediate_sync_or_async/SYNCHRONOUS	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE SYNCHRONOUS
 reject	reject	engine	mlog_purge_immediate_sync_or_async/SYNCHRONOUS!insert	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE SYNCHRONOUS zzz
 reject	reject	engine	mlog_purge_immediate_sync_or_async/SYNCHRONOUS!swap	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE SYSDATE
-reject	accept	engine	mlog_purge_immediate_sync_or_async/ASYNCHRONOUS	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE ASYNCHRONOUS
+accept	accept	engine	mlog_purge_immediate_sync_or_async/ASYNCHRONOUS	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE ASYNCHRONOUS
 reject	reject	engine	mlog_purge_immediate_sync_or_async/ASYNCHRONOUS!insert	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE ASYNCHRONOUS zzz
 reject	reject	engine	mlog_purge_immediate_sync_or_async/ASYNCHRONOUS!swap	CREATE MATERIALIZED VIEW LOG ON a PURGE IMMEDIATE AT
-reject	accept	engine	mlog_purge_start/%empty	CREATE MATERIALIZED VIEW LOG ON a PURGE
-reject	accept	engine	mlog_purge_start/START_WITH_bit_expr	CREATE MATERIALIZED VIEW LOG ON a PURGE START WITH a
+accept	accept	engine	mlog_purge_start/%empty	CREATE MATERIALIZED VIEW LOG ON a PURGE
+accept	accept	engine	mlog_purge_start/START_WITH_bit_expr	CREATE MATERIALIZED VIEW LOG ON a PURGE START WITH a
 reject	reject	engine	mlog_purge_start/START_WITH_bit_expr!drop-1	CREATE MATERIALIZED VIEW LOG ON a PURGE WITH a
 reject	reject	engine	mlog_purge_start/START_WITH_bit_expr!drop-2	CREATE MATERIALIZED VIEW LOG ON a PURGE START a
 reject	reject	engine	mlog_purge_start/START_WITH_bit_expr!drop-3	CREATE MATERIALIZED VIEW LOG ON a PURGE START WITH
 reject	reject	engine	mlog_purge_start/START_WITH_bit_expr!insert	CREATE MATERIALIZED VIEW LOG ON a PURGE START WITH a zzz
 reject	reject	engine	mlog_purge_start/START_WITH_bit_expr!swap	CREATE MATERIALIZED VIEW LOG ON a PURGE STARTING WITH a
-reject	accept	engine	mlog_purge_next/%empty	CREATE MATERIALIZED VIEW LOG ON a PURGE
-reject	accept	engine	mlog_purge_next/NEXT_bit_expr	CREATE MATERIALIZED VIEW LOG ON a PURGE NEXT a
+accept	accept	engine	mlog_purge_next/%empty	CREATE MATERIALIZED VIEW LOG ON a PURGE
+accept	accept	engine	mlog_purge_next/NEXT_bit_expr	CREATE MATERIALIZED VIEW LOG ON a PURGE NEXT a
 reject	reject	engine	mlog_purge_next/NEXT_bit_expr!drop-1	CREATE MATERIALIZED VIEW LOG ON a PURGE a
 reject	reject	engine	mlog_purge_next/NEXT_bit_expr!drop-2	CREATE MATERIALIZED VIEW LOG ON a PURGE NEXT
 reject	reject	engine	mlog_purge_next/NEXT_bit_expr!insert	CREATE MATERIALIZED VIEW LOG ON a PURGE NEXT a zzz
 reject	reject	engine	mlog_purge_next/NEXT_bit_expr!swap	CREATE MATERIALIZED VIEW LOG ON a PURGE NGRAM_TOKEN_SIZE a
-reject	accept	engine	drop_mlog_stmt/DROP_MATERIALIZED_VIEW_LOG_ON_relation_factor	DROP MATERIALIZED VIEW LOG ON a
+accept	accept	engine	drop_mlog_stmt/DROP_MATERIALIZED_VIEW_LOG_ON_relation_factor	DROP MATERIALIZED VIEW LOG ON a
 accept	accept	engine	drop_table_stmt/DROP_opt_temporary_table_or_tables_opt_if_exists_table_list_opt_drop_behavior	DROP TABLE a
 accept	accept	engine	table_or_tables/TABLE	UNLOCK TABLE
 reject	reject	engine	table_or_tables/TABLE!swap	UNLOCK TABLEGROUP
@@ -7697,7 +7697,7 @@ accept	accept	engine	table_or_tables/TABLES	UNLOCK TABLES
 reject	reject	engine	table_or_tables/TABLES!insert	UNLOCK TABLES zzz
 reject	reject	engine	table_or_tables/TABLES!swap	UNLOCK TABLESPACE
 accept	accept	engine	drop_view_stmt/DROP_VIEW_opt_if_exists_table_list_opt_drop_behavior	DROP VIEW a
-reject	accept	engine	drop_view_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_table_list_opt_drop_behavior	DROP MATERIALIZED VIEW a
+accept	accept	engine	drop_view_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_table_list_opt_drop_behavior	DROP MATERIALIZED VIEW a
 reject	reject	engine	drop_view_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_table_list_opt_drop_behavior!drop-1	MATERIALIZED VIEW a
 reject	reject	engine	drop_view_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_table_list_opt_drop_behavior!drop-3	DROP MATERIALIZED a
 reject	reject	engine	drop_view_stmt/DROP_MATERIALIZED_VIEW_opt_if_exists_table_list_opt_drop_behavior!drop-4	DROP MATERIALIZED VIEW

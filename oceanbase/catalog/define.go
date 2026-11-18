@@ -102,7 +102,16 @@ func (c *Catalog) DefineView(stmt *nodes.CreateViewStmt) error {
 	if stmt == nil || stmt.Name == nil || stmt.Name.Name == "" {
 		return errWrongArguments("DefineView")
 	}
-	return c.createView(stmt, "", false)
+	return c.createView(stmt, "", false, false)
+}
+
+// DefineMaterializedView installs the view a snapshot's materialized view is,
+// marked materialized so a later DROP of the other kind refuses it.
+func (c *Catalog) DefineMaterializedView(stmt *nodes.CreateViewStmt) error {
+	if stmt == nil || stmt.Name == nil || stmt.Name.Name == "" {
+		return errWrongArguments("DefineMaterializedView")
+	}
+	return c.createView(stmt, "", false, true)
 }
 
 // DefineIndex installs an index on an existing table.

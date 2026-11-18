@@ -34,7 +34,13 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			}
 			report(v.Loc, kind, tables(v.Tables)...)
 		case *ast.DropViewStmt:
-			report(v.Loc, "view", tables(v.Views)...)
+			kind := "view"
+			if v.Materialized {
+				kind = "materialized view"
+			}
+			report(v.Loc, kind, tables(v.Views)...)
+		case *ast.DropMaterializedViewLogStmt:
+			report(v.Loc, "materialized view log", table(v.Table))
 		case *ast.DropDatabaseStmt:
 			report(v.Loc, "database", ident(v.Name))
 		case *ast.DropIndexStmt:

@@ -263,6 +263,14 @@ func TestDisallowDropObject(t *testing.T) {
 			},
 		},
 		{
+			name: "materialized views",
+			sql:  "DROP MATERIALIZED VIEW mv;\nDROP MATERIALIZED VIEW LOG ON t;",
+			want: []finding{
+				{0, "DROP MATERIALIZED VIEW mv", "Drops materialized view `mv`.", []int{0}},
+				{1, "DROP MATERIALIZED VIEW LOG ON t", "Drops materialized view log `t`.", []int{0}},
+			},
+		},
+		{
 			name: "constraints belong to DisallowDropConstraint",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CHECK ck_n, DROP CONSTRAINT uk_code;\nDROP INDEX `PRIMARY` ON t;",
 		},
@@ -557,6 +565,11 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			name: "the key, after columns statements before dropped, and what read them",
 			sql:  "ALTER TABLE t DROP COLUMN code;\nALTER TABLE t DROP COLUMN id;\nALTER TABLE gen DROP COLUMN g;\nALTER TABLE gen DROP COLUMN id;\nALTER TABLE solo DROP COLUMN id;",
 			want: []finding{lost(1, "DROP COLUMN id", "t"), lost(3, "DROP COLUMN id", "gen"), lost(4, "DROP COLUMN id", "solo")},
+		},
+		{
+			name: "the key, before materialized view statements",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE MATERIALIZED VIEW mv AS SELECT 1;\nALTER MATERIALIZED VIEW mv REFRESH FAST;\nCREATE MATERIALIZED VIEW LOG ON plain;\nALTER MATERIALIZED VIEW LOG ON plain NOPARALLEL;\nDROP MATERIALIZED VIEW LOG ON plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
 		},
 		{
 			name: "the key, before statements the rule passes or cannot follow",
@@ -1103,6 +1116,14 @@ func TestPriorBackup(t *testing.T) {
 			want: []finding{
 				{1, "DELETE FROM t WHERE id = 2", "Prior backup can't back up `t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
 				{3, "UPDATE p SET note = '' WHERE id = 1", "Prior backup can't back up `p`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
+			},
+		},
+		{
+			name:   "a materialized view the change creates",
+			sql:    "CREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nUPDATE t SET n = 1 WHERE EXISTS (SELECT 1 FROM mv);",
+			change: backup,
+			want: []finding{
+				{1, "UPDATE t SET n = 1 WHERE EXISTS (SELECT 1 FROM mv)", "Prior backup runs before the change, when `mv` doesn't exist yet.\n\nCreate `mv` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{

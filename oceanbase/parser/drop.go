@@ -116,7 +116,12 @@ func (p *Parser) parseDropIndexStmt(start int) (*nodes.DropIndexStmt, error) {
 //	DROP VIEW [IF EXISTS] view_name [, view_name] ... [RESTRICT | CASCADE]
 func (p *Parser) parseDropViewStmt(start int) (*nodes.DropViewStmt, error) {
 	p.advance() // consume VIEW
+	return p.parseDropViewBody(start)
+}
 
+// parseDropViewBody parses what follows the VIEW keyword of DROP VIEW, which
+// DROP MATERIALIZED VIEW shares once its own keywords are consumed.
+func (p *Parser) parseDropViewBody(start int) (*nodes.DropViewStmt, error) {
 	stmt := &nodes.DropViewStmt{Loc: nodes.Loc{Start: start}}
 
 	// IF EXISTS
