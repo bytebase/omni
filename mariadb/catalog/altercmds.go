@@ -310,7 +310,18 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATConvertTableToPartition:
 		return c.alterConvertTableToPartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonpartitioned()
+		}
 		tbl.Partitioning = nil
+		return nil
+	case nodes.ATRebuildPartition, nodes.ATOptimizePartition, nodes.ATAnalyzePartition,
+		nodes.ATCheckPartition, nodes.ATRepairPartition:
+		// These leave the schema as it is; a table without partitions is
+		// still refused (1505, measured on mariadb:11.8.8).
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonpartitioned()
+		}
 		return nil
 	case nodes.ATAddSystemVersioning:
 		if tbl.SystemVersioned {
@@ -1162,6 +1173,25 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 	return name != "" && indexNameExists(tbl, name)
 }
 
+// validateAddedKeyColumns refuses a key part that names a column the table
+// does not have: mariadb:11.8.8 answers 1072 for ADD KEY, FULLTEXT, SPATIAL,
+// UNIQUE and FOREIGN KEY alike. A functional part is an expression, and a
+// WITHOUT OVERLAPS part names the application-time period; neither is a
+// column, and the checks that judge them run later.
+func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
+	for _, ic := range cols {
+		if ic == nil || ic.Functional || ic.WithoutOverlaps {
+			continue
+		}
+		ref, ok := ic.Expr.(*nodes.ColumnRef)
+		if !ok || tbl.GetColumn(ref.Column) != nil {
+			continue
+		}
+		return errKeyColumnDoesNotExist(ref.Column)
+	}
+	return nil
+}
+
 func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
@@ -1173,6 +1203,23 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		return nil
 	}
 	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
+		return err
+	}
+	// A FULLTEXT key's parser is looked up before its columns: mariadb:11.8.8
+	// answers 1128 for `ADD FULLTEXT(a) WITH PARSER a` even where a is not a
+	// column, and 1072 only for a key without a parser.
+	if con.Type == nodes.ConstrFulltextIndex {
+		for _, opt := range con.IndexOptions {
+			if strings.EqualFold(opt.Name, "PARSER") {
+				name := ""
+				if s, ok := opt.Value.(*nodes.StringLit); ok {
+					name = s.Value
+				}
+				return errFunctionNotDefined(name)
+			}
+		}
+	}
+	if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
 		return err
 	}
 
