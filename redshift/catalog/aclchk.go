@@ -34,20 +34,16 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 		// A Redshift object the catalog does not model — an external table or
 		// schema, a datashare, a COPY job, a model — records nothing: its grants
 		// name no object this catalog resolves, and no DDL statement reads them.
-		return nil
+		// A grant option to PUBLIC is still refused, as for every object type.
+		return checkGrantOptionNotPublic(stmt, grantees)
 	}
 	if objTypeCode == 'c' {
 		// A COPY template is no catalog object: its grants name nothing this
 		// catalog resolves, and no DDL statement reads them. What a grant to
 		// PUBLIC may not carry, and which privileges the object takes, are still
 		// checked, as for every object type.
-		if stmt.IsGrant && stmt.GrantOption {
-			for _, g := range grantees {
-				if g == "" {
-					return &Error{Code: CodeInvalidGrantOperation,
-						Message: "grant options can only be granted to roles"}
-				}
-			}
+		if err := checkGrantOptionNotPublic(stmt, grantees); err != nil {
+			return err
 		}
 		for _, priv := range privs {
 			if !isValidPrivilege(priv.name, objTypeCode) {
@@ -64,16 +60,24 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 	return c.execRevoke(stmt, objTypeCode, privs, grantees)
 }
 
-func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string) error {
-	// PG forbids WITH GRANT OPTION to PUBLIC.
-	// pg: src/backend/catalog/aclchk.c — aclcheck (line 208-211)
-	if stmt.GrantOption {
-		for _, g := range grantees {
-			if g == "" { // empty string represents PUBLIC
-				return &Error{Code: CodeInvalidGrantOperation,
-					Message: "grant options can only be granted to roles"}
-			}
+// checkGrantOptionNotPublic refuses WITH GRANT OPTION to PUBLIC.
+// pg: src/backend/catalog/aclchk.c — aclcheck (line 208-211)
+func checkGrantOptionNotPublic(stmt *nodes.GrantStmt, grantees []string) error {
+	if !stmt.IsGrant || !stmt.GrantOption {
+		return nil
+	}
+	for _, g := range grantees {
+		if g == "" { // empty string represents PUBLIC
+			return &Error{Code: CodeInvalidGrantOperation,
+				Message: "grant options can only be granted to roles"}
 		}
+	}
+	return nil
+}
+
+func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string) error {
+	if err := checkGrantOptionNotPublic(stmt, grantees); err != nil {
+		return err
 	}
 
 	// Validate privileges are valid for the object type.

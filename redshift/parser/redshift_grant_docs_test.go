@@ -346,6 +346,7 @@ func TestRedshiftGrantRepeatedColumnLists(t *testing.T) {
 	for _, sql := range []string{
 		"GRANT INSERT(a), (b) ON t TO a",
 		"GRANT ALL(a), (b) ON t TO a",
+		"GRANT SELECT(a), (b), INSERT ON t TO a",
 		"GRANT SELECT(a), () ON t TO a",
 	} {
 		if _, err := Parse(sql); err == nil {

@@ -1815,11 +1815,13 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 		return nil, nil
 	}
 	result := &nodes.List{Items: []nodes.Node{priv}}
+	columnListOnly := false
 	for p.cur.Type == ',' {
 		if p.peekNext().Type == '(' && redshiftColumnListPrivilege(priv) {
 			// r_GRANT's column-level alternative repeats the column list after
 			// the privilege:
 			//   { SELECT | UPDATE } ( column [, ...] ) [ , ( column [, ...] ) ... ]
+			// and the alternative ends there: no other privilege follows it.
 			p.advance() // consume ','
 			p.advance() // consume '('
 			cols, err := p.parseColumnList()
@@ -1831,7 +1833,11 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 			}
 			priv = &nodes.AccessPriv{PrivName: priv.PrivName, Cols: cols, Loc: nodes.Loc{Start: priv.Loc.Start, End: p.prev.End}}
 			result.Items = append(result.Items, priv)
+			columnListOnly = true
 			continue
+		}
+		if columnListOnly {
+			break
 		}
 		p.advance()
 		priv, err = p.parsePrivilege()
