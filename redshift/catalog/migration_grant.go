@@ -64,7 +64,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpGrant,
 				ObjectName:    objNameTo,
 				SQL:           formatGrantSQL(gTo, objNameTo),
-				Transactional: true,
+				Transactional: grantTransactional(gTo),
 				Phase:         PhaseMain,
 				ObjType:       gTo.ObjType,
 				ObjOID:        gTo.ObjOID,

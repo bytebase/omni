@@ -1422,7 +1422,7 @@ func (p *Parser) parseRedshiftScopedGrantees() (*nodes.List, error) {
 		}
 		// ROLE is unreserved, so ROLE with no name after it is the username
 		// "role".
-		if p.cur.Type == ROLE && isColIdToken(p.peekNext()) {
+		if p.isRedshiftRoleGranteeStart() {
 			p.advance()
 		}
 		name, err := p.parseColId()

@@ -188,3 +188,29 @@ func TestGranteeKindIsTheRoleSpecKind(t *testing.T) {
 		t.Errorf("procedure grant ON clause = %q, want %q", got, want)
 	}
 }
+
+// TestRevokeMatchesTargetAndGranteeKind holds a revoke to the grant it names:
+// a relation grant to a role named "iam_role:r" survives a revoke of the
+// external table's grant to IAM_ROLE 'r'.
+func TestRevokeMatchesTargetAndGranteeKind(t *testing.T) {
+	c := New()
+	for _, sql := range []string{
+		"CREATE SCHEMA spectrum",
+		"CREATE TABLE spectrum.sales (id INT)",
+		`GRANT SELECT ON spectrum.sales TO "iam_role:r"`,
+		"GRANT SELECT ON EXTERNAL TABLE spectrum.sales TO IAM_ROLE 'r'",
+	} {
+		if err := execOne(t, c, sql); err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+	}
+	if len(c.grants) != 2 {
+		t.Fatalf("grants = %+v, want two", c.grants)
+	}
+	if err := execOne(t, c, "REVOKE SELECT ON EXTERNAL TABLE spectrum.sales FROM IAM_ROLE 'r'"); err != nil {
+		t.Fatalf("REVOKE: %v", err)
+	}
+	if len(c.grants) != 1 || c.grants[0].Target != nodes.OBJECT_TABLE {
+		t.Fatalf("grants = %+v, want the relation grant kept", c.grants)
+	}
+}

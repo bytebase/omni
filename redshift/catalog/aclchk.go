@@ -65,15 +65,6 @@ func newGrantee(rs *nodes.RoleSpec) grantee {
 	return g
 }
 
-// granteeNames is the identities a grantee list matches on.
-func granteeNames(grantees []grantee) []string {
-	names := make([]string, len(grantees))
-	for i, g := range grantees {
-		names[i] = g.name
-	}
-	return names
-}
-
 // ExecGrantStmt processes GRANT and REVOKE statements.
 // For pgddl, grants are stored for catalog completeness but do not affect DDL semantics.
 //
@@ -184,16 +175,19 @@ func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []gr
 		if err != nil {
 			return err
 		}
-		c.revokeGrants(objTypeCode, objOID, grantees, privs)
+		c.revokeGrants(nodes.ObjectType(stmt.Objtype), objTypeCode, objOID, grantees, privs)
 	}
 	return nil
 }
 
-// revokeGrants removes matching grants from the catalog.
-func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []grantee, privs []grantPriv) {
+// revokeGrants removes matching grants from the catalog. A grant matches on its
+// target and grantee kind too: a relation grant to a role named "iam_role:r" is
+// not the external-table grant to IAM_ROLE 'r' of the same name.
+func (c *Catalog) revokeGrants(target nodes.ObjectType, objType byte, objOID uint32, grantees []grantee, privs []grantPriv) {
 	n := 0
 	for _, g := range c.grants {
-		if g.ObjType == objType && g.ObjOID == objOID && matchGrantee(g.Grantee, granteeNames(grantees)) && matchPriv(g.Privilege, privs) {
+		if g.ObjType == objType && g.ObjOID == objOID && g.Target == target &&
+			matchGrantee(g, grantees) && matchPriv(g.Privilege, privs) {
 			continue // remove
 		}
 		c.grants[n] = g
@@ -202,9 +196,10 @@ func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []grantee, 
 	c.grants = c.grants[:n]
 }
 
-func matchGrantee(grantee string, grantees []string) bool {
-	for _, g := range grantees {
-		if g == grantee {
+// matchGrantee matches a recorded grant's grantee against a list of grantees.
+func matchGrantee(g Grant, grantees []grantee) bool {
+	for _, want := range grantees {
+		if g.Grantee == want.name && g.GranteeKind == want.kind {
 			return true
 		}
 	}
