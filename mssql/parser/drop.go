@@ -231,15 +231,29 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		names = stmt.Names.Items
 		onTables = stmt.OnTables.Items
 	} else {
+		// Every object this arm drops names at least one, and a comma promises
+		// another: `DROP TABLE` and `DROP TABLE a,` are both the start of nothing
+		// (SQL Server answers "Incorrect syntax near the end of the statement").
+		name, err := p.parseObjectRef(dropObjectCompletionRule(stmt.ObjectType))
+		if err != nil {
+			return nil, err
+		}
+		if name == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		names = append(names, name)
 		for {
-			name, _ := p.parseObjectRef(dropObjectCompletionRule(stmt.ObjectType))
-			if name == nil {
-				break
-			}
-			names = append(names, name)
 			if _, ok := p.match(','); !ok {
 				break
 			}
+			next, err := p.parseObjectRef(dropObjectCompletionRule(stmt.ObjectType))
+			if err != nil {
+				return nil, err
+			}
+			if next == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			names = append(names, next)
 		}
 	}
 	stmt.Names = &nodes.List{Items: names}
