@@ -19398,7 +19398,7 @@ accept	accept	docs	alterReplicationGroup(IMMEDIATE)?/%empty	ALTER REPLICATION GR
 accept	accept	docs	alterReplicationGroup(IMMEDIATE)?/IMMEDIATE	ALTER REPLICATION GROUP a SUSPEND IMMEDIATE
 reject	undocumented	docs	alterReplicationGroup(IMMEDIATE)?/IMMEDIATE!insert	ALTER REPLICATION GROUP a SUSPEND IMMEDIATE zzz
 reject	undocumented	docs	alterReplicationGroup(IMMEDIATE)?/IMMEDIATE!swap	ALTER REPLICATION GROUP a SUSPEND IMMEDIATELY
-accept	accept	docs	alterResourceMonitor/ALTER_RESOURCE_MONITOR_(IF_EXISTS)?_ID_(SET_(CREDIT_QUO~1a7879dc	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor/ALTER_RESOURCE_MONITOR_(IF_EXISTS)?_ID_(SET_(CREDIT_QUO~f3365d59	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(IF_EXISTS)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/%empty!insert	ALTER RESOURCE MONITOR zzz a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS	ALTER RESOURCE MONITOR IF EXISTS a SET CREDIT_QUOTA = 1
@@ -19407,44 +19407,51 @@ reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!truncate	ALTER RESOURCE MONITOR IF
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!insert	ALTER RESOURCE MONITOR IF EXISTS zzz a SET CREDIT_QUOTA = 1
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!swap	ALTER RESOURCE MONITOR IGNORE EXISTS a SET CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)_(CR~2cbc804a	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)_(CR~2cbc804a!swap	ALTER RESOURCE MONITOR a SETS CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON 1 PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS 1 PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON 1 DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND zzz
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON 1 PERCENT DO SUSPEND
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/CREDIT_QUOTA_=_NUMBER	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/CREDIT_QUOTA_=_NUMBER!swap	ALTER RESOURCE MONITOR a SET CSV = 1
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-1	ALTER RESOURCE MONITOR a SET = MONTHLY
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-2	ALTER RESOURCE MONITOR a SET FREQUENCY MONTHLY
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-3	ALTER RESOURCE MONITOR a SET FREQUENCY =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!insert	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!swap	ALTER RESOURCE MONITOR a SET FROM = MONTHLY
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-1	ALTER RESOURCE MONITOR a SET = 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-2	ALTER RESOURCE MONITOR a SET START_TIMESTAMP 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-3	ALTER RESOURCE MONITOR a SET START_TIMESTAMP =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's' zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!swap	ALTER RESOURCE MONITOR a SET STATEMENT = 's'
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!drop-2	ALTER RESOURCE MONITOR a SET END_TIMESTAMP 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!drop-3	ALTER RESOURCE MONITOR a SET END_TIMESTAMP =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!insert	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's' zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!swap	ALTER RESOURCE MONITOR a SET ENFORCED = 's'
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-1	ALTER RESOURCE MONITOR a SET =(a)
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS(a)
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-3	ALTER RESOURCE MONITOR a SET NOTIFY_USERS = a)
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-4	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =()
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-5	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a) zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!swap	ALTER RESOURCE MONITOR a SET NOT_ENFORCED =(a)
+accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)_(TR~d69892d9	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)_(TR~d69892d9!swap	ALTER RESOURCE MONITOR a SETS CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON 1 DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~e6895934)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(MONTHLY|DAILY|WEEKL~12def5c0	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(MONTHLY|DAILY|WEEKL~12def5c0!swap	ALTER RESOURCE MONITOR a SET CSV = 1
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!drop-1	ALTER RESOURCE MONITOR a SET = MONTHLY
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!drop-2	ALTER RESOURCE MONITOR a SET FREQUENCY MONTHLY
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!drop-3	ALTER RESOURCE MONITOR a SET FREQUENCY =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!insert	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!swap	ALTER RESOURCE MONITOR a SET FROM = MONTHLY
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!drop-1	ALTER RESOURCE MONITOR a SET = 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!drop-2	ALTER RESOURCE MONITOR a SET START_TIMESTAMP 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!drop-3	ALTER RESOURCE MONITOR a SET START_TIMESTAMP =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's' zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!swap	ALTER RESOURCE MONITOR a SET STATEMENT = 's'
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!drop-2	ALTER RESOURCE MONITOR a SET END_TIMESTAMP 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!drop-3	ALTER RESOURCE MONITOR a SET END_TIMESTAMP =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!insert	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's' zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!swap	ALTER RESOURCE MONITOR a SET ENFORCED = 's'
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-1	ALTER RESOURCE MONITOR a SET =(a)
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS(a)
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-3	ALTER RESOURCE MONITOR a SET NOTIFY_USERS = a)
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-4	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =()
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-5	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a) zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!swap	ALTER RESOURCE MONITOR a SET NOT_ENFORCED =(a)
+accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY
+reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = MONTHLY
+accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY MONTHLY
+reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY =
+accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY zzz
+accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FROM = MONTHLY
 accept	accept	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/MONTHLY	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY
 accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/MONTHLY!swap	ALTER RESOURCE MONITOR a SET FREQUENCY = MOVE
 accept	accept	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/DAILY	ALTER RESOURCE MONITOR a SET FREQUENCY = DAILY
@@ -19459,31 +19466,6 @@ accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)
 accept	accept	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/NEVER	ALTER RESOURCE MONITOR a SET FREQUENCY = NEVER
 accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/NEVER!insert	ALTER RESOURCE MONITOR a SET FREQUENCY = NEVER zzz
 accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/NEVER!swap	ALTER RESOURCE MONITOR a SET FREQUENCY = NEXTVAL
-accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/STRING	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
-accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY
-accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY zzz
-accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!swap	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMUTABLE
-accept	accept	docs	alterResourceMonitor(,_ID)*/%empty	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/%empty!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a zzz)
-accept	accept	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a)
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a a)
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,)
-reject	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a zzz)
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA = 1
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = 1
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA 1
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA = 1 zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CSV = 1
-accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY
-reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = MONTHLY
-accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY MONTHLY
-reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY =
-accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY zzz
-accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FROM = MONTHLY
 accept	accept	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 START_TIMESTAMP = 's'
 reject	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = 's'
@@ -19491,6 +19473,10 @@ reject	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIAT
 reject	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 START_TIMESTAMP =
 accept	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 START_TIMESTAMP = 's' zzz
 accept	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 STATEMENT = 's'
+accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/STRING	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
+accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY
+accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY zzz
+accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!swap	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMUTABLE
 accept	accept	docs	alterResourceMonitor(END_TIMESTAMP_=_STRING)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(END_TIMESTAMP_=_STRING)?/END_TIMESTAMP_=_STRING	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 END_TIMESTAMP = 's'
 reject	undocumented	docs	alterResourceMonitor(END_TIMESTAMP_=_STRING)?/END_TIMESTAMP_=_STRING!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 END_TIMESTAMP 's'
@@ -19506,6 +19492,13 @@ accept	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NO
 reject	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-5	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 NOTIFY_USERS =(a
 accept	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NOTIFY_USERS_=_(_ID_(,_ID)*_)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 NOTIFY_USERS =(a) zzz
 accept	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NOTIFY_USERS_=_(_ID_(,_ID)*_)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 NOT_ENFORCED =(a)
+accept	accept	docs	alterResourceMonitor(,_ID)*/%empty	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/%empty!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a zzz)
+accept	accept	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a)
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a a)
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,)
+reject	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a zzz)
 accept	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 ON 1 PERCENT DO SUSPEND

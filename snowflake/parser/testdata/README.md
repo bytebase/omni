@@ -18,13 +18,13 @@ generated grammar and rows moved with them.
 
 | Rows | Old pin total | Old agree | Old docs only | New total | New agree | New docs only |
 | --- | --- | --- | --- | --- | --- | --- |
-| One per alternative | 19,775 | 19,638 | 137 | 19,788 | 19,726 | 62 |
-| Near-misses | 53,876 | 758 | 49 | 53,915 | 755 | 46 |
-| All | 73,651 | 20,396 | 186 | 73,703 | 20,481 | 108 |
+| One per alternative | 19,775 | 19,638 | 137 | 19,786 | 19,724 | 62 |
+| Near-misses | 53,876 | 758 | 49 | 53,910 | 755 | 46 |
+| All | 73,651 | 20,396 | 186 | 73,696 | 20,479 | 108 |
 
 `undocumented` rows are the near-misses the docs do not derive; docs say what is
 valid, not what Snowflake refuses, so they pass whatever omni says. The new pin
-has 53,114 of them.
+has 53,109 of them.
 
 ## The grammar and its fixes
 

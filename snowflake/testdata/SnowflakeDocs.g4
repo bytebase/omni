@@ -1949,9 +1949,9 @@ alterReplicationGroup
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-resource-monitor
-// fix: an ALTER names SET or TRIGGERS; SET takes one or more properties and TRIGGERS may follow it, as the page's example SET CREDIT_QUOTA=2000 TRIGGERS ... does; both optional made ALTER RESOURCE MONITOR <name> a statement
+// fix: an ALTER names SET or TRIGGERS; SET takes one or more of the properties in the page's order, and TRIGGERS may follow it, as the page's example SET CREDIT_QUOTA=2000 TRIGGERS ... does; both optional made ALTER RESOURCE MONITOR <name> a statement
 alterResourceMonitor
-    : 'ALTER' 'RESOURCE' 'MONITOR' ('IF' 'EXISTS')? ID ('SET' ('CREDIT_QUOTA' '=' NUMBER | 'FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER') | 'START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY') | 'END_TIMESTAMP' '=' STRING | 'NOTIFY_USERS' '=' '(' ID (',' ID)* ')') ('CREDIT_QUOTA' '=' NUMBER)? ('FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER'))? ('START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? ('TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)? | 'TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)
+    : 'ALTER' 'RESOURCE' 'MONITOR' ('IF' 'EXISTS')? ID ('SET' ('CREDIT_QUOTA' '=' NUMBER ('FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER'))? ('START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER') ('START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY') ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'END_TIMESTAMP' '=' STRING ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'NOTIFY_USERS' '=' '(' ID (',' ID)* ')') ('TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)? | 'TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)
     ;
 alterResourceMonitor_triggerDefinition
     : 'ON' NUMBER 'PERCENT' 'DO' ('SUSPEND' | 'SUSPEND_IMMEDIATE' | 'NOTIFY')
