@@ -281,25 +281,90 @@ func TestCreateUser_PasswordPolicy(t *testing.T) {
 	if stmt.Password != "12345" {
 		t.Errorf("Password = %q, want %q", stmt.Password, "12345")
 	}
-	if !stmt.PasswordExpire {
-		t.Error("PasswordExpire should be true")
-	}
-	if stmt.PasswordExpireInterval != 10 {
-		t.Errorf("PasswordExpireInterval = %d, want 10", stmt.PasswordExpireInterval)
+	if stmt.PasswordExpire != "INTERVAL 10 DAY" {
+		t.Errorf("PasswordExpire = %q, want %q", stmt.PasswordExpire, "INTERVAL 10 DAY")
 	}
 	if stmt.FailedLoginAttempts != 3 {
 		t.Errorf("FailedLoginAttempts = %d, want 3", stmt.FailedLoginAttempts)
 	}
-	if stmt.PasswordLockTime != 1 {
-		t.Errorf("PasswordLockTime = %d, want 1", stmt.PasswordLockTime)
+	if stmt.PasswordLockTime != 1 || stmt.PasswordLockTimeUnit != "DAY" {
+		t.Errorf("PasswordLockTime = %d %q, want 1 DAY", stmt.PasswordLockTime, stmt.PasswordLockTimeUnit)
 	}
 }
 
 func TestCreateUser_PasswordHistory(t *testing.T) {
 	// CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8;
 	stmt := parseCreateUserStmt(t, `CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8`)
-	if stmt.PasswordHistory != 8 {
-		t.Errorf("PasswordHistory = %d, want 8", stmt.PasswordHistory)
+	if stmt.PasswordHistory != "8" {
+		t.Errorf("PasswordHistory = %q, want %q", stmt.PasswordHistory, "8")
+	}
+}
+
+// TestCreateUser_UserRole pins (SUPERUSER | DEFAULT ROLE 'role') of
+// DorisParser.g4:808-809, whose role is a string literal in both grammars
+// Doris runs.
+func TestCreateUser_UserRole(t *testing.T) {
+	stmt := parseCreateUserStmt(t, `CREATE USER a SUPERUSER`)
+	if !stmt.Superuser {
+		t.Error("Superuser = false, want true")
+	}
+
+	stmt = parseCreateUserStmt(t, `CREATE USER a DEFAULT ROLE 'r'`)
+	if stmt.DefaultRole != "r" {
+		t.Errorf("DefaultRole = %q, want %q", stmt.DefaultRole, "r")
+	}
+	if stmt.Superuser {
+		t.Error("Superuser = true, want false")
+	}
+
+	if _, err := Parse(`CREATE USER a DEFAULT ROLE r`); err == nil {
+		t.Error("Parse(unquoted DEFAULT ROLE role) = nil error, want a rejection")
+	}
+}
+
+// TestCreateUser_PasswordOption pins passwordOption (DorisParser.g4:861):
+// each clause at most once, in its own order, and each value present.
+func TestCreateUser_PasswordOption(t *testing.T) {
+	stmt := parseCreateUserStmt(t, `CREATE USER a PASSWORD_HISTORY DEFAULT PASSWORD_EXPIRE NEVER PASSWORD_REUSE INTERVAL 1 DAY FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME UNBOUNDED ACCOUNT_LOCK`)
+	if stmt.PasswordHistory != "DEFAULT" {
+		t.Errorf("PasswordHistory = %q, want %q", stmt.PasswordHistory, "DEFAULT")
+	}
+	if stmt.PasswordExpire != "NEVER" {
+		t.Errorf("PasswordExpire = %q, want %q", stmt.PasswordExpire, "NEVER")
+	}
+	if stmt.PasswordReuse != "1 DAY" {
+		t.Errorf("PasswordReuse = %q, want %q", stmt.PasswordReuse, "1 DAY")
+	}
+	if stmt.FailedLoginAttempts != 3 {
+		t.Errorf("FailedLoginAttempts = %d, want 3", stmt.FailedLoginAttempts)
+	}
+	if stmt.PasswordLockTime != 0 || stmt.PasswordLockTimeUnit != "UNBOUNDED" {
+		t.Errorf("PasswordLockTime = %d %q, want 0 UNBOUNDED", stmt.PasswordLockTime, stmt.PasswordLockTimeUnit)
+	}
+	if !stmt.AccountLock {
+		t.Error("AccountLock = false, want true")
+	}
+
+	for _, sql := range []string{
+		`CREATE USER a PASSWORD_HISTORY`,
+		`CREATE USER a PASSWORD_HISTORY DEFERRED`,
+		`CREATE USER a PASSWORD_EXPIRE`,
+		`CREATE USER a PASSWORD_EXPIRE INTERVAL 1`,
+		`CREATE USER a PASSWORD_EXPIRE INTERVAL DAY`,
+		`CREATE USER a PASSWORD_REUSE DEFAULT`,
+		`CREATE USER a PASSWORD_REUSE INTERVAL 1`,
+		`CREATE USER a PASSWORD_REUSE INTERVAL 1 DAYS`,
+		`CREATE USER a FAILED_LOGIN_ATTEMPTS`,
+		`CREATE USER a PASSWORD_LOCK_TIME`,
+		`CREATE USER a PASSWORD_LOCK_TIME 1`,
+		`CREATE USER a PASSWORD_LOCK_TIME 1 DAYS`,
+		`CREATE USER a PASSWORD_LOCK_TIME 1 DAY PASSWORD_HISTORY 1`,
+		`CREATE USER a PASSWORD_LOCK_TIME UNBOUNDED PASSWORD_EXPIRE DEFAULT`,
+		`CREATE USER a ACCOUNT_UNLOCK ACCOUNT_LOCK`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want a rejection", sql)
+		}
 	}
 }
 

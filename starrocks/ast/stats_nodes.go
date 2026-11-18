@@ -3,44 +3,6 @@ package ast
 // This file holds AST node types for statistics, analyze, and constraint
 // management statements (T8.3).
 
-// ---------------------------------------------------------------------------
-// ADD / DROP CONSTRAINT
-// ---------------------------------------------------------------------------
-
-// AddConstraintStmt represents:
-//
-//	ALTER TABLE name ADD CONSTRAINT cname PRIMARY KEY (cols)
-//	ALTER TABLE name ADD CONSTRAINT cname UNIQUE (cols)
-//	ALTER TABLE name ADD CONSTRAINT cname FOREIGN KEY (cols) REFERENCES ref_table (cols)
-type AddConstraintStmt struct {
-	Table      *ObjectName
-	Name       string // constraint name
-	Type       string // "PRIMARY KEY", "UNIQUE", "FOREIGN KEY"
-	Columns    []string
-	RefTable   *ObjectName // for FOREIGN KEY
-	RefColumns []string    // for FOREIGN KEY
-	Loc        Loc
-}
-
-// Tag implements Node.
-func (n *AddConstraintStmt) Tag() NodeTag { return T_AddConstraintStmt }
-
-var _ Node = (*AddConstraintStmt)(nil)
-
-// DropConstraintStmt represents:
-//
-//	ALTER TABLE name DROP CONSTRAINT cname
-type DropConstraintStmt struct {
-	Table *ObjectName
-	Name  string
-	Loc   Loc
-}
-
-// Tag implements Node.
-func (n *DropConstraintStmt) Tag() NodeTag { return T_DropConstraintStmt }
-
-var _ Node = (*DropConstraintStmt)(nil)
-
 // ShowConstraintsStmt represents:
 //
 //	SHOW CONSTRAINTS FROM table

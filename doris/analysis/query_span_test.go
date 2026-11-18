@@ -971,3 +971,101 @@ func TestGetQuerySpan_DMLWithClauseScopesCTEs(t *testing.T) {
 		t.Errorf("CTEs = %v, want [c]", span.CTEs)
 	}
 }
+
+// A VALUES query is a query: its first row names the results, and every row's
+// subqueries are reads — including when an arm of a set operation is a VALUES
+// query, or a CTE body is one.
+func TestGetQuerySpan_Values(t *testing.T) {
+	span, err := GetQuerySpan("VALUES(1 a, 2 b)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if span.Type != QueryTypeSelect {
+		t.Errorf("Type = %v, want QueryTypeSelect", span.Type)
+	}
+	var names []string
+	for _, r := range span.Results {
+		names = append(names, r.Name)
+	}
+	if strings.Join(names, ",") != "a,b" {
+		t.Errorf("Results = %v, want a,b", names)
+	}
+
+	tests := []struct {
+		sql    string
+		tables []tableSig
+	}{
+		{"VALUES((SELECT x FROM secret))", []tableSig{{Table: "secret"}}},
+		{"SELECT 1 UNION VALUES((SELECT x FROM secret))", []tableSig{{Table: "secret"}}},
+		{"WITH c AS (VALUES((SELECT x FROM secret))) SELECT * FROM c", []tableSig{{Table: "secret"}}},
+	}
+	for _, tc := range tests {
+		span, err := GetQuerySpan(tc.sql)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		got := toSigs(span.AccessTables)
+		for _, want := range tc.tables {
+			if !containsSig(got, want) {
+				t.Errorf("%q: AccessTables = %v, want %v in it", tc.sql, got, want)
+			}
+		}
+	}
+}
+
+// A WITH clause on a VALUES arm scopes over the whole set operation, as it does
+// on a SELECT arm.
+func TestGetQuerySpan_ValuesCTEScope(t *testing.T) {
+	span, err := GetQuerySpan("WITH c AS (SELECT 1) VALUES(1) UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	for _, got := range toSigs(span.AccessTables) {
+		if got.Table == "c" {
+			t.Errorf("AccessTables = %v, want no physical table c", toSigs(span.AccessTables))
+		}
+	}
+}
+
+// A parenthesized group's WITH scopes to the group, so the same name outside it
+// is a physical table — including when the group's query is a VALUES.
+func TestGetQuerySpan_ParenthesizedValuesCTE(t *testing.T) {
+	span, err := GetQuerySpan("(WITH c AS (SELECT 1) VALUES(1)) UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if !containsSig(toSigs(span.AccessTables), tableSig{Table: "c"}) {
+		t.Errorf("AccessTables = %v, want physical table c", toSigs(span.AccessTables))
+	}
+}
+
+// A load-property statement keeps its expression, so a subquery in it is a read.
+func TestGetQuerySpan_LoadPropertySubquery(t *testing.T) {
+	for _, sql := range []string{
+		"WHERE 1 IN (SELECT id FROM secret)",
+		"COLUMNS(a = (SELECT id FROM secret))",
+		"DELETE ON 1 IN (SELECT id FROM secret)",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("%q: %v", sql, err)
+		}
+		if !containsSig(toSigs(span.AccessTables), tableSig{Table: "secret"}) {
+			t.Errorf("%q: AccessTables = %v, want secret", sql, toSigs(span.AccessTables))
+		}
+	}
+}
+
+// A load-property statement's span is DML, as ClassifyStatement says, not
+// UNKNOWN.
+func TestGetQuerySpan_LoadPropertyType(t *testing.T) {
+	for _, sql := range []string{"WHERE 1", "ORDER BY a", "COLUMNS(a)", "PRECEDING FILTER 1"} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("%q: %v", sql, err)
+		}
+		if span.Type != QueryTypeDML {
+			t.Errorf("%q: Type = %v, want DML", sql, span.Type)
+		}
+	}
+}

@@ -105,13 +105,11 @@ var _ Node = (*DictionaryColumn)(nil)
 //	    LAYOUT(HASH_MAP|IP_TRIE|...)
 //	    PROPERTIES(...)
 type CreateDictionaryStmt struct {
-	Name        *ObjectName
-	IfNotExists bool
-	UsingTable  *ObjectName
-	Columns     []*DictionaryColumn
-	Layout      string // HASH_MAP, IP_TRIE, etc.
-	Properties  []*Property
-	Loc         Loc
+	Name       *ObjectName
+	UsingTable *ObjectName
+	Columns    []*DictionaryColumn
+	Properties []*Property
+	Loc        Loc
 }
 
 // Tag implements Node.
@@ -229,7 +227,6 @@ var _ Node = (*UserIdentity)(nil)
 //	CREATE USER [IF NOT EXISTS] 'user'@'host'
 //	    [IDENTIFIED BY 'password' | IDENTIFIED BY PASSWORD 'hash']
 //	    [DEFAULT ROLE 'role']
-//	    [password policy options...]
 //	    [COMMENT 'text']
 type CreateUserStmt struct {
 	Name         *UserIdentity
@@ -238,13 +235,7 @@ type CreateUserStmt struct {
 	PasswordHash string // IDENTIFIED BY PASSWORD 'hash'
 	DefaultRole  string
 	Comment      string
-	// Password policy options (stored as raw token text for forward-compat)
-	PasswordExpire         bool
-	PasswordExpireInterval int // INTERVAL n DAY; 0 = not set
-	FailedLoginAttempts    int
-	PasswordLockTime       int // lock time in days; 0 = not set
-	PasswordHistory        int // HISTORY n; 0 = not set
-	Loc                    Loc
+	Loc          Loc
 }
 
 // Tag implements Node.
@@ -256,7 +247,6 @@ var _ Node = (*CreateUserStmt)(nil)
 //
 //	ALTER USER [IF EXISTS] 'user'@'host'
 //	    [IDENTIFIED BY 'password']
-//	    [password policy options...]
 //	    [ACCOUNT_LOCK | ACCOUNT_UNLOCK]
 //	    [COMMENT 'text']
 type AlterUserStmt struct {
@@ -267,10 +257,7 @@ type AlterUserStmt struct {
 	Comment       string
 	AccountLock   bool // ACCOUNT_LOCK
 	AccountUnlock bool // ACCOUNT_UNLOCK
-	// Password policy options
-	FailedLoginAttempts int
-	PasswordLockTime    int
-	Loc                 Loc
+	Loc           Loc
 }
 
 // Tag implements Node.

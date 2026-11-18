@@ -394,3 +394,27 @@ func TestInsertNodeTag(t *testing.T) {
 		t.Errorf("Tag() = %v, want T_InsertStmt", stmt.Tag())
 	}
 }
+
+// An INSERT's source is a query (DorisParser.g4:144), so a VALUES row list
+// takes the set-op and trailing clauses a query does; a bare list stays in
+// Values, which is what row counting reads.
+func TestInsertValuesQuerySource(t *testing.T) {
+	stmt := mustParseInsert(t, "INSERT INTO t VALUES (1) UNION SELECT 2")
+	if _, ok := stmt.Query.(*ast.SetOpStmt); !ok {
+		t.Errorf("Query = %T, want *ast.SetOpStmt", stmt.Query)
+	}
+	if stmt.Values != nil {
+		t.Errorf("Values = %v, want nil for a set operation", stmt.Values)
+	}
+
+	stmt = mustParseInsert(t, "INSERT INTO t VALUES (1) LIMIT 1")
+	values, ok := stmt.Query.(*ast.ValuesStmt)
+	if !ok || values.Limit == nil {
+		t.Errorf("Query = %#v, want a *ast.ValuesStmt with a LIMIT", stmt.Query)
+	}
+
+	stmt = mustParseInsert(t, "INSERT INTO t VALUES (1), (2)")
+	if len(stmt.Values) != 2 || stmt.Query != nil {
+		t.Errorf("Values = %v Query = %T, want the two rows in Values", stmt.Values, stmt.Query)
+	}
+}

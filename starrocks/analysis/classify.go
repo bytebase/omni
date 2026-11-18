@@ -159,7 +159,7 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		}
 		return astQueryType(n.Query)
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.MergeStmt, *ast.TruncateTableStmt:
+		*ast.TruncateTableStmt:
 		return QueryTypeDML, true
 	case *ast.UseStmt:
 		// USE stays Unknown so a permission check treats it as a hard deny

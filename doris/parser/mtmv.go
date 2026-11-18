@@ -123,6 +123,16 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		if queryNode, err = p.parseQueryTail(wq); err != nil {
 			return nil, err
 		}
+	} else if p.cur.Kind == kwVALUES {
+		// The body is a query (DorisParser.g4:112 AS? query), and VALUES is a
+		// queryPrimary (:1186).
+		values, err := p.parseValuesStmt()
+		if err != nil {
+			return nil, err
+		}
+		if queryNode, err = p.parseQueryTail(values); err != nil {
+			return nil, err
+		}
 	} else {
 		query, err := p.parseSelectStmt()
 		if err != nil {

@@ -67726,7 +67726,7 @@ accept	accept	docs	select(TOP_NUMBER)?/%empty	SELECT *
 accept	accept	docs	select(TOP_NUMBER)?/TOP_NUMBER	SELECT TOP 1 *
 reject	undocumented	docs	select(TOP_NUMBER)?/TOP_NUMBER!drop-1	SELECT 1 *
 reject	undocumented	docs	select(TOP_NUMBER)?/TOP_NUMBER!drop-2	SELECT TOP *
-reject	accept	docs	select(TOP_NUMBER)?/TOP_NUMBER!truncate	SELECT TOP
+accept	accept	docs	select(TOP_NUMBER)?/TOP_NUMBER!truncate	SELECT TOP
 reject	undocumented	docs	select(TOP_NUMBER)?/TOP_NUMBER!insert	SELECT TOP 1 zzz *
 reject	undocumented	docs	select(TOP_NUMBER)?/TOP_NUMBER!swap	SELECT TOP_INSIGHTS 1 *
 accept	accept	docs	select((QNAME|ID)_.)?/%empty	SELECT *

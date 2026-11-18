@@ -184,49 +184,6 @@ func (p *Parser) collectProcedureBody() (string, ast.Loc, error) {
 	return bodyText, ast.Loc{Start: bodyStart, End: bodyEnd}, nil
 }
 
-// parseCallProcedure parses a CALL statement.
-// On entry, cur is CALL (not yet consumed).
-//
-// Syntax:
-//
-//	CALL proc_name([args])
-func (p *Parser) parseCallProcedure() (ast.Node, error) {
-	callTok := p.advance() // consume CALL
-
-	stmt := &ast.CallProcedureStmt{
-		Loc: callTok.Loc,
-	}
-
-	// Procedure name (may be qualified: db.proc_name)
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Name = name
-
-	// Argument list: ( [expr, ...] )
-	if _, err := p.expect(int('(')); err != nil {
-		return nil, err
-	}
-
-	var args []ast.Node
-	if p.cur.Kind != int(')') {
-		args, err = p.parseExprList()
-		if err != nil {
-			return nil, err
-		}
-	}
-	stmt.Args = args
-
-	closeParen, err := p.expect(int(')'))
-	if err != nil {
-		return nil, err
-	}
-
-	stmt.Loc = callTok.Loc.Merge(closeParen.Loc)
-	return stmt, nil
-}
-
 // parseDropProcedure parses a DROP PROCEDURE statement.
 // On entry, DROP has already been consumed; cur is PROCEDURE.
 //

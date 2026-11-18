@@ -224,27 +224,31 @@ func (n *UserIdentity) Tag() NodeTag { return T_UserIdentity }
 
 var _ Node = (*UserIdentity)(nil)
 
-// CreateUserStmt represents:
+// CreateUserStmt represents (DorisParser.g4:808-810):
 //
 //	CREATE USER [IF NOT EXISTS] 'user'@'host'
 //	    [IDENTIFIED BY 'password' | IDENTIFIED BY PASSWORD 'hash']
-//	    [DEFAULT ROLE 'role']
-//	    [password policy options...]
+//	    [SUPERUSER | DEFAULT ROLE 'role']
+//	    [passwordOption]
 //	    [COMMENT 'text']
 type CreateUserStmt struct {
 	Name         *UserIdentity
 	IfNotExists  bool
 	Password     string // IDENTIFIED BY 'password'
 	PasswordHash string // IDENTIFIED BY PASSWORD 'hash'
-	DefaultRole  string
+	Superuser    bool   // SUPERUSER
+	DefaultRole  string // DEFAULT ROLE 'role'
 	Comment      string
-	// Password policy options (stored as raw token text for forward-compat)
-	PasswordExpire         bool
-	PasswordExpireInterval int // INTERVAL n DAY; 0 = not set
-	FailedLoginAttempts    int
-	PasswordLockTime       int // lock time in days; 0 = not set
-	PasswordHistory        int // HISTORY n; 0 = not set
-	Loc                    Loc
+	// The passwordOption clauses, which AlterUserStmt carries the same way.
+	PasswordHistory      string // PASSWORD_HISTORY (DEFAULT | n)
+	PasswordExpire       string // PASSWORD_EXPIRE (DEFAULT | NEVER | INTERVAL n unit)
+	PasswordReuse        string // PASSWORD_REUSE INTERVAL (DEFAULT | n DAY)
+	FailedLoginAttempts  int    // FAILED_LOGIN_ATTEMPTS n
+	PasswordLockTime     int    // PASSWORD_LOCK_TIME n unit; 0 = not set
+	PasswordLockTimeUnit string // DAY, HOUR or SECOND, or UNBOUNDED with no PasswordLockTime
+	AccountLock          bool   // ACCOUNT_LOCK
+	AccountUnlock        bool   // ACCOUNT_UNLOCK
+	Loc                  Loc
 }
 
 // Tag implements Node.
@@ -267,7 +271,7 @@ type AlterUserStmt struct {
 	Comment       string
 	AccountLock   bool // ACCOUNT_LOCK
 	AccountUnlock bool // ACCOUNT_UNLOCK
-	// Password policy options
+	// The passwordOption clauses, which CreateUserStmt carries the same way.
 	FailedLoginAttempts int
 	PasswordLockTime    int
 	// PasswordLockTimeUnit is DAY, HOUR or SECOND, or UNBOUNDED with no

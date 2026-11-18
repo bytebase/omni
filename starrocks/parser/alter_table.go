@@ -26,17 +26,6 @@ func (p *Parser) parseAlterTable() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	// ALTER TABLE name ADD CONSTRAINT ... — produce AddConstraintStmt directly.
-	if p.cur.Kind == kwADD && p.peekNext().Kind == kwCONSTRAINT {
-		p.advance() // consume ADD
-		return p.parseAddConstraint(startLoc, name)
-	}
-
-	// ALTER TABLE name DROP CONSTRAINT ... — produce DropConstraintStmt directly.
-	if p.cur.Kind == kwDROP && p.peekNext().Kind == kwCONSTRAINT {
-		return p.parseDropConstraint(startLoc, name)
-	}
-
 	// StarRocks.g4:510 ALTER TABLE qualifiedName ADD ROLLUP rollupItem (',' rollupItem)*
 	if p.cur.Kind == kwADD && p.peekNext().Kind == kwROLLUP {
 		cp := p.save()
