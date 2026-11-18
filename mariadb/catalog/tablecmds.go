@@ -3693,20 +3693,28 @@ func canonicalRowFormat(value string) string {
 }
 
 // canonicalRows is the value MIN_ROWS and MAX_ROWS report. The server reads the
-// option as an unsigned number and keeps 32 bits of it, truncating a fraction:
-// `MAX_ROWS 1.5` and `MAX_ROWS 1e0` both report 1, `MAX_ROWS 4294967296` and
-// above report 4294967295, and a value under 1 reports nothing. Measured on
-// mariadb:11.8.8 through SHOW CREATE TABLE.
+// option as an unsigned number, keeping the integer prefix and 32 bits of it:
+// `1.5`, `1e0` and `2e3` report 1, 1 and 2, `4294967296` and above report
+// 4294967295, and a value under 1 reports nothing. Measured on mariadb:11.8.8
+// through SHOW CREATE TABLE.
 func canonicalRows(value string) string {
-	v, err := strconv.ParseFloat(value, 64)
-	if err != nil {
+	digits := strings.TrimPrefix(value, "+")
+	end := 0
+	for end < len(digits) && digits[end] >= '0' && digits[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		if strings.HasPrefix(digits, ".") {
+			return "0"
+		}
 		return value
 	}
-	if v >= 4294967295 {
+	n, err := strconv.ParseUint(digits[:end], 10, 64)
+	if err != nil || n > 4294967295 {
 		return "4294967295"
 	}
-	if v < 1 {
+	if n < 1 {
 		return "0"
 	}
-	return strconv.FormatUint(uint64(v), 10)
+	return strconv.FormatUint(n, 10)
 }

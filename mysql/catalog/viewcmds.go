@@ -113,39 +113,32 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 		return q, nil
 	}
 	var refusal *Error
-	if errors.As(err, &refusal) && refusal.Code == ErrNoSuchColumn && len(sel.From) == 0 && selectTargetHasColumnRef(sel) {
+	if errors.As(err, &refusal) && refusal.Code == ErrNoSuchColumn && viewBodyMayNameNoColumn(sel) {
 		return nil, refusal
 	}
 	return nil, nil
 }
 
-// selectTargetHasColumnRef reports whether a target list item is a column. A
-// SELECT with no FROM reads such a column from nowhere, which mysql:8.0.46
-// answers with 1054. The test stops at the column itself: a name inside a
-// function call may be a stored function's argument, which the engine accepts.
-func selectTargetHasColumnRef(sel *nodes.SelectStmt) bool {
-	for _, item := range sel.TargetList {
-		var val nodes.ExprNode
-		switch target := item.(type) {
-		case *nodes.ResTarget:
-			val = target.Val
-		case nodes.ExprNode:
-			val = target
-		default:
-			continue
-		}
-		for {
-			paren, ok := val.(*nodes.ParenExpr)
-			if !ok {
-				break
-			}
-			val = paren.Expr
-		}
-		if ref, ok := val.(*nodes.ColumnRef); ok && !ref.Star {
-			return true
-		}
+// viewBodyMayNameNoColumn reports whether a 1054 from a view body can be the
+// engine's. It must be a SELECT with no FROM, and one whose body has no clause
+// the analyzer cannot resolve a select alias in (HAVING, GROUP BY, ORDER BY) and
+// no schema-qualified function, whose argument may name a stored function's
+// column rather than a column of the body. Measured on mysql:8.0.46.
+func viewBodyMayNameNoColumn(sel *nodes.SelectStmt) bool {
+	if len(sel.From) != 0 {
+		return false
 	}
-	return false
+	if sel.Having != nil || len(sel.GroupBy) != 0 || len(sel.OrderBy) != 0 {
+		return false
+	}
+	qualified := false
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if fn, ok := n.(*nodes.FuncCallExpr); ok && fn.Schema != "" {
+			qualified = true
+		}
+		return !qualified
+	})
+	return !qualified
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter

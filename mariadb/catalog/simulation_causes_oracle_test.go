@@ -319,6 +319,16 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1050,
 		},
 		{
+			name: "CREATE VIEW over a missing column in a function",
+			stmt: "CREATE VIEW a AS SELECT ABS(a)",
+			code: 1054,
+		},
+		{
+			name: "CREATE VIEW over a missing column in WHERE",
+			stmt: "CREATE VIEW a AS SELECT 1 WHERE a",
+			code: 1054,
+		},
+		{
 			name: "CREATE TABLE ... SELECT over a missing column",
 			stmt: "CREATE TABLE a SELECT a",
 			code: 1054,
@@ -394,6 +404,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:     "ALTER TABLE a MAX_ROWS 9223372036854775808",
 			code:     0,
 			contains: []string{"MAX_ROWS=4294967295"},
+		},
+		{
+			name:     "ALTER TABLE MAX_ROWS in exponent notation above one",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a MAX_ROWS 2e3",
+			code:     0,
+			contains: []string{"MAX_ROWS=2"},
+		},
+		{
+			name:     "ALTER TABLE MIN_ROWS in exponent notation above one",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a MIN_ROWS 3e2",
+			code:     0,
+			contains: []string{"MIN_ROWS=3"},
 		},
 		{
 			name:     "ALTER TABLE MAX_ROWS with a fraction",

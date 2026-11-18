@@ -1387,7 +1387,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
 		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
-		// CREATE TABLE path; the caller adds its unique key.
+		// CREATE TABLE path; the caller adds its unique key. An explicit NULL
+		// modifier stays: mysql:8.0.46 stores `ADD a SERIAL NULL` as a
+		// nullable auto_increment column (IS_NULLABLE YES), unlike
+		// `INT NULL AUTO_INCREMENT`.
 		if strings.EqualFold(colDef.TypeName.Name, "serial") {
 			col.DataType = "bigint"
 			col.ColumnType = "bigint unsigned"

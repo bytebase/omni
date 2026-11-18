@@ -323,6 +323,16 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1054,
 		},
 		{
+			name: "CREATE VIEW over a missing column in a function",
+			stmt: "CREATE VIEW a AS SELECT ABS(a)",
+			code: 1054,
+		},
+		{
+			name: "CREATE VIEW over a missing column in WHERE",
+			stmt: "CREATE VIEW a AS SELECT 1 WHERE a",
+			code: 1054,
+		},
+		{
 			name:  "CREATE VIEW over a table with a resolved body",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW a AS SELECT b FROM a",
@@ -348,6 +358,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:     "ALTER TABLE a ADD a CHAR COLLATE BINARY",
 			code:     0,
 			contains: []string{"`a` binary(1)"},
+		},
+		{
+			name:     "ALTER TABLE ADD SERIAL NULL",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD a SERIAL NULL",
+			code:     0,
+			contains: []string{"`a` bigint unsigned AUTO_INCREMENT", "UNIQUE KEY `a` (`a`)"},
+			omits:    []string{"`a` bigint unsigned NOT NULL"},
 		},
 		{
 			name:     "ALTER TABLE MODIFY SERIAL",
