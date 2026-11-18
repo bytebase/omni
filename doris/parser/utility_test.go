@@ -584,3 +584,23 @@ func TestDescribeExplainOptions(t *testing.T) {
 		}
 	}
 }
+
+// A partition clause needs the table name describe_stmt states first.
+// (TEMPORARY is no test for this: it is non-reserved, so DESCRIBE TEMPORARY
+// PARTITION(a) names a table TEMPORARY.)
+func TestDescribePartitionNeedsTarget(t *testing.T) {
+	if _, err := Parse("DESCRIBE PARTITION a"); err == nil {
+		t.Error("Parse(DESCRIBE PARTITION a) succeeded, want a syntax error")
+	}
+	stmt := parseOne(t, "DESCRIBE TEMPORARY PARTITION(a)").(*ast.DescribeStmt)
+	if stmt.Target == nil || stmt.Target.Parts[0] != "TEMPORARY" || len(stmt.Partition) != 1 {
+		t.Errorf("Target = %+v Partition = %q, want table TEMPORARY partition a", stmt.Target, stmt.Partition)
+	}
+}
+
+// explain gives PROCESS one slot after the level.
+func TestExplainOneProcess(t *testing.T) {
+	if _, err := Parse("EXPLAIN PLAN PROCESS PROCESS SELECT 1"); err == nil {
+		t.Error("Parse(EXPLAIN PLAN PROCESS PROCESS SELECT 1) succeeded, want a syntax error")
+	}
+}

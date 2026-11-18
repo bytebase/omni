@@ -159,3 +159,13 @@ func TestClassifyStatementCTEPrefixedDML(t *testing.T) {
 		})
 	}
 }
+
+// A load-property statement is DML, as a LOAD is; before it parsed, the
+// keyword fallback classified `DELETE ON 1` as DML.
+func TestClassifyStatementLoadProperty(t *testing.T) {
+	for _, sql := range []string{"DELETE ON 1", "ORDER BY a", "COLUMNS(a)"} {
+		if got := ClassifyStatement(sql); got != QueryTypeDML {
+			t.Errorf("ClassifyStatement(%q) = %s, want DML", sql, got)
+		}
+	}
+}

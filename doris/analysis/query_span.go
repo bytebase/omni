@@ -378,8 +378,8 @@ func (w *spanWalker) visitSetOpArms(n *ast.SetOpStmt, outermost bool) {
 }
 
 // leftmostWith walks the left spine of a set-operation tree to the leading
-// SelectStmt and returns its WITH clause, whose names scope over the whole
-// tree. A GroupedQuery stops the walk: it marks a parenthesized group (or a
+// query — a SelectStmt or a ValuesStmt — and returns its WITH clause, whose
+// names scope over the whole tree. A GroupedQuery stops the walk: it marks a parenthesized group (or a
 // repeated clause group), and the engine scopes a WITH inside parens to that
 // group only — (WITH c AS (...) SELECT 1) UNION SELECT * FROM c reads a
 // physical table c (container-verified).
@@ -389,6 +389,8 @@ func leftmostWith(node ast.Node) *ast.WithClause {
 		case *ast.SetOpStmt:
 			node = n.Left
 		case *ast.SelectStmt:
+			return n.With
+		case *ast.ValuesStmt:
 			return n.With
 		default:
 			return nil

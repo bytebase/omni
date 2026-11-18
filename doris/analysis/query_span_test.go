@@ -1012,3 +1012,17 @@ func TestGetQuerySpan_Values(t *testing.T) {
 		}
 	}
 }
+
+// A WITH clause on a VALUES arm scopes over the whole set operation, as it does
+// on a SELECT arm.
+func TestGetQuerySpan_ValuesCTEScope(t *testing.T) {
+	span, err := GetQuerySpan("WITH c AS (SELECT 1) VALUES(1) UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	for _, got := range toSigs(span.AccessTables) {
+		if got.Table == "c" {
+			t.Errorf("AccessTables = %v, want no physical table c", toSigs(span.AccessTables))
+		}
+	}
+}

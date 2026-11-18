@@ -166,6 +166,14 @@ func (p *Parser) parseViewQuery() (ast.Node, error) {
 			return nil, err
 		}
 		return p.parseQueryTail(with)
+	case kwVALUES:
+		// A view body is a query, and VALUES is a queryPrimary
+		// (DorisParser.g4:1186; createView is :183).
+		values, err := p.parseValuesStmt()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseQueryTail(values)
 	case int('('):
 		return p.parseParenQueryStmt()
 	default:

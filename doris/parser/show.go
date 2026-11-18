@@ -698,13 +698,17 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 
 	// Optional partition list: describe_stmt's opt_partition_names
 	// (DorisParser.g4:951 specifiedPartition, DorisLegacyParser.g4:2294).
-	switch p.cur.Kind {
-	case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
-		parts, temporary, err := p.parseDescribePartition()
-		if err != nil {
-			return nil, err
+	// Both require the table name first, so a partition clause without one is
+	// left to the trailing-token check.
+	if stmt.Target != nil {
+		switch p.cur.Kind {
+		case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+			parts, temporary, err := p.parseDescribePartition()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Partition, stmt.TempPartition = parts, temporary
 		}
-		stmt.Partition, stmt.TempPartition = parts, temporary
 	}
 
 	// Optional ALL VERBOSE suffix.
@@ -911,16 +915,17 @@ func (p *Parser) parseExplainBody(stmt *ast.ExplainStmt) (ast.Node, error) {
 	case kwVERBOSE, kwTREE, kwGRAPH, kwDUMP:
 		options = append(options, strings.ToUpper(p.advance().Str))
 	case kwPLAN:
-		p.advance() // consume PLAN
-		if p.cur.Kind == kwPROCESS {
-			options = append(options, "PLAN PROCESS")
-			p.advance()
-		} else {
-			options = append(options, "PLAN")
-		}
+		options = append(options, "PLAN")
+		p.advance()
 	}
+	// PROCESS is read once, after the level: the grammar gives it one slot,
+	// so EXPLAIN PLAN PROCESS PROCESS is not a statement.
 	if p.cur.Kind == kwPROCESS {
-		options = append(options, "PROCESS")
+		if len(options) > 0 && options[len(options)-1] == "PLAN" {
+			options[len(options)-1] = "PLAN PROCESS"
+		} else {
+			options = append(options, "PROCESS")
+		}
 		p.advance()
 	}
 	stmt.Type = strings.Join(options, " ")

@@ -164,7 +164,9 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		}
 		return astQueryType(n.Query)
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.MergeStmt, *ast.TruncateTableStmt:
+		*ast.MergeStmt, *ast.TruncateTableStmt, *ast.LoadPropertyStmt:
+		// LoadPropertyStmt is one of the load properties Doris's grammar also
+		// derives as a statement (DorisParser.g4:389-393), and LOAD is DML.
 		return QueryTypeDML, true
 	case *ast.UseStmt:
 		// USE stays Unknown so a permission check treats it as a hard deny
