@@ -92,14 +92,46 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 		stmt.Target = target
 
-		// Optional PARTITION(p1, p2, ...) or PARTITION(*) — table targets only.
-		if p.cur.Kind == kwPARTITION {
-			partitions, star, err := p.parseInsertPartition()
+		// writeBranch: (FOR)? VERSION AS OF identifier
+		if p.cur.Kind == kwFOR && p.peekNext().Kind == kwVERSION {
+			p.advance() // consume FOR
+		}
+		if p.cur.Kind == kwVERSION {
+			p.advance() // consume VERSION
+			if _, err := p.expect(kwAS); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwOF); err != nil {
+				return nil, err
+			}
+			branch, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
 			}
-			stmt.Partition = partitions
-			stmt.PartitionStar = star
+			stmt.Branch = branch
+		}
+
+		// partitionNames: TEMPORARY? (PARTITION | PARTITIONS) ...
+		if p.cur.Kind == kwTEMPORARY {
+			p.advance() // consume TEMPORARY
+			stmt.TempPartition = true
+		}
+		if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
+			if p.peekNext().Kind == int('(') {
+				partitions, star, err := p.parseInsertPartition()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Partition = partitions
+				stmt.PartitionStar = star
+			} else {
+				p.advance() // consume PARTITION(S)
+				part, _, err := p.parseIdentifierOrString()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Partition = []string{part}
+			}
 		}
 	}
 

@@ -17,6 +17,7 @@ type InsertStmt struct {
 	Overwrite     bool        // true for INSERT OVERWRITE TABLE; false for INSERT INTO
 	Target        *ObjectName // target table name
 	Label         string      // optional WITH LABEL name; empty if absent
+	Branch        string      // optional write branch (VERSION AS OF); empty if absent
 	Partition     []string    // optional PARTITION(p1, p2, ...) names; nil if absent
 	TempPartition bool        // true if TEMPORARY PARTITION was specified
 	PartitionStar bool        // true if PARTITION(*) was used

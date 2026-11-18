@@ -4521,7 +4521,7 @@ reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d2
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)!insert	INSERT INTO BLACKHOLE() zzz SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)!swap	INSERT INTO BLACKLIST() SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(writeBranch)?/%empty	INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(writeBranch)?/writeBranch	INSERT INTO a VERSION AS OF a SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(writeBranch)?/writeBranch	INSERT INTO a VERSION AS OF a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(writeBranch)?/writeBranch!drop-1	INSERT INTO a AS OF a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(writeBranch)?/writeBranch!drop-2	INSERT INTO a VERSION OF a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(writeBranch)?/writeBranch!drop-3	INSERT INTO a VERSION AS a SELECT CURRENT_USER;
@@ -4530,12 +4530,12 @@ reject	reject	engine	insertStatement(writeBranch)?/writeBranch!truncate	INSERT I
 reject	reject	engine	insertStatement(writeBranch)?/writeBranch!insert	INSERT INTO a VERSION AS OF a zzz SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(writeBranch)?/writeBranch!swap	INSERT INTO a VIEW AS OF a SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(partitionNames)?/%empty	INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(partitionNames)?/partitionNames	INSERT INTO a PARTITION a SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(partitionNames)?/partitionNames	INSERT INTO a PARTITION a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(partitionNames)?/partitionNames!drop-1	INSERT INTO a a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(partitionNames)?/partitionNames!drop-2	INSERT INTO a PARTITION SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(partitionNames)?/partitionNames!truncate	INSERT INTO a PARTITION
 reject	reject	engine	insertStatement(partitionNames)?/partitionNames!insert	INSERT INTO a PARTITION a zzz SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(partitionNames)?/partitionNames!swap	INSERT INTO a PARTITIONS a SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(partitionNames)?/partitionNames!swap	INSERT INTO a PARTITIONS a SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(insertLabelOrColumnAliases)*/%empty	INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(insertLabelOrColumnAliases)*/insertLabelOrColumnAliases_(insertLabelOrColumnAliases)*	INSERT INTO a BY NAME SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(insertLabelOrColumnAliases)*/insertLabelOrColumnAliases_(insertLabelOrColumnAliases)*!drop-1	INSERT INTO a NAME SELECT CURRENT_USER;
@@ -10455,10 +10455,10 @@ reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier!dro
 reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier!drop-2	USE a.;
 reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier!truncate	USE a.
 reject	reject	engine	qualifiedName(DOT_IDENTIFIER|._identifier)/._identifier!insert	USE a.a zzz;
-reject	accept	engine	writeBranch/(FOR)?_VERSION_AS_OF_identifier	INSERT INTO a VERSION AS OF a SELECT CURRENT_USER;
-reject	accept	engine	writeBranch(FOR)?/%empty	INSERT INTO a VERSION AS OF a SELECT CURRENT_USER;
+accept	accept	engine	writeBranch/(FOR)?_VERSION_AS_OF_identifier	INSERT INTO a VERSION AS OF a SELECT CURRENT_USER;
+accept	accept	engine	writeBranch(FOR)?/%empty	INSERT INTO a VERSION AS OF a SELECT CURRENT_USER;
 reject	reject	engine	writeBranch(FOR)?/%empty!insert	INSERT INTO a zzz VERSION AS OF a SELECT CURRENT_USER;
-reject	accept	engine	writeBranch(FOR)?/FOR	INSERT INTO a FOR VERSION AS OF a SELECT CURRENT_USER;
+accept	accept	engine	writeBranch(FOR)?/FOR	INSERT INTO a FOR VERSION AS OF a SELECT CURRENT_USER;
 reject	reject	engine	writeBranch(FOR)?/FOR!truncate	INSERT INTO a
 reject	reject	engine	writeBranch(FOR)?/FOR!insert	INSERT INTO a FOR zzz VERSION AS OF a SELECT CURRENT_USER;
 reject	reject	engine	writeBranch(FOR)?/FOR!swap	INSERT INTO a FORCE VERSION AS OF a SELECT CURRENT_USER;

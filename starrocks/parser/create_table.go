@@ -921,7 +921,7 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 			}
 			end := p.prev.Loc.End
 			pd.FuncExprs = append(pd.FuncExprs, strings.TrimSpace(p.input[start-p.baseOffset:end-p.baseOffset]))
-			if p.cur.Kind != int(',') {
+			if explicitType || p.cur.Kind != int(',') {
 				break
 			}
 			p.advance() // consume ','
@@ -1300,7 +1300,15 @@ func (p *Parser) parsePartitionValueList() ([]string, int, error) {
 
 		if p.cur.Kind == int(',') {
 			p.advance()
+			if p.strictCTAS && p.cur.Kind == int(')') {
+				return nil, 0, p.syntaxErrorAtCur()
+			}
+			continue
 		}
+		if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+			return nil, 0, p.syntaxErrorAtCur()
+		}
+		break
 	}
 
 	closeTok, err := p.expect(int(')'))
@@ -1374,7 +1382,15 @@ func (p *Parser) parseInPartitionValues() ([][]string, int, error) {
 
 		if p.cur.Kind == int(',') {
 			p.advance()
+			if p.strictCTAS && p.cur.Kind == int(')') {
+				return nil, 0, p.syntaxErrorAtCur()
+			}
+			continue
 		}
+		if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+			return nil, 0, p.syntaxErrorAtCur()
+		}
+		break
 	}
 
 	closeTok, err := p.expect(int(')'))
