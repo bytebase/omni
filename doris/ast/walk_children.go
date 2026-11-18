@@ -245,6 +245,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Into)
 		}
 	case *ValuesStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		for _, row := range n.Rows {
 			for _, item := range row {
 				Walk(v, item)

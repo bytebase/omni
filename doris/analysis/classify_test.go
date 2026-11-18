@@ -17,6 +17,10 @@ func TestClassify(t *testing.T) {
 		{"((SELECT 1))", QueryTypeSelect},
 		{"(SELECT 1) UNION SELECT 2", QueryTypeSelect},
 		{"with cte as (select 1) select * from cte", QueryTypeSelect},
+		// VALUES is a query primary (DorisParser.g4:1186), so its rows are a
+		// SELECT-shaped read, not a DML keyword.
+		{"VALUES(1)", QueryTypeSelect},
+		{"values(1), (2)", QueryTypeSelect},
 
 		// Info-schema / admin reads
 		{"SHOW TABLES", QueryTypeSelectInfoSchema},

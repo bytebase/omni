@@ -196,6 +196,10 @@ func isExplainableInner(node ast.Node) bool {
 	switch n := node.(type) {
 	case *ast.SelectStmt:
 		return n.Into == nil
+	case *ast.ValuesStmt:
+		// EXPLAIN VALUES(1) plans a query; the export gate applies as it does
+		// to a SELECT.
+		return n.Into == nil
 	case *ast.SetOpStmt:
 		return n.Into == nil
 	case *ast.GroupedQuery:

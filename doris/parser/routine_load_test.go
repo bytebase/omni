@@ -585,3 +585,12 @@ func TestLoadPropertyStatements(t *testing.T) {
 		}
 	}
 }
+
+// The statement alternative is importColumnsStatement, which always states its
+// list: COLUMNS TERMINATED BY is a load property of LOAD and CREATE ROUTINE
+// LOAD only.
+func TestLoadPropertyColumnsNeedsList(t *testing.T) {
+	if _, err := Parse("COLUMNS TERMINATED BY ','"); err == nil {
+		t.Error("Parse(COLUMNS TERMINATED BY ',') succeeded, want a syntax error")
+	}
+}

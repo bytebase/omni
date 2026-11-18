@@ -174,6 +174,8 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 	switch n := node.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(n, true /* outermost */)
+	case *ast.ValuesStmt:
+		w.visitValues(n, true /* outermost */)
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, true /* outermost */)
 	case *ast.GroupedQuery:
@@ -193,6 +195,8 @@ func (w *spanWalker) visitGroupedQuery(n *ast.GroupedQuery, outermost bool) {
 	switch q := n.Query.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(q, outermost)
+	case *ast.ValuesStmt:
+		w.visitValues(q, outermost)
 	case *ast.SetOpStmt:
 		w.visitSetOp(q, outermost)
 	case *ast.GroupedQuery:
@@ -219,7 +223,7 @@ func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
 	if w.parseErr == nil {
 		w.parseErr = &parser.ParseError{
 			Position: loc.Start, End: loc.End,
-			Message: "subquery must be a SELECT statement",
+			Message: "subquery must be a query",
 		}
 	}
 }
@@ -275,6 +279,11 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			// carries real table reads; route it through the SELECT analyzer
 			// so they land in AccessTables.
 			w.visitSelect(q, false)
+			return false
+		case *ast.ValuesStmt:
+			// Likewise a VALUES query child (INSERT INTO dest VALUES ((SELECT
+			// x FROM secret))) — its rows' subqueries are reads too.
+			w.visitValues(q, false)
 			return false
 		case *ast.SetOpStmt:
 			w.visitSetOp(q, false)
@@ -332,6 +341,8 @@ func (w *spanWalker) visitSetOpArms(n *ast.SetOpStmt, outermost bool) {
 	switch l := n.Left.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(l, outermost)
+	case *ast.ValuesStmt:
+		w.visitValues(l, outermost)
 	case *ast.SetOpStmt:
 		if l != nil {
 			w.visitSetOpArms(l, outermost)
@@ -342,6 +353,8 @@ func (w *spanWalker) visitSetOpArms(n *ast.SetOpStmt, outermost bool) {
 	switch r := n.Right.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(r, false)
+	case *ast.ValuesStmt:
+		w.visitValues(r, false)
 	case *ast.SetOpStmt:
 		w.visitSetOp(r, false)
 	case *ast.GroupedQuery:
@@ -418,6 +431,8 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 			switch q := cte.Query.(type) {
 			case *ast.SelectStmt:
 				w.visitSelect(q, false)
+			case *ast.ValuesStmt:
+				w.visitValues(q, false)
 			case *ast.SetOpStmt:
 				w.visitSetOp(q, false)
 			case *ast.GroupedQuery:
@@ -474,6 +489,78 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 
 	// Pop the scope.
 	w.leaveScope(scope)
+}
+
+// visitValues processes one VALUES query. Its rows are namedExpressions, so
+// the first row defines the result schema — SQL takes a query's column names
+// from its first row — and every row's expressions are walked for the table
+// reads their subqueries perform.
+func (w *spanWalker) visitValues(stmt *ast.ValuesStmt, outermost bool) {
+	if stmt == nil {
+		return
+	}
+
+	// A WITH clause prefixes a VALUES query too (DorisParser.g4:1167), so its
+	// names scope over the rows, and its bodies are queries of their own.
+	scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+	if stmt.With != nil {
+		for _, cte := range stmt.With.CTEs {
+			if cte == nil || cte.Name == "" {
+				continue
+			}
+			scope.names[strings.ToLower(cte.Name)] = true
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
+		}
+	}
+	w.enterScope(scope)
+	defer w.leaveScope(scope)
+
+	if stmt.With != nil {
+		for _, cte := range stmt.With.CTEs {
+			if cte == nil || cte.Query == nil {
+				continue
+			}
+			switch q := cte.Query.(type) {
+			case *ast.SelectStmt:
+				w.visitSelect(q, false)
+			case *ast.ValuesStmt:
+				w.visitValues(q, false)
+			case *ast.SetOpStmt:
+				w.visitSetOp(q, false)
+			case *ast.GroupedQuery:
+				w.visitGroupedQuery(q, false)
+			}
+		}
+	}
+
+	for i, row := range stmt.Rows {
+		for _, item := range row {
+			if item == nil {
+				continue
+			}
+			if i == 0 && outermost && !w.resolved {
+				w.span.Results = append(w.span.Results, w.makeColumnInfo(item))
+			}
+			if item.Expr != nil {
+				w.walkExpr(item.Expr)
+			}
+		}
+	}
+	if outermost {
+		w.resolved = true
+	}
+
+	for _, o := range stmt.OrderBy {
+		if o != nil && o.Expr != nil {
+			w.walkExpr(o.Expr)
+		}
+	}
+	if stmt.Limit != nil {
+		w.walkExpr(stmt.Limit)
+	}
+	if stmt.Offset != nil {
+		w.walkExpr(stmt.Offset)
+	}
 }
 
 // visitFromItem walks one entry in the FROM list. It may be a TableRef (bare
@@ -568,6 +655,8 @@ func (w *spanWalker) analyzeSubquery(sub *ast.SubqueryExpr) {
 	switch q := sub.Query.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(q, false)
+	case *ast.ValuesStmt:
+		w.visitValues(q, false)
 	case *ast.SetOpStmt:
 		w.visitSetOp(q, false)
 	case *ast.GroupedQuery:
@@ -621,6 +710,8 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 		switch n := stmt.(type) {
 		case *ast.SelectStmt:
 			w.visitSelect(n, false)
+		case *ast.ValuesStmt:
+			w.visitValues(n, false)
 		case *ast.SetOpStmt:
 			w.visitSetOp(n, false)
 		case *ast.GroupedQuery:

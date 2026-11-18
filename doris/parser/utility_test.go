@@ -544,3 +544,43 @@ func TestDescribeInsertNeedsInto(t *testing.T) {
 		t.Error("Parse(DESCRIBE INSERT a SELECT 1) succeeded, want a syntax error")
 	}
 }
+
+// tableAlias (:1393) carries an optional identifier list, and the name after
+// AS is required.
+func TestDescribeFunctionTableAliasColumns(t *testing.T) {
+	stmt := parseOne(t, "DESCRIBE FUNCTION a() AS v(c)").(*ast.DescribeStmt)
+	if stmt.TableAlias != "v" || len(stmt.TableColumns) != 1 || stmt.TableColumns[0] != "c" {
+		t.Errorf("alias = %q columns = %q, want v(c)", stmt.TableAlias, stmt.TableColumns)
+	}
+	if _, err := Parse("DESCRIBE FUNCTION a() AS"); err == nil {
+		t.Error("Parse(DESCRIBE FUNCTION a() AS) succeeded, want a syntax error")
+	}
+}
+
+// FULL scopes to describe_stmt's table-name alternative, so it does not prefix
+// FUNCTION.
+func TestDescribeFullFunctionRejected(t *testing.T) {
+	if _, err := Parse("DESCRIBE FULL FUNCTION a()"); err == nil {
+		t.Error("Parse(DESCRIBE FULL FUNCTION a()) succeeded, want a syntax error")
+	}
+}
+
+// explain : explainCommand planType? level? PROCESS? (:1061), so DESCRIBE takes
+// the same options EXPLAIN does.
+func TestDescribeExplainOptions(t *testing.T) {
+	tests := []struct {
+		sql      string
+		wantType string
+	}{
+		{"DESCRIBE TREE SELECT 1", "TREE"},
+		{"DESCRIBE PROCESS SELECT 1", "PROCESS"},
+		{"DESCRIBE OPTIMIZED VERBOSE SELECT 1", "OPTIMIZED VERBOSE"},
+		{"EXPLAIN PLAN PROCESS SELECT 1", "PLAN PROCESS"},
+	}
+	for _, tc := range tests {
+		stmt := parseOne(t, tc.sql).(*ast.ExplainStmt)
+		if stmt.Type != tc.wantType {
+			t.Errorf("Parse(%q): Type = %q, want %q", tc.sql, stmt.Type, tc.wantType)
+		}
+	}
+}

@@ -1388,3 +1388,25 @@ func TestValuesStmtDEFAULTTakesNoAlias(t *testing.T) {
 		t.Error("Parse(VALUES(DEFAULT zzz)) succeeded, want a syntax error")
 	}
 }
+
+// VALUES is a query primary (DorisParser.g4:1186), so it sits wherever a query
+// does: as a CTE body, prefixed by WITH, inside a set operation, and in the
+// parenthesized query positions expressions and FROM read.
+func TestValuesStmtAsQueryOperand(t *testing.T) {
+	for _, sql := range []string{
+		"WITH c AS (VALUES(1)) SELECT * FROM c",
+		"WITH c AS (SELECT 1) VALUES(1)",
+		"SELECT 1 UNION VALUES(1)",
+		"SELECT 1 INTERSECT VALUES(1)",
+		"VALUES(1) INTERSECT SELECT 1",
+		"(VALUES(1))",
+		"SELECT (VALUES(1))",
+		"SELECT 1 IN (VALUES(1))",
+		"SELECT * FROM (VALUES(1)) v",
+		"EXPLAIN VALUES(1)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) = %v, want an accept", sql, err)
+		}
+	}
+}

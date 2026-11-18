@@ -51,9 +51,12 @@ func init() {
 	}
 
 	// User SELECT queries (may be refined by downstream analysis for CTEs).
+	// VALUES is a query (DorisParser.g4:1186 queryPrimary), not a DML keyword:
+	// it produces rows and is classified with SELECT.
 	register(QueryTypeSelect,
 		"SELECT",
 		"WITH",
+		"VALUES",
 	)
 
 	// Administrative / info-schema reads.

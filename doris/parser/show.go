@@ -669,20 +669,22 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 
 	stmt := &ast.DescribeStmt{Loc: startLoc}
 
-	// Optional FULL modifier.
-	if p.cur.Kind == kwFULL {
-		stmt.Full = true
-		p.advance()
-	}
-
 	// DESCRIBE FUNCTION a() — table_valued_function_ref
-	// (DorisLegacyParser.g4:2240), which DorisParser.g4:948 derives too.
+	// (DorisLegacyParser.g4:2240), which DorisParser.g4:948 derives too. It is
+	// a describe_stmt alternative of its own: FULL scopes to the table-name
+	// alternative, so it is read after this.
 	if p.cur.Kind == kwFUNCTION {
 		if err := p.parseDescribeFunction(stmt); err != nil {
 			return nil, err
 		}
 		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
+	}
+
+	// Optional FULL modifier.
+	if p.cur.Kind == kwFULL {
+		stmt.Full = true
+		p.advance()
 	}
 
 	// Target table/function name.
@@ -744,9 +746,35 @@ func (p *Parser) parseDescribeFunction(stmt *ast.DescribeStmt) error {
 	} else {
 		p.advance() // consume ')'
 	}
-	// tableAlias : (AS? strictIdentifier identifierList?)?
-	alias, _ := p.parseOptionalAlias(false)
-	stmt.TableAlias = alias
+	// tableAlias : (AS? strictIdentifier identifierList?)? (:1393). The name
+	// is required after AS, so a missing one is an error rather than an empty
+	// alias.
+	switch {
+	case p.cur.Kind == kwAS:
+		p.advance() // consume AS
+		name, _, err := p.parseAliasIdentifier()
+		if err != nil {
+			return err
+		}
+		stmt.TableAlias = name
+	case p.isAliasIdentToken():
+		name, _, err := p.parseAliasIdentifier()
+		if err != nil {
+			return err
+		}
+		stmt.TableAlias = name
+	}
+	if stmt.TableAlias != "" && p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		columns, err := p.parseIdentifierList()
+		if err != nil {
+			return err
+		}
+		stmt.TableColumns = columns
+		if _, err := p.expect(int(')')); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -851,49 +879,51 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 // explain command — EXPLAIN, DESCRIBE or DESC alike (DorisParser.g4:1061
 // explain, :1067 explainCommand).
 func (p *Parser) parseExplainBody(stmt *ast.ExplainStmt) (ast.Node, error) {
-	// Optional explain type modifier.
+	// explain : explainCommand planType? level=(VERBOSE|TREE|GRAPH|PLAN|DUMP)?
+	// PROCESS? (DorisParser.g4:1061), so the options are read in that order
+	// and Type keeps the ones stated, space-separated — the same sequence
+	// describeExplains looks ahead through.
+	var options []string
 	switch p.cur.Kind {
-	case kwVERBOSE:
-		stmt.Type = "VERBOSE"
-		p.advance()
-	case kwGRAPH:
-		stmt.Type = "GRAPH"
-		p.advance()
 	case kwPARSED:
-		stmt.Type = "PARSED"
+		options = append(options, "PARSED")
 		p.advance()
 	case kwANALYZED:
-		stmt.Type = "ANALYZED"
+		options = append(options, "ANALYZED")
 		p.advance()
 	case kwREWRITTEN:
-		stmt.Type = "REWRITTEN"
+		options = append(options, "REWRITTEN")
 		p.advance()
+	case kwOPTIMIZED:
+		options = append(options, "OPTIMIZED")
+		p.advance()
+	case kwPHYSICAL:
+		options = append(options, "PHYSICAL")
+		p.advance()
+	case kwSHAPE:
+		options = append(options, "SHAPE")
+		p.advance()
+	case kwMEMO:
+		options = append(options, "MEMO")
+		p.advance()
+	}
+	switch p.cur.Kind {
+	case kwVERBOSE, kwTREE, kwGRAPH, kwDUMP:
+		options = append(options, strings.ToUpper(p.advance().Str))
 	case kwPLAN:
 		p.advance() // consume PLAN
 		if p.cur.Kind == kwPROCESS {
-			stmt.Type = "PLAN PROCESS"
+			options = append(options, "PLAN PROCESS")
 			p.advance()
 		} else {
-			stmt.Type = "PLAN"
+			options = append(options, "PLAN")
 		}
-	case kwPHYSICAL:
-		stmt.Type = "PHYSICAL"
-		p.advance()
-	case kwMEMO:
-		stmt.Type = "MEMO"
-		p.advance()
-	case kwSHAPE:
-		stmt.Type = "SHAPE"
-		p.advance()
-	case kwDUMP:
-		stmt.Type = "DUMP"
-		p.advance()
-	case kwOPTIMIZED:
-		stmt.Type = "OPTIMIZED"
-		p.advance()
-	default:
-		// No modifier — empty Type.
 	}
+	if p.cur.Kind == kwPROCESS {
+		options = append(options, "PROCESS")
+		p.advance()
+	}
+	stmt.Type = strings.Join(options, " ")
 
 	// Doris states the INSERT head: INSERT (INTO | OVERWRITE TABLE)
 	// (DorisParser.g4:139, DorisLegacyParser.g4:1777 insert_stmt). parseInsert

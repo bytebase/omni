@@ -127,7 +127,8 @@ var _ Node = (*IntoOutfileClause)(nil)
 // DorisParser.g4:1486 derives it as inlineTable, one of queryPrimary's
 // alternatives (:1186 #valuesTable), so it is a query statement the engine
 // answers like any other; the CUP parser's select_stmt (:2050) takes the same
-// trailing order_by_clause and limit_clause.
+// trailing order_by_clause and limit_clause. A WITH clause prefixes it as it
+// prefixes a SELECT (DorisParser.g4:1167 query : cte? queryTerm ...).
 //
 // Each row is one rowConstructor (:1527): a parenthesized list of
 // rowConstructorItem (:1531), each of which is a constant, DEFAULT, or a
@@ -136,6 +137,7 @@ var _ Node = (*IntoOutfileClause)(nil)
 // engine-valid: DorisParser.g4:1528 makes the item list optional, and the CUP
 // parser's row_value (:2060) makes opt_values optional.
 type ValuesStmt struct {
+	With    *WithClause     // optional leading WITH clause; nil if absent
 	Rows    [][]*SelectItem // one slice per rowConstructor; a row may be empty
 	OrderBy []*OrderByItem  // ORDER BY items
 	Limit   Node            // LIMIT expression (nil if absent)

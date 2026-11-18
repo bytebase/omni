@@ -569,6 +569,10 @@ func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
 			right, err = p.parseParenQueryOperand()
 		} else if p.cur.Kind == kwSELECT {
 			right, err = p.parseSelectStmt()
+		} else if p.cur.Kind == kwVALUES {
+			// An INTERSECT arm is a queryTerm too (DorisParser.g4:1183-1186),
+			// so VALUES(1) INTERSECT VALUES(1) is engine-valid.
+			right, err = p.parseValuesStmt()
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -839,7 +843,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	// Parenthesized: subquery
 	if p.cur.Kind == int('(') {
 		next := p.peekNext()
-		if next.Kind == kwSELECT || next.Kind == kwWITH {
+		if next.Kind == kwSELECT || next.Kind == kwWITH || next.Kind == kwVALUES {
 			// Subquery in FROM: (SELECT ...) [AS] alias
 			openTok := p.advance() // consume '('
 			subq, err := p.parseSubqueryPlaceholder(openTok.Loc.Start)

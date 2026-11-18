@@ -229,6 +229,12 @@ func (p *Parser) parseLoadPropertyStmt() (*ast.LoadPropertyStmt, error) {
 	case kwORDER:
 		kind = "SEQUENCE"
 	case kwCOLUMNS:
+		// The statement alternative is importColumnsStatement, which always
+		// states its list; COLUMNS TERMINATED BY is a load property of LOAD
+		// and CREATE ROUTINE LOAD only (DorisParser.g4:404 vs :389-393).
+		if p.peekNext().Kind != int('(') {
+			return nil, syntaxErrorAt(p.peekNext())
+		}
 		kind = "COLUMNS"
 	case kwPRECEDING:
 		kind = "PRECEDING FILTER"

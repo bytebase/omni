@@ -971,3 +971,44 @@ func TestGetQuerySpan_DMLWithClauseScopesCTEs(t *testing.T) {
 		t.Errorf("CTEs = %v, want [c]", span.CTEs)
 	}
 }
+
+// A VALUES query is a query: its first row names the results, and every row's
+// subqueries are reads — including when an arm of a set operation is a VALUES
+// query, or a CTE body is one.
+func TestGetQuerySpan_Values(t *testing.T) {
+	span, err := GetQuerySpan("VALUES(1 a, 2 b)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if span.Type != QueryTypeSelect {
+		t.Errorf("Type = %v, want QueryTypeSelect", span.Type)
+	}
+	var names []string
+	for _, r := range span.Results {
+		names = append(names, r.Name)
+	}
+	if strings.Join(names, ",") != "a,b" {
+		t.Errorf("Results = %v, want a,b", names)
+	}
+
+	tests := []struct {
+		sql    string
+		tables []tableSig
+	}{
+		{"VALUES((SELECT x FROM secret))", []tableSig{{Table: "secret"}}},
+		{"SELECT 1 UNION VALUES((SELECT x FROM secret))", []tableSig{{Table: "secret"}}},
+		{"WITH c AS (VALUES((SELECT x FROM secret))) SELECT * FROM c", []tableSig{{Table: "secret"}}},
+	}
+	for _, tc := range tests {
+		span, err := GetQuerySpan(tc.sql)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		got := toSigs(span.AccessTables)
+		for _, want := range tc.tables {
+			if !containsSig(got, want) {
+				t.Errorf("%q: AccessTables = %v, want %v in it", tc.sql, got, want)
+			}
+		}
+	}
+}

@@ -61,6 +61,7 @@ type DescribeStmt struct {
 	Function      bool        // DESCRIBE FUNCTION name(...)
 	Args          []*Property // DESCRIBE FUNCTION's key=value arguments
 	TableAlias    string      // DESCRIBE FUNCTION's optional table alias
+	TableColumns  []string    // the identifier list a table alias may carry
 	Partition     []string    // opt_partition_names: the named partitions
 	TempPartition bool        // a TEMPORARY PARTITION clause was given
 	Loc           Loc
