@@ -999,6 +999,41 @@ func (p *Parser) parseSubpipelineAfterOpen(openTok Token) (*ast.Subpipeline, err
 	}, nil
 }
 
+// parsePipeTablePrimary parses the right side of a pipe JOIN. It is
+// parseTablePrimary, except that a table-valued function's argument list reads
+// the tvf_argument grammar (`TABLE t`, `arg => TABLE t`, `INPUT TABLE`), which
+// pipe_join's table_primary allows. Other table sources are unchanged.
+func (p *Parser) parsePipeTablePrimary() (ast.Node, error) {
+	if isIdentifierStart(p.cur.Type) || p.cur.Type == kwIF {
+		cp := p.checkpoint()
+		f, err := p.parsePipeTVF()
+		if err == nil {
+			te := &ast.TableExpr{Func: f, Loc: nodeLoc(f)}
+			if alias, ok, err := p.tryParseTableAlias(); err != nil {
+				return nil, err
+			} else if ok {
+				te.Alias = alias
+				te.Loc.End = p.prev.Loc.End
+			}
+			if err := p.parsePivotOrUnpivot(te); err != nil {
+				return nil, err
+			}
+			for p.atTableSample() {
+				sc, serr := p.parseTableSample()
+				if serr != nil {
+					return nil, serr
+				}
+				if !attachSample(te, sc) {
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
+			return te, nil
+		}
+		p.restore(cp)
+	}
+	return p.parseTablePrimary()
+}
+
 // parsePipeJoin parses `[NATURAL] [join type] [HASH|LOOKUP] JOIN [hint] <table>
 // [{ON expr | USING (col, …)}]`.
 func (p *Parser) parsePipeJoin(start int) (ast.Node, error) {
@@ -1057,7 +1092,7 @@ func (p *Parser) parsePipeJoin(start int) (ast.Node, error) {
 			return nil, herr
 		}
 	}
-	right, err := p.parseTablePrimary()
+	right, err := p.parsePipeTablePrimary()
 	if err != nil {
 		return nil, err
 	}
@@ -1174,6 +1209,10 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 // alternatives the procedure-CALL helper does not read: `INPUT TABLE`, and a
 // named argument whose value is a table_clause (`arg => TABLE t`).
 func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
+	if p.cur.Type == kwTABLE {
+		// tvf_argument's table_clause: `TABLE <path|tvf> [WHERE expr]`.
+		return p.parseTableClauseOperand()
+	}
 	if p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE {
 		start := p.advance().Loc.Start // INPUT
 		p.advance()                    // TABLE

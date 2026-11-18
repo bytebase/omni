@@ -153,16 +153,14 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 	case *ast.SubpipelineStmt:
 		return classifyPipe(n.Pipeline)
 	case *ast.PipeStatement:
-		if t := classifyPipe(n.Pipeline); t != Select {
-			return t
-		}
-		// The suffix only reads; the head keeps its own classification. A
-		// CALL can write from its body, so it stays Unknown rather than
-		// becoming a read merely because a pipeable suffix follows it.
+		// The head and the suffix both decide. A CALL can write from its body,
+		// so an unknown head stays Unknown even when the suffix writes: the
+		// combined statement is no more classifiable than the head.
+		head := Select
 		if n.Head != nil {
-			return Classify(n.Head, dialect)
+			head = Classify(n.Head, dialect)
 		}
-		return Select
+		return mergeQueryTypes(head, classifyPipe(n.Pipeline))
 
 	// DML (dml_statement / merge_statement / truncate_statement).
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,

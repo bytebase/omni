@@ -385,3 +385,21 @@ func TestPipe_Locs(t *testing.T) {
 		t.Errorf("subpipeline Loc = %+v, want [0,%d)", pipe.Loc, len(sql))
 	}
 }
+
+// TestPipe_SuffixStatementFillsOnce holds the dispatch's single
+// fillSubqueries pass: a malformed embedded query in a statement that the pipe
+// wrapper handles reports one diagnostic, not the same one twice.
+func TestPipe_SuffixStatementFillsOnce(t *testing.T) {
+	for _, sql := range []string{
+		"CALL p((SELECT 1 FROM t a b))",
+		"EXECUTE IMMEDIATE (SELECT 1 FROM t a b)",
+		"|> WHERE (SELECT 1 FROM t a b) = 1",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			_, errs := parseForTest(sql)
+			if len(errs) != 1 {
+				t.Fatalf("parseForTest(%q): got %d errors, want 1: %v", sql, len(errs), errs)
+			}
+		})
+	}
+}

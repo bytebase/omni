@@ -510,39 +510,11 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 				}
 			}
 		case *ast.PipeTablesample:
-			if n.Sample != nil {
-				w.walkPredicate(n.Sample.Size)
-				for _, expr := range n.Sample.PartitionBy {
-					w.walkPredicate(expr)
-				}
-				w.walkPredicate(n.Sample.Repeatable)
-			}
+			w.walkSampleExpressions(n.Sample)
 		case *ast.PipePivot:
-			if n.Pivot != nil {
-				for _, agg := range n.Pivot.Aggregates {
-					if agg != nil {
-						w.walkSubqueriesOnly(agg.Expr)
-					}
-				}
-				w.walkSubqueriesOnly(n.Pivot.For)
-				for _, v := range n.Pivot.Values {
-					if v != nil {
-						w.walkSubqueriesOnly(v.Expr)
-					}
-				}
-			}
+			w.walkPivotExpressions(n.Pivot)
 		case *ast.PipeUnpivot:
-			if n.Unpivot != nil {
-				w.walkSubqueriesOnly(n.Unpivot.NameColumn)
-				for _, item := range n.Unpivot.Items {
-					if item == nil {
-						continue
-					}
-					for _, col := range item.Columns {
-						w.walkSubqueriesOnly(col)
-					}
-				}
-			}
+			w.walkUnpivotExpressions(n.Unpivot)
 		case *ast.PipeJoin:
 			if n.Join != nil {
 				w.buildFromItem(n.Join.Right)
@@ -607,6 +579,55 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 	if scope != nil {
 		w.scope = scope.parent
 	}
+}
+
+// walkPivotExpressions walks a PIVOT clause's expressions for embedded
+// subqueries. They are output expressions, so they are not predicate columns.
+func (w *spanWalker) walkPivotExpressions(pv *ast.PivotClause) {
+	if pv == nil {
+		return
+	}
+	for _, agg := range pv.Aggregates {
+		if agg != nil {
+			w.walkSubqueriesOnly(agg.Expr)
+		}
+	}
+	w.walkSubqueriesOnly(pv.For)
+	for _, v := range pv.Values {
+		if v != nil {
+			w.walkSubqueriesOnly(v.Expr)
+		}
+	}
+}
+
+// walkUnpivotExpressions walks an UNPIVOT clause's expressions for embedded
+// subqueries.
+func (w *spanWalker) walkUnpivotExpressions(up *ast.UnpivotClause) {
+	if up == nil {
+		return
+	}
+	w.walkSubqueriesOnly(up.NameColumn)
+	for _, item := range up.Items {
+		if item == nil {
+			continue
+		}
+		for _, col := range item.Columns {
+			w.walkSubqueriesOnly(col)
+		}
+	}
+}
+
+// walkSampleExpressions walks a TABLESAMPLE clause's size, PARTITION BY and
+// seed expressions for embedded subqueries.
+func (w *spanWalker) walkSampleExpressions(sc *ast.SampleClause) {
+	if sc == nil {
+		return
+	}
+	w.walkPredicate(sc.Size)
+	for _, expr := range sc.PartitionBy {
+		w.walkPredicate(expr)
+	}
+	w.walkPredicate(sc.Repeatable)
 }
 
 // walkPipeSelect walks the item list and GROUP BY of a pipe operator that holds
@@ -682,10 +703,42 @@ func (w *spanWalker) recordCallTableArgs(fc *ast.FuncCall) {
 		return
 	}
 	for _, arg := range fc.Args {
-		if ca, ok := arg.(*ast.CallArg); ok && ca.Kind == ast.CallArgTable {
-			w.recordTable(ca.Path, "")
+		w.recordTVFArgument(arg)
+	}
+}
+
+// recordTVFArgument records the table a TVF argument names, in each shape the
+// grammar gives it: `TABLE t` as a CallArg, the table_clause form as a
+// TableClause, and a named argument whose value is one (`arg => TABLE t`).
+func (w *spanWalker) recordTVFArgument(arg ast.Node) {
+	switch a := arg.(type) {
+	case *ast.CallArg:
+		if a.Kind == ast.CallArgTable {
+			w.recordTable(a.Path, "")
+		}
+	case *ast.TableClause:
+		w.recordTableClauseTables(a)
+	case *ast.NamedArg:
+		if tc, ok := a.Value.(*ast.TableClause); ok {
+			w.recordTableClauseTables(tc)
 		}
 	}
+}
+
+// recordTableClauseTables records a table_clause's table (or its TVF arguments)
+// and its optional WHERE filter.
+func (w *spanWalker) recordTableClauseTables(tc *ast.TableClause) {
+	if tc == nil {
+		return
+	}
+	if tc.Table != nil {
+		if tc.Table.Func != nil {
+			w.recordCallTableArgs(tc.Table.Func)
+		} else {
+			w.recordTable(tc.Table.Path, "")
+		}
+	}
+	w.walkPredicate(tc.Where)
 }
 
 // visitPipeOperand walks one operand of a pipe set operation or recursive
@@ -696,12 +749,8 @@ func (w *spanWalker) visitPipeOperand(node ast.Node) {
 		w.visitBody(n)
 	case *ast.TableClause:
 		if n != nil {
-			if n.Table != nil && n.Table.Func != nil {
-				// A TABLE operand may be a TVF; its TABLE argument names a table.
-				w.recordCallTableArgs(n.Table.Func)
-			}
+			w.recordTableClauseTables(n)
 			w.buildTableExpr(n.Table)
-			w.walkPredicate(n.Where)
 		}
 	case *ast.Subpipeline:
 		w.visitPipe(n)
@@ -1384,6 +1433,9 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		}
 	}
 	w.walkPredicate(n.SystemTime)
+	w.walkPivotExpressions(n.Pivot)
+	w.walkUnpivotExpressions(n.Unpivot)
+	w.walkSampleExpressions(n.Sample)
 	return rel
 }
 

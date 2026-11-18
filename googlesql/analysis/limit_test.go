@@ -130,6 +130,13 @@ func TestStatementWithResultLimit(t *testing.T) {
 			want:      "|> WHERE x > 1 |> LIMIT 10",
 		},
 		{
+			name:      "bigquery appends a literal cap after a parameterized pipe limit",
+			statement: "|> LIMIT @n",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "|> LIMIT @n |> LIMIT 10",
+		},
+		{
 			name:      "bigquery wraps a select",
 			statement: "SELECT * FROM t",
 			limit:     10,
