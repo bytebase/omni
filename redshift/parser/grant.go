@@ -798,8 +798,19 @@ func (p *Parser) parseRedshiftObjectGranteeList(kind redshiftGrantKind, objtype 
 			if _, err := p.expect(OPTION); err != nil {
 				return nil, false, false, err
 			}
-			if rs, ok := grantees.Items[len(grantees.Items)-1].(*nodes.RoleSpec); ok {
+			// An external table's or schema's page writes one option after the
+			// whole IAM role list, and it covers every role; elsewhere the option
+			// follows the username it belongs to.
+			all := kind == redshiftGrantExternalTable || kind == redshiftGrantExternalSchema
+			if rs, ok := grantees.Items[len(grantees.Items)-1].(*nodes.RoleSpec); ok && !all {
 				rs.WithGrantOption = true
+			}
+			if all {
+				for _, item := range grantees.Items {
+					if rs, ok := item.(*nodes.RoleSpec); ok {
+						rs.WithGrantOption = true
+					}
+				}
 			}
 			grantOption = true
 		}

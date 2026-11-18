@@ -260,31 +260,17 @@ func revokeOnGrant(g Grant, privs []grantPriv) (Grant, bool) {
 		if p.name == "ALL" || len(p.columns) == 0 || len(g.Columns) == 0 {
 			return g, false
 		}
-		if !grantColumnsInclude(g.Columns, p.columns) {
-			continue
-		}
 		rest := subtractGrantColumns(g.Columns, p.columns)
 		if len(rest) == 0 {
 			return g, false
+		}
+		if len(rest) == len(g.Columns) {
+			continue // the revoke names no column of this grant
 		}
 		g.Columns = rest
 		return g, true
 	}
 	return g, true
-}
-
-// grantColumnsInclude reports whether every column of a is in cols.
-func grantColumnsInclude(cols, a []string) bool {
-	have := make(map[string]bool, len(cols))
-	for _, c := range cols {
-		have[c] = true
-	}
-	for _, c := range a {
-		if !have[c] {
-			return false
-		}
-	}
-	return true
 }
 
 // subtractGrantColumns returns cols without the columns in a.
