@@ -151,13 +151,13 @@ reject	undocumented	docs	statement/alterTableAppend!drop-5	ALTER TABLE a APPEND 
 reject	undocumented	docs	statement/alterTableAppend!drop-6	ALTER TABLE a APPEND FROM
 reject	undocumented	docs	statement/alterTableAppend!insert	ALTER TABLE a APPEND FROM a zzz
 reject	undocumented	docs	statement/alterTableAppend!swap	ANALYZE TABLE a APPEND FROM a
-reject	accept	docs	statement/alterTemplate	ALTER TEMPLATE a ADD a
+accept	accept	docs	statement/alterTemplate	ALTER TEMPLATE a ADD a
 reject	undocumented	docs	statement/alterTemplate!drop-1	TEMPLATE a ADD a
 reject	undocumented	docs	statement/alterTemplate!drop-2	ALTER a ADD a
 reject	undocumented	docs	statement/alterTemplate!drop-3	ALTER TEMPLATE ADD a
 reject	undocumented	docs	statement/alterTemplate!drop-4	ALTER TEMPLATE a a
 reject	undocumented	docs	statement/alterTemplate!drop-5	ALTER TEMPLATE a ADD
-reject	accept	docs	statement/alterTemplate!insert	ALTER TEMPLATE a ADD a zzz
+accept	accept	docs	statement/alterTemplate!insert	ALTER TEMPLATE a ADD a zzz
 reject	undocumented	docs	statement/alterTemplate!swap	ANALYZE TEMPLATE a ADD a
 accept	accept	docs	statement/alterUser	ALTER USER a CREATEDB
 reject	undocumented	docs	statement/alterUser!drop-1	USER a CREATEDB
@@ -445,13 +445,13 @@ reject	undocumented	docs	statement/createTableAs!drop-4	CREATE TABLE a SELECT 1
 reject	undocumented	docs	statement/createTableAs!drop-5	CREATE TABLE a AS
 accept	undocumented	docs	statement/createTableAs!insert	CREATE TABLE a AS SELECT 1 zzz
 reject	undocumented	docs	statement/createTableAs!swap	CREATEDB TABLE a AS SELECT 1
-reject	accept	docs	statement/createTemplate	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	statement/createTemplate	CREATE TEMPLATE a FOR COPY
 reject	undocumented	docs	statement/createTemplate!drop-1	TEMPLATE a FOR COPY
 reject	undocumented	docs	statement/createTemplate!drop-2	CREATE a FOR COPY
 reject	undocumented	docs	statement/createTemplate!drop-3	CREATE TEMPLATE FOR COPY
 reject	undocumented	docs	statement/createTemplate!drop-4	CREATE TEMPLATE a COPY
 reject	undocumented	docs	statement/createTemplate!drop-5	CREATE TEMPLATE a FOR
-reject	accept	docs	statement/createTemplate!insert	CREATE TEMPLATE a FOR COPY zzz
+accept	accept	docs	statement/createTemplate!insert	CREATE TEMPLATE a FOR COPY zzz
 reject	undocumented	docs	statement/createTemplate!swap	CREATEDB TEMPLATE a FOR COPY
 accept	accept	docs	statement/createUser	CREATE USER a PASSWORD 's'
 reject	undocumented	docs	statement/createUser!drop-1	USER a PASSWORD 's'
@@ -605,7 +605,7 @@ accept	undocumented	docs	statement/dropTable!drop-1	TABLE a
 reject	undocumented	docs	statement/dropTable!drop-3	DROP TABLE
 reject	undocumented	docs	statement/dropTable!insert	DROP TABLE a zzz
 reject	undocumented	docs	statement/dropTable!swap	DUPLICATES TABLE a
-reject	accept	docs	statement/dropTemplate	DROP TEMPLATE a
+accept	accept	docs	statement/dropTemplate	DROP TEMPLATE a
 reject	undocumented	docs	statement/dropTemplate!drop-1	TEMPLATE a
 reject	undocumented	docs	statement/dropTemplate!drop-3	DROP TEMPLATE
 reject	undocumented	docs	statement/dropTemplate!insert	DROP TEMPLATE a zzz
@@ -724,13 +724,13 @@ accept	accept	docs	statement/show	SHOW a
 reject	undocumented	docs	statement/show!drop-2	SHOW
 reject	undocumented	docs	statement/show!insert	SHOW a zzz
 reject	undocumented	docs	statement/show!swap	SNAPSHOT a
-reject	accept	docs	statement/showUserLockout	SHOW USER LOCKOUT
+accept	accept	docs	statement/showUserLockout	SHOW USER LOCKOUT
 reject	undocumented	docs	statement/showUserLockout!drop-1	USER LOCKOUT
 accept	accept	docs	statement/showUserLockout!drop-2	SHOW LOCKOUT
 reject	undocumented	docs	statement/showUserLockout!drop-3	SHOW USER
 reject	undocumented	docs	statement/showUserLockout!insert	SHOW USER LOCKOUT zzz
 reject	undocumented	docs	statement/showUserLockout!swap	SNAPSHOT USER LOCKOUT
-reject	accept	docs	statement/showColumnGrants	SHOW COLUMN GRANTS ON TABLE a.a
+accept	accept	docs	statement/showColumnGrants	SHOW COLUMN GRANTS ON TABLE a.a
 reject	undocumented	docs	statement/showColumnGrants!drop-1	COLUMN GRANTS ON TABLE a.a
 accept	undocumented	docs	statement/showColumnGrants!drop-2	SHOW GRANTS ON TABLE a.a
 reject	undocumented	docs	statement/showColumnGrants!drop-3	SHOW COLUMN ON TABLE a.a
@@ -753,7 +753,7 @@ accept	undocumented	docs	statement/showColumns!drop-8	SHOW COLUMNS FROM TABLE a.
 accept	undocumented	docs	statement/showColumns!drop-9	SHOW COLUMNS FROM TABLE a.a.
 accept	undocumented	docs	statement/showColumns!insert	SHOW COLUMNS FROM TABLE a.a.a zzz
 reject	undocumented	docs	statement/showColumns!swap	SNAPSHOT COLUMNS FROM TABLE a.a.a
-reject	accept	docs	statement/showConstraints	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
+accept	accept	docs	statement/showConstraints	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
 reject	undocumented	docs	statement/showConstraints!drop-1	CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
 reject	undocumented	docs	statement/showConstraints!drop-2	SHOW PRIMARY KEYS FROM TABLE a.a
 reject	undocumented	docs	statement/showConstraints!drop-3	SHOW CONSTRAINTS KEYS FROM TABLE a.a
@@ -779,7 +779,7 @@ accept	accept	docs	statement/showDatabases	SHOW DATABASES
 reject	undocumented	docs	statement/showDatabases!drop-1	DATABASES
 accept	undocumented	docs	statement/showDatabases!insert	SHOW DATABASES zzz
 reject	undocumented	docs	statement/showDatabases!swap	SNAPSHOT DATABASES
-reject	accept	docs	statement/showFunctions	SHOW FUNCTIONS FROM SCHEMA a
+accept	accept	docs	statement/showFunctions	SHOW FUNCTIONS FROM SCHEMA a
 reject	undocumented	docs	statement/showFunctions!drop-1	FUNCTIONS FROM SCHEMA a
 reject	undocumented	docs	statement/showFunctions!drop-2	SHOW FROM SCHEMA a
 reject	undocumented	docs	statement/showFunctions!drop-3	SHOW FUNCTIONS SCHEMA a
@@ -803,7 +803,7 @@ accept	accept	docs	statement/showDatashares	SHOW DATASHARES
 reject	undocumented	docs	statement/showDatashares!drop-1	DATASHARES
 accept	undocumented	docs	statement/showDatashares!insert	SHOW DATASHARES zzz
 reject	undocumented	docs	statement/showDatashares!swap	SNAPSHOT DATASHARES
-reject	accept	docs	statement/showParameters	SHOW PARAMETERS OF FUNCTION a.a(INT)
+accept	accept	docs	statement/showParameters	SHOW PARAMETERS OF FUNCTION a.a(INT)
 reject	undocumented	docs	statement/showParameters!drop-1	PARAMETERS OF FUNCTION a.a(INT)
 reject	undocumented	docs	statement/showParameters!drop-2	SHOW OF FUNCTION a.a(INT)
 reject	undocumented	docs	statement/showParameters!drop-3	SHOW PARAMETERS FUNCTION a.a(INT)
@@ -816,7 +816,7 @@ reject	undocumented	docs	statement/showParameters!drop-9	SHOW PARAMETERS OF FUNC
 reject	undocumented	docs	statement/showParameters!drop-10	SHOW PARAMETERS OF FUNCTION a.a(INT
 reject	undocumented	docs	statement/showParameters!insert	SHOW PARAMETERS OF FUNCTION a.a(INT) zzz
 reject	undocumented	docs	statement/showParameters!swap	SNAPSHOT PARAMETERS OF FUNCTION a.a(INT)
-reject	accept	docs	statement/showPolicies	SHOW RLS POLICIES
+accept	accept	docs	statement/showPolicies	SHOW RLS POLICIES
 reject	undocumented	docs	statement/showPolicies!drop-1	RLS POLICIES
 accept	accept	docs	statement/showPolicies!drop-2	SHOW POLICIES
 accept	accept	docs	statement/showPolicies!drop-3	SHOW RLS
@@ -827,7 +827,7 @@ reject	undocumented	docs	statement/showProcedure!drop-1	PROCEDURE a
 accept	accept	docs	statement/showProcedure!drop-3	SHOW PROCEDURE
 accept	undocumented	docs	statement/showProcedure!insert	SHOW PROCEDURE a zzz
 reject	undocumented	docs	statement/showProcedure!swap	SNAPSHOT PROCEDURE a
-reject	accept	docs	statement/showProcedures	SHOW PROCEDURES FROM SCHEMA a
+accept	accept	docs	statement/showProcedures	SHOW PROCEDURES FROM SCHEMA a
 reject	undocumented	docs	statement/showProcedures!drop-1	PROCEDURES FROM SCHEMA a
 reject	undocumented	docs	statement/showProcedures!drop-3	SHOW PROCEDURES SCHEMA a
 reject	undocumented	docs	statement/showProcedures!drop-4	SHOW PROCEDURES FROM a
@@ -856,11 +856,11 @@ accept	undocumented	docs	statement/showTables!drop-6	SHOW TABLES FROM SCHEMA a a
 accept	undocumented	docs	statement/showTables!drop-7	SHOW TABLES FROM SCHEMA a.
 accept	undocumented	docs	statement/showTables!insert	SHOW TABLES FROM SCHEMA a.a zzz
 reject	undocumented	docs	statement/showTables!swap	SNAPSHOT TABLES FROM SCHEMA a.a
-reject	accept	docs	statement/showTemplate	SHOW TEMPLATE a
+accept	accept	docs	statement/showTemplate	SHOW TEMPLATE a
 accept	accept	docs	statement/showTemplate!drop-3	SHOW TEMPLATE
 reject	undocumented	docs	statement/showTemplate!insert	SHOW TEMPLATE a zzz
 reject	undocumented	docs	statement/showTemplate!swap	SNAPSHOT TEMPLATE a
-reject	accept	docs	statement/showTemplates	SHOW TEMPLATES FROM SCHEMA a
+accept	accept	docs	statement/showTemplates	SHOW TEMPLATES FROM SCHEMA a
 reject	undocumented	docs	statement/showTemplates!drop-1	TEMPLATES FROM SCHEMA a
 reject	undocumented	docs	statement/showTemplates!drop-3	SHOW TEMPLATES SCHEMA a
 reject	undocumented	docs	statement/showTemplates!drop-4	SHOW TEMPLATES FROM a
@@ -2204,47 +2204,47 @@ reject	undocumented	docs	alterTableAppend(IGNOREEXTRA|FILLTARGET)?/IGNOREEXTRA!s
 accept	accept	docs	alterTableAppend(IGNOREEXTRA|FILLTARGET)?/FILLTARGET	ALTER TABLE a APPEND FROM a FILLTARGET
 reject	undocumented	docs	alterTableAppend(IGNOREEXTRA|FILLTARGET)?/FILLTARGET!insert	ALTER TABLE a APPEND FROM a FILLTARGET zzz
 reject	undocumented	docs	alterTableAppend(IGNOREEXTRA|FILLTARGET)?/FILLTARGET!swap	ALTER TABLE a APPEND FROM a FIXEDWIDTH
-reject	accept	docs	alterTemplate/ALTER_TEMPLATE_(ID_.)?_(ID_.)?_ID_(RENAME_TO_ID|OWNER_T~bc560440	ALTER TEMPLATE a ADD a
-reject	accept	docs	alterTemplate(ID_.)?/%empty	ALTER TEMPLATE a ADD a
+accept	accept	docs	alterTemplate/ALTER_TEMPLATE_(ID_.)?_(ID_.)?_ID_(RENAME_TO_ID|OWNER_T~bc560440	ALTER TEMPLATE a ADD a
+accept	accept	docs	alterTemplate(ID_.)?/%empty	ALTER TEMPLATE a ADD a
 reject	undocumented	docs	alterTemplate(ID_.)?/%empty!insert	ALTER TEMPLATE zzz a ADD a
-reject	accept	docs	alterTemplate(ID_.)?/ID_.	ALTER TEMPLATE a.a ADD a
+accept	accept	docs	alterTemplate(ID_.)?/ID_.	ALTER TEMPLATE a.a ADD a
 reject	undocumented	docs	alterTemplate(ID_.)?/ID_.!drop-1	ALTER TEMPLATE.a ADD a
 reject	undocumented	docs	alterTemplate(ID_.)?/ID_.!drop-2	ALTER TEMPLATE a a ADD a
 reject	undocumented	docs	alterTemplate(ID_.)?/ID_.!truncate	ALTER TEMPLATE a
 reject	undocumented	docs	alterTemplate(ID_.)?/ID_.!insert	ALTER TEMPLATE a.zzz a ADD a
-reject	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID	ALTER TEMPLATE a RENAME TO a
+accept	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID	ALTER TEMPLATE a RENAME TO a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID!drop-1	ALTER TEMPLATE a TO a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID!drop-2	ALTER TEMPLATE a RENAME a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID!drop-3	ALTER TEMPLATE a RENAME TO
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID!insert	ALTER TEMPLATE a RENAME TO a zzz
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/RENAME_TO_ID!swap	ALTER TEMPLATE a REPEATABLE TO a
-reject	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/OWNER_TO_ID	ALTER TEMPLATE a OWNER TO a
+accept	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/OWNER_TO_ID	ALTER TEMPLATE a OWNER TO a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/OWNER_TO_ID!drop-2	ALTER TEMPLATE a OWNER a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/OWNER_TO_ID!drop-3	ALTER TEMPLATE a OWNER TO
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/OWNER_TO_ID!insert	ALTER TEMPLATE a OWNER TO a zzz
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/OWNER_TO_ID!swap	ALTER TEMPLATE a PARALLEL TO a
-reject	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/ADD_ID_(AS)?_(ID)?	ALTER TEMPLATE a ADD a
+accept	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/ADD_ID_(AS)?_(ID)?	ALTER TEMPLATE a ADD a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/ADD_ID_(AS)?_(ID)?!swap	ALTER TEMPLATE a ADDQUOTES a
-reject	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/DROP_ID	ALTER TEMPLATE a DROP a
+accept	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/DROP_ID	ALTER TEMPLATE a DROP a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/DROP_ID!drop-2	ALTER TEMPLATE a DROP
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/DROP_ID!insert	ALTER TEMPLATE a DROP a zzz
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/DROP_ID!swap	ALTER TEMPLATE a DUPLICATES a
-reject	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*	ALTER TEMPLATE a SET a TO a
+accept	accept	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*	ALTER TEMPLATE a SET a TO a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*!drop-1	ALTER TEMPLATE a a TO a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*!drop-2	ALTER TEMPLATE a SET TO a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*!drop-3	ALTER TEMPLATE a SET a a
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*!drop-4	ALTER TEMPLATE a SET a TO
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*!insert	ALTER TEMPLATE a SET a TO a zzz
 reject	undocumented	docs	alterTemplate(RENAME_TO_ID|OWNER_TO_ID|ADD_ID_AS?_~9c10baad)/SET_ID_TO_ID_(,_ID_TO_ID)*!swap	ALTER TEMPLATE a SETTINGS a TO a
-reject	accept	docs	alterTemplate(AS)?/%empty	ALTER TEMPLATE a ADD a
-reject	accept	docs	alterTemplate(AS)?/AS	ALTER TEMPLATE a ADD a AS
-reject	accept	docs	alterTemplate(AS)?/AS!insert	ALTER TEMPLATE a ADD a AS zzz
+accept	accept	docs	alterTemplate(AS)?/%empty	ALTER TEMPLATE a ADD a
+accept	accept	docs	alterTemplate(AS)?/AS	ALTER TEMPLATE a ADD a AS
+accept	accept	docs	alterTemplate(AS)?/AS!insert	ALTER TEMPLATE a ADD a AS zzz
 reject	undocumented	docs	alterTemplate(AS)?/AS!swap	ALTER TEMPLATE a ADD a ASC
-reject	accept	docs	alterTemplate(ID)?/%empty	ALTER TEMPLATE a ADD a
-reject	accept	docs	alterTemplate(ID)?/ID	ALTER TEMPLATE a ADD a a
+accept	accept	docs	alterTemplate(ID)?/%empty	ALTER TEMPLATE a ADD a
+accept	accept	docs	alterTemplate(ID)?/ID	ALTER TEMPLATE a ADD a a
 reject	undocumented	docs	alterTemplate(ID)?/ID!insert	ALTER TEMPLATE a ADD a a zzz
-reject	accept	docs	alterTemplate(,_ID_TO_ID)*/%empty	ALTER TEMPLATE a SET a TO a
-reject	accept	docs	alterTemplate(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*	ALTER TEMPLATE a SET a TO a, a TO a
+accept	accept	docs	alterTemplate(,_ID_TO_ID)*/%empty	ALTER TEMPLATE a SET a TO a
+accept	accept	docs	alterTemplate(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*	ALTER TEMPLATE a SET a TO a, a TO a
 reject	undocumented	docs	alterTemplate(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-1	ALTER TEMPLATE a SET a TO a a TO a
 reject	undocumented	docs	alterTemplate(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-2	ALTER TEMPLATE a SET a TO a, TO a
 reject	undocumented	docs	alterTemplate(,_ID_TO_ID)*/,_ID_TO_ID_(,_ID_TO_ID)*!drop-3	ALTER TEMPLATE a SET a TO a, a a
@@ -4314,42 +4314,42 @@ reject	undocumented	docs	createTableAs_table_attributes(,_ID)*/,_ID_(,_ID)*!drop
 reject	undocumented	docs	createTableAs_table_attributes(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a SORTKEY(a,) AS SELECT 1
 reject	undocumented	docs	createTableAs_table_attributes(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a SORTKEY(a,
 reject	undocumented	docs	createTableAs_table_attributes(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a SORTKEY(a, a zzz) AS SELECT 1
-reject	accept	docs	createTemplate/CREATE_(OR_REPLACE)?_TEMPLATE_(ID_.)?_(ID_.)?_ID_FOR_CO~fc9b9aba	CREATE TEMPLATE a FOR COPY
-reject	accept	docs	createTemplate(OR_REPLACE)?/%empty	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate/CREATE_(OR_REPLACE)?_TEMPLATE_(ID_.)?_(ID_.)?_ID_FOR_CO~fc9b9aba	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate(OR_REPLACE)?/%empty	CREATE TEMPLATE a FOR COPY
 reject	undocumented	docs	createTemplate(OR_REPLACE)?/%empty!insert	CREATE zzz TEMPLATE a FOR COPY
-reject	accept	docs	createTemplate(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate(OR_REPLACE)?/OR_REPLACE	CREATE OR REPLACE TEMPLATE a FOR COPY
 reject	undocumented	docs	createTemplate(OR_REPLACE)?/OR_REPLACE!drop-1	CREATE REPLACE TEMPLATE a FOR COPY
 reject	undocumented	docs	createTemplate(OR_REPLACE)?/OR_REPLACE!drop-2	CREATE OR TEMPLATE a FOR COPY
 reject	undocumented	docs	createTemplate(OR_REPLACE)?/OR_REPLACE!insert	CREATE OR REPLACE zzz TEMPLATE a FOR COPY
 reject	undocumented	docs	createTemplate(OR_REPLACE)?/OR_REPLACE!swap	CREATE ORDER REPLACE TEMPLATE a FOR COPY
-reject	accept	docs	createTemplate(ID_.)?/%empty	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate(ID_.)?/%empty	CREATE TEMPLATE a FOR COPY
 reject	undocumented	docs	createTemplate(ID_.)?/%empty!insert	CREATE TEMPLATE zzz a FOR COPY
-reject	accept	docs	createTemplate(ID_.)?/ID_.	CREATE TEMPLATE a.a FOR COPY
+accept	accept	docs	createTemplate(ID_.)?/ID_.	CREATE TEMPLATE a.a FOR COPY
 reject	undocumented	docs	createTemplate(ID_.)?/ID_.!drop-1	CREATE TEMPLATE.a FOR COPY
 reject	undocumented	docs	createTemplate(ID_.)?/ID_.!drop-2	CREATE TEMPLATE a a FOR COPY
 reject	undocumented	docs	createTemplate(ID_.)?/ID_.!truncate	CREATE TEMPLATE a
 reject	undocumented	docs	createTemplate(ID_.)?/ID_.!insert	CREATE TEMPLATE a.zzz a FOR COPY
-reject	accept	docs	createTemplate(AS)?/%empty	CREATE TEMPLATE a FOR COPY
-reject	accept	docs	createTemplate(AS)?/AS	CREATE TEMPLATE a FOR COPY AS
-reject	accept	docs	createTemplate(AS)?/AS!insert	CREATE TEMPLATE a FOR COPY AS zzz
+accept	accept	docs	createTemplate(AS)?/%empty	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate(AS)?/AS	CREATE TEMPLATE a FOR COPY AS
+accept	accept	docs	createTemplate(AS)?/AS!insert	CREATE TEMPLATE a FOR COPY AS zzz
 reject	undocumented	docs	createTemplate(AS)?/AS!swap	CREATE TEMPLATE a FOR COPY ASC
-reject	accept	docs	createTemplate(FORMAT?_AS?_ID)?/%empty	CREATE TEMPLATE a FOR COPY
-reject	accept	docs	createTemplate(FORMAT?_AS?_ID)?/(FORMAT)?_(AS)?_ID	CREATE TEMPLATE a FOR COPY a
-reject	accept	docs	createTemplate(FORMAT?_AS?_ID)?/(FORMAT)?_(AS)?_ID!insert	CREATE TEMPLATE a FOR COPY a zzz
-reject	accept	docs	createTemplate(FORMAT)?/%empty	CREATE TEMPLATE a FOR COPY a
-reject	accept	docs	createTemplate(FORMAT)?/%empty!insert	CREATE TEMPLATE a FOR COPY zzz a
-reject	accept	docs	createTemplate(FORMAT)?/FORMAT	CREATE TEMPLATE a FOR COPY FORMAT a
-reject	accept	docs	createTemplate(FORMAT)?/FORMAT!insert	CREATE TEMPLATE a FOR COPY FORMAT zzz a
-reject	accept	docs	createTemplate(FORMAT)?/FORMAT!swap	CREATE TEMPLATE a FOR COPY FORWARD a
-reject	accept	docs	createTemplate(ID_ID?_(,_ID_ID?)*)?/%empty	CREATE TEMPLATE a FOR COPY
-reject	accept	docs	createTemplate(ID_ID?_(,_ID_ID?)*)?/ID_(ID)?_(,_ID_ID?)*	CREATE TEMPLATE a FOR COPY a
-reject	accept	docs	createTemplate(ID)?/%empty	CREATE TEMPLATE a FOR COPY a
-reject	accept	docs	createTemplate(ID)?/ID	CREATE TEMPLATE a FOR COPY a a
-reject	accept	docs	createTemplate(ID)?/ID!insert	CREATE TEMPLATE a FOR COPY a a zzz
-reject	accept	docs	createTemplate(,_ID_ID?)*/%empty	CREATE TEMPLATE a FOR COPY a
-reject	accept	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*	CREATE TEMPLATE a FOR COPY a, a
+accept	accept	docs	createTemplate(FORMAT?_AS?_ID)?/%empty	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate(FORMAT?_AS?_ID)?/(FORMAT)?_(AS)?_ID	CREATE TEMPLATE a FOR COPY a
+accept	accept	docs	createTemplate(FORMAT?_AS?_ID)?/(FORMAT)?_(AS)?_ID!insert	CREATE TEMPLATE a FOR COPY a zzz
+accept	accept	docs	createTemplate(FORMAT)?/%empty	CREATE TEMPLATE a FOR COPY a
+accept	accept	docs	createTemplate(FORMAT)?/%empty!insert	CREATE TEMPLATE a FOR COPY zzz a
+accept	accept	docs	createTemplate(FORMAT)?/FORMAT	CREATE TEMPLATE a FOR COPY FORMAT a
+accept	accept	docs	createTemplate(FORMAT)?/FORMAT!insert	CREATE TEMPLATE a FOR COPY FORMAT zzz a
+accept	accept	docs	createTemplate(FORMAT)?/FORMAT!swap	CREATE TEMPLATE a FOR COPY FORWARD a
+accept	accept	docs	createTemplate(ID_ID?_(,_ID_ID?)*)?/%empty	CREATE TEMPLATE a FOR COPY
+accept	accept	docs	createTemplate(ID_ID?_(,_ID_ID?)*)?/ID_(ID)?_(,_ID_ID?)*	CREATE TEMPLATE a FOR COPY a
+accept	accept	docs	createTemplate(ID)?/%empty	CREATE TEMPLATE a FOR COPY a
+accept	accept	docs	createTemplate(ID)?/ID	CREATE TEMPLATE a FOR COPY a a
+accept	accept	docs	createTemplate(ID)?/ID!insert	CREATE TEMPLATE a FOR COPY a a zzz
+accept	accept	docs	createTemplate(,_ID_ID?)*/%empty	CREATE TEMPLATE a FOR COPY a
+accept	accept	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*	CREATE TEMPLATE a FOR COPY a, a
 reject	undocumented	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*!drop-2	CREATE TEMPLATE a FOR COPY a,
-reject	accept	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*!insert	CREATE TEMPLATE a FOR COPY a, a zzz
+accept	accept	docs	createTemplate(,_ID_ID?)*/,_ID_(ID)?_(,_ID_ID?)*!insert	CREATE TEMPLATE a FOR COPY a, a zzz
 accept	accept	docs	createUser/CREATE_USER_ID_(WITH)?_PASSWORD_(STRING|DISABLE)_(creat~856ad7d6	CREATE USER a PASSWORD 's'
 accept	accept	docs	createUser(WITH)?/%empty	CREATE USER a PASSWORD 's'
 reject	undocumented	docs	createUser(WITH)?/%empty!insert	CREATE USER a zzz PASSWORD 's'
@@ -4727,10 +4727,10 @@ reject	undocumented	docs	dropTable(CASCADE|RESTRICT)?/CASCADE!swap	DROP TABLE a 
 accept	accept	docs	dropTable(CASCADE|RESTRICT)?/RESTRICT	DROP TABLE a RESTRICT
 reject	undocumented	docs	dropTable(CASCADE|RESTRICT)?/RESTRICT!insert	DROP TABLE a RESTRICT zzz
 reject	undocumented	docs	dropTable(CASCADE|RESTRICT)?/RESTRICT!swap	DROP TABLE a RESTRICTED
-reject	accept	docs	dropTemplate/DROP_TEMPLATE_(ID_.)?_(ID_.)?_ID	DROP TEMPLATE a
-reject	accept	docs	dropTemplate(ID_.)?/%empty	DROP TEMPLATE a
+accept	accept	docs	dropTemplate/DROP_TEMPLATE_(ID_.)?_(ID_.)?_ID	DROP TEMPLATE a
+accept	accept	docs	dropTemplate(ID_.)?/%empty	DROP TEMPLATE a
 reject	undocumented	docs	dropTemplate(ID_.)?/%empty!insert	DROP TEMPLATE zzz a
-reject	accept	docs	dropTemplate(ID_.)?/ID_.	DROP TEMPLATE a.a
+accept	accept	docs	dropTemplate(ID_.)?/ID_.	DROP TEMPLATE a.a
 reject	undocumented	docs	dropTemplate(ID_.)?/ID_.!drop-1	DROP TEMPLATE.a
 reject	undocumented	docs	dropTemplate(ID_.)?/ID_.!drop-2	DROP TEMPLATE a a
 reject	undocumented	docs	dropTemplate(ID_.)?/ID_.!insert	DROP TEMPLATE a.zzz a
@@ -7394,31 +7394,31 @@ accept	accept	docs	show(ID|ALL)/ID	SHOW a
 accept	accept	docs	show(ID|ALL)/ALL	SHOW ALL
 reject	undocumented	docs	show(ID|ALL)/ALL!insert	SHOW ALL zzz
 accept	undocumented	docs	show(ID|ALL)/ALL!swap	SHOW ALLOWOVERWRITE
-reject	accept	docs	showUserLockout/SHOW_USER_LOCKOUT	SHOW USER LOCKOUT
-reject	accept	docs	showColumnGrants/SHOW_COLUMN_GRANTS_ON_TABLE_(ID_._ID_._ID|ID_._ID)_(FOR~0e8e8698	SHOW COLUMN GRANTS ON TABLE a.a
-reject	accept	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID	SHOW COLUMN GRANTS ON TABLE a.a.a
+accept	accept	docs	showUserLockout/SHOW_USER_LOCKOUT	SHOW USER LOCKOUT
+accept	accept	docs	showColumnGrants/SHOW_COLUMN_GRANTS_ON_TABLE_(ID_._ID_._ID|ID_._ID)_(FOR~0e8e8698	SHOW COLUMN GRANTS ON TABLE a.a
+accept	accept	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID	SHOW COLUMN GRANTS ON TABLE a.a.a
 reject	undocumented	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-1	SHOW COLUMN GRANTS ON TABLE.a.a
 reject	undocumented	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-2	SHOW COLUMN GRANTS ON TABLE a a.a
 reject	undocumented	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-3	SHOW COLUMN GRANTS ON TABLE a..a
 reject	undocumented	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-4	SHOW COLUMN GRANTS ON TABLE a.a a
 reject	undocumented	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-5	SHOW COLUMN GRANTS ON TABLE a.a.
 reject	undocumented	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!insert	SHOW COLUMN GRANTS ON TABLE a.a.a zzz
-reject	accept	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID	SHOW COLUMN GRANTS ON TABLE a.a
-reject	accept	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/%empty	SHOW COLUMN GRANTS ON TABLE a.a
-reject	accept	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)	SHOW COLUMN GRANTS ON TABLE a.a FOR a
+accept	accept	docs	showColumnGrants(ID_._ID_._ID|ID_._ID)/ID_._ID	SHOW COLUMN GRANTS ON TABLE a.a
+accept	accept	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/%empty	SHOW COLUMN GRANTS ON TABLE a.a
+accept	accept	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)	SHOW COLUMN GRANTS ON TABLE a.a FOR a
 reject	undocumented	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)!drop-2	SHOW COLUMN GRANTS ON TABLE a.a FOR
 reject	undocumented	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)!insert	SHOW COLUMN GRANTS ON TABLE a.a FOR a zzz
 reject	undocumented	docs	showColumnGrants(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)!swap	SHOW COLUMN GRANTS ON TABLE a.a FORCE a
-reject	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ID	SHOW COLUMN GRANTS ON TABLE a.a FOR a
-reject	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ROLE_ID	SHOW COLUMN GRANTS ON TABLE a.a FOR ROLE a
-reject	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ROLE_ID!drop-2	SHOW COLUMN GRANTS ON TABLE a.a FOR ROLE
+accept	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ID	SHOW COLUMN GRANTS ON TABLE a.a FOR a
+accept	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ROLE_ID	SHOW COLUMN GRANTS ON TABLE a.a FOR ROLE a
+accept	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ROLE_ID!drop-2	SHOW COLUMN GRANTS ON TABLE a.a FOR ROLE
 reject	undocumented	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ROLE_ID!insert	SHOW COLUMN GRANTS ON TABLE a.a FOR ROLE a zzz
 reject	undocumented	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/ROLE_ID!swap	SHOW COLUMN GRANTS ON TABLE a.a FOR ROLLBACK a
-reject	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/PUBLIC	SHOW COLUMN GRANTS ON TABLE a.a FOR PUBLIC
+accept	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/PUBLIC	SHOW COLUMN GRANTS ON TABLE a.a FOR PUBLIC
 reject	undocumented	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/PUBLIC!insert	SHOW COLUMN GRANTS ON TABLE a.a FOR PUBLIC zzz
-reject	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/PUBLIC!swap	SHOW COLUMN GRANTS ON TABLE a.a FOR PUBLICACCESSIBLE
-reject	accept	docs	showColumnGrants(LIMIT_NUMBER)?/%empty	SHOW COLUMN GRANTS ON TABLE a.a
-reject	accept	docs	showColumnGrants(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW COLUMN GRANTS ON TABLE a.a LIMIT 1
+accept	accept	docs	showColumnGrants(ID|ROLE_ID|PUBLIC)/PUBLIC!swap	SHOW COLUMN GRANTS ON TABLE a.a FOR PUBLICACCESSIBLE
+accept	accept	docs	showColumnGrants(LIMIT_NUMBER)?/%empty	SHOW COLUMN GRANTS ON TABLE a.a
+accept	accept	docs	showColumnGrants(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW COLUMN GRANTS ON TABLE a.a LIMIT 1
 reject	undocumented	docs	showColumnGrants(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW COLUMN GRANTS ON TABLE a.a 1
 reject	undocumented	docs	showColumnGrants(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW COLUMN GRANTS ON TABLE a.a LIMIT
 reject	undocumented	docs	showColumnGrants(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW COLUMN GRANTS ON TABLE a.a LIMIT 1 zzz
@@ -7436,31 +7436,31 @@ accept	undocumented	docs	showColumns(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW COL
 accept	undocumented	docs	showColumns(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW COLUMNS FROM TABLE a.a.a LIMIT
 accept	undocumented	docs	showColumns(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW COLUMNS FROM TABLE a.a.a LIMIT 1 zzz
 accept	undocumented	docs	showColumns(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW COLUMNS FROM TABLE a.a.a LINEAR_LEARNER 1
-reject	accept	docs	showConstraints/SHOW_CONSTRAINTS_(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)_~40a81f87	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
-reject	accept	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/PRIMARY_KEYS	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
+accept	accept	docs	showConstraints/SHOW_CONSTRAINTS_(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)_~40a81f87	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
+accept	accept	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/PRIMARY_KEYS	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/PRIMARY_KEYS!truncate	SHOW CONSTRAINTS PRIMARY
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/PRIMARY_KEYS!insert	SHOW CONSTRAINTS PRIMARY KEYS zzz FROM TABLE a.a
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/PRIMARY_KEYS!swap	SHOW CONSTRAINTS PRIORITY KEYS FROM TABLE a.a
-reject	accept	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/FOREIGN_KEYS_(EXPORTED)?	SHOW CONSTRAINTS FOREIGN KEYS FROM TABLE a.a
+accept	accept	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/FOREIGN_KEYS_(EXPORTED)?	SHOW CONSTRAINTS FOREIGN KEYS FROM TABLE a.a
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/FOREIGN_KEYS_(EXPORTED)?!drop-2	SHOW CONSTRAINTS FOREIGN FROM TABLE a.a
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/FOREIGN_KEYS_(EXPORTED)?!truncate	SHOW CONSTRAINTS FOREIGN
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/FOREIGN_KEYS_(EXPORTED)?!insert	SHOW CONSTRAINTS FOREIGN KEYS zzz FROM TABLE a.a
 reject	undocumented	docs	showConstraints(PRIMARY_KEYS|FOREIGN_KEYS_EXPORTED?)/FOREIGN_KEYS_(EXPORTED)?!swap	SHOW CONSTRAINTS FORMAT KEYS FROM TABLE a.a
-reject	accept	docs	showConstraints(EXPORTED)?/%empty	SHOW CONSTRAINTS FOREIGN KEYS FROM TABLE a.a
-reject	accept	docs	showConstraints(EXPORTED)?/EXPORTED	SHOW CONSTRAINTS FOREIGN KEYS EXPORTED FROM TABLE a.a
+accept	accept	docs	showConstraints(EXPORTED)?/%empty	SHOW CONSTRAINTS FOREIGN KEYS FROM TABLE a.a
+accept	accept	docs	showConstraints(EXPORTED)?/EXPORTED	SHOW CONSTRAINTS FOREIGN KEYS EXPORTED FROM TABLE a.a
 reject	undocumented	docs	showConstraints(EXPORTED)?/EXPORTED!truncate	SHOW CONSTRAINTS FOREIGN KEYS
 reject	undocumented	docs	showConstraints(EXPORTED)?/EXPORTED!insert	SHOW CONSTRAINTS FOREIGN KEYS EXPORTED zzz FROM TABLE a.a
 reject	undocumented	docs	showConstraints(EXPORTED)?/EXPORTED!swap	SHOW CONSTRAINTS FOREIGN KEYS EXTENSION FROM TABLE a.a
-reject	accept	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a.a
+accept	accept	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a.a
 reject	undocumented	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-1	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE.a.a
 reject	undocumented	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-2	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a a.a
 reject	undocumented	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-3	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a..a
 reject	undocumented	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-4	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a a
 reject	undocumented	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-5	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a.
 reject	undocumented	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!insert	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a.a zzz
-reject	accept	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
-reject	accept	docs	showConstraints(LIMIT_NUMBER)?/%empty	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
-reject	accept	docs	showConstraints(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a LIMIT 1
+accept	accept	docs	showConstraints(ID_._ID_._ID|ID_._ID)/ID_._ID	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
+accept	accept	docs	showConstraints(LIMIT_NUMBER)?/%empty	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a
+accept	accept	docs	showConstraints(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a LIMIT 1
 reject	undocumented	docs	showConstraints(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a 1
 reject	undocumented	docs	showConstraints(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a LIMIT
 reject	undocumented	docs	showConstraints(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE a.a LIMIT 1 zzz
@@ -7525,21 +7525,21 @@ accept	accept	docs	showDatabases(DEFAULT|'SESSION'|STRING)/'SESSION'	SHOW DATABA
 accept	undocumented	docs	showDatabases(DEFAULT|'SESSION'|STRING)/'SESSION'!insert	SHOW DATABASES FROM DATA CATALOG IAM_ROLE 'SESSION' zzz
 accept	accept	docs	showDatabases(DEFAULT|'SESSION'|STRING)/STRING	SHOW DATABASES FROM DATA CATALOG IAM_ROLE 's'
 accept	undocumented	docs	showDatabases(DEFAULT|'SESSION'|STRING)/STRING!insert	SHOW DATABASES FROM DATA CATALOG IAM_ROLE 's' zzz
-reject	accept	docs	showFunctions/SHOW_FUNCTIONS_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(L~0c6c8f95	SHOW FUNCTIONS FROM SCHEMA a
-reject	accept	docs	showFunctions(ID_.)?/%empty	SHOW FUNCTIONS FROM SCHEMA a
+accept	accept	docs	showFunctions/SHOW_FUNCTIONS_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(L~0c6c8f95	SHOW FUNCTIONS FROM SCHEMA a
+accept	accept	docs	showFunctions(ID_.)?/%empty	SHOW FUNCTIONS FROM SCHEMA a
 reject	undocumented	docs	showFunctions(ID_.)?/%empty!insert	SHOW FUNCTIONS FROM SCHEMA zzz a
-reject	accept	docs	showFunctions(ID_.)?/ID_.	SHOW FUNCTIONS FROM SCHEMA a.a
+accept	accept	docs	showFunctions(ID_.)?/ID_.	SHOW FUNCTIONS FROM SCHEMA a.a
 reject	undocumented	docs	showFunctions(ID_.)?/ID_.!drop-1	SHOW FUNCTIONS FROM SCHEMA.a
 reject	undocumented	docs	showFunctions(ID_.)?/ID_.!drop-2	SHOW FUNCTIONS FROM SCHEMA a a
 reject	undocumented	docs	showFunctions(ID_.)?/ID_.!insert	SHOW FUNCTIONS FROM SCHEMA a.zzz a
-reject	accept	docs	showFunctions(LIKE_STRING)?/%empty	SHOW FUNCTIONS FROM SCHEMA a
-reject	accept	docs	showFunctions(LIKE_STRING)?/LIKE_STRING	SHOW FUNCTIONS FROM SCHEMA a LIKE 's'
+accept	accept	docs	showFunctions(LIKE_STRING)?/%empty	SHOW FUNCTIONS FROM SCHEMA a
+accept	accept	docs	showFunctions(LIKE_STRING)?/LIKE_STRING	SHOW FUNCTIONS FROM SCHEMA a LIKE 's'
 reject	undocumented	docs	showFunctions(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW FUNCTIONS FROM SCHEMA a 's'
 reject	undocumented	docs	showFunctions(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW FUNCTIONS FROM SCHEMA a LIKE
 reject	undocumented	docs	showFunctions(LIKE_STRING)?/LIKE_STRING!insert	SHOW FUNCTIONS FROM SCHEMA a LIKE 's' zzz
 reject	undocumented	docs	showFunctions(LIKE_STRING)?/LIKE_STRING!swap	SHOW FUNCTIONS FROM SCHEMA a LIMIT 's'
-reject	accept	docs	showFunctions(LIMIT_NUMBER)?/%empty	SHOW FUNCTIONS FROM SCHEMA a
-reject	accept	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW FUNCTIONS FROM SCHEMA a LIMIT 1
+accept	accept	docs	showFunctions(LIMIT_NUMBER)?/%empty	SHOW FUNCTIONS FROM SCHEMA a
+accept	accept	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW FUNCTIONS FROM SCHEMA a LIMIT 1
 reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW FUNCTIONS FROM SCHEMA a 1
 reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW FUNCTIONS FROM SCHEMA a LIMIT
 reject	undocumented	docs	showFunctions(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW FUNCTIONS FROM SCHEMA a LIMIT 1 zzz
@@ -7640,78 +7640,78 @@ accept	undocumented	docs	showDatashares(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW DA
 accept	undocumented	docs	showDatashares(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW DATASHARES LIKE
 accept	undocumented	docs	showDatashares(LIKE_STRING)?/LIKE_STRING!insert	SHOW DATASHARES LIKE 's' zzz
 accept	undocumented	docs	showDatashares(LIKE_STRING)?/LIKE_STRING!swap	SHOW DATASHARES LIMIT 's'
-reject	accept	docs	showParameters/SHOW_PARAMETERS_OF_(FUNCTION|PROCEDURE)_(ID_.)?_ID_._ID~85ec5ec9	SHOW PARAMETERS OF FUNCTION a.a(INT)
-reject	accept	docs	showParameters(FUNCTION|PROCEDURE)/FUNCTION	SHOW PARAMETERS OF FUNCTION a.a(INT)
+accept	accept	docs	showParameters/SHOW_PARAMETERS_OF_(FUNCTION|PROCEDURE)_(ID_.)?_ID_._ID~85ec5ec9	SHOW PARAMETERS OF FUNCTION a.a(INT)
+accept	accept	docs	showParameters(FUNCTION|PROCEDURE)/FUNCTION	SHOW PARAMETERS OF FUNCTION a.a(INT)
 reject	undocumented	docs	showParameters(FUNCTION|PROCEDURE)/FUNCTION!truncate	SHOW PARAMETERS OF
 reject	undocumented	docs	showParameters(FUNCTION|PROCEDURE)/FUNCTION!insert	SHOW PARAMETERS OF FUNCTION zzz a.a(INT)
 reject	undocumented	docs	showParameters(FUNCTION|PROCEDURE)/FUNCTION!swap	SHOW PARAMETERS OF FUNCTIONS a.a(INT)
-reject	accept	docs	showParameters(FUNCTION|PROCEDURE)/PROCEDURE	SHOW PARAMETERS OF PROCEDURE a.a(INT)
+accept	accept	docs	showParameters(FUNCTION|PROCEDURE)/PROCEDURE	SHOW PARAMETERS OF PROCEDURE a.a(INT)
 reject	undocumented	docs	showParameters(FUNCTION|PROCEDURE)/PROCEDURE!insert	SHOW PARAMETERS OF PROCEDURE zzz a.a(INT)
 reject	undocumented	docs	showParameters(FUNCTION|PROCEDURE)/PROCEDURE!swap	SHOW PARAMETERS OF PROCEDURES a.a(INT)
-reject	accept	docs	showParameters(ID_.)?/%empty	SHOW PARAMETERS OF FUNCTION a.a(INT)
-reject	accept	docs	showParameters(ID_.)?/ID_.	SHOW PARAMETERS OF FUNCTION a.a.a(INT)
+accept	accept	docs	showParameters(ID_.)?/%empty	SHOW PARAMETERS OF FUNCTION a.a(INT)
+accept	accept	docs	showParameters(ID_.)?/ID_.	SHOW PARAMETERS OF FUNCTION a.a.a(INT)
 reject	undocumented	docs	showParameters(ID_.)?/ID_.!drop-1	SHOW PARAMETERS OF FUNCTION.a.a(INT)
 reject	undocumented	docs	showParameters(ID_.)?/ID_.!drop-2	SHOW PARAMETERS OF FUNCTION a a.a(INT)
 reject	undocumented	docs	showParameters(ID_.)?/ID_.!truncate	SHOW PARAMETERS OF FUNCTION a
 reject	undocumented	docs	showParameters(ID_.)?/ID_.!insert	SHOW PARAMETERS OF FUNCTION a.zzz a.a(INT)
-reject	accept	docs	showParameters(,_DATA_TYPE)*/%empty	SHOW PARAMETERS OF FUNCTION a.a(INT)
+accept	accept	docs	showParameters(,_DATA_TYPE)*/%empty	SHOW PARAMETERS OF FUNCTION a.a(INT)
 reject	undocumented	docs	showParameters(,_DATA_TYPE)*/%empty!insert	SHOW PARAMETERS OF FUNCTION a.a(INT zzz)
-reject	accept	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	SHOW PARAMETERS OF FUNCTION a.a(INT, INT)
+accept	accept	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*	SHOW PARAMETERS OF FUNCTION a.a(INT, INT)
 reject	undocumented	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-1	SHOW PARAMETERS OF FUNCTION a.a(INT INT)
 reject	undocumented	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!drop-2	SHOW PARAMETERS OF FUNCTION a.a(INT,)
 reject	undocumented	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!truncate	SHOW PARAMETERS OF FUNCTION a.a(INT,
 reject	undocumented	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!insert	SHOW PARAMETERS OF FUNCTION a.a(INT, INT zzz)
-reject	undocumented	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	SHOW PARAMETERS OF FUNCTION a.a(INT, INTEGRATION)
-reject	accept	docs	showParameters(LIKE_STRING)?/%empty	SHOW PARAMETERS OF FUNCTION a.a(INT)
-reject	accept	docs	showParameters(LIKE_STRING)?/LIKE_STRING	SHOW PARAMETERS OF FUNCTION a.a(INT) LIKE 's'
+accept	undocumented	docs	showParameters(,_DATA_TYPE)*/,_DATA_TYPE_(,_DATA_TYPE)*!swap	SHOW PARAMETERS OF FUNCTION a.a(INT, INTEGRATION)
+accept	accept	docs	showParameters(LIKE_STRING)?/%empty	SHOW PARAMETERS OF FUNCTION a.a(INT)
+accept	accept	docs	showParameters(LIKE_STRING)?/LIKE_STRING	SHOW PARAMETERS OF FUNCTION a.a(INT) LIKE 's'
 reject	undocumented	docs	showParameters(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW PARAMETERS OF FUNCTION a.a(INT) 's'
 reject	undocumented	docs	showParameters(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW PARAMETERS OF FUNCTION a.a(INT) LIKE
 reject	undocumented	docs	showParameters(LIKE_STRING)?/LIKE_STRING!insert	SHOW PARAMETERS OF FUNCTION a.a(INT) LIKE 's' zzz
 reject	undocumented	docs	showParameters(LIKE_STRING)?/LIKE_STRING!swap	SHOW PARAMETERS OF FUNCTION a.a(INT) LIMIT 's'
-reject	accept	docs	showPolicies/SHOW_(RLS|MASKING)_POLICIES_(ON_(ID_._ID_._ID|ID_._ID)_~1e7c2b1d	SHOW RLS POLICIES
-reject	accept	docs	showPolicies(RLS|MASKING)/RLS	SHOW RLS POLICIES
+accept	accept	docs	showPolicies/SHOW_(RLS|MASKING)_POLICIES_(ON_(ID_._ID_._ID|ID_._ID)_~1e7c2b1d	SHOW RLS POLICIES
+accept	accept	docs	showPolicies(RLS|MASKING)/RLS	SHOW RLS POLICIES
 reject	undocumented	docs	showPolicies(RLS|MASKING)/RLS!insert	SHOW RLS zzz POLICIES
 reject	undocumented	docs	showPolicies(RLS|MASKING)/RLS!swap	SHOW ROLE POLICIES
-reject	accept	docs	showPolicies(RLS|MASKING)/MASKING	SHOW MASKING POLICIES
+accept	accept	docs	showPolicies(RLS|MASKING)/MASKING	SHOW MASKING POLICIES
 reject	undocumented	docs	showPolicies(RLS|MASKING)/MASKING!insert	SHOW MASKING zzz POLICIES
 reject	undocumented	docs	showPolicies(RLS|MASKING)/MASKING!swap	SHOW MATCHED POLICIES
-reject	accept	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/%empty	SHOW RLS POLICIES
-reject	accept	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?	SHOW RLS POLICIES ON a.a
+accept	accept	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/%empty	SHOW RLS POLICIES
+accept	accept	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?	SHOW RLS POLICIES ON a.a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?!drop-1	SHOW RLS POLICIES a.a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?!drop-2	SHOW RLS POLICIES ON.a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?!drop-3	SHOW RLS POLICIES ON a a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?!drop-4	SHOW RLS POLICIES ON a.
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?!insert	SHOW RLS POLICIES ON a.a zzz
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|ROLE_ID|PUBLIC))?!swap	SHOW RLS POLICIES ONLY a.a
-reject	accept	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID	SHOW RLS POLICIES FROM DATABASE a
+accept	accept	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID	SHOW RLS POLICIES FROM DATABASE a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID!drop-1	SHOW RLS POLICIES DATABASE a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID!drop-2	SHOW RLS POLICIES FROM a
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID!drop-3	SHOW RLS POLICIES FROM DATABASE
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID!insert	SHOW RLS POLICIES FROM DATABASE a zzz
 reject	undocumented	docs	showPolicies(ON_(ID_._ID_._ID|ID_._ID)_(FOR_(ID|R~81bc4b70)?/FROM_DATABASE_ID!swap	SHOW RLS POLICIES FULL DATABASE a
-reject	accept	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID	SHOW RLS POLICIES ON a.a.a
+accept	accept	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID	SHOW RLS POLICIES ON a.a.a
 reject	undocumented	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-1	SHOW RLS POLICIES ON.a.a
 reject	undocumented	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-2	SHOW RLS POLICIES ON a a.a
 reject	undocumented	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-3	SHOW RLS POLICIES ON a..a
 reject	undocumented	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-4	SHOW RLS POLICIES ON a.a a
 reject	undocumented	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!drop-5	SHOW RLS POLICIES ON a.a.
 reject	undocumented	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID_._ID!insert	SHOW RLS POLICIES ON a.a.a zzz
-reject	accept	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID	SHOW RLS POLICIES ON a.a
-reject	accept	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/%empty	SHOW RLS POLICIES ON a.a
-reject	accept	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)	SHOW RLS POLICIES ON a.a FOR a
+accept	accept	docs	showPolicies(ID_._ID_._ID|ID_._ID)/ID_._ID	SHOW RLS POLICIES ON a.a
+accept	accept	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/%empty	SHOW RLS POLICIES ON a.a
+accept	accept	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)	SHOW RLS POLICIES ON a.a FOR a
 reject	undocumented	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)!drop-2	SHOW RLS POLICIES ON a.a FOR
 reject	undocumented	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)!insert	SHOW RLS POLICIES ON a.a FOR a zzz
 reject	undocumented	docs	showPolicies(FOR_(ID|ROLE_ID|PUBLIC))?/FOR_(ID|ROLE_ID|PUBLIC)!swap	SHOW RLS POLICIES ON a.a FORCE a
-reject	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ID	SHOW RLS POLICIES ON a.a FOR a
-reject	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ROLE_ID	SHOW RLS POLICIES ON a.a FOR ROLE a
-reject	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ROLE_ID!drop-2	SHOW RLS POLICIES ON a.a FOR ROLE
+accept	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ID	SHOW RLS POLICIES ON a.a FOR a
+accept	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ROLE_ID	SHOW RLS POLICIES ON a.a FOR ROLE a
+accept	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ROLE_ID!drop-2	SHOW RLS POLICIES ON a.a FOR ROLE
 reject	undocumented	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ROLE_ID!insert	SHOW RLS POLICIES ON a.a FOR ROLE a zzz
 reject	undocumented	docs	showPolicies(ID|ROLE_ID|PUBLIC)/ROLE_ID!swap	SHOW RLS POLICIES ON a.a FOR ROLLBACK a
-reject	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/PUBLIC	SHOW RLS POLICIES ON a.a FOR PUBLIC
+accept	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/PUBLIC	SHOW RLS POLICIES ON a.a FOR PUBLIC
 reject	undocumented	docs	showPolicies(ID|ROLE_ID|PUBLIC)/PUBLIC!insert	SHOW RLS POLICIES ON a.a FOR PUBLIC zzz
-reject	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/PUBLIC!swap	SHOW RLS POLICIES ON a.a FOR PUBLICACCESSIBLE
-reject	accept	docs	showPolicies(LIMIT_NUMBER)?/%empty	SHOW RLS POLICIES
-reject	accept	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW RLS POLICIES LIMIT 1
+accept	accept	docs	showPolicies(ID|ROLE_ID|PUBLIC)/PUBLIC!swap	SHOW RLS POLICIES ON a.a FOR PUBLICACCESSIBLE
+accept	accept	docs	showPolicies(LIMIT_NUMBER)?/%empty	SHOW RLS POLICIES
+accept	accept	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW RLS POLICIES LIMIT 1
 reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW RLS POLICIES 1
 reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW RLS POLICIES LIMIT
 reject	undocumented	docs	showPolicies(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW RLS POLICIES LIMIT 1 zzz
@@ -7742,21 +7742,21 @@ accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMO
 accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	SHOW PROCEDURE a(INT,
 accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	SHOW PROCEDURE a(INT, INT zzz)
 accept	undocumented	docs	showProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	SHOW PROCEDURE a(INT, INTEGRATION)
-reject	accept	docs	showProcedures/SHOW_PROCEDURES_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(~1f5aea30	SHOW PROCEDURES FROM SCHEMA a
-reject	accept	docs	showProcedures(ID_.)?/%empty	SHOW PROCEDURES FROM SCHEMA a
+accept	accept	docs	showProcedures/SHOW_PROCEDURES_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(~1f5aea30	SHOW PROCEDURES FROM SCHEMA a
+accept	accept	docs	showProcedures(ID_.)?/%empty	SHOW PROCEDURES FROM SCHEMA a
 reject	undocumented	docs	showProcedures(ID_.)?/%empty!insert	SHOW PROCEDURES FROM SCHEMA zzz a
-reject	accept	docs	showProcedures(ID_.)?/ID_.	SHOW PROCEDURES FROM SCHEMA a.a
+accept	accept	docs	showProcedures(ID_.)?/ID_.	SHOW PROCEDURES FROM SCHEMA a.a
 reject	undocumented	docs	showProcedures(ID_.)?/ID_.!drop-1	SHOW PROCEDURES FROM SCHEMA.a
 reject	undocumented	docs	showProcedures(ID_.)?/ID_.!drop-2	SHOW PROCEDURES FROM SCHEMA a a
 reject	undocumented	docs	showProcedures(ID_.)?/ID_.!insert	SHOW PROCEDURES FROM SCHEMA a.zzz a
-reject	accept	docs	showProcedures(LIKE_STRING)?/%empty	SHOW PROCEDURES FROM SCHEMA a
-reject	accept	docs	showProcedures(LIKE_STRING)?/LIKE_STRING	SHOW PROCEDURES FROM SCHEMA a LIKE 's'
+accept	accept	docs	showProcedures(LIKE_STRING)?/%empty	SHOW PROCEDURES FROM SCHEMA a
+accept	accept	docs	showProcedures(LIKE_STRING)?/LIKE_STRING	SHOW PROCEDURES FROM SCHEMA a LIKE 's'
 reject	undocumented	docs	showProcedures(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW PROCEDURES FROM SCHEMA a 's'
 reject	undocumented	docs	showProcedures(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW PROCEDURES FROM SCHEMA a LIKE
 reject	undocumented	docs	showProcedures(LIKE_STRING)?/LIKE_STRING!insert	SHOW PROCEDURES FROM SCHEMA a LIKE 's' zzz
 reject	undocumented	docs	showProcedures(LIKE_STRING)?/LIKE_STRING!swap	SHOW PROCEDURES FROM SCHEMA a LIMIT 's'
-reject	accept	docs	showProcedures(LIMIT_NUMBER)?/%empty	SHOW PROCEDURES FROM SCHEMA a
-reject	accept	docs	showProcedures(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW PROCEDURES FROM SCHEMA a LIMIT 1
+accept	accept	docs	showProcedures(LIMIT_NUMBER)?/%empty	SHOW PROCEDURES FROM SCHEMA a
+accept	accept	docs	showProcedures(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW PROCEDURES FROM SCHEMA a LIMIT 1
 reject	undocumented	docs	showProcedures(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW PROCEDURES FROM SCHEMA a 1
 reject	undocumented	docs	showProcedures(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW PROCEDURES FROM SCHEMA a LIMIT
 reject	undocumented	docs	showProcedures(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW PROCEDURES FROM SCHEMA a LIMIT 1 zzz
@@ -7794,28 +7794,28 @@ accept	undocumented	docs	showTables(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW TABL
 accept	undocumented	docs	showTables(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW TABLES FROM SCHEMA a.a LIMIT
 accept	undocumented	docs	showTables(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW TABLES FROM SCHEMA a.a LIMIT 1 zzz
 accept	undocumented	docs	showTables(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	SHOW TABLES FROM SCHEMA a.a LINEAR_LEARNER 1
-reject	accept	docs	showTemplate/SHOW_TEMPLATE_(ID_.)?_(ID_.)?_ID	SHOW TEMPLATE a
-reject	accept	docs	showTemplate(ID_.)?/%empty	SHOW TEMPLATE a
+accept	accept	docs	showTemplate/SHOW_TEMPLATE_(ID_.)?_(ID_.)?_ID	SHOW TEMPLATE a
+accept	accept	docs	showTemplate(ID_.)?/%empty	SHOW TEMPLATE a
 reject	undocumented	docs	showTemplate(ID_.)?/%empty!insert	SHOW TEMPLATE zzz a
-reject	accept	docs	showTemplate(ID_.)?/ID_.	SHOW TEMPLATE a.a
+accept	accept	docs	showTemplate(ID_.)?/ID_.	SHOW TEMPLATE a.a
 accept	undocumented	docs	showTemplate(ID_.)?/ID_.!drop-1	SHOW TEMPLATE.a
 reject	undocumented	docs	showTemplate(ID_.)?/ID_.!drop-2	SHOW TEMPLATE a a
 reject	undocumented	docs	showTemplate(ID_.)?/ID_.!insert	SHOW TEMPLATE a.zzz a
-reject	accept	docs	showTemplates/SHOW_TEMPLATES_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(L~85fd8f61	SHOW TEMPLATES FROM SCHEMA a
-reject	accept	docs	showTemplates(ID_.)?/%empty	SHOW TEMPLATES FROM SCHEMA a
+accept	accept	docs	showTemplates/SHOW_TEMPLATES_FROM_SCHEMA_(ID_.)?_ID_(LIKE_STRING)?_(L~85fd8f61	SHOW TEMPLATES FROM SCHEMA a
+accept	accept	docs	showTemplates(ID_.)?/%empty	SHOW TEMPLATES FROM SCHEMA a
 reject	undocumented	docs	showTemplates(ID_.)?/%empty!insert	SHOW TEMPLATES FROM SCHEMA zzz a
-reject	accept	docs	showTemplates(ID_.)?/ID_.	SHOW TEMPLATES FROM SCHEMA a.a
+accept	accept	docs	showTemplates(ID_.)?/ID_.	SHOW TEMPLATES FROM SCHEMA a.a
 reject	undocumented	docs	showTemplates(ID_.)?/ID_.!drop-1	SHOW TEMPLATES FROM SCHEMA.a
 reject	undocumented	docs	showTemplates(ID_.)?/ID_.!drop-2	SHOW TEMPLATES FROM SCHEMA a a
 reject	undocumented	docs	showTemplates(ID_.)?/ID_.!insert	SHOW TEMPLATES FROM SCHEMA a.zzz a
-reject	accept	docs	showTemplates(LIKE_STRING)?/%empty	SHOW TEMPLATES FROM SCHEMA a
-reject	accept	docs	showTemplates(LIKE_STRING)?/LIKE_STRING	SHOW TEMPLATES FROM SCHEMA a LIKE 's'
+accept	accept	docs	showTemplates(LIKE_STRING)?/%empty	SHOW TEMPLATES FROM SCHEMA a
+accept	accept	docs	showTemplates(LIKE_STRING)?/LIKE_STRING	SHOW TEMPLATES FROM SCHEMA a LIKE 's'
 reject	undocumented	docs	showTemplates(LIKE_STRING)?/LIKE_STRING!drop-1	SHOW TEMPLATES FROM SCHEMA a 's'
 reject	undocumented	docs	showTemplates(LIKE_STRING)?/LIKE_STRING!drop-2	SHOW TEMPLATES FROM SCHEMA a LIKE
 reject	undocumented	docs	showTemplates(LIKE_STRING)?/LIKE_STRING!insert	SHOW TEMPLATES FROM SCHEMA a LIKE 's' zzz
 reject	undocumented	docs	showTemplates(LIKE_STRING)?/LIKE_STRING!swap	SHOW TEMPLATES FROM SCHEMA a LIMIT 's'
-reject	accept	docs	showTemplates(LIMIT_NUMBER)?/%empty	SHOW TEMPLATES FROM SCHEMA a
-reject	accept	docs	showTemplates(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW TEMPLATES FROM SCHEMA a LIMIT 1
+accept	accept	docs	showTemplates(LIMIT_NUMBER)?/%empty	SHOW TEMPLATES FROM SCHEMA a
+accept	accept	docs	showTemplates(LIMIT_NUMBER)?/LIMIT_NUMBER	SHOW TEMPLATES FROM SCHEMA a LIMIT 1
 reject	undocumented	docs	showTemplates(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	SHOW TEMPLATES FROM SCHEMA a 1
 reject	undocumented	docs	showTemplates(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	SHOW TEMPLATES FROM SCHEMA a LIMIT
 reject	undocumented	docs	showTemplates(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	SHOW TEMPLATES FROM SCHEMA a LIMIT 1 zzz
