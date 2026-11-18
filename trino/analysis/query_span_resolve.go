@@ -502,9 +502,9 @@ func (m *armMerger) merge(right []outCol) {
 // case-sensitive, unquoted names fold to lower case.
 func outColKey(c outCol) string {
 	if c.quoted {
-		return "q:" + c.name
+		return c.name
 	}
-	return "u:" + strings.ToLower(c.name)
+	return strings.ToLower(c.name)
 }
 
 func identKey(id *ast.Identifier) string {
@@ -512,9 +512,9 @@ func identKey(id *ast.Identifier) string {
 		return ""
 	}
 	if id.Quoted {
-		return "q:" + id.Value
+		return id.Value
 	}
-	return "u:" + strings.ToLower(id.Value)
+	return strings.ToLower(id.Value)
 }
 
 // mergeCorresponding merges a CORRESPONDING arm by name. Without BY, the
