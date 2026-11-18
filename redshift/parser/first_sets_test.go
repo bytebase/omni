@@ -228,3 +228,81 @@ func TestIsRedshiftDatashareNameStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftFederatedPermissionStart holds the CONNECT and DEBUG leads to
+// the tokens they read: the unquoted words, and what may follow them.
+func TestIsRedshiftFederatedPermissionStart(t *testing.T) {
+	newStmtParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance() // GRANT or REVOKE
+		p.advance() // the permission
+		return p
+	}
+	for _, sql := range []string{
+		"GRANT CONNECT TO PUBLIC",
+		"GRANT CONNECT ON WORKGROUP TO PUBLIC",
+		"GRANT DEBUG ON DATABASE d TO a:b",
+	} {
+		p := newStmtParser(sql)
+		if sql[6] == 'C' && !p.isRedshiftConnectStart() {
+			t.Errorf("isRedshiftConnectStart(%q) = false, want true", sql)
+		}
+		if sql[6] == 'D' && !p.isRedshiftDebugStart() {
+			t.Errorf("isRedshiftDebugStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"GRANT CONNECT FROM a", "GRANT DEBUG TO a", `GRANT "CONNECT" TO a`} {
+		p := newStmtParser(sql)
+		if p.isRedshiftConnectStart() || p.isRedshiftDebugStart() {
+			t.Errorf("%q: a federated permission lead, want none", sql)
+		}
+	}
+}
+
+// TestIsRedshiftIdentityGranteeStart holds the CONNECT and DEBUG grantee leads:
+// ADMINS OF ACCOUNT, PUBLIC, and the ROLE marker of ROLE <prefix>:<name>.
+func TestIsRedshiftIdentityGranteeStart(t *testing.T) {
+	newGranteeParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance()
+		return p
+	}
+	for _, sql := range []string{"ADMINS OF ACCOUNT '1'", "admins of account '1'"} {
+		if !newGranteeParser(sql).isRedshiftAdminsOfAccountStart() {
+			t.Errorf("isRedshiftAdminsOfAccountStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"PUBLIC", "public"} {
+		if !newGranteeParser(sql).isRedshiftPublicGranteeStart() {
+			t.Errorf("isRedshiftPublicGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"ROLE AWSIDC:analysts", "role a:b"} {
+		if !newGranteeParser(sql).isRedshiftRoleIdentityStart() {
+			t.Errorf("isRedshiftRoleIdentityStart(%q) = false, want true", sql)
+		}
+	}
+	for _, tc := range []struct {
+		sql      string
+		admins   bool
+		public   bool
+		roleName bool
+	}{
+		{"ADMINS ACCOUNT '1'", false, false, false},
+		{"PUBLIC:alice", false, false, false},
+		{"ROLE:analysts", false, false, false},
+		{`"PUBLIC"`, false, false, false},
+		{"alice", false, false, false},
+	} {
+		p := newGranteeParser(tc.sql)
+		if got := p.isRedshiftAdminsOfAccountStart(); got != tc.admins {
+			t.Errorf("isRedshiftAdminsOfAccountStart(%q) = %v, want %v", tc.sql, got, tc.admins)
+		}
+		if got := p.isRedshiftPublicGranteeStart(); got != tc.public {
+			t.Errorf("isRedshiftPublicGranteeStart(%q) = %v, want %v", tc.sql, got, tc.public)
+		}
+		if got := p.isRedshiftRoleIdentityStart(); got != tc.roleName {
+			t.Errorf("isRedshiftRoleIdentityStart(%q) = %v, want %v", tc.sql, got, tc.roleName)
+		}
+	}
+}

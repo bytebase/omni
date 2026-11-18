@@ -27,10 +27,10 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		p.advance() // MODEL
 		return p.finishRedshiftModelPrivilege(loc, privLoc, true, false)
 	}
-	if p.redshiftKeywordIs("connect") && (p.peekNext().Type == TO || p.peekNext().Type == ON) {
+	if p.isRedshiftConnectStart() {
 		return p.parseRedshiftConnectStmt(loc, true)
 	}
-	if p.redshiftKeywordIs("debug") && p.peekNext().Type == ON {
+	if p.isRedshiftDebugStart() {
 		return p.parseRedshiftDebugStmt(loc, true)
 	}
 	if p.redshiftScopedPermissionStart() {
@@ -141,7 +141,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		p.advance() // MODEL
 		return p.finishRedshiftModelPrivilege(loc, privLoc, false, grantOptionFor)
 	}
-	if p.redshiftKeywordIs("debug") && p.peekNext().Type == ON && !grantOptionFor && roleOptionName == "" {
+	if p.isRedshiftDebugStart() && !grantOptionFor && roleOptionName == "" {
 		// r_REVOKE's DEBUG alternative starts at DEBUG: no GRANT OPTION FOR and
 		// no ADMIN OPTION FOR prefix.
 		return p.parseRedshiftDebugStmt(loc, false)
@@ -389,7 +389,7 @@ func (p *Parser) parseRedshiftDebugStmt(loc int, isGrant bool) (nodes.Node, erro
 // prefix rather than as the keyword.
 func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*nodes.RoleSpec, error) {
 	loc := p.pos()
-	if allowAdmins && p.redshiftKeywordIs("admins") && p.peekNext().Type == OF {
+	if allowAdmins && p.isRedshiftAdminsOfAccountStart() {
 		p.advance() // consume ADMINS
 		p.advance() // consume OF
 		if !p.redshiftKeywordIs("account") {
@@ -406,12 +406,12 @@ func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*n
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		}, nil
 	}
-	if allowPublic && p.redshiftKeywordIs("public") && p.peekNext().Type != ':' {
+	if allowPublic && p.isRedshiftPublicGranteeStart() {
 		p.advance()
 		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 	isRole := false
-	if p.redshiftKeywordIs("role") && isColIdToken(p.peekNext()) {
+	if p.isRedshiftRoleIdentityStart() {
 		p.advance()
 		isRole = true
 	}

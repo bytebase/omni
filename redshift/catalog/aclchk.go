@@ -15,6 +15,53 @@ type Grant struct {
 	Privilege string // SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, EXECUTE, USAGE, CREATE, ALL
 	Columns   []string
 	WithGrant bool
+
+	// Target is the AST object type the grant was written with, where the
+	// catalog's code cannot say it: an external table is a relation ('r') and
+	// an external schema a schema ('n'), and each renders with ON EXTERNAL.
+	Target nodes.ObjectType
+	// GranteeKind is the grantee alternative the grant was written with —
+	// "iam_role", "namespace", "account", "account_via_data_catalog",
+	// "admins_of_account", "datashare", "rls_policy" — or "" for a role name.
+	GranteeKind string
+	// GranteeName is the grantee's own name, without its kind's prefix.
+	GranteeName string
+}
+
+// grantee is one TO or FROM name a GRANT or REVOKE lists.
+type grantee struct {
+	name  string // the identity the catalog matches on: the kind-prefixed name, "" for PUBLIC
+	kind  string // the alternative it was written with, "" for a role name
+	value string // its name without the kind's prefix
+}
+
+// redshiftGranteeKinds are the grantee prefixes redshift/parser writes into a
+// RoleSpec, longest first so a prefix resolves before one it starts with.
+var redshiftGranteeKinds = []string{
+	"account_via_data_catalog", "admins_of_account", "iam_role", "namespace", "account", "datashare", "rls_policy",
+}
+
+// newGrantee reads a grantee from its RoleSpec.
+func newGrantee(rs *nodes.RoleSpec) grantee {
+	g := grantee{name: roleSpecName(rs)}
+	g.value = g.name
+	for _, kind := range redshiftGranteeKinds {
+		if rest, ok := strings.CutPrefix(g.name, kind+":"); ok {
+			g.kind = kind
+			g.value = rest
+			break
+		}
+	}
+	return g
+}
+
+// granteeNames is the identities a grantee list matches on.
+func granteeNames(grantees []grantee) []string {
+	names := make([]string, len(grantees))
+	for i, g := range grantees {
+		names[i] = g.name
+	}
+	return names
 }
 
 // ExecGrantStmt processes GRANT and REVOKE statements.
@@ -62,12 +109,12 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 
 // checkGrantOptionNotPublic refuses WITH GRANT OPTION to PUBLIC.
 // pg: src/backend/catalog/aclchk.c — aclcheck (line 208-211)
-func checkGrantOptionNotPublic(stmt *nodes.GrantStmt, grantees []string) error {
+func checkGrantOptionNotPublic(stmt *nodes.GrantStmt, grantees []grantee) error {
 	if !stmt.IsGrant || !stmt.GrantOption {
 		return nil
 	}
 	for _, g := range grantees {
-		if g == "" { // empty string represents PUBLIC
+		if g.name == "" { // empty string represents PUBLIC
 			return &Error{Code: CodeInvalidGrantOperation,
 				Message: "grant options can only be granted to roles"}
 		}
@@ -75,7 +122,7 @@ func checkGrantOptionNotPublic(stmt *nodes.GrantStmt, grantees []string) error {
 	return nil
 }
 
-func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string) error {
+func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []grantee) error {
 	if err := checkGrantOptionNotPublic(stmt, grantees); err != nil {
 		return err
 	}
@@ -101,12 +148,15 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 		for _, grantee := range grantees {
 			for _, priv := range privs {
 				c.grants = append(c.grants, Grant{
-					ObjType:   objTypeCode,
-					ObjOID:    objOID,
-					Grantee:   grantee,
-					Privilege: priv.name,
-					Columns:   priv.columns,
-					WithGrant: stmt.GrantOption,
+					ObjType:     objTypeCode,
+					ObjOID:      objOID,
+					Grantee:     grantee.name,
+					Privilege:   priv.name,
+					Columns:     priv.columns,
+					WithGrant:   stmt.GrantOption,
+					Target:      nodes.ObjectType(stmt.Objtype),
+					GranteeKind: grantee.kind,
+					GranteeName: grantee.value,
 				})
 			}
 		}
@@ -114,7 +164,7 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 	return nil
 }
 
-func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string) error {
+func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []grantee) error {
 	// Resolve each object and remove matching grants.
 	if stmt.Objects == nil {
 		return nil
@@ -130,10 +180,10 @@ func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []gr
 }
 
 // revokeGrants removes matching grants from the catalog.
-func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []string, privs []grantPriv) {
+func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []grantee, privs []grantPriv) {
 	n := 0
 	for _, g := range c.grants {
-		if g.ObjType == objType && g.ObjOID == objOID && matchGrantee(g.Grantee, grantees) && matchPriv(g.Privilege, privs) {
+		if g.ObjType == objType && g.ObjOID == objOID && matchGrantee(g.Grantee, granteeNames(grantees)) && matchPriv(g.Privilege, privs) {
 			continue // remove
 		}
 		c.grants[n] = g
@@ -192,17 +242,17 @@ func (c *Catalog) extractPrivileges(privList *nodes.List) []grantPriv {
 	return result
 }
 
-func (c *Catalog) extractGrantees(granteeList *nodes.List) []string {
+func (c *Catalog) extractGrantees(granteeList *nodes.List) []grantee {
 	if granteeList == nil {
 		return nil
 	}
-	var result []string
+	var result []grantee
 	for _, item := range granteeList.Items {
 		rs, ok := item.(*nodes.RoleSpec)
 		if !ok {
 			continue
 		}
-		result = append(result, roleSpecName(rs))
+		result = append(result, newGrantee(rs))
 	}
 	return result
 }

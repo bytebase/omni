@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -98,5 +99,49 @@ func TestGrantRedshiftOnlyTargetsRefusePublicGrantOption(t *testing.T) {
 	} {
 		err := execOne(t, New(), sql)
 		assertCode(t, err, CodeInvalidGrantOperation)
+	}
+}
+
+// TestExternalTableGrantRendersItsOwnSyntax holds a recorded external-table
+// grant to the statement it was written as: the ON clause keeps EXTERNAL TABLE
+// and the grantee keeps IAM_ROLE, so a migration reproduces the permission.
+func TestExternalTableGrantRendersItsOwnSyntax(t *testing.T) {
+	c := New()
+	for _, sql := range []string{
+		"CREATE SCHEMA spectrum",
+		"CREATE TABLE spectrum.sales (id INT)",
+	} {
+		if err := execOne(t, c, sql); err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+	}
+	if err := execOne(t, c, "GRANT SELECT, ALTER ON EXTERNAL TABLE spectrum.sales TO IAM_ROLE 'arn:aws:iam::1:role/r'"); err != nil {
+		t.Fatalf("GRANT: %v", err)
+	}
+	if err := execOne(t, c, "GRANT CREATE ON EXTERNAL SCHEMA spectrum TO IAM_ROLE 'arn:aws:iam::1:role/r2'"); err != nil {
+		t.Fatalf("GRANT: %v", err)
+	}
+
+	var grants, revokes []string
+	for _, g := range c.grants {
+		objName := resolveGrantObjName(c, g.ObjType, g.ObjOID)
+		if strings.EqualFold(g.Privilege, "select") && g.Target == nodes.OBJECT_FOREIGN_TABLE {
+			if got, want := formatGrantSQL(g, objName), "GRANT SELECT ON EXTERNAL TABLE "+formatQualifiedDescription(objName)+" TO IAM_ROLE 'arn:aws:iam::1:role/r'"; got != want {
+				t.Errorf("GRANT SQL = %q, want %q", got, want)
+			}
+			revokes = append(revokes, formatRevokeSQL(g, objName))
+		}
+		if g.Target == nodes.OBJECT_EXTERNAL_SCHEMA {
+			grants = append(grants, formatGrantSQL(g, objName))
+		}
+	}
+	if len(grants) != 1 || !strings.Contains(grants[0], "ON EXTERNAL SCHEMA ") || !strings.Contains(grants[0], "TO IAM_ROLE 'arn:aws:iam::1:role/r2'") {
+		t.Errorf("external schema grants = %v, want one with EXTERNAL SCHEMA and IAM_ROLE", grants)
+	}
+	if len(revokes) == 0 {
+		t.Fatal("no external table grant recorded")
+	}
+	if want := "REVOKE SELECT ON EXTERNAL TABLE "; !strings.HasPrefix(revokes[0], want) {
+		t.Errorf("REVOKE SQL = %q, want prefix %q", revokes[0], want)
 	}
 }

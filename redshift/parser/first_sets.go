@@ -598,3 +598,46 @@ func (p *Parser) isRedshiftMultiwordTypenameStart() bool {
 func (p *Parser) isRedshiftDatashareNameStart() bool {
 	return p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext())
 }
+
+// isRedshiftConnectStart reports whether the tokens after GRANT begin
+// r_GRANT's CONNECT alternative: the unquoted word CONNECT and then TO, or ON
+// WORKGROUP.
+//
+// Validated by TestIsRedshiftFederatedPermissionStart in first_sets_test.go.
+func (p *Parser) isRedshiftConnectStart() bool {
+	return p.redshiftKeywordIs("connect") && (p.peekNext().Type == TO || p.peekNext().Type == ON)
+}
+
+// isRedshiftDebugStart reports whether the tokens after GRANT or REVOKE begin
+// r_GRANT's and r_REVOKE's DEBUG alternative: the unquoted word DEBUG and then
+// ON DATABASE.
+//
+// Validated by TestIsRedshiftFederatedPermissionStart in first_sets_test.go.
+func (p *Parser) isRedshiftDebugStart() bool {
+	return p.redshiftKeywordIs("debug") && p.peekNext().Type == ON
+}
+
+// isRedshiftAdminsOfAccountStart reports whether the grantee is
+// ADMINS OF ACCOUNT '<account_id>', which only DEBUG takes.
+//
+// Validated by TestIsRedshiftIdentityGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftAdminsOfAccountStart() bool {
+	return p.redshiftKeywordIs("admins") && p.peekNext().Type == OF
+}
+
+// isRedshiftPublicGranteeStart reports whether PUBLIC is the pseudo-role rather
+// than the prefix of a <prefix>:<name> identity, which a colon after it makes.
+//
+// Validated by TestIsRedshiftIdentityGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftPublicGranteeStart() bool {
+	return p.redshiftKeywordIs("public") && p.peekNext().Type != ':'
+}
+
+// isRedshiftRoleIdentityStart reports whether ROLE introduces an Identity Center
+// role name, ROLE <prefix>:<name>, rather than being the prefix itself, as in
+// ROLE:<name>. ROLE is unreserved.
+//
+// Validated by TestIsRedshiftIdentityGranteeStart in first_sets_test.go.
+func (p *Parser) isRedshiftRoleIdentityStart() bool {
+	return p.redshiftKeywordIs("role") && isColIdToken(p.peekNext())
+}
