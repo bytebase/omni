@@ -197,10 +197,18 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 	// then requires an integer literal, so `(1)` is accepted and
 	// `CURRENT_USER` is not.
 	parens := 0
-	for p.cur.Kind == int('(') {
-		p.advance() // consume '('
-		parens++
+	for {
+		switch p.cur.Kind {
+		case int('('):
+			p.advance() // consume '('
+			parens++
+		case int('+'):
+			p.advance() // unary plus folds to the literal
+		default:
+			goto intervalValue
+		}
 	}
+intervalValue:
 	value, err := p.expect(tokInt)
 	if err != nil {
 		return nil, err
@@ -474,23 +482,19 @@ func attachWith(node ast.Node, with *ast.WithClause) {
 	}
 }
 
-// attachInto sets an INTO OUTFILE clause parsed after a parenthesized query on
-// the query's leftmost SELECT, where the set-operation and paren wrappers keep
-// no field for it.
+// attachInto stores an INTO OUTFILE clause on the query node that owns the
+// whole queryNoWith, so a child's Loc never extends past its parent's.
 func attachInto(node ast.Node, into *ast.IntoOutfileClause) {
-	for {
-		switch n := node.(type) {
-		case *ast.ParenSelect:
-			node = n.Sel
-		case *ast.SetOpStmt:
-			node = n.Left
-		case *ast.SelectStmt:
-			n.Into = into
-			n.Loc.End = into.Loc.End
-			return
-		default:
-			return
-		}
+	switch n := node.(type) {
+	case *ast.ParenSelect:
+		n.Into = into
+		n.Loc.End = into.Loc.End
+	case *ast.SetOpStmt:
+		n.Into = into
+		n.Loc.End = into.Loc.End
+	case *ast.SelectStmt:
+		n.Into = into
+		n.Loc.End = into.Loc.End
 	}
 }
 

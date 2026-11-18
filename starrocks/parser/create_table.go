@@ -608,7 +608,7 @@ func ctasClauseRank(kind TokenKind) int {
 		return 1
 	case kwCOMMENT:
 		return 2
-	case kwAUTO, kwPARTITION:
+	case kwPARTITION:
 		return 3
 	case kwDISTRIBUTED:
 		return 4
@@ -629,7 +629,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			rank := ctasClauseRank(p.cur.Kind)
 			if rank == 0 {
 				switch p.cur.Kind {
-				case kwENGINE, kwROLLUP, kwBROKER, kwLIKE:
+				case kwENGINE, kwROLLUP, kwBROKER, kwLIKE, kwAUTO:
 					return p.syntaxErrorAtCur()
 				}
 			} else if rank <= lastRank {

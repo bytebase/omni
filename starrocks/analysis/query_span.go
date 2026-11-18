@@ -253,7 +253,9 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			if cte == nil || cte.Name == "" {
 				continue
 			}
-			scope.names[strings.ToLower(cte.Name)] = true
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
 			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
 		w.enterScope(scope)
@@ -311,19 +313,22 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	}
 	if n.With != nil {
 		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-		for _, cte := range n.With.CTEs {
-			if cte == nil || cte.Name == "" {
-				continue
-			}
-			scope.names[strings.ToLower(cte.Name)] = true
-			w.span.CTEs = append(w.span.CTEs, cte.Name)
-		}
 		w.enterScope(scope)
 		defer w.leaveScope(scope)
 		for _, cte := range n.With.CTEs {
-			if cte != nil && cte.Query != nil {
+			if cte == nil {
+				continue
+			}
+			if cte.Query != nil {
 				w.visitSetOpArm(cte.Query, false)
 			}
+			if cte.Name == "" {
+				continue
+			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
 		w.visitSetOpArms(n, outermost)
 		return
@@ -337,14 +342,21 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	// its WITH scoped inside the parens, so the spine stops at ParenSelect.
 	if with := leftmostWith(n); with != nil {
 		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-		for _, cte := range with.CTEs {
-			if cte == nil || cte.Name == "" {
-				continue
-			}
-			scope.names[strings.ToLower(cte.Name)] = true
-		}
 		w.enterScope(scope)
 		defer w.leaveScope(scope)
+		for _, cte := range with.CTEs {
+			if cte == nil {
+				continue
+			}
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+			if cte.Name != "" {
+				name := strings.ToLower(cte.Name)
+				scope.names[name] = true
+				w.cteNames[name]++
+			}
+		}
 	}
 	w.visitSetOpArms(n, outermost)
 }
@@ -415,20 +427,24 @@ func (w *spanWalker) visitParenSelect(n *ast.ParenSelect, outermost bool) {
 	}
 	if n.With != nil {
 		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-		for _, cte := range n.With.CTEs {
-			if cte == nil || cte.Name == "" {
-				continue
-			}
-			scope.names[strings.ToLower(cte.Name)] = true
-			w.span.CTEs = append(w.span.CTEs, cte.Name)
-		}
 		w.enterScope(scope)
 		defer w.leaveScope(scope)
-		// CTE bodies run in this scope, like visitSelect's.
+		// CTE bodies run in this scope, like visitSelect's, and each name
+		// enters the scope only after its own body.
 		for _, cte := range n.With.CTEs {
-			if cte != nil && cte.Query != nil {
+			if cte == nil {
+				continue
+			}
+			if cte.Query != nil {
 				w.visitSetOpArm(cte.Query, false)
 			}
+			if cte.Name == "" {
+				continue
+			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
 	}
 	w.visitSetOpArm(n.Sel, outermost)
@@ -463,24 +479,25 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 	// all CTEs as visible to each other's bodies; that matches the legacy
 	// extractor's behavior.
 	scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-	if stmt.With != nil {
-		for _, cte := range stmt.With.CTEs {
-			if cte == nil || cte.Name == "" {
-				continue
-			}
-			scope.names[strings.ToLower(cte.Name)] = true
-			w.span.CTEs = append(w.span.CTEs, cte.Name)
-		}
-	}
 	w.enterScope(scope)
 
-	// Walk CTE bodies first so their FROM tables land in AccessTables.
+	// Walk each CTE body before adding its name: a body may read an earlier
+	// sibling but not itself or a later one.
 	if stmt.With != nil {
 		for _, cte := range stmt.With.CTEs {
-			if cte == nil || cte.Query == nil {
+			if cte == nil {
 				continue
 			}
-			w.visitSetOpArm(cte.Query, false)
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+			if cte.Name == "" {
+				continue
+			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
 	}
 

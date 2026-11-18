@@ -284,6 +284,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Offset != nil {
 			Walk(v, n.Offset)
 		}
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
 	case *ParenSelect:
 		if n.With != nil {
 			Walk(v, n.With)
@@ -299,6 +302,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Offset != nil {
 			Walk(v, n.Offset)
+		}
+		if n.Into != nil {
+			Walk(v, n.Into)
 		}
 	case *IntoOutfileClause:
 		for _, prop := range n.Properties {

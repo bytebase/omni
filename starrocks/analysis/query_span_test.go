@@ -1239,3 +1239,19 @@ func TestGetQuerySpanNestedWrappedInsertSource(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want secret", span.AccessTables)
 	}
 }
+
+// Each CTE name enters scope only after its body, so a forward reference in
+// an earlier body is a physical table.
+func TestGetQuerySpanSequentialCTEBodies(t *testing.T) {
+	span, err := GetQuerySpan("WITH a AS (SELECT * FROM b), b AS (SELECT * FROM allowed) (SELECT * FROM a)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["b"] || !got["allowed"] {
+		t.Errorf("AccessTables = %+v, want b and allowed", span.AccessTables)
+	}
+}

@@ -90,6 +90,26 @@ func TestExplainedDMLRejectedInQueryStatement(t *testing.T) {
 	}
 }
 
+// The OUTFILE clause belongs to the wrapper, so no child Loc runs past its
+// parent.
+func TestTraceOutfileLoc(t *testing.T) {
+	file, errs := parseForTest("TRACE ALL (SELECT 1) INTO OUTFILE 'x'")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	trace := file.Stmts[0].(*ast.OptimizerTraceStmt)
+	paren, ok := trace.Query.(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.ParenSelect", trace.Query)
+	}
+	if paren.Into == nil {
+		t.Fatal("ParenSelect.Into is nil")
+	}
+	if end := ast.NodeLoc(paren.Sel).End; end > paren.Loc.End {
+		t.Errorf("child End = %d, parent End = %d", end, paren.Loc.End)
+	}
+}
+
 func TestOptimizerTraceRejects(t *testing.T) {
 	for _, sql := range []string{
 		"TRACE SELECT 1",

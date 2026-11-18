@@ -226,13 +226,12 @@ func isReadOnlyQuery(node ast.Node) bool {
 	case *ast.SelectStmt:
 		return n.Into == nil
 	case *ast.SetOpStmt:
-		// The parser attaches INTO to an arm rather than the set operation.
-		return !setOpWritesOutfile(n)
+		return n.Into == nil && !setOpWritesOutfile(n)
 	case *ast.ParenSelect:
 		// (SELECT ...) / ((SELECT ...)) — classify by the wrapped query so the
 		// gate still applies inside the parens. ParenSelect only ever wraps a
 		// SELECT, SetOpStmt or another ParenSelect, so no DML hides here.
-		return isReadOnlyQuery(n.Sel)
+		return n.Into == nil && isReadOnlyQuery(n.Sel)
 	}
 	return false
 }
@@ -244,11 +243,11 @@ func setOpWritesOutfile(node ast.Node) bool {
 	case *ast.SelectStmt:
 		return n.Into != nil
 	case *ast.SetOpStmt:
-		return setOpWritesOutfile(n.Left) || setOpWritesOutfile(n.Right)
+		return n.Into != nil || setOpWritesOutfile(n.Left) || setOpWritesOutfile(n.Right)
 	case *ast.ParenSelect:
 		// A parenthesized arm — SELECT 1 UNION (SELECT ... INTO OUTFILE ...) —
 		// must not slip the export gate.
-		return setOpWritesOutfile(n.Sel)
+		return n.Into != nil || setOpWritesOutfile(n.Sel)
 	default:
 		return false
 	}

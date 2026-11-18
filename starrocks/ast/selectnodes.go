@@ -304,13 +304,14 @@ const (
 type SetOpStmt struct {
 	// With scopes over the whole set operation, including the right arm.
 	With    *WithClause
-	Op      SetOperator    // the set operator
-	All     bool           // true for ALL quantifier; false means DISTINCT (the default)
-	Left    Node           // SelectStmt, ParenSelect, or another SetOpStmt
-	Right   Node           // SelectStmt, ParenSelect, or another SetOpStmt
-	OrderBy []*OrderByItem // outer ORDER BY applying to the combined result
-	Limit   Node           // outer LIMIT applying to the combined result
-	Offset  Node           // outer OFFSET applying to the combined result
+	Op      SetOperator        // the set operator
+	All     bool               // true for ALL quantifier; false means DISTINCT (the default)
+	Left    Node               // SelectStmt, ParenSelect, or another SetOpStmt
+	Right   Node               // SelectStmt, ParenSelect, or another SetOpStmt
+	OrderBy []*OrderByItem     // outer ORDER BY applying to the combined result
+	Limit   Node               // outer LIMIT applying to the combined result
+	Offset  Node               // outer OFFSET applying to the combined result
+	Into    *IntoOutfileClause // outer INTO OUTFILE applying to the combined result
 	Loc     Loc
 }
 
@@ -330,6 +331,7 @@ type ParenSelect struct {
 	OrderBy []*OrderByItem
 	Limit   Node
 	Offset  Node
+	Into    *IntoOutfileClause
 
 	Loc Loc
 }
