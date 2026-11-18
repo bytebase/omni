@@ -309,6 +309,37 @@ func TestGetQuerySpan_UnnestWithOrdinality(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_JSONTableColumnLineage resolves JSON_TABLE output columns to
+// the relation's JSON input, including nested columns, while an ordinality
+// column carries no lineage. A value column's DEFAULT expression is a source
+// too, because the column may take its value.
+func TestGetQuerySpan_JSONTableColumnLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT jt.v, jt.ord, jt.nv, jt.d FROM customer CROSS JOIN JSON_TABLE(profile, '$' COLUMNS(v VARCHAR PATH '$.v', ord FOR ORDINALITY, NESTED '$.items' COLUMNS(nv VARCHAR PATH '$.x'), d VARCHAR DEFAULT backup ON EMPTY)) jt")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	for _, name := range []string{"v", "nv", "d"} {
+		r, ok := resultByName(span, name)
+		if !ok {
+			t.Fatalf("Results = %+v, want a column named %s", span.Results, name)
+		}
+		if !hasSource(r.SourceColumns, ColumnRef{Column: "profile"}) {
+			t.Errorf("%s.SourceColumns = %+v, want to contain {Column:profile}", name, r.SourceColumns)
+		}
+	}
+	d, _ := resultByName(span, "d")
+	if !hasSource(d.SourceColumns, ColumnRef{Column: "backup"}) {
+		t.Errorf("d.SourceColumns = %+v, want to contain {Column:backup} (DEFAULT ON EMPTY)", d.SourceColumns)
+	}
+	ord, ok := resultByName(span, "ord")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named ord", span.Results)
+	}
+	if hasSource(ord.SourceColumns, ColumnRef{Column: "profile"}) {
+		t.Errorf("ord.SourceColumns = %+v, must not contain {Column:profile} (ordinal has no lineage)", ord.SourceColumns)
+	}
+}
+
 // TestGetQuerySpan_ScalarSubqueryLineage covers BYT-9676: a scalar subquery used
 // as a SELECT value must resolve to its inner output column's lineage.
 func TestGetQuerySpan_ScalarSubqueryLineage(t *testing.T) {
