@@ -220,6 +220,7 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 
 	// Build type: "CREATE TABLE", "CREATE VIEW", "CREATE DATABASE", etc.
 	typeWord := "CREATE"
+	materializedView := false
 	switch p.cur.Kind {
 	case kwTABLE:
 		typeWord = "CREATE TABLE"
@@ -233,12 +234,21 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 	case kwCATALOG:
 		typeWord = "CREATE CATALOG"
 		p.advance()
+	case kwLOAD:
+		// SHOW CREATE LOAD FOR label (DorisParser.g4:391, the CUP parser's
+		// show_create_load_stmt at DorisLegacyParser.g4:878).
+		p.advance() // consume LOAD
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
+		}
+		typeWord = "CREATE LOAD"
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
 		if p.cur.Kind == kwVIEW {
 			p.advance()
 		}
 		typeWord = "CREATE MATERIALIZED VIEW"
+		materializedView = true
 	case kwFUNCTION, kwGLOBAL, kwSESSION, kwLOCAL:
 		// SHOW CREATE [GLOBAL | SESSION | LOCAL] FUNCTION name(args) [(FROM | IN) db]
 		return p.parseShowCreateFunction(stmt)
@@ -260,6 +270,17 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 		if err == nil {
 			stmt.Target = target
 		}
+	}
+
+	// SHOW CREATE MATERIALIZED VIEW name ON table (DorisParser.g4:355,
+	// show_param at DorisLegacyParser.g4:1386).
+	if materializedView && p.cur.Kind == kwON {
+		p.advance() // consume ON
+		on, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.On = on
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
@@ -373,11 +394,37 @@ func (p *Parser) parseShowGrants(stmt *ast.ShowStmt) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseShowTableStatus parses: SHOW TABLE STATUS [FROM db] [LIKE 'pat']
-// On entry, cur == kwTABLE.
+// parseShowTableStatus parses:
+//
+//	SHOW TABLE STATUS [FROM db[.table]] [LIKE 'pat' | WHERE ...]
+//	SHOW TABLE CREATION [FROM db] [LIKE 'pat' | WHERE ...]
+//	SHOW TABLE id
+//
+// (DorisParser.g4:275 #showTableStatus, :278 #showTableId and :351
+// #showTableCreation; show_param at DorisLegacyParser.g4:1386 takes all
+// three.) On entry, cur == kwTABLE.
 func (p *Parser) parseShowTableStatus(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume TABLE
 	stmt.Type = "TABLE"
+
+	// SHOW TABLE CREATION: a variant of its own, not a table named CREATION.
+	if p.cur.Kind == kwCREATION {
+		p.advance() // consume CREATION
+		stmt.Type = "TABLE CREATION"
+		if err := p.parseShowFromLikeWhere(stmt); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
+	// SHOW TABLE id names the table by id, which the AST keeps as the
+	// variant's argument.
+	if p.cur.Kind == tokInt {
+		stmt.Args = p.sourceText(p.advance().Loc)
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
 
 	// Optional STATUS
 	if p.cur.Kind == kwSTATUS {
@@ -522,13 +569,16 @@ func (p *Parser) parseShowGeneric(stmt *ast.ShowStmt) (ast.Node, error) {
 // parseShowFromLikeWhere optionally consumes [FROM db] [LIKE 'pat'] [WHERE expr]
 // for SHOW TABLES and similar forms.
 func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) error {
-	// Optional FROM db
+	// Optional FROM db: the CUP parser's opt_db names one database, and its
+	// TABLE and TABLES forms also take `from_or_in ident '.' ident`
+	// (DorisLegacyParser.g4:1386), which the ANTLR parser's
+	// multipartIdentifier takes as well (DorisParser.g4:275-276).
 	if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
 		p.advance()
 		if isIdentifierToken(p.cur.Kind) {
-			dbName, _, err := p.parseIdentifier()
+			name, err := p.parseMultipartIdentifier()
 			if err == nil {
-				stmt.From = dbName
+				stmt.From = strings.Join(name.Parts, ".")
 			}
 		} else if p.strictTrailing {
 			// SHOW TABLES FROM with no database name ends at EOF, invisible
@@ -598,11 +648,24 @@ func (p *Parser) collectRemainingRaw() string {
 //
 //	DESCRIBE [FULL] table_name [ALL VERBOSE]
 //	DESC [FULL] table_name
+//	DESCRIBE [FULL] table_name opt_partition_names
+//	DESCRIBE FUNCTION name '(' [properties] ')' [table_alias]
+//	DESCRIBE [explain options] query
+//	DESCRIBE [explain options] INSERT ...
+//
+// The first four are DorisLegacyParser.g4:1629 describe_stmt, which the ANTLR
+// parser's unsupportedDescribeStatement (DorisParser.g4:947-952) also derives;
+// the last two are an explain command, so they parse as an ExplainStmt
+// (DorisParser.g4:52, :1067).
 //
 // On entry, DESCRIBE or DESC has NOT yet been consumed.
 func (p *Parser) parseDescribe() (ast.Node, error) {
 	startLoc := p.cur.Loc
 	p.advance() // consume DESCRIBE/DESC
+
+	if p.describeExplains() {
+		return p.parseExplainBody(&ast.ExplainStmt{Loc: startLoc})
+	}
 
 	stmt := &ast.DescribeStmt{Loc: startLoc}
 
@@ -612,6 +675,16 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 		p.advance()
 	}
 
+	// DESCRIBE FUNCTION a() — table_valued_function_ref
+	// (DorisLegacyParser.g4:2240), which DorisParser.g4:948 derives too.
+	if p.cur.Kind == kwFUNCTION {
+		if err := p.parseDescribeFunction(stmt); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	// Target table/function name.
 	if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
 		target, err := p.parseMultipartIdentifier()
@@ -619,6 +692,17 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Target = target
+	}
+
+	// Optional partition list: describe_stmt's opt_partition_names
+	// (DorisParser.g4:951 specifiedPartition, DorisLegacyParser.g4:2294).
+	switch p.cur.Kind {
+	case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+		parts, temporary, err := p.parseDescribePartition()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partition, stmt.TempPartition = parts, temporary
 	}
 
 	// Optional ALL VERBOSE suffix.
@@ -632,6 +716,117 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseDescribeFunction reads the rest of
+//
+//	FUNCTION name '(' propertyItemList? ')' tableAlias
+//
+// (DorisParser.g4:948; the CUP parser's table_valued_function_ref,
+// DorisLegacyParser.g4:2240, takes the same shape, and its
+// opt_key_value_map_in_paren is the same key=value list spelled with string
+// literals). cur is FUNCTION.
+func (p *Parser) parseDescribeFunction(stmt *ast.DescribeStmt) error {
+	stmt.Function = true
+	p.advance() // consume FUNCTION
+	name, loc, err := p.parseIdentifier()
+	if err != nil {
+		return err
+	}
+	stmt.Target = &ast.ObjectName{Parts: []string{name}, Loc: loc}
+	if _, err := p.expect(int('(')); err != nil {
+		return err
+	}
+	if p.cur.Kind != int(')') { // the argument list is optional
+		if stmt.Args, err = p.parsePropertyItems(p.parsePropertyItem); err != nil {
+			return err
+		}
+	} else {
+		p.advance() // consume ')'
+	}
+	// tableAlias : (AS? strictIdentifier identifierList?)?
+	alias, _ := p.parseOptionalAlias(false)
+	stmt.TableAlias = alias
+	return nil
+}
+
+// parseDescribePartition reads describe_stmt's opt_partition_names:
+//
+//	TEMPORARY? PARTITION (identifier | identifierList)
+//	| TEMPORARY? PARTITIONS identifierList
+//
+// (DorisParser.g4:1627 specifiedPartition, which unsupportedDescribeStatement
+// uses; the CUP parser's partition_names, DorisLegacyParser.g4:2311, also
+// lists PARTITION and PARTITIONS with '*', which specifiedPartition does not
+// have, and the engine refuses DESCRIBE t PARTITION(*).)
+func (p *Parser) parseDescribePartition() ([]string, bool, error) {
+	temporary := false
+	if p.cur.Kind == kwTEMPORARY {
+		temporary = true
+		p.advance()
+	}
+	switch p.cur.Kind {
+	case kwPARTITION:
+		p.advance()
+		if p.cur.Kind != int('(') { // PARTITION identifier
+			name, _, err := p.parseIdentifier()
+			return []string{name}, temporary, err
+		}
+	case kwPARTITIONS:
+		p.advance()
+	default:
+		return nil, temporary, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, temporary, err
+	}
+	var parts []string
+	for {
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, temporary, err
+		}
+		parts = append(parts, name)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, temporary, err
+	}
+	return parts, temporary, nil
+}
+
+// describeExplains reports whether what follows DESCRIBE/DESC is an explain
+// command — an optional plan type, level and PROCESS, then the planned query
+// or INSERT (DorisParser.g4:1061 explain, :52 statementBase) — rather than the
+// table or function name describe_stmt names. It leaves the parser where it
+// found it, so a bare word keeps describing a table.
+func (p *Parser) describeExplains() bool {
+	saved := p.save()
+	defer p.restore(saved)
+
+	// planType?
+	switch p.cur.Kind {
+	case kwPARSED, kwANALYZED, kwREWRITTEN, kwOPTIMIZED, kwPHYSICAL, kwSHAPE, kwMEMO:
+		p.advance()
+	}
+	// level?
+	switch p.cur.Kind {
+	case kwVERBOSE, kwTREE, kwGRAPH, kwPLAN, kwDUMP:
+		p.advance()
+	}
+	// PROCESS?
+	if p.cur.Kind == kwPROCESS {
+		p.advance()
+	}
+
+	switch p.cur.Kind {
+	case kwSELECT, kwWITH, kwVALUES, kwINSERT, int('('):
+		return true
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -649,7 +844,13 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 	p.advance() // consume EXPLAIN
 
 	stmt := &ast.ExplainStmt{Loc: startLoc}
+	return p.parseExplainBody(stmt)
+}
 
+// parseExplainBody reads the modifiers and the explained statement of an
+// explain command — EXPLAIN, DESCRIBE or DESC alike (DorisParser.g4:1061
+// explain, :1067 explainCommand).
+func (p *Parser) parseExplainBody(stmt *ast.ExplainStmt) (ast.Node, error) {
 	// Optional explain type modifier.
 	switch p.cur.Kind {
 	case kwVERBOSE:
@@ -692,6 +893,18 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 		p.advance()
 	default:
 		// No modifier — empty Type.
+	}
+
+	// Doris states the INSERT head: INSERT (INTO | OVERWRITE TABLE)
+	// (DorisParser.g4:139, DorisLegacyParser.g4:1777 insert_stmt). parseInsert
+	// also takes a bare INSERT table, a gap kept for the INSERT statement
+	// itself; an explain command asks for the head the grammar names.
+	if p.cur.Kind == kwINSERT {
+		switch next := p.peekNext(); next.Kind {
+		case kwINTO, kwOVERWRITE:
+		default:
+			return nil, syntaxErrorAt(next)
+		}
 	}
 
 	// Parse the explained query. The RawQuery fallback is best-effort

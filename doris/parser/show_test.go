@@ -631,3 +631,80 @@ func TestParseUseCloudCluster(t *testing.T) {
 		}
 	}
 }
+
+// TestShowTableStatusFromQualified: show_param's `'TABLE' 'STATUS' from_or_in
+// ident '.' ident` (DorisLegacyParser.g4:1386), which the ANTLR parser's
+// multipartIdentifier takes as well (DorisParser.g4:275).
+func TestShowTableStatusFromQualified(t *testing.T) {
+	stmt := parseOne(t, "SHOW TABLE STATUS FROM a.a").(*ast.ShowStmt)
+	if stmt.Type != "TABLE STATUS" {
+		t.Errorf("Type = %q, want TABLE STATUS", stmt.Type)
+	}
+	if stmt.From != "a.a" {
+		t.Errorf("From = %q, want a.a", stmt.From)
+	}
+}
+
+func TestShowTablesFromQualified(t *testing.T) {
+	stmt := parseOne(t, "SHOW TABLES FROM a.a").(*ast.ShowStmt)
+	if stmt.Type != "TABLES" || stmt.From != "a.a" {
+		t.Errorf("Type = %q From = %q, want TABLES from a.a", stmt.Type, stmt.From)
+	}
+}
+
+// TestShowTableID: SHOW TABLE INTEGER_VALUE names a table by id
+// (DorisParser.g4:278, show_param at DorisLegacyParser.g4:1389).
+func TestShowTableID(t *testing.T) {
+	stmt := parseOne(t, "SHOW TABLE 1").(*ast.ShowStmt)
+	if stmt.Type != "TABLE" || stmt.Args != "1" {
+		t.Errorf("Type = %q Args = %q, want TABLE with id 1", stmt.Type, stmt.Args)
+	}
+}
+
+// TestShowTableCreation: SHOW TABLE CREATION (DorisParser.g4:351, show_param
+// at DorisLegacyParser.g4:1386).
+func TestShowTableCreation(t *testing.T) {
+	stmt := parseOne(t, "SHOW TABLE CREATION").(*ast.ShowStmt)
+	if stmt.Type != "TABLE CREATION" {
+		t.Errorf("Type = %q, want TABLE CREATION", stmt.Type)
+	}
+}
+
+// TestShowCreateLoad: SHOW CREATE LOAD FOR label (DorisParser.g4:391,
+// DorisLegacyParser.g4:878).
+func TestShowCreateLoad(t *testing.T) {
+	stmt := parseOne(t, "SHOW CREATE LOAD FOR a").(*ast.ShowStmt)
+	if stmt.Type != "CREATE LOAD" {
+		t.Errorf("Type = %q, want CREATE LOAD", stmt.Type)
+	}
+	if stmt.Target == nil || stmt.Target.Parts[0] != "a" {
+		t.Errorf("Target = %+v, want a", stmt.Target)
+	}
+}
+
+// TestShowCreateMaterializedViewOn: SHOW CREATE MATERIALIZED VIEW name ON
+// table (DorisParser.g4:355, show_param at DorisLegacyParser.g4:1386).
+func TestShowCreateMaterializedViewOn(t *testing.T) {
+	stmt := parseOne(t, "SHOW CREATE MATERIALIZED VIEW a ON a").(*ast.ShowStmt)
+	if stmt.Type != "CREATE MATERIALIZED VIEW" {
+		t.Errorf("Type = %q, want CREATE MATERIALIZED VIEW", stmt.Type)
+	}
+	if stmt.Target == nil || stmt.Target.Parts[0] != "a" {
+		t.Errorf("Target = %+v, want a", stmt.Target)
+	}
+	if stmt.On == nil || stmt.On.Parts[0] != "a" {
+		t.Errorf("On = %+v, want a", stmt.On)
+	}
+}
+
+// TestShowIndexStats: SHOW INDEX STATS table index (DorisParser.g4:769,
+// show_param at DorisLegacyParser.g4:1386).
+func TestShowIndexStats(t *testing.T) {
+	stmt := parseOne(t, "SHOW INDEX STATS a a").(*ast.ShowStatsStmt)
+	if stmt.Type != "INDEX" {
+		t.Errorf("Type = %q, want INDEX", stmt.Type)
+	}
+	if stmt.Target == nil || stmt.Target.Parts[0] != "a" || stmt.Index != "a" {
+		t.Errorf("Target = %+v Index = %q, want table a and index a", stmt.Target, stmt.Index)
+	}
+}

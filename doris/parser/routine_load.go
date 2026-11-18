@@ -189,6 +189,64 @@ func (p *Parser) parseRoutineLoadProperty() error {
 }
 
 // ---------------------------------------------------------------------------
+// LOAD properties as statements
+// ---------------------------------------------------------------------------
+
+// atLoadPropertyStatement reports whether the statement at cur is one of the
+// load properties Doris's grammar derives as a statement of its own
+// (DorisParser.g4:389-393): ORDER BY name, COLUMNS (...), PRECEDING FILTER,
+// WHERE and DELETE ON. A DELETE statement names FROM, so only DELETE ON is the
+// load property.
+func (p *Parser) atLoadPropertyStatement() bool {
+	switch p.cur.Kind {
+	case kwORDER, kwCOLUMNS, kwPRECEDING, kwWHERE:
+		return true
+	case kwDELETE:
+		return p.peekNext().Kind == kwON
+	}
+	return false
+}
+
+// parseLoadPropertyStmt parses a load property that Doris's grammar also
+// derives as a statement of its own:
+//
+//	ORDER BY name             Kind "SEQUENCE"
+//	COLUMNS (desc, ...)       Kind "COLUMNS"
+//	PRECEDING FILTER expr     Kind "PRECEDING FILTER"
+//	WHERE expr                Kind "WHERE"
+//	DELETE ON expr            Kind "DELETE ON"
+//
+// (DorisParser.g4:389-393, the five import*Statement alternatives of
+// unsupportedLoadStatement, which the CUP parser's import_*_stmt also takes,
+// DorisLegacyParser.g4:48-83. The engine answers such a statement as a load
+// clause, so the clause itself is what this reads.) It is called from
+// parseSingle, the top level: a nested statement — an explain command's, a
+// JOB body — does not reach these alternatives.
+func (p *Parser) parseLoadPropertyStmt() (*ast.LoadPropertyStmt, error) {
+	start := p.cur.Loc
+	kind := ""
+	switch p.cur.Kind {
+	case kwORDER:
+		kind = "SEQUENCE"
+	case kwCOLUMNS:
+		kind = "COLUMNS"
+	case kwPRECEDING:
+		kind = "PRECEDING FILTER"
+	case kwWHERE:
+		kind = "WHERE"
+	case kwDELETE:
+		kind = "DELETE ON"
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := p.parseRoutineLoadProperty(); err != nil {
+		return nil, err
+	}
+	end := ast.Loc{Start: start.Start, End: p.prev.Loc.End}
+	return &ast.LoadPropertyStmt{Kind: kind, Text: p.sourceText(end), Loc: end}, nil
+}
+
+// ---------------------------------------------------------------------------
 // ALTER ROUTINE LOAD (T6.2)
 // ---------------------------------------------------------------------------
 

@@ -95,10 +95,11 @@ var _ Node = (*SelectStmt)(nil)
 // (DorisParser.g4, branch-3.1.) So the clause follows everything a query can
 // carry, ORDER BY and LIMIT included, and cannot appear inside parentheses:
 // `(SELECT 1) INTO OUTFILE 'p'` parses and `(SELECT 1 INTO OUTFILE 'p')` does
-// not — both container-verified. That is why Into sits on each of the three
+// not — both container-verified. That is why Into sits on each of the four
 // node types a statement's outermost query can be (SelectStmt, SetOpStmt,
-// GroupedQuery) rather than only on SelectStmt: a consumer reads the clause
-// off the node it is handed and never walks into an operand looking for one.
+// ValuesStmt, GroupedQuery) rather than only on SelectStmt: a consumer reads
+// the clause off the node it is handed and never walks into an operand
+// looking for one.
 //
 // StarRocks's sibling node carries the same fields, but its parser attaches
 // the clause inside the SELECT, so there it can land on a set-operation arm.
@@ -114,6 +115,43 @@ func (n *IntoOutfileClause) Tag() NodeTag { return T_IntoOutfileClause }
 
 // Compile-time assertion that *IntoOutfileClause satisfies Node.
 var _ Node = (*IntoOutfileClause)(nil)
+
+// ---------------------------------------------------------------------------
+// VALUES row-constructor query
+// ---------------------------------------------------------------------------
+
+// ValuesStmt represents a VALUES row-constructor query:
+//
+//	VALUES rowConstructor [, rowConstructor]* [ORDER BY ...] [LIMIT ...]
+//
+// DorisParser.g4:1486 derives it as inlineTable, one of queryPrimary's
+// alternatives (:1186 #valuesTable), so it is a query statement the engine
+// answers like any other; the CUP parser's select_stmt (:2050) takes the same
+// trailing order_by_clause and limit_clause.
+//
+// Each row is one rowConstructor (:1527): a parenthesized list of
+// rowConstructorItem (:1531), each of which is a constant, DEFAULT, or a
+// namedExpression — an expression with an optional alias (:1492). An item is
+// therefore carried as the *SelectItem the SELECT list uses. An empty row is
+// engine-valid: DorisParser.g4:1528 makes the item list optional, and the CUP
+// parser's row_value (:2060) makes opt_values optional.
+type ValuesStmt struct {
+	Rows    [][]*SelectItem // one slice per rowConstructor; a row may be empty
+	OrderBy []*OrderByItem  // ORDER BY items
+	Limit   Node            // LIMIT expression (nil if absent)
+	Offset  Node            // OFFSET expression (nil if absent)
+
+	// Into holds the INTO OUTFILE clause, as on SelectStmt and SetOpStmt.
+	Into *IntoOutfileClause
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *ValuesStmt) Tag() NodeTag { return T_ValuesStmt }
+
+// Compile-time assertion that *ValuesStmt satisfies Node.
+var _ Node = (*ValuesStmt)(nil)
 
 // ---------------------------------------------------------------------------
 // SELECT list item

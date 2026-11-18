@@ -311,6 +311,36 @@ func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
 // Compile-time assertion that *ExportStmt satisfies Node.
 var _ Node = (*ExportStmt)(nil)
 
+// ---------------------------------------------------------------------------
+// LOAD property statement
+// ---------------------------------------------------------------------------
+
+// LoadPropertyStmt represents one load property that Doris's grammar also
+// derives as a statement of its own (DorisParser.g4:389-393, the
+// importSequenceStatement and its four siblings under
+// unsupportedLoadStatement), and that the CUP parser's import_*_stmt
+// (DorisLegacyParser.g4:48-83) also takes:
+//
+//	ORDER BY name             Kind "SEQUENCE"
+//	COLUMNS (desc, ...)       Kind "COLUMNS"
+//	PRECEDING FILTER expr     Kind "PRECEDING FILTER"
+//	WHERE expr                Kind "WHERE"
+//	DELETE ON expr            Kind "DELETE ON"
+//
+// The clause is a load property, so what it reads is kept as source text,
+// as CreateRoutineLoadStmt keeps the load properties it carries.
+type LoadPropertyStmt struct {
+	Kind string // the clause's name, as listed above
+	Text string // the clause's source text, as written
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *LoadPropertyStmt) Tag() NodeTag { return T_LoadPropertyStmt }
+
+// Compile-time assertion that *LoadPropertyStmt satisfies Node.
+var _ Node = (*LoadPropertyStmt)(nil)
+
 // ROUTINE LOAD statements (T6.2)
 // ---------------------------------------------------------------------------
 

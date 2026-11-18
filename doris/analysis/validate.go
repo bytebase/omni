@@ -148,6 +148,10 @@ func isReadOnlyAST(node ast.Node) bool {
 	case *ast.SelectStmt:
 		// INTO OUTFILE exports to S3 or HDFS, past masking and the export gate.
 		return n.Into == nil
+	case *ast.ValuesStmt:
+		// A VALUES row-constructor query writes nothing itself; the export
+		// gate applies to it as to any query.
+		return n.Into == nil
 	case *ast.SetOpStmt:
 		return n.Into == nil
 	case *ast.GroupedQuery:

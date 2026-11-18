@@ -156,6 +156,9 @@ const (
 	// T_SelectStmt is the tag for *SelectStmt.
 	T_SelectStmt
 
+	// T_ValuesStmt is the tag for *ValuesStmt (a VALUES row-constructor query).
+	T_ValuesStmt
+
 	// T_SelectItem is the tag for *SelectItem (one item in the SELECT list).
 	T_SelectItem
 
@@ -266,6 +269,10 @@ const (
 
 	// T_LoadDataStmt is the tag for *LoadDataStmt.
 	T_LoadDataStmt
+
+	// T_LoadPropertyStmt is the tag for *LoadPropertyStmt, one load property
+	// Doris's grammar also derives as a statement of its own.
+	T_LoadPropertyStmt
 
 	// T_ExportStmt is the tag for *ExportStmt.
 	T_ExportStmt
@@ -746,6 +753,8 @@ func (t NodeTag) String() string {
 		return "CTE"
 	case T_SelectStmt:
 		return "SelectStmt"
+	case T_ValuesStmt:
+		return "ValuesStmt"
 	case T_SelectItem:
 		return "SelectItem"
 	case T_TableRef:
@@ -810,6 +819,8 @@ func (t NodeTag) String() string {
 		return "LoadDataDesc"
 	case T_LoadDataStmt:
 		return "LoadDataStmt"
+	case T_LoadPropertyStmt:
+		return "LoadPropertyStmt"
 	case T_ExportStmt:
 		return "ExportStmt"
 	case T_CreateRoutineLoadStmt:

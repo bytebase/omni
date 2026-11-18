@@ -143,7 +143,7 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		return 0, false
 	}
 	switch n := node.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ValuesStmt:
 		return QueryTypeSelect, true
 	case *ast.GroupedQuery:
 		// A repeated trailing clause group or a parenthesized WITH group

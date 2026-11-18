@@ -557,3 +557,31 @@ func TestCreateRoutineLoad_QuotedName(t *testing.T) {
 		t.Errorf("Name.Parts = %q", stmt.Name.Parts)
 	}
 }
+
+// TestLoadPropertyStatements: Doris's grammar also derives the load properties
+// as statements of their own (DorisParser.g4:389-393), which the CUP parser's
+// import_*_stmt take too (DorisLegacyParser.g4:48-83).
+func TestLoadPropertyStatements(t *testing.T) {
+	tests := []struct {
+		sql  string
+		kind string
+	}{
+		{"ORDER BY a", "SEQUENCE"},
+		{"COLUMNS(a)", "COLUMNS"},
+		{"PRECEDING FILTER CURRENT_DATE", "PRECEDING FILTER"},
+		{"WHERE CURRENT_DATE", "WHERE"},
+		{"DELETE ON CURRENT_DATE", "DELETE ON"},
+	}
+	for _, tc := range tests {
+		stmt, ok := parseOne(t, tc.sql).(*ast.LoadPropertyStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): want *ast.LoadPropertyStmt", tc.sql)
+		}
+		if stmt.Kind != tc.kind {
+			t.Errorf("Parse(%q): Kind = %q, want %q", tc.sql, stmt.Kind, tc.kind)
+		}
+		if stmt.Text != tc.sql {
+			t.Errorf("Parse(%q): Text = %q, want the clause as written", tc.sql, stmt.Text)
+		}
+	}
+}
