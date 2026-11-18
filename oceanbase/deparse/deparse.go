@@ -841,6 +841,10 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			writeGroupConcatAlias(b, n)
 			return
 		}
+		if upperName == "ARRAY_AGG" && n.Schema == "" {
+			writeArrayAggAlias(b, n)
+			return
+		}
 
 		// JSON_VALUE's clauses are part of the text the server names the column after:
 		// mysql:8.0.46 names JSON_VALUE(a, '$' RETURNING SIGNED) after all of it, so two calls
@@ -2327,7 +2331,6 @@ func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 // These rewrites are applied by SHOW CREATE VIEW in MySQL 8.0.
 var funcNameRewrites = map[string]string{
 	"SUBSTRING":         "substr",
-	"CHARACTER":         "char",
 	"CURRENT_TIMESTAMP": "now",
 	"CURRENT_DATE":      "curdate",
 	"CURRENT_TIME":      "curtime",
@@ -2651,7 +2654,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		writeGroupConcat(b, n)
 		return
 	}
-	if name == "ARRAY_AGG" {
+	if name == "ARRAY_AGG" && n.Schema == "" {
 		writeArrayAgg(b, n)
 		return
 	}
@@ -2669,6 +2672,11 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 	canonical, ok := funcNameRewrites[name]
 	if !ok {
 		canonical = strings.ToLower(n.Name)
+	}
+	if name == "CHARACTER" && n.Schema == "" {
+		// CHARACTER is the builtin's other spelling; a qualified or quoted
+		// name is a stored function and keeps the name it was called by.
+		canonical = "char"
 	}
 
 	// Schema-qualified name
@@ -2942,6 +2950,44 @@ func writeJSONQueryAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 	}
 	if opts.Multivalue {
 		b.WriteString(" MULTIVALUE")
+	}
+	b.WriteString(")")
+}
+
+// writeArrayAggAlias writes ARRAY_AGG's automatic column name, which keeps its
+// arguments, ordering and NULLS positioning.
+func writeArrayAggAlias(b *strings.Builder, n *ast.FuncCallExpr) {
+	b.WriteString("ARRAY_AGG(")
+	if q := n.Quantifier.String(); q != "" {
+		b.WriteString(q)
+		b.WriteString(" ")
+	}
+	for i, arg := range n.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeExprAlias(b, arg)
+	}
+	if len(n.OrderBy) > 0 {
+		b.WriteString(" ORDER BY ")
+		for i, item := range n.OrderBy {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExprAlias(b, item.Expr)
+			if item.Desc {
+				b.WriteString(" DESC")
+			} else if item.Direction == ast.OrderDirectionAsc {
+				b.WriteString(" ASC")
+			}
+			if item.NullsFirst != nil {
+				if *item.NullsFirst {
+					b.WriteString(" NULLS FIRST")
+				} else {
+					b.WriteString(" NULLS LAST")
+				}
+			}
+		}
 	}
 	b.WriteString(")")
 }

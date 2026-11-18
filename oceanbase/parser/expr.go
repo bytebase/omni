@@ -1075,6 +1075,11 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
+		if bounds, ok := fixedFuncArity[fc.Name]; ok {
+			if len(fc.Args) < bounds[0] || len(fc.Args) > bounds[1] {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 		// A dedicated window function has no arm outside window_function, and
 		// LISTAGG's only arm is there too, so without OVER each is a 1064:
 		// OceanBase 4.3.5 rejects SELECT ROW_NUMBER() a and SELECT LISTAGG(a) a,
@@ -1149,6 +1154,17 @@ func overEligible(name string) bool {
 		return true
 	}
 	return false
+}
+
+// fixedFuncArity is the inclusive [min, max] argument count of the builtins
+// whose grammar fixes it outside the aggregate and window tables: CHECK(expr),
+// APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(expr), TOP_K_FRE_HIST's four
+// parameters, and HYBRID_HIST's two.
+var fixedFuncArity = map[string][2]int{
+	"CHECK":                                {1, 1},
+	"APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE": {1, 1},
+	"TOP_K_FRE_HIST":                       {4, 4},
+	"HYBRID_HIST":                          {2, 2},
 }
 
 // requiresFuncArgs are the builtins whose grammar takes an expr or expr_list,

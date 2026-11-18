@@ -42,6 +42,10 @@ func TestFunctionExpressionGaps(t *testing.T) {
 		"SELECT APPROX_COUNT_DISTINCT(a) OVER",
 		"SELECT ARBITRATION(a)",
 		"SELECT COUNT(UNIQUE ALL a)",
+		"SELECT CHECK(a, b)",
+		"SELECT TOP_K_FRE_HIST() OVER a",
+		"SELECT HYBRID_HIST(a) OVER a",
+		"SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a, b) OVER a",
 	}
 	for _, sql := range accept {
 		if _, err := Parse(sql); err != nil {
@@ -98,6 +102,8 @@ func TestFunctionExpressionGapDeparse(t *testing.T) {
 		{"SELECT [ a, 1 ]", "array(`a`,1)"},
 		{"SELECT WEIGHT_STRING(a, 1, 1, 1, 1)", "weight_string(`a`,1,1,1,1)"},
 		{"SELECT ARRAY_AGG(a ORDER BY a DESC NULLS FIRST)", "array_agg(`a` order by `a` DESC NULLS FIRST)"},
+		{"SELECT s.array_agg(a, b)", "s.array_agg(`a`,`b`)"},
+		{"SELECT s.character(a)", "s.character(`a`)"},
 	} {
 		got := deparse.Deparse(firstExpr(t, c.sql))
 		if got != c.want {
