@@ -148,10 +148,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	// name belongs to a table: mariadb:11.8.8 says 1347 "'db.a' is not of type
 	// 'VIEW'" for a table and 1146 "Table 'db.a' doesn't exist" for no object.
 	if _, exists := db.Views[key]; !exists {
-		if _, isTable := db.Tables[key]; isTable {
-			return errWrongObject(db.Name, stmt.Name.Name, "VIEW")
-		}
-		if _, isSequence := db.Sequences[key]; isSequence {
+		if db.Tables[key] != nil || db.Sequences[key] != nil {
 			return errWrongObject(db.Name, stmt.Name.Name, "VIEW")
 		}
 		return errNoSuchTable(db.Name, stmt.Name.Name)
