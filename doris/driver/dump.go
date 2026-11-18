@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	gomysql "github.com/go-sql-driver/mysql"
+
 	"github.com/bytebase/omni/doris/ast"
 	dorisparser "github.com/bytebase/omni/doris/parser"
 	"github.com/bytebase/omni/driver"
@@ -186,7 +188,14 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 
 	functions, err := d.dumpFunctionSignatures(ctx)
 	if err != nil {
-		return nil, err
+		if !routineCatalogueAbsent(ctx, err) {
+			return nil, err
+		}
+		// A kernel built without the PL/SQL grammar (SelectDB 4.0.12+, 4.1.8+ and
+		// 5.0.5+, apache/doris#58700) answers the function catalogue with an error
+		// rather than an empty set, and so does an account without its privilege.
+		// The dump states the objects it can and leaves the functions out.
+		functions = nil
 	}
 	for _, signature := range functions {
 		// A variadic function's definition does not replay: the catalogue states
@@ -202,7 +211,10 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 
 	procedures, err := d.dumpProcedureNames(ctx)
 	if err != nil {
-		return nil, err
+		if !routineCatalogueAbsent(ctx, err) {
+			return nil, err
+		}
+		procedures = nil
 	}
 	for _, name := range procedures {
 		objects = append(objects, &dumpObject{kind: dumpProcedure, name: name})
@@ -236,6 +248,20 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 // errNoStatement reports a form the server answers no row for, which a
 // synchronous materialized view's index can be.
 var errNoStatement = errors.New("no statement")
+
+// routineCatalogueAbsent reports whether a routine catalogue probe failed
+// because the server has no such catalogue to answer from: a kernel built
+// without the PL/SQL grammar refuses it, and an account without the privilege
+// is refused the same way. Either way the server stated the refusal, so the
+// dump carries the objects it can state instead of failing whole. A dead
+// connection or an ended context is not that answer, and still fails the dump.
+func routineCatalogueAbsent(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	var mysqlErr *gomysql.MySQLError
+	return errors.As(err, &mysqlErr)
+}
 
 // dumpMaterializedViewNames returns the set of the database's materialized
 // views.
