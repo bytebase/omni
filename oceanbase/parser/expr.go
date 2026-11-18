@@ -2944,7 +2944,7 @@ func (p *Parser) parseArrayAggOrderByList() ([]*nodes.OrderByItem, error) {
 		if err != nil {
 			return nil, err
 		}
-		if expr == nil {
+		if expr == nil || isBareInterval(expr) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		item := &nodes.OrderByItem{Loc: nodes.Loc{Start: start}, Expr: expr}
