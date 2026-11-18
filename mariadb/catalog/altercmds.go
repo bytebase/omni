@@ -760,23 +760,20 @@ func alterDroppedColumns(cmds []*nodes.AlterTableCmd) map[string]bool {
 	return out
 }
 
-// A futureColumn is a column a later command of the same ALTER introduces or
-// changes. A key is validated against the columns the statement leaves behind,
-// but not against a drop that comes after it: `ADD KEY k(b), ADD COLUMN b INT`
-// is accepted, while a drop before the key is already reflected by the live
-// table.
+// A futureColumn is a column a later command of the same ALTER adds. A key is
+// validated against the columns the statement leaves behind, so `ADD KEY
+// k(b), ADD COLUMN b INT` is accepted although the key's clause comes first.
 type futureColumn struct {
-	def         *nodes.ColumnDef // ADD, MODIFY or CHANGE's new definition
-	from        string           // CHANGE's source column; empty for MODIFY/ADD
+	def         *nodes.ColumnDef // ADD COLUMN's definition
 	ifNotExists bool             // ADD COLUMN IF NOT EXISTS
-	add         bool             // ADD, not MODIFY or CHANGE
 	charset     string           // the table default when the column is added
 	collation   string
 }
 
-// alterFutureColumnsAfter returns the columns the commands after cmds[at]
-// introduce, in statement order. It is built only for a command that adds a
-// key, so an ALTER of many columns pays nothing for the ones without keys.
+// alterFutureColumnsAfter returns the columns the commands after cmds[at] add,
+// in statement order, with the table defaults in force at each. It is built
+// only for a command that adds a key, so an ALTER of many columns pays nothing
+// for the ones without keys.
 func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int, charset, collation string) []futureColumn {
 	var changes []futureColumn
 	for _, later := range cmds[at+1:] {
@@ -795,20 +792,12 @@ func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int, charset, colla
 			}
 		case nodes.ATAddColumn:
 			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists, add: true, charset: charset, collation: collation})
+				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists, charset: charset, collation: collation})
 			}
 			for _, def := range later.Columns {
 				if def != nil {
-					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists, add: true, charset: charset, collation: collation})
+					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists, charset: charset, collation: collation})
 				}
-			}
-		case nodes.ATModifyColumn:
-			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, charset: charset, collation: collation})
-			}
-		case nodes.ATChangeColumn:
-			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, from: later.Name, charset: charset, collation: collation})
 			}
 		}
 	}
@@ -817,7 +806,6 @@ func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int, charset, colla
 
 // applyFutureColumns adds a later command's columns to the key's table.
 func applyFutureColumns(tbl *Table, changes []futureColumn) {
-	aliases := make(map[string][]string)
 	for _, ch := range changes {
 		if ch.def == nil || ch.def.Name == "" {
 			continue
@@ -825,74 +813,27 @@ func applyFutureColumns(tbl *Table, changes []futureColumn) {
 		if ch.charset != "" || ch.collation != "" {
 			tbl.Charset, tbl.Collation = ch.charset, ch.collation
 		}
-		replace := func(name string) {
-			at, ok := tbl.colByName[toLower(name)]
-			if !ok {
-				return
-			}
-			col := buildColumnFromDef(tbl, ch.def)
-			col.Name = name
-			col.Position = tbl.Columns[at].Position
-			tbl.Columns[at] = col
-		}
-		if ch.from != "" {
-			// A CHANGE moves its source definition. If the source is gone or
-			// the destination is already a column, the live CHANGE fails
-			// (1054 or 1060) and contributes no prospective definition.
-			group := aliases[toLower(ch.from)]
-			if _, ok := tbl.colByName[toLower(ch.from)]; !ok && len(group) == 0 {
-				continue
-			}
-			if !strings.EqualFold(ch.from, ch.def.Name) && tbl.GetColumn(ch.def.Name) != nil {
-				continue
-			}
-			if len(group) == 0 {
-				group = []string{ch.from}
-			}
-			for _, name := range group {
-				replace(name)
-			}
-			if tbl.GetColumn(ch.def.Name) == nil {
-				col := buildColumnFromDef(tbl, ch.def)
-				col.Position = len(tbl.Columns) + 1
-				tbl.Columns = append(tbl.Columns, col)
-			} else {
-				replace(ch.def.Name)
-			}
-			group = append(group, ch.def.Name)
-			for _, name := range group {
-				aliases[toLower(name)] = group
-			}
-			rebuildColIndex(tbl)
-			continue
-		}
-		if group := aliases[toLower(ch.def.Name)]; len(group) > 0 {
-			// A MODIFY of a renamed column changes every name the earlier key
-			// may still use.
-			for _, name := range group {
-				replace(name)
-			}
-			rebuildColIndex(tbl)
-			continue
-		}
-		if at, ok := tbl.colByName[toLower(ch.def.Name)]; ok {
+		if tbl.GetColumn(ch.def.Name) != nil {
 			// A later duplicate ADD is 1060 when the statement runs; it must
 			// not replace the definition the key is judged against.
-			if ch.add {
-				continue
+			continue
+		}
+		col := buildColumnFromDef(tbl, ch.def)
+		col.Position = len(tbl.Columns) + 1
+		tbl.Columns = append(tbl.Columns, col)
+		// An inline PRIMARY/UNIQUE key supplies an index a self-referencing
+		// foreign key before it may look for.
+		for _, cc := range ch.def.Constraints {
+			switch cc.Type {
+			case nodes.ColConstrPrimaryKey:
+				tbl.Indexes = append(tbl.Indexes, &Index{Name: "PRIMARY", Table: tbl, Columns: []*IndexColumn{{Name: ch.def.Name}}, Unique: true, Primary: true, Visible: true})
+			case nodes.ColConstrUnique:
+				name := cc.Name
+				if name == "" {
+					name = ch.def.Name
+				}
+				tbl.Indexes = append(tbl.Indexes, &Index{Name: name, Table: tbl, Columns: []*IndexColumn{{Name: ch.def.Name}}, Unique: true, Visible: true})
 			}
-			col := buildColumnFromDef(tbl, ch.def)
-			col.Position = tbl.Columns[at].Position
-			tbl.Columns[at] = col
-		} else {
-			// A MODIFY whose source is gone fails with 1054; it adds nothing
-			// for an earlier key to see.
-			if !ch.add {
-				continue
-			}
-			col := buildColumnFromDef(tbl, ch.def)
-			col.Position = len(tbl.Columns) + 1
-			tbl.Columns = append(tbl.Columns, col)
 		}
 		rebuildColIndex(tbl)
 	}

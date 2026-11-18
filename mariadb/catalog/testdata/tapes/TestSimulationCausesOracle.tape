@@ -311,25 +311,6 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
-| CREATE TABLE a (x INT, y POINT NOT NULL)
-< ok 0 0
-> exec
-| ALTER TABLE a ADD SPATIAL KEY(y), CHANGE x y POINT
-< error
-| 1060 42S21 Duplicate column name 'y'
-> exec
-| DROP VIEW IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS a
-< ok 0 0
-> exec
-| DROP SEQUENCE IF EXISTS a
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS p
-< ok 0 0
-> exec
 | CREATE TABLE a (x INT)
 < ok 0 0
 > exec

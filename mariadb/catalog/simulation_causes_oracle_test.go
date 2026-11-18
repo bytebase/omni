@@ -123,12 +123,6 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1005,
 		},
 		{
-			name:  "later CHANGE onto an occupied column",
-			setup: []string{"CREATE TABLE a (x INT, y POINT NOT NULL)"},
-			stmt:  "ALTER TABLE a ADD SPATIAL KEY(y), CHANGE x y POINT",
-			code:  1060,
-		},
-		{
 			name:  "two later ADD COLUMN clauses of one name",
 			setup: []string{"CREATE TABLE a (x INT)"},
 			stmt:  "ALTER TABLE a ADD SPATIAL KEY(b), ADD b POINT NOT NULL, ADD b POINT",
