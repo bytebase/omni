@@ -130,6 +130,8 @@ func TestExtractChangedResourcesDatabaseOnlyTargets(t *testing.T) {
 		{"drop view", "DROP VIEW other.v;", []string{"other"}},
 		{"a qualified materialized view records its database", "DROP MATERIALIZED VIEW other.mv;", []string{"other"}},
 		{"drop procedure", "DROP PROCEDURE other.p;", []string{"other"}},
+		{"qualified drop task", "DROP TASK other.job;", []string{"other"}},
+		{"qualified alter load", "ALTER LOAD FOR other.label PROPERTIES('a' = 'a');", []string{"other"}},
 		{"a table DDL records no database-only target", "CREATE TABLE other.t (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1;", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

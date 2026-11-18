@@ -1228,3 +1228,14 @@ func TestGetQuerySpanWithSetOperation(t *testing.T) {
 		}
 	}
 }
+
+// A nested wrapper in an INSERT source uses the same scoped query visitor.
+func TestGetQuerySpanNestedWrappedInsertSource(t *testing.T) {
+	span, err := GetQuerySpan("INSERT INTO dst TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT * FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Errorf("AccessTables = %+v, want secret", span.AccessTables)
+	}
+}

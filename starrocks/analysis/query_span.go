@@ -283,6 +283,12 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.DataCacheSelectStmt:
 			w.visitDataCacheSelect(q)
 			return false
+		case *ast.OptimizerTraceStmt:
+			w.visitWrappedQuery(q.Query)
+			return false
+		case *ast.ExplainStmt:
+			w.visitWrappedQuery(q.Query)
+			return false
 		case *ast.TableRef:
 			// A physical table referenced by DML — UPDATE ... FROM secret,
 			// DELETE ... USING secret, MERGE ... USING secret — is a read the

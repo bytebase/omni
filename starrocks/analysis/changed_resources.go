@@ -169,6 +169,10 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		addObjectDatabase(n.Name)
 	case *ast.DropProcedureStmt:
 		addObjectDatabase(n.Name)
+	case *ast.DropTaskStmt:
+		addObjectDatabase(n.Name)
+	case *ast.AlterLoadStmt:
+		addObjectDatabase(n.Name)
 	}
 
 	return changes
