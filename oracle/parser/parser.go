@@ -45,9 +45,9 @@ type Parser struct {
 	// upgradeIncludingData is set while the column_properties of ALTER
 	// TABLE's upgrade_table_clause (UPGRADE [ NOT ] INCLUDING DATA ...) are
 	// parsed. Oracle answers ORA-01735 at byte 0 for the option and reads no
-	// item of a nested table's object_properties there, on a table that
-	// holds the nested table column as on one that does not, so that group
-	// is text (parseATObjectProperties).
+	// item of a nested table's storage there, on a table that holds the
+	// nested table column as on one that does not, so that group is text
+	// (parseATNestedTableStorage).
 	upgradeIncludingData bool
 
 	// createTableIndexOrganized is set while the compression of an
