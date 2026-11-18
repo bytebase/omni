@@ -5295,10 +5295,10 @@ reject	undocumented	docs	grant(,_(CREATE|USAGE|ALTER|DROP))*/,_(CREATE|USAGE|ALT
 accept	undocumented	docs	grant(,_(CREATE|USAGE|ALTER|DROP))*/,_(CREATE|USAGE|ALTER|DROP)_(,_(CREATE|USAGE|ALTER|DROP))*!swap	GRANT CREATE, CREATEDB ON SCHEMA a TO a
 accept	accept	docs	grant(EXECUTE|ALL_PRIVILEGES?)/EXECUTE	GRANT EXECUTE ON MODEL a TO a
 reject	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!insert	GRANT EXECUTE zzz ON MODEL a TO a
-accept	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!swap	GRANT EXISTS ON MODEL a TO a
+reject	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!swap	GRANT EXISTS ON MODEL a TO a
 accept	accept	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL ON MODEL a TO a
 reject	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON MODEL a TO a
-accept	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON MODEL a TO a
+reject	undocumented	docs	grant(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON MODEL a TO a
 accept	accept	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4	GRANT EXECUTE ON FUNCTION a() TO a
 reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4!truncate	GRANT EXECUTE ON FUNCTION a(
 reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_~47bc01d4!insert	GRANT EXECUTE ON FUNCTION a() zzz TO a
@@ -5353,11 +5353,11 @@ reject	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/(
 reject	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/(ALTER|DROP)_(,_(ALTER|DROP))*!swap	GRANT ANALYZE ON COPY JOB a TO a
 accept	accept	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL ON COPY JOB a TO a
 reject	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON COPY JOB a TO a
-accept	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON COPY JOB a TO a
+reject	undocumented	docs	grant((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON COPY JOB a TO a
 accept	accept	docs	grant(ALTER|DROP)/ALTER	GRANT ALTER ON COPY JOB a TO a
 accept	accept	docs	grant(ALTER|DROP)/DROP	GRANT DROP ON COPY JOB a TO a
 reject	undocumented	docs	grant(ALTER|DROP)/DROP!insert	GRANT DROP zzz ON COPY JOB a TO a
-accept	undocumented	docs	grant(ALTER|DROP)/DROP!swap	GRANT DUPLICATES ON COPY JOB a TO a
+reject	undocumented	docs	grant(ALTER|DROP)/DROP!swap	GRANT DUPLICATES ON COPY JOB a TO a
 accept	accept	docs	grant(,_(ALTER|DROP))*/%empty	GRANT ALTER ON COPY JOB a TO a
 accept	accept	docs	grant(,_(ALTER|DROP))*/,_(ALTER|DROP)_(,_(ALTER|DROP))*	GRANT ALTER, ALTER ON COPY JOB a TO a
 reject	undocumented	docs	grant(,_(ALTER|DROP))*/,_(ALTER|DROP)_(,_(ALTER|DROP))*!drop-1	GRANT ALTER ALTER ON COPY JOB a TO a
@@ -6538,11 +6538,11 @@ reject	undocumented	docs	revoke((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/
 reject	undocumented	docs	revoke((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/(ALTER|DROP)_(,_(ALTER|DROP))*!swap	REVOKE ANALYZE ON COPY JOB a FROM a
 accept	accept	docs	revoke((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE ALL ON COPY JOB a FROM a
 reject	undocumented	docs	revoke((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE ALL zzz ON COPY JOB a FROM a
-accept	undocumented	docs	revoke((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON COPY JOB a FROM a
+reject	undocumented	docs	revoke((ALTER|DROP)_(,_(ALTER|DROP))*|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON COPY JOB a FROM a
 accept	accept	docs	revoke(ALTER|DROP)/ALTER	REVOKE ALTER ON COPY JOB a FROM a
 accept	accept	docs	revoke(ALTER|DROP)/DROP	REVOKE DROP ON COPY JOB a FROM a
 reject	undocumented	docs	revoke(ALTER|DROP)/DROP!insert	REVOKE DROP zzz ON COPY JOB a FROM a
-accept	undocumented	docs	revoke(ALTER|DROP)/DROP!swap	REVOKE DUPLICATES ON COPY JOB a FROM a
+reject	undocumented	docs	revoke(ALTER|DROP)/DROP!swap	REVOKE DUPLICATES ON COPY JOB a FROM a
 accept	accept	docs	revoke(,_(ALTER|DROP))*/%empty	REVOKE ALTER ON COPY JOB a FROM a
 accept	accept	docs	revoke(,_(ALTER|DROP))*/,_(ALTER|DROP)_(,_(ALTER|DROP))*	REVOKE ALTER, ALTER ON COPY JOB a FROM a
 reject	undocumented	docs	revoke(,_(ALTER|DROP))*/,_(ALTER|DROP)_(,_(ALTER|DROP))*!drop-1	REVOKE ALTER ALTER ON COPY JOB a FROM a
@@ -6816,10 +6816,10 @@ reject	undocumented	docs	revoke(DATABASE_ID)?/DATABASE_ID!insert	REVOKE SELECT F
 reject	undocumented	docs	revoke(DATABASE_ID)?/DATABASE_ID!swap	REVOKE SELECT FOR TABLES IN SCHEMA a DATABASES a FROM a
 accept	accept	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/EXECUTE	REVOKE EXECUTE ON MODEL a FROM a
 reject	undocumented	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!insert	REVOKE EXECUTE zzz ON MODEL a FROM a
-accept	undocumented	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!swap	REVOKE EXISTS ON MODEL a FROM a
+reject	undocumented	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/EXECUTE!swap	REVOKE EXISTS ON MODEL a FROM a
 accept	accept	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE ALL ON MODEL a FROM a
 reject	undocumented	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE ALL zzz ON MODEL a FROM a
-accept	undocumented	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON MODEL a FROM a
+reject	undocumented	docs	revoke(EXECUTE|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON MODEL a FROM a
 accept	accept	docs	revoke(GRANT_OPTION)?#2/%empty	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM a
 reject	undocumented	docs	revoke(GRANT_OPTION)?#2/%empty!insert	REVOKE zzz CREATE FOR COPY JOBS IN DATABASE a FROM a
 reject	accept	docs	revoke(GRANT_OPTION)?#2/GRANT_OPTION	REVOKE GRANT_OPTION CREATE FOR COPY JOBS IN DATABASE a FROM a

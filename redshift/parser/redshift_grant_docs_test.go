@@ -57,6 +57,10 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		}
 	}
 
+	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE d TO a WITH GRANT OPTION, ROLE r").(*nodes.GrantStmt); !grant.GrantOption {
+		t.Error("datashare grant with a username option: GrantOption = false, want true")
+	}
+
 	// A datashare consumer keeps the VIA DATA CATALOG qualifier, per account.
 	for sql, want := range map[string][]string{
 		"GRANT USAGE ON DATASHARE d TO ACCOUNT '1' VIA DATA CATALOG":         {"account_via_data_catalog:1"},
@@ -100,6 +104,11 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		"GRANT CREATE ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'",
 		"GRANT UPDATE ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'",
 		"GRANT USAGE ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'",
+		"GRANT CREATE ON COPY JOB j TO a",
+		"GRANT SELECT ON COPY JOB j TO a",
+		"GRANT SELECT ON MODEL m TO a",
+		"GRANT ALTER ON MODEL m TO a",
+		"REVOKE SELECT ON MODEL m FROM a",
 		"GRANT SELECT ON DATASHARE d TO a",
 		"GRANT ALTER, SHARE ON DATASHARE d TO a",
 		"GRANT USAGE, ALTER ON DATASHARE d TO a",
@@ -124,6 +133,14 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		"GRANT USAGE ON DATASHARE d TO ACCOUNT '1' VIA CATALOG",
 		"GRANT USAGE ON DATASHARE d TO NAMESPACE 'n', 'n2'",
 		"GRANT ALTER ON DATASHARE d TO DATASHARE e",
+		// WITH GRANT OPTION follows a username, never ROLE, GROUP or PUBLIC.
+		"GRANT ALTER ON DATASHARE d TO ROLE r WITH GRANT OPTION",
+		"GRANT ALTER ON DATASHARE d TO PUBLIC WITH GRANT OPTION",
+		"REVOKE ALTER ON DATASHARE d FROM ROLE r WITH GRANT OPTION",
+		"REVOKE ALTER ON DATASHARE d FROM GROUP g WITH GRANT OPTION",
+		// The procedure-to-datashare revoke takes no option prefix.
+		"REVOKE GRANT OPTION FOR EXECUTE ON PROCEDURE p() FROM DATASHARE d",
+		"REVOKE ADMIN OPTION FOR EXECUTE ON PROCEDURE p() FROM DATASHARE d",
 		// A privilege is a keyword, not a quoted name.
 		`GRANT "SELECT" ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'`,
 		`GRANT SELECT ON EXTERNAL TABLE s.t TO "IAM_ROLE" 'r'`,
@@ -334,6 +351,23 @@ func TestRedshiftGrantRepeatedColumnLists(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
 		}
+	}
+}
+
+// TestRedshiftGrantPrivilegeErrorPosition pins the position a rejected privilege
+// reports: its own token, not the first privilege of the list.
+func TestRedshiftGrantPrivilegeErrorPosition(t *testing.T) {
+	sql := "GRANT SELECT, CREATE ON EXTERNAL TABLE s.t TO IAM_ROLE 'r'"
+	_, err := Parse(sql)
+	if err == nil {
+		t.Fatalf("Parse(%q) succeeded, want a syntax error", sql)
+	}
+	pe, ok := err.(*ParseError)
+	if !ok {
+		t.Fatalf("Parse(%q): err = %T, want *ParseError", sql, err)
+	}
+	if want := strings.Index(sql, "CREATE"); pe.Position != want {
+		t.Errorf("Parse(%q): position = %d, want %d (CREATE)", sql, pe.Position, want)
 	}
 }
 

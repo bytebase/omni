@@ -166,7 +166,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		return p.finishRedshiftScopedPermission(loc, false, grantOptionFor, privs)
 	case p.cur.Type == ON:
 		p.advance()
-		return p.finishRevokeOnObject(loc, grantOptionFor, privs)
+		return p.finishRevokeOnObject(loc, grantOptionFor, roleOptionName != "", privs)
 	case bareAll:
 		// A bare ALL with no ON clause is the system privilege r_REVOKE writes as
 		// { ALL [ PRIVILEGES ] } FROM ROLE role_name [, ...].
@@ -196,16 +196,20 @@ func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, er
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	grantees, procedureDatashare, err := p.parseRedshiftGranteeList(kind, objtype, objects, privs, true)
+	var grantees *nodes.List
+	var grantOption, procedureDatashare bool
+	if kind == redshiftGrantDatashare && !redshiftDatashareUsage(privs) {
+		// r_GRANT writes the producer-side grantee as
+		// ID ( WITH GRANT OPTION )? | ROLE role_name | GROUP group_name | PUBLIC.
+		grantees, grantOption, err = p.parseRedshiftDatashareGrantees()
+	} else {
+		grantees, procedureDatashare, err = p.parseRedshiftGranteeList(kind, objtype, objects, privs, true, true)
+		if !procedureDatashare && err == nil {
+			grantOption, err = p.parseOptGrantGrantOption()
+		}
+	}
 	if err != nil {
 		return nil, err
-	}
-	var grantOption bool
-	if !procedureDatashare {
-		grantOption, err = p.parseOptGrantGrantOption()
-		if err != nil {
-			return nil, err
-		}
 	}
 	return &nodes.GrantStmt{
 		IsGrant: true, Targtype: targtype, Objtype: objtype,
@@ -215,7 +219,7 @@ func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, er
 	}, nil
 }
 
-func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes.List) (nodes.Node, error) {
+func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor, withRoleOption bool, privs *nodes.List) (nodes.Node, error) {
 	targtype, objtype, objects, kind, err := p.parseGrantTarget(true)
 	if err != nil {
 		return nil, err
@@ -226,19 +230,22 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, procedureDatashare, err := p.parseRedshiftGranteeList(kind, objtype, objects, privs, false)
-	if err != nil {
-		return nil, err
-	}
+	var grantees *nodes.List
+	var procedureDatashare bool
 	if kind == redshiftGrantDatashare && !redshiftDatashareUsage(privs) {
 		// r_REVOKE writes the producer-side grantee as
-		// ID ( WITH GRANT OPTION )?, so the suffix names the grant option it
-		// takes back, as GRANT OPTION FOR does.
-		withGrantOption, err := p.parseOptGrantGrantOption()
-		if err != nil {
-			return nil, err
-		}
+		// ID ( WITH GRANT OPTION )? | ROLE role_name | GROUP group_name | PUBLIC:
+		// the option names the grant option it takes back, as GRANT OPTION FOR
+		// does.
+		var withGrantOption bool
+		grantees, withGrantOption, err = p.parseRedshiftDatashareGrantees()
 		grantOptionFor = grantOptionFor || withGrantOption
+	} else {
+		// The procedure-to-datashare form starts at REVOKE: no option prefix.
+		grantees, procedureDatashare, err = p.parseRedshiftGranteeList(kind, objtype, objects, privs, false, !grantOptionFor && !withRoleOption)
+	}
+	if err != nil {
+		return nil, err
 	}
 	var behavior int
 	if objtype != nodes.OBJECT_TEMPLATE && !procedureDatashare {
@@ -795,7 +802,7 @@ func (p *Parser) parseRedshiftGrantPrivileges() (privs *nodes.List, bareAll bool
 // parseRedshiftGranteeList parses the grantees an alternative of r_GRANT or
 // r_REVOKE lists for its target. Most objects take the generic list; the ones
 // with a list of their own take it here.
-func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, objects, privs *nodes.List, isGrant bool) (*nodes.List, bool, error) {
+func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, objects, privs *nodes.List, isGrant, allowDatashare bool) (*nodes.List, bool, error) {
 	switch kind {
 	case redshiftGrantExternalTable:
 		// The column-list alternative takes IAM roles only; PUBLIC belongs to the
@@ -817,12 +824,69 @@ func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.
 		list, err := p.parseRedshiftPlainGranteeList()
 		return list, false, err
 	}
-	if p.redshiftProcedureDatashareGrantee(objtype, objects, privs) {
+	if allowDatashare && p.redshiftProcedureDatashareGrantee(objtype, objects, privs) {
 		list, err := p.parseRedshiftDatashareGrantee()
 		return list, true, err
 	}
 	list, err := p.parseGranteeList()
 	return list, false, err
+}
+
+// parseRedshiftDatashareGrantees parses r_GRANT's and r_REVOKE's producer-side
+// datashare grantees:
+//
+//	ID [ WITH GRANT OPTION ] | ROLE role_name | GROUP group_name | PUBLIC
+//
+// one per comma. The pages write WITH GRANT OPTION after a username only, so a
+// ROLE, GROUP or PUBLIC grantee takes none.
+func (p *Parser) parseRedshiftDatashareGrantees() (*nodes.List, bool, error) {
+	result := &nodes.List{}
+	withGrantOption := false
+	for {
+		loc := p.pos()
+		var grantee *nodes.RoleSpec
+		switch {
+		case p.cur.Type == ROLE && isColIdToken(p.peekNext()):
+			p.advance()
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, false, err
+			}
+			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name}
+		case p.cur.Type == GROUP_P && isColIdToken(p.peekNext()):
+			p.advance()
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, false, err
+			}
+			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name}
+		case p.redshiftKeywordIs("public"):
+			p.advance()
+			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC)}
+		default:
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, false, err
+			}
+			grantee = &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name}
+			if p.cur.Type == WITH {
+				p.advance()
+				if _, err := p.expect(GRANT); err != nil {
+					return nil, false, err
+				}
+				if _, err := p.expect(OPTION); err != nil {
+					return nil, false, err
+				}
+				withGrantOption = true
+			}
+		}
+		grantee.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		result.Items = append(result.Items, grantee)
+		if p.cur.Type != ',' {
+			return result, withGrantOption, nil
+		}
+		p.advance()
+	}
 }
 
 // redshiftProcedureDatashareGrantee reports whether the grantees are
@@ -1031,16 +1095,22 @@ func (p *Parser) checkRedshiftGrantPrivileges(kind redshiftGrantKind, objtype no
 		// { ALTER | SHARE } for a producer, USAGE for a consumer: no list and no
 		// column list either way.
 		if privs == nil || len(privs.Items) != 1 {
-			return p.redshiftPrivilegeError(privs, "a datashare takes ALTER, SHARE or USAGE")
+			return p.redshiftPrivilegeError(nil, "a datashare takes ALTER, SHARE or USAGE")
 		}
 		name := redshiftPrivilegeName(privs.Items[0])
 		if name != "alter" && name != "share" && name != "usage" {
-			return p.redshiftPrivilegeError(privs, name+" is not a datashare privilege")
+			return p.redshiftPrivilegeError(privs.Items[0], name+" is not a datashare privilege")
 		}
 		return p.checkRedshiftPrivilegeShape(privs, false)
 	}
 	if objtype == nodes.OBJECT_TEMPLATE {
 		return p.checkRedshiftPrivilegeNames(privs, "template", false, map[string]bool{"alter": true, "drop": true, "usage": true})
+	}
+	if objtype == nodes.OBJECT_COPY_JOB {
+		return p.checkRedshiftPrivilegeNames(privs, "copy job", false, map[string]bool{"alter": true, "drop": true})
+	}
+	if objtype == nodes.OBJECT_MODEL {
+		return p.checkRedshiftPrivilegeNames(privs, "model", false, map[string]bool{"execute": true})
 	}
 	switch kind {
 	case redshiftGrantExternalTable:
@@ -1049,10 +1119,10 @@ func (p *Parser) checkRedshiftGrantPrivileges(kind redshiftGrantKind, objtype no
 		// privilege-list alternative names no column.
 		if redshiftPrivilegesNameColumns(privs) {
 			if len(privs.Items) != 1 {
-				return p.redshiftPrivilegeError(privs, "an external table's column grant is one privilege with one column list")
+				return p.redshiftPrivilegeError(privs.Items[1], "an external table's column grant is one privilege with one column list")
 			}
 			if name := redshiftPrivilegeName(privs.Items[0]); name != "" && name != "select" {
-				return p.redshiftPrivilegeError(privs, name+" takes no column list on an external table")
+				return p.redshiftPrivilegeError(privs.Items[0], name+" takes no column list on an external table")
 			}
 			return p.checkRedshiftPrivilegeShape(privs, true)
 		}
@@ -1074,7 +1144,7 @@ func (p *Parser) checkRedshiftPrivilegeNames(privs *nodes.List, object string, c
 	for _, item := range privs.Items {
 		name := redshiftPrivilegeName(item)
 		if name != "" && !allowed[name] {
-			return p.redshiftPrivilegeError(privs, name+" is not a "+object+" privilege")
+			return p.redshiftPrivilegeError(item, name+" is not a "+object+" privilege")
 		}
 	}
 	return p.checkRedshiftPrivilegeShape(privs, columnsAllowed)
@@ -1109,12 +1179,12 @@ func (p *Parser) checkRedshiftPrivilegeShape(privs *nodes.List, columnsAllowed b
 	return nil
 }
 
-func (p *Parser) redshiftPrivilegeError(privs *nodes.List, message string) error {
+// redshiftPrivilegeError reports a privilege the alternative does not list at
+// the privilege's own token.
+func (p *Parser) redshiftPrivilegeError(item nodes.Node, message string) error {
 	pos := p.pos()
-	if privs != nil && len(privs.Items) > 0 {
-		if priv, ok := privs.Items[0].(*nodes.AccessPriv); ok {
-			pos = priv.Loc.Start
-		}
+	if priv, ok := item.(*nodes.AccessPriv); ok && priv.Loc.Start >= 0 {
+		pos = priv.Loc.Start
 	}
 	return &ParseError{Position: pos, Message: "syntax error: " + message}
 }
