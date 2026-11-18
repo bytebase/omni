@@ -86,8 +86,8 @@ CREATE MATERIALIZED VIEW ice USING ICEBERG LOCATION 's3://bucket/sales/' PARTITI
 	for _, want := range []string{
 		"BACKUP NO",
 		"DISTSTYLE KEY",
-		"DISTKEY (customer_id)",
-		"COMPOUND SORTKEY (d)",
+		`DISTKEY ("customer_id")`,
+		`COMPOUND SORTKEY ("d")`,
 		"AUTO REFRESH YES",
 		"INTERVAL 15",
 	} {
@@ -100,7 +100,7 @@ CREATE MATERIALIZED VIEW ice USING ICEBERG LOCATION 's3://bucket/sales/' PARTITI
 	for _, want := range []string{
 		"USING ICEBERG",
 		"LOCATION 's3://bucket/sales/'",
-		"PARTITIONED BY (d, YEAR(d), BUCKET(16, customer_id))",
+		`PARTITIONED BY ("d", YEAR("d"), BUCKET(16, "customer_id"))`,
 		"TABLE PROPERTIES ('format' = 'parquet')",
 	} {
 		if !strings.Contains(ice, want) {
@@ -134,5 +134,37 @@ CREATE MATERIALIZED VIEW m DISTKEY AS SELECT id FROM t;`)
 	}
 	if !found {
 		t.Fatal("expected a CREATE MATERIALIZED VIEW op for m")
+	}
+}
+
+// TestMigrationMatViewStorageChange pins the storage in the diff: a
+// materialized view whose options changed is modified, and re-creating it keeps
+// the new storage.
+func TestMigrationMatViewStorageChange(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	diff := Diff(from, to)
+	if len(diff.Relations) != 1 || diff.Relations[0].Action != DiffModify {
+		t.Fatalf("diff = %#v, want the materialized view modified", diff.Relations)
+	}
+
+	plan := GenerateMigration(from, to, diff)
+	recreated := ""
+	for _, op := range plan.Ops {
+		if strings.Contains(op.SQL, "CREATE MATERIALIZED VIEW") {
+			recreated = op.SQL
+		}
+	}
+	if !strings.Contains(recreated, "BACKUP YES") {
+		t.Fatalf("materialized view op = %q, want BACKUP YES in it", recreated)
 	}
 }

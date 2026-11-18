@@ -191,6 +191,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :whereClause ")
 		writeNode(sb, n.WhereClause)
 	}
+	if n.GroupAll {
+		sb.WriteString(" :groupAll true")
+	}
 	if n.GroupClause != nil {
 		sb.WriteString(" :groupClause ")
 		writeNode(sb, n.GroupClause)

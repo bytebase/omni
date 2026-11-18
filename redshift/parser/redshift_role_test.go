@@ -160,6 +160,25 @@ func TestRedshiftAlterRoleClauseListParse(t *testing.T) {
 		}
 	}
 
+	// ALTER USER's RENAME TO is one of its options, so the list goes on after it
+	// with any other option.
+	user, ok := singleStmt(t, "ALTER USER a RENAME TO b, CREATEDB").(*nodes.AlterRoleStmt)
+	if !ok {
+		t.Fatalf("expected AlterRoleStmt, got %T", singleStmt(t, "ALTER USER a RENAME TO b, CREATEDB"))
+	}
+	if user.Options == nil || len(user.Options.Items) != 2 {
+		t.Fatalf("options = %#v, want rename_to and createdb", user.Options)
+	}
+	if elem, ok := user.Options.Items[0].(*nodes.DefElem); !ok || elem.Defname != "rename_to" {
+		t.Fatalf("option 0 = %#v, want rename_to", user.Options.Items[0])
+	}
+	if elem, ok := user.Options.Items[1].(*nodes.DefElem); !ok || elem.Defname != "createdb" {
+		t.Fatalf("option 1 = %#v, want createdb", user.Options.Items[1])
+	}
+	if rename, ok := singleStmt(t, "ALTER USER a RENAME TO b").(*nodes.RenameStmt); !ok || rename.Newname != "b" {
+		t.Fatalf("ALTER USER a RENAME TO b = %#v, want a RenameStmt", rename)
+	}
+
 	// EXTERNALID takes TO, and a comma takes a clause after it.
 	for _, sql := range []string{
 		"ALTER ROLE a RENAME TO b EXTERNALID b",
@@ -189,7 +208,15 @@ func TestRedshiftCreateGroupWithListParse(t *testing.T) {
 			t.Fatalf("Parse(%q): = %#v, want group a", sql, create)
 		}
 	}
-	if _, err := Parse("CREATE GROUP a WITH,"); err == nil {
-		t.Error("CREATE GROUP a WITH, parsed, want a syntax error")
+	for _, sql := range []string{
+		"CREATE GROUP a WITH,",
+		// The commas belong to the WITH block.
+		"CREATE GROUP a, WITH USER b",
+		"CREATE GROUP a, CREATEDB",
+		"CREATE GROUP a WITH USER b, USER c",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }

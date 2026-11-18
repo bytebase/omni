@@ -44,7 +44,7 @@ func deparseMatViewOptions(rel *Relation) string {
 		if !ok {
 			return " DISTKEY"
 		}
-		return " DISTKEY (" + strings.Join(stringListItems(list), ", ") + ")"
+		return " DISTKEY (" + strings.Join(quotedIdentItems(list), ", ") + ")"
 	})
 	// SORTKEY's style is a DefElem of its own, written before it.
 	each("sortstyle", func(elem *nodes.DefElem) string {
@@ -52,7 +52,7 @@ func deparseMatViewOptions(rel *Relation) string {
 	})
 	each("sortkey", func(elem *nodes.DefElem) string {
 		if list, ok := elem.Arg.(*nodes.List); ok {
-			return " SORTKEY (" + strings.Join(stringListItems(list), ", ") + ")"
+			return " SORTKEY (" + strings.Join(quotedIdentItems(list), ", ") + ")"
 		}
 		return " SORTKEY " + strings.ToUpper(stringVal(elem.Arg))
 	})
@@ -106,13 +106,13 @@ func deparsePartitionTransform(node nodes.Node) string {
 	switch n := node.(type) {
 	case *nodes.ColumnRef:
 		if n.Fields != nil && len(n.Fields.Items) == 1 {
-			return stringVal(n.Fields.Items[0])
+			return quoteIdentAlways(stringVal(n.Fields.Items[0]))
 		}
 	case *nodes.FuncCall:
 		args := make([]string, 0, len(n.Args.Items))
 		for _, arg := range n.Args.Items {
 			if ref, ok := arg.(*nodes.ColumnRef); ok && ref.Fields != nil && len(ref.Fields.Items) == 1 {
-				args = append(args, stringVal(ref.Fields.Items[0]))
+				args = append(args, quoteIdentAlways(stringVal(ref.Fields.Items[0])))
 				continue
 			}
 			args = append(args, deparseAConst(arg))
@@ -120,6 +120,16 @@ func deparsePartitionTransform(node nodes.Node) string {
 		return strings.ToUpper(stringVal(n.Funcname.Items[0])) + "(" + strings.Join(args, ", ") + ")"
 	}
 	return ""
+}
+
+// quotedIdentItems renders a name list as the quoted identifiers migration DDL
+// writes, so DISTKEY ("UserID") keeps the column's spelling.
+func quotedIdentItems(list *nodes.List) []string {
+	names := stringListItems(list)
+	for i, name := range names {
+		names[i] = quoteIdentAlways(name)
+	}
+	return names
 }
 
 // defElems returns options' items, or nil when it holds none.

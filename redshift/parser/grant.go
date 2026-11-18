@@ -2224,25 +2224,26 @@ func (p *Parser) parseCreateGroupStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	// r_CREATE_GROUP writes the WITH clause once per comma-separated group of
+	// users, and each WITH takes its USER list as optional:
+	//	CREATE GROUP name [ WITH [ USER name [, ...] ] [, WITH [ USER ... ] ] ]
+	//
+	// The commas belong to that WITH block, so a statement with no WITH has
+	// none of them.
+	with := p.cur.Type == WITH
 	p.parseGrantOptWith()
 	options, err := p.parseOptRoleList(true)
 	if err != nil {
 		return nil, err
 	}
-	// r_CREATE_GROUP writes the WITH clause once per comma-separated group of
-	// users, and each WITH takes its USER list as optional:
-	//	CREATE GROUP name [ WITH [ USER name [, ...] ] [, WITH [ USER ... ] ] ]
-	for p.cur.Type == ',' {
+	for with && p.cur.Type == ',' {
 		p.advance()
-		with := p.cur.Type == WITH
-		p.parseGrantOptWith()
+		if !p.consumeRedshiftWord("with") {
+			return nil, p.syntaxErrorAtCur()
+		}
 		more, err := p.parseOptRoleList(true)
 		if err != nil {
 			return nil, err
-		}
-		if more == nil && !with {
-			// The comma follows no WITH and no option: the list ends on it.
-			return nil, p.syntaxErrorAtCur()
 		}
 		options = appendNodeLists(options, more)
 	}
@@ -2514,33 +2515,48 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 	}
 	p.parseGrantOptWith()
 	if p.cur.Type == RENAME || p.cur.Type == OWNER {
-		return p.parseRedshiftAlterRoleClauses(role, loc)
+		return p.parseRedshiftAlterRoleClauses(role, loc, isUser)
 	}
 	if (!isUser && (p.cur.Type == SET || p.cur.Type == RESET)) || p.cur.Type == IN_P {
 		return p.parseAlterRoleSetStmtSuffix(loc, role)
+	}
+	if isUser {
+		options, err := p.parseRedshiftAlterUserOptionList()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.AlterRoleStmt{Role: role, Options: options, Action: 1,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 	options, err := p.parseOptRoleList(false)
 	if err != nil {
 		return nil, err
 	}
-	if isUser {
-		// r_ALTER_USER writes alterUser_option (',' alterUser_option)*;
-		// PostgreSQL's ALTER ROLE takes its options without commas between
-		// them, so the separators are ALTER USER's alone.
-		for p.cur.Type == ',' {
-			p.advance()
-			more, err := p.parseOptRoleList(false)
-			if err != nil {
-				return nil, err
-			}
-			if more == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			options = appendNodeLists(options, more)
-		}
-	}
 	return &nodes.AlterRoleStmt{Role: role, Options: options, Action: 1,
 		Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+}
+
+// parseRedshiftAlterUserOptionList parses r_ALTER_USER's
+// alterUser_option (',' alterUser_option)*; PostgreSQL's ALTER ROLE takes its
+// options without commas between them, so the separators are ALTER USER's
+// alone.
+func (p *Parser) parseRedshiftAlterUserOptionList() (*nodes.List, error) {
+	options, err := p.parseOptRoleList(false)
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == ',' {
+		p.advance()
+		more, err := p.parseOptRoleList(false)
+		if err != nil {
+			return nil, err
+		}
+		if more == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		options = appendNodeLists(options, more)
+	}
+	return options, nil
 }
 
 // parseRedshiftAlterRoleClauses parses r_ALTER_ROLE's RENAME TO and OWNER TO
@@ -2558,11 +2574,10 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 // of its comma-separated options.
 //
 // Grammar reference: alterRole in RedshiftDocs.g4.
-func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int) (nodes.Node, error) {
+func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, isUser bool) (nodes.Node, error) {
 	var opts []nodes.Node
 	clauses := 0
 	for {
-		read := false
 		switch p.cur.Type {
 		case RENAME:
 			p.advance()
@@ -2574,7 +2589,6 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int) (n
 				return nil, err
 			}
 			opts = append(opts, makeDefElem("rename_to", &nodes.String{Str: newname}))
-			read = true
 		case OWNER:
 			p.advance()
 			if _, err := p.expect(TO); err != nil {
@@ -2585,20 +2599,33 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int) (n
 				return nil, err
 			}
 			opts = append(opts, makeDefElem("owner_to", roleSpec))
-			read = true
-		}
-		if !read {
-			break
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 		clauses++
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
-		if p.cur.Type != RENAME && p.cur.Type != OWNER {
-			// The comma takes another RENAME TO or OWNER TO clause.
+		if p.cur.Type == RENAME || p.cur.Type == OWNER {
+			continue
+		}
+		if !isUser {
+			// ALTER ROLE's comma takes another RENAME TO or OWNER TO clause.
 			return nil, p.syntaxErrorAtCur()
 		}
+		// ALTER USER's comma goes on with its next option, RENAME TO and
+		// CREATEDB among them.
+		more, err := p.parseRedshiftAlterUserOptionList()
+		if err != nil {
+			return nil, err
+		}
+		if more == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts = append(opts, more.Items...)
+		clauses = 0 // the option list holds more than the one clause
+		break
 	}
 
 	hasExternalID := false
