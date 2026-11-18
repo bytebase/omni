@@ -207,7 +207,7 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 		case b.w.materialized[k]:
 		case f == walk.Present:
 			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, relWord(k, kind), "materialized view"))
-		default:
+		case f == walk.Absent:
 			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 		}
 	}
@@ -299,7 +299,7 @@ func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 			// A known table, view or external table is the wrong kind even
 			// under IF EXISTS.
 			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, relWord(k, kind), "materialized view"))
-		case !v.IfExists:
+		case !v.IfExists && f == walk.Absent:
 			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 		}
 	}

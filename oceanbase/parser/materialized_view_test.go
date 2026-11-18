@@ -144,4 +144,10 @@ func TestMaterializedViewCompletion(t *testing.T) {
 			t.Errorf("Collect(%q) does not offer table_ref", sql)
 		}
 	}
+	if cs := Collect("ALTER MATERIALIZED VIEW mv ", len("ALTER MATERIALIZED VIEW mv ")); !cs.HasToken(kwENABLE) || !cs.HasToken(kwPARALLEL) {
+		t.Error("ALTER MATERIALIZED VIEW offers no action candidates")
+	}
+	if cs := Collect("ALTER MATERIALIZED VIEW LOG ON t ", len("ALTER MATERIALIZED VIEW LOG ON t ")); !cs.HasToken(kwPURGE) || !cs.HasToken(kwPARALLEL) {
+		t.Error("ALTER MATERIALIZED VIEW LOG offers no action candidates")
+	}
 }

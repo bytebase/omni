@@ -701,6 +701,14 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (*nodes.AlterMaterial
 	}
 	stmt := &nodes.AlterMaterializedViewStmt{Loc: nodes.Loc{Start: start}, Name: ref}
 
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwENABLE, kwDISABLE, kwPARALLEL, kwSET} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	for {
 		action, err := p.parseAlterMviewAction()
 		if err != nil {
@@ -806,6 +814,15 @@ func (p *Parser) parseAlterMaterializedViewLogStmt(start int) (*nodes.AlterMater
 	}
 
 	stmt := &nodes.AlterMaterializedViewLogStmt{Loc: nodes.Loc{Start: start}, Table: ref}
+
+	p.checkCursor()
+	if p.collectMode() {
+		for _, t := range []int{kwPARALLEL, kwPURGE} {
+			p.addTokenCandidate(t)
+		}
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	for {
 		action, err := p.parseAlterMlogAction()
 		if err != nil {

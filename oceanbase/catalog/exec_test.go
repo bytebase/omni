@@ -267,3 +267,21 @@ func TestExecAlterTableRenameLog(t *testing.T) {
 		}
 	}
 }
+
+// TestExecRenameOntoMaterializedView pins that a table cannot be renamed onto
+// a cataloged materialized view.
+func TestExecRenameOntoMaterializedView(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT); CREATE MATERIALIZED VIEW mv AS SELECT 1 AS a;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, sql := range []string{"RENAME TABLE t TO mv;", "ALTER TABLE t RENAME TO mv;"} {
+		results, err := c.Exec(sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", sql, err)
+		}
+		if len(results) != 1 || results[0].Error == nil {
+			t.Errorf("%q: error = %v, want a duplicate name", sql, results)
+		}
+	}
+}
