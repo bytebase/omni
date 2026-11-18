@@ -88,6 +88,10 @@ type ColumnInfo struct {
 	// on the select item, not the name, so a column aliased to "*" stays an
 	// ordinary column.
 	Star bool
+
+	// Quoted reports that Name came from a quoted identifier and is therefore
+	// matched case-sensitively (unquoted names fold to lower case).
+	Quoted bool
 }
 
 // ColumnRef identifies a column by its optional catalog/schema/table qualifier
@@ -286,8 +290,70 @@ func (w *spanWalker) isCTE(name string) bool {
 // statement (QueryStmt) yields query-span data; other statement kinds are
 // recorded via their Type classification only.
 func (w *spanWalker) analyzeStmt(node ast.Node) {
-	if qs, ok := node.(*parser.QueryStmt); ok && qs.Query != nil {
-		w.visitQuery(qs.Query, true /* outermost */)
+	switch n := node.(type) {
+	case *parser.QueryStmt:
+		if n.Query != nil {
+			w.visitQuery(n.Query, true /* outermost */)
+		}
+	case *parser.WithFunctionStmt:
+		if n.Query != nil {
+			w.visitQuery(n.Query, true /* outermost */)
+		}
+	case *parser.DescribeOutputStmt:
+		if n.Query != nil {
+			w.visitQuery(n.Query, true /* outermost */)
+		}
+	}
+}
+
+// visitFunctions walks the bodies of inline WITH FUNCTION definitions, whose
+// expressions and subqueries execute when the function is called.
+func (w *spanWalker) visitFunctions(functions []parser.FunctionSpecification) {
+	for _, fn := range functions {
+		w.visitRoutineStatement(fn.Body)
+	}
+}
+
+func (w *spanWalker) visitRoutineStatement(stmt parser.RoutineStatement) {
+	switch s := stmt.(type) {
+	case *parser.ReturnStatement:
+		w.walkExprPredicate(s.Value)
+	case *parser.AssignmentStatement:
+		w.walkExprPredicate(s.Value)
+	case *parser.CaseStatement:
+		w.walkExprPredicate(s.Operand)
+		for _, when := range s.Whens {
+			w.walkExprPredicate(when.Condition)
+			w.visitRoutineStatements(when.Body)
+		}
+		w.visitRoutineStatements(s.Else)
+	case *parser.IfStatement:
+		w.walkExprPredicate(s.Condition)
+		w.visitRoutineStatements(s.Then)
+		for _, clause := range s.ElseIfs {
+			w.walkExprPredicate(clause.Condition)
+			w.visitRoutineStatements(clause.Body)
+		}
+		w.visitRoutineStatements(s.Else)
+	case *parser.CompoundStatement:
+		for _, decl := range s.Declarations {
+			w.walkExprPredicate(decl.Default)
+		}
+		w.visitRoutineStatements(s.Body)
+	case *parser.LoopStatement:
+		w.visitRoutineStatements(s.Body)
+	case *parser.WhileStatement:
+		w.walkExprPredicate(s.Condition)
+		w.visitRoutineStatements(s.Body)
+	case *parser.RepeatStatement:
+		w.visitRoutineStatements(s.Body)
+		w.walkExprPredicate(s.Condition)
+	}
+}
+
+func (w *spanWalker) visitRoutineStatements(stmts []parser.RoutineStatement) {
+	for _, stmt := range stmts {
+		w.visitRoutineStatement(stmt)
 	}
 }
 
@@ -298,6 +364,7 @@ func (w *spanWalker) visitQuery(q *parser.Query, outermost bool) {
 	if q == nil {
 		return
 	}
+	w.visitFunctions(q.Functions)
 
 	scope := &cteScope{names: make(map[string]bool), parent: w.scope}
 	if q.With != nil {
@@ -470,6 +537,10 @@ func (w *spanWalker) visitRelation(rel parser.Relation) {
 		ew := exprWalk{w: w, followSub: true, onColumn: w.addPredicateColumn}
 		ew.walkJSONPath(n.Path)
 		w.visitJSONTableColumns(n.Columns)
+	case *parser.NearestRelation:
+		w.visitRelation(n.From)
+		w.walkExprPredicate(n.Where)
+		w.walkExprPredicate(n.Match)
 	}
 }
 
@@ -709,6 +780,22 @@ func (ew exprWalk) walk(expr parser.Expr) {
 		ew.walkList(e.Elements)
 	case *parser.ArrayConstructor:
 		ew.walkList(e.Elements)
+	case *parser.MethodCall:
+		ew.walk(e.Value)
+		ew.walkList(e.Args)
+	case *parser.StaticMethodCall:
+		ew.walkList(e.Args)
+	case *parser.NamedArgument:
+		ew.walk(e.Value)
+	case *parser.UniqueExpr:
+		ew.followSubquery(e.Subquery)
+	case *parser.OverlayExpr:
+		ew.walk(e.Source)
+		ew.walk(e.Replacing)
+		ew.walk(e.From)
+		ew.walk(e.For)
+	case *parser.AtLocalExpr:
+		ew.walk(e.Value)
 	case *parser.ComparisonExpr:
 		ew.walk(e.Left)
 		ew.walk(e.Right)
@@ -736,6 +823,9 @@ func (ew exprWalk) walk(expr parser.Expr) {
 		ew.walk(e.Right)
 	case *parser.IsBooleanExpr:
 		ew.walk(e.Value)
+	case *parser.MatchExpr:
+		ew.walk(e.Value)
+		ew.followSubquery(e.Subquery)
 	case *parser.FuncCall:
 		ew.walkList(e.Args)
 		for _, item := range e.OrderBy {
@@ -1020,8 +1110,10 @@ func (w *spanWalker) makeColumnInfo(item parser.SelectItem) ColumnInfo {
 
 	if name := identName(item.Alias); name != "" {
 		info.Name = name
+		info.Quoted = item.Alias.Quoted
 	} else {
 		info.Name = renderExprName(item.Expr)
+		info.Quoted = exprNameQuoted(item.Expr)
 	}
 	info.SourceColumns = w.collectDirectColumns(item.Expr)
 	return info

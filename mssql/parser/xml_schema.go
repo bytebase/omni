@@ -19,13 +19,27 @@ func (p *Parser) parseCreateXmlSchemaCollectionStmt() (*nodes.CreateXmlSchemaCol
 	}
 
 	// relational_schema.sql_identifier
-	stmt.Name , _ = p.parseTableRef()
-
-	// AS Expression
-	if p.cur.Type == kwAS {
-		p.advance()
+	var err error
+	stmt.Name, err = p.parseTableRef()
+	if err != nil {
+		return nil, err
 	}
-	stmt.XmlSchemaNamespaces, _ = p.parseExpr()
+	if stmt.Name == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// AS Expression, both required: CREATE XML SCHEMA COLLECTION AS 1 is
+	// Msg 156 and ... a AS is Msg 102 (measured).
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	stmt.XmlSchemaNamespaces, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.XmlSchemaNamespaces == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -45,11 +59,26 @@ func (p *Parser) parseAlterXmlSchemaCollectionStmt() (*nodes.AlterXmlSchemaColle
 	}
 
 	// relational_schema.sql_identifier
-	stmt.Name , _ = p.parseTableRef()
+	var err error
+	stmt.Name, err = p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.Name == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-	// ADD Expression
-	if _, ok := p.match(kwADD); ok {
-		stmt.XmlSchemaNamespaces, _ = p.parseExpr()
+	// ADD Expression, both required: ALTER XML SCHEMA COLLECTION ADD 1 is
+	// Msg 156 and ... a ADD is Msg 102 (measured).
+	if _, err := p.expect(kwADD); err != nil {
+		return nil, err
+	}
+	stmt.XmlSchemaNamespaces, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if stmt.XmlSchemaNamespaces == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prevEnd()

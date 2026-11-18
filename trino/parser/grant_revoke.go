@@ -582,7 +582,7 @@ func (p *Parser) parseRevokeRoles(start int) (ast.Node, error) {
 // a plain identifier; a reserved keyword is rejected here (so `GRANT SELECT TO
 // foo` fails, matching Trino).
 func (p *Parser) parseRoleList() ([]*ast.Identifier, error) {
-	first, err := p.parseIdentifier()
+	first, err := p.parseRoleName()
 	if err != nil {
 		return nil, err
 	}
@@ -591,13 +591,24 @@ func (p *Parser) parseRoleList() ([]*ast.Identifier, error) {
 		if _, ok := p.match(int(',')); !ok {
 			break
 		}
-		next, err := p.parseIdentifier()
+		next, err := p.parseRoleName()
 		if err != nil {
 			return nil, err
 		}
 		roles = append(roles, next)
 	}
 	return roles, nil
+}
+
+// parseRoleName parses one unquoted role name. A privilege keyword is not a
+// role name in Trino (AstBuilder rejects it), even though the grammar's
+// privilegeOrRole admits it syntactically.
+func (p *Parser) parseRoleName() (*ast.Identifier, error) {
+	switch p.cur.Kind {
+	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE:
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseIdentifier()
 }
 
 // ---------------------------------------------------------------------------
@@ -746,6 +757,12 @@ func (p *Parser) parsePrivilege() (*ast.Identifier, error) {
 	if !isPrivilegeWord(p.cur.Kind) {
 		return nil, p.syntaxErrorAtCur()
 	}
+	start := p.cur.Loc.Start
+	if p.cur.Kind == kwCREATE && p.peekNext().Kind == kwBRANCH {
+		p.advance() // consume CREATE
+		branchTok := p.advance()
+		return &ast.Identifier{Value: "CREATE BRANCH", Loc: ast.Loc{Start: start, End: branchTok.Loc.End}}, nil
+	}
 	return identFromToken(p.advance()), nil
 }
 
@@ -859,7 +876,7 @@ func (p *Parser) parseGrantEntity() (*ast.Identifier, *ast.QualifiedName, error)
 // plain `ON branch <object>` (entity-kind word "branch") or `ON branch` (object
 // named branch) is NOT mistaken for the branch form.
 func (p *Parser) branchClauseFollows() bool {
-	if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "BRANCH") {
+	if !isIdentifierStart(p.cur.Kind) || !strings.EqualFold(p.cur.Str, "BRANCH") {
 		return false
 	}
 	cp := p.checkpoint()

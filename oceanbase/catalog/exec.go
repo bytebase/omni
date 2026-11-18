@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -216,6 +217,12 @@ func isDML(stmt nodes.Node) bool {
 	}
 }
 
+// errExternalTable is why the catalog refuses the external-table statements.
+// Their definitions live in metadata.ExternalTableMetadata, which the catalog
+// holds from a sync, not from DDL; applying one as a plain table would leave a
+// table the server does not have, so it refuses the statement instead.
+var errExternalTable = errors.New("the catalog does not model external tables, so it does not apply CREATE or ALTER EXTERNAL TABLE")
+
 // processUtility applies one statement. source is the text it was parsed
 // from, which its Loc offsets index into, or "" when there is none.
 func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
@@ -226,6 +233,9 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)
 	case *nodes.CreateTableStmt:
+		if s.External {
+			return errExternalTable
+		}
 		var prior *Database
 		var priorKey string
 		existed := false
@@ -262,6 +272,9 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.DropMaterializedViewLogStmt:
 		return c.dropMaterializedViewLog(s)
 	case *nodes.AlterTableStmt:
+		if s.External {
+			return errExternalTable
+		}
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:
 		return c.alterDatabase(s)
@@ -348,6 +361,8 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.CreateDatabaseStmt:
 		return s.Loc.Start
 	case *nodes.CreateTableStmt:
+		return s.Loc.Start
+	case *nodes.MethodOptStmt:
 		return s.Loc.Start
 	case *nodes.CreateIndexStmt:
 		return s.Loc.Start

@@ -29,6 +29,10 @@ func TestStatementMergeAlterTable(t *testing.T) {
 			want: []stmtFinding{redundant("t", 2, 2), redundant("u", 2, 3)},
 		},
 		{name: "routine body not judged", sql: "CREATE PROCEDURE p() BEGIN ALTER TABLE t ADD a INT; END;\nALTER TABLE t ADD b INT;"},
+		// An external table's actions are whole statements, and it is not the
+		// kind of table the rule counts.
+		{name: "external statements not merged", sql: "ALTER EXTERNAL TABLE t ADD PARTITION() LOCATION 's';\nALTER EXTERNAL TABLE t ADD PARTITION() LOCATION 's';"},
+		{name: "external create and alter not merged", sql: "CREATE EXTERNAL TABLE t (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\nALTER EXTERNAL TABLE t ADD COLUMN b INT;"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if diff := cmp.Diff(tt.want, runStatement(t, tt.sql, StatementMergeAlterTable)); diff != "" {

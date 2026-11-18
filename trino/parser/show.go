@@ -137,6 +137,8 @@ type ShowStmt struct {
 	Current bool
 	// OnTable is true for SHOW GRANTS ON TABLE name (vs. SHOW GRANTS ON name).
 	OnTable bool
+	// GrantTarget is the parsed ON grantObject for SHOW GRANTS ON ….
+	GrantTarget *GrantTarget
 
 	// Like is the LIKE pattern string literal text (decoded, quotes stripped),
 	// with HasLike marking its presence (the pattern may legitimately be "").
@@ -193,6 +195,8 @@ func (p *Parser) parseShowStmt() (ast.Node, error) {
 		return p.parseShowRoles(start)
 	case kwROLE:
 		return p.parseShowRoleGrants(start)
+	case kwBRANCHES:
+		return p.parseShowBranches(start)
 	case kwFUNCTIONS:
 		return p.parseShowTablesLike(start, ShowFunctions)
 	case kwSESSION:
@@ -208,15 +212,20 @@ func (p *Parser) parseShowGrants(start int) (ast.Node, error) {
 	grantsTok := p.advance() // consume GRANTS
 	s := &ShowStmt{Kind: ShowGrants, Loc: ast.Loc{Start: start, End: grantsTok.Loc.End}}
 	if _, ok := p.match(kwON); ok {
-		if _, ok := p.match(kwTABLE); ok {
-			s.OnTable = true
-		}
-		name, err := p.parseBoundedQualifiedName(3, "table name")
+		target, err := p.parseGrantTarget()
 		if err != nil {
 			return nil, err
 		}
-		s.Name = name
-		s.Loc.End = name.Loc.End
+		if target.Object != nil && len(target.Object.Parts) > 3 {
+			part := target.Object.Parts[3]
+			return nil, &ParseError{Position: part.Loc.Start, End: part.Loc.End, Message: "SHOW GRANTS target has too many name parts"}
+		}
+		s.GrantTarget = target
+		s.Name = target.Object
+		if target.Qualifier != nil && target.Qualifier.Normalize() == "table" {
+			s.OnTable = true
+		}
+		s.Loc.End = target.Loc.End
 	}
 	return s, nil
 }

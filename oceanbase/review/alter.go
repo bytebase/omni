@@ -38,7 +38,7 @@ func dropKindOf(sql string, cmd *ast.AlterTableCmd) dropKind {
 			return dropPrimaryKey
 		}
 		return dropIndex
-	case ast.ATDropPartition:
+	case ast.ATDropPartition, ast.ATDropExternalPartition:
 		return dropPartition
 	case ast.ATDropSubpartition:
 		return dropSubpartition

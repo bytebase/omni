@@ -116,6 +116,7 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		stmt.ObjectType = nodes.DropRule
 		p.advance()
 	default:
+		dropStart := p.cur
 		// DROP SEQUENCE/SYNONYM/ASSEMBLY/DEFAULT dispatch — closed set.
 		if p.isValidOption(dropIdentDispatch) {
 			switch strings.ToUpper(p.cur.Str) {
@@ -133,18 +134,20 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 				p.advance()
 			}
 		}
-		// Check for PARTITION FUNCTION/SCHEME
+		// PARTITION takes FUNCTION or SCHEME, and one of them is required:
+		// DROP PARTITION a is Msg 102 (measured).
 		if p.cur.Type == kwPARTITION {
 			p.advance() // consume PARTITION
-			if p.isValidOption(dropPartitionDispatch) {
-				switch strings.ToUpper(p.cur.Str) {
-				case "FUNCTION":
-					stmt.ObjectType = nodes.DropPartitionFunction
-					p.advance()
-				case "SCHEME":
-					stmt.ObjectType = nodes.DropPartitionScheme
-					p.advance()
-				}
+			if !p.isValidOption(dropPartitionDispatch) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			switch strings.ToUpper(p.cur.Str) {
+			case "FUNCTION":
+				stmt.ObjectType = nodes.DropPartitionFunction
+				p.advance()
+			case "SCHEME":
+				stmt.ObjectType = nodes.DropPartitionScheme
+				p.advance()
 			}
 		}
 		// Check for FULLTEXT INDEX/CATALOG
@@ -158,27 +161,35 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 				p.advance()
 			}
 		}
-		// Check for XML SCHEMA COLLECTION
+		// XML SCHEMA COLLECTION, whose three words are all required:
+		// DROP XML SCHEMA a is Msg 102 (measured).
 		if p.cur.Type == kwXML {
 			p.advance()
-			if p.cur.Type == kwSCHEMA {
-				p.advance()
-				if p.cur.Type == kwCOLLECTION {
-					stmt.ObjectType = nodes.DropXmlSchemaCollection
-					p.advance()
-				}
+			if _, err := p.expect(kwSCHEMA); err != nil {
+				return nil, err
 			}
+			if _, err := p.expect(kwCOLLECTION); err != nil {
+				return nil, err
+			}
+			stmt.ObjectType = nodes.DropXmlSchemaCollection
+		}
+		// A DROP of an object type none of these names is Msg 343, "Unknown
+		// object type 'a' used in a CREATE, DROP, or ALTER statement"
+		// (measured): every arm above consumes the words it names, so a
+		// token still at the front is not an object type.
+		if p.cur == dropStart {
+			return nil, p.newParseError(p.cur.Loc, "unknown object type after DROP")
 		}
 	}
 
-	// IF EXISTS
+	// IF EXISTS: a bare IF is not part of the statement, and SQL Server
+	// refuses DROP DATABASE IF a with Msg 102 (measured).
 	if p.cur.Type == kwIF {
-		next := p.peekNext()
-		if next.Type == kwEXISTS {
-			p.advance() // IF
-			p.advance() // EXISTS
-			stmt.IfExists = true
+		p.advance() // IF
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
 		}
+		stmt.IfExists = true
 	}
 
 	// Completion: after DROP <type> [IF EXISTS] → appropriate rule
@@ -261,7 +272,9 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 		stmt.OnTables = &nodes.List{Items: onTables}
 	}
 
-	// DROP TRIGGER ... ON { DATABASE | ALL SERVER } (for DDL/logon triggers)
+	// DROP TRIGGER ... ON { DATABASE | ALL SERVER } (for DDL/logon triggers).
+	// The ON takes one of the two scopes, and DROP TRIGGER a ON is Msg 102
+	// (measured).
 	if stmt.ObjectType == nodes.DropTrigger {
 		if _, ok := p.match(kwON); ok {
 			if p.cur.Type == kwDATABASE {
@@ -269,33 +282,32 @@ func (p *Parser) parseDropStmt() (*nodes.DropStmt, error) {
 				p.advance()
 			} else if p.cur.Type == kwALL {
 				p.advance()
-				if p.matchIdentCI("SERVER") {
-					stmt.OnAllServer = true
+				if !p.matchIdentCI("SERVER") {
+					return nil, p.syntaxErrorAtCur()
 				}
+				stmt.OnAllServer = true
+			} else {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 	}
 
-	// DROP ASSEMBLY ... WITH NO DEPENDENTS
+	// DROP ASSEMBLY ... WITH NO DEPENDENTS, whose three words are all
+	// required: DROP ASSEMBLY a WITH NO is Msg 102 (measured).
 	if stmt.ObjectType == nodes.DropAssembly && p.cur.Type == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Type == kwNO {
-			p.advance() // consume NO
-			if p.cur.Type == kwDEPENDENTS {
-				p.advance() // consume DEPENDENTS
-				stmt.NoDependents = true
-			}
+		if _, err := p.expect(kwNO); err != nil {
+			return nil, err
 		}
+		if _, err := p.expect(kwDEPENDENTS); err != nil {
+			return nil, err
+		}
+		stmt.NoDependents = true
 	}
 
-	// Some DROP types also support CASCADE / RESTRICT
-	if p.cur.Type == kwCASCADE {
-		p.advance()
-	} else if p.cur.Type == kwRESTRICT {
-		p.advance()
-	} else if p.cur.Type == kwCASCADE {
-		p.advance()
-	}
+	// SQL Server takes no CASCADE or RESTRICT on a DROP: DROP SCHEMA a
+	// CASCADE and ... RESTRICT are Msg 156 (measured), and ScriptDOM's
+	// dropSchemaStatement carries them for another engine.
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

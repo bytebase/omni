@@ -51,6 +51,72 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	return p.parseSelectStmtAfterWith(p.pos(), nil)
 }
 
+// parseQueryParenthesisStmt parses a statement that starts with a
+// parenthesized query expression and may continue as a set operation:
+// (SELECT *) and (SELECT 1) UNION (SELECT 2) are both statements SQL Server
+// accepts (measured).
+func (p *Parser) parseQueryParenthesisStmt() (*nodes.SelectStmt, error) {
+	left, err := p.parseQueryParenthesis()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
+		if left, err = p.parseSetOperation(left); err != nil {
+			return nil, err
+		}
+	}
+	// The statement's own tails follow the last parenthesis: (SELECT 1)
+	// ORDER BY 1 is accepted (measured).
+	if err := p.parseSelectTails(left); err != nil {
+		return nil, err
+	}
+	return left, nil
+}
+
+// parseQueryParenthesis parses queryParenthesis (TSql160.g:17998):
+// LeftParenthesis queryExpression RightParenthesis. The node is the inner
+// query expression, whose Loc widens to take the parentheses in.
+func (p *Parser) parseQueryParenthesis() (*nodes.SelectStmt, error) {
+	loc := p.pos()
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	p.advance() // consume (
+	var inner *nodes.SelectStmt
+	var err error
+	if p.cur.Type == '(' {
+		// queryParenthesis nests, and the inner unit may start a set operation
+		// of its own: ((SELECT 1) UNION SELECT 2) and ((SELECT 1)) are both
+		// statements SQL Server accepts (measured).
+		inner, err = p.parseQueryParenthesisStmt()
+	} else {
+		inner, err = p.parseSelectStmt()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if inner == nil {
+		return nil, p.unexpectedToken()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	inner.Loc = nodes.Loc{Start: loc, End: p.prevEnd()}
+	return inner, nil
+}
+
+// parseSubquerySelect parses a subquery's query expression: the body of a
+// parenthesized subquery, of a derived table, or of a CTE. SQL Server holds a
+// subquery's ORDER BY to TOP, OFFSET or FOR and refuses FOR BROWSE there
+// (Msg 1033 and 176, the action of subquerySpecification at TSql160.g:18117),
+// so the parser records how deep in subqueries it is.
+func (p *Parser) parseSubquerySelect() (*nodes.SelectStmt, error) {
+	p.subqueryDepth++
+	defer func() { p.subqueryDepth-- }()
+	return p.parseSelectStmt()
+}
+
 // parseSelectStmtWithCTE parses [ WITH <cte> [ , ...n ] ] SELECT ... for the
 // object bodies whose select_statement carries its own CTE list in T-SQL:
 // CREATE/ALTER VIEW, an inline table-valued function's RETURN, DECLARE
@@ -64,7 +130,7 @@ func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {
 	var withClause *nodes.WithClause
 	if p.cur.Type == kwWITH {
 		var err error
-		withClause, err = p.parseWithClause()
+		withClause, err = p.parseWithClause(false)
 		if err != nil {
 			return nil, err
 		}
@@ -260,7 +326,7 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 			if _, ok := p.match(kwALL); ok {
 				stmt.GroupByAll = true
 			}
-			stmt.GroupByClause, err = p.parseGroupByList()
+			stmt.GroupByClause, stmt.GroupByDistributedAgg, err = p.parseGroupByList()
 			if err != nil {
 				return nil, err
 			}
@@ -308,6 +374,19 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		}
 	}
 
+	if err := p.parseSelectTails(stmt); err != nil {
+		return nil, err
+	}
+
+	return stmt, nil
+}
+
+// parseSelectTails parses what a select may end with, after its operands:
+// ORDER BY, OFFSET ... FETCH, FOR XML/JSON/BROWSE and OPTION, and the checks
+// the finished statement must pass. A parenthesized query expression takes
+// them too: `(SELECT 1) ORDER BY 1` is accepted (measured).
+func (p *Parser) parseSelectTails(stmt *nodes.SelectStmt) error {
+	var err error
 	// ORDER BY
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -316,14 +395,14 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 			if p.collectMode() {
 				p.addRuleCandidate("columnref")
 				p.addRuleCandidate("func_name")
-				return nil, errCollecting
+				return errCollecting
 			}
 			stmt.OrderByClause, err = p.parseOrderByList()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if stmt.OrderByClause == nil || len(stmt.OrderByClause.Items) == 0 {
-				return nil, p.unexpectedToken()
+				return p.unexpectedToken()
 			}
 			// Completion: after ORDER BY list → sort direction, OFFSET, etc.
 			if p.collectMode() {
@@ -332,7 +411,7 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 				p.addTokenCandidate(kwOFFSET)
 				p.addTokenCandidate(kwFOR)
 				p.addTokenCandidate(kwOPTION)
-				return nil, errCollecting
+				return errCollecting
 			}
 		}
 	}
@@ -346,32 +425,32 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		// docs page).
 		stmt.OffsetClause, err = p.parseExpr()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if stmt.OffsetClause == nil {
-			return nil, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		if _, ok := p.match(kwROWS, kwROW); !ok {
-			return nil, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwFETCH {
 			fetchLoc := p.pos()
 			p.advance()
 			if _, ok := p.match(kwNEXT, kwFIRST); !ok {
-				return nil, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			count, err := p.parseExpr()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if count == nil {
-				return nil, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			if _, ok := p.match(kwROWS, kwROW); !ok {
-				return nil, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			if _, err := p.expect(kwONLY); err != nil {
-				return nil, err
+				return err
 			}
 			stmt.FetchClause = &nodes.FetchClause{
 				Count: count,
@@ -386,7 +465,7 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		if next.Type == kwXML || next.Type == kwJSON || next.Type == kwBROWSE {
 			stmt.ForClause, err = p.parseForClause()
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
@@ -398,16 +477,36 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 	if p.cur.Type == kwOPTION {
 		stmt.OptionClause, err = p.parseOptionClause()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return stmt, nil
+	// TOP ... WITH TIES needs an ORDER BY, which SQL Server checks while
+	// parsing: SELECT TOP 1 WITH TIES * is Msg 1062 (measured).
+	if stmt.Top != nil && stmt.Top.WithTies && stmt.OrderByClause == nil {
+		return p.newParseError(stmt.Top.Loc.Start, "TOP WITH TIES needs an ORDER BY")
+	}
+
+	// A subquery's ORDER BY needs TOP, OFFSET or FOR beside it, and FOR BROWSE
+	// is no subquery clause at all: SQL Server answers Msg 1033 and Msg 176
+	// (measured by SELECT (SELECT * ORDER BY 1) and SELECT (SELECT * FOR
+	// BROWSE)).
+	if p.subqueryDepth > 0 {
+		if stmt.ForClause != nil && stmt.ForClause.Mode == nodes.ForBrowse {
+			return p.newParseError(stmt.ForClause.Loc.Start, "FOR BROWSE is not allowed in a subquery")
+		}
+		if stmt.OrderByClause != nil && stmt.Top == nil && stmt.ForClause == nil && stmt.OffsetClause == nil {
+			return p.newParseError(nodes.NodeLoc(stmt.OrderByClause.Items[0]).Start, "ORDER BY is not allowed in a subquery without TOP, OFFSET or FOR")
+		}
+	}
+
+	return nil
 }
 
 // parseSetOperation parses the UNION/INTERSECT/EXCEPT chain that follows
 // left. The chain nests to the right, A UNION B EXCEPT C becoming
-// Union(A, Except(B, C)), and each node takes the Loc of its left operand.
+// Union(A, Except(B, C)), and each node takes the Loc of its left operand,
+// widened to the last operand once the chain ends.
 // The operands are parsed in a loop rather than by recursing once per
 // operator, so a long flat chain neither grows the stack nor counts toward
 // the nesting limit: SQL Server 2022 accepts 50,000 UNION operands.
@@ -447,14 +546,18 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 			}
 		}
 
-		// The right operand is a query expression: as in parseSelectStmt,
-		// a leading WITH, or anything else that is not SELECT, is an error.
-		if p.cur.Type != kwSELECT {
-			return nil, p.unexpectedToken()
-		}
+		// The right operand is a query expression unit: a parenthesized query
+		// expression, or SELECT. As in parseSelectStmt, a leading WITH, or
+		// anything else, is an error.
 		chain = append(chain, setOperand{op: op, all: all, left: left})
 		var err error
-		left, err = p.parseSelectOperand(p.pos(), nil)
+		if p.cur.Type == '(' {
+			left, err = p.parseQueryParenthesis()
+		} else if p.cur.Type == kwSELECT {
+			left, err = p.parseSelectOperand(p.pos(), nil)
+		} else {
+			return nil, p.unexpectedToken()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -471,6 +574,9 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 			Loc:  chain[i].left.Loc,
 		}
 	}
+	// The statement runs to its last operand, whatever the first one's Loc
+	// ends at: `(SELECT 1) UNION SELECT 2` ends at 2, not at the first `)`.
+	result.Loc.End = p.prevEnd()
 	return result, nil
 }
 
@@ -481,7 +587,12 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 //	[ WITH { [ XMLNAMESPACES , ] [ <common_table_expression> [ , ...n ] ] } ]
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
-func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
+// statementLevel says whether the clause is a statement's own (a batch's
+// WITH ... SELECT/INSERT/UPDATE/DELETE/MERGE) or one written inside another
+// statement, as a view's body. SQL Server takes CHANGE_TRACKING_CONTEXT only
+// at statement level and without a CTE list (Msg 22108, measured), so the
+// nested callers refuse it.
+func (p *Parser) parseWithClause(statementLevel bool) (*nodes.WithClause, error) {
 	loc := p.pos()
 	// Record CTE position for completion module
 	if p.completing {
@@ -499,8 +610,8 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Optional XMLNAMESPACES (...)
-	xmlComma := false
+	// Optional XMLNAMESPACES (...) or CHANGE_TRACKING_CONTEXT ( binary_or_variable )
+	firstComma := false
 	if p.cur.Type == kwXMLNAMESPACES {
 		var err error
 		wc.XmlNamespaces, err = p.parseXmlNamespaces()
@@ -509,7 +620,17 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		}
 		// A comma after XMLNAMESPACES separates it from the CTE list, so it
 		// commits the clause to having at least one CTE.
-		_, xmlComma = p.match(',')
+		_, firstComma = p.match(',')
+	} else if p.atChangeTrackingContext() {
+		if !statementLevel {
+			return nil, p.newParseError(p.pos(), "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
+		}
+		var err error
+		wc.CTContext, err = p.parseChangeTrackingContext()
+		if err != nil {
+			return nil, err
+		}
+		_, firstComma = p.match(',')
 	}
 
 	// CTE list terminator is multi-token (SELECT / INSERT / UPDATE / DELETE /
@@ -539,12 +660,76 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	// Otherwise "WITH SELECT 1" / "WITH INSERT ..." would parse as a statement
 	// carrying an empty clause, and "WITH XMLNAMESPACES (...), INSERT ..."
 	// would parse with a dangling comma.
-	if len(ctes) == 0 && (wc.XmlNamespaces == nil || xmlComma) {
+	if len(ctes) == 0 && (firstComma || (wc.XmlNamespaces == nil && wc.CTContext == nil)) {
 		return nil, p.unexpectedToken()
+	}
+	if wc.CTContext != nil && len(ctes) > 0 {
+		return nil, p.newParseError(nodes.NodeLoc(wc.CTContext).Start, "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.prevEnd()
 	return wc, nil
+}
+
+// atChangeTrackingContext reports whether the WITH clause opens with
+// CHANGE_TRACKING_CONTEXT. ScriptDOM's keyword tables hold no such word: its
+// grammar reads the text with a predicate, `{NextTokenMatches(
+// CodeGenerationSupporter.ChangeTrackingContext)}?` (TSql160.g:21536,
+// ctContext), so the word stays an identifier and is compared by its text
+// here, as CLONE and OF are in parseCreateTableCloneStmt.
+func (p *Parser) atChangeTrackingContext() bool {
+	return p.withWordIs("CHANGE_TRACKING_CONTEXT")
+}
+
+// withWordIs reports whether the current token is the WITH-clause word `word`
+// (upper case): its keyword token when the lexer has one, else an
+// undelimited identifier with that text, as tableWordIs and indexWordIs do.
+func (p *Parser) withWordIs(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
+
+// parseChangeTrackingContext parses ctContext (TSql160.g:21536):
+//
+//	CHANGE_TRACKING_CONTEXT ( binary_or_variable )
+//
+// The argument is a binary constant or a variable, and SQL Server takes
+// nothing else there.
+func (p *Parser) parseChangeTrackingContext() (nodes.ExprNode, error) {
+	p.advance() // consume CHANGE_TRACKING_CONTEXT
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var value nodes.ExprNode
+	switch {
+	case p.cur.Type == tokVARIABLE || p.cur.Type == tokSYSVARIABLE:
+		v, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		if v == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		value = v
+	case (p.cur.Type == tokICONST || p.cur.Type == tokFCONST) && procIsBinary(p.cur):
+		// A binary constant of more than 64 bits is a tokFCONST, since it does
+		// not fit an int64, and SQL Server takes it here as it takes 0x00
+		// (measured): its text is the value.
+		tok := p.advance()
+		if tok.Type == tokICONST {
+			value = &nodes.Literal{Type: nodes.LitInteger, Ival: tok.Ival, Str: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+		} else {
+			value = &nodes.Literal{Type: nodes.LitFloat, Str: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return value, nil
 }
 
 // atWithClauseEnd reports whether the current token ends a CTE list: the
@@ -669,7 +854,7 @@ func (p *Parser) parseCTE() (*nodes.CommonTableExpr, error) {
 	}
 
 	var err error
-	cte.Query, err = p.parseSelectStmt()
+	cte.Query, err = p.parseSubquerySelect()
 	if err != nil {
 		return nil, err
 	}
@@ -767,6 +952,11 @@ func (p *Parser) parseTargetList() (*nodes.List, error) {
 				rhs, err := p.parseExpr()
 				if err != nil {
 					return nil, err
+				}
+				// selectSetVariable's expression is required: SELECT @a = is
+				// Msg 102 (measured).
+				if rhs == nil {
+					return nil, p.syntaxErrorAtCur()
 				}
 				assign := &nodes.SelectAssign{
 					Variable: name,
@@ -1123,7 +1313,7 @@ func (p *Parser) parsePrimaryTableSource() (nodes.TableExpr, error) {
 			}
 			inner = vc
 		} else {
-			sub, err := p.parseSelectStmt()
+			sub, err := p.parseSubquerySelect()
 			if err != nil {
 				return nil, err
 			}
@@ -2318,8 +2508,11 @@ func (p *Parser) parseExprList() (*nodes.List, error) {
 }
 
 // parseGroupByList parses a GROUP BY list which may contain GROUPING SETS, ROLLUP, CUBE.
-func (p *Parser) parseGroupByList() (*nodes.List, error) {
+// distributedAgg reports a WITH ( DISTRIBUTED_AGG ) on the list or one of its
+// items, which SQL Server takes and a SelectStmt records.
+func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 	var items []nodes.Node
+	distributedAgg := false
 	for {
 		// GROUPING SETS (...)
 		if p.cur.Type == kwGROUPING {
@@ -2329,16 +2522,16 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 				p.advance() // consume GROUPING
 				p.advance() // consume SETS
 				if _, err := p.expect('('); err != nil {
-					return nil, err
+					return nil, distributedAgg, err
 				}
 				sets, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
 					return p.parseGroupingSet()
 				})
 				if err != nil {
-					return nil, err
+					return nil, distributedAgg, err
 				}
 				if _, err := p.expect(')'); err != nil {
-					return nil, err
+					return nil, distributedAgg, err
 				}
 				items = append(items, &nodes.GroupingSetsExpr{
 					Sets: &nodes.List{Items: sets},
@@ -2354,7 +2547,7 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 		if p.cur.Type == kwROLLUP || p.cur.Type == kwCUBE {
 			item, err := p.parseRollupCube()
 			if err != nil {
-				return nil, err
+				return nil, distributedAgg, err
 			}
 			items = append(items, item)
 			if _, ok := p.match(','); !ok {
@@ -2362,15 +2555,38 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 			}
 			continue
 		}
-		// Regular expression
-		expr, err := p.parseExpr()
-		if err != nil {
-			return nil, err
+		// Regular expression, or grandTotal's empty grouping set ( ), which is
+		// no expression and so does not come from parseExpr.
+		var expr nodes.ExprNode
+		var err error
+		if p.cur.Type == '(' && p.peekNext().Type == ')' {
+			loc := p.pos()
+			p.advance() // (
+			p.advance() // )
+			expr = &nodes.ParenExpr{Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+		} else {
+			expr, err = p.parseExpr()
+			if err != nil {
+				return nil, distributedAgg, err
+			}
 		}
+		// A comma in the list promises another item: SELECT * GROUP BY 1, is
+		// Msg 102 (measured).
 		if expr == nil {
-			break
+			return nil, distributedAgg, p.unexpectedToken()
 		}
 		items = append(items, expr)
+		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			// One hint, and one only: Msg 10763, "GROUP BY clause can only
+			// contain one query hint" (measured).
+			if distributedAgg {
+				return nil, distributedAgg, p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
+			}
+			if err := p.parseGroupByDistributedAgg(); err != nil {
+				return nil, distributedAgg, err
+			}
+			distributedAgg = true
+		}
 		if _, ok := p.match(','); !ok {
 			break
 		}
@@ -2378,10 +2594,41 @@ func (p *Parser) parseGroupByList() (*nodes.List, error) {
 		if p.collectMode() {
 			p.addRuleCandidate("columnref")
 			p.addRuleCandidate("func_name")
-			return nil, errCollecting
+			return nil, distributedAgg, errCollecting
 		}
 	}
-	return &nodes.List{Items: items}, nil
+	// groupByClause's own trailing ( With Identifier )?, after the last item.
+	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+		if distributedAgg {
+			return nil, distributedAgg, p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
+		}
+		if err := p.parseGroupByDistributedAgg(); err != nil {
+			return nil, distributedAgg, err
+		}
+		distributedAgg = true
+	}
+	return &nodes.List{Items: items}, distributedAgg, nil
+}
+
+// parseGroupByDistributedAgg parses the WITH ( DISTRIBUTED_AGG ) a GROUP BY
+// item or list may end with (simpleGroupByItem and groupByClause,
+// TSql160.g:21380 and 21262). It is Azure Synapse's, and SQL Server 2022
+// reads it too (measured).
+func (p *Parser) parseGroupByDistributedAgg() error {
+	p.advance() // consume WITH
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	// DISTRIBUTED_AGG is no keyword: ScriptDOM writes the words in the
+	// grammar's action, so it is compared by its text, as CLONE is.
+	if p.cur.Type != tokIDENT || strings.ToUpper(p.cur.Str) != "DISTRIBUTED_AGG" {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	return nil
 }
 
 // parseGroupingSet parses a single grouping set: () or (expr, expr, ...) or just expr.

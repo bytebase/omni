@@ -183,6 +183,9 @@ func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, field
 				return QuerySpanResult{}, false
 			}
 		}
+		if _, ok := tableSource.(*unknownColumnsTable); ok {
+			return QuerySpanResult{Name: fieldName}, true
+		}
 		for _, column := range tableSource.GetQuerySpanResult() {
 			if strings.EqualFold(column.Name, fieldName) {
 				return column, true
@@ -718,9 +721,67 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		return q.extractJoin(t)
 	case *ast.JsonTableExpr:
 		return q.extractJSONTable(t)
+	case *ast.UnnestExpr:
+		return q.extractTableFunction(t.Alias, t.Columns, t.Args)
+	case *ast.RbIterateExpr:
+		var columns []string
+		if t.Column != "" {
+			columns = []string{t.Column}
+		}
+		return q.extractTableFunction(t.Alias, columns, []ast.ExprNode{t.Arg})
+	case *ast.ExternalTableRef:
+		// The file's columns are known only when the query runs, so the source
+		// has a name and no columns; any column reference to it resolves.
+		name := t.Alias
+		if name == "" {
+			name = t.Path
+		}
+		return &unknownColumnsTable{pseudoTable{Name: name}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported omni MySQL table source %T", tableExpr)
 	}
+}
+
+// extractTableFunction reads a table function in FROM — UNNEST or RB_ITERATE —
+// as a pseudo table named by its alias (or its argument), whose columns are the
+// names it declares and whose lineage is the arguments' columns.
+func (q *querySpanExtractor) extractTableFunction(alias string, columns []string, args []ast.ExprNode) (tableSource, error) {
+	name := alias
+	if name == "" && len(args) > 0 {
+		name = q.exprName(args[0])
+	}
+	fields := make([]QuerySpanResult, len(args))
+	all := ColumnSet{}
+	for i, arg := range args {
+		field, err := q.extractExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+		fields[i] = field
+		all, _ = mergeColumnSet(all, field.SourceColumns)
+	}
+	var result []QuerySpanResult
+	// Without a column alias list the function's outputs are its arguments.
+	if len(columns) == 0 {
+		for i, field := range fields {
+			name := field.Name
+			if name == "" {
+				name = q.exprName(args[i])
+			}
+			result = append(result, QuerySpanResult{Name: name, SourceColumns: field.SourceColumns, IsPlainField: field.IsPlainField})
+		}
+		return &pseudoTable{Name: name, Columns: result}, nil
+	}
+	for i, column := range columns {
+		// UNNEST's outputs follow its arguments: the i-th output is the i-th
+		// argument's elements. With no such pairing, each reads them all.
+		sources := all
+		if len(columns) == len(fields) {
+			sources = fields[i].SourceColumns
+		}
+		result = append(result, QuerySpanResult{Name: column, SourceColumns: sources})
+	}
+	return &pseudoTable{Name: name, Columns: result}, nil
 }
 
 func (q *querySpanExtractor) extractJSONTable(expr *ast.JsonTableExpr) (tableSource, error) {
@@ -1446,6 +1507,9 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		*ast.CallStmt, *ast.DoStmt, *ast.HandlerOpenStmt, *ast.HandlerReadStmt, *ast.HandlerCloseStmt,
 		*ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt, *ast.RepairTableStmt,
 		*ast.FlushStmt, *ast.KillStmt, *ast.ShutdownStmt, *ast.RestartStmt, *ast.XAStmt,
+		// method_opt is DBMS_STATS' statistics method and runs nothing; it keeps
+		// ANALYZE's class rather than staying unknown, which Bytebase denies.
+		*ast.MethodOptStmt,
 		*ast.SignalStmt, *ast.ResignalStmt, *ast.GetDiagnosticsStmt, *ast.DeclareVarStmt,
 		*ast.DeclareConditionStmt, *ast.DeclareHandlerStmt, *ast.DeclareCursorStmt,
 		*ast.IfStmt, *ast.WhileStmt, *ast.RepeatStmt, *ast.LoopStmt, *ast.LeaveStmt,
@@ -1551,6 +1615,20 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 			}
 		}
 		for _, assignment := range n.OnDuplicateKey {
+			if assignment != nil {
+				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
+			}
+		}
+	case *ast.LoadDataStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		if n.Source != nil {
+			collectAccessTablesFromTableExpr(result, n.Source, defaultDatabase)
+		}
+		collectAccessTablesFromNode(result, n.SourceQuery, defaultDatabase)
+		for _, column := range n.Columns {
+			collectAccessTablesFromExpr(result, column, defaultDatabase)
+		}
+		for _, assignment := range n.SetList {
 			if assignment != nil {
 				collectAccessTablesFromExpr(result, assignment.Value, defaultDatabase)
 			}
@@ -1753,6 +1831,9 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 	switch n := tableExpr.(type) {
 	case *ast.TableRef:
 		collectAccessTablesFromTableRef(result, n, defaultDatabase)
+		if n.Flashback != nil {
+			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, defaultDatabase)
+		}
 	case *ast.JoinClause:
 		collectAccessTablesFromTableExpr(result, n.Left, defaultDatabase)
 		collectAccessTablesFromTableExpr(result, n.Right, defaultDatabase)
@@ -1763,9 +1844,31 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 		}
 	case *ast.SubqueryExpr:
 		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+		if n.Flashback != nil {
+			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, defaultDatabase)
+		}
 	case *ast.JsonTableExpr:
 		collectAccessTablesFromExpr(result, n.Expr, defaultDatabase)
 		collectAccessTablesFromExpr(result, n.Path, defaultDatabase)
+	case *ast.UnnestExpr:
+		for _, arg := range n.Args {
+			collectAccessTablesFromExpr(result, arg, defaultDatabase)
+		}
+	case *ast.RbIterateExpr:
+		collectAccessTablesFromExpr(result, n.Arg, defaultDatabase)
+	case *ast.ExternalTableRef:
+		// A format or property value may hold an expression, as FIELD_DELIMITER
+		// = (SELECT a FROM t1) does.
+		for _, prop := range n.Source {
+			if prop != nil {
+				collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+			}
+		}
+		for _, prop := range n.Format {
+			if prop != nil {
+				collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+			}
+		}
 	default:
 	}
 }

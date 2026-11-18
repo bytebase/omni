@@ -41,6 +41,7 @@ const (
 	tokArrow                     // ->        (RARROW_)
 	tokLeftArrow                 // <-        (LARROW_)
 	tokDoubleArrow               // =>        (RDOUBLEARROW_)
+	tokDoubleColon               // ::        (COLONCOLON_)
 	tokLCurlyHyphen              // {-        (LCURLYHYPHEN_, MATCH_RECOGNIZE excluded pattern)
 	tokRCurlyHyphen              // -}        (RCURLYHYPHEN_, MATCH_RECOGNIZE excluded pattern)
 )

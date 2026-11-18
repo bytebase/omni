@@ -2936,12 +2936,14 @@ func TestComplete_AuroraLoadDataFromS3(t *testing.T) {
 		}
 	})
 
-	// LOAD DATA FROM | → S3 is the only continuation
+	// LOAD DATA FROM | → S3, or a location: SOURCE, FILES or a query over one.
 	t.Run("load_data_from_offers_s3", func(t *testing.T) {
 		sql := "LOAD DATA FROM "
 		candidates := Complete(sql, len(sql), cat)
-		if !containsCandidate(candidates, "S3", CandidateKeyword) {
-			t.Errorf("missing keyword S3; got %v", candidates)
+		for _, kw := range []string{"S3", "SOURCE", "FILES"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("missing keyword %s; got %v", kw, candidates)
+			}
 		}
 		if containsCandidate(candidates, "SELECT", CandidateKeyword) {
 			t.Errorf("fell back to top-level statement keywords; got %v", candidates)
@@ -3025,4 +3027,53 @@ func TestComplete_AuroraLoadDataFromS3(t *testing.T) {
 			t.Errorf("missing table 't'; got %v", candidates)
 		}
 	})
+}
+
+// TestComplete_MethodOpt: a FOR at the start of a statement is method_opt, and
+// the two methods follow it.
+func TestComplete_MethodOpt(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	sql := "FOR "
+	candidates := Complete(sql, len(sql), cat)
+	for _, kw := range []string{"ALL", "COLUMNS"} {
+		if !containsCandidate(candidates, kw, CandidateKeyword) {
+			t.Errorf("missing keyword %s; got %v", kw, candidates)
+		}
+	}
+}
+
+// TestComplete_TableFactorSources: the table factors OceanBase adds are offered
+// where a table factor stands.
+func TestComplete_TableFactorSources(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	for _, sql := range []string{
+		"SELECT * FROM ",
+		"SELECT * FROM t JOIN ",
+		"SELECT * FROM t, ",
+	} {
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"SOURCE", "FILES", "JSON_TABLE", "LATERAL"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("%q: missing keyword %s; got %v", sql, kw, candidates)
+			}
+		}
+	}
+}
+
+// TestComplete_AfterExternal: TABLE is the only continuation after CREATE or
+// ALTER EXTERNAL.
+func TestComplete_AfterExternal(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	for _, sql := range []string{"CREATE EXTERNAL ", "ALTER EXTERNAL "} {
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "TABLE", CandidateKeyword) {
+			t.Errorf("%q: missing keyword TABLE; got %v", sql, candidates)
+		}
+	}
 }

@@ -49,7 +49,6 @@ func TestMSSQLLocPrecision_ExpressionRanges(t *testing.T) {
 		{sql: "SELECT c LIKE 'x%'", want: "c LIKE 'x%'"},
 		{sql: "SELECT c IS NOT NULL", want: "c IS NOT NULL"},
 		{sql: "SELECT a + b * c", want: "a + b * c"},
-		{sql: "SELECT (a = 1) AND (b = 2)", want: "(a = 1) AND (b = 2)"},
 		{
 			sql:  "SELECT name COLLATE Latin1_General_CI_AS LIKE 'A%'",
 			want: "name COLLATE Latin1_General_CI_AS LIKE 'A%'",
@@ -79,6 +78,11 @@ func TestMSSQLLocPrecision_CheckConstraintExpressionRanges(t *testing.T) {
 		{
 			sql:  "CREATE TABLE t (c int CHECK (c IN (1, 2)))",
 			want: "c IN (1, 2)",
+		},
+		{
+			// AND belongs to a search condition, which a CHECK's expression is.
+			sql:  "CREATE TABLE t (a int, b int, CHECK ((a = 1) AND (b = 2)))",
+			want: "(a = 1) AND (b = 2)",
 		},
 	}
 

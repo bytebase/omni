@@ -72,6 +72,7 @@ func TestFindingCodes(t *testing.T) {
 		{review.OnlineMigration, "ALTER TABLE plain RENAME COLUMN v TO w;", ghost, shopTarget, codes(review.GhostColumnRename)},
 		{review.OnlineMigration, "ALTER TABLE plain ADD COLUMN m INT;", ghost, review.Target{Schema: shop()}, codes(review.ArchiveDatabaseMissing)},
 		{review.OnlineMigration, "ALTER TABLE nokey ADD COLUMN m INT;", ghost, shopTarget, codes(review.TableNotEligible)},
+		{review.OnlineMigration, "ALTER EXTERNAL TABLE plain ADD COLUMN m INT;", ghost, shopTarget, codes(review.UnsupportedChange)},
 
 		{review.PriorBackup, "UPDATE t SET n = 1 WHERE id = 1;", review.Change{PriorBackup: true, MaxBackupSize: 10}, shopTarget, codes(review.ChangeTooLarge)},
 		{review.PriorBackup, "UPDATE t SET n = 1 WHERE id = 1;", backup, review.Target{Schema: shop()}, codes(review.BackupLocationMissing)},
@@ -87,6 +88,7 @@ func TestFindingCodes(t *testing.T) {
 		{review.DisallowDropObject, "DROP DATABASE shop;", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP COLUMN n;", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP PARTITION p0;", review.Change{}, shopTarget, codes(review.DropsData)},
+		{review.DisallowDropObject, "ALTER EXTERNAL TABLE t DROP PARTITION LOCATION 's';", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "DROP VIEW pv;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "DROP INDEX idx_n ON t;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP INDEX idx_n;", review.Change{}, shopTarget, codes(review.DropsDefinition)},

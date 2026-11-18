@@ -65,7 +65,7 @@ var oceanBaseOnlyGrammar = []grammarCase{
 	{name: "create outline", sql: "CREATE OUTLINE obprobe_ol1 ON SELECT * FROM obprobe_t"},
 	{name: "create resource unit", sql: "CREATE RESOURCE UNIT obprobe_u1 MAX_CPU = 2, MEMORY_SIZE = '2G'"},
 	{name: "create resource pool", sql: "CREATE RESOURCE POOL obprobe_p1 UNIT = 'obprobe_u1', UNIT_NUM = 1"},
-	{name: "create external table", sql: "CREATE EXTERNAL TABLE obprobe_ext (a INT) LOCATION = '/tmp/obprobe' FORMAT (TYPE = 'CSV')", pending: true},
+	{name: "create external table", sql: "CREATE EXTERNAL TABLE obprobe_ext (a INT) LOCATION = '/tmp/obprobe' FORMAT (TYPE = 'CSV')"},
 	{name: "create materialized view", sql: "CREATE MATERIALIZED VIEW obprobe_mv1 REFRESH COMPLETE ON DEMAND AS SELECT a FROM obprobe_t"},
 	{name: "column group", sql: "CREATE TABLE obprobe_t3 (a INT) WITH COLUMN GROUP(all columns, each column)"},
 	{name: "alter system major freeze", sql: "ALTER SYSTEM MAJOR FREEZE"},
