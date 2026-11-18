@@ -599,14 +599,48 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 // EXPLAIN
 // ---------------------------------------------------------------------------
 
-// parseExplain parses EXPLAIN statements.
+// descStartsExplain reports whether a DESC/DESCRIBE at cur opens explainDesc
+// (StarRocks.g4:2580) rather than descTableStatement (StarRocks.g4:561).
 //
-//	EXPLAIN [ANALYZE|VERBOSE|LOGICAL|COSTS|SCHEDULER] query
+// A query or DML right after the verb is an explain. A plan modifier right
+// after it is an explain only when the query follows the modifier, so
+// `DESC LOGICAL SELECT 1` plans and `DESC LOGICAL` still describes a table
+// named logical.
+func (p *Parser) descStartsExplain() bool {
+	next := p.peekNext().Kind
+	if explainStartsQuery(next) {
+		return true
+	}
+	switch next {
+	case kwLOGICAL, kwANALYZE, kwVERBOSE, kwCOSTS, kwSCHEDULER:
+		mark := p.save()
+		p.advance() // consume DESC/DESCRIBE
+		p.advance() // consume the plan modifier
+		ok := explainStartsQuery(p.cur.Kind)
+		p.restore(mark)
+		return ok
+	}
+	return false
+}
+
+// explainStartsQuery reports whether kind starts a statement explainDesc can
+// precede: a query, DML, or a parenthesized query.
+func explainStartsQuery(kind TokenKind) bool {
+	switch kind {
+	case kwSELECT, kwWITH, kwINSERT, kwUPDATE, kwDELETE, int('('):
+		return true
+	}
+	return false
+}
+
+// parseExplain parses EXPLAIN, DESC and DESCRIBE statements.
 //
-// On entry, EXPLAIN has NOT yet been consumed.
+//	(EXPLAIN | DESC | DESCRIBE) [ANALYZE|VERBOSE|LOGICAL|COSTS|SCHEDULER] query
+//
+// On entry, the verb has NOT yet been consumed.
 func (p *Parser) parseExplain() (ast.Node, error) {
 	startLoc := p.cur.Loc
-	p.advance() // consume EXPLAIN
+	p.advance() // consume EXPLAIN/DESC/DESCRIBE
 
 	stmt := &ast.ExplainStmt{Loc: startLoc}
 

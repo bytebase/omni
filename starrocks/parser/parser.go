@@ -440,6 +440,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterUser(p.prev.Loc)
 		case kwROUTINE:
 			return p.parseAlterRoutineLoad(alterTok.Loc)
+		case kwLOAD:
+			return p.parseAlterLoad(alterTok.Loc)
 		case kwSYSTEM:
 			return p.parseAlterSystemStmt(alterTok.Loc)
 		case kwJOB:
@@ -498,6 +500,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropProcedure(dropTok.Loc)
 		case kwFUNCTION, kwGLOBAL:
 			return p.parseDropFunction(dropTok.Loc)
+		case kwTASK:
+			return p.parseDropTask(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -527,6 +531,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseWithStatement()
 	case kwINSERT:
 		return p.parseInsert()
+	case kwSUBMIT:
+		submitTok := p.advance() // consume SUBMIT
+		return p.parseSubmitTask(submitTok.Loc)
+	case kwCACHE:
+		return p.parseDataCacheSelect()
 	case kwUPDATE:
 		updateTok := p.advance() // consume UPDATE
 		return p.parseUpdateStmt(updateTok.Loc.Start)
@@ -578,6 +587,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			p.restore(mark)
 		}
+		// explainDesc (StarRocks.g4:2580) shares DESC/DESCRIBE with the table
+		// description: DESC before a query or DML plans it, and so does DESC
+		// before a plan modifier when a query follows the modifier.
+		if p.descStartsExplain() {
+			return p.parseExplain()
+		}
 		// A describe names what it describes (StarRocks.g4:561
 		// descTableStatement): a bare DESC, or DESC ALL with no table, is a
 		// syntax error.
@@ -588,6 +603,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseDescribe()
 	case kwEXPLAIN:
 		return p.parseExplain()
+	case kwTRACE:
+		traceTok := p.advance() // consume TRACE
+		return p.parseOptimizerTrace(traceTok.Loc)
 	case kwUSE:
 		return p.parseUse()
 	case kwHELP:

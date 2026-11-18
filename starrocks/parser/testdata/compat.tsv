@@ -280,7 +280,7 @@ reject	reject	engine	statement/showIndexStatement!drop-4	SHOW INDEX FROM;
 reject	reject	engine	statement/showIndexStatement!truncate	SHOW INDEX FROM
 reject	reject	engine	statement/showIndexStatement!insert	SHOW INDEX FROM a zzz;
 reject	reject	engine	statement/showIndexStatement!swap	SIGNED INDEX FROM a;
-reject	accept	engine	statement/submitTaskStatement	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	statement/submitTaskStatement	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/submitTaskStatement!drop-1	TASK AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/submitTaskStatement!drop-2	SUBMIT AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	statement/submitTaskStatement!drop-3	SUBMIT TASK INSERT INTO a SELECT CURRENT_USER;
@@ -290,9 +290,9 @@ reject	reject	engine	statement/submitTaskStatement!drop-6	SUBMIT TASK AS INSERT 
 reject	reject	engine	statement/submitTaskStatement!drop-7	SUBMIT TASK AS INSERT INTO a CURRENT_USER;
 reject	reject	engine	statement/submitTaskStatement!drop-8	SUBMIT TASK AS INSERT INTO a SELECT;
 reject	reject	engine	statement/submitTaskStatement!truncate	SUBMIT TASK AS INSERT INTO a SELECT
-reject	accept	engine	statement/submitTaskStatement!insert	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER zzz;
+accept	accept	engine	statement/submitTaskStatement!insert	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER zzz;
 reject	reject	engine	statement/submitTaskStatement!swap	SUM TASK AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	statement/dropTaskStatement	DROP TASK a;
+accept	accept	engine	statement/dropTaskStatement	DROP TASK a;
 reject	reject	engine	statement/dropTaskStatement!drop-1	TASK a;
 reject	reject	engine	statement/dropTaskStatement!drop-3	DROP TASK;
 reject	reject	engine	statement/dropTaskStatement!truncate	DROP TASK
@@ -841,7 +841,7 @@ reject	reject	engine	statement/cancelLoadStatement!drop-2	CANCEL;
 reject	reject	engine	statement/cancelLoadStatement!truncate	CANCEL
 reject	reject	engine	statement/cancelLoadStatement!insert	CANCEL LOAD zzz;
 reject	reject	engine	statement/cancelLoadStatement!swap	CASE LOAD;
-reject	accept	engine	statement/alterLoadStatement	ALTER LOAD FOR a;
+accept	accept	engine	statement/alterLoadStatement	ALTER LOAD FOR a;
 reject	reject	engine	statement/alterLoadStatement!drop-1	LOAD FOR a;
 reject	reject	engine	statement/alterLoadStatement!drop-2	ALTER FOR a;
 reject	reject	engine	statement/alterLoadStatement!drop-3	ALTER LOAD a;
@@ -1230,7 +1230,7 @@ reject	reject	engine	statement/clearDataCacheRulesStatement!drop-3	CLEAR DATACAC
 reject	reject	engine	statement/clearDataCacheRulesStatement!truncate	CLEAR DATACACHE
 reject	reject	engine	statement/clearDataCacheRulesStatement!insert	CLEAR DATACACHE RULES zzz;
 reject	reject	engine	statement/clearDataCacheRulesStatement!swap	CLUSTER DATACACHE RULES;
-reject	accept	engine	statement/dataCacheSelectStatement	CACHE SELECT CURRENT_USER FROM a;
+accept	accept	engine	statement/dataCacheSelectStatement	CACHE SELECT CURRENT_USER FROM a;
 reject	reject	engine	statement/dataCacheSelectStatement!drop-2	CACHE CURRENT_USER FROM a;
 reject	reject	engine	statement/dataCacheSelectStatement!drop-3	CACHE SELECT FROM a;
 reject	reject	engine	statement/dataCacheSelectStatement!drop-4	CACHE SELECT CURRENT_USER a;
@@ -2801,14 +2801,14 @@ reject	reject	engine	columnNameWithComment(comment)?/comment!drop-2	CREATE VIEW 
 reject	reject	engine	columnNameWithComment(comment)?/comment!truncate	CREATE VIEW a(a COMMENT
 reject	reject	engine	columnNameWithComment(comment)?/comment!insert	CREATE VIEW a(a COMMENT 'a' zzz) AS SELECT CURRENT_USER;
 reject	reject	engine	columnNameWithComment(comment)?/comment!swap	CREATE VIEW a(a COMMIT 'a') AS SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement/SUBMIT_TASK_(qualifiedName)?_(taskClause)*_AS_(createTa~fc950e22	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(qualifiedName)?/%empty	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(qualifiedName)?/%empty!insert	SUBMIT TASK zzz AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(qualifiedName)?/qualifiedName	SUBMIT TASK a AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement/SUBMIT_TASK_(qualifiedName)?_(taskClause)*_AS_(createTa~fc950e22	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(qualifiedName)?/%empty	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(qualifiedName)?/%empty!insert	SUBMIT TASK zzz AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(qualifiedName)?/qualifiedName	SUBMIT TASK a AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(qualifiedName)?/qualifiedName!truncate	SUBMIT TASK
 reject	reject	engine	submitTaskStatement(qualifiedName)?/qualifiedName!insert	SUBMIT TASK a zzz AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(taskClause)*/%empty	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*	SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(taskClause)*/%empty	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*	SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!drop-1	SUBMIT TASK('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!drop-2	SUBMIT TASK PROPERTIES 'a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!drop-3	SUBMIT TASK PROPERTIES(= 'a') AS INSERT INTO a SELECT CURRENT_USER;
@@ -2818,7 +2818,7 @@ reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!d
 reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!truncate	SUBMIT TASK PROPERTIES('a' = 'a'
 reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!insert	SUBMIT TASK PROPERTIES('a' = 'a') zzz AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(taskClause)*/taskClause_(taskClause)*!swap	SUBMIT TASK PROPERTY('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement	SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement	SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!drop-1	SUBMIT TASK AS TABLE a AS SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!drop-2	SUBMIT TASK AS CREATE a AS SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!drop-3	SUBMIT TASK AS CREATE TABLE AS SELECT CURRENT_USER;
@@ -2826,11 +2826,11 @@ reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!drop-5	SUBMIT TASK AS CREATE TABLE a AS CURRENT_USER;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!drop-6	SUBMIT TASK AS CREATE TABLE a AS SELECT;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!truncate	SUBMIT TASK AS CREATE TABLE a AS SELECT
-reject	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!insert	SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER zzz;
+accept	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!insert	SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER zzz;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/createTableAsSelectStatement!swap	SUBMIT TASK AS CROSS TABLE a AS SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/insertStatement	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/insertStatement	SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/insertStatement!swap	SUBMIT TASK AS INSTALL INTO a SELECT CURRENT_USER;
-reject	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement	SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM a;
+accept	accept	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement	SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM a;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement!drop-1	SUBMIT TASK AS SELECT CURRENT_USER FROM a;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement!drop-2	SUBMIT TASK AS CACHE CURRENT_USER FROM a;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement!drop-3	SUBMIT TASK AS CACHE SELECT FROM a;
@@ -2839,7 +2839,7 @@ reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement!truncate	SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement!insert	SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM a zzz;
 reject	reject	engine	submitTaskStatement(createTableAsSelectStatement|insertS~a8c4fb1e)/dataCacheSelectStatement!swap	SUBMIT TASK AS CANCEL SELECT CURRENT_USER FROM a;
-reject	accept	engine	taskClause/properties	SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	taskClause/properties	SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	taskClause/taskScheduleDesc	SUBMIT TASK SCHEDULE EVERY(INTERVAL CURRENT_USER DAY) AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	taskClause/taskScheduleDesc!drop-1	SUBMIT TASK EVERY(INTERVAL CURRENT_USER DAY) AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	taskClause/taskScheduleDesc!drop-2	SUBMIT TASK SCHEDULE(INTERVAL CURRENT_USER DAY) AS INSERT INTO a SELECT CURRENT_USER;
@@ -2851,10 +2851,10 @@ reject	reject	engine	taskClause/taskScheduleDesc!drop-7	SUBMIT TASK SCHEDULE EVE
 reject	reject	engine	taskClause/taskScheduleDesc!truncate	SUBMIT TASK SCHEDULE EVERY(INTERVAL CURRENT_USER DAY
 reject	reject	engine	taskClause/taskScheduleDesc!insert	SUBMIT TASK SCHEDULE EVERY(INTERVAL CURRENT_USER DAY) zzz AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	taskClause/taskScheduleDesc!swap	SUBMIT TASK SCHEDULER EVERY(INTERVAL CURRENT_USER DAY) AS INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	dropTaskStatement/DROP_TASK_qualifiedName_(FORCE)?	DROP TASK a;
-reject	accept	engine	dropTaskStatement(FORCE)?/%empty	DROP TASK a;
-reject	accept	engine	dropTaskStatement(FORCE)?/FORCE	DROP TASK a FORCE;
-reject	accept	engine	dropTaskStatement(FORCE)?/FORCE!truncate	DROP TASK a
+accept	accept	engine	dropTaskStatement/DROP_TASK_qualifiedName_(FORCE)?	DROP TASK a;
+accept	accept	engine	dropTaskStatement(FORCE)?/%empty	DROP TASK a;
+accept	accept	engine	dropTaskStatement(FORCE)?/FORCE	DROP TASK a FORCE;
+accept	accept	engine	dropTaskStatement(FORCE)?/FORCE!truncate	DROP TASK a
 reject	reject	engine	dropTaskStatement(FORCE)?/FORCE!insert	DROP TASK a FORCE zzz;
 reject	reject	engine	dropTaskStatement(FORCE)?/FORCE!swap	DROP TASK a FORMAT;
 reject	reject	engine	taskScheduleDesc/SCHEDULE_(START_(_string_))?_EVERY_(_taskInterval_)	SUBMIT TASK SCHEDULE EVERY(INTERVAL CURRENT_USER DAY) AS INSERT INTO a SELECT CURRENT_USER;
@@ -4490,9 +4490,9 @@ accept	accept	engine	partitionRenameClause/RENAME_PARTITION_identifier_identifie
 accept	accept	engine	insertStatement/(explainDesc)?_INSERT_(INTO|OVERWRITE)_(qualifiedName_w~4ddf44aa	INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(explainDesc)?/%empty	INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(explainDesc)?/%empty!insert	zzz INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(explainDesc)?/explainDesc	DESC INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(explainDesc)?/explainDesc	DESC INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(explainDesc)?/explainDesc!insert	DESC zzz INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(explainDesc)?/explainDesc!swap	DESCRIBE INSERT INTO a SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(explainDesc)?/explainDesc!swap	DESCRIBE INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(INTO|OVERWRITE)/INTO	INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(INTO|OVERWRITE)/INTO!truncate	INSERT
 reject	reject	engine	insertStatement(INTO|OVERWRITE)/INTO!insert	INSERT INTO zzz a SELECT CURRENT_USER;
@@ -4591,9 +4591,9 @@ accept	accept	engine	columnAliasesOrByName/BY_NAME	INSERT INTO a BY NAME SELECT 
 accept	accept	engine	updateStatement/(explainDesc)?_(withClause)?_UPDATE_qualifiedName_SET_a~ba067e51	UPDATE a SET a = CURRENT_USER;
 accept	accept	engine	updateStatement(explainDesc)?/%empty	UPDATE a SET a = CURRENT_USER;
 reject	reject	engine	updateStatement(explainDesc)?/%empty!insert	zzz UPDATE a SET a = CURRENT_USER;
-reject	accept	engine	updateStatement(explainDesc)?/explainDesc	DESC UPDATE a SET a = CURRENT_USER;
+accept	accept	engine	updateStatement(explainDesc)?/explainDesc	DESC UPDATE a SET a = CURRENT_USER;
 reject	reject	engine	updateStatement(explainDesc)?/explainDesc!insert	DESC zzz UPDATE a SET a = CURRENT_USER;
-reject	accept	engine	updateStatement(explainDesc)?/explainDesc!swap	DESCRIBE UPDATE a SET a = CURRENT_USER;
+accept	accept	engine	updateStatement(explainDesc)?/explainDesc!swap	DESCRIBE UPDATE a SET a = CURRENT_USER;
 accept	accept	engine	updateStatement(withClause)?/%empty	UPDATE a SET a = CURRENT_USER;
 accept	accept	engine	updateStatement(withClause)?/withClause	WITH a AS(SELECT CURRENT_USER) UPDATE a SET a = CURRENT_USER;
 reject	reject	engine	updateStatement(withClause)?/withClause!drop-1	a AS(SELECT CURRENT_USER) UPDATE a SET a = CURRENT_USER;
@@ -4616,9 +4616,9 @@ reject	reject	engine	updateStatement(WHERE_expression)?/WHERE_expression!swap	UP
 accept	accept	engine	deleteStatement/(explainDesc)?_(withClause)?_DELETE_FROM_qualifiedName_~4dce0914	DELETE FROM a;
 accept	accept	engine	deleteStatement(explainDesc)?/%empty	DELETE FROM a;
 reject	reject	engine	deleteStatement(explainDesc)?/%empty!insert	zzz DELETE FROM a;
-reject	accept	engine	deleteStatement(explainDesc)?/explainDesc	DESC DELETE FROM a;
+accept	accept	engine	deleteStatement(explainDesc)?/explainDesc	DESC DELETE FROM a;
 reject	reject	engine	deleteStatement(explainDesc)?/explainDesc!insert	DESC zzz DELETE FROM a;
-reject	accept	engine	deleteStatement(explainDesc)?/explainDesc!swap	DESCRIBE DELETE FROM a;
+accept	accept	engine	deleteStatement(explainDesc)?/explainDesc!swap	DESCRIBE DELETE FROM a;
 accept	accept	engine	deleteStatement(withClause)?/%empty	DELETE FROM a;
 accept	accept	engine	deleteStatement(withClause)?/withClause	WITH a AS(SELECT CURRENT_USER) DELETE FROM a;
 reject	reject	engine	deleteStatement(withClause)?/withClause!drop-1	a AS(SELECT CURRENT_USER) DELETE FROM a;
@@ -4790,7 +4790,7 @@ reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifie
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!drop-2	ALTER ROUTINE LOAD FOR a COLUMNS(a,);
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!truncate	ALTER ROUTINE LOAD FOR a COLUMNS(a,
 reject	reject	engine	columnProperties(,_(qualifiedName|assignment))*/,_(qualifiedName|assignment)_(,_(qualifiedName|assignment))*!insert	ALTER ROUTINE LOAD FOR a COLUMNS(a, a zzz);
-reject	accept	engine	jobProperties/properties	ALTER LOAD FOR a PROPERTIES('a' = 'a');
+accept	accept	engine	jobProperties/properties	ALTER LOAD FOR a PROPERTIES('a' = 'a');
 reject	reject	engine	jobProperties/properties!drop-1	ALTER LOAD FOR a('a' = 'a');
 reject	reject	engine	jobProperties/properties!drop-2	ALTER LOAD FOR a PROPERTIES 'a' = 'a');
 reject	reject	engine	jobProperties/properties!drop-3	ALTER LOAD FOR a PROPERTIES(= 'a');
@@ -5733,16 +5733,16 @@ reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!dro
 reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!truncate	CANCEL LOAD WHERE
 reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!insert	CANCEL LOAD WHERE CURRENT_USER zzz;
 reject	reject	engine	cancelLoadStatement(WHERE_expression)?/WHERE_expression!swap	CANCEL LOAD WHITELIST CURRENT_USER;
-reject	accept	engine	alterLoadStatement/ALTER_LOAD_FOR_(qualifiedName_.)?_identifier_(jobProperties)?	ALTER LOAD FOR a;
-reject	accept	engine	alterLoadStatement(qualifiedName_.)?/%empty	ALTER LOAD FOR a;
+accept	accept	engine	alterLoadStatement/ALTER_LOAD_FOR_(qualifiedName_.)?_identifier_(jobProperties)?	ALTER LOAD FOR a;
+accept	accept	engine	alterLoadStatement(qualifiedName_.)?/%empty	ALTER LOAD FOR a;
 reject	reject	engine	alterLoadStatement(qualifiedName_.)?/%empty!insert	ALTER LOAD FOR zzz a;
-reject	accept	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.	ALTER LOAD FOR a.a;
+accept	accept	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.	ALTER LOAD FOR a.a;
 reject	reject	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.!drop-1	ALTER LOAD FOR.a;
 reject	reject	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.!drop-2	ALTER LOAD FOR a a;
-reject	accept	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	ALTER LOAD FOR a
+accept	accept	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.!truncate	ALTER LOAD FOR a
 reject	reject	engine	alterLoadStatement(qualifiedName_.)?/qualifiedName_.!insert	ALTER LOAD FOR a.zzz a;
-reject	accept	engine	alterLoadStatement(jobProperties)?/%empty	ALTER LOAD FOR a;
-reject	accept	engine	alterLoadStatement(jobProperties)?/jobProperties	ALTER LOAD FOR a PROPERTIES('a' = 'a');
+accept	accept	engine	alterLoadStatement(jobProperties)?/%empty	ALTER LOAD FOR a;
+accept	accept	engine	alterLoadStatement(jobProperties)?/jobProperties	ALTER LOAD FOR a PROPERTIES('a' = 'a');
 accept	accept	engine	cancelCompactionStatement/CANCEL_COMPACTION_WHERE_expression	CANCEL COMPACTION WHERE CURRENT_USER;
 accept	accept	engine	showAuthorStatement/SHOW_AUTHORS	SHOW AUTHORS;
 accept	accept	engine	showBackendsStatement/SHOW_BACKENDS	SHOW BACKENDS;
@@ -7042,24 +7042,24 @@ reject	reject	engine	createDataCacheRuleStatement(properties)?/properties!swap	C
 accept	accept	engine	showDataCacheRulesStatement/SHOW_DATACACHE_RULES	SHOW DATACACHE RULES;
 reject	accept	engine	dropDataCacheRuleStatement/DROP_DATACACHE_RULE_INTEGER_VALUE	DROP DATACACHE RULE 1;
 reject	accept	engine	clearDataCacheRulesStatement/CLEAR_DATACACHE_RULES	CLEAR DATACACHE RULES;
-reject	accept	engine	dataCacheSelectStatement/CACHE_SELECT_selectItem_(,_selectItem)*_FROM_qualifiedN~ae1e13ce	CACHE SELECT CURRENT_USER FROM a;
-reject	accept	engine	dataCacheSelectStatement(,_selectItem)*/%empty	CACHE SELECT CURRENT_USER FROM a;
-reject	accept	engine	dataCacheSelectStatement(,_selectItem)*/%empty!insert	CACHE SELECT CURRENT_USER zzz FROM a;
-reject	accept	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*	CACHE SELECT CURRENT_USER, CURRENT_USER FROM a;
+accept	accept	engine	dataCacheSelectStatement/CACHE_SELECT_selectItem_(,_selectItem)*_FROM_qualifiedN~ae1e13ce	CACHE SELECT CURRENT_USER FROM a;
+accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/%empty	CACHE SELECT CURRENT_USER FROM a;
+accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/%empty!insert	CACHE SELECT CURRENT_USER zzz FROM a;
+accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*	CACHE SELECT CURRENT_USER, CURRENT_USER FROM a;
 reject	reject	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-1	CACHE SELECT CURRENT_USER CURRENT_USER FROM a;
 reject	reject	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!drop-2	CACHE SELECT CURRENT_USER, FROM a;
 reject	reject	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!truncate	CACHE SELECT CURRENT_USER,
-reject	accept	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!insert	CACHE SELECT CURRENT_USER, CURRENT_USER zzz FROM a;
-reject	accept	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!swap	CACHE SELECT CURRENT_USER, DATA FROM a;
-reject	accept	engine	dataCacheSelectStatement(WHERE_expression)?/%empty	CACHE SELECT CURRENT_USER FROM a;
-reject	accept	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression	CACHE SELECT CURRENT_USER FROM a WHERE CURRENT_USER;
+accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!insert	CACHE SELECT CURRENT_USER, CURRENT_USER zzz FROM a;
+accept	accept	engine	dataCacheSelectStatement(,_selectItem)*/,_selectItem_(,_selectItem)*!swap	CACHE SELECT CURRENT_USER, DATA FROM a;
+accept	accept	engine	dataCacheSelectStatement(WHERE_expression)?/%empty	CACHE SELECT CURRENT_USER FROM a;
+accept	accept	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression	CACHE SELECT CURRENT_USER FROM a WHERE CURRENT_USER;
 reject	reject	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression!drop-1	CACHE SELECT CURRENT_USER FROM a CURRENT_USER;
 reject	reject	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression!drop-2	CACHE SELECT CURRENT_USER FROM a WHERE;
 reject	reject	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression!truncate	CACHE SELECT CURRENT_USER FROM a WHERE
 reject	reject	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression!insert	CACHE SELECT CURRENT_USER FROM a WHERE CURRENT_USER zzz;
 reject	reject	engine	dataCacheSelectStatement(WHERE_expression)?/WHERE_expression!swap	CACHE SELECT CURRENT_USER FROM a WHITELIST CURRENT_USER;
-reject	accept	engine	dataCacheSelectStatement(properties)?/%empty	CACHE SELECT CURRENT_USER FROM a;
-reject	accept	engine	dataCacheSelectStatement(properties)?/properties	CACHE SELECT CURRENT_USER FROM a PROPERTIES('a' = 'a');
+accept	accept	engine	dataCacheSelectStatement(properties)?/%empty	CACHE SELECT CURRENT_USER FROM a;
+accept	accept	engine	dataCacheSelectStatement(properties)?/properties	CACHE SELECT CURRENT_USER FROM a PROPERTIES('a' = 'a');
 reject	reject	engine	dataCacheSelectStatement(properties)?/properties!drop-1	CACHE SELECT CURRENT_USER FROM a('a' = 'a');
 reject	reject	engine	dataCacheSelectStatement(properties)?/properties!drop-2	CACHE SELECT CURRENT_USER FROM a PROPERTIES 'a' = 'a');
 reject	reject	engine	dataCacheSelectStatement(properties)?/properties!drop-3	CACHE SELECT CURRENT_USER FROM a PROPERTIES(= 'a');
@@ -7722,13 +7722,13 @@ reject	accept	engine	translateSQL(.)+/._(.)+!swap	TRANSLATE a SEMI SELECT;
 accept	accept	engine	queryStatement/(explainDesc|optimizerTrace)?_queryRelation_(outfile)?	SELECT CURRENT_USER;
 accept	accept	engine	queryStatement(explainDesc|optimizerTrace)?/%empty	SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/%empty!insert	zzz SELECT CURRENT_USER;
-reject	accept	engine	queryStatement(explainDesc|optimizerTrace)?/explainDesc	DESC SELECT CURRENT_USER;
+accept	accept	engine	queryStatement(explainDesc|optimizerTrace)?/explainDesc	DESC SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/explainDesc!insert	DESC zzz SELECT CURRENT_USER;
-reject	accept	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace	TRACE ALL SELECT CURRENT_USER;
+accept	accept	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace	TRACE ALL SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace!drop-1	ALL SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace!drop-2	TRACE SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace!truncate	TRACE
-reject	accept	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace!insert	TRACE ALL zzz SELECT CURRENT_USER;
+accept	accept	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace!insert	TRACE ALL zzz SELECT CURRENT_USER;
 reject	reject	engine	queryStatement(explainDesc|optimizerTrace)?/optimizerTrace!swap	TRANSACTION ALL SELECT CURRENT_USER;
 accept	accept	engine	queryStatement(outfile)?/%empty	SELECT CURRENT_USER;
 accept	accept	engine	queryStatement(outfile)?/outfile	SELECT CURRENT_USER INTO OUTFILE 'a';
@@ -9722,47 +9722,47 @@ reject	reject	engine	backupRestoreTableDesc(AS_identifier)?/AS_identifier!drop-2
 reject	reject	engine	backupRestoreTableDesc(AS_identifier)?/AS_identifier!truncate	BACKUP SNAPSHOT a TO a ON(a AS
 reject	reject	engine	backupRestoreTableDesc(AS_identifier)?/AS_identifier!insert	BACKUP SNAPSHOT a TO a ON(a AS a zzz);
 reject	reject	engine	backupRestoreTableDesc(AS_identifier)?/AS_identifier!swap	BACKUP SNAPSHOT a TO a ON(a ASC a);
-reject	accept	engine	explainDesc/(DESC|DESCRIBE|EXPLAIN)_(LOGICAL|ANALYZE|VERBOSE|COSTS|~8832ad13	DESC SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/DESC	DESC SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/DESCRIBE	DESCRIBE SELECT CURRENT_USER;
+accept	accept	engine	explainDesc/(DESC|DESCRIBE|EXPLAIN)_(LOGICAL|ANALYZE|VERBOSE|COSTS|~8832ad13	DESC SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/DESC	DESC SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/DESCRIBE	DESCRIBE SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/DESCRIBE!insert	DESCRIBE zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/DESCRIBE!swap	DICTIONARY SELECT CURRENT_USER;
 accept	accept	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/EXPLAIN	EXPLAIN SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/EXPLAIN!insert	EXPLAIN zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(DESC|DESCRIBE|EXPLAIN)/EXPLAIN!swap	EXPORT SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/%empty	DESC SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/LOGICAL	DESC LOGICAL SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/%empty	DESC SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/LOGICAL	DESC LOGICAL SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/LOGICAL!insert	DESC LOGICAL zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/LOGICAL!swap	DESC LOGS SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/ANALYZE	DESC ANALYZE SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/ANALYZE	DESC ANALYZE SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/ANALYZE!insert	DESC ANALYZE zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/ANALYZE!swap	DESC AND SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/VERBOSE	DESC VERBOSE SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/VERBOSE	DESC VERBOSE SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/VERBOSE!insert	DESC VERBOSE zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/VERBOSE!swap	DESC VERSION SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/COSTS	DESC COSTS SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/COSTS	DESC COSTS SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/COSTS!insert	DESC COSTS zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/COSTS!swap	DESC COUNT SELECT CURRENT_USER;
-reject	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/SCHEDULER	DESC SCHEDULER SELECT CURRENT_USER;
+accept	accept	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/SCHEDULER	DESC SCHEDULER SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/SCHEDULER!insert	DESC SCHEDULER zzz SELECT CURRENT_USER;
 reject	reject	engine	explainDesc(LOGICAL|ANALYZE|VERBOSE|COSTS|SCHEDULER)?/SCHEDULER!swap	DESC SCHEMA SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace/TRACE_(ALL|LOGS|TIMES|VALUES|REASON)_(identifier)?	TRACE ALL SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/ALL	TRACE ALL SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace/TRACE_(ALL|LOGS|TIMES|VALUES|REASON)_(identifier)?	TRACE ALL SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/ALL	TRACE ALL SELECT CURRENT_USER;
 reject	reject	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/ALL!swap	TRACE ALTER SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/LOGS	TRACE LOGS SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/LOGS!insert	TRACE LOGS zzz SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/LOGS	TRACE LOGS SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/LOGS!insert	TRACE LOGS zzz SELECT CURRENT_USER;
 reject	reject	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/LOGS!swap	TRACE LOW_PRIORITY SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/TIMES	TRACE TIMES SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/TIMES!insert	TRACE TIMES zzz SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/TIMES	TRACE TIMES SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/TIMES!insert	TRACE TIMES zzz SELECT CURRENT_USER;
 reject	reject	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/TIMES!swap	TRACE TIMESTAMP SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/VALUES	TRACE VALUES SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/VALUES!insert	TRACE VALUES zzz SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/VALUES	TRACE VALUES SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/VALUES!insert	TRACE VALUES zzz SELECT CURRENT_USER;
 reject	reject	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/VALUES!swap	TRACE VARBINARY SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/REASON	TRACE REASON SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/REASON!insert	TRACE REASON zzz SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/REASON	TRACE REASON SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/REASON!insert	TRACE REASON zzz SELECT CURRENT_USER;
 reject	reject	engine	optimizerTrace(ALL|LOGS|TIMES|VALUES|REASON)/REASON!swap	TRACE RECOVER SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(identifier)?/%empty	TRACE ALL SELECT CURRENT_USER;
-reject	accept	engine	optimizerTrace(identifier)?/identifier	TRACE ALL a SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(identifier)?/%empty	TRACE ALL SELECT CURRENT_USER;
+accept	accept	engine	optimizerTrace(identifier)?/identifier	TRACE ALL a SELECT CURRENT_USER;
 reject	reject	engine	optimizerTrace(identifier)?/identifier!truncate	TRACE ALL
 reject	reject	engine	optimizerTrace(identifier)?/identifier!insert	TRACE ALL a zzz SELECT CURRENT_USER;
 reject	reject	engine	partitionExpr/identifier	ALTER SYSTEM PARTITION BY a;

@@ -482,6 +482,19 @@ func walkChildren(v Visitor, node Node) {
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
+	case *DataCacheSelectStmt:
+		for _, item := range n.Items {
+			Walk(v, item)
+		}
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 
 	// DML — TRUNCATE TABLE / LOAD / EXPORT nodes (T6.1).
 	case *TruncateTableStmt:
@@ -510,6 +523,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		for _, prop := range n.BrokerProperties {
 			Walk(v, prop)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterLoadStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
@@ -898,6 +918,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Query != nil {
 			Walk(v, n.Query)
 		}
+	case *OptimizerTraceStmt:
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
 	case *UseStmt:
 		// leaf-ish node, names stored as strings
 	case *SetStmt:
@@ -1009,6 +1033,28 @@ func walkChildren(v Visitor, node Node) {
 	case *ShowJobTaskStmt:
 		if n.For != nil {
 			Walk(v, n.For)
+		}
+
+	case *TaskSchedule:
+		// leaf node: START, interval and unit are stored as strings
+
+	case *SubmitTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Schedule != nil {
+			Walk(v, n.Schedule)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.Statement != nil {
+			Walk(v, n.Statement)
+		}
+
+	case *DropTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 
 	// Statistics / Analyze / Constraint management nodes (T8.3).

@@ -187,6 +187,20 @@ func (n *LoadDataStmt) Tag() NodeTag { return T_LoadDataStmt }
 // Compile-time assertion that *LoadDataStmt satisfies Node.
 var _ Node = (*LoadDataStmt)(nil)
 
+// AlterLoadStmt represents alterLoadStatement (StarRocks.g4:1499):
+//
+//	ALTER LOAD FOR (db=qualifiedName '.')? name=identifier jobProperties?
+type AlterLoadStmt struct {
+	Name       *ObjectName // the load's [db.]name
+	Properties []*Property // optional PROPERTIES(...)
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterLoadStmt) Tag() NodeTag { return T_AlterLoadStmt }
+
+var _ Node = (*AlterLoadStmt)(nil)
+
 // ---------------------------------------------------------------------------
 // EXPORT statement (T6.1)
 // ---------------------------------------------------------------------------
