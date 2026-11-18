@@ -1026,3 +1026,32 @@ func TestGetQuerySpan_ValuesCTEScope(t *testing.T) {
 		}
 	}
 }
+
+// A parenthesized group's WITH scopes to the group, so the same name outside it
+// is a physical table — including when the group's query is a VALUES.
+func TestGetQuerySpan_ParenthesizedValuesCTE(t *testing.T) {
+	span, err := GetQuerySpan("(WITH c AS (SELECT 1) VALUES(1)) UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if !containsSig(toSigs(span.AccessTables), tableSig{Table: "c"}) {
+		t.Errorf("AccessTables = %v, want physical table c", toSigs(span.AccessTables))
+	}
+}
+
+// A load-property statement keeps its expression, so a subquery in it is a read.
+func TestGetQuerySpan_LoadPropertySubquery(t *testing.T) {
+	for _, sql := range []string{
+		"WHERE 1 IN (SELECT id FROM secret)",
+		"COLUMNS(a = (SELECT id FROM secret))",
+		"DELETE ON 1 IN (SELECT id FROM secret)",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("%q: %v", sql, err)
+		}
+		if !containsSig(toSigs(span.AccessTables), tableSig{Table: "secret"}) {
+			t.Errorf("%q: AccessTables = %v, want secret", sql, toSigs(span.AccessTables))
+		}
+	}
+}

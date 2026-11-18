@@ -511,8 +511,8 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 	return inner, nil
 }
 
-// leadingWith walks the left spine of a query to its leading SelectStmt and
-// returns that SELECT's WITH clause. A GroupedQuery is a scope boundary (it
+// leadingWith walks the left spine of a query to its leading query and
+// returns that query's WITH clause. A GroupedQuery is a scope boundary (it
 // only arises from parens or repeated clause groups), so the walk stops
 // there — mirroring analysis's leftmostWith.
 //
@@ -533,6 +533,9 @@ walk:
 			spine = append(spine, n)
 			node = n.Left
 		case *ast.SelectStmt:
+			with = n.With
+			break walk
+		case *ast.ValuesStmt:
 			with = n.With
 			break walk
 		default:

@@ -274,6 +274,10 @@ const (
 	// Doris's grammar also derives as a statement of its own.
 	T_LoadPropertyStmt
 
+	// T_ImportColumnDesc is the tag for *ImportColumnDesc, one column of a
+	// COLUMNS(...) load property.
+	T_ImportColumnDesc
+
 	// T_ExportStmt is the tag for *ExportStmt.
 	T_ExportStmt
 	// Streaming load management nodes (T6.2).
@@ -821,6 +825,8 @@ func (t NodeTag) String() string {
 		return "LoadDataStmt"
 	case T_LoadPropertyStmt:
 		return "LoadPropertyStmt"
+	case T_ImportColumnDesc:
+		return "ImportColumnDesc"
 	case T_ExportStmt:
 		return "ExportStmt"
 	case T_CreateRoutineLoadStmt:

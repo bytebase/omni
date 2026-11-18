@@ -711,8 +711,10 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 		}
 	}
 
-	// Optional ALL VERBOSE suffix.
-	if p.cur.Kind == kwALL {
+	// Optional ALL VERBOSE suffix, which is an alternative to the partition
+	// list rather than a tail on it (describe_stmt, DorisLegacyParser.g4:1629;
+	// DorisParser.g4:950-951 describes the table or ALL, not both).
+	if stmt.Partition == nil && !stmt.TempPartition && p.cur.Kind == kwALL {
 		p.advance() // consume ALL
 		if p.cur.Kind == kwVERBOSE {
 			p.advance() // consume VERBOSE

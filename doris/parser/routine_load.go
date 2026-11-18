@@ -126,34 +126,7 @@ func (p *Parser) parseRoutineLoadProperty() error {
 			return err
 		}
 		p.advance() // consume COLUMNS
-		if _, err := p.expect(int('(')); err != nil {
-			return err
-		}
-		for first := true; ; first = false {
-			paren := !first && p.cur.Kind == int('(')
-			if paren {
-				p.advance()
-			}
-			if _, _, err := p.parseIdentifier(); err != nil {
-				return err
-			}
-			if p.cur.Kind == int('=') {
-				p.advance()
-				if _, err := p.parseExpr(); err != nil {
-					return err
-				}
-			}
-			if paren {
-				if _, err := p.expect(int(')')); err != nil {
-					return err
-				}
-			}
-			if p.cur.Kind != int(',') {
-				break
-			}
-			p.advance() // consume ','
-		}
-		_, err := p.expect(int(')'))
+		_, err := p.parseImportColumnDescs()
 		return err
 	case kwPRECEDING:
 		p.advance()
@@ -224,32 +197,95 @@ func (p *Parser) atLoadPropertyStatement() bool {
 // JOB body — does not reach these alternatives.
 func (p *Parser) parseLoadPropertyStmt() (*ast.LoadPropertyStmt, error) {
 	start := p.cur.Loc
-	kind := ""
+	stmt := &ast.LoadPropertyStmt{}
+	var err error
+	// These are also loadProperty alternatives; each is read here from its own
+	// statement production, which keeps the nodes a subquery can hide in. The
+	// statement COLUMNS form always states its list, so COLUMNS TERMINATED BY
+	// (a LOAD and CREATE ROUTINE LOAD property only, :410 vs :389-393) is not
+	// read here.
 	switch p.cur.Kind {
 	case kwORDER:
-		kind = "SEQUENCE"
-	case kwCOLUMNS:
-		// The statement alternative is importColumnsStatement, which always
-		// states its list; COLUMNS TERMINATED BY is a load property of LOAD
-		// and CREATE ROUTINE LOAD only (DorisParser.g4:404 vs :389-393).
-		if p.peekNext().Kind != int('(') {
-			return nil, syntaxErrorAt(p.peekNext())
+		stmt.Kind = "SEQUENCE"
+		p.advance() // consume ORDER
+		if _, err = p.expect(kwBY); err == nil {
+			stmt.Name, _, err = p.parseIdentifier()
 		}
-		kind = "COLUMNS"
+	case kwCOLUMNS:
+		stmt.Kind = "COLUMNS"
+		p.advance() // consume COLUMNS
+		stmt.Columns, err = p.parseImportColumnDescs()
 	case kwPRECEDING:
-		kind = "PRECEDING FILTER"
+		stmt.Kind = "PRECEDING FILTER"
+		p.advance() // consume PRECEDING
+		if _, err = p.expect(kwFILTER); err == nil {
+			stmt.Expr, err = p.parseExpr()
+		}
 	case kwWHERE:
-		kind = "WHERE"
+		stmt.Kind = "WHERE"
+		p.advance() // consume WHERE
+		stmt.Expr, err = p.parseExpr()
 	case kwDELETE:
-		kind = "DELETE ON"
+		stmt.Kind = "DELETE ON"
+		p.advance() // consume DELETE
+		if _, err = p.expect(kwON); err == nil {
+			stmt.Expr, err = p.parseExpr()
+		}
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	if err := p.parseRoutineLoadProperty(); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	end := ast.Loc{Start: start.Start, End: p.prev.Loc.End}
-	return &ast.LoadPropertyStmt{Kind: kind, Text: p.sourceText(end), Loc: end}, nil
+	stmt.Loc = ast.Loc{Start: start.Start, End: p.prev.Loc.End}
+	stmt.Text = p.sourceText(stmt.Loc)
+	return stmt, nil
+}
+
+// parseImportColumnDescs reads importColumnsStatement's list:
+//
+//	'(' importColumnDesc (',' importColumnDesc)* ')'
+//
+// where importColumnDesc (:410) is name ('=' booleanExpression)?, and, after
+// the first, may sit in parentheses (the CUP parser's import_column_descs,
+// DorisLegacyParser.g4:53). cur is '('.
+func (p *Parser) parseImportColumnDescs() ([]*ast.ImportColumnDesc, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var descs []*ast.ImportColumnDesc
+	for first := true; ; first = false {
+		paren := !first && p.cur.Kind == int('(')
+		if paren {
+			p.advance() // consume '('
+		}
+		name, nameLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		desc := &ast.ImportColumnDesc{Name: name, Loc: nameLoc}
+		if p.cur.Kind == int('=') {
+			p.advance() // consume '='
+			if desc.Expr, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
+		if paren {
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+		}
+		desc.Loc.End = p.prev.Loc.End
+		descs = append(descs, desc)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return descs, nil
 }
 
 // ---------------------------------------------------------------------------

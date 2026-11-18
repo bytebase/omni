@@ -327,12 +327,16 @@ var _ Node = (*ExportStmt)(nil)
 //	WHERE expr                Kind "WHERE"
 //	DELETE ON expr            Kind "DELETE ON"
 //
-// The clause is a load property, so what it reads is kept as source text,
+// The clause's operands are kept as the nodes they parsed to, so a subquery
+// they hold is a table read like any other; Text keeps the clause as written,
 // as CreateRoutineLoadStmt keeps the load properties it carries.
 type LoadPropertyStmt struct {
-	Kind string // the clause's name, as listed above
-	Text string // the clause's source text, as written
-	Loc  Loc
+	Kind    string              // the clause's name, as listed above
+	Name    string              // ORDER BY's column
+	Expr    Node                // WHERE, DELETE ON and PRECEDING FILTER's expression
+	Columns []*ImportColumnDesc // COLUMNS(...)'s column list
+	Text    string              // the clause's source text, as written
+	Loc     Loc
 }
 
 // Tag implements Node.
@@ -340,6 +344,21 @@ func (n *LoadPropertyStmt) Tag() NodeTag { return T_LoadPropertyStmt }
 
 // Compile-time assertion that *LoadPropertyStmt satisfies Node.
 var _ Node = (*LoadPropertyStmt)(nil)
+
+// ImportColumnDesc is one column of COLUMNS(...) (DorisParser.g4:410
+// importColumnDesc): name ('=' booleanExpression)?, the parenthesized spelling
+// allowed after the first.
+type ImportColumnDesc struct {
+	Name string
+	Expr Node // optional '=' booleanExpression; nil if absent
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ImportColumnDesc) Tag() NodeTag { return T_ImportColumnDesc }
+
+// Compile-time assertion that *ImportColumnDesc satisfies Node.
+var _ Node = (*ImportColumnDesc)(nil)
 
 // ROUTINE LOAD statements (T6.2)
 // ---------------------------------------------------------------------------

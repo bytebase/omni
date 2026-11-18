@@ -560,7 +560,16 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *LoadPropertyStmt:
-		// leaf node: the clause's source text
+		if n.Expr != nil {
+			Walk(v, n.Expr)
+		}
+		for _, column := range n.Columns {
+			Walk(v, column)
+		}
+	case *ImportColumnDesc:
+		if n.Expr != nil {
+			Walk(v, n.Expr)
+		}
 	case *ExportStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)

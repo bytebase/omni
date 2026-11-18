@@ -172,6 +172,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *LoadPropertyStmt:
 		return v.Loc
+	case *ImportColumnDesc:
+		return v.Loc
 	case *ExportStmt:
 		return v.Loc
 	case *CreateRoutineLoadStmt:

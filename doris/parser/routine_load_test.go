@@ -586,6 +586,30 @@ func TestLoadPropertyStatements(t *testing.T) {
 	}
 }
 
+// The clause keeps the nodes it read, so a subquery in one is a read a consumer
+// can see.
+func TestLoadPropertyStmtKeepsExpressions(t *testing.T) {
+	stmt := parseOne(t, "WHERE 1 IN (SELECT id FROM secret)").(*ast.LoadPropertyStmt)
+	if stmt.Expr == nil {
+		t.Fatal("Expr is nil, want the WHERE expression")
+	}
+	var subqueries int
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if _, ok := n.(*ast.SubqueryExpr); ok {
+			subqueries++
+		}
+		return true
+	})
+	if subqueries == 0 {
+		t.Error("the WHERE expression carries no subquery node")
+	}
+
+	stmt = parseOne(t, "COLUMNS(a = (SELECT id FROM secret))").(*ast.LoadPropertyStmt)
+	if len(stmt.Columns) != 1 || stmt.Columns[0].Expr == nil {
+		t.Fatalf("Columns = %+v, want one column with an expression", stmt.Columns)
+	}
+}
+
 // The statement alternative is importColumnsStatement, which always states its
 // list: COLUMNS TERMINATED BY is a load property of LOAD and CREATE ROUTINE
 // LOAD only.

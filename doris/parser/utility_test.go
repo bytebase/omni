@@ -604,3 +604,12 @@ func TestExplainOneProcess(t *testing.T) {
 		t.Error("Parse(EXPLAIN PLAN PROCESS PROCESS SELECT 1) succeeded, want a syntax error")
 	}
 }
+
+// ALL is an alternative to describe_stmt's partition list, not a tail on it.
+func TestDescribePartitionAndAll(t *testing.T) {
+	for _, sql := range []string{"DESCRIBE a PARTITION(a) ALL", "DESCRIBE a PARTITION(a) ALL VERBOSE"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
