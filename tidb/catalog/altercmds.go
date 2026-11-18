@@ -148,7 +148,27 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
 		tbl.Partitioning = nil
+		return nil
+	case nodes.ATAnalyzePartition:
+		// ANALYZE PARTITION recomputes statistics and leaves the schema as it
+		// is, and a table without partitions is still refused (1505, TiDB
+		// v8.5.5), where it takes COMPACT PARTITION, which answers 1105.
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
+		return nil
+	case nodes.ATPartitionAttributes, nodes.ATAddLastPartition, nodes.ATDropFirstPartition:
+		// A partition's ATTRIBUTES and the interval partitions FIRST and LAST
+		// name are server-side settings no field of Table or PartitionDefInfo
+		// holds; a table without partitions is still refused (1505, TiDB
+		// v8.5.5).
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonPartitioned()
+		}
 		return nil
 	case nodes.ATPartitionBy:
 		return validateRepartition(tbl, cmd.PartitionBy)
@@ -177,21 +197,21 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	// named rather than left to the default arm, so a reader sees the
 	// decision: CACHE and NOCACHE move the table in and out of the cache
 	// without touching its definition, READ ONLY and READ WRITE set a flag
-	// on it, COMPACT rewrites its data, ANALYZE PARTITION recomputes
-	// statistics, and ATTRIBUTES, STATS_OPTIONS and the per-partition
-	// attributes and options are server-side settings that no field of
-	// Table or PartitionDefInfo holds.
+	// on it, COMPACT rewrites its data, and ATTRIBUTES, STATS_OPTIONS and a
+	// partition's options are server-side settings that no field of Table or
+	// PartitionDefInfo holds. ANALYZE PARTITION and PARTITION ATTRIBUTES are
+	// above, because TiDB refuses them on a table with no partitions.
 	case nodes.ATCache, nodes.ATNoCache, nodes.ATWriteable, nodes.ATCompact,
-		nodes.ATAnalyzePartition, nodes.ATAttributes, nodes.ATStatsOptions,
-		nodes.ATPartitionAttributes, nodes.ATPartitionOptions:
+		nodes.ATAttributes, nodes.ATStatsOptions, nodes.ATPartitionOptions:
 		return nil
 
 	// The interval-partition actions name a partition by its bound rather
 	// than by its name, which needs the INTERVAL clause this catalog does
 	// not model, so they are recorded as understood and left without effect
-	// rather than treated as unknown.
-	case nodes.ATAddLastPartition, nodes.ATDropFirstPartition,
-		nodes.ATReorganizeLastPartition, nodes.ATReorganizeFirstPartition:
+	// rather than treated as unknown. TiDB answers 8200 for SPLIT and MERGE on
+	// a table with no partitions, which is the unsupported-DDL cause and not
+	// 1505.
+	case nodes.ATReorganizeLastPartition, nodes.ATReorganizeFirstPartition:
 		return nil
 
 	default:
@@ -1363,7 +1383,7 @@ var _ = strings.ToLower
 // alterAddPartition adds partition definitions to a partitioned table.
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE ADD PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, true); err != nil {
 		return err
@@ -1434,7 +1454,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// DROP PARTITION IF EXISTS on an unpartitioned table is still an
 		// error on TiDB v8.5.5 (1505); IF EXISTS covers a missing partition,
 		// not a missing partitioning.
-		return fmt.Errorf("ALTER TABLE DROP PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	dropSet := make(map[string]bool)
 	for _, name := range cmd.PartitionNames {
@@ -1453,7 +1473,7 @@ func (c *Catalog) alterDropPartition(tbl *Table, cmd *nodes.AlterTableCmd) error
 // alterTruncatePartition truncates named partitions (no-op for metadata catalog).
 func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE TRUNCATE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	// Truncate is a data operation; for DDL catalog purposes, it's a no-op.
 	return nil
@@ -1462,7 +1482,7 @@ func (c *Catalog) alterTruncatePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterCoalescePartition reduces the number of partitions for HASH/KEY partitioned tables.
 func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE COALESCE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	// Determine current partition count.
 	currentCount := len(tbl.Partitioning.Partitions)
@@ -1483,7 +1503,7 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE REORGANIZE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	if err := refuseHistoryPartitions(tbl, cmd.PartitionDefs, false); err != nil {
 		return err
@@ -1546,7 +1566,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // alterExchangePartition exchanges a partition with a non-partitioned table.
 func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
-		return fmt.Errorf("ALTER TABLE EXCHANGE PARTITION: table '%s' is not partitioned", tbl.Name)
+		return errPartitionMgmtOnNonPartitioned()
 	}
 	// For DDL catalog purposes, exchange is primarily a data operation.
 	// We just validate both tables exist.

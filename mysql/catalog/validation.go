@@ -236,6 +236,286 @@ func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 	return nil
 }
 
+// maxDisplayWidth is the widest length MySQL keeps in a type's length argument;
+// past it the statement is refused with 1439 before anything else about the
+// column or the table is looked at.
+const maxDisplayWidth = 4294967295
+
+// validateColumnDisplayWidth refuses a column whose declared length is past the
+// widest MySQL holds for its type: 1439. Measured on mysql:8.0.46: an integer's
+// display width stops at 255 and BIT's at 64, and every other type at
+// 4294967295. The type's own limit is a later check, so `CHAR(4294967296)`
+// answers 1439 where `CHAR(65536)` answers 1074, and `DECIMAL(4294967296)` 1439
+// where `DECIMAL(66)` answers 1426. The width is checked before the table is
+// opened and before the column's name: `ALTER TABLE nosuchdb.a ADD a
+// INT(256)` and `ALTER TABLE a ADD existing_name INT(256)` are both 1439.
+func validateColumnDisplayWidth(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.TypeName == nil {
+		return nil
+	}
+	max := maxDisplayWidth
+	switch normalizedTypeName(colDef.TypeName.Name) {
+	case "tinyint", "smallint", "mediumint", "int", "bigint":
+		max = 255
+	case "float", "double":
+		// `FLOAT(256,2)` and `DOUBLE(256,2)` answer 1439 "max = 255"; without a
+		// scale `FLOAT(256)` answers 1063, and only a width past 4294967295 is
+		// 1439 there. The parser keeps no flag for a scale written as 0, so
+		// `FLOAT(256,0)` reads as `FLOAT(256)` here.
+		if colDef.TypeName.Scale > 0 {
+			max = 255
+		}
+	case "bit":
+		max = 64
+	}
+	if colDef.TypeName.Length > max {
+		return errTooBigDisplayWidth(colDef.Name, max)
+	}
+	return nil
+}
+
+// parserOptionName returns the parser a FULLTEXT key names WITH PARSER, and
+// whether it names one at all.
+func parserOptionName(opts []*nodes.IndexOption) (string, bool) {
+	for _, opt := range opts {
+		if opt == nil || !strings.EqualFold(opt.Name, "PARSER") {
+			continue
+		}
+		if s, ok := opt.Value.(*nodes.StringLit); ok {
+			return s.Value, true
+		}
+		return "", true
+	}
+	return "", false
+}
+
+// validateFulltextParserOption refuses a FULLTEXT key whose parser MySQL does
+// not have: 1128, which it answers while preparing the statement, before it
+// opens the table and before it judges the key's columns. `ngram` is the one
+// fulltext parser its server ships. fulltext says whether the key is one: a
+// parser named on any other key is not a parser at all.
+func validateFulltextParserOption(fulltext bool, opts []*nodes.IndexOption) error {
+	if !fulltext {
+		return nil
+	}
+	name, ok := parserOptionName(opts)
+	if !ok || strings.EqualFold(name, "ngram") {
+		return nil
+	}
+	return errFunctionNotDefined(name)
+}
+
+// validateFulltextParser is validateFulltextParserOption for a constraint.
+func validateFulltextParser(con *nodes.Constraint) error {
+	if con == nil || con.Type != nodes.ConstrFulltextIndex {
+		return nil
+	}
+	return validateFulltextParserOption(true, con.IndexOptions)
+}
+
+// validateKeyPartsExist refuses a key part that names a column the table does
+// not have: 1072. A functional part is an expression, and names no column.
+//
+// leaves, when not nil, is the columns the statement leaves (alterFinalColumns),
+// which MySQL judges the keys of an ALTER TABLE against: a key may name a column
+// a later command adds, and may not name one the statement drops.
+func validateKeyPartsExist(tbl *Table, leaves map[string]bool, parts []*nodes.IndexColumn) error {
+	has := func(name string) bool {
+		if leaves != nil {
+			return leaves[toLower(name)]
+		}
+		return tbl.GetColumn(name) != nil
+	}
+	for _, ic := range parts {
+		if ic == nil || ic.Functional {
+			continue
+		}
+		ref, ok := ic.Expr.(*nodes.ColumnRef)
+		if !ok {
+			continue
+		}
+		if !has(ref.Column) {
+			return errKeyColumnDoesNotExist(ref.Column)
+		}
+	}
+	return nil
+}
+
+// validateKeyColumnsExist is validateKeyPartsExist for a constraint, whose key
+// parts may also be written as a plain column list.
+func validateKeyColumnsExist(tbl *Table, leaves map[string]bool, con *nodes.Constraint) error {
+	if con == nil {
+		return nil
+	}
+	if len(con.IndexColumns) == 0 {
+		for _, name := range con.Columns {
+			if leaves != nil {
+				if !leaves[toLower(name)] {
+					return errKeyColumnDoesNotExist(name)
+				}
+			} else if tbl.GetColumn(name) == nil {
+				return errKeyColumnDoesNotExist(name)
+			}
+		}
+		return nil
+	}
+	return validateKeyPartsExist(tbl, leaves, con.IndexColumns)
+}
+
+// storageEngines are the engines a table may keep on mysql:8.0.46, from its SHOW
+// ENGINES: InnoDB, MyISAM, MEMORY, MRG_MYISAM, BLACKHOLE, CSV and ARCHIVE, with
+// MEMORY's other name HEAP and MRG_MYISAM's MERGE. FEDERATED, NDB and ndbinfo
+// are listed there but disabled, and naming one of them, or any engine the
+// server does not have, is 1286. `default` is the sentinel MySQL takes quoted,
+// `ENGINE = 'DEFAULT'`, for the server's configured default engine.
+// PERFORMANCE_SCHEMA is listed as usable but holds the performance schema's own
+// tables only: CREATE TABLE answers 1683 for it and ALTER TABLE 1031, so it is
+// refused where those are, not while the statement is prepared.
+var storageEngines = map[string]bool{
+	"innodb":     true,
+	"myisam":     true,
+	"memory":     true,
+	"heap":       true,
+	"mrg_myisam": true,
+	"merge":      true,
+	"default":    true,
+	"blackhole":  true,
+	"csv":        true,
+	"archive":    true,
+}
+
+// validateStorageEngine refuses an ENGINE option naming an engine the pinned
+// server does not ship: 1286. MySQL answers it while preparing the statement, so
+// it comes before the table is looked up and before the database is resolved —
+// unless the session's sql_mode leaves NO_ENGINE_SUBSTITUTION out, and then it
+// substitutes the default engine and takes the statement with a warning.
+func validateStorageEngine(name string, refuseUnknown bool) error {
+	key := strings.ToLower(strings.TrimSpace(name))
+	if storageEngines[key] || key == performanceSchemaEngine {
+		return nil
+	}
+	if refuseUnknown {
+		return errUnknownStorageEngine(name)
+	}
+	return nil
+}
+
+// performanceSchemaEngine is the engine the performance schema's own tables use.
+const performanceSchemaEngine = "performance_schema"
+
+// canonicalEngineNames are the engines whose aliases MySQL stores and reports
+// under another name: `ENGINE = HEAP` reads back MEMORY and `ENGINE = MERGE`
+// MRG_MyISAM (measured on mysql:8.0.46).
+var canonicalEngineNames = map[string]string{
+	"heap":  "MEMORY",
+	"merge": "MRG_MyISAM",
+}
+
+// storedEngineName is the engine a table or partition keeps for an ENGINE
+// option: a name it may keep, with an alias written as MySQL stores it, and the
+// catalog's empty default — InnoDB — for `DEFAULT` and for a name MySQL
+// substitutes.
+func storedEngineName(name string) string {
+	key := strings.ToLower(strings.TrimSpace(name))
+	if !storageEngines[key] || key == "default" {
+		return ""
+	}
+	if canonical, ok := canonicalEngineNames[key]; ok {
+		return canonical
+	}
+	return name
+}
+
+// compositeSQLModes are the sql_mode values MySQL expands into a list, as
+// @@sql_mode reports them afterwards. Only NO_ENGINE_SUBSTITUTION matters here,
+// and TRADITIONAL carries it where ANSI does not (both measured on
+// mysql:8.0.46).
+var compositeSQLModes = map[string][]string{
+	"TRADITIONAL": {
+		"STRICT_TRANS_TABLES", "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE",
+		"NO_ZERO_DATE", "ERROR_FOR_DIVISION_BY_ZERO", "NO_ENGINE_SUBSTITUTION",
+	},
+	"ANSI": {"REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE", "ONLY_FULL_GROUP_BY"},
+}
+
+// partitionEngineName is storedEngineName for a partition of a CREATE TABLE
+// statement, where a loader's snapshot keeps the engine its server reported.
+func partitionEngineName(name string, declared bool) string {
+	if declared {
+		return storedEngineName(name)
+	}
+	return name
+}
+
+// noEngineSubstitution reports whether the session's sql_mode refuses an engine
+// the server does not ship. The server's default mode, `DEFAULT`, has it; a list
+// without it — an empty one included — makes MySQL substitute the default engine
+// and take the statement.
+func (c *Catalog) noEngineSubstitution() bool {
+	return sqlModeHas(c.session.SQLMode, "NO_ENGINE_SUBSTITUTION")
+}
+
+// sqlModeHas reports whether mode holds the flag, expanding a composite mode as
+// MySQL does. `DEFAULT` is the server's own mode list, which has
+// NO_ENGINE_SUBSTITUTION.
+func sqlModeHas(mode, flag string) bool {
+	mode = strings.ToUpper(strings.TrimSpace(mode))
+	if mode == "DEFAULT" {
+		return flag == "NO_ENGINE_SUBSTITUTION"
+	}
+	for _, part := range strings.Split(mode, ",") {
+		part = strings.ToUpper(strings.TrimSpace(part))
+		if part == flag {
+			return true
+		}
+		for _, expanded := range compositeSQLModes[part] {
+			if expanded == flag {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// engineOptionName reports whether a table option is the engine, as the table
+// and its partitions spell it.
+func engineOptionName(name string) bool {
+	return strings.EqualFold(name, "engine") || strings.EqualFold(name, "storage engine")
+}
+
+// partitionBoundColumn returns the first column a partition definition's bound
+// names, if it names one. A bound is a constant expression, so MySQL reads a
+// name in it as a column of the partition function and answers 1054 "Unknown
+// column 'x' in 'partition function'" for it — even for a name the table has.
+func partitionBoundColumn(v nodes.Node) (string, bool) {
+	found := ""
+	var visit func(nodes.Node)
+	visit = func(n nodes.Node) {
+		if found != "" || n == nil {
+			return
+		}
+		switch node := n.(type) {
+		case *nodes.List:
+			for _, item := range node.Items {
+				visit(item)
+			}
+		case nodes.ExprNode:
+			nodes.Inspect(node, func(n nodes.Node) bool {
+				if found != "" {
+					return false
+				}
+				if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+					found = ref.Column
+					return false
+				}
+				return true
+			})
+		}
+	}
+	visit(v)
+	return found, found != ""
+}
+
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {
 	bad := false
 	nodes.Inspect(expr, func(n nodes.Node) bool {

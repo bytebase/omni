@@ -87,30 +87,25 @@ func TestWalkThrough_5_4(t *testing.T) {
 	})
 
 	t.Run("add_index_then_drop_same_column", func(t *testing.T) {
-		// ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x —
-		// MySQL processes sequentially: add x, create index, then drop x
-		// which also cleans up the index. Net result: table unchanged except
-		// droppedByCleanup tracking. The ALTER succeeds in MySQL.
+		// ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x — MySQL resolves
+		// the DROP COLUMN against the table the statement found, which has no
+		// x, so it refuses with 1091 and the ALTER rolls back. (This case used
+		// to record that MySQL takes the statement, which the pinned server
+		// does not: mysql:8.0.46 answers 1091 "Can't DROP 'x'".)
 		c := setupTestTable(t)
 
-		mustExec(t, c,
+		results, _ := c.Exec(
 			"ALTER TABLE t1 ADD COLUMN x INT, ADD INDEX idx_x (x), DROP COLUMN x",
+			&ExecOptions{ContinueOnError: true},
 		)
+		assertError(t, results[0].Error, ErrCantDropKey)
 
 		tbl := c.GetDatabase("test").GetTable("t1")
-		// x was added then dropped — should not be present.
-		if tbl.GetColumn("x") != nil {
-			t.Error("column 'x' should not exist — it was added then dropped")
-		}
 		if len(tbl.Columns) != 3 {
-			t.Errorf("expected 3 columns, got %d", len(tbl.Columns))
+			t.Errorf("expected 3 columns after rollback, got %d", len(tbl.Columns))
 		}
-
-		// Index should also have been cleaned up when x was dropped.
-		for _, idx := range tbl.Indexes {
-			if idx.Name == "idx_x" {
-				t.Error("index 'idx_x' should not exist — its column was dropped")
-			}
+		if tbl.GetColumn("x") != nil {
+			t.Error("column 'x' should not exist after rollback")
 		}
 	})
 }
