@@ -3,8 +3,11 @@ package driver
 import (
 	"bytes"
 	"context"
+	"database/sql"
+	sqldriver "database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"testing"
@@ -462,5 +465,99 @@ func TestClassifyReceiveAndReadText(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%q: type = %d, want %d", tc.sql, got, tc.want)
 		}
+	}
+}
+
+// fakeReadErrorConnector answers every query with a result set and then fails
+// while the next is read, as SQL Server reports an error in the middle of a
+// batch. A tape holds an answer as rows or as an error, so it cannot carry a
+// mid-stream failure.
+type fakeReadErrorConnector struct{}
+
+func (*fakeReadErrorConnector) Connect(context.Context) (sqldriver.Conn, error) {
+	return &fakeReadErrorConn{}, nil
+}
+
+func (*fakeReadErrorConnector) Driver() sqldriver.Driver { return nil }
+
+type fakeReadErrorConn struct{}
+
+func (*fakeReadErrorConn) Prepare(string) (sqldriver.Stmt, error) {
+	return nil, sqldriver.ErrSkip
+}
+
+func (*fakeReadErrorConn) Close() error { return nil }
+
+func (*fakeReadErrorConn) Begin() (sqldriver.Tx, error) {
+	return nil, errors.New("the fake connection starts no transaction")
+}
+
+func (*fakeReadErrorConn) QueryContext(context.Context, string, []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	return &fakeReadErrorRows{}, nil
+}
+
+// fakeReadErrorRows answers two result sets; the second reports one row and
+// then SQL Server's divide by zero error.
+type fakeReadErrorRows struct {
+	set, row int
+}
+
+func (r *fakeReadErrorRows) Columns() []string {
+	if r.set == 0 {
+		return []string{"a"}
+	}
+	return []string{"b"}
+}
+
+func (*fakeReadErrorRows) Close() error { return nil }
+
+func (r *fakeReadErrorRows) Next(dest []sqldriver.Value) error {
+	switch {
+	case r.row == 0:
+		r.row = 1
+		dest[0] = int64(r.set + 1)
+		return nil
+	case r.set == 0:
+		return io.EOF
+	default:
+		return gomssqldb.Error{Number: 8134, Class: 16, State: 1, Message: "Divide by zero error encountered.", ServerName: "db.example.com", LineNo: 1}
+	}
+}
+
+func (r *fakeReadErrorRows) HasNextResultSet() bool { return r.set == 0 }
+
+func (r *fakeReadErrorRows) NextResultSet() error {
+	if r.set == 1 {
+		return io.EOF
+	}
+	r.set, r.row = 1, 0
+	return nil
+}
+
+// TestQueryBatchUnpacksTheErrorItMeetsWhileReadingRows holds a batch's row read
+// to the package's error formatting: the text is the server's message block,
+// not the client's "mssql: <message> (<number>)" wrapper, and the client's own
+// error stays reachable.
+func TestQueryBatchUnpacksTheErrorItMeetsWhileReadingRows(t *testing.T) {
+	ctx := context.Background()
+	db := sql.OpenDB(&fakeReadErrorConnector{})
+	defer db.Close()
+	sess, err := (&Driver{db: db}).Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	results, err := sess.Query(ctx, "SELECT 1 AS a;\nSELECT 2 AS b;", driver.QueryOptions{})
+	if err == nil {
+		t.Fatalf("Query = %+v, want the error met while reading the second result set", results)
+	}
+	const want = "Msg 8134, Level 16, State 1, Server db.example.com, Line 1\nDivide by zero error encountered."
+	if got := err.Error(); got != want {
+		t.Errorf("error text = %q, want %q", got, want)
+	}
+	var server gomssqldb.Error
+	if !errors.As(err, &server) || server.Number != 8134 {
+		t.Errorf("error = %v, want SQL Server's 8134 still reachable", err)
 	}
 }
