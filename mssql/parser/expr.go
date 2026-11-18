@@ -29,6 +29,19 @@ func exprLocStart(expr nodes.ExprNode, fallback int) int {
 	return fallback
 }
 
+// parseScalarExpr parses an expression in a value position, where the search
+// condition around it does not reach: a boolean is no value, so SQL Server
+// refuses IF ABS(1 AND 2) = 1 and IF CAST(1 AND 2 AS int) = 1 with Msg 4145
+// and IF CASE 1 WHEN 1 AND 2 THEN 1 END = 1 with Msg 156 (measured). A
+// construct that opens value slots clears the depth for them, as
+// parseSelectStmtAfterWith does for a subquery's SELECT.
+func (p *Parser) parseScalarExpr() (nodes.ExprNode, error) {
+	saved := p.searchCondDepth
+	p.searchCondDepth = 0
+	defer func() { p.searchCondDepth = saved }()
+	return p.parseExpr()
+}
+
 // parseOr parses OR expressions (lowest precedence).
 //
 //	or_expr = and_expr { OR and_expr }
@@ -1121,7 +1134,7 @@ func (p *Parser) parseCast() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1170,7 +1183,7 @@ func (p *Parser) parseTryCast() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1345,7 +1358,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 	// Simple CASE vs searched CASE
 	if p.cur.Type != kwWHEN {
 		var err error
-		arg, err = p.parseExpr()
+		arg, err = p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1375,7 +1388,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if arg == nil {
 			p.enterSearchCondition()
 		}
-		cond, err := p.parseExpr()
+		cond, err := p.parseScalarExpr()
 		if arg == nil {
 			p.leaveSearchCondition()
 		}
@@ -1400,7 +1413,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		result, err := p.parseExpr()
+		result, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1463,7 +1476,7 @@ func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 	}
 	var args []nodes.Node
 	for {
-		arg, err := p.parseExpr()
+		arg, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1506,7 +1519,7 @@ func (p *Parser) parseNullif() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	left, err := p.parseExpr()
+	left, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1659,7 +1672,7 @@ func (p *Parser) parseParseExpr(name string, loc int) (nodes.ExprNode, error) {
 		Try: strings.EqualFold(name, "TRY_PARSE"),
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1680,7 +1693,7 @@ func (p *Parser) parseParseExpr(name string, loc int) (nodes.ExprNode, error) {
 	n.DataType = dt
 	if p.cur.Type == kwUSING {
 		p.advance()
-		culture, err := p.parseExpr()
+		culture, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1779,7 +1792,7 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 				Loc:  nodes.Loc{Start: tok.Loc, End: tok.End},
 			}, nil
 		}
-		arg, err := p.parseExpr()
+		arg, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}

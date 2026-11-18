@@ -485,7 +485,8 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 
 // parseSetOperation parses the UNION/INTERSECT/EXCEPT chain that follows
 // left. The chain nests to the right, A UNION B EXCEPT C becoming
-// Union(A, Except(B, C)), and each node takes the Loc of its left operand.
+// Union(A, Except(B, C)), and each node takes the Loc of its left operand,
+// widened to the last operand once the chain ends.
 // The operands are parsed in a loop rather than by recursing once per
 // operator, so a long flat chain neither grows the stack nor counts toward
 // the nesting limit: SQL Server 2022 accepts 50,000 UNION operands.
@@ -553,6 +554,9 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 			Loc:  chain[i].left.Loc,
 		}
 	}
+	// The statement runs to its last operand, whatever the first one's Loc
+	// ends at: `(SELECT 1) UNION SELECT 2` ends at 2, not at the first `)`.
+	result.Loc.End = p.prevEnd()
 	return result, nil
 }
 
