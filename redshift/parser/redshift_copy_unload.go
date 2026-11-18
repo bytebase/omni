@@ -7,17 +7,32 @@ import (
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-func (p *Parser) parseRedshiftDataMovementOptions() (*nodes.List, error) {
+// parseRedshiftDataMovementOptions parses the option tail of COPY or UNLOAD.
+// unload says which statement is being read: r_UNLOAD's option list is closed,
+// while r_COPY's writes each option as an identifier, so only COPY takes an
+// unrecognized word.
+func (p *Parser) parseRedshiftDataMovementOptions(unload bool) (*nodes.List, error) {
 	var items []nodes.Node
+	afterComma := false
 	for {
-		item, err := p.parseRedshiftDataMovementOption()
+		item, err := p.parseRedshiftDataMovementOption(unload)
 		if err != nil {
 			return nil, err
 		}
 		if item == nil {
+			if afterComma {
+				// The docs separate options with commas, and a trailing comma is
+				// not an option.
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		items = append(items, item)
+		afterComma = false
+		if p.cur.Type == ',' {
+			p.advance()
+			afterComma = true
+		}
 	}
 	if len(items) == 0 {
 		return nil, nil
@@ -25,7 +40,7 @@ func (p *Parser) parseRedshiftDataMovementOptions() (*nodes.List, error) {
 	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
+func (p *Parser) parseRedshiftDataMovementOption(unload bool) (*nodes.DefElem, error) {
 	switch {
 	case p.consumeRedshiftWord("iam_role"):
 		value, err := p.parseRedshiftStringOrKeyword()
@@ -57,6 +72,19 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 			return nil, err
 		}
 		return makeDefElem("session_token", &nodes.String{Str: value}), nil
+	case p.cur.Type == CSV:
+		p.advance()
+		return makeDefElem("format", &nodes.String{Str: "csv"}), nil
+	case p.cur.Type == AS:
+		if unload {
+			return nil, nil
+		}
+		p.advance()
+		value, err := p.parseRedshiftOptionWord()
+		if err != nil {
+			return nil, err
+		}
+		return makeDefElem("format", &nodes.String{Str: strings.ToLower(value)}), nil
 	case p.cur.Type == FORMAT:
 		p.advance()
 		p.parseOptAs()
@@ -121,12 +149,21 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 			return nil, err
 		}
 		return makeDefElem("region", &nodes.String{Str: value}), nil
-	case p.consumeRedshiftWord("json"):
-		value, err := p.parseRedshiftCopyStringOption()
-		if err != nil {
-			return nil, err
+	case p.redshiftKeywordIs("json"):
+		next := p.peekNext().Type
+		if !unload && next != SCONST && next != AS {
+			// COPY's JSON option requires its argument.
+			return nil, nil
 		}
-		return makeDefElem("json", &nodes.String{Str: value}), nil
+		p.advance()
+		if p.cur.Type == SCONST || p.cur.Type == AS {
+			value, err := p.parseRedshiftCopyStringOption()
+			if err != nil {
+				return nil, err
+			}
+			return makeDefElem("json", &nodes.String{Str: value}), nil
+		}
+		return makeDefElem("format", &nodes.String{Str: "json"}), nil
 	case p.consumeRedshiftWord("avro"):
 		value, err := p.parseRedshiftCopyStringOption()
 		if err != nil {
@@ -241,11 +278,15 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 	case p.consumeRedshiftFlagOption("cleanpath"):
 		return makeDefElem("cleanpath", &nodes.Boolean{Boolval: true}), nil
 	case p.consumeRedshiftWord("parallel"):
-		value, err := p.parseRedshiftOptionWord()
-		if err != nil {
-			return nil, err
+		value := "on"
+		switch p.cur.Type {
+		case ON, TRUE_P:
+			p.advance()
+		case OFF, FALSE_P:
+			value = "off"
+			p.advance()
 		}
-		return makeDefElem("parallel", &nodes.String{Str: strings.ToLower(value)}), nil
+		return makeDefElem("parallel", &nodes.String{Str: value}), nil
 	case p.consumeRedshiftWord("extension"):
 		value, err := p.parseRedshiftCopyStringOption()
 		if err != nil {
@@ -274,6 +315,16 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 			name = "partition_by_include"
 		}
 		return makeDefElem(name, columns), nil
+	case !unload && p.isRedshiftDataMovementOptionStart():
+		// r_COPY writes each unrecognized option as an identifier with an
+		// optional identifier value, so keep it as one.
+		name := strings.ToLower(p.cur.Str)
+		p.advance()
+		var arg nodes.Node
+		if p.isRedshiftDataMovementOptionStart() {
+			arg = &nodes.String{Str: p.advance().Str}
+		}
+		return makeDefElem(name, arg), nil
 	// optional-probe: Redshift COPY/UNLOAD options are optional and terminate on the first non-option token.
 	default:
 		return nil, nil
@@ -334,7 +385,7 @@ func (p *Parser) parseUnloadStmt(loc int) (nodes.Node, error) {
 	if _, err := p.expect(SCONST); err != nil {
 		return nil, err
 	}
-	options, err := p.parseRedshiftDataMovementOptions()
+	options, err := p.parseRedshiftDataMovementOptions(true)
 	if err != nil {
 		return nil, err
 	}

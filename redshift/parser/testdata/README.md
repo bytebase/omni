@@ -12,8 +12,8 @@ grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the docs accept | Only omni accepts | Undocumented |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 2,245 | 2,147 | 98 | 0 | 0 |
-| Near-misses | 5,830 | 132 | 13 | 0 | 5,685 |
+| One per alternative | 2,245 | 2,205 | 40 | 0 | 0 |
+| Near-misses | 5,830 | 142 | 3 | 0 | 5,685 |
 
 - **The grammar** is AWS's SQL command reference
   (https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html): the
@@ -54,16 +54,14 @@ Redshift has no server CI can start, so every row is judged by the docs.
   derive is `undocumented`, never `reject`: docs say what is valid, not what
   Redshift refuses. It passes whatever omni says, so omni is never pushed to
   reject a form users write.
-- **111 rows disagree, all statements the docs accept and omni rejects.**
-  `CREATE DATABASE` holds 29 (`FROM INTEGRATION`, `FROM ARN`, `FROM
-  DATASHARE`), `COPY` 18, `CREATE MATERIALIZED VIEW` 15, `ALTER DATABASE` 12
-  (`INTEGRATION REFRESH` and `SET HISTORY_MODE`), `SELECT` 12 (`EXCLUDE`,
-  `CONNECT BY`, `GROUP BY ALL`), `UNLOAD` 9, and a few single statements of
-  `ANALYZE COMPRESSION`, `ALTER ROLE`, `ALTER TABLE ... PARTITION`, `ALTER
-  USER`, `VACUUM`, `ALTER MATERIALIZED VIEW`, `CREATE GROUP`, `CREATE TABLE`,
-  `DROP DATABASE` and `REVOKE`. The `REVOKE` row is the docs' notation, not
-  SQL: their page writes `GRANT_OPTION` as one token, and only `GRANT OPTION`
-  is read.
+- **43 rows disagree, all statements the docs accept and omni rejects.**
+  `CREATE MATERIALIZED VIEW` holds 15, `SELECT` 12 (`EXCLUDE`, `CONNECT BY`,
+  `GROUP BY ALL`, in both `SELECT` and `SELECT INTO`), `ANALYZE COMPRESSION` 3,
+  `ALTER ROLE` 2, `ALTER TABLE ... PARTITION` 2, `ALTER USER` 2, `VACUUM` 2,
+  and one each of `ALTER MATERIALIZED VIEW`, `CREATE GROUP`, `CREATE TABLE`'s
+  identity column, `DROP DATABASE FORCE` and the docs' `GRANT_OPTION`
+  notation, which is not SQL: their page writes `GRANT_OPTION` as one token,
+  and only `GRANT OPTION` is read.
 
 ## What the judge cannot decide
 

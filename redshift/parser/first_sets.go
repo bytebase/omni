@@ -669,3 +669,96 @@ func (p *Parser) isRedshiftGroupGranteeStart() bool {
 func (p *Parser) isRedshiftScopedPermissionStart() bool {
 	return p.peekNext().Type == FOR
 }
+
+// redshiftIntegrationOptionWords is the FIRST set of the integration options
+// shared by CREATE DATABASE ... FROM INTEGRATION and ALTER DATABASE ...
+// INTEGRATION SET, as RedshiftDocs.g4's createDatabase and alterDatabase rules
+// write them. The words are unreserved identifiers, so no token slice can hold
+// them; each is matched as an unquoted word.
+//
+// DO NOT extend this list without also extending
+// parseRedshiftIntegrationOptions, and vice versa.
+var redshiftIntegrationOptionWords = []string{
+	"acceptinvchars",
+	"query_all_states",
+	"refresh_interval",
+	"truncatecolumns",
+	"history_mode",
+	"auto_remediation",
+}
+
+// isRedshiftIntegrationOptionStart reports whether the current token starts one
+// of the integration options above.
+//
+// Validated by TestIsRedshiftIntegrationOptionStart in first_sets_test.go.
+func (p *Parser) isRedshiftIntegrationOptionStart() bool {
+	for _, word := range redshiftIntegrationOptionWords {
+		if p.redshiftKeywordIs(word) {
+			return true
+		}
+	}
+	return false
+}
+
+// isRedshiftCreateDatabaseSourceStart reports whether the tokens after
+// CREATE DATABASE's name begin Redshift's data-source clause: FROM, as in
+// FROM INTEGRATION, FROM ARN and FROM DATASHARE, or WITH PERMISSIONS before a
+// datashare. A bare WITH belongs to the PostgreSQL createdb options instead.
+//
+// Validated by TestIsRedshiftCreateDatabaseSourceStart in first_sets_test.go.
+func (p *Parser) isRedshiftCreateDatabaseSourceStart() bool {
+	switch p.cur.Type {
+	case FROM:
+		return true
+	case WITH:
+		return p.redshiftTokIsWord(p.peekNext(), "permissions")
+	default:
+		return false
+	}
+}
+
+// isRedshiftAlterDatabaseIntegrationStart reports whether the token after
+// ALTER DATABASE's name is Redshift's INTEGRATION clause. INTEGRATION is
+// unreserved, so only its unquoted spelling starts the clause; a delimited
+// "integration" is an option name.
+//
+// Validated by TestIsRedshiftAlterDatabaseIntegrationStart in
+// first_sets_test.go.
+func (p *Parser) isRedshiftAlterDatabaseIntegrationStart() bool {
+	return p.redshiftKeywordIs("integration")
+}
+
+// isRedshiftDataMovementOptionStart reports whether the token after a comma in
+// a Redshift COPY or UNLOAD option tail starts another option. The docs write
+// the tail's options as identifiers, so any ColLabel that no clause follows is
+// one; FROM, TO, WHERE and the statement terminators end the list instead.
+//
+// Validated by TestIsRedshiftDataMovementOptionStart in first_sets_test.go.
+func (p *Parser) isRedshiftDataMovementOptionStart() bool {
+	if !p.isColLabel() {
+		return false
+	}
+	switch p.cur.Type {
+	case FROM, TO, WHERE, ';', 0:
+		return false
+	}
+	return true
+}
+
+// isRedshiftCopyColumnStart reports whether the single name between COPY's
+// table and FROM/TO begins the docs' optional column placeholder, as in
+// `COPY a a FROM ...`. The docs write the column list as one ID, so only a
+// name immediately before FROM or TO is that placeholder; a second name is not.
+//
+// Validated by TestIsRedshiftCopyColumnStart in first_sets_test.go.
+func (p *Parser) isRedshiftCopyColumnStart() bool {
+	if !p.isColLabel() {
+		return false
+	}
+	switch p.peekNext().Type {
+	case FROM, TO:
+		return true
+	default:
+		return false
+	}
+}
