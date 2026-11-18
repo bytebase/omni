@@ -142,6 +142,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	droppedColumns := alterDroppedColumns(stmt.Commands)
 	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
 	prospective := alterProspectiveTable(tbl, stmt.Commands)
+	futureColumns := alterFutureColumnChanges(stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -157,13 +158,13 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective)
+			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective, futureColumns[cmd])
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective, futureColumns[cmd]); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -193,7 +194,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, prospective, futureColumns[cmd]); err != nil {
 			rollback()
 			return err
 		}
@@ -260,7 +261,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // composite key's columns would leave a half-built key behind; declaredChecks
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, prospective *Table) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, prospective *Table, future []futureColumn) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd)
@@ -271,7 +272,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATChangeColumn:
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, declaredChecks, prospective)
+		return c.alterAddConstraint(tbl, cmd, declaredChecks, prospective, future)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -552,7 +553,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}, declared, nil); err != nil {
+			}, declared, nil, nil); err != nil {
 				return err
 			}
 		}
@@ -813,6 +814,77 @@ func alterProspectiveTable(tbl *Table, cmds []*nodes.AlterTableCmd) *Table {
 		rebuildColIndex(pp)
 	}
 	return pp
+}
+
+// A futureColumn is a column a later command of the same ALTER introduces or
+// renames. A key is validated against the table the statement leaves for the
+// columns that come after it, but not for a drop that comes after it: an ADD
+// KEY before its ADD COLUMN is accepted, while a drop before the key is
+// already reflected by the live table.
+type futureColumn struct {
+	def      *nodes.ColumnDef // ADD, MODIFY or CHANGE's new definition
+	from, to string           // RENAME's old and new names
+}
+
+// alterFutureColumnChanges maps each command to the columns the commands after
+// it introduce, in statement order.
+func alterFutureColumnChanges(cmds []*nodes.AlterTableCmd) map[*nodes.AlterTableCmd][]futureColumn {
+	out := make(map[*nodes.AlterTableCmd][]futureColumn, len(cmds))
+	for i, cmd := range cmds {
+		var changes []futureColumn
+		for _, later := range cmds[i+1:] {
+			if later == nil {
+				continue
+			}
+			switch later.Type {
+			case nodes.ATAddColumn:
+				if later.Column != nil {
+					changes = append(changes, futureColumn{def: later.Column})
+				}
+				for _, def := range later.Columns {
+					if def != nil {
+						changes = append(changes, futureColumn{def: def})
+					}
+				}
+			case nodes.ATModifyColumn, nodes.ATChangeColumn:
+				if later.Column != nil {
+					changes = append(changes, futureColumn{def: later.Column})
+				}
+			case nodes.ATRenameColumn:
+				changes = append(changes, futureColumn{from: later.Name, to: later.NewName})
+			}
+		}
+		out[cmd] = changes
+	}
+	return out
+}
+
+// applyFutureColumns adds a later command's columns to a table cloned from the
+// live one, so a key is judged on the columns the statement leaves behind.
+func applyFutureColumns(tbl *Table, changes []futureColumn) {
+	for _, ch := range changes {
+		switch {
+		case ch.def != nil:
+			if ch.def.Name == "" {
+				continue
+			}
+			if at, ok := tbl.colByName[toLower(ch.def.Name)]; ok {
+				col := buildColumnFromDef(tbl, ch.def)
+				col.Position = tbl.Columns[at].Position
+				tbl.Columns[at] = col
+			} else {
+				col := buildColumnFromDef(tbl, ch.def)
+				col.Position = len(tbl.Columns) + 1
+				tbl.Columns = append(tbl.Columns, col)
+			}
+		case ch.to != "":
+			if at, ok := tbl.colByName[toLower(ch.from)]; ok {
+				tbl.Columns[at].Name = ch.to
+				updateColumnRefsInIndexes(tbl, ch.from, ch.to)
+			}
+		}
+		rebuildColIndex(tbl)
+	}
 }
 
 func (c *Catalog) alterDropColumn(tbl *Table, cmd *nodes.AlterTableCmd, droppingPrimaryKey bool, droppedColumns map[string]bool) error {
@@ -1257,7 +1329,7 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	return nil
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, prospective *Table) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, prospective *Table, future []futureColumn) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
@@ -1285,14 +1357,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		}
 	}
 	keyTbl := tbl
-	if prospective != nil && prospective != tbl {
-		// The prospective table has the columns the statement introduces, but
-		// its indexes and constraints are the pre-statement ones. Keep the
-		// live index state, which an earlier command of this ALTER may have
-		// changed, for the checks that read it.
-		kt := *prospective
-		kt.Indexes = tbl.Indexes
-		kt.Constraints = tbl.Constraints
+	if len(future) > 0 {
+		kt := cloneTable(tbl)
+		applyFutureColumns(&kt, future)
 		keyTbl = &kt
 	}
 	if err := validateAddedKeyColumns(keyTbl, con.IndexColumns); err != nil {
