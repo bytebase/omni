@@ -1819,6 +1819,10 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
 	case *ast.HandlerReadStmt:
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		// The key's values are read as well: one may hold a subquery.
+		for _, value := range n.Values {
+			collectAccessTablesFromExpr(result, value, defaultDatabase)
+		}
 		collectAccessTablesFromExpr(result, n.Where, defaultDatabase)
 	case *ast.HandlerCloseStmt:
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)

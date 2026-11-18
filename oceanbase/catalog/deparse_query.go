@@ -227,6 +227,8 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope)
 	b.WriteByte(' ')
 
 	if j.Natural {
+		// The common columns are inferred, not written: a NATURAL join takes no
+		// USING clause, which the parser refuses.
 		b.WriteString("natural ")
 	}
 
@@ -252,7 +254,8 @@ func deparseJoinExprNodeQ(b *strings.Builder, j *JoinExprNodeQ, q *deparseScope)
 		writeAnalyzedExpr(b, j.Quals, q)
 	}
 
-	if len(j.UsingClause) > 0 && j.Quals == nil {
+	// A NATURAL join's common columns are inferred and never written.
+	if len(j.UsingClause) > 0 && j.Quals == nil && !j.Natural {
 		b.WriteString(" using (")
 		for i, col := range j.UsingClause {
 			if i > 0 {

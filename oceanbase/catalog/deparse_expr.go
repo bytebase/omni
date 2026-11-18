@@ -205,7 +205,24 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 	}
 	b.WriteString(f.JSONValueClauses)
 	b.WriteString(f.JSONQueryClauses)
+	// LEAD and LAG write RESPECT/IGNORE NULLS inside the parameter list, the
+	// other window functions after the ')'.
+	lower := strings.ToLower(f.Name)
+	if (lower == "lead" || lower == "lag") && f.NullTreatment != "" {
+		b.WriteString(" ")
+		b.WriteString(strings.ToLower(f.NullTreatment))
+		b.WriteString(" nulls")
+	}
 	b.WriteByte(')')
+	if f.FromFirstLast != "" {
+		b.WriteString(" from ")
+		b.WriteString(strings.ToLower(f.FromFirstLast))
+	}
+	if f.NullTreatment != "" && lower != "lead" && lower != "lag" {
+		b.WriteString(" ")
+		b.WriteString(strings.ToLower(f.NullTreatment))
+		b.WriteString(" nulls")
+	}
 
 	if f.Over != nil {
 		b.WriteString(" over ")

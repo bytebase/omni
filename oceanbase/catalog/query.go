@@ -764,6 +764,12 @@ type FuncCallExprQ struct {
 	// it takes (DATE'...', 0x61) keep their spelling here and have no analyzed form.
 	JSONValueClauses string
 
+	// FromFirstLast is NTH_VALUE's FROM FIRST|LAST and NullTreatment the
+	// RESPECT|IGNORE NULLS of the window functions that take it: both change the
+	// window's result, so a stored view keeps them.
+	FromFirstLast string
+	NullTreatment string
+
 	// JSONQueryClauses is what follows JSON_QUERY's path, as the engine stores it, and text
 	// for the same reason: no clause holds anything to resolve.
 	JSONQueryClauses string

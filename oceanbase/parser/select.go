@@ -1790,6 +1790,8 @@ func (p *Parser) parseOdbcTableReference() (nodes.TableExpr, error) {
 		inner.Loc.Start, inner.Loc.End = start, p.prev.End
 	case *nodes.UnnestExpr:
 		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.RbIterateExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
 	}
 	return inner, nil
 }

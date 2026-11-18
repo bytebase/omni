@@ -237,6 +237,33 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, " :loc %d :name %s :expr ", n.Loc.Start, n.Name)
 		writeNode(sb, n.Expr)
 		sb.WriteString("}")
+	case *PurgeStmt:
+		sb.WriteString("{PURGE")
+		fmt.Fprintf(sb, " :loc %d :kind %s", n.Loc.Start, n.Kind)
+		if n.Name != nil {
+			sb.WriteString(" :name ")
+			writeNode(sb, n.Name)
+		}
+		sb.WriteString("}")
+	case *FlashbackStmt:
+		sb.WriteString("{FLASHBACK")
+		fmt.Fprintf(sb, " :loc %d :kind %s", n.Loc.Start, n.Kind)
+		if n.Name != nil {
+			sb.WriteString(" :name ")
+			writeNode(sb, n.Name)
+		}
+		if n.RenameTo != nil {
+			sb.WriteString(" :rename_to ")
+			writeNode(sb, n.RenameTo)
+		}
+		sb.WriteString("}")
+	case *DumpMemoryStmt:
+		sb.WriteString("{DUMP_MEMORY")
+		fmt.Fprintf(sb, " :loc %d :kind %s", n.Loc.Start, n.Kind)
+		for _, arg := range n.Args {
+			fmt.Fprintf(sb, " :arg %q", arg)
+		}
+		sb.WriteString("}")
 	case *RestorePointStmt:
 		sb.WriteString("{RESTORE_POINT")
 		fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
