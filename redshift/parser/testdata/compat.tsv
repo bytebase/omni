@@ -1499,7 +1499,7 @@ accept	accept	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?
 accept	undocumented	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/%empty!insert	ALTER FUNCTION a(zzz) RENAME TO a
 accept	accept	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*	ALTER FUNCTION a(INT) RENAME TO a
 reject	undocumented	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!truncate	ALTER FUNCTION a(
-reject	undocumented	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	ALTER FUNCTION a(INT zzz) RENAME TO a
+accept	undocumented	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	ALTER FUNCTION a(INT zzz) RENAME TO a
 accept	undocumented	docs	alterFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!swap	ALTER FUNCTION a(INTEGRATION) RENAME TO a
 accept	accept	docs	alterFunction(ID_DATA_TYPE|DATA_TYPE)/ID_DATA_TYPE	ALTER FUNCTION a(a INT) RENAME TO a
 accept	undocumented	docs	alterFunction(ID_DATA_TYPE|DATA_TYPE)/ID_DATA_TYPE!drop-2	ALTER FUNCTION a(a) RENAME TO a
@@ -1509,10 +1509,10 @@ accept	undocumented	docs	alterFunction(ID_DATA_TYPE|DATA_TYPE)/ID_DATA_TYPE!swap
 accept	accept	docs	alterFunction(ID_DATA_TYPE|DATA_TYPE)/DATA_TYPE	ALTER FUNCTION a(INT) RENAME TO a
 accept	accept	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/%empty	ALTER FUNCTION a(INT) RENAME TO a
 accept	accept	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*	ALTER FUNCTION a(INT, INT) RENAME TO a
-reject	accept	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!drop-1	ALTER FUNCTION a(INT INT) RENAME TO a
+accept	accept	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!drop-1	ALTER FUNCTION a(INT INT) RENAME TO a
 reject	undocumented	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!drop-2	ALTER FUNCTION a(INT,) RENAME TO a
 reject	undocumented	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!truncate	ALTER FUNCTION a(INT,
-reject	undocumented	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	ALTER FUNCTION a(INT, INT zzz) RENAME TO a
+accept	undocumented	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	ALTER FUNCTION a(INT, INT zzz) RENAME TO a
 accept	undocumented	docs	alterFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!swap	ALTER FUNCTION a(INT, INTEGRATION) RENAME TO a
 accept	accept	docs	alterFunction(ID|CURRENT_USER|SESSION_USER)/ID	ALTER FUNCTION a() OWNER TO a
 accept	accept	docs	alterFunction(ID|CURRENT_USER|SESSION_USER)/CURRENT_USER	ALTER FUNCTION a() OWNER TO CURRENT_USER
@@ -1752,7 +1752,7 @@ reject	undocumented	docs	alterProcedure((_(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARG~749
 accept	accept	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty	ALTER PROCEDURE a() RENAME TO a
 accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	ALTER PROCEDURE a(zzz) RENAME TO a
 accept	accept	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	ALTER PROCEDURE a(INT) RENAME TO a
-reject	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT zzz) RENAME TO a
+accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT zzz) RENAME TO a
 accept	undocumented	docs	alterProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	ALTER PROCEDURE a(INTEGRATION) RENAME TO a
 accept	accept	docs	alterProcedure(ID)?/%empty	ALTER PROCEDURE a(INT) RENAME TO a
 accept	accept	docs	alterProcedure(ID)?/%empty!insert	ALTER PROCEDURE a(zzz INT) RENAME TO a
@@ -1764,10 +1764,10 @@ accept	undocumented	docs	alterProcedure(ARGMODE)?/ARGMODE!insert	ALTER PROCEDURE
 accept	accept	docs	alterProcedure(ARGMODE)?/ARGMODE!swap	ALTER PROCEDURE a(INCLUDE INT) RENAME TO a
 accept	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	ALTER PROCEDURE a(INT) RENAME TO a
 accept	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	ALTER PROCEDURE a(INT, INT) RENAME TO a
-reject	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	ALTER PROCEDURE a(INT INT) RENAME TO a
+accept	accept	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	ALTER PROCEDURE a(INT INT) RENAME TO a
 reject	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	ALTER PROCEDURE a(INT,) RENAME TO a
 reject	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	ALTER PROCEDURE a(INT,
-reject	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT, INT zzz) RENAME TO a
+accept	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	ALTER PROCEDURE a(INT, INT zzz) RENAME TO a
 accept	undocumented	docs	alterProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	ALTER PROCEDURE a(INT, INTEGRATION) RENAME TO a
 accept	accept	docs	alterProcedure(ID|CURRENT_USER|SESSION_USER)/ID	ALTER PROCEDURE a OWNER TO a
 accept	accept	docs	alterProcedure(ID|CURRENT_USER|SESSION_USER)/CURRENT_USER	ALTER PROCEDURE a OWNER TO CURRENT_USER
@@ -3256,7 +3256,7 @@ accept	accept	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)
 accept	undocumented	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/%empty!insert	CREATE FUNCTION a(zzz) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	accept	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*	CREATE FUNCTION a(INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 reject	undocumented	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!truncate	CREATE FUNCTION a(
-reject	undocumented	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	CREATE FUNCTION a(INT zzz) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
+accept	undocumented	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	CREATE FUNCTION a(INT zzz) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	undocumented	docs	createFunction((ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA~a8ff8d81)?/(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!swap	CREATE FUNCTION a(INTEGRATION) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	accept	docs	createFunction(ID_DATA_TYPE|DATA_TYPE)/ID_DATA_TYPE	CREATE FUNCTION a(a INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	undocumented	docs	createFunction(ID_DATA_TYPE|DATA_TYPE)/ID_DATA_TYPE!drop-2	CREATE FUNCTION a(a) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
@@ -3266,10 +3266,10 @@ accept	undocumented	docs	createFunction(ID_DATA_TYPE|DATA_TYPE)/ID_DATA_TYPE!swa
 accept	accept	docs	createFunction(ID_DATA_TYPE|DATA_TYPE)/DATA_TYPE	CREATE FUNCTION a(INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	accept	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/%empty	CREATE FUNCTION a(INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	accept	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*	CREATE FUNCTION a(INT, INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
-reject	accept	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!drop-1	CREATE FUNCTION a(INT INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
+accept	accept	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!drop-1	CREATE FUNCTION a(INT INT) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 reject	undocumented	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!drop-2	CREATE FUNCTION a(INT,) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 reject	undocumented	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!truncate	CREATE FUNCTION a(INT,
-reject	undocumented	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	CREATE FUNCTION a(INT, INT zzz) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
+accept	undocumented	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!insert	CREATE FUNCTION a(INT, INT zzz) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	undocumented	docs	createFunction(,_(ID_DATA_TYPE|DATA_TYPE))*/,_(ID_DATA_TYPE|DATA_TYPE)_(,_(ID_DATA_TYPE|DATA_TYPE))*!swap	CREATE FUNCTION a(INT, INTEGRATION) RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	accept	docs	createFunction(VOLATILE|STABLE|IMMUTABLE)/VOLATILE	CREATE FUNCTION a() RETURNS INT VOLATILE AS 's' LANGUAGE PLPYTHONU
 accept	undocumented	docs	createFunction(VOLATILE|STABLE|IMMUTABLE)/VOLATILE!truncate	CREATE FUNCTION a() RETURNS INT
@@ -3812,7 +3812,7 @@ accept	accept	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115
 accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	CREATE PROCEDURE a(zzz) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	CREATE PROCEDURE a(
-reject	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT zzz) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT zzz) AS 's' LANGUAGE PLPGSQL
 accept	undocumented	docs	createProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	CREATE PROCEDURE a(INTEGRATION) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ID)?/%empty	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(ID)?/%empty!insert	CREATE PROCEDURE a(zzz INT) AS 's' LANGUAGE PLPGSQL
@@ -3824,10 +3824,10 @@ accept	undocumented	docs	createProcedure(ARGMODE)?/ARGMODE!insert	CREATE PROCEDU
 accept	accept	docs	createProcedure(ARGMODE)?/ARGMODE!swap	CREATE PROCEDURE a(INCLUDE INT) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	CREATE PROCEDURE a(INT) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	CREATE PROCEDURE a(INT, INT) AS 's' LANGUAGE PLPGSQL
-reject	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	CREATE PROCEDURE a(INT INT) AS 's' LANGUAGE PLPGSQL
+accept	accept	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	CREATE PROCEDURE a(INT INT) AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	CREATE PROCEDURE a(INT,) AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	CREATE PROCEDURE a(INT,
-reject	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT, INT zzz) AS 's' LANGUAGE PLPGSQL
+accept	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	CREATE PROCEDURE a(INT, INT zzz) AS 's' LANGUAGE PLPGSQL
 accept	undocumented	docs	createProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	CREATE PROCEDURE a(INT, INTEGRATION) AS 's' LANGUAGE PLPGSQL
 accept	accept	docs	createProcedure(NONATOMIC)?/%empty	CREATE PROCEDURE a() AS 's' LANGUAGE PLPGSQL
 reject	undocumented	docs	createProcedure(NONATOMIC)?/%empty!insert	CREATE PROCEDURE a() zzz AS 's' LANGUAGE PLPGSQL
@@ -4581,12 +4581,12 @@ accept	accept	docs	dropFunction(ID)?/ID	DROP FUNCTION a(a INT)
 reject	undocumented	docs	dropFunction(ID)?/ID!truncate	DROP FUNCTION a(
 reject	undocumented	docs	dropFunction(ID)?/ID!insert	DROP FUNCTION a(a zzz INT)
 accept	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/%empty	DROP FUNCTION a(INT)
-reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/%empty!insert	DROP FUNCTION a(INT zzz)
+accept	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/%empty!insert	DROP FUNCTION a(INT zzz)
 accept	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	DROP FUNCTION a(INT, INT)
-reject	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	DROP FUNCTION a(INT INT)
+accept	accept	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	DROP FUNCTION a(INT INT)
 reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	DROP FUNCTION a(INT,)
 reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	DROP FUNCTION a(INT,
-reject	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	DROP FUNCTION a(INT, INT zzz)
+accept	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	DROP FUNCTION a(INT, INT zzz)
 accept	undocumented	docs	dropFunction(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	DROP FUNCTION a(INT, INTEGRATION)
 accept	accept	docs	dropFunction(CASCADE|RESTRICT)?/%empty	DROP FUNCTION a(INT)
 accept	accept	docs	dropFunction(CASCADE|RESTRICT)?/CASCADE	DROP FUNCTION a(INT) CASCADE
@@ -4637,7 +4637,7 @@ accept	accept	docs	dropProcedure/DROP_PROCEDURE_ID_(_(ID?_ARGMODE?_DATA_TYPE_(,_
 accept	accept	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty	DROP PROCEDURE a()
 accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/%empty!insert	DROP PROCEDURE a(zzz)
 accept	accept	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	DROP PROCEDURE a(INT)
-reject	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	DROP PROCEDURE a(INT zzz)
+accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	DROP PROCEDURE a(INT zzz)
 accept	undocumented	docs	dropProcedure(ID?_ARGMODE?_DATA_TYPE_(,_ID?_ARGMOD~5e9e7115)?/(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	DROP PROCEDURE a(INTEGRATION)
 accept	accept	docs	dropProcedure(ID)?/%empty	DROP PROCEDURE a(INT)
 accept	accept	docs	dropProcedure(ID)?/%empty!insert	DROP PROCEDURE a(zzz INT)
@@ -4649,10 +4649,10 @@ accept	undocumented	docs	dropProcedure(ARGMODE)?/ARGMODE!insert	DROP PROCEDURE a
 accept	accept	docs	dropProcedure(ARGMODE)?/ARGMODE!swap	DROP PROCEDURE a(INCLUDE INT)
 accept	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/%empty	DROP PROCEDURE a(INT)
 accept	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*	DROP PROCEDURE a(INT, INT)
-reject	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	DROP PROCEDURE a(INT INT)
+accept	accept	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-1	DROP PROCEDURE a(INT INT)
 reject	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!drop-2	DROP PROCEDURE a(INT,)
 reject	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!truncate	DROP PROCEDURE a(INT,
-reject	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	DROP PROCEDURE a(INT, INT zzz)
+accept	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!insert	DROP PROCEDURE a(INT, INT zzz)
 accept	undocumented	docs	dropProcedure(,_ID?_ARGMODE?_DATA_TYPE)*/,_(ID)?_(ARGMODE)?_DATA_TYPE_(,_ID?_ARGMODE?_DATA_TYPE)*!swap	DROP PROCEDURE a(INT, INTEGRATION)
 accept	accept	docs	dropRlsPolicy/DROP_RLS_POLICY_(IF_EXISTS)?_ID_(CASCADE|RESTRICT)?	DROP RLS POLICY a
 accept	accept	docs	dropRlsPolicy(IF_EXISTS)?/%empty	DROP RLS POLICY a
@@ -4920,7 +4920,7 @@ reject	undocumented	docs	grant/GRANT_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|A
 reject	undocumented	docs	grant/GRANT_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|ALL)_TO~f7112816!drop-8	GRANT ASSUMEROLE ON 's' TO a FOR
 reject	undocumented	docs	grant/GRANT_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|ALL)_TO~f7112816!insert	GRANT ASSUMEROLE ON 's' TO a FOR ALL zzz
 reject	undocumented	docs	grant/GRANT_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|ALL)_TO~f7112816!swap	GRANTS ASSUMEROLE ON 's' TO a FOR ALL
-reject	accept	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
+accept	accept	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-1	SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-2	GRANT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-3	GRANT SELECT a) ON EXTERNAL TABLE a TO IAM_ROLE a
@@ -4931,8 +4931,8 @@ reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-8	GRANT SELECT(a) ON EXTERNAL a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-9	GRANT SELECT(a) ON EXTERNAL TABLE TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-10	GRANT SELECT(a) ON EXTERNAL TABLE a IAM_ROLE a
-accept	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-11	GRANT SELECT(a) ON EXTERNAL TABLE a TO a
-accept	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-12	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE
+reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-11	GRANT SELECT(a) ON EXTERNAL TABLE a TO a
+reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!drop-12	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!insert	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a zzz
 reject	undocumented	docs	grant/GRANT_(SELECT|ALL_PRIVILEGES?)_(_ID_)_ON_EXTERNAL_TABLE~b6da7a39!swap	GRANTS SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 accept	accept	docs	grant/GRANT_((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)_O~354d1491	GRANT SELECT ON EXTERNAL TABLE a TO PUBLIC
@@ -4946,7 +4946,7 @@ reject	undocumented	docs	grant/GRANT_((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440
 reject	undocumented	docs	grant/GRANT_((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)_O~354d1491!drop-8	GRANT SELECT ON EXTERNAL TABLE a TO
 reject	undocumented	docs	grant/GRANT_((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)_O~354d1491!insert	GRANT SELECT ON EXTERNAL TABLE a TO PUBLIC zzz
 reject	undocumented	docs	grant/GRANT_((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)_O~354d1491!swap	GRANTS SELECT ON EXTERNAL TABLE a TO PUBLIC
-reject	accept	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-1	CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-2	GRANT ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-3	GRANT CREATE EXTERNAL SCHEMA a TO IAM_ROLE a
@@ -4954,15 +4954,15 @@ reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-5	GRANT CREATE ON EXTERNAL a TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-6	GRANT CREATE ON EXTERNAL SCHEMA TO IAM_ROLE a
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-7	GRANT CREATE ON EXTERNAL SCHEMA a IAM_ROLE a
-accept	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-8	GRANT CREATE ON EXTERNAL SCHEMA a TO a
-accept	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-9	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE
+reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-8	GRANT CREATE ON EXTERNAL SCHEMA a TO a
+reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!drop-9	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!insert	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a zzz
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_O~450f935c!swap	GRANTS CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
 accept	accept	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf	GRANT ALTER ON DATASHARE a TO a
 reject	undocumented	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-1	ALTER ON DATASHARE a TO a
 reject	undocumented	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-2	GRANT ON DATASHARE a TO a
 accept	undocumented	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-3	GRANT ALTER DATASHARE a TO a
-reject	accept	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-5	GRANT ALTER ON DATASHARE TO a
+accept	accept	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-5	GRANT ALTER ON DATASHARE TO a
 reject	undocumented	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-6	GRANT ALTER ON DATASHARE a a
 reject	undocumented	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!drop-7	GRANT ALTER ON DATASHARE a TO
 reject	undocumented	docs	grant/GRANT_(ALTER|SHARE)_ON_DATASHARE_ID_TO_(ID_(WITH_GRANT_~09650ecf!insert	GRANT ALTER ON DATASHARE a TO a zzz
@@ -4972,13 +4972,13 @@ reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-2	GRANT ON DATASHARE a TO NAMESPACE 's'
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-3	GRANT USAGE DATASHARE a TO NAMESPACE 's'
 accept	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-4	GRANT USAGE ON a TO NAMESPACE 's'
-reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-5	GRANT USAGE ON DATASHARE TO NAMESPACE 's'
+accept	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-5	GRANT USAGE ON DATASHARE TO NAMESPACE 's'
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-6	GRANT USAGE ON DATASHARE a NAMESPACE 's'
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-7	GRANT USAGE ON DATASHARE a TO 's'
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!drop-8	GRANT USAGE ON DATASHARE a TO NAMESPACE
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!insert	GRANT USAGE ON DATASHARE a TO NAMESPACE 's' zzz
 reject	undocumented	docs	grant/GRANT_USAGE_ON_DATASHARE_ID_TO_(NAMESPACE_STRING|ACCOUN~791ac796!swap	GRANTS USAGE ON DATASHARE a TO NAMESPACE 's'
-reject	accept	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE a
+accept	accept	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a	GRANT EXECUTE ON PROCEDURE a() TO DATASHARE a
 reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-1	EXECUTE ON PROCEDURE a() TO DATASHARE a
 reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-2	GRANT ON PROCEDURE a() TO DATASHARE a
 reject	undocumented	docs	grant/GRANT_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_D~4c4c6c0a!drop-3	GRANT EXECUTE PROCEDURE a() TO DATASHARE a
@@ -5070,7 +5070,7 @@ reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_F~052c6c0d!drop-10	GRANT CREATE FOR COPY JOBS IN DATABASE a TO
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_F~052c6c0d!insert	GRANT CREATE FOR COPY JOBS IN DATABASE a TO a zzz
 reject	undocumented	docs	grant/GRANT_((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)_F~052c6c0d!swap	GRANTS CREATE FOR COPY JOBS IN DATABASE a TO a
-reject	accept	docs	grant/GRANT_((ALTER|DROP|USAGE)_(,_(ALTER|DROP|US~7c827c2e)_F~1eefd77c	GRANT ALTER FOR TEMPLATES IN SCHEMA a TO a
+accept	accept	docs	grant/GRANT_((ALTER|DROP|USAGE)_(,_(ALTER|DROP|US~7c827c2e)_F~1eefd77c	GRANT ALTER FOR TEMPLATES IN SCHEMA a TO a
 reject	undocumented	docs	grant/GRANT_((ALTER|DROP|USAGE)_(,_(ALTER|DROP|US~7c827c2e)_F~1eefd77c!drop-1	ALTER FOR TEMPLATES IN SCHEMA a TO a
 reject	undocumented	docs	grant/GRANT_((ALTER|DROP|USAGE)_(,_(ALTER|DROP|US~7c827c2e)_F~1eefd77c!drop-2	GRANT FOR TEMPLATES IN SCHEMA a TO a
 accept	undocumented	docs	grant/GRANT_((ALTER|DROP|USAGE)_(,_(ALTER|DROP|US~7c827c2e)_F~1eefd77c!drop-3	GRANT ALTER TEMPLATES IN SCHEMA a TO a
@@ -5145,7 +5145,7 @@ reject	undocumented	docs	grant/GRANT_SELECT_ON_(TABLE)?_ID_(,_ID)*_TO_(RLS|MASKI
 reject	undocumented	docs	grant/GRANT_SELECT_ON_(TABLE)?_ID_(,_ID)*_TO_(RLS|MASKING)_PO~99db385a!insert	GRANT SELECT ON a TO RLS POLICY a zzz
 reject	undocumented	docs	grant/GRANT_SELECT_ON_(TABLE)?_ID_(,_ID)*_TO_(RLS|MASKING)_PO~99db385a!swap	GRANTS SELECT ON a TO RLS POLICY a
 accept	accept	docs	grant/GRANT_CONNECT_(ON_WORKGROUP)?_TO_(ID_COLON_ID|ROLE_ID_C~a31c08a4	GRANT CONNECT TO PUBLIC
-reject	accept	docs	grant/GRANT_DEBUG_ON_DATABASE_ID_TO_(ID_COLON_ID|ROLE_ID_COLO~72b2ed71	GRANT DEBUG ON DATABASE a TO a : a
+accept	accept	docs	grant/GRANT_DEBUG_ON_DATABASE_ID_TO_(ID_COLON_ID|ROLE_ID_COLO~72b2ed71	GRANT DEBUG ON DATABASE a TO a : a
 reject	undocumented	docs	grant/GRANT_DEBUG_ON_DATABASE_ID_TO_(ID_COLON_ID|ROLE_ID_COLO~72b2ed71!drop-1	DEBUG ON DATABASE a TO a : a
 reject	undocumented	docs	grant/GRANT_DEBUG_ON_DATABASE_ID_TO_(ID_COLON_ID|ROLE_ID_COLO~72b2ed71!drop-2	GRANT ON DATABASE a TO a : a
 reject	undocumented	docs	grant/GRANT_DEBUG_ON_DATABASE_ID_TO_(ID_COLON_ID|ROLE_ID_COLO~72b2ed71!drop-3	GRANT DEBUG DATABASE a TO a : a
@@ -5234,7 +5234,7 @@ accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/PUBLIC	G
 reject	undocumented	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/PUBLIC!insert	GRANT CREATE MODEL TO PUBLIC zzz
 accept	accept	docs	grant(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/PUBLIC!swap	GRANT CREATE MODEL TO PUBLICACCESSIBLE
 accept	accept	docs	grant(WITH_GRANT_OPTION)?/%empty	GRANT CREATE MODEL TO a
-reject	accept	docs	grant(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION	GRANT CREATE MODEL TO a WITH GRANT OPTION
+accept	accept	docs	grant(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION	GRANT CREATE MODEL TO a WITH GRANT OPTION
 reject	undocumented	docs	grant(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-1	GRANT CREATE MODEL TO a GRANT OPTION
 reject	undocumented	docs	grant(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-2	GRANT CREATE MODEL TO a WITH OPTION
 reject	undocumented	docs	grant(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-3	GRANT CREATE MODEL TO a WITH GRANT
@@ -5315,7 +5315,7 @@ reject	undocumented	docs	grant(FUNCTION_ID_(_(ID?_DATA_TYPE_(,_ID?_~bc954e7e)/AL
 accept	accept	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty	GRANT EXECUTE ON FUNCTION a() TO a
 accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty!insert	GRANT EXECUTE ON FUNCTION a(zzz) TO a
 accept	accept	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	GRANT EXECUTE ON FUNCTION a(INT) TO a
-reject	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT zzz) TO a
+accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT zzz) TO a
 accept	undocumented	docs	grant(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	GRANT EXECUTE ON FUNCTION a(INTEGRATION) TO a
 accept	accept	docs	grant(ID)?/%empty	GRANT EXECUTE ON FUNCTION a(INT) TO a
 accept	accept	docs	grant(ID)?/%empty!insert	GRANT EXECUTE ON FUNCTION a(zzz INT) TO a
@@ -5323,10 +5323,10 @@ accept	accept	docs	grant(ID)?/ID	GRANT EXECUTE ON FUNCTION a(a INT) TO a
 reject	undocumented	docs	grant(ID)?/ID!insert	GRANT EXECUTE ON FUNCTION a(a zzz INT) TO a
 accept	accept	docs	grant(,_ID?_DATA_TYPE)*/%empty	GRANT EXECUTE ON FUNCTION a(INT) TO a
 accept	accept	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	GRANT EXECUTE ON FUNCTION a(INT, INT) TO a
-reject	accept	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	GRANT EXECUTE ON FUNCTION a(INT INT) TO a
+accept	accept	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	GRANT EXECUTE ON FUNCTION a(INT INT) TO a
 reject	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	GRANT EXECUTE ON FUNCTION a(INT,) TO a
 reject	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	GRANT EXECUTE ON FUNCTION a(INT,
-reject	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT, INT zzz) TO a
+accept	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	GRANT EXECUTE ON FUNCTION a(INT, INT zzz) TO a
 accept	undocumented	docs	grant(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	GRANT EXECUTE ON FUNCTION a(INT, INTEGRATION) TO a
 accept	accept	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/%empty	GRANT EXECUTE ON FUNCTION a() TO a
 accept	accept	docs	grant(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_)_(,_ID_(_(I~19a1431c	GRANT EXECUTE ON FUNCTION a(), a() TO a
@@ -5408,7 +5408,7 @@ accept	accept	docs	grant(SELECT|UPDATE)/UPDATE	GRANT UPDATE(a) ON a TO a
 reject	undocumented	docs	grant(SELECT|UPDATE)/UPDATE!insert	GRANT UPDATE zzz(a) ON a TO a
 accept	undocumented	docs	grant(SELECT|UPDATE)/UPDATE!swap	GRANT URI(a) ON a TO a
 accept	accept	docs	grant(,_(_ID_(,_ID)*_))*/%empty	GRANT SELECT(a) ON a TO a
-reject	accept	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*	GRANT SELECT(a),(a) ON a TO a
+accept	accept	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*	GRANT SELECT(a),(a) ON a TO a
 reject	undocumented	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!drop-1	GRANT SELECT(a)(a) ON a TO a
 reject	undocumented	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!drop-2	GRANT SELECT(a), a) ON a TO a
 reject	undocumented	docs	grant(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!drop-3	GRANT SELECT(a),() ON a TO a
@@ -5470,15 +5470,15 @@ reject	undocumented	docs	grant(,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION~0cc9c84c)*/,
 reject	undocumented	docs	grant(,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION~0cc9c84c)*/,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)_(,_(~c1688187!drop-2	GRANT ASSUMEROLE ON 's' TO a FOR ALL,
 reject	undocumented	docs	grant(,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION~0cc9c84c)*/,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)_(,_(~c1688187!insert	GRANT ASSUMEROLE ON 's' TO a FOR ALL, ALL zzz
 reject	undocumented	docs	grant(,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION~0cc9c84c)*/,_(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)_(,_(~c1688187!swap	GRANT ASSUMEROLE ON 's' TO a FOR ALL, ALLOWOVERWRITE
-reject	accept	docs	grant(SELECT|ALL_PRIVILEGES?)/SELECT	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
+accept	accept	docs	grant(SELECT|ALL_PRIVILEGES?)/SELECT	GRANT SELECT(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant(SELECT|ALL_PRIVILEGES?)/SELECT!insert	GRANT SELECT zzz(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant(SELECT|ALL_PRIVILEGES?)/SELECT!swap	GRANT SERDE(a) ON EXTERNAL TABLE a TO IAM_ROLE a
-reject	accept	docs	grant(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL(a) ON EXTERNAL TABLE a TO IAM_ROLE a
+accept	accept	docs	grant(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	GRANT ALL(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz(a) ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE(a) ON EXTERNAL TABLE a TO IAM_ROLE a
-reject	accept	docs	grant(,_IAM_ROLE_ID)*/%empty	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a
+accept	accept	docs	grant(,_IAM_ROLE_ID)*/%empty	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a
 reject	undocumented	docs	grant(,_IAM_ROLE_ID)*/%empty!insert	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a zzz
-reject	accept	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a, IAM_ROLE a
+accept	accept	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a, IAM_ROLE a
 reject	undocumented	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-1	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a IAM_ROLE a
 reject	undocumented	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-2	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a, a
 reject	undocumented	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-3	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a, IAM_ROLE
@@ -5486,50 +5486,50 @@ reject	undocumented	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!in
 reject	undocumented	docs	grant(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!swap	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a, ICEBERG a
 accept	accept	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c	GRANT SELECT ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c!insert	GRANT SELECT zzz ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c!swap	GRANT SERDE ON EXTERNAL TABLE a TO PUBLIC
+reject	undocumented	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c!swap	GRANT SERDE ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?	GRANT ALL ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON EXTERNAL TABLE a TO PUBLIC
+reject	undocumented	docs	grant((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/SELECT	GRANT SELECT ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/ALTER	GRANT ALTER ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/ALTER!insert	GRANT ALTER zzz ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/ALTER!swap	GRANT ANALYZE ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DROP	GRANT DROP ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DROP!insert	GRANT DROP zzz ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DROP!swap	GRANT DUPLICATES ON EXTERNAL TABLE a TO PUBLIC
+reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DROP!swap	GRANT DUPLICATES ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE	GRANT DELETE ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE!insert	GRANT DELETE zzz ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE!swap	GRANT DELIMITED ON EXTERNAL TABLE a TO PUBLIC
+reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE!swap	GRANT DELIMITED ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT	GRANT INSERT ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT!insert	GRANT INSERT zzz ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT!swap	GRANT INT ON EXTERNAL TABLE a TO PUBLIC
+reject	undocumented	docs	grant(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT!swap	GRANT INT ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/%empty	GRANT SELECT ON EXTERNAL TABLE a TO PUBLIC
 accept	accept	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c	GRANT SELECT, SELECT ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!drop-1	GRANT SELECT SELECT ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!drop-2	GRANT SELECT, ON EXTERNAL TABLE a TO PUBLIC
 reject	undocumented	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!insert	GRANT SELECT, SELECT zzz ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!swap	GRANT SELECT, SERDE ON EXTERNAL TABLE a TO PUBLIC
-reject	accept	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a
-accept	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-1	GRANT SELECT ON EXTERNAL TABLE a TO a
-accept	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-2	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE
+reject	undocumented	docs	grant(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!swap	GRANT SELECT, SERDE ON EXTERNAL TABLE a TO PUBLIC
+accept	accept	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE a
+reject	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-1	GRANT SELECT ON EXTERNAL TABLE a TO a
+reject	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-2	GRANT SELECT ON EXTERNAL TABLE a TO IAM_ROLE
 reject	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!swap	GRANT SELECT ON EXTERNAL TABLE a TO ICEBERG a
 accept	accept	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/PUBLIC	GRANT SELECT ON EXTERNAL TABLE a TO PUBLIC
-accept	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/PUBLIC!swap	GRANT SELECT ON EXTERNAL TABLE a TO PUBLICACCESSIBLE
-reject	accept	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
+reject	undocumented	docs	grant(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/PUBLIC!swap	GRANT SELECT ON EXTERNAL TABLE a TO PUBLICACCESSIBLE
+accept	accept	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!insert	GRANT CREATE zzz ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!swap	GRANT CREATEDB ON EXTERNAL SCHEMA a TO IAM_ROLE a
-reject	accept	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?	GRANT ALL ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?	GRANT ALL ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?!insert	GRANT ALL zzz ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?!swap	GRANT ALLOWOVERWRITE ON EXTERNAL SCHEMA a TO IAM_ROLE a
-reject	accept	docs	grant(CREATE|ALTER|DROP)/CREATE	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
-reject	accept	docs	grant(CREATE|ALTER|DROP)/ALTER	GRANT ALTER ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant(CREATE|ALTER|DROP)/CREATE	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant(CREATE|ALTER|DROP)/ALTER	GRANT ALTER ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(CREATE|ALTER|DROP)/ALTER!insert	GRANT ALTER zzz ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(CREATE|ALTER|DROP)/ALTER!swap	GRANT ANALYZE ON EXTERNAL SCHEMA a TO IAM_ROLE a
-reject	accept	docs	grant(CREATE|ALTER|DROP)/DROP	GRANT DROP ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant(CREATE|ALTER|DROP)/DROP	GRANT DROP ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(CREATE|ALTER|DROP)/DROP!insert	GRANT DROP zzz ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(CREATE|ALTER|DROP)/DROP!swap	GRANT DUPLICATES ON EXTERNAL SCHEMA a TO IAM_ROLE a
-reject	accept	docs	grant(,_(CREATE|ALTER|DROP))*/%empty	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
-reject	accept	docs	grant(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	GRANT CREATE, CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant(,_(CREATE|ALTER|DROP))*/%empty	GRANT CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
+accept	accept	docs	grant(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	GRANT CREATE, CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!drop-1	GRANT CREATE CREATE ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!drop-2	GRANT CREATE, ON EXTERNAL SCHEMA a TO IAM_ROLE a
 reject	undocumented	docs	grant(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!insert	GRANT CREATE, CREATE zzz ON EXTERNAL SCHEMA a TO IAM_ROLE a
@@ -5539,7 +5539,7 @@ reject	undocumented	docs	grant(ALTER|SHARE)/ALTER!insert	GRANT ALTER zzz ON DATA
 reject	undocumented	docs	grant(ALTER|SHARE)/ALTER!swap	GRANT ANALYZE ON DATASHARE a TO a
 accept	accept	docs	grant(ALTER|SHARE)/SHARE	GRANT SHARE ON DATASHARE a TO a
 reject	undocumented	docs	grant(ALTER|SHARE)/SHARE!insert	GRANT SHARE zzz ON DATASHARE a TO a
-accept	undocumented	docs	grant(ALTER|SHARE)/SHARE!swap	GRANT SHOW ON DATASHARE a TO a
+reject	undocumented	docs	grant(ALTER|SHARE)/SHARE!swap	GRANT SHOW ON DATASHARE a TO a
 accept	accept	docs	grant(NAMESPACE_STRING|ACCOUNT_STRING_(VIA~67b76952)/NAMESPACE_STRING	GRANT USAGE ON DATASHARE a TO NAMESPACE 's'
 reject	undocumented	docs	grant(NAMESPACE_STRING|ACCOUNT_STRING_(VIA~67b76952)/NAMESPACE_STRING!swap	GRANT USAGE ON DATASHARE a TO NEXT 's'
 accept	accept	docs	grant(NAMESPACE_STRING|ACCOUNT_STRING_(VIA~67b76952)/ACCOUNT_STRING_(VIA_DATA_CATALOG)?	GRANT USAGE ON DATASHARE a TO ACCOUNT 's'
@@ -5547,7 +5547,7 @@ reject	undocumented	docs	grant(NAMESPACE_STRING|ACCOUNT_STRING_(VIA~67b76952)/AC
 reject	undocumented	docs	grant(NAMESPACE_STRING|ACCOUNT_STRING_(VIA~67b76952)/ACCOUNT_STRING_(VIA_DATA_CATALOG)?!insert	GRANT USAGE ON DATASHARE a TO ACCOUNT 's' zzz
 reject	undocumented	docs	grant(NAMESPACE_STRING|ACCOUNT_STRING_(VIA~67b76952)/ACCOUNT_STRING_(VIA_DATA_CATALOG)?!swap	GRANT USAGE ON DATASHARE a TO ADD 's'
 accept	accept	docs	grant(VIA_DATA_CATALOG)?/%empty	GRANT USAGE ON DATASHARE a TO ACCOUNT 's'
-reject	accept	docs	grant(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG	GRANT USAGE ON DATASHARE a TO ACCOUNT 's' VIA DATA CATALOG
+accept	accept	docs	grant(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG	GRANT USAGE ON DATASHARE a TO ACCOUNT 's' VIA DATA CATALOG
 reject	undocumented	docs	grant(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!drop-1	GRANT USAGE ON DATASHARE a TO ACCOUNT 's' DATA CATALOG
 reject	undocumented	docs	grant(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!drop-2	GRANT USAGE ON DATASHARE a TO ACCOUNT 's' VIA CATALOG
 reject	undocumented	docs	grant(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!drop-3	GRANT USAGE ON DATASHARE a TO ACCOUNT 's' VIA DATA
@@ -5601,11 +5601,11 @@ accept	accept	docs	grant(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)/REFERENC
 reject	undocumented	docs	grant(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)/REFERENCES!insert	GRANT REFERENCES zzz FOR TABLES IN SCHEMA a TO a
 accept	undocumented	docs	grant(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)/REFERENCES!swap	GRANT REFRESH FOR TABLES IN SCHEMA a TO a
 accept	accept	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/%empty	GRANT SELECT FOR TABLES IN SCHEMA a TO a
-reject	accept	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911	GRANT SELECT, SELECT FOR TABLES IN SCHEMA a TO a
+accept	accept	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911	GRANT SELECT, SELECT FOR TABLES IN SCHEMA a TO a
 reject	undocumented	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!drop-1	GRANT SELECT SELECT FOR TABLES IN SCHEMA a TO a
 reject	undocumented	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!drop-2	GRANT SELECT, FOR TABLES IN SCHEMA a TO a
 reject	undocumented	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!insert	GRANT SELECT, SELECT zzz FOR TABLES IN SCHEMA a TO a
-reject	undocumented	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!swap	GRANT SELECT, SERDE FOR TABLES IN SCHEMA a TO a
+accept	undocumented	docs	grant(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!swap	GRANT SELECT, SERDE FOR TABLES IN SCHEMA a TO a
 accept	accept	docs	grant(SCHEMA_ID_(DATABASE_ID)?|DATABASE_ID)/SCHEMA_ID_(DATABASE_ID)?	GRANT SELECT FOR TABLES IN SCHEMA a TO a
 reject	undocumented	docs	grant(SCHEMA_ID_(DATABASE_ID)?|DATABASE_ID)/SCHEMA_ID_(DATABASE_ID)?!truncate	GRANT SELECT FOR TABLES IN SCHEMA
 reject	undocumented	docs	grant(SCHEMA_ID_(DATABASE_ID)?|DATABASE_ID)/SCHEMA_ID_(DATABASE_ID)?!insert	GRANT SELECT FOR TABLES IN SCHEMA a zzz TO a
@@ -5820,27 +5820,27 @@ reject	undocumented	docs	grant(ON_WORKGROUP)?/ON_WORKGROUP!drop-2	GRANT CONNECT 
 reject	undocumented	docs	grant(ON_WORKGROUP)?/ON_WORKGROUP!truncate	GRANT CONNECT ON
 reject	undocumented	docs	grant(ON_WORKGROUP)?/ON_WORKGROUP!insert	GRANT CONNECT ON WORKGROUP zzz TO PUBLIC
 reject	undocumented	docs	grant(ON_WORKGROUP)?/ON_WORKGROUP!swap	GRANT CONNECT ONLY WORKGROUP TO PUBLIC
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ID_COLON_ID	GRANT CONNECT TO a : a
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ID_COLON_ID	GRANT CONNECT TO a : a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ID_COLON_ID!drop-1	GRANT CONNECT TO : a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ID_COLON_ID!drop-2	GRANT CONNECT TO a a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ID_COLON_ID!drop-3	GRANT CONNECT TO a :
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ID_COLON_ID!insert	GRANT CONNECT TO a : a zzz
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID	GRANT CONNECT TO ROLE a : a
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID!drop-2	GRANT CONNECT TO ROLE : a
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID	GRANT CONNECT TO ROLE a : a
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID!drop-2	GRANT CONNECT TO ROLE : a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID!drop-3	GRANT CONNECT TO ROLE a a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID!drop-4	GRANT CONNECT TO ROLE a :
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID!insert	GRANT CONNECT TO ROLE a : a zzz
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/ROLE_ID_COLON_ID!swap	GRANT CONNECT TO ROLLBACK a : a
 accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/PUBLIC	GRANT CONNECT TO PUBLIC
-accept	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/PUBLIC!swap	GRANT CONNECT TO PUBLICACCESSIBLE
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ID_COLON_ID	GRANT DEBUG ON DATABASE a TO a : a
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID	GRANT DEBUG ON DATABASE a TO ROLE a : a
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-2	GRANT DEBUG ON DATABASE a TO ROLE : a
+reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|PUBLIC)/PUBLIC!swap	GRANT CONNECT TO PUBLICACCESSIBLE
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ID_COLON_ID	GRANT DEBUG ON DATABASE a TO a : a
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID	GRANT DEBUG ON DATABASE a TO ROLE a : a
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-2	GRANT DEBUG ON DATABASE a TO ROLE : a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-3	GRANT DEBUG ON DATABASE a TO ROLE a a
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-4	GRANT DEBUG ON DATABASE a TO ROLE a :
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!insert	GRANT DEBUG ON DATABASE a TO ROLE a : a zzz
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!swap	GRANT DEBUG ON DATABASE a TO ROLLBACK a : a
-reject	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING	GRANT DEBUG ON DATABASE a TO ADMINS OF ACCOUNT 's'
+accept	accept	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING	GRANT DEBUG ON DATABASE a TO ADMINS OF ACCOUNT 's'
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING!drop-1	GRANT DEBUG ON DATABASE a TO OF ACCOUNT 's'
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING!drop-2	GRANT DEBUG ON DATABASE a TO ADMINS ACCOUNT 's'
 reject	undocumented	docs	grant(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING!drop-3	GRANT DEBUG ON DATABASE a TO ADMINS OF 's'
@@ -6118,7 +6118,7 @@ reject	undocumented	docs	revoke/REVOKE_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT
 reject	undocumented	docs	revoke/REVOKE_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|ALL)_F~d4053f22!drop-8	REVOKE ASSUMEROLE ON 's' FROM a FOR
 reject	undocumented	docs	revoke/REVOKE_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|ALL)_F~d4053f22!insert	REVOKE ASSUMEROLE ON 's' FROM a FOR ALL zzz
 reject	undocumented	docs	revoke/REVOKE_ASSUMEROLE_ON_(STRING_(,_STRING)*|DEFAULT|ALL)_F~d4053f22!swap	RLS ASSUMEROLE ON 's' FROM a FOR ALL
-reject	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
+accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-1	SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-2	REVOKE(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-3	REVOKE SELECT a) ON EXTERNAL TABLE a FROM IAM_ROLE a
@@ -6129,8 +6129,8 @@ reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGE
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-8	REVOKE SELECT(a) ON EXTERNAL a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-9	REVOKE SELECT(a) ON EXTERNAL TABLE FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-10	REVOKE SELECT(a) ON EXTERNAL TABLE a IAM_ROLE a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-11	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-12	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-11	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!drop-12	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!insert	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a zzz
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_(SELECT|ALL_PRIVILEGES?)_(_I~9187b155!swap	RLS SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((SELECT|ALTER|DROP|DELETE|I~bcbf73c0	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLIC
@@ -6144,7 +6144,7 @@ reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((SELECT|ALTER|DROP|D
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((SELECT|ALTER|DROP|DELETE|I~bcbf73c0!drop-8	REVOKE SELECT ON EXTERNAL TABLE a FROM
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((SELECT|ALTER|DROP|DELETE|I~bcbf73c0!insert	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLIC zzz
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((SELECT|ALTER|DROP|DELETE|I~bcbf73c0!swap	RLS SELECT ON EXTERNAL TABLE a FROM PUBLIC
-reject	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-1	CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-2	REVOKE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-3	REVOKE CREATE EXTERNAL SCHEMA a FROM IAM_ROLE a
@@ -6152,15 +6152,15 @@ reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-5	REVOKE CREATE ON EXTERNAL a FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-6	REVOKE CREATE ON EXTERNAL SCHEMA FROM IAM_ROLE a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-7	REVOKE CREATE ON EXTERNAL SCHEMA a IAM_ROLE a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-8	REVOKE CREATE ON EXTERNAL SCHEMA a FROM a
-accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-9	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-8	REVOKE CREATE ON EXTERNAL SCHEMA a FROM a
+reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!drop-9	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!insert	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a zzz
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION_FOR)?_((CREATE|ALTER|DROP)_(,_(CRE~8daaa3c3!swap	RLS CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 accept	accept	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347	REVOKE ALTER ON DATASHARE a FROM a
 reject	undocumented	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-1	ALTER ON DATASHARE a FROM a
 reject	undocumented	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-2	REVOKE ON DATASHARE a FROM a
 accept	undocumented	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-3	REVOKE ALTER DATASHARE a FROM a
-reject	accept	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-5	REVOKE ALTER ON DATASHARE FROM a
+accept	accept	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-5	REVOKE ALTER ON DATASHARE FROM a
 reject	undocumented	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-6	REVOKE ALTER ON DATASHARE a a
 reject	undocumented	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!drop-7	REVOKE ALTER ON DATASHARE a FROM
 reject	undocumented	docs	revoke/REVOKE_(ALTER|SHARE)_ON_DATASHARE_ID_FROM_(ID_(WITH_GRA~3c151347!insert	REVOKE ALTER ON DATASHARE a FROM a zzz
@@ -6170,13 +6170,13 @@ reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STR
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-2	REVOKE ON DATASHARE a FROM NAMESPACE 's'
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-3	REVOKE USAGE DATASHARE a FROM NAMESPACE 's'
 accept	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-4	REVOKE USAGE ON a FROM NAMESPACE 's'
-reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-5	REVOKE USAGE ON DATASHARE FROM NAMESPACE 's'
+accept	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-5	REVOKE USAGE ON DATASHARE FROM NAMESPACE 's'
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-6	REVOKE USAGE ON DATASHARE a NAMESPACE 's'
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-7	REVOKE USAGE ON DATASHARE a FROM 's'
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!drop-8	REVOKE USAGE ON DATASHARE a FROM NAMESPACE
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!insert	REVOKE USAGE ON DATASHARE a FROM NAMESPACE 's' zzz
 reject	undocumented	docs	revoke/REVOKE_USAGE_ON_DATASHARE_ID_FROM_(NAMESPACE_STRING_(,_~081ecb05!swap	RLS USAGE ON DATASHARE a FROM NAMESPACE 's'
-reject	accept	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE a
+accept	accept	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc	REVOKE EXECUTE ON PROCEDURE a() FROM DATASHARE a
 reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-1	EXECUTE ON PROCEDURE a() FROM DATASHARE a
 reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-2	REVOKE ON PROCEDURE a() FROM DATASHARE a
 reject	undocumented	docs	revoke/REVOKE_EXECUTE_ON_PROCEDURE_ID_(_(ID?_DATA_TYPE_(,_ID?_~a9b739fc!drop-3	REVOKE EXECUTE PROCEDURE a() FROM DATASHARE a
@@ -6268,7 +6268,7 @@ reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?#2_((CREATE|ALTER|DROP)_(,
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?#2_((CREATE|ALTER|DROP)_(,_(CREAT~7e7a5ca1!drop-10	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?#2_((CREATE|ALTER|DROP)_(,_(CREAT~7e7a5ca1!insert	REVOKE CREATE FOR COPY JOBS IN DATABASE a FROM a zzz
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?#2_((CREATE|ALTER|DROP)_(,_(CREAT~7e7a5ca1!swap	RLS CREATE FOR COPY JOBS IN DATABASE a FROM a
-reject	accept	docs	revoke/REVOKE_(GRANT_OPTION)?_((ALTER|DROP|USAGE)_(,_(ALTER|DR~c71268e4	REVOKE ALTER FOR TEMPLATES IN SCHEMA a FROM a
+accept	accept	docs	revoke/REVOKE_(GRANT_OPTION)?_((ALTER|DROP|USAGE)_(,_(ALTER|DR~c71268e4	REVOKE ALTER FOR TEMPLATES IN SCHEMA a FROM a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?_((ALTER|DROP|USAGE)_(,_(ALTER|DR~c71268e4!drop-1	ALTER FOR TEMPLATES IN SCHEMA a FROM a
 reject	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?_((ALTER|DROP|USAGE)_(,_(ALTER|DR~c71268e4!drop-2	REVOKE FOR TEMPLATES IN SCHEMA a FROM a
 accept	undocumented	docs	revoke/REVOKE_(GRANT_OPTION)?_((ALTER|DROP|USAGE)_(,_(ALTER|DR~c71268e4!drop-3	REVOKE ALTER TEMPLATES IN SCHEMA a FROM a
@@ -6343,7 +6343,7 @@ accept	undocumented	docs	revoke/REVOKE_SELECT_ON_(TABLE)?_ID_(,_ID)*_FROM_(RLS|M
 reject	undocumented	docs	revoke/REVOKE_SELECT_ON_(TABLE)?_ID_(,_ID)*_FROM_(RLS|MASKING)~682626ba!drop-8	REVOKE SELECT ON a FROM RLS POLICY
 reject	undocumented	docs	revoke/REVOKE_SELECT_ON_(TABLE)?_ID_(,_ID)*_FROM_(RLS|MASKING)~682626ba!insert	REVOKE SELECT ON a FROM RLS POLICY a zzz
 reject	undocumented	docs	revoke/REVOKE_SELECT_ON_(TABLE)?_ID_(,_ID)*_FROM_(RLS|MASKING)~682626ba!swap	RLS SELECT ON a FROM RLS POLICY a
-reject	accept	docs	revoke/REVOKE_DEBUG_ON_DATABASE_ID_FROM_(ID_COLON_ID|ROLE_ID_C~d8f0ff1a	REVOKE DEBUG ON DATABASE a FROM a : a
+accept	accept	docs	revoke/REVOKE_DEBUG_ON_DATABASE_ID_FROM_(ID_COLON_ID|ROLE_ID_C~d8f0ff1a	REVOKE DEBUG ON DATABASE a FROM a : a
 reject	undocumented	docs	revoke/REVOKE_DEBUG_ON_DATABASE_ID_FROM_(ID_COLON_ID|ROLE_ID_C~d8f0ff1a!drop-1	DEBUG ON DATABASE a FROM a : a
 reject	undocumented	docs	revoke/REVOKE_DEBUG_ON_DATABASE_ID_FROM_(ID_COLON_ID|ROLE_ID_C~d8f0ff1a!drop-2	REVOKE ON DATABASE a FROM a : a
 reject	undocumented	docs	revoke/REVOKE_DEBUG_ON_DATABASE_ID_FROM_(ID_COLON_ID|ROLE_ID_C~d8f0ff1a!drop-3	REVOKE DEBUG DATABASE a FROM a : a
@@ -6498,7 +6498,7 @@ accept	accept	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty	REVOKE EXECU
 accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/%empty!insert	REVOKE EXECUTE ON FUNCTION a(zzz) FROM a
 accept	accept	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
 reject	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	REVOKE EXECUTE ON FUNCTION a(
-reject	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT zzz) FROM a
+accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT zzz) FROM a
 accept	undocumented	docs	revoke(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?/(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	REVOKE EXECUTE ON FUNCTION a(INTEGRATION) FROM a
 accept	accept	docs	revoke(ID)?/%empty	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
 accept	accept	docs	revoke(ID)?/%empty!insert	REVOKE EXECUTE ON FUNCTION a(zzz INT) FROM a
@@ -6506,10 +6506,10 @@ accept	accept	docs	revoke(ID)?/ID	REVOKE EXECUTE ON FUNCTION a(a INT) FROM a
 reject	undocumented	docs	revoke(ID)?/ID!insert	REVOKE EXECUTE ON FUNCTION a(a zzz INT) FROM a
 accept	accept	docs	revoke(,_ID?_DATA_TYPE)*/%empty	REVOKE EXECUTE ON FUNCTION a(INT) FROM a
 accept	accept	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*	REVOKE EXECUTE ON FUNCTION a(INT, INT) FROM a
-reject	accept	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	REVOKE EXECUTE ON FUNCTION a(INT INT) FROM a
+accept	accept	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-1	REVOKE EXECUTE ON FUNCTION a(INT INT) FROM a
 reject	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!drop-2	REVOKE EXECUTE ON FUNCTION a(INT,) FROM a
 reject	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!truncate	REVOKE EXECUTE ON FUNCTION a(INT,
-reject	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT, INT zzz) FROM a
+accept	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!insert	REVOKE EXECUTE ON FUNCTION a(INT, INT zzz) FROM a
 accept	undocumented	docs	revoke(,_ID?_DATA_TYPE)*/,_(ID)?_DATA_TYPE_(,_ID?_DATA_TYPE)*!swap	REVOKE EXECUTE ON FUNCTION a(INT, INTEGRATION) FROM a
 accept	accept	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/%empty	REVOKE EXECUTE ON FUNCTION a() FROM a
 reject	undocumented	docs	revoke(,_ID_(_(ID?_DATA_TYPE_(,_ID?_DATA_TYPE)*)?_))*/%empty!insert	REVOKE EXECUTE ON FUNCTION a() zzz FROM a
@@ -6586,7 +6586,7 @@ accept	accept	docs	revoke(SELECT|UPDATE)/UPDATE	REVOKE UPDATE(a) ON a FROM a
 reject	undocumented	docs	revoke(SELECT|UPDATE)/UPDATE!insert	REVOKE UPDATE zzz(a) ON a FROM a
 accept	undocumented	docs	revoke(SELECT|UPDATE)/UPDATE!swap	REVOKE URI(a) ON a FROM a
 accept	accept	docs	revoke(,_(_ID_(,_ID)*_))*/%empty	REVOKE SELECT(a) ON a FROM a
-reject	accept	docs	revoke(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*	REVOKE SELECT(a),(a) ON a FROM a
+accept	accept	docs	revoke(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*	REVOKE SELECT(a),(a) ON a FROM a
 reject	undocumented	docs	revoke(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!drop-1	REVOKE SELECT(a)(a) ON a FROM a
 reject	undocumented	docs	revoke(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!drop-2	REVOKE SELECT(a), a) ON a FROM a
 reject	undocumented	docs	revoke(,_(_ID_(,_ID)*_))*/,_(_ID_(,_ID)*_)_(,_(_ID_(,_ID)*_))*!drop-3	REVOKE SELECT(a),() ON a FROM a
@@ -6625,15 +6625,15 @@ accept	accept	docs	revoke(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)/CREATE
 reject	undocumented	docs	revoke(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)/CREATE_MODEL!drop-1	REVOKE ASSUMEROLE ON 's' FROM a FOR MODEL
 reject	undocumented	docs	revoke(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)/CREATE_MODEL!insert	REVOKE ASSUMEROLE ON 's' FROM a FOR CREATE MODEL zzz
 reject	undocumented	docs	revoke(ALL|COPY|UNLOAD|EXTERNAL_FUNCTION|CREATE_MODEL)/CREATE_MODEL!swap	REVOKE ASSUMEROLE ON 's' FROM a FOR CREATEDB MODEL
-reject	accept	docs	revoke(SELECT|ALL_PRIVILEGES?)/SELECT	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
+accept	accept	docs	revoke(SELECT|ALL_PRIVILEGES?)/SELECT	REVOKE SELECT(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(SELECT|ALL_PRIVILEGES?)/SELECT!insert	REVOKE SELECT zzz(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(SELECT|ALL_PRIVILEGES?)/SELECT!swap	REVOKE SERDE(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
-reject	accept	docs	revoke(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE ALL(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
+accept	accept	docs	revoke(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?	REVOKE ALL(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!insert	REVOKE ALL zzz(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(SELECT|ALL_PRIVILEGES?)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE(a) ON EXTERNAL TABLE a FROM IAM_ROLE a
-reject	accept	docs	revoke(,_IAM_ROLE_ID)*/%empty	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a
+accept	accept	docs	revoke(,_IAM_ROLE_ID)*/%empty	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(,_IAM_ROLE_ID)*/%empty!insert	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a zzz
-reject	accept	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a, IAM_ROLE a
+accept	accept	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a, IAM_ROLE a
 reject	undocumented	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-1	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a IAM_ROLE a
 reject	undocumented	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-2	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a, a
 reject	undocumented	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-3	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a, IAM_ROLE
@@ -6641,50 +6641,50 @@ reject	undocumented	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!i
 reject	undocumented	docs	revoke(,_IAM_ROLE_ID)*/,_IAM_ROLE_ID_(,_IAM_ROLE_ID)*!swap	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a, ICEBERG a
 accept	accept	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c!insert	REVOKE SELECT zzz ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c!swap	REVOKE SERDE ON EXTERNAL TABLE a FROM PUBLIC
+reject	undocumented	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DROP~b2c9506c!swap	REVOKE SERDE ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?	REVOKE ALL ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?!insert	REVOKE ALL zzz ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON EXTERNAL TABLE a FROM PUBLIC
+reject	undocumented	docs	revoke((SELECT|ALTER|DROP|DELETE|INSERT)_(,~a5440f37)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/SELECT	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/ALTER	REVOKE ALTER ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/ALTER!insert	REVOKE ALTER zzz ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/ALTER!swap	REVOKE ANALYZE ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DROP	REVOKE DROP ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DROP!insert	REVOKE DROP zzz ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DROP!swap	REVOKE DUPLICATES ON EXTERNAL TABLE a FROM PUBLIC
+reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DROP!swap	REVOKE DUPLICATES ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE	REVOKE DELETE ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE!insert	REVOKE DELETE zzz ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE!swap	REVOKE DELIMITED ON EXTERNAL TABLE a FROM PUBLIC
+reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/DELETE!swap	REVOKE DELIMITED ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT	REVOKE INSERT ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT!insert	REVOKE INSERT zzz ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT!swap	REVOKE INT ON EXTERNAL TABLE a FROM PUBLIC
+reject	undocumented	docs	revoke(SELECT|ALTER|DROP|DELETE|INSERT)/INSERT!swap	REVOKE INT ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/%empty	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLIC
 accept	accept	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c	REVOKE SELECT, SELECT ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!drop-1	REVOKE SELECT SELECT ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!drop-2	REVOKE SELECT, ON EXTERNAL TABLE a FROM PUBLIC
 reject	undocumented	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!insert	REVOKE SELECT, SELECT zzz ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!swap	REVOKE SELECT, SERDE ON EXTERNAL TABLE a FROM PUBLIC
-reject	accept	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a
-accept	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-1	REVOKE SELECT ON EXTERNAL TABLE a FROM a
-accept	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-2	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE
+reject	undocumented	docs	revoke(,_(SELECT|ALTER|DROP|DELETE|INSERT))*/,_(SELECT|ALTER|DROP|DELETE|INSERT)_(,_(SELECT|ALTER|DR~6b65981c!swap	REVOKE SELECT, SERDE ON EXTERNAL TABLE a FROM PUBLIC
+accept	accept	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE a
+reject	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-1	REVOKE SELECT ON EXTERNAL TABLE a FROM a
+reject	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!drop-2	REVOKE SELECT ON EXTERNAL TABLE a FROM IAM_ROLE
 reject	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/IAM_ROLE_ID_(,_IAM_ROLE_ID)*!swap	REVOKE SELECT ON EXTERNAL TABLE a FROM ICEBERG a
 accept	accept	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/PUBLIC	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLIC
-accept	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/PUBLIC!swap	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLICACCESSIBLE
-reject	accept	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+reject	undocumented	docs	revoke(IAM_ROLE_ID_(,_IAM_ROLE_ID)*|PUBLIC)/PUBLIC!swap	REVOKE SELECT ON EXTERNAL TABLE a FROM PUBLICACCESSIBLE
+accept	accept	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!insert	REVOKE CREATE zzz ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!swap	REVOKE CREATEDB ON EXTERNAL SCHEMA a FROM IAM_ROLE a
-reject	accept	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?	REVOKE ALL ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?	REVOKE ALL ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?!insert	REVOKE ALL zzz ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke((CREATE|ALTER|DROP)_(,_(CREATE|ALTER~5b754467)/ALL_(PRIVILEGES)?!swap	REVOKE ALLOWOVERWRITE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
-reject	accept	docs	revoke(CREATE|ALTER|DROP)/CREATE	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
-reject	accept	docs	revoke(CREATE|ALTER|DROP)/ALTER	REVOKE ALTER ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke(CREATE|ALTER|DROP)/CREATE	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke(CREATE|ALTER|DROP)/ALTER	REVOKE ALTER ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(CREATE|ALTER|DROP)/ALTER!insert	REVOKE ALTER zzz ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(CREATE|ALTER|DROP)/ALTER!swap	REVOKE ANALYZE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
-reject	accept	docs	revoke(CREATE|ALTER|DROP)/DROP	REVOKE DROP ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke(CREATE|ALTER|DROP)/DROP	REVOKE DROP ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(CREATE|ALTER|DROP)/DROP!insert	REVOKE DROP zzz ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(CREATE|ALTER|DROP)/DROP!swap	REVOKE DUPLICATES ON EXTERNAL SCHEMA a FROM IAM_ROLE a
-reject	accept	docs	revoke(,_(CREATE|ALTER|DROP))*/%empty	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
-reject	accept	docs	revoke(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	REVOKE CREATE, CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke(,_(CREATE|ALTER|DROP))*/%empty	REVOKE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
+accept	accept	docs	revoke(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*	REVOKE CREATE, CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!drop-1	REVOKE CREATE CREATE ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!drop-2	REVOKE CREATE, ON EXTERNAL SCHEMA a FROM IAM_ROLE a
 reject	undocumented	docs	revoke(,_(CREATE|ALTER|DROP))*/,_(CREATE|ALTER|DROP)_(,_(CREATE|ALTER|DROP))*!insert	REVOKE CREATE, CREATE zzz ON EXTERNAL SCHEMA a FROM IAM_ROLE a
@@ -6694,7 +6694,7 @@ reject	undocumented	docs	revoke(ALTER|SHARE)/ALTER!insert	REVOKE ALTER zzz ON DA
 reject	undocumented	docs	revoke(ALTER|SHARE)/ALTER!swap	REVOKE ANALYZE ON DATASHARE a FROM a
 accept	accept	docs	revoke(ALTER|SHARE)/SHARE	REVOKE SHARE ON DATASHARE a FROM a
 reject	undocumented	docs	revoke(ALTER|SHARE)/SHARE!insert	REVOKE SHARE zzz ON DATASHARE a FROM a
-accept	undocumented	docs	revoke(ALTER|SHARE)/SHARE!swap	REVOKE SHOW ON DATASHARE a FROM a
+reject	undocumented	docs	revoke(ALTER|SHARE)/SHARE!swap	REVOKE SHOW ON DATASHARE a FROM a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ID_(WITH_GRANT_OPTION)?	REVOKE ALTER ON DATASHARE a FROM a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID	REVOKE ALTER ON DATASHARE a FROM ROLE a
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/ROLE_ID!drop-2	REVOKE ALTER ON DATASHARE a FROM ROLE
@@ -6708,7 +6708,7 @@ accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/PUBLIC	
 reject	undocumented	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/PUBLIC!insert	REVOKE ALTER ON DATASHARE a FROM PUBLIC zzz
 accept	accept	docs	revoke(ID_(WITH_GRANT_OPTION)?|ROLE_ID|GROU~78a79d0d)/PUBLIC!swap	REVOKE ALTER ON DATASHARE a FROM PUBLICACCESSIBLE
 accept	accept	docs	revoke(WITH_GRANT_OPTION)?/%empty	REVOKE ALTER ON DATASHARE a FROM a
-reject	accept	docs	revoke(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION	REVOKE ALTER ON DATASHARE a FROM a WITH GRANT OPTION
+accept	accept	docs	revoke(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION	REVOKE ALTER ON DATASHARE a FROM a WITH GRANT OPTION
 reject	undocumented	docs	revoke(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-1	REVOKE ALTER ON DATASHARE a FROM a GRANT OPTION
 reject	undocumented	docs	revoke(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-2	REVOKE ALTER ON DATASHARE a FROM a WITH OPTION
 reject	undocumented	docs	revoke(WITH_GRANT_OPTION)?/WITH_GRANT_OPTION!drop-3	REVOKE ALTER ON DATASHARE a FROM a WITH GRANT
@@ -6726,14 +6726,14 @@ reject	undocumented	docs	revoke(NAMESPACE_STRING_(,_STRING)*|ACCOUNT~ce62480b)/A
 reject	undocumented	docs	revoke(NAMESPACE_STRING_(,_STRING)*|ACCOUNT~ce62480b)/ACCOUNT_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_~c0a84bfa!insert	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' zzz
 reject	undocumented	docs	revoke(NAMESPACE_STRING_(,_STRING)*|ACCOUNT~ce62480b)/ACCOUNT_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_~c0a84bfa!swap	REVOKE USAGE ON DATASHARE a FROM ADD 's'
 accept	accept	docs	revoke(VIA_DATA_CATALOG)?/%empty	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's'
-reject	accept	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' VIA DATA CATALOG
+accept	accept	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' VIA DATA CATALOG
 reject	undocumented	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!drop-1	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' DATA CATALOG
 reject	undocumented	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!drop-2	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' VIA CATALOG
 reject	undocumented	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!drop-3	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' VIA DATA
 reject	undocumented	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!insert	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' VIA DATA CATALOG zzz
 reject	undocumented	docs	revoke(VIA_DATA_CATALOG)?/VIA_DATA_CATALOG!swap	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' VIEW DATA CATALOG
 accept	accept	docs	revoke(,_STRING_(VIA_DATA_CATALOG)?)*/%empty	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's'
-reject	accept	docs	revoke(,_STRING_(VIA_DATA_CATALOG)?)*/,_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_CATALOG)?)*	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's', 's'
+accept	accept	docs	revoke(,_STRING_(VIA_DATA_CATALOG)?)*/,_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_CATALOG)?)*	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's', 's'
 reject	undocumented	docs	revoke(,_STRING_(VIA_DATA_CATALOG)?)*/,_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_CATALOG)?)*!drop-1	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's' 's'
 reject	undocumented	docs	revoke(,_STRING_(VIA_DATA_CATALOG)?)*/,_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_CATALOG)?)*!drop-2	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's',
 reject	undocumented	docs	revoke(,_STRING_(VIA_DATA_CATALOG)?)*/,_STRING_(VIA_DATA_CATALOG)?_(,_STRING_(VIA_DATA_CATALOG)?)*!insert	REVOKE USAGE ON DATASHARE a FROM ACCOUNT 's', 's' zzz
@@ -6748,7 +6748,7 @@ reject	undocumented	docs	revoke(DATABASE_ID_(,_ID)*|SCHEMA_ID)/SCHEMA_ID!insert	
 reject	undocumented	docs	revoke(DATABASE_ID_(,_ID)*|SCHEMA_ID)/SCHEMA_ID!swap	REVOKE USAGE ON SCHEMAS a FROM a
 accept	accept	docs	revoke(GRANT_OPTION)?/%empty	REVOKE CREATE FOR SCHEMAS IN DATABASE a FROM a
 reject	undocumented	docs	revoke(GRANT_OPTION)?/%empty!insert	REVOKE zzz CREATE FOR SCHEMAS IN DATABASE a FROM a
-reject	accept	docs	revoke(GRANT_OPTION)?/GRANT_OPTION	REVOKE GRANT OPTION CREATE FOR SCHEMAS IN DATABASE a FROM a
+accept	accept	docs	revoke(GRANT_OPTION)?/GRANT_OPTION	REVOKE GRANT OPTION CREATE FOR SCHEMAS IN DATABASE a FROM a
 reject	undocumented	docs	revoke(GRANT_OPTION)?/GRANT_OPTION!drop-1	REVOKE OPTION CREATE FOR SCHEMAS IN DATABASE a FROM a
 reject	undocumented	docs	revoke(GRANT_OPTION)?/GRANT_OPTION!drop-2	REVOKE GRANT CREATE FOR SCHEMAS IN DATABASE a FROM a
 reject	undocumented	docs	revoke(GRANT_OPTION)?/GRANT_OPTION!truncate	REVOKE GRANT
@@ -6793,11 +6793,11 @@ accept	accept	docs	revoke(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)/REFEREN
 reject	undocumented	docs	revoke(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)/REFERENCES!insert	REVOKE REFERENCES zzz FOR TABLES IN SCHEMA a FROM a
 accept	undocumented	docs	revoke(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)/REFERENCES!swap	REVOKE REFRESH FOR TABLES IN SCHEMA a FROM a
 accept	accept	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/%empty	REVOKE SELECT FOR TABLES IN SCHEMA a FROM a
-reject	accept	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911	REVOKE SELECT, SELECT FOR TABLES IN SCHEMA a FROM a
+accept	accept	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911	REVOKE SELECT, SELECT FOR TABLES IN SCHEMA a FROM a
 reject	undocumented	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!drop-1	REVOKE SELECT SELECT FOR TABLES IN SCHEMA a FROM a
 reject	undocumented	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!drop-2	REVOKE SELECT, FOR TABLES IN SCHEMA a FROM a
 reject	undocumented	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!insert	REVOKE SELECT, SELECT zzz FOR TABLES IN SCHEMA a FROM a
-reject	undocumented	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!swap	REVOKE SELECT, SERDE FOR TABLES IN SCHEMA a FROM a
+accept	undocumented	docs	revoke(,_(SELECT|INSERT|UPDATE|DELETE|DROP|~0df2a148)*/,_(SELECT|INSERT|UPDATE|DELETE|DROP|ALT~9eec6cbe)_(,_(S~c6106911!swap	REVOKE SELECT, SERDE FOR TABLES IN SCHEMA a FROM a
 accept	accept	docs	revoke(SCHEMA_ID_(DATABASE_ID)?|DATABASE_ID)/SCHEMA_ID_(DATABASE_ID)?	REVOKE SELECT FOR TABLES IN SCHEMA a FROM a
 reject	undocumented	docs	revoke(SCHEMA_ID_(DATABASE_ID)?|DATABASE_ID)/SCHEMA_ID_(DATABASE_ID)?!truncate	REVOKE SELECT FOR TABLES IN SCHEMA
 reject	undocumented	docs	revoke(SCHEMA_ID_(DATABASE_ID)?|DATABASE_ID)/SCHEMA_ID_(DATABASE_ID)?!insert	REVOKE SELECT FOR TABLES IN SCHEMA a zzz FROM a
@@ -7000,14 +7000,14 @@ accept	undocumented	docs	revoke(RLS|MASKING)/RLS!swap	REVOKE EXPLAIN ROLE FROM R
 accept	accept	docs	revoke(RLS|MASKING)/MASKING	REVOKE EXPLAIN MASKING FROM ROLE a
 accept	undocumented	docs	revoke(RLS|MASKING)/MASKING!insert	REVOKE EXPLAIN MASKING zzz FROM ROLE a
 accept	undocumented	docs	revoke(RLS|MASKING)/MASKING!swap	REVOKE EXPLAIN MATCHED FROM ROLE a
-reject	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ID_COLON_ID	REVOKE DEBUG ON DATABASE a FROM a : a
-reject	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID	REVOKE DEBUG ON DATABASE a FROM ROLE a : a
-reject	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-2	REVOKE DEBUG ON DATABASE a FROM ROLE : a
+accept	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ID_COLON_ID	REVOKE DEBUG ON DATABASE a FROM a : a
+accept	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID	REVOKE DEBUG ON DATABASE a FROM ROLE a : a
+accept	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-2	REVOKE DEBUG ON DATABASE a FROM ROLE : a
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-3	REVOKE DEBUG ON DATABASE a FROM ROLE a a
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!drop-4	REVOKE DEBUG ON DATABASE a FROM ROLE a :
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!insert	REVOKE DEBUG ON DATABASE a FROM ROLE a : a zzz
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ROLE_ID_COLON_ID!swap	REVOKE DEBUG ON DATABASE a FROM ROLLBACK a : a
-reject	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING	REVOKE DEBUG ON DATABASE a FROM ADMINS OF ACCOUNT 's'
+accept	accept	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING	REVOKE DEBUG ON DATABASE a FROM ADMINS OF ACCOUNT 's'
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING!drop-1	REVOKE DEBUG ON DATABASE a FROM OF ACCOUNT 's'
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING!drop-2	REVOKE DEBUG ON DATABASE a FROM ADMINS ACCOUNT 's'
 reject	undocumented	docs	revoke(ID_COLON_ID|ROLE_ID_COLON_ID|ADMINS_~a3ad37c5)/ADMINS_OF_ACCOUNT_STRING!drop-3	REVOKE DEBUG ON DATABASE a FROM ADMINS OF 's'

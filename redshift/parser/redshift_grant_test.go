@@ -58,29 +58,48 @@ func TestRedshiftGrantModelParse(t *testing.T) {
 	for _, sql := range []string{
 		"GRANT EXECUTE ON MODEL customer_churn_model TO ml_user",
 		"GRANT ALL PRIVILEGES ON MODEL recommendation_model TO data_scientist",
-		"GRANT CREATE MODEL TO ml_admin",
 	} {
-		stmt := singleStmt(t, sql)
-		switch grant := stmt.(type) {
-		case *nodes.GrantStmt:
-			if !grant.IsGrant {
-				t.Fatalf("Parse(%q): expected grant", sql)
-			}
-			if grant.Objtype != nodes.OBJECT_MODEL {
-				t.Fatalf("Parse(%q): objtype = %v, want OBJECT_MODEL", sql, grant.Objtype)
-			}
-			if grant.Objects == nil || len(grant.Objects.Items) != 1 {
-				t.Fatalf("Parse(%q): objects = %#v, want one object", sql, grant.Objects)
-			}
-		case *nodes.GrantRoleStmt:
-			if !grant.IsGrant {
-				t.Fatalf("Parse(%q): expected grant role/system privilege", sql)
-			}
-			if grant.GrantedRoles == nil || len(grant.GrantedRoles.Items) != 1 {
-				t.Fatalf("Parse(%q): granted roles = %#v, want one", sql, grant.GrantedRoles)
-			}
-		default:
-			t.Fatalf("Parse(%q): expected GrantStmt or GrantRoleStmt, got %T", sql, stmt)
+		grant, ok := singleStmt(t, sql).(*nodes.GrantStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected GrantStmt", sql)
+		}
+		if !grant.IsGrant {
+			t.Fatalf("Parse(%q): expected grant", sql)
+		}
+		if grant.Objtype != nodes.OBJECT_MODEL {
+			t.Fatalf("Parse(%q): objtype = %v, want OBJECT_MODEL", sql, grant.Objtype)
+		}
+		if grant.Objects == nil || len(grant.Objects.Items) != 1 {
+			t.Fatalf("Parse(%q): objects = %#v, want one object", sql, grant.Objects)
+		}
+	}
+
+	// GRANT CREATE MODEL names no object: r_GRANT writes it as a privilege of the
+	// warehouse, with the grantee's optional WITH GRANT OPTION.
+	for _, tc := range []struct {
+		sql      string
+		withOpt  bool
+		grantees int
+	}{
+		{"GRANT CREATE MODEL TO ml_admin", false, 1},
+		{"GRANT CREATE MODEL TO a WITH GRANT OPTION", true, 1},
+		{"GRANT CREATE MODEL TO ROLE a, GROUP g, PUBLIC", false, 3},
+	} {
+		grant, ok := singleStmt(t, tc.sql).(*nodes.GrantStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected GrantStmt", tc.sql)
+		}
+		if !grant.IsGrant || grant.Objtype != nodes.OBJECT_MODEL {
+			t.Fatalf("Parse(%q): isGrant/objtype = %v/%v, want grant on OBJECT_MODEL", tc.sql, grant.IsGrant, grant.Objtype)
+		}
+		if grant.Objects != nil {
+			t.Fatalf("Parse(%q): objects = %#v, want none", tc.sql, grant.Objects)
+		}
+		if grant.GrantOption != tc.withOpt {
+			t.Fatalf("Parse(%q): grant option = %v, want %v", tc.sql, grant.GrantOption, tc.withOpt)
+		}
+		if grant.Grantees == nil || len(grant.Grantees.Items) != tc.grantees {
+			t.Fatalf("Parse(%q): grantees = %#v, want %d", tc.sql, grant.Grantees, tc.grantees)
 		}
 	}
 }

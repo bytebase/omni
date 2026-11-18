@@ -9,7 +9,7 @@ import (
 
 func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of GRANT keyword
-	if p.redshiftWordEqual("assumerole") {
+	if p.redshiftKeywordIs("assumerole") {
 		return p.parseRedshiftAssumeRoleStmt(loc, true)
 	}
 	if p.cur.Type == ROLE {
@@ -20,14 +20,24 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		return p.finishGrantRole(loc, true, roles)
 	}
-	if p.cur.Type == CREATE && strings.EqualFold(p.peekNext().Str, "model") {
+	if p.cur.Type == CREATE && redshiftTokenIsIdent(p.peekNext(), "model") {
 		p.advance()
 		p.advance()
-		roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "create_model"}}}
-		return p.finishGrantRole(loc, true, roles)
+		privs := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "create_model", Loc: nodes.Loc{Start: loc, End: p.prev.End}}}}
+		return p.finishRedshiftModelPrivilege(loc, privs, true, false)
+	}
+	if p.redshiftKeywordIs("connect") && (p.peekNext().Type == TO || p.peekNext().Type == ON) {
+		return p.parseRedshiftConnectStmt(loc, true)
+	}
+	if p.redshiftKeywordIs("debug") && p.peekNext().Type == ON {
+		return p.parseRedshiftDebugStmt(loc, true)
 	}
 	if p.redshiftScopedPermissionStart() {
-		return p.parseRedshiftScopedPermissionStmt(loc, true, false)
+		privs, _, err := p.parseRedshiftGrantPrivileges()
+		if err != nil {
+			return nil, err
+		}
+		return p.finishRedshiftScopedPermission(loc, true, false, privs)
 	}
 	if roles, ok, err := p.parseRedshiftSystemPrivileges(TO); ok || err != nil {
 		if err != nil {
@@ -35,75 +45,59 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		return p.finishGrantRole(loc, true, roles)
 	}
-	switch p.cur.Type {
-	case ALL:
-		allLoc := p.pos()
+	privs, bareAll, err := p.parseRedshiftGrantPrivileges()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case p.cur.Type == FOR:
+		return p.finishRedshiftScopedPermission(loc, true, false, privs)
+	case p.cur.Type == ON:
 		p.advance()
-		if p.cur.Type == PRIVILEGES {
+		return p.finishGrantOnObject(loc, privs)
+	case bareAll:
+		// A bare ALL with no ON clause is the system privilege r_GRANT writes as
+		// { ALL [ PRIVILEGES ] } TO ROLE role_name [, ...].
+		roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
+		for p.cur.Type == ',' {
 			p.advance()
-		}
-		cols, err := p.parseOptColumnList()
-		if err != nil {
-			return nil, err
-		}
-		var privileges *nodes.List
-		if cols != nil {
-			privileges = &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{Cols: cols, Loc: nodes.Loc{Start: allLoc, End: p.prev.End}}}}
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishGrantOnObject(loc, privileges == nil, privileges)
-		}
-		if p.cur.Type == ',' || p.cur.Type == TO {
-			roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
-			for p.cur.Type == ',' {
-				p.advance()
-				name, _ := p.parseColId()
-				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, err
 			}
-			return p.finishGrantRole(loc, true, roles)
+			roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
 		}
-		return nil, nil
-	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
-		CREATE, TEMPORARY, TEMP, EXECUTE:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
+		if p.cur.Type != TO {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishGrantOnObject(loc, false, privs)
-		}
-		return p.finishGrantRole(loc, true, privs)
+		return p.finishGrantRole(loc, true, roles)
 	default:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishGrantOnObject(loc, false, privs)
-		}
 		return p.finishGrantRole(loc, true, privs)
 	}
 }
 
 func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // position of REVOKE keyword
-	if p.redshiftWordEqual("assumerole") {
+	if p.redshiftKeywordIs("assumerole") {
 		return p.parseRedshiftAssumeRoleStmt(loc, false)
 	}
 	grantOptionFor := false
+	grantOptionWithoutFor := false
 	roleOptionName := "" // non-empty => "<name> OPTION FOR" form
 	if p.cur.Type == GRANT {
+		// r_REVOKE's scoped forms write 'GRANT_OPTION' as one token, and the
+		// notes beside them write GRANT OPTION: the one-token spelling is the
+		// docs' notation, not SQL, and stays rejected.
 		p.advance()
 		if _, err := p.expect(OPTION); err != nil {
 			return nil, err
 		}
-		if _, err := p.expect(FOR); err != nil {
-			return nil, err
-		}
 		grantOptionFor = true
+		if p.cur.Type == FOR {
+			p.advance()
+		} else {
+			grantOptionWithoutFor = true
+		}
 	} else if p.isColId() && p.peekNext().Type == OPTION {
 		// PG's grammar allows any ColId before OPTION FOR in REVOKE role:
 		//   REVOKE ColId OPTION FOR privilege_list FROM role_list
@@ -118,6 +112,18 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 			return nil, err
 		}
 	}
+	if grantOptionWithoutFor {
+		// The docs write GRANT OPTION without FOR only before the scoped forms,
+		// whose privileges end at FOR.
+		privs, _, err := p.parseRedshiftGrantPrivileges()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type != FOR {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.finishRedshiftScopedPermission(loc, false, grantOptionFor, privs)
+	}
 	if p.cur.Type == ROLE {
 		roles, err := p.parseRedshiftGrantRoleNameList()
 		if err != nil {
@@ -125,14 +131,21 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		}
 		return p.finishRevokeRole(loc, roles, roleOptionName)
 	}
-	if p.cur.Type == CREATE && strings.EqualFold(p.peekNext().Str, "model") {
+	if p.cur.Type == CREATE && redshiftTokenIsIdent(p.peekNext(), "model") {
 		p.advance()
 		p.advance()
-		roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "create_model"}}}
-		return p.finishRevokeRole(loc, roles, roleOptionName)
+		privs := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "create_model", Loc: nodes.Loc{Start: loc, End: p.prev.End}}}}
+		return p.finishRedshiftModelPrivilege(loc, privs, false, grantOptionFor)
+	}
+	if p.redshiftKeywordIs("debug") && p.peekNext().Type == ON {
+		return p.parseRedshiftDebugStmt(loc, false)
 	}
 	if p.redshiftScopedPermissionStart() {
-		return p.parseRedshiftScopedPermissionStmt(loc, false, grantOptionFor)
+		privs, _, err := p.parseRedshiftGrantPrivileges()
+		if err != nil {
+			return nil, err
+		}
+		return p.finishRedshiftScopedPermission(loc, false, grantOptionFor, privs)
 	}
 	if roles, ok, err := p.parseRedshiftSystemPrivileges(FROM); ok || err != nil {
 		if err != nil {
@@ -140,75 +153,46 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		}
 		return p.finishRevokeRole(loc, roles, roleOptionName)
 	}
-	switch p.cur.Type {
-	case ALL:
-		allLoc := p.pos()
+	privs, bareAll, err := p.parseRedshiftGrantPrivileges()
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case p.cur.Type == FOR:
+		return p.finishRedshiftScopedPermission(loc, false, grantOptionFor, privs)
+	case p.cur.Type == ON:
 		p.advance()
-		if p.cur.Type == PRIVILEGES {
+		return p.finishRevokeOnObject(loc, grantOptionFor, privs)
+	case bareAll:
+		// A bare ALL with no ON clause is the system privilege r_REVOKE writes as
+		// { ALL [ PRIVILEGES ] } FROM ROLE role_name [, ...].
+		roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
+		for p.cur.Type == ',' {
 			p.advance()
-		}
-		cols, err := p.parseOptColumnList()
-		if err != nil {
-			return nil, err
-		}
-		var privileges *nodes.List
-		if cols != nil {
-			privileges = &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{Cols: cols, Loc: nodes.Loc{Start: allLoc, End: p.prev.End}}}}
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishRevokeOnObject(loc, grantOptionFor, privileges)
-		}
-		if p.cur.Type == ',' || p.cur.Type == FROM {
-			roles := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: "all"}}}
-			for p.cur.Type == ',' {
-				p.advance()
-				name, _ := p.parseColId()
-				roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
+			name, err := p.parseColId()
+			if err != nil {
+				return nil, err
 			}
-			return p.finishRevokeRole(loc, roles, roleOptionName)
+			roles.Items = append(roles.Items, &nodes.AccessPriv{PrivName: name})
 		}
-		return nil, nil
-	case SELECT, INSERT, UPDATE, DELETE_P, TRUNCATE, REFERENCES, TRIGGER,
-		CREATE, TEMPORARY, TEMP, EXECUTE:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishRevokeOnObject(loc, grantOptionFor, privs)
-		}
-		return p.finishRevokeRole(loc, privs, roleOptionName)
+		return p.finishRevokeRole(loc, roles, roleOptionName)
 	default:
-		privs, err := p.parsePrivilegeList()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type == ON {
-			p.advance()
-			return p.finishRevokeOnObject(loc, grantOptionFor, privs)
-		}
 		return p.finishRevokeRole(loc, privs, roleOptionName)
 	}
 }
 
-func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) (nodes.Node, error) {
-	var privileges *nodes.List
-	if !allPrivs {
-		privileges = privs
-	}
-	targtype, objtype, objects, err := p.parseGrantTarget(false)
+func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, error) {
+	targtype, objtype, objects, kind, err := p.parseGrantTarget(false)
 	if err != nil {
 		return nil, err
 	}
-	if err := p.checkTemplatePrivileges(objtype, privileges); err != nil {
+	if err := p.checkRedshiftGrantPrivileges(kind, objtype, privs); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseTargetGranteeList(objtype)
+	grantees, err := p.parseRedshiftGranteeList(kind, objtype, privs, true)
 	if err != nil {
 		return nil, err
 	}
@@ -218,26 +202,34 @@ func (p *Parser) finishGrantOnObject(loc int, allPrivs bool, privs *nodes.List) 
 	}
 	return &nodes.GrantStmt{
 		IsGrant: true, Targtype: targtype, Objtype: objtype,
-		Objects: objects, Privileges: privileges, Grantees: grantees,
+		Objects: objects, Privileges: privs, Grantees: grantees,
 		GrantOption: grantOption,
 		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
 func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes.List) (nodes.Node, error) {
-	targtype, objtype, objects, err := p.parseGrantTarget(true)
+	targtype, objtype, objects, kind, err := p.parseGrantTarget(true)
 	if err != nil {
 		return nil, err
 	}
-	if err := p.checkTemplatePrivileges(objtype, privs); err != nil {
+	if err := p.checkRedshiftGrantPrivileges(kind, objtype, privs); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseTargetGranteeList(objtype)
+	grantees, err := p.parseRedshiftGranteeList(kind, objtype, privs, false)
 	if err != nil {
 		return nil, err
+	}
+	if kind == redshiftGrantDatashare && !redshiftDatashareUsage(privs) {
+		// r_REVOKE writes the datashare grantee as
+		// ID ( WITH GRANT OPTION )?, so a GRANT OPTION after the last
+		// grantee is the grantee's, not a revoke of one.
+		if _, err := p.parseOptGrantGrantOption(); err != nil {
+			return nil, err
+		}
 	}
 	var behavior int
 	if objtype != nodes.OBJECT_TEMPLATE {
@@ -250,6 +242,161 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes
 		Objects: objects, Privileges: privs, Grantees: grantees,
 		GrantOption: grantOptionFor, Behavior: nodes.DropBehavior(behavior),
 		Loc: nodes.Loc{Start: loc, End: p.prev.End},
+	}, nil
+}
+
+// finishRedshiftModelPrivilege finishes a GRANT or REVOKE whose page names no ON
+// clause, CREATE MODEL:
+//
+//	GRANT CREATE MODEL TO { username [ WITH GRANT OPTION ] | ROLE ... } [, ...]
+//	REVOKE [ GRANT OPTION FOR ] CREATE MODEL FROM ... [ RESTRICT ]
+//
+// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
+func (p *Parser) finishRedshiftModelPrivilege(loc int, privs *nodes.List, isGrant, grantOptionFor bool) (nodes.Node, error) {
+	stmt := &nodes.GrantStmt{
+		IsGrant:     isGrant,
+		Targtype:    nodes.ACL_TARGET_OBJECT,
+		Objtype:     nodes.OBJECT_MODEL,
+		Privileges:  privs,
+		GrantOption: grantOptionFor,
+		Loc:         nodes.Loc{Start: loc},
+	}
+	if isGrant {
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+	} else if _, err := p.expect(FROM); err != nil {
+		return nil, err
+	}
+	grantees, err := p.parseGranteeList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Grantees = grantees
+	if isGrant {
+		grantOption, err := p.parseOptGrantGrantOption()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GrantOption = stmt.GrantOption || grantOption
+	} else {
+		stmt.Behavior = nodes.DropBehavior(p.parseOptDropBehavior())
+	}
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// finishRedshiftIdentityGrant finishes the CONNECT and DEBUG alternatives of
+// r_GRANT and r_REVOKE, whose grantee is an AWS IAM Identity Center identity:
+//
+//	GRANT CONNECT [ ON WORKGROUP ] TO { <prefix>:<username> | ROLE <prefix>:<role> | PUBLIC }
+//	GRANT DEBUG ON DATABASE <db> TO { <prefix>:<name> | ROLE <prefix>:<group> | ADMINS OF ACCOUNT '<id>' }
+//
+// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
+func (p *Parser) finishRedshiftIdentityGrant(loc int, isGrant bool, objects *nodes.List, privName string, allowPublic bool) (nodes.Node, error) {
+	privs := &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{PrivName: privName, Loc: nodes.Loc{Start: loc, End: p.prev.End}}}}
+	if isGrant {
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+	} else if _, err := p.expect(FROM); err != nil {
+		return nil, err
+	}
+	grantee, err := p.parseRedshiftIdentityGrantee(allowPublic)
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.GrantStmt{
+		IsGrant:    isGrant,
+		Targtype:   nodes.ACL_TARGET_OBJECT,
+		Objtype:    nodes.OBJECT_DATABASE,
+		Objects:    objects,
+		Privileges: privs,
+		Grantees:   &nodes.List{Items: []nodes.Node{grantee}},
+		Loc:        nodes.Loc{Start: loc, End: p.prev.End},
+	}, nil
+}
+
+// parseRedshiftConnectStmt parses the CONNECT alternative of r_GRANT. The
+// privilege names a warehouse, not a catalog object, so Objects stays empty and
+// ON WORKGROUP is the only clause the page writes after CONNECT.
+func (p *Parser) parseRedshiftConnectStmt(loc int, isGrant bool) (nodes.Node, error) {
+	p.advance() // consume CONNECT
+	if p.cur.Type == ON {
+		p.advance()
+		if !p.redshiftKeywordIs("workgroup") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	}
+	return p.finishRedshiftIdentityGrant(loc, isGrant, nil, "connect", true)
+}
+
+// parseRedshiftDebugStmt parses the DEBUG alternative of r_GRANT and r_REVOKE.
+func (p *Parser) parseRedshiftDebugStmt(loc int, isGrant bool) (nodes.Node, error) {
+	p.advance() // consume DEBUG
+	if _, err := p.expect(ON); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(DATABASE); err != nil {
+		return nil, err
+	}
+	nameStart := p.pos()
+	name, err := p.parseAnyName()
+	if err != nil {
+		return nil, err
+	}
+	objects := &nodes.List{Items: []nodes.Node{makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End})}}
+	return p.finishRedshiftIdentityGrant(loc, isGrant, objects, "debug", false)
+}
+
+// parseRedshiftIdentityGrantee parses one CONNECT or DEBUG grantee:
+//
+//	<prefix>:<name> | ROLE <prefix>:<name> | PUBLIC | ADMINS OF ACCOUNT '<id>'
+//
+// ROLE is unreserved, so `ROLE : a` reads ROLE as the prefix rather than as the
+// keyword.
+func (p *Parser) parseRedshiftIdentityGrantee(allowPublic bool) (*nodes.RoleSpec, error) {
+	loc := p.pos()
+	if p.redshiftKeywordIs("admins") && p.peekNext().Type == OF {
+		p.advance() // consume ADMINS
+		p.advance() // consume OF
+		if !p.redshiftKeywordIs("account") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		id, err := p.parseFileName()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.RoleSpec{
+			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Rolename: "admins_of_account:" + id,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+		}, nil
+	}
+	if allowPublic && p.redshiftKeywordIs("public") {
+		p.advance()
+		return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+	}
+	if p.redshiftKeywordIs("role") && isColIdToken(p.peekNext()) {
+		p.advance()
+	}
+	prefix, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(':'); err != nil {
+		return nil, err
+	}
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.RoleSpec{
+		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Rolename: prefix + ":" + name,
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -300,22 +447,28 @@ func (p *Parser) finishRevokeRole(loc int, roles *nodes.List, roleOptionName str
 	}, nil
 }
 
-func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.ObjectType, *nodes.List, error) {
-	if p.redshiftWordEqual("datashare") {
+func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.ObjectType, *nodes.List, redshiftGrantKind, error) {
+	// GRANT ... ON DATASHARE datashare_name names one datashare. DATASHARE is
+	// unreserved, so a grant that names no datashare after it
+	// (`ON DATASHARE TO a`) stays on the plain object path below, which reads
+	// DATASHARE as the object's name.
+	if p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext()) {
 		p.advance()
-		list, err := p.parseGrantObjectAnyNameList()
+		nameStart := p.pos()
+		name, err := p.parseAnyName()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DATASHARE, list, nil
+		list := &nodes.List{Items: []nodes.Node{makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End})}}
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DATASHARE, list, redshiftGrantDatashare, nil
 	}
-	if p.redshiftWordEqual("model") {
+	if p.redshiftKeywordIs("model") {
 		p.advance()
 		list, err := p.parseGrantObjectAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_MODEL, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_MODEL, list, redshiftGrantObject, nil
 	}
 	// GRANT ... ON TEMPLATE [ <database>. ] [ <schema>. ] <template> [ , ... ]
 	// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
@@ -327,150 +480,155 @@ func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.O
 		p.advance()
 		list, err := p.parseRedshiftTemplateNameList(!isRevoke)
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TEMPLATE, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TEMPLATE, list, redshiftGrantObject, nil
 	}
 	switch p.cur.Type {
 	case COPY:
 		p.advance()
 		if !p.consumeRedshiftWord("job") {
-			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_COPY_JOB, nil, p.syntaxErrorAtCur()
+			return 0, 0, nil, redshiftGrantObject, p.syntaxErrorAtCur()
 		}
 		list, err := p.parseGrantObjectAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_COPY_JOB, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_COPY_JOB, list, redshiftGrantObject, nil
 	case EXTERNAL:
 		p.advance()
 		switch p.cur.Type {
 		case SCHEMA:
 			p.advance()
-			names, _ := p.parseNameList()
-			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names), nil
+			names, err := p.parseNameList()
+			if err != nil {
+				return 0, 0, nil, redshiftGrantObject, err
+			}
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names), redshiftGrantExternalSchema, nil
 		case TABLE:
 			p.advance()
 			list, err := p.parseGrantObjectAnyNameList()
 			if err != nil {
-				return 0, 0, nil, err
+				return 0, 0, nil, redshiftGrantObject, err
 			}
-			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_TABLE, list, nil
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_TABLE, list, redshiftGrantExternalTable, nil
 		default:
+			// ON EXTERNAL <name> is not a form either page writes; it keeps the
+			// page's object type on the plain rule lists.
 			list, err := p.parseGrantObjectAnyNameList()
 			if err != nil {
-				return 0, 0, nil, err
+				return 0, 0, nil, redshiftGrantObject, err
 			}
-			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_TABLE, list, nil
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_TABLE, list, redshiftGrantObject, nil
 		}
 	case TABLE:
 		p.advance()
 		list, err := p.parseGrantObjectAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, redshiftGrantObject, nil
 	case SEQUENCE:
 		p.advance()
 		list, err := p.parseGrantObjectAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SEQUENCE, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SEQUENCE, list, redshiftGrantObject, nil
 	case FUNCTION:
 		p.advance()
 		list, err := p.parseGrantFunctionWithArgtypesList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FUNCTION, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FUNCTION, list, redshiftGrantObject, nil
 	case PROCEDURE:
 		p.advance()
 		list, err := p.parseGrantFunctionWithArgtypesList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_PROCEDURE, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_PROCEDURE, list, redshiftGrantObject, nil
 	case ROUTINE:
 		p.advance()
 		list, err := p.parseGrantFunctionWithArgtypesList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_ROUTINE, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_ROUTINE, list, redshiftGrantObject, nil
 	case DATABASE:
 		p.advance()
 		names, err := p.parseNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DATABASE, makeNameListAsAnyNameList(names), nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DATABASE, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 	case DOMAIN_P:
 		p.advance()
 		objects, err := p.parseAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DOMAIN, objects, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_DOMAIN, objects, redshiftGrantObject, nil
 	case LANGUAGE:
 		p.advance()
 		names, err := p.parseNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LANGUAGE, makeNameListAsAnyNameList(names), nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LANGUAGE, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 	case LARGE_P:
 		p.advance()
 		if _, err := p.expect(OBJECT_P); err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
 		list, err := p.parseNumericOnlyList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_LARGEOBJECT, list, redshiftGrantObject, nil
 	case SCHEMA:
 		p.advance()
 		names, err := p.parseNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names), nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_SCHEMA, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 	case TABLESPACE:
 		p.advance()
 		names, err := p.parseNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLESPACE, makeNameListAsAnyNameList(names), nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLESPACE, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 	case TYPE_P:
 		p.advance()
 		objects, err := p.parseAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TYPE, objects, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TYPE, objects, redshiftGrantObject, nil
 	case FOREIGN:
 		p.advance()
 		if p.cur.Type == DATA_P {
 			p.advance()
 			if _, err := p.expect(WRAPPER); err != nil {
-				return 0, 0, nil, err
+				return 0, 0, nil, redshiftGrantObject, err
 			}
 			names, err := p.parseNameList()
 			if err != nil {
-				return 0, 0, nil, err
+				return 0, 0, nil, redshiftGrantObject, err
 			}
-			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FDW, makeNameListAsAnyNameList(names), nil
+			return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FDW, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 		}
 		if _, err := p.expect(SERVER); err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
 		names, err := p.parseNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_SERVER, makeNameListAsAnyNameList(names), nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_FOREIGN_SERVER, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 	case ALL:
 		p.advance()
 		var objType nodes.ObjectType
@@ -497,31 +655,31 @@ func (p *Parser) parseGrantTarget(isRevoke bool) (nodes.GrantTargetType, nodes.O
 				p.addTokenCandidate(FUNCTIONS)
 				p.addTokenCandidate(PROCEDURES)
 				p.addTokenCandidate(ROUTINES)
-				return 0, 0, nil, errCollecting
+				return 0, 0, nil, redshiftGrantObject, errCollecting
 			}
-			return 0, 0, nil, p.syntaxErrorAtCur()
+			return 0, 0, nil, redshiftGrantObject, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(IN_P); err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
 		if _, err := p.expect(SCHEMA); err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
 		if p.collectMode() {
 			p.addRuleCandidate("qualified_name")
-			return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, nil, nil
+			return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, nil, redshiftGrantObject, nil
 		}
 		names, err := p.parseNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, makeNameListAsAnyNameList(names), nil
+		return nodes.ACL_TARGET_ALL_IN_SCHEMA, objType, makeNameListAsAnyNameList(names), redshiftGrantObject, nil
 	default:
 		list, err := p.parseGrantObjectAnyNameList()
 		if err != nil {
-			return 0, 0, nil, err
+			return 0, 0, nil, redshiftGrantObject, err
 		}
-		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, nil
+		return nodes.ACL_TARGET_OBJECT, nodes.OBJECT_TABLE, list, redshiftGrantObject, nil
 	}
 }
 
@@ -548,13 +706,338 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 	return result, nil
 }
 
-// parseTargetGranteeList parses a grant's grantees: a template takes the plain
-// list, which names a user, a role, a group or PUBLIC and nothing else.
-func (p *Parser) parseTargetGranteeList(objtype nodes.ObjectType) (*nodes.List, error) {
+// redshiftGrantKind says which alternative of r_GRANT or r_REVOKE names the
+// target, where the AST's Objtype alone cannot: an EXTERNAL SCHEMA is an
+// OBJECT_SCHEMA and both of a DATASHARE's alternatives are OBJECT_DATASHARE.
+// Each alternative lists its own privileges and grantees.
+type redshiftGrantKind int
+
+const (
+	redshiftGrantObject redshiftGrantKind = iota // an object the alternative names by its own keywords
+	redshiftGrantExternalTable
+	redshiftGrantExternalSchema
+	redshiftGrantDatashare
+)
+
+// parseRedshiftGrantPrivileges parses the privileges of a GRANT or REVOKE:
+//
+//	{ privilege [, ...] } | ALL [ PRIVILEGES ] [ ( column [, ...] ) ]
+//
+// A bare ALL [PRIVILEGES] is nil, PostgreSQL's spelling of every privilege,
+// and bareAll says so: a GRANT of it with no ON clause is a system privilege.
+func (p *Parser) parseRedshiftGrantPrivileges() (privs *nodes.List, bareAll bool, err error) {
+	if p.cur.Type != ALL {
+		privs, err = p.parsePrivilegeList()
+		return privs, false, err
+	}
+	allLoc := p.pos()
+	p.advance()
+	if p.cur.Type == PRIVILEGES {
+		p.advance()
+	}
+	cols, err := p.parseOptColumnList()
+	if err != nil {
+		return nil, false, err
+	}
+	if cols == nil {
+		return nil, true, nil
+	}
+	return &nodes.List{Items: []nodes.Node{&nodes.AccessPriv{Cols: cols, Loc: nodes.Loc{Start: allLoc, End: p.prev.End}}}}, false, nil
+}
+
+// parseRedshiftGranteeList parses the grantees an alternative of r_GRANT or
+// r_REVOKE lists for its target. Most objects take the generic list; the ones
+// with a list of their own take it here.
+func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, privs *nodes.List, isGrant bool) (*nodes.List, error) {
+	switch kind {
+	case redshiftGrantExternalTable:
+		// The column-list alternative takes IAM roles only; PUBLIC belongs to the
+		// one that lists privileges on the table.
+		return p.parseRedshiftIAMRoleGrantees(!redshiftPrivilegesNameColumns(privs))
+	case redshiftGrantExternalSchema:
+		return p.parseRedshiftIAMRoleGrantees(false)
+	case redshiftGrantDatashare:
+		if redshiftDatashareUsage(privs) {
+			return p.parseRedshiftDatashareUsageGrantees(isGrant)
+		}
+		return p.parseGranteeList()
+	}
 	if objtype == nodes.OBJECT_TEMPLATE {
 		return p.parseRedshiftPlainGranteeList()
 	}
+	// GRANT EXECUTE ON PROCEDURE p ( ) TO DATASHARE d adds a procedure to a
+	// datashare; DATASHARE alone is a grantee of that spelling.
+	if objtype == nodes.OBJECT_PROCEDURE && redshiftPrivilegeIs(privs, "execute") &&
+		p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext()) {
+		return p.parseRedshiftDatashareGrantee()
+	}
 	return p.parseGranteeList()
+}
+
+// parseRedshiftIAMRoleGrantees parses the grantees of r_GRANT's and r_REVOKE's
+// EXTERNAL TABLE and EXTERNAL SCHEMA alternatives:
+//
+//	{ IAM_ROLE iam_role } [, ...] | PUBLIC
+//
+// where only an external table takes PUBLIC. The docs write iam_role as a
+// value, which their own examples spell as a quoted ARN, so both read.
+func (p *Parser) parseRedshiftIAMRoleGrantees(allowPublic bool) (*nodes.List, error) {
+	if allowPublic && p.redshiftKeywordIs("public") {
+		loc := p.pos()
+		p.advance()
+		return &nodes.List{Items: []nodes.Node{&nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_PUBLIC), Loc: nodes.Loc{Start: loc, End: p.prev.End}}}}, nil
+	}
+	result := &nodes.List{}
+	for {
+		loc := p.pos()
+		if !p.redshiftKeywordIs("iam_role") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		var value string
+		switch {
+		case p.cur.Type == SCONST || p.cur.Type == DEFAULT:
+			tok := p.advance()
+			value = tok.Str
+			if tok.Type == DEFAULT {
+				value = "default"
+			}
+		case p.isColId():
+			value = p.advance().Str
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		result.Items = append(result.Items, &nodes.RoleSpec{
+			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Rolename: "iam_role:" + value,
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+		})
+		if p.cur.Type != ',' {
+			return result, nil
+		}
+		p.advance() // consume ','
+	}
+}
+
+// parseRedshiftDatashareGrantee parses TO DATASHARE datashare_name.
+func (p *Parser) parseRedshiftDatashareGrantee() (*nodes.List, error) {
+	loc := p.pos()
+	p.advance() // consume DATASHARE
+	name, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: []nodes.Node{&nodes.RoleSpec{
+		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Rolename: "datashare:" + name,
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+	}}}, nil
+}
+
+// parseRedshiftDatashareUsageGrantees parses the consumers r_GRANT and r_REVOKE
+// name for USAGE ON DATASHARE:
+//
+//	GRANT:  NAMESPACE '<guid>' | ACCOUNT '<number>' [ VIA DATA CATALOG ]
+//	REVOKE: NAMESPACE '<guid>' [, ...] | ACCOUNT '<number>' [ VIA DATA CATALOG ] [, ...]
+//
+// A GRANT names one consumer; a REVOKE names a list of them.
+func (p *Parser) parseRedshiftDatashareUsageGrantees(isGrant bool) (*nodes.List, error) {
+	loc := p.pos()
+	var prefix string
+	switch {
+	case p.redshiftKeywordIs("namespace"):
+		prefix = "namespace"
+	case p.redshiftKeywordIs("account"):
+		prefix = "account"
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	id, err := p.parseFileName()
+	if err != nil {
+		return nil, err
+	}
+	// VIA DATA CATALOG follows each ACCOUNT id, on both pages.
+	if prefix == "account" {
+		if err := p.parseRedshiftViaDataCatalog(); err != nil {
+			return nil, err
+		}
+	}
+	items := []nodes.Node{&nodes.RoleSpec{
+		Roletype: int(nodes.ROLESPEC_CSTRING),
+		Rolename: prefix + ":" + id,
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+	}}
+	if isGrant {
+		return &nodes.List{Items: items}, nil
+	}
+	for p.cur.Type == ',' {
+		p.advance()
+		itemLoc := p.pos()
+		id, err := p.parseFileName()
+		if err != nil {
+			return nil, err
+		}
+		if prefix == "account" {
+			if err := p.parseRedshiftViaDataCatalog(); err != nil {
+				return nil, err
+			}
+		}
+		items = append(items, &nodes.RoleSpec{
+			Roletype: int(nodes.ROLESPEC_CSTRING),
+			Rolename: prefix + ":" + id,
+			Loc:      nodes.Loc{Start: itemLoc, End: p.prev.End},
+		})
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// parseRedshiftViaDataCatalog parses the optional VIA DATA CATALOG that a
+// datashare's ACCOUNT grantee takes. The docs write DATA CATALOG as two words;
+// the one-word DATA_CATALOG this fork has always read still reads.
+func (p *Parser) parseRedshiftViaDataCatalog() error {
+	if !p.redshiftKeywordIs("via") {
+		return nil
+	}
+	p.advance()
+	if p.redshiftKeywordIs("data_catalog") {
+		p.advance()
+		return nil
+	}
+	if !p.redshiftKeywordIs("data") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if !p.redshiftKeywordIs("catalog") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// redshiftPrivilegesNameColumns reports whether any privilege names a column,
+// which is how r_GRANT writes the external table alternative that takes an IAM
+// role and nothing else.
+func redshiftPrivilegesNameColumns(privs *nodes.List) bool {
+	if privs == nil {
+		return false
+	}
+	for _, item := range privs.Items {
+		if priv, ok := item.(*nodes.AccessPriv); ok && priv.Cols != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// redshiftDatashareUsage reports whether privs is the USAGE privilege, the one
+// r_GRANT and r_REVOKE pair with consumer grantees.
+func redshiftDatashareUsage(privs *nodes.List) bool {
+	return redshiftPrivilegeIs(privs, "usage")
+}
+
+// redshiftPrivilegeIs reports whether privs holds exactly the privilege name.
+func redshiftPrivilegeIs(privs *nodes.List, name string) bool {
+	if privs == nil || len(privs.Items) != 1 {
+		return false
+	}
+	priv, ok := privs.Items[0].(*nodes.AccessPriv)
+	return ok && strings.EqualFold(priv.PrivName, name) && priv.Cols == nil
+}
+
+// checkRedshiftGrantPrivileges holds a grant or revoke on one of Redshift's own
+// object types to the privileges its alternative of r_GRANT or r_REVOKE lists,
+// and to the column list that alternative writes. A nil list is ALL PRIVILEGES.
+// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
+func (p *Parser) checkRedshiftGrantPrivileges(kind redshiftGrantKind, objtype nodes.ObjectType, privs *nodes.List) error {
+	if kind == redshiftGrantDatashare {
+		// { ALTER | SHARE } for a producer, USAGE for a consumer: no list and no
+		// column list either way.
+		if privs == nil || len(privs.Items) != 1 {
+			return p.redshiftPrivilegeError(privs, "a datashare takes ALTER, SHARE or USAGE")
+		}
+		name := redshiftPrivilegeName(privs.Items[0])
+		if name != "alter" && name != "share" && name != "usage" {
+			return p.redshiftPrivilegeError(privs, name+" is not a datashare privilege")
+		}
+		return p.checkRedshiftPrivilegeShape(privs, false)
+	}
+	if objtype == nodes.OBJECT_TEMPLATE {
+		return p.checkRedshiftPrivilegeNames(privs, "template", false, map[string]bool{"alter": true, "drop": true, "usage": true})
+	}
+	switch kind {
+	case redshiftGrantExternalTable:
+		return p.checkRedshiftPrivilegeNames(privs, "external table", true,
+			map[string]bool{"select": true, "alter": true, "drop": true, "delete": true, "insert": true})
+	case redshiftGrantExternalSchema:
+		return p.checkRedshiftPrivilegeNames(privs, "external schema", false,
+			map[string]bool{"create": true, "alter": true, "drop": true})
+	}
+	return nil
+}
+
+// checkRedshiftPrivilegeNames checks a privilege list against the names one
+// object type takes.
+func (p *Parser) checkRedshiftPrivilegeNames(privs *nodes.List, object string, columnsAllowed bool, allowed map[string]bool) error {
+	if privs == nil {
+		return nil
+	}
+	for _, item := range privs.Items {
+		name := redshiftPrivilegeName(item)
+		if name != "" && !allowed[name] {
+			return p.redshiftPrivilegeError(privs, name+" is not a "+object+" privilege")
+		}
+	}
+	return p.checkRedshiftPrivilegeShape(privs, columnsAllowed)
+}
+
+// checkRedshiftPrivilegeShape checks the spelling of each privilege: a
+// privilege is a keyword, never a delimited identifier, and only the column
+// lists r_GRANT writes may follow one. columnsAllowed admits the column list
+// the external table and column-level table alternatives write.
+func (p *Parser) checkRedshiftPrivilegeShape(privs *nodes.List, columnsAllowed bool) error {
+	if privs == nil {
+		return nil
+	}
+	for _, item := range privs.Items {
+		priv, ok := item.(*nodes.AccessPriv)
+		if !ok {
+			continue
+		}
+		if p.isQuotedAt(priv.Loc) {
+			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: a privilege is a keyword, not a quoted name"}
+		}
+		if priv.Cols != nil {
+			if !columnsAllowed {
+				return &ParseError{Position: priv.Loc.Start, Message: "syntax error: a privilege here names no column"}
+			}
+			name := strings.ToLower(priv.PrivName)
+			if name != "" && name != "select" {
+				return &ParseError{Position: priv.Loc.Start, Message: "syntax error: " + priv.PrivName + " takes no column list here"}
+			}
+		}
+	}
+	return nil
+}
+
+func (p *Parser) redshiftPrivilegeError(privs *nodes.List, message string) error {
+	pos := p.pos()
+	if privs != nil && len(privs.Items) > 0 {
+		if priv, ok := privs.Items[0].(*nodes.AccessPriv); ok {
+			pos = priv.Loc.Start
+		}
+	}
+	return &ParseError{Position: pos, Message: "syntax error: " + message}
+}
+
+// redshiftPrivilegeName is the lower-case name of a parsed privilege, empty for
+// ALL PRIVILEGES.
+func redshiftPrivilegeName(item nodes.Node) string {
+	priv, ok := item.(*nodes.AccessPriv)
+	if !ok {
+		return ""
+	}
+	return strings.ToLower(priv.PrivName)
 }
 
 // parseRedshiftPlainGranteeList parses the grantees r_GRANT's TEMPLATE and
@@ -599,34 +1082,6 @@ func (p *Parser) parseRedshiftPlainGrantee() (nodes.Node, error) {
 		return nil, err
 	}
 	return &nodes.RoleSpec{Roletype: int(nodes.ROLESPEC_CSTRING), Rolename: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
-}
-
-// checkTemplatePrivileges holds a grant or revoke on a COPY template to the
-// privileges its page lists: ALTER, DROP, USAGE, and ALL PRIVILEGES, with no
-// column list (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html). A
-// nil list is ALL PRIVILEGES.
-func (p *Parser) checkTemplatePrivileges(objtype nodes.ObjectType, privs *nodes.List) error {
-	if objtype != nodes.OBJECT_TEMPLATE || privs == nil {
-		return nil
-	}
-	for _, item := range privs.Items {
-		priv, ok := item.(*nodes.AccessPriv)
-		if !ok {
-			continue
-		}
-		if priv.Cols != nil {
-			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: a template privilege names no column"}
-		}
-		if p.isQuotedAt(priv.Loc) {
-			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: a privilege is a keyword, not a quoted name"}
-		}
-		switch strings.ToLower(priv.PrivName) {
-		case "", "all", "alter", "drop", "usage":
-		default:
-			return &ParseError{Position: priv.Loc.Start, Message: "syntax error: " + priv.PrivName + " is not a template privilege"}
-		}
-	}
-	return nil
 }
 
 // isQuotedAt reports whether the token at loc is a delimited identifier.
@@ -731,11 +1186,13 @@ func (p *Parser) redshiftScopedPermissionStart() bool {
 	return p.peekNext().Type == FOR
 }
 
-func (p *Parser) parseRedshiftScopedPermissionStmt(loc int, isGrant bool, grantOption bool) (nodes.Node, error) {
-	privs, err := p.parsePrivileges()
-	if err != nil {
-		return nil, err
-	}
+// finishRedshiftScopedPermission finishes a scoped permission, whose privileges
+// the caller has already parsed:
+//
+//	{ privilege [, ...] | ALL [ PRIVILEGES ] } FOR { SCHEMAS | TABLES | ... } IN ...
+//
+// https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html
+func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOption bool, privs *nodes.List) (nodes.Node, error) {
 	if _, err := p.expect(FOR); err != nil {
 		return nil, err
 	}
@@ -786,14 +1243,18 @@ func (p *Parser) parseRedshiftScopedPermissionTarget() (nodes.ObjectType, *nodes
 	case p.cur.Type == PROCEDURES:
 		p.advance()
 		objtype = nodes.OBJECT_PROCEDURE
-	case p.redshiftWordEqual("languages"):
+	case p.redshiftKeywordIs("languages"):
 		p.advance()
 		objtype = nodes.OBJECT_LANGUAGE
+	case p.redshiftKeywordIs("templates"):
+		p.advance()
+		objtype = nodes.OBJECT_TEMPLATE
 	case p.cur.Type == COPY:
 		p.advance()
-		if !p.consumeRedshiftWord("jobs") {
+		if !p.redshiftKeywordIs("jobs") {
 			return 0, nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		objtype = nodes.OBJECT_COPY_JOB
 	default:
 		return 0, nil, p.syntaxErrorAtCur()
@@ -982,6 +1443,12 @@ func (p *Parser) redshiftKeywordIs(word string) bool {
 	}
 }
 
+// redshiftTokenIsIdent reports whether tok is an unquoted identifier spelled
+// word: a delimited identifier is a name, never a keyword.
+func redshiftTokenIsIdent(tok Token, word string) bool {
+	return tok.Type == IDENT && tok.End-tok.Loc == len(word) && strings.EqualFold(tok.Str, word)
+}
+
 // acceptRedshiftKeyword consumes the unquoted word word, and reports whether it
 // did.
 func (p *Parser) acceptRedshiftKeyword(word string) bool {
@@ -1120,6 +1587,23 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 	}
 	result := &nodes.List{Items: []nodes.Node{priv}}
 	for p.cur.Type == ',' {
+		if p.peekNext().Type == '(' && redshiftColumnListPrivilege(priv) {
+			// r_GRANT's column-level alternative repeats the column list after
+			// the privilege:
+			//   { SELECT | UPDATE } ( column [, ...] ) [ , ( column [, ...] ) ... ]
+			p.advance() // consume ','
+			p.advance() // consume '('
+			cols, err := p.parseColumnList()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			priv = &nodes.AccessPriv{PrivName: priv.PrivName, Cols: cols, Loc: nodes.Loc{Start: priv.Loc.Start, End: p.prev.End}}
+			result.Items = append(result.Items, priv)
+			continue
+		}
 		p.advance()
 		priv, err = p.parsePrivilege()
 		if err != nil {
@@ -1135,6 +1619,20 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 		result.Items = append(result.Items, priv)
 	}
 	return result, nil
+}
+
+// redshiftColumnListPrivilege reports whether priv is one of the privileges
+// r_GRANT's column-level alternative repeats a column list for: SELECT and
+// UPDATE, which the alternative writes with a list.
+func redshiftColumnListPrivilege(priv *nodes.AccessPriv) bool {
+	if priv == nil || priv.Cols == nil {
+		return false
+	}
+	switch strings.ToLower(priv.PrivName) {
+	case "select", "update":
+		return true
+	}
+	return false
 }
 
 func (p *Parser) parsePrivilege() (*nodes.AccessPriv, error) {
