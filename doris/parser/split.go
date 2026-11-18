@@ -240,6 +240,7 @@ func isDorisTCLBeginFollower(tok Token) bool {
 type blockFrame struct {
 	stack   []blockConstruct // innermost last
 	endCase bool             // the last token was the END of an END CASE
+	prev    TokenKind        // the last token read
 }
 
 // blockConstruct is one of the constructs an END inside a block can close.
@@ -261,6 +262,7 @@ func (b *blockFrame) empty() bool { return len(b.stack) == 0 }
 // step reads one token of the block and reports whether it closed it. follower
 // is the token after it.
 func (b *blockFrame) step(kind TokenKind, follower Token) bool {
+	defer func() { b.prev = kind }()
 	if suppressed := b.endCase; suppressed {
 		b.endCase = false
 		if kind == kwCASE {
@@ -270,6 +272,10 @@ func (b *blockFrame) step(kind TokenKind, follower Token) bool {
 	}
 	switch kind {
 	case kwCASE:
+		if b.prev == int('.') {
+			// A qualified name: SELECT t.case FROM t names a field.
+			return false
+		}
 		b.stack = append(b.stack, blockCase)
 	case kwBEGIN:
 		b.stack = append(b.stack, blockBegin)

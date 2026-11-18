@@ -262,6 +262,8 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		// not the block, and a CASE branch holding a BEGIN gets its END back.
 		"REPLACE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END; SELECT 3; END; SELECT 4;",
 		"CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN BEGIN SELECT 1; END; END CASE; END; SELECT 2;",
+		// CASE after a dot is a field name, not a construct.
+		"CREATE PROCEDURE p() BEGIN SELECT t.case FROM t; END; SELECT 2;",
 	} {
 		segments := Split(sql)
 		if len(segments) != 2 {
