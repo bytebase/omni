@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/enginetest/compat"
+	enginerules "github.com/bytebase/omni/enginetest/rules"
 )
 
 // TestCompatibility holds omni to testdata/compat.tsv: a statement for each
@@ -28,6 +29,11 @@ func TestCompatibility(t *testing.T) {
 		Overrides: filepath.Join(td, "grammar-overrides.tsv"),
 		Omni:      omniVerdict,
 		Source:    compat.SourceGrammar,
+	})
+	enginerules.Check(t, enginerules.Suite{
+		Compat: filepath.Join("testdata", "compat.tsv"),
+		Rules:  filepath.Join(td, "rules.tsv"),
+		Root:   filepath.Join("..", ".."),
 	})
 }
 

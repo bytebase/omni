@@ -13,6 +13,7 @@ import (
 
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/compat"
+	enginerules "github.com/bytebase/omni/enginetest/rules"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -31,6 +32,11 @@ func TestCompatibility(t *testing.T) {
 		Omni:    omniVerdict,
 		Source:  compat.SourceEngine,
 		Judge:   compatJudge,
+	})
+	enginerules.Check(t, enginerules.Suite{
+		Compat: filepath.Join("testdata", "compat.tsv"),
+		Rules:  filepath.Join("..", "testdata", "rules.tsv"),
+		Root:   filepath.Join("..", ".."),
 	})
 }
 

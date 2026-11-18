@@ -12,18 +12,26 @@ design is `docs/specs/2026-11-11-engine-compatibility-without-servers-design.md`
   `ba8ad5a6e1df5768dee7dbca5f2594400a741806b4f671579ecf806969b9e3bf`. The
   generated rows of `compat.tsv` are its alternatives and their near-misses.
   A pin bump replaces it with the new tag's.
+- **`scan.l`** is `src/backend/parser/scan.l` of the same
+  [postgres/postgres](https://github.com/postgres/postgres) commit, unchanged:
+  SHA-256 `11729c526c464dab20e0b6a500cfc432243c8fab04e5c2afa45ea5101c924f39`.
+  PostgreSQL's lexer is flex, not a grammar the generator reads. The file
+  includes `parser/kwlist.h` from this directory; its other includes are
+  PostgreSQL headers outside it.
+- **`kwlist.h`** is `src/include/parser/kwlist.h` of the same commit,
+  unchanged: SHA-256
+  `8fa117aec8410d483c9fb9e711b1fea7cefc4acc1483c13af40fd24cbd4470bf`.
+  It is the keyword table `scan.l` uses.
 - **`tokens.tsv`** gives the text each terminal of `gram.y` is written as.
-  PostgreSQL's lexer is flex (`src/backend/parser/scan.l`), not a grammar the
-  generator reads, so the file is written by hand and cites `scan.l`, the
-  filter between the lexer and the grammar (`base_yylex` in
-  `src/backend/parser/parser.c`) and the keyword table
-  (`src/include/parser/kwlist.h`), all at `REL_17_12`. A new release's
-  keywords need rows here.
+  The file is written by hand and cites the committed `scan.l`, the filter
+  between the lexer and the grammar (`base_yylex` in
+  `src/backend/parser/parser.c`) and the committed `kwlist.h`, all at
+  `REL_17_12`. A new release's keywords need rows here.
 
 ## License
 
-`gram.y` is distributed under the PostgreSQL License, which asks that this
-notice appear in all copies:
+`gram.y`, `scan.l` and `kwlist.h` are distributed under the PostgreSQL
+License, which asks that this notice appear in all copies:
 
 > PostgreSQL Database Management System
 > (also known as Postgres, formerly known as Postgres95)
@@ -49,4 +57,4 @@ notice appear in all copies:
 > ON AN "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATIONS TO
 > PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
-The file is a test fixture read at test time and is not compiled into omni.
+The files are test fixtures read at test time and are not compiled into omni.
