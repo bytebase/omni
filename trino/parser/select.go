@@ -98,13 +98,16 @@ type QueryNode interface {
 // belong to queryNoWith, outside the queryTerm; see S2). OrderBy/Offset/Limit/
 // Fetch on this node carry the queryNoWith-level modifiers.
 type Query struct {
-	With    *WithClause // nil when no WITH
-	Body    QueryNode   // the queryTerm (QuerySpec / set-op / parenthesized / TABLE / VALUES)
-	OrderBy []SortItem  // queryNoWith ORDER BY, nil when absent
-	Offset  *OffsetClause
-	Limit   *LimitClause
-	Fetch   *FetchClause
-	Loc     ast.Loc
+	With *WithClause // nil when no WITH
+	// Functions holds the inline `WITH FUNCTION` specifications of a rootQuery;
+	// nil for an ordinary query.
+	Functions []FunctionSpecification
+	Body      QueryNode  // the queryTerm (QuerySpec / set-op / parenthesized / TABLE / VALUES)
+	OrderBy   []SortItem // queryNoWith ORDER BY, nil when absent
+	Offset    *OffsetClause
+	Limit     *LimitClause
+	Fetch     *FetchClause
+	Loc       ast.Loc
 }
 
 func (n *Query) Span() ast.Loc { return n.Loc }
@@ -873,6 +876,11 @@ func startsExpression(kind TokenKind) bool {
 func (p *Parser) parseGroupingElement() (GroupingElement, error) {
 	switch p.cur.Kind {
 	case kwAUTO:
+		// AUTO is a reserved word in the grammar (it is absent from nonReserved);
+		// the standalone GROUP BY AUTO form is the only identifier-free use.
+		if p.peekNext().Kind == int('(') {
+			return p.parseGroupingSetOrExpr()
+		}
 		tok := p.advance()
 		return GroupingElement{Kind: GroupingAuto, Loc: tok.Loc}, nil
 	case kwROLLUP:

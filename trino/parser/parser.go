@@ -107,9 +107,6 @@ type Parser struct {
 	// noMatchAlias stops a relation inside NEAREST(...) from taking MATCH as an
 	// alias, where the grammar's MATCH keyword follows the relation.
 	noMatchAlias bool
-	// noMatchPredicate stops a NEAREST WHERE expression from taking the following
-	// MATCH keyword as a MATCH predicate.
-	noMatchPredicate bool
 
 	// routineNestingFailed is set once the in-place parse of a WITH FUNCTION
 	// subquery body nested too deeply (see parseRoutineSubquery).
@@ -371,7 +368,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.peekNext().Kind == kwFUNCTION {
 			return p.parseWithFunctionQuery()
 		}
-		if p.peekNext().Kind == kwSESSION {
+		if p.peekNext().Kind == kwSESSION && p.withSessionFollows() {
 			return p.parseQueryWithSessionStmt()
 		}
 		return p.parseQueryStmt()
@@ -459,7 +456,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwVIEW:
 			return p.parseAlterViewStmt(p.cur.Loc.Start)
 		case kwBRANCH:
-			return p.parseAlterBranchStmt(p.cur.Loc.Start)
+			if p.alterBranchFollows() {
+				return p.parseAlterBranchStmt(p.cur.Loc.Start)
+			}
+			return p.parseAlterAuthorizationStmt(p.cur.Loc.Start)
 		case kwMATERIALIZED:
 			// MATERIALIZED is also a non-reserved identifier. Only `ALTER
 			// MATERIALIZED VIEW …` is the materialized-view form; anything else is
@@ -558,6 +558,40 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	default:
 		return nil, p.unknownStatementError()
+	}
+}
+
+// alterBranchFollows reports whether ALTER BRANCH is the fast-forward branch
+// form (`ALTER BRANCH name IN TABLE …`) rather than BRANCH used as a generic
+// ownedEntityKind (`ALTER BRANCH name SET AUTHORIZATION …`).
+func (p *Parser) alterBranchFollows() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // ALTER
+	p.advance() // BRANCH
+	if !isIdentifierStart(p.cur.Kind) {
+		return false
+	}
+	p.advance() // branch name
+	return p.cur.Kind == kwIN
+}
+
+// withSessionFollows reports whether the WITH SESSION keyword pair begins a
+// session-property list (`SESSION qualifiedName =`), rather than a CTE named
+// SESSION (`WITH session AS (...)`). SESSION is non-reserved.
+func (p *Parser) withSessionFollows() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // WITH
+	p.advance() // SESSION
+	// A CTE named SESSION continues with AS, a column-alias list, or a comma.
+	// Anything else is the session-property prefix (including malformed input,
+	// whose error belongs to the property parser).
+	switch p.cur.Kind {
+	case kwAS, int('('), int(','):
+		return false
+	default:
+		return true
 	}
 }
 

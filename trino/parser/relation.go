@@ -766,7 +766,10 @@ func (p *Parser) parseRelationPrimary() (Relation, error) {
 	case kwJSON_TABLE:
 		return p.parseJSONTable()
 	case kwNEAREST:
-		return p.parseNearestRelation()
+		if p.peekNext().Kind == int('(') {
+			return p.parseNearestRelation()
+		}
+		return p.parseTableRelation()
 	case int('('):
 		return p.parseParenRelationOrSubquery()
 	default:
@@ -794,9 +797,7 @@ func (p *Parser) parseNearestRelation() (Relation, error) {
 	rel := &NearestRelation{From: from, Loc: ast.Loc{Start: nearestTok.Loc.Start}}
 	if p.cur.Kind == kwWHERE {
 		p.advance() // consume WHERE
-		p.noMatchPredicate = true
 		where, err := p.parseExpr()
-		p.noMatchPredicate = false
 		if err != nil {
 			return nil, err
 		}

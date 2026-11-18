@@ -217,9 +217,6 @@ func (p *Parser) parsePredicateSuffix(left Expr) (Expr, error) {
 	case kwIS:
 		return p.parseIsPredicate(left)
 	case kwMATCH:
-		if p.noMatchPredicate {
-			return left, nil
-		}
 		// MATCH is non-reserved. It is the predicate only when the whole
 		// MATCH [UNIQUE] [SIMPLE|PARTIAL|FULL] (query) shape parses; otherwise
 		// it is an alias for the valueExpression and the next token is judged by

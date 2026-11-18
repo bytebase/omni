@@ -286,8 +286,15 @@ func (w *spanWalker) isCTE(name string) bool {
 // statement (QueryStmt) yields query-span data; other statement kinds are
 // recorded via their Type classification only.
 func (w *spanWalker) analyzeStmt(node ast.Node) {
-	if qs, ok := node.(*parser.QueryStmt); ok && qs.Query != nil {
-		w.visitQuery(qs.Query, true /* outermost */)
+	switch n := node.(type) {
+	case *parser.QueryStmt:
+		if n.Query != nil {
+			w.visitQuery(n.Query, true /* outermost */)
+		}
+	case *parser.DescribeOutputStmt:
+		if n.Query != nil {
+			w.visitQuery(n.Query, true /* outermost */)
+		}
 	}
 }
 

@@ -33,7 +33,7 @@ func (p *Parser) parseQueryWithSessionStmt() (ast.Node, error) {
 		}
 		s.Session = append(s.Session, next)
 	}
-	q, err := p.parseQuery()
+	q, err := p.parseRootQuery()
 	if err != nil {
 		return nil, err
 	}

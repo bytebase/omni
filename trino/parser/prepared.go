@@ -394,10 +394,11 @@ func (p *Parser) parseDeallocateStmt() (ast.Node, error) {
 // decoded byte but two source bytes.
 func (p *Parser) stringSourceOffset(tok Token, decoded int) int {
 	raw := p.sourceSlice(tok.Loc.Start, tok.Loc.End)
-	if len(raw) < 2 {
+	open := strings.IndexByte(raw, '\'')
+	if open < 0 || open+1 >= len(raw) {
 		return tok.Loc.Start + decoded
 	}
-	i, n := 1, 0
+	i, n := open+1, 0
 	for i < len(raw)-1 && n < decoded {
 		if raw[i] == '\'' && i+1 < len(raw)-1 && raw[i+1] == '\'' {
 			n++
@@ -483,8 +484,9 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 	// the same way, mapping an inner byte offset back into the literal. A
 	// trailing-token error is reported before execution, so validate only when
 	// the statement itself ended.
-	if strTok.Kind == tokString && p.cur.Kind == tokEOF {
-		if _, err := Parse(strTok.Str); err != nil {
+	if (strTok.Kind == tokString || strTok.Kind == tokUnicodeString) && p.cur.Kind == tokEOF {
+		inner, err := Parse(strTok.Str)
+		if err != nil {
 			if errs := AllErrors(err); len(errs) > 0 {
 				return nil, &ParseError{
 					Position: p.stringSourceOffset(strTok, errs[0].Position),
@@ -492,6 +494,10 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 					Message:  errs[0].Message,
 				}
 			}
+		}
+		if inner == nil || len(inner.Stmts) != 1 {
+			at := p.stringSourceOffset(strTok, 0)
+			return nil, &ParseError{Position: at, End: at, Message: "EXECUTE IMMEDIATE requires exactly one statement"}
 		}
 	}
 	return stmt, nil
@@ -562,7 +568,7 @@ func (p *Parser) parseDescribeInputStmt(start int) (ast.Node, error) {
 func (p *Parser) parseDescribeOutputStmt(start int) (ast.Node, error) {
 	if p.cur.Kind == int('(') {
 		p.advance() // consume '('
-		q, err := p.parseQuery()
+		q, err := p.parseRootQuery()
 		if err != nil {
 			return nil, err
 		}

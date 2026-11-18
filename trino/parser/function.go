@@ -984,7 +984,7 @@ func (p *Parser) parseCaseExpr() (Expr, error) {
 		whenTok := p.advance() // consume WHEN
 		var cond Expr
 		var err error
-		if startsBarePredicate(p.cur.Kind, p.peekNext().Kind) {
+		if ce.Operand != nil && startsBarePredicate(p.cur.Kind, p.peekNext().Kind) {
 			cond, err = p.parsePredicateSuffix(nil)
 		} else {
 			cond, err = p.parseExpr()

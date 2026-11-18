@@ -189,6 +189,8 @@ func spanQueryNode(node ast.Node) *parser.Query {
 		return n.Query
 	case *parser.CreateMaterializedViewStmt:
 		return n.Query
+	case *parser.DescribeOutputStmt:
+		return n.Query
 	}
 	return nil
 }
