@@ -1991,11 +1991,20 @@ func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) 
 	if typeRef != nil {
 		bc.Loc.Start = typeRef.Loc.Start
 	}
+	// fields of the body, the first one alone: a later field needs a "," unless
+	// its key is a bare path (braced_constructor_field_following_omitted_comma),
+	// and an extension key is a braced_constructor_extension_expression, which
+	// only a "," may precede.
+	first := true
+	comma := false
 	for p.cur.Type != int('}') && p.cur.Type != tokEOF {
 		// braced_constructor_field:
 		//   (braced_constructor_extension_expression | generalized_path_expression)
 		//   ("*" | "?")? (":" expression | braced_constructor)
 		if p.cur.Type == int('(') {
+			if !first && !comma {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance()
 			path, err := p.parsePathExpr()
 			if err != nil {
@@ -2052,8 +2061,11 @@ func (p *Parser) parseBracedConstructor(typeRef *ast.TypeRef) (ast.Node, error) 
 			return nil, p.syntaxErrorAtCur()
 		}
 		// Optional comma between fields (also a trailing comma before '}').
+		first = false
+		comma = false
 		if p.cur.Type == int(',') {
 			p.advance()
+			comma = true
 		}
 	}
 	closeTok, err := p.expect(int('}'))

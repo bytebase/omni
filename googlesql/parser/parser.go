@@ -317,75 +317,54 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 
 // parseHintBody parses `{ hint_entry (, hint_entry)* }`, where
 // `hint_entry: identifier_in_hints [. identifier_in_hints] = expression`
-// (googlesql.tm §hint_entry). On an interior syntax error it drains the
-// remaining balanced braces so best-effort callers land right after '}'.
+// (googlesql.tm hint_entry). It walks the body once: a body that ends before
+// its closing '}' is unterminated, and one whose entry is malformed reports
+// the syntax error at the token that ended it.
 func (p *Parser) parseHintBody(hintStart ast.Loc, emptyMsg, untermMsg string) *ParseError {
 	if p.cur.Type != int('{') {
 		return nil
 	}
-	// First locate the matching outer '}' so unterminated hints always report
-	// untermMsg and error recovery always stops right after the outer '}'.
-	lx := NewLexerWithOffset(p.input[absIndex(p, p.cur.Loc.Start):], p.cur.Loc.Start)
-	depth := 0
-	closeEnd := -1
-	for {
-		tok := lx.NextToken()
-		if tok.Type == tokEOF {
-			break
-		}
-		switch tok.Type {
-		case int('{'):
-			depth++
-		case int('}'):
-			depth--
-			if depth == 0 {
-				closeEnd = tok.Loc.End
-			}
-		}
-		if closeEnd >= 0 {
-			break
-		}
-	}
-	if closeEnd < 0 {
-		for p.cur.Type != tokEOF {
-			p.advance()
-		}
-		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: untermMsg}
-	}
-
 	p.advance() // consume '{'
 	if p.cur.Type == int('}') {
 		end := p.advance().Loc.End
 		return &ParseError{Position: hintStart.Start, End: end, Message: emptyMsg}
 	}
-	drain := func(firstErr *ParseError) *ParseError {
-		for p.cur.Type != tokEOF && p.prev.Loc.End < closeEnd {
-			p.advance()
+	unterminated := func() *ParseError {
+		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: untermMsg}
+	}
+	// fail reports the syntax error at cur. A body that runs out of input is
+	// unterminated instead; that is decided where cur reaches EOF, so the body is
+	// walked once however deeply hints nest.
+	fail := func() *ParseError {
+		if p.cur.Type == tokEOF {
+			return unterminated()
 		}
-		return firstErr
+		return p.syntaxErrorAtCur()
 	}
 	for {
+		if p.cur.Type == tokEOF {
+			return unterminated()
+		}
 		if !isIdentifierInHints(p.cur.Type) {
-			return drain(p.syntaxErrorAtCur())
+			return fail()
 		}
 		p.advance() // consume identifier_in_hints
 		if p.cur.Type == int('.') {
 			p.advance() // consume '.'
 			if !isIdentifierInHints(p.cur.Type) {
-				return drain(p.syntaxErrorAtCur())
+				return fail()
 			}
 			p.advance() // consume second identifier_in_hints
 		}
 		if p.cur.Type != int('=') {
-			return drain(p.syntaxErrorAtCur())
+			return fail()
 		}
 		p.advance() // consume '='
+		if p.cur.Type == tokEOF {
+			return unterminated()
+		}
 		if _, err := p.parseExpr(); err != nil {
-			pe, ok := err.(*ParseError)
-			if !ok {
-				pe = p.syntaxErrorAtCur()
-			}
-			return drain(pe)
+			return fail()
 		}
 		switch p.cur.Type {
 		case int(','):
@@ -393,8 +372,10 @@ func (p *Parser) parseHintBody(hintStart ast.Loc, emptyMsg, untermMsg string) *P
 		case int('}'):
 			p.advance() // consume '}'
 			return nil
+		case tokEOF:
+			return unterminated()
 		default:
-			return drain(p.syntaxErrorAtCur())
+			return fail()
 		}
 	}
 }
