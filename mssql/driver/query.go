@@ -283,7 +283,7 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 	for {
 		result, err := readRows(rows, opts.MaxResultBytes, opts.Limit)
 		if err != nil {
-			return nil, nil, true, err
+			return nil, nil, true, unpackMSSQLError(err)
 		}
 		// A statement that reports no rows answers with a columnless result, which
 		// belongs to no result set: matching counts only the sets that have columns.
