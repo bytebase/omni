@@ -13,7 +13,7 @@ import (
 // exercises. (Every real Trino DDL/DML/query/admin form is now implemented by
 // the parser-* nodes, so a valid statement no longer hits the stub.)
 func TestDiagnose_StubbedStatementProducesDiagnostic(t *testing.T) {
-	diags := Diagnose("ALTER INDEX i RENAME TO j")
+	diags := Diagnose("CREATE INDEX i")
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}

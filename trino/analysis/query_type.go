@@ -36,6 +36,11 @@ func QueryTypeOf(node ast.Node) (QueryType, bool) {
 	case *parser.ShowStmt,
 		*parser.DescribeInputStmt, *parser.DescribeOutputStmt:
 		return SelectInfoSchema, false
+	case *parser.BranchStmt:
+		if n.Kind == parser.BranchShow {
+			return SelectInfoSchema, false
+		}
+		return DDL, false
 	case *parser.SetSessionStmt, *parser.ResetSessionStmt,
 		*parser.SetSessionAuthorizationStmt, *parser.ResetSessionAuthorizationStmt,
 		*parser.SetPathStmt, *parser.SetRoleStmt, *parser.SetTimeZoneStmt,

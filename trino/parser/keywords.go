@@ -25,6 +25,7 @@ const (
 	kwASC
 	kwAT
 	kwAUTHORIZATION
+	kwAUTO
 	kwBEGIN
 	kwBERNOULLI
 	kwBETWEEN
@@ -194,6 +195,7 @@ const (
 	kwOUTPUT
 	kwOVER
 	kwOVERFLOW
+	kwOVERLAY
 	kwPARTITION
 	kwPARTITIONS
 	kwPASSING
@@ -203,6 +205,7 @@ const (
 	kwPER
 	kwPERIOD
 	kwPERMUTE
+	kwPLACING
 	kwPLAN
 	kwPOSITION
 	kwPRECEDING
@@ -305,6 +308,19 @@ const (
 	kwWRAPPER
 	kwWRITE
 	kwYEAR
+	kwASYMMETRIC
+	kwBRANCH
+	kwBRANCHES
+	kwCORRESPONDING
+	kwFAIL
+	kwFAST
+	kwFORWARD
+	kwINLINE
+	kwNEAREST
+	kwPARTIAL
+	kwSIMPLE
+	kwSTALE
+	kwSYMMETRIC
 	kwZONE
 )
 
@@ -326,6 +342,7 @@ var keywordMap = map[string]TokenKind{
 	"asc":               kwASC,
 	"at":                kwAT,
 	"authorization":     kwAUTHORIZATION,
+	"auto":              kwAUTO,
 	"begin":             kwBEGIN,
 	"bernoulli":         kwBERNOULLI,
 	"between":           kwBETWEEN,
@@ -495,6 +512,7 @@ var keywordMap = map[string]TokenKind{
 	"output":            kwOUTPUT,
 	"over":              kwOVER,
 	"overflow":          kwOVERFLOW,
+	"overlay":           kwOVERLAY,
 	"partition":         kwPARTITION,
 	"partitions":        kwPARTITIONS,
 	"passing":           kwPASSING,
@@ -504,6 +522,7 @@ var keywordMap = map[string]TokenKind{
 	"per":               kwPER,
 	"period":            kwPERIOD,
 	"permute":           kwPERMUTE,
+	"placing":           kwPLACING,
 	"plan":              kwPLAN,
 	"position":          kwPOSITION,
 	"preceding":         kwPRECEDING,
@@ -606,6 +625,19 @@ var keywordMap = map[string]TokenKind{
 	"wrapper":           kwWRAPPER,
 	"write":             kwWRITE,
 	"year":              kwYEAR,
+	"asymmetric":        kwASYMMETRIC,
+	"branch":            kwBRANCH,
+	"branches":          kwBRANCHES,
+	"corresponding":     kwCORRESPONDING,
+	"fail":              kwFAIL,
+	"fast":              kwFAST,
+	"forward":           kwFORWARD,
+	"inline":            kwINLINE,
+	"nearest":           kwNEAREST,
+	"partial":           kwPARTIAL,
+	"simple":            kwSIMPLE,
+	"stale":             kwSTALE,
+	"symmetric":         kwSYMMETRIC,
 	"zone":              kwZONE,
 }
 
@@ -661,6 +693,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwENCODING:        true,
 	kwERROR:           true,
 	kwEXCLUDING:       true,
+	kwEXECUTE:         true,
 	kwEXPLAIN:         true,
 	kwFETCH:           true,
 	kwFILTER:          true,
@@ -733,6 +766,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwOUTPUT:          true,
 	kwOVER:            true,
 	kwOVERFLOW:        true,
+	kwOVERLAY:         true,
 	kwPARTITION:       true,
 	kwPARTITIONS:      true,
 	kwPASSING:         true,
@@ -742,6 +776,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwPER:             true,
 	kwPERIOD:          true,
 	kwPERMUTE:         true,
+	kwPLACING:         true,
 	kwPLAN:            true,
 	kwPOSITION:        true,
 	kwPRECEDING:       true,
@@ -826,6 +861,19 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwWRAPPER:         true,
 	kwWRITE:           true,
 	kwYEAR:            true,
+	kwASYMMETRIC:      true,
+	kwBRANCH:          true,
+	kwBRANCHES:        true,
+	kwCORRESPONDING:   true,
+	kwFAIL:            true,
+	kwFAST:            true,
+	kwFORWARD:         true,
+	kwINLINE:          true,
+	kwNEAREST:         true,
+	kwPARTIAL:         true,
+	kwSIMPLE:          true,
+	kwSTALE:           true,
+	kwSYMMETRIC:       true,
 	kwZONE:            true,
 }
 
@@ -879,6 +927,7 @@ func buildTokenNames() map[TokenKind]string {
 	m[tokArrow] = "->"
 	m[tokLeftArrow] = "<-"
 	m[tokDoubleArrow] = "=>"
+	m[tokDoubleColon] = "::"
 	m[tokLCurlyHyphen] = "{-"
 	m[tokRCurlyHyphen] = "-}"
 	// kwSTRING aliases the literal text STRING; pin its display name so the

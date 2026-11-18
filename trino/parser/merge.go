@@ -55,10 +55,8 @@ import (
 //	   which falls out naturally because parseRelation binds the alias to the
 //	   inner sampledRelation, not the whole join.
 //
-// FLAGGED divergence (ledger #5): `@ branch_name` after the target table
-// (`MERGE INTO accounts @ audit t USING …`) is accepted by Trino 481 but
-// rejected by omni because the lexer emits no '@' token. See the insert.go
-// file header.
+// The optional `@ branch_name` after the target table is parsed by
+// parseOptionalBranch (divergence ledger #5, now resolved).
 
 // ---------------------------------------------------------------------------
 // MERGE WHEN-clause AST
@@ -110,6 +108,7 @@ type MergeWhenClause struct {
 // expression. Whens is the non-empty list of WHEN clauses.
 type MergeStmt struct {
 	Target *ast.QualifiedName
+	Branch *ast.Identifier // optional `@ branch`, nil when absent
 	Alias  *ast.Identifier // optional [AS] target alias, nil when absent
 	Source Relation
 	On     Expr
@@ -147,8 +146,15 @@ func (p *Parser) parseMergeStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	branch, err := p.parseOptionalBranch()
+	if err != nil {
+		return nil, err
+	}
 
-	stmt := &MergeStmt{Target: target, Loc: ast.Loc{Start: mergeTok.Loc.Start, End: target.Loc.End}}
+	stmt := &MergeStmt{Target: target, Branch: branch, Loc: ast.Loc{Start: mergeTok.Loc.Start, End: target.Loc.End}}
+	if branch != nil {
+		stmt.Loc.End = branch.Loc.End
+	}
 
 	// Optional target alias: `AS identifier` or a bare identifier. USING is a
 	// reserved keyword (so isIdentifierStart(USING) is false): a bare identifier

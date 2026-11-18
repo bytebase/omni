@@ -179,6 +179,8 @@ func spanQueryNode(node ast.Node) *parser.Query {
 	switch n := node.(type) {
 	case *parser.QueryStmt:
 		return n.Query
+	case *parser.WithFunctionStmt:
+		return n.Query
 	case *parser.ExplainStmt:
 		if n.Statement != nil {
 			return spanQueryNode(n.Statement)
@@ -188,6 +190,8 @@ func spanQueryNode(node ast.Node) *parser.Query {
 	case *parser.CreateTableAsStmt:
 		return n.Query
 	case *parser.CreateMaterializedViewStmt:
+		return n.Query
+	case *parser.DescribeOutputStmt:
 		return n.Query
 	}
 	return nil
