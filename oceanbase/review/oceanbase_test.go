@@ -49,6 +49,11 @@ func TestReviewOceanBase(t *testing.T) {
 			sql:  "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');",
 		},
 		{
+			name: "an external table's primary key is not the rule's",
+			rule: review.RequirePrimaryKey,
+			sql:  "ALTER EXTERNAL TABLE ext DROP PRIMARY KEY;",
+		},
+		{
 			name: "the MySQL rules",
 			rule: review.RequireWhere,
 			sql:  "DELETE FROM t;",

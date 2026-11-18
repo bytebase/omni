@@ -67,6 +67,9 @@ func TestExternalTableForms(t *testing.T) {
 		"DELETE FROM SOURCE(TYPE = a)",
 		"DELETE FROM SOURCE(TYPE =)",
 		"DELETE FROM SOURCE(ZZZ = 's')",
+		// The property's word is a token, never a quoted name.
+		"DELETE FROM SOURCE(`TYPE` = 's')",
+		"SELECT a FROM 's'(FORMAT(`TYPE` = 'csv'))",
 		"DELETE FROM SOURCE()",
 		"DELETE FROM SOURCE(TYPE = 's'",
 		// format_expr and location_expr are required in their places.

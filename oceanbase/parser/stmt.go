@@ -369,7 +369,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	// Completion: after CREATE keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwMATERIALIZED, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwMATERIALIZED, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwEXTERNAL} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -609,7 +609,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// Completion: after ALTER keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwMATERIALIZED, kwFUNCTION, kwPROCEDURE, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwMATERIALIZED, kwFUNCTION, kwPROCEDURE, kwEVENT, kwEXTERNAL} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}

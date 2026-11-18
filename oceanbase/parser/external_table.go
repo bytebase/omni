@@ -231,6 +231,9 @@ func (p *Parser) parseExternalProperties() ([]*nodes.ExternalProperty, error) {
 			break
 		}
 		start := p.pos()
+		if !p.atExternalWord() {
+			return nil, p.syntaxErrorAtCur()
+		}
 		word := strings.ToUpper(p.cur.Str)
 		var value nodes.ExprNode
 		switch word {
@@ -328,6 +331,9 @@ func (p *Parser) parseExternalFileFormatList() ([]*nodes.ExternalProperty, error
 // (oceanbase v4.3.5_CE_BP6, lines 9436-9524).
 func (p *Parser) parseExternalFileFormat() (*nodes.ExternalProperty, error) {
 	start := p.pos()
+	if !p.atExternalWord() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	word := strings.ToUpper(p.cur.Str)
 	var value nodes.ExprNode
 	switch word {
@@ -522,4 +528,14 @@ func (p *Parser) parseExternalPattern() (string, error) {
 // externalStringLit makes a string literal of a quoted token.
 func externalStringLit(tok Token) *nodes.StringLit {
 	return &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: tok.Str}
+}
+
+// atExternalWord reports whether the current token can be one of the words an
+// external property or format entry is named by: a bare identifier or keyword,
+// never a quoted one, which spells a name and not the token.
+func (p *Parser) atExternalWord() bool {
+	if p.cur.Type != tokIDENT && p.cur.Type < 700 {
+		return false
+	}
+	return !p.backtickQuotedAt(p.cur.Loc)
 }

@@ -53,7 +53,8 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 			}
 			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), code: review.TableWithoutPrimaryKey, message: "Creates table " + review.Code(table(v.Table)) + " without a primary key."})
 		case *ast.AlterTableStmt:
-			if v.Table == nil {
+			// An external table has no primary key of its own to drop.
+			if v.Table == nil || v.External {
 				continue
 			}
 			adds, renames := false, false
