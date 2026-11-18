@@ -123,4 +123,7 @@ func TestMaterializedViewCompletion(t *testing.T) {
 			t.Errorf("Collect(%q) does not offer LOG", sql)
 		}
 	}
+	if cs := Collect("DROP MATERIALIZED VIEW ", len("DROP MATERIALIZED VIEW ")); !cs.HasRule("view_ref") {
+		t.Error("Collect(\"DROP MATERIALIZED VIEW \") does not offer view_ref")
+	}
 }

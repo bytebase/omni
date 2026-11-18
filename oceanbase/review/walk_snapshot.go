@@ -107,6 +107,9 @@ type mysqlSnapshot struct {
 	events           map[string]bool
 	// triggered lists the relation keys of the tables with a trigger.
 	triggered map[string]bool
+	// materialized lists the relation keys of the snapshot's materialized
+	// views, which share the empty kind with its external tables.
+	materialized map[string]bool
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
@@ -132,6 +135,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 		events:           make(map[string]bool),
 		triggered:        make(map[string]bool),
 		ignoresFKs:       make(map[string]bool),
+		materialized:     make(map[string]bool),
 		partial:          make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
@@ -219,6 +223,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 			for _, mv := range schema.GetMaterializedViews() {
 				if k, ok := nameKey(spaceRelation, mv.GetName(), foldTables); ok {
 					s.relations[k] = ""
+					s.materialized[k] = true
 					mark(spaceRelation, "", k)
 					mviews++
 				}

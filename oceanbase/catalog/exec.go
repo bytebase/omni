@@ -237,9 +237,12 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.alterView(s, source)
 	case *nodes.AlterMaterializedViewStmt:
 		return c.alterMaterializedView(s)
-	case *nodes.CreateMaterializedViewLogStmt, *nodes.AlterMaterializedViewLogStmt, *nodes.DropMaterializedViewLogStmt:
-		// A materialized view log is not a schema object the catalog holds.
-		return nil
+	case *nodes.CreateMaterializedViewLogStmt:
+		return c.materializedViewLogTarget(s.Table)
+	case *nodes.AlterMaterializedViewLogStmt:
+		return c.materializedViewLogTarget(s.Table)
+	case *nodes.DropMaterializedViewLogStmt:
+		return c.materializedViewLogTarget(s.Table)
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:

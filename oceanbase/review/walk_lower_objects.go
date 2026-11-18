@@ -138,6 +138,7 @@ func (b *builder) createMaterializedView(v *ast.CreateMaterializedViewStmt) bool
 	k := relKey(r.db, r.name)
 	b.needFree(k, r.rng, r.written, "materialized view")
 	b.Set(k, walk.Present, "")
+	b.w.materialized[k] = true
 	return true
 }
 
@@ -149,7 +150,12 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 	case refFailed:
 		return true
 	case refOK:
-		b.needKind(relKey(r.db, r.name), []string{""}, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+		k := relKey(r.db, r.name)
+		if !b.w.materialized[k] {
+			// An external table shares the empty kind, so only the walk's own
+			// record of materialized views recognises one.
+			b.needKind(k, nil, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+		}
 	}
 	return true
 }
@@ -218,16 +224,19 @@ func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 		}
 		k := relKey(r.db, r.name)
 		f, kind := b.l.Lookup(k)
-		// A known table or view is the wrong kind even under IF EXISTS; one
-		// of no kind is the materialized view the snapshot holds, and a
-		// missing name is only checked without IF EXISTS.
-		if !v.IfExists || (f == walk.Present && kind != "") {
-			b.needKind(k, []string{""}, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
-		}
-		// Only a relation of no kind is the materialized view the snapshot
-		// holds; a known table or view stays present.
-		if f == walk.Present && kind == "" {
-			b.Set(k, walk.Absent, "")
+		switch {
+		case b.w.materialized[k]:
+			if !v.IfExists && f != walk.Present {
+				b.needKind(k, nil, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+			}
+			if f == walk.Present {
+				b.Set(k, walk.Absent, "")
+				delete(b.w.materialized, k)
+			}
+		case !v.IfExists || (f == walk.Present && kind != ""):
+			// A missing name, or a known table, view or external table, is not
+			// the materialized view the statement drops.
+			b.needKind(k, nil, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
 		}
 	}
 	return true

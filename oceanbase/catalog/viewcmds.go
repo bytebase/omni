@@ -122,6 +122,24 @@ func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt,
 	return c.createView(materializedViewAsView(stmt), source, true, true)
 }
 
+// materializedViewLogTarget checks the table a materialized view log names: a
+// log is written for an existing base table, not a view. The catalog models no
+// log of its own.
+func (c *Catalog) materializedViewLogTarget(ref *nodes.TableRef) error {
+	db, err := c.resolveDatabase(ref.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(ref.Name)
+	if db.Views[key] != nil {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not TABLE", db.Name, ref.Name)}
+	}
+	if db.Tables[key] == nil {
+		return errUnknownTable(db.Name, ref.Name)
+	}
+	return nil
+}
+
 // alterMaterializedView applies ALTER MATERIALIZED VIEW. Its actions refresh,
 // re-compile or toggle rewrite, which change no query the catalog holds, but
 // the target must be a materialized view the catalog has.

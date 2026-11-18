@@ -18,7 +18,7 @@ func (p *Parser) parseCreateMaterializedStmt(start int, orReplace bool) (nodes.N
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if log, err := p.atMaterializedViewLog(); err != nil {
+	if log, err := p.atMaterializedViewLog(""); err != nil {
 		return nil, err
 	} else if log {
 		return p.parseCreateMaterializedViewLogStmt(start, orReplace)
@@ -50,12 +50,16 @@ func (p *Parser) parseMaterializedViewKeyword() error {
 	return err
 }
 
-// atMaterializedViewLog reports whether LOG stands at the cursor, and offers
-// it in completion mode.
-func (p *Parser) atMaterializedViewLog() (bool, error) {
+// atMaterializedViewLog reports whether LOG stands at the cursor. In completion
+// mode it offers LOG and, when target is not empty, the target candidates the
+// statement that is not a log takes there.
+func (p *Parser) atMaterializedViewLog(target string) (bool, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwLOG)
+		if target != "" {
+			p.addRuleCandidate(target)
+		}
 		return false, &ParseError{Message: "collecting"}
 	}
 	return p.isBareWord("LOG"), nil
@@ -660,7 +664,7 @@ func (p *Parser) parseAlterMaterializedStmt(start int) (nodes.Node, error) {
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if log, err := p.atMaterializedViewLog(); err != nil {
+	if log, err := p.atMaterializedViewLog(""); err != nil {
 		return nil, err
 	} else if log {
 		return p.parseAlterMaterializedViewLogStmt(start)
@@ -847,7 +851,7 @@ func (p *Parser) parseDropMaterializedStmt(start int) (nodes.Node, error) {
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if log, err := p.atMaterializedViewLog(); err != nil {
+	if log, err := p.atMaterializedViewLog("view_ref"); err != nil {
 		return nil, err
 	} else if log {
 		p.advance() // consume LOG

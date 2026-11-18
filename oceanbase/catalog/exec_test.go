@@ -136,3 +136,34 @@ func TestExecAlterMaterializedViewTarget(t *testing.T) {
 		}
 	}
 }
+
+// TestExecMaterializedViewLogTarget pins that a materialized view log names an
+// existing base table, not a missing name or a view.
+func TestExecMaterializedViewLogTarget(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT); CREATE VIEW v AS SELECT a FROM t;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"CREATE MATERIALIZED VIEW LOG ON missing;", true},
+		{"CREATE MATERIALIZED VIEW LOG ON v;", true},
+		{"CREATE MATERIALIZED VIEW LOG ON t;", false},
+		{"ALTER MATERIALIZED VIEW LOG ON missing NOPARALLEL;", true},
+		{"ALTER MATERIALIZED VIEW LOG ON v NOPARALLEL;", true},
+		{"ALTER MATERIALIZED VIEW LOG ON t NOPARALLEL;", false},
+		{"DROP MATERIALIZED VIEW LOG ON missing;", true},
+		{"DROP MATERIALIZED VIEW LOG ON v;", true},
+		{"DROP MATERIALIZED VIEW LOG ON t;", false},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got := len(results) == 1 && results[0].Error != nil; got != tc.wantErr {
+			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
+		}
+	}
+}
