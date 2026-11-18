@@ -160,6 +160,14 @@ modifiers:
 		}
 		stmt.Query = trace
 
+	case kwEXPLAIN, kwDESC, kwDESCRIBE:
+		// queryStatement's optional prefix is (explainDesc | optimizerTrace).
+		explain, err := p.parseExplain()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Query = explain
+
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

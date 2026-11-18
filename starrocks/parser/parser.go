@@ -973,14 +973,17 @@ func isQueryBody(n ast.Node) bool {
 	return false
 }
 
-// isQueryStatementBody is isQueryBody plus the optimizerTrace prefix, which
-// queryStatement allows and a subquery expression does not.
+// isQueryStatementBody is isQueryBody plus the (explainDesc | optimizerTrace)
+// prefix, which queryStatement allows and a subquery expression does not.
 func isQueryStatementBody(n ast.Node) bool {
 	if isQueryBody(n) {
 		return true
 	}
-	_, ok := n.(*ast.OptimizerTraceStmt)
-	return ok
+	switch n.(type) {
+	case *ast.OptimizerTraceStmt, *ast.ExplainStmt:
+		return true
+	}
+	return false
 }
 
 // validateRawQueries strictly parses every query body this parse captured as

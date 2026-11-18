@@ -189,6 +189,15 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The local lexer also folds 0x10 and 0b10 into tokInt, but the grammar
+	// tokenizes those as identifiers and the engine needs an IntLiteral.
+	if !isDecimalInteger(value.Str) {
+		return nil, &ParseError{
+			Position: value.Loc.Start,
+			End:      value.Loc.End,
+			Message:  "interval value must be a decimal integer",
+		}
+	}
 	for range parens {
 		if _, err := p.expect(int(')')); err != nil {
 			return nil, err
@@ -209,6 +218,20 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 
 	schedule.Loc.End = p.prev.Loc.End
 	return schedule, nil
+}
+
+// isDecimalInteger reports whether s is a bare decimal integer, the only
+// spelling StarRocks's interval conversion accepts.
+func isDecimalInteger(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // validTaskStart reports whether s is a timestamp DateUtils.probeFormat

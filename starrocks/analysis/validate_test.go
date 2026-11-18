@@ -66,7 +66,11 @@ func TestValidateQuerySubmitTask(t *testing.T) {
 // TRACE plans the query it wraps and never runs it, so it is read-only like
 // EXPLAIN, including over a query that writes out a file.
 func TestValidateQueryOptimizerTrace(t *testing.T) {
-	for _, sql := range []string{"TRACE ALL SELECT 1", "TRACE LOGS SELECT * FROM t"} {
+	for _, sql := range []string{
+		"TRACE ALL SELECT 1",
+		"TRACE LOGS SELECT * FROM t",
+		"TRACE ALL SELECT 1 INTO OUTFILE 's3://bucket/x'",
+	} {
 		readOnly, returnsData, err := ValidateQuery(sql)
 		if err != nil {
 			t.Errorf("%q: %v", sql, err)

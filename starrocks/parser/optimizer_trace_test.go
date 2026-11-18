@@ -46,7 +46,11 @@ func TestOptimizerTrace(t *testing.T) {
 func TestOptimizerTraceInQueryStatementPositions(t *testing.T) {
 	for _, sql := range []string{
 		"INSERT INTO dst TRACE ALL SELECT * FROM src",
+		"INSERT INTO dst EXPLAIN SELECT * FROM src",
+		"INSERT INTO dst DESC ANALYZE SELECT * FROM src",
 		"CREATE TABLE dst AS TRACE ALL SELECT 1",
+		"CREATE TABLE dst AS EXPLAIN SELECT 1",
+		"CREATE TABLE dst AS DESC SELECT 1",
 	} {
 		file, errs := parseForTest(sql)
 		if len(errs) != 0 {

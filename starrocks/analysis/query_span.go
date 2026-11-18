@@ -648,7 +648,7 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int, allowTrace bool)
 		switch stmt := stmt.(type) {
 		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 			w.visitSetOpArm(stmt, false)
-		case *ast.OptimizerTraceStmt:
+		case *ast.OptimizerTraceStmt, *ast.ExplainStmt:
 			if !allowTrace {
 				loc := ast.NodeLoc(stmt)
 				w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})

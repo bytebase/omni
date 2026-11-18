@@ -96,6 +96,8 @@ func TestSubmitTaskRejectsBadSchedule(t *testing.T) {
 	for _, sql := range []string{
 		"SUBMIT TASK SCHEDULE START('not-a-date') EVERY(INTERVAL 10 SECOND) AS INSERT INTO t SELECT 1",
 		"SUBMIT TASK SCHEDULE START('2026-13-01') EVERY(INTERVAL 10 SECOND) AS INSERT INTO t SELECT 1",
+		"SUBMIT TASK SCHEDULE EVERY(INTERVAL 0x10 SECOND) AS INSERT INTO t SELECT 1",
+		"SUBMIT TASK SCHEDULE EVERY(INTERVAL 0b10 SECOND) AS INSERT INTO t SELECT 1",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

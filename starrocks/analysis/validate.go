@@ -166,9 +166,10 @@ func isReadOnlyAST(node ast.Node) bool {
 		// over a table.
 		return n.Name != ""
 	case *ast.OptimizerTraceStmt:
-		// TRACE only plans the query it wraps; it never runs it. A trace of a
-		// query that exports through INTO OUTFILE is still not a read.
-		return n.Query != nil && isReadOnlyQuery(n.Query)
+		// TRACE only plans the query it wraps; it never runs it. Even an
+		// INTO OUTFILE body writes nothing under TRACE, so the wrapper stays
+		// read-only and row-returning.
+		return n.Query != nil
 	case *ast.ExplainStmt:
 		// EXPLAIN requires an inner query; the inner query must itself be a
 		// shape EXPLAIN is meaningful for (SELECT family or DML). This blocks
