@@ -72,14 +72,17 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	}
 
 	if p.cur.Kind == kwBLACKHOLE && p.peekNext().Kind == int('(') {
+		mark := p.save()
 		p.advance() // consume BLACKHOLE
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
+		p.advance() // consume '('
+		sink := p.cur.Kind == int(')')
+		p.restore(mark)
+		if sink {
+			p.advance() // consume BLACKHOLE
+			p.advance() // consume '('
+			p.advance() // consume ')'
+			stmt.Blackhole = true
 		}
-		if _, err := p.expect(int(')')); err != nil {
-			return nil, err
-		}
-		stmt.Blackhole = true
 	}
 
 	if stmt.FileTarget == nil && !stmt.Blackhole {

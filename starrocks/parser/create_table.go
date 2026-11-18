@@ -702,9 +702,22 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			if err != nil {
 				return err
 			}
-			if p.strictCTAS && (partDesc.RangeExplicit && !partDesc.HasDefinitions ||
-				len(partDesc.FuncExprs) > 0) {
-				return p.syntaxErrorAtCur()
+			if p.strictCTAS {
+				if partDesc.RangeExplicit && !partDesc.HasDefinitions || len(partDesc.FuncExprs) > 0 {
+					return p.syntaxErrorAtCur()
+				}
+				for _, item := range partDesc.Partitions {
+					switch partDesc.Type {
+					case "RANGE":
+						if len(item.InValues) > 0 {
+							return p.syntaxErrorAtCur()
+						}
+					case "LIST":
+						if item.IsMaxValue || len(item.Values) > 0 || item.IsStep {
+							return p.syntaxErrorAtCur()
+						}
+					}
+				}
 			}
 			stmt.PartitionBy = partDesc
 			continue
@@ -894,9 +907,13 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 				return nil, err
 			}
 			if !explicitType {
-				// partitionExpr is only an identifier or a function call.
-				switch expr.(type) {
-				case *ast.ColumnRef, *ast.FuncCallExpr:
+				// partitionExpr is only a single identifier or a function call.
+				switch v := expr.(type) {
+				case *ast.ColumnRef:
+					if v.Name == nil || len(v.Name.Parts) != 1 {
+						return nil, p.syntaxErrorAtCur()
+					}
+				case *ast.FuncCallExpr:
 				default:
 					return nil, p.syntaxErrorAtCur()
 				}
