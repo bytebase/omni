@@ -103,6 +103,20 @@ func TestParseTableClause_Path(t *testing.T) {
 		t.Errorf("subquery body = %T, want *ast.TableClause", sub.Body)
 	}
 
+	// TABLE is non-reserved, so a bare TABLE in an expression position is the
+	// keyword as an identifier, not a query head: `(TABLE)` and `(TABLE.x)` stay
+	// expressions, and `(TABLE t)` is the query.
+	exprTable := parseOneStmt(t, "SELECT (TABLE)").(*ast.QueryStmt).Body.(*ast.SelectStmt).Items[0].Expr
+	if _, ok := exprTable.(*ast.ParenExpr); !ok {
+		t.Errorf("SELECT (TABLE): item = %T, want a parenthesized expression", exprTable)
+	}
+	if _, ok := parseOneStmt(t, "SELECT (TABLE.x)").(*ast.QueryStmt).Body.(*ast.SelectStmt).Items[0].Expr.(*ast.ParenExpr); !ok {
+		t.Error("SELECT (TABLE.x): want a parenthesized expression, not a query")
+	}
+	if te, ok := parseOneStmt(t, "SELECT * FROM (TABLE)").(*ast.QueryStmt).Body.(*ast.SelectStmt).From[0].(*ast.TableExpr); !ok || te.Path == nil {
+		t.Error("SELECT * FROM (TABLE): want a table source named TABLE, not a query")
+	}
+
 	// A leading WITH clause takes a TABLE primary too.
 	with := parseOneStmt(t, "WITH c AS (SELECT 1 AS n) TABLE c").(*ast.QueryStmt)
 	if with.With == nil || len(with.With.CTEs) != 1 {
