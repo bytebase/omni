@@ -197,7 +197,9 @@ func (p *Parser) collectProcedureTail() string {
 		}
 		switch p.cur.Kind {
 		case kwBEGIN:
-			if p.beginOpensCompoundBlock() {
+			// Split decides the transaction forms only outside a block: inside
+			// one, a BEGIN always deepens it.
+			if depth > 0 || p.beginOpensCompoundBlock() {
 				depth++
 			}
 		case kwEND:

@@ -205,6 +205,8 @@ func TestProcedureTailFollowsSplit(t *testing.T) {
 		"CREATE PROCEDURE a() zzz BEGIN x; SELECT 1;",
 		"ALTER PROCEDURE a() zzz BEGIN x; SELECT 1;",
 		"CREATE PROCEDURE a() zzz BEGIN x; END; SELECT 1;",
+		"CREATE PROCEDURE a() zzz BEGIN BEGIN; END;",
+		"ALTER PROCEDURE a() zzz BEGIN TRANSACTION; SELECT 1;",
 		"ALTER PROCEDURE a(); SELECT 1;",
 	} {
 		segments := Split(sql)
