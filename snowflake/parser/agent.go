@@ -5,9 +5,6 @@ import "github.com/bytebase/omni/snowflake/ast"
 // ---------------------------------------------------------------------------
 // AGENT and EXTERNAL AGENT (Cortex Agents), read as an ast.ObjectStmt
 // ---------------------------------------------------------------------------
-//
-// CREATE AGENT's modifiers before AGENT ({ TEMP | TEMPORARY }, SECURE) are not
-// read yet: ObjectStmt records none.
 
 func init() {
 	registerObject(&objectForm{
@@ -15,6 +12,8 @@ func init() {
 		create:    parseCreateAgent,
 		alter:     parseAlterAgent,
 		orReplace: true,
+		temp:      true,
+		secure:    true,
 		// https://docs.snowflake.com/en/sql-reference/sql/alter-agent writes no
 		// IF EXISTS.
 		noIfExists: true,
@@ -68,7 +67,10 @@ func parseCreateAgent(p *Parser, s *ast.ObjectStmt) error {
 		return err
 	}
 	if p.cur.Type == '@' {
-		// The stage form takes COMMENT alone.
+		// The stage form takes neither TEMP/TEMPORARY nor properties other than COMMENT.
+		if s.Temporary {
+			return &ParseError{Position: start, End: p.cur.Loc.End, Message: "syntax error: TEMPORARY is not documented with FROM @stage"}
+		}
 		if props != nil {
 			if err := aiCheckOptions(props.Options, objectProps{"COMMENT": propString}); err != nil {
 				return err

@@ -83,9 +83,19 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 
 	// If SECURE / RECURSIVE / INTERACTIVE were consumed, dispatch early on the
 	// object type. RECURSIVE pairs only with VIEW; INTERACTIVE only with
-	// MATERIALIZED VIEW; SECURE additionally precedes FUNCTION / EXTERNAL
+	// MATERIALIZED VIEW; SECURE additionally precedes registered objects that
+	// document it (AGENT), AGGREGATE FUNCTION, and FUNCTION / EXTERNAL
 	// FUNCTION / PROCEDURE.
 	if secure || recursive || interactive {
+		if !recursive && !interactive {
+			if f := p.matchObjectForm(); f != nil {
+				return p.parseCreateObjectStmt(f, start, orReplace, orAlter, false, true)
+			}
+			if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+				p.advance() // consume AGGREGATE
+				return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, true, false)
+			}
+		}
 		switch p.cur.Type {
 		case kwVIEW:
 			return p.parseCreateViewStmt(start, orReplace, orAlter, secure, recursive)
@@ -120,14 +130,22 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		}
 	}
 
+	// CREATE [ OR REPLACE ] AGGREGATE FUNCTION ... (LANGUAGE PYTHON).
+	if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+		p.advance() // consume AGGREGATE
+		return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, false, false)
+	}
+
 	// Optional [LOCAL|GLOBAL] TRANSIENT|TEMPORARY|TEMP|VOLATILE
 	transient := false
 	temporary := false
 	volatile := false
+	localOrGlobal := false
 
 	// Consume optional LOCAL/GLOBAL prefix (they don't change semantics here)
 	if p.cur.Type == kwLOCAL || p.cur.Type == kwGLOBAL {
 		p.advance()
+		localOrGlobal = true
 	}
 
 	switch p.cur.Type {
@@ -152,6 +170,29 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 				ReadOnly:  true,
 				Loc:       ast.Loc{Start: start.Start},
 			})
+		}
+		if !localOrGlobal {
+			if f := p.matchObjectForm(); f != nil {
+				return p.parseCreateObjectStmt(f, start, orReplace, orAlter, true, false)
+			}
+			if p.cur.Type == kwSECURE {
+				p.advance() // consume SECURE
+				if f := p.matchObjectForm(); f != nil {
+					return p.parseCreateObjectStmt(f, start, orReplace, orAlter, true, true)
+				}
+				if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+					p.advance() // consume AGGREGATE
+					return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, true, true)
+				}
+				if p.cur.Type == kwFUNCTION {
+					return p.parseCreateFunctionStmt(start, orReplace, orAlter, true, true)
+				}
+				return p.unsupported("CREATE")
+			}
+			if isWordToken(p.cur, "AGGREGATE") && p.peekNext().Type == kwFUNCTION {
+				p.advance() // consume AGGREGATE
+				return p.parseCreateAggregateFunctionStmt(start, orReplace, orAlter, false, true)
+			}
 		}
 	case kwVOLATILE:
 		p.advance()
@@ -665,7 +706,7 @@ func (p *Parser) parseCreateTableFrom(stmt *ast.CreateTableStmt) error {
 // which follows FROM in CREATE [ DYNAMIC [ ICEBERG ] ] TABLE. On entry cur is
 // BACKUP, which is not a keyword token.
 func (p *Parser) parseBackupSource() (*ast.BackupSource, error) {
-	if !p.curIsWord("BACKUP") {
+	if !isWordToken(p.cur, "BACKUP") {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume BACKUP
@@ -725,7 +766,7 @@ func (p *Parser) parseColumnDeclItems(stmt *ast.CreateTableStmt) error {
 			}
 			stmt.Constraints = append(stmt.Constraints, con)
 		} else {
-			col, err := p.parseColumnDef()
+			col, err := p.parseColumnDefIn(stmt.Iceberg)
 			if err != nil {
 				return err
 			}
@@ -821,6 +862,13 @@ func (p *Parser) tryParseTableIndex() (idx *ast.TableIndex, matched bool, err er
 //
 //	name [data_type | AS (expr)] [column_options...]
 func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
+	return p.parseColumnDefIn(false)
+}
+
+// parseColumnDefIn parses a column definition; iceberg enables the bare
+// `<col_name> <col_type> AS <expr>` virtual column form of Parquet Iceberg
+// tables (https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-parquet).
+func (p *Parser) parseColumnDefIn(iceberg bool) (*ast.ColumnDef, error) {
 	name, err := p.parseIdent()
 	if err != nil {
 		return nil, err
@@ -847,7 +895,7 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 		col.DataType = dt
 	}
 
-	if err := p.parseColumnOptions(col); err != nil {
+	if err := p.parseColumnOptionsIn(col, iceberg); err != nil {
 		return nil, err
 	}
 
@@ -859,6 +907,10 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 // follow a column name+type. Returns nil when no more column options are
 // found.
 func (p *Parser) parseColumnOptions(col *ast.ColumnDef) error {
+	return p.parseColumnOptionsIn(col, false)
+}
+
+func (p *Parser) parseColumnOptionsIn(col *ast.ColumnDef, iceberg bool) error {
 	for {
 		switch p.cur.Type {
 		case kwNOT:
@@ -1009,13 +1061,31 @@ func (p *Parser) parseColumnOptions(col *ast.ColumnDef) error {
 			col.Tags = append(col.Tags, tags...)
 
 		case kwAS:
+			if col.VirtualExpr != nil {
+				return p.syntaxErrorAtCur()
+			}
+			if iceberg && col.DataType != nil {
+				p.advance() // consume AS
+				expr, err := p.parseExpr()
+				if err != nil {
+					return err
+				}
+				if pe, ok := expr.(*ast.ParenExpr); ok {
+					expr = pe.Expr
+				}
+				col.VirtualExpr = expr
+				continue
+			}
 			if err := p.parseVirtualColumnExpr(col); err != nil {
 				return err
 			}
 
 		default:
 			switch {
-			case p.startsGeneratedAlways():
+			case !iceberg && p.startsGeneratedAlways():
+				if col.VirtualExpr != nil {
+					return p.syntaxErrorAtCur()
+				}
 				p.advance() // consume GENERATED
 				p.advance() // consume ALWAYS
 				if p.cur.Type != kwAS {

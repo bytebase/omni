@@ -183,7 +183,7 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		}
 
 	case kwADD:
-		// ADD <name-list> TO ALLOWED_{DATABASES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
+		// ADD <name-list> TO ALLOWED_{DATABASES|EXTERNAL_VOLUMES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
 		p.advance() // consume ADD
 		names, err := p.parseObjectNameList()
 		if err != nil {
@@ -196,10 +196,15 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if target == "ALLOWED_EXTERNAL_VOLUMES" {
+			if err := checkSinglePartGroupNames(append([]*ast.ObjectName{stmt.Name}, names...)); err != nil {
+				return nil, err
+			}
+		}
 		stmt.Action = ast.AlterGroupAdd
 		stmt.Names = names
 		stmt.ListTarget = target
-		if p.cur.Type == kwIGNORE {
+		if p.cur.Type == kwIGNORE && target != "ALLOWED_EXTERNAL_VOLUMES" {
 			if err := p.parseIgnoreEditionCheck(); err != nil {
 				return nil, err
 			}
@@ -207,7 +212,7 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		}
 
 	case kwREMOVE:
-		// REMOVE <name-list> FROM ALLOWED_{DATABASES|SHARES|ACCOUNTS}
+		// REMOVE <name-list> FROM ALLOWED_{DATABASES|EXTERNAL_VOLUMES|SHARES|ACCOUNTS}
 		p.advance() // consume REMOVE
 		names, err := p.parseObjectNameList()
 		if err != nil {
@@ -220,18 +225,27 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if target == "ALLOWED_EXTERNAL_VOLUMES" {
+			if err := checkSinglePartGroupNames(append([]*ast.ObjectName{stmt.Name}, names...)); err != nil {
+				return nil, err
+			}
+		}
 		stmt.Action = ast.AlterGroupRemove
 		stmt.Names = names
 		stmt.ListTarget = target
 
 	case kwMOVE:
-		// MOVE { DATABASES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
+		// MOVE { DATABASES | EXTERNAL VOLUMES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
 		p.advance() // consume MOVE
-		switch p.cur.Type {
-		case kwDATABASES:
+		switch {
+		case p.cur.Type == kwDATABASES:
 			p.advance()
 			stmt.MoveKind = "DATABASES"
-		case kwSHARES:
+		case p.cur.Type == kwEXTERNAL && isWordToken(p.peekNext(), "VOLUMES"):
+			p.advance() // consume EXTERNAL
+			p.advance() // consume VOLUMES
+			stmt.MoveKind = "EXTERNAL VOLUMES"
+		case p.cur.Type == kwSHARES:
 			p.advance()
 			stmt.MoveKind = "SHARES"
 		default:
@@ -241,12 +255,20 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if stmt.MoveKind == "EXTERNAL VOLUMES" {
+			if err := checkSinglePartGroupNames(append([]*ast.ObjectName{stmt.Name}, names...)); err != nil {
+				return nil, err
+			}
+		}
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
 		// TO { FAILOVER | REPLICATION } GROUP <name>.
 		switch p.cur.Type {
 		case kwFAILOVER, kwREPLICATION:
+			if stmt.MoveKind == "EXTERNAL VOLUMES" && (p.cur.Type == kwFAILOVER) != failover {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance()
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -257,6 +279,11 @@ func (p *Parser) parseAlterReplicationGroupStmt() (ast.Node, error) {
 		moveTo, err := p.parseObjectName()
 		if err != nil {
 			return nil, err
+		}
+		if stmt.MoveKind == "EXTERNAL VOLUMES" {
+			if err := checkSinglePartGroupNames([]*ast.ObjectName{moveTo}); err != nil {
+				return nil, err
+			}
 		}
 		stmt.Action = ast.AlterGroupMove
 		stmt.Names = names
@@ -1260,23 +1287,39 @@ func (p *Parser) parseObjectNameList() ([]*ast.ObjectName, error) {
 	return names, nil
 }
 
-// parseAllowedListKeyword consumes an ALLOWED_DATABASES / ALLOWED_SHARES /
-// ALLOWED_ACCOUNTS keyword (the target of an ADD ... TO / REMOVE ... FROM
-// action) and returns its uppercased text.
+// parseAllowedListKeyword consumes an ALLOWED_DATABASES /
+// ALLOWED_EXTERNAL_VOLUMES / ALLOWED_SHARES / ALLOWED_ACCOUNTS keyword (the
+// target of an ADD ... TO / REMOVE ... FROM action) and returns its uppercased
+// text.
 func (p *Parser) parseAllowedListKeyword() (string, error) {
-	switch p.cur.Type {
-	case kwALLOWED_DATABASES:
+	switch {
+	case p.cur.Type == kwALLOWED_DATABASES:
 		p.advance()
 		return "ALLOWED_DATABASES", nil
-	case kwALLOWED_SHARES:
+	case isWordToken(p.cur, "ALLOWED_EXTERNAL_VOLUMES"):
+		p.advance()
+		return "ALLOWED_EXTERNAL_VOLUMES", nil
+	case p.cur.Type == kwALLOWED_SHARES:
 		p.advance()
 		return "ALLOWED_SHARES", nil
-	case kwALLOWED_ACCOUNTS:
+	case p.cur.Type == kwALLOWED_ACCOUNTS:
 		p.advance()
 		return "ALLOWED_ACCOUNTS", nil
 	default:
 		return "", p.syntaxErrorAtCur()
 	}
+}
+
+func checkSinglePartGroupNames(names []*ast.ObjectName) error {
+	for _, n := range names {
+		if !n.Schema.IsEmpty() || !n.Database.IsEmpty() {
+			return &ParseError{
+				Position: n.Loc.Start, End: n.Loc.End,
+				Message: "syntax error: " + n.String() + " takes no qualifier here",
+			}
+		}
+	}
+	return nil
 }
 
 // parseIgnoreEditionCheck consumes the bare IGNORE EDITION CHECK flag. cur is the

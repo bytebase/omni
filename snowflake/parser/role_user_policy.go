@@ -73,6 +73,28 @@ func (p *Parser) parseCreateRoleStmt(start ast.Loc, orReplace, orAlter, database
 	}
 	stmt.Name = name
 
+	// CREATE [ OR REPLACE ] DATABASE ROLE [ IF NOT EXISTS ] <name> CLONE <source_role>
+	// (https://docs.snowflake.com/en/sql-reference/sql/create-clone).
+	if p.cur.Type == kwCLONE {
+		if !database || orAlter || (orReplace && stmt.IfNotExists) || !name.Database.IsEmpty() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume CLONE
+		src, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		if !src.Database.IsEmpty() {
+			return nil, &ParseError{
+				Position: src.Loc.Start, End: src.Loc.End,
+				Message: "syntax error: a database role's name has at most 2 parts",
+			}
+		}
+		stmt.Clone = src
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	// Trailing COMMENT / [WITH] TAG, in either order.
 	for {
 		if p.cur.Type == kwCOMMENT {

@@ -937,6 +937,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		if n.Clone != nil {
+			Walk(v, n.Clone)
+		}
 		for _, item := range n.Tags {
 			walkTagAssignment(v, item)
 		}
