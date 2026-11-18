@@ -1569,6 +1569,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 	if p.cur.Type == '(' {
 		p.advance()
 		var orgSeen, clusterSeen, objectSeen, nonObjectSeen bool
+		phase := -1
 		for n := 0; ; n++ {
 			if p.cur.Type == ')' && n > 0 {
 				p.advance()
@@ -1587,10 +1588,11 @@ func (p *Parser) parseATNestedTableStorage() error {
 			}
 			nonObjectSeen = true
 			if p.atWord("ORGANIZATION") {
-				if clusterSeen || orgSeen {
+				if clusterSeen || orgSeen || phase > 4 {
 					return p.syntaxErrorAtCur()
 				}
 				orgSeen = true
+				phase = 5
 				p.advance()
 				if err := p.atOneOf("HEAP", "INDEX"); err != nil {
 					return err
@@ -1602,10 +1604,11 @@ func (p *Parser) parseATNestedTableStorage() error {
 			// threshold, a heap table's cache hint, and the cluster its
 			// storage table belongs to.
 			if p.atWord("MAPPING") {
-				if clusterSeen || orgSeen {
+				if clusterSeen || orgSeen || phase > 4 {
 					return p.syntaxErrorAtCur()
 				}
 				orgSeen = true
+				phase = 5
 				p.advance()
 				if err := p.atExpect(kwTABLE); err != nil {
 					return err
@@ -1613,18 +1616,20 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("NOMAPPING") {
-				if clusterSeen || orgSeen {
+				if clusterSeen || orgSeen || phase > 4 {
 					return p.syntaxErrorAtCur()
 				}
 				orgSeen = true
+				phase = 5
 				p.advance()
 				continue
 			}
 			if p.atWord("PCTTHRESHOLD") {
-				if clusterSeen || orgSeen {
+				if clusterSeen || orgSeen || phase > 4 {
 					return p.syntaxErrorAtCur()
 				}
 				orgSeen = true
+				phase = 5
 				p.advance()
 				if err := p.parseATInteger(); err != nil {
 					return err
@@ -1632,18 +1637,20 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("CACHE") || p.atWord("NOCACHE") {
-				if clusterSeen || orgSeen {
+				if clusterSeen || orgSeen || phase > 4 {
 					return p.syntaxErrorAtCur()
 				}
 				orgSeen = true
+				phase = 5
 				p.advance()
 				continue
 			}
 			if p.cur.Type == kwCLUSTER {
-				if clusterSeen {
+				if clusterSeen || phase > 5 {
 					return p.syntaxErrorAtCur()
 				}
 				clusterSeen = true
+				phase = 6
 				p.advance()
 				if err := p.parseATName(); err != nil {
 					return err
@@ -1657,21 +1664,45 @@ func (p *Parser) parseATNestedTableStorage() error {
 				p.isATInmemoryStart() || p.atWord("SEGMENT") || p.atWord("OVERFLOW")) {
 				return p.syntaxErrorAtCur()
 			}
-			if p.atWord("OVERFLOW") {
-				if orgSeen {
+			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
+			for {
+				rank := p.nestedPhysicalPhase(physical)
+				if rank < 0 {
+					break
+				}
+				if rank < phase {
 					return p.syntaxErrorAtCur()
 				}
-				orgSeen = true
-			}
-			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
-			if err := p.parseATClauses(physical, nil); err != nil {
-				return err
+				switch rank {
+				case 0, 1:
+					phase = 1
+				case 2:
+					phase = 3
+				case 3:
+					phase = 4
+				case 4:
+					if orgSeen {
+						return p.syntaxErrorAtCur()
+					}
+					orgSeen = true
+					phase = 5
+				}
+				parsed, err := p.parseATClause(physical, nil)
+				if err != nil {
+					return err
+				}
+				if !parsed {
+					return p.syntaxErrorAtCur()
+				}
 			}
 			if err := p.parseATColumnProperties(nil); err != nil {
 				return err
 			}
 			if p.pos() == start {
 				return p.syntaxErrorAtCur()
+			}
+			if phase < 6 {
+				phase = 6
 			}
 		}
 	}
@@ -1683,6 +1714,25 @@ func (p *Parser) parseATNestedTableStorage() error {
 		return p.atOneOf("LOCATOR", "VALUE")
 	}
 	return nil
+}
+
+// nestedPhysicalPhase ranks a physical_properties clause in the page's
+// order: deferred segment creation, segment attributes, compression,
+// inmemory, then an organization clause.
+func (p *Parser) nestedPhysicalPhase(allowed atClauses) int {
+	switch p.atClauseAt(allowed) {
+	case atcSegmentCreation:
+		return 0
+	case atcSegment:
+		return 1
+	case atcCompression:
+		return 2
+	case atcInmemory:
+		return 3
+	case atcOverflow:
+		return 4
+	}
+	return -1
 }
 
 // parseATObjectProperties reads ( object_properties ) of a nested table's
@@ -1709,7 +1759,7 @@ func (p *Parser) parseATObjectProperties() error {
 			if tc == nil {
 				return p.syntaxErrorAtCur()
 			}
-		case p.atWord("SUPPLEMENTAL"):
+		case p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG"):
 			p.advance()
 			if err := p.parseATSupplementalLogging(true, true, nil); err != nil {
 				return err

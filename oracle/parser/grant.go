@@ -522,6 +522,9 @@ func (p *Parser) parseGrantObjectName(qualified bool) (*nodes.ObjectName, error)
 // FROM there may itself be a role (REVOKE REVOKE FROM, r FROM PROCEDURE p);
 // only a FROM followed by the target's kind is the delimiter.
 func (p *Parser) revokeRepeatsBeforeRoles() bool {
+	if p.peekNext().Type == ';' || p.peekNext().Type == ',' {
+		return false
+	}
 	if p.peekNext().Type == kwFROM {
 		ahead := p.peekAhead(2)
 		if isGrantProgramUnitKind(ahead[1]) {
