@@ -1940,6 +1940,14 @@ func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, defaultDat
 		collectAccessTablesFromExpr(result, e.Right, defaultDatabase)
 	case *ast.UnaryExpr:
 		collectAccessTablesFromExpr(result, e.Operand, defaultDatabase)
+	case *ast.QuantifiedExpr:
+		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.OdbcEscapeExpr:
+		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.GroupingSet:
+		for _, item := range e.Items {
+			collectAccessTablesFromExpr(result, item, defaultDatabase)
+		}
 	case *ast.FuncCallExpr:
 		for _, arg := range e.Args {
 			collectAccessTablesFromExpr(result, arg, defaultDatabase)

@@ -88,6 +88,9 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
+	if q.Approx {
+		b.WriteString(" approx")
+	}
 	if q.LimitCount != nil {
 		b.WriteString(" limit ")
 		writeAnalyzedExpr(b, q.LimitCount, q)
@@ -95,6 +98,22 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 			b.WriteString(" offset ")
 			writeAnalyzedExpr(b, q.LimitOffset, q)
 		}
+	}
+	if len(q.VectorIndexParams) > 0 {
+		b.WriteString(" parameters(")
+		for i, param := range q.VectorIndexParams {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(param.Name))
+			b.WriteString(" = ")
+			if param.IsName {
+				b.WriteString(backtickIDQ(param.Value))
+			} else {
+				b.WriteString(strings.ToLower(param.Value))
+			}
+		}
+		b.WriteByte(')')
 	}
 }
 
@@ -322,6 +341,9 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 		deparseOrderByQ(b, q)
 	}
 
+	if q.Approx {
+		b.WriteString(" approx")
+	}
 	if q.LimitCount != nil {
 		b.WriteString(" limit ")
 		writeAnalyzedExpr(b, q.LimitCount, q)
@@ -329,6 +351,22 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 			b.WriteString(" offset ")
 			writeAnalyzedExpr(b, q.LimitOffset, q)
 		}
+	}
+	if len(q.VectorIndexParams) > 0 {
+		b.WriteString(" parameters(")
+		for i, param := range q.VectorIndexParams {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(param.Name))
+			b.WriteString(" = ")
+			if param.IsName {
+				b.WriteString(backtickIDQ(param.Value))
+			} else {
+				b.WriteString(strings.ToLower(param.Value))
+			}
+		}
+		b.WriteByte(')')
 	}
 }
 

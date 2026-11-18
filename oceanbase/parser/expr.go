@@ -1123,7 +1123,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		// NULLS or IGNORE NULLS after the parameters. LEAD and LAG may go on
 		// with more of them, `LEAD(a RESPECT NULLS, 2)`, and the others close
 		// their list there.
-		if builtin && nullsTreatmentNames[upperName] && p.atNullsTreatment() {
+		if builtin && inArgumentNullsTreatment[upperName] && p.atNullsTreatment() {
 			t, err := p.parseNullsTreatment()
 			if err != nil {
 				return nil, err
@@ -1305,10 +1305,20 @@ var vectorMetricNames = wordSet(`cosine dot euclidean manhattan`)
 // arm. opt_respect_or_ignore_nulls writes the second word; the pair is
 // `respect_or_ignore NULLS`.
 //
+// inArgumentNullsTreatment is the subset that writes it inside the argument
+// list: FIRST_VALUE's, LAST_VALUE's and LEAD/LAG's parameters end with it, and
+// NTH_VALUE takes it only after its closing parenthesis.
+//
 // Ref: respect_or_ignore and opt_respect_or_ignore_nulls in
 // sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 2409-2437).
 var nullsTreatmentNames = map[string]bool{
 	"FIRST_VALUE": true, "LAST_VALUE": true, "LEAD": true, "LAG": true, "NTH_VALUE": true,
+}
+
+// inArgumentNullsTreatment is the window functions that write RESPECT NULLS or
+// IGNORE NULLS inside their parameter list.
+var inArgumentNullsTreatment = map[string]bool{
+	"FIRST_VALUE": true, "LAST_VALUE": true, "LEAD": true, "LAG": true,
 }
 
 // atNullsTreatment reports whether the tokens are RESPECT NULLS or IGNORE NULLS.

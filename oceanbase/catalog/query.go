@@ -127,6 +127,11 @@ type Query struct {
 	// Both forms are normalized into these two fields.
 	LimitCount  AnalyzedExpr
 	LimitOffset AnalyzedExpr
+	// Approx is the vector search's APPROX, which stands before the LIMIT, and
+	// VectorIndexParams its PARAMETERS list after it. Both change which index
+	// the search uses, so a stored view keeps them.
+	Approx            bool
+	VectorIndexParams []*VectorIndexParamQ
 
 	// Distinct is true for SELECT DISTINCT.
 	// Note: PG has a DistinctOn slice for `SELECT DISTINCT ON (...)`;
@@ -1045,11 +1050,22 @@ type CastExprQ struct {
 	// Collation applies when the cast target is a string type with an
 	// explicit COLLATE clause: `CAST(x AS CHAR CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)`.
 	Collation string
+	// Ignore is sys_view_cast_opt's IGNORE: a value that cannot be converted is
+	// the default rather than an error.
+	Ignore bool
 }
 
 func (*CastExprQ) analyzedExprTag()          {}
 func (c *CastExprQ) exprType() *ResolvedType { return c.TargetType }
 func (c *CastExprQ) exprCollation() string   { return c.Collation }
+
+// VectorIndexParamQ is one PARAMETERS entry of a vector search: a name and the
+// value as written.
+type VectorIndexParamQ struct {
+	Name   string
+	Value  string
+	IsName bool
+}
 
 // ----------------------------------------------------------------------------
 // GroupingSetExprQ — a GROUP BY grouping set.

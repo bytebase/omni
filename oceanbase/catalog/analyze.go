@@ -116,6 +116,17 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		}
 	}
 
+	// The vector search's APPROX and PARAMETERS travel with the LIMIT they
+	// surround.
+	q.Approx = stmt.Approx
+	for _, param := range stmt.VectorIndexParams {
+		q.VectorIndexParams = append(q.VectorIndexParams, &VectorIndexParamQ{
+			Name:   param.Name,
+			Value:  param.Value,
+			IsName: param.IsName,
+		})
+	}
+
 	// Step 9: DISTINCT
 	q.Distinct = stmt.DistinctKind != nodes.DistinctNone && stmt.DistinctKind != nodes.DistinctAll
 
@@ -147,8 +158,11 @@ func analyzeFromClause(c *Catalog, from []nodes.TableExpr, q *Query, scope *anal
 func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerScope, cteMap map[string]*CommonTableExprQ) (JoinNode, error) {
 	switch ref := te.(type) {
 	case *nodes.TableRef:
+		// A name another catalog holds, or one a database link reads, is not
+		// this catalog's: neither a CTE nor DUAL is it.
+		remote := ref.Catalog != "" || ref.Dblink != ""
 		// Check if this references a CTE before looking up catalog tables.
-		if cteMap != nil && ref.Schema == "" {
+		if cteMap != nil && ref.Schema == "" && !remote {
 			lower := strings.ToLower(ref.Name)
 			if cteQ, ok := cteMap[lower]; ok {
 				if cteQ.namesUncertain {
@@ -157,7 +171,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 				return analyzeCTERef(ref, cteQ, q, scope)
 			}
 		}
-		if ref.Schema == "" && strings.EqualFold(ref.Name, "dual") {
+		if ref.Schema == "" && !remote && strings.EqualFold(ref.Name, "dual") {
 			// FROM DUAL names no table: the query reads none.
 			return nil, nil
 		}

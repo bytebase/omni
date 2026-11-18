@@ -56,10 +56,6 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.CaseExpr:
 		return analyzeCaseExpr(c, n, scope)
 	case *nodes.CastExpr:
-		if n.Ignore {
-			// The IR's cast has no IGNORE, so the expression keeps its text.
-			return &RawExprQ{Text: deparse.Deparse(n)}, nil
-		}
 		return analyzeCastExpr(c, n, scope)
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
@@ -416,7 +412,7 @@ func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (An
 		targetType = dataTypeToResolvedType(expr.TypeName)
 	}
 
-	return &CastExprQ{Arg: arg, TargetType: targetType}, nil
+	return &CastExprQ{Arg: arg, TargetType: targetType, Ignore: expr.Ignore}, nil
 }
 
 // dataTypeToResolvedType maps a parser DataType to a ResolvedType for CAST targets.

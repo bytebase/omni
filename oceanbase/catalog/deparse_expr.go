@@ -385,6 +385,9 @@ func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *deparseScope) {
 	writeAnalyzedExpr(b, c.Arg, q)
 	b.WriteString(" as ")
 	b.WriteString(deparseResolvedTypeQ(c.TargetType))
+	if c.Ignore {
+		b.WriteString(" ignore")
+	}
 	b.WriteString(")")
 }
 

@@ -153,10 +153,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 			// The list is one command, whose failure leaves the table as it was:
 			// every name is looked up before any of them is dropped.
 			if !cmd.IfExists {
+				// A name written twice fails on its second drop, so the whole
+				// statement fails before anything is removed either.
+				seen := map[string]bool{}
 				for _, name := range cmd.ConstraintNames {
-					if !tableHasConstraint(tbl, name) {
+					key := toLower(name)
+					if !tableHasConstraint(tbl, name) || seen[key] {
 						return errCantDropKey(name)
 					}
+					seen[key] = true
 				}
 			}
 			for _, name := range cmd.ConstraintNames {
