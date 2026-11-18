@@ -34,7 +34,11 @@ type Parser struct {
 	// when this depth is > 0, matching SqlScriptDOM's separation of
 	// booleanExpressionWithFlags from expressionWithFlags.
 	searchCondDepth int
-	depth           int // nesting depth of the productions being parsed (see enterNesting)
+	// subqueryDepth is non-zero while parsing a subquery's query expression,
+	// whose ORDER BY SQL Server holds to TOP, OFFSET or FOR and which takes no
+	// FOR BROWSE (Msg 1033, 176).
+	subqueryDepth int
+	depth         int // nesting depth of the productions being parsed (see enterNesting)
 
 	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
 	// bodies, CATCH blocks and procedure or function bodies being parsed:
@@ -324,6 +328,9 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwSELECT:
 		return p.parseSelectStmt()
+	case '(':
+		// A parenthesized query expression is a statement of its own.
+		return p.parseQueryParenthesisStmt()
 	case kwWITH:
 		return p.parseWithStmt()
 	case kwINSERT:

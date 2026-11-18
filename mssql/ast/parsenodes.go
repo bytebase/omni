@@ -33,6 +33,9 @@ type SelectStmt struct {
 	// GROUP BY clause
 	GroupByClause *List
 	GroupByAll    bool // GROUP BY ALL (deprecated)
+	// GroupByDistributedAgg is a GROUP BY that ends, on the list or on one of
+	// its items, with WITH ( DISTRIBUTED_AGG ).
+	GroupByDistributedAgg bool
 
 	// HAVING clause
 	HavingClause ExprNode

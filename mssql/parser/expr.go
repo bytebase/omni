@@ -212,7 +212,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				quantifier := strings.ToUpper(p.cur.Str)
 				p.advance() // consume ALL/SOME/ANY
 				p.advance() // consume (
-				subquery, err := p.parseSelectStmt()
+				subquery, err := p.parseSubquerySelect()
 				if err != nil {
 					return nil, err
 				}
@@ -320,7 +320,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		}
 		// Check for subquery: IN (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub, err := p.parseSelectStmt()
+			sub, err := p.parseSubquerySelect()
 			if err != nil {
 				return nil, err
 			}
@@ -345,7 +345,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			// IN's list holds expressions, and a star is none: IF 1 IN (*)
+			// SELECT 1 is Msg 102 (measured).
 			if expr == nil {
+				return nil, p.unexpectedToken()
+			}
+			if _, star := expr.(*nodes.StarExpr); star {
 				return nil, p.unexpectedToken()
 			}
 			return expr, nil
@@ -453,7 +458,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.advance() // consume ALL/SOME/ANY
 			if p.cur.Type == '(' {
 				p.advance() // consume (
-				subquery, err := p.parseSelectStmt()
+				subquery, err := p.parseSubquerySelect()
 				if err != nil {
 					return nil, err
 				}
@@ -913,7 +918,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		// Scalar subquery: (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub, err := p.parseSelectStmt()
+			sub, err := p.parseSubquerySelect()
 			if err != nil {
 				return nil, err
 			}
@@ -928,6 +933,15 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		// Parentheses hold an expression, and a star is no expression outside
+		// a select list: SELECT (), SELECT (*) and IF 1 IN (*) SELECT 1 are
+		// Msg 102 (measured).
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, star := expr.(*nodes.StarExpr); star {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -1498,7 +1512,7 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 		p.addTokenCandidate(kwSELECT)
 		return nil, errCollecting
 	}
-	query, err := p.parseSelectStmt()
+	query, err := p.parseSubquerySelect()
 	if err != nil {
 		return nil, err
 	}
@@ -1629,6 +1643,13 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 	}
 
 	if p.cur.Type == ')' {
+		// LEFT, RIGHT and TRIM take an argument, and SQL Server refuses the
+		// empty list: SELECT LEFT() is Msg 102 and SELECT TRIM() is Msg 189
+		// (measured).
+		switch strings.ToUpper(name) {
+		case "LEFT", "RIGHT", "TRIM":
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
@@ -1682,6 +1703,14 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		return nil, err
 	}
 	fc.Args = &nodes.List{Items: args}
+
+	// LEFT and RIGHT take exactly two arguments, and SQL Server counts them
+	// while parsing: SELECT LEFT(1) is Msg 174 (measured).
+	if n := strings.ToUpper(name); n == "LEFT" || n == "RIGHT" {
+		if len(args) != 2 {
+			return nil, &ParseError{Message: "the " + strings.ToLower(n) + " function requires 2 arguments", Position: loc}
+		}
+	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
