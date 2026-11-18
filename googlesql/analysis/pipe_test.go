@@ -52,6 +52,7 @@ func TestStatementTypeOfPipe(t *testing.T) {
 		{"|> CREATE TABLE t (x INT64)", CreateTable},
 		{"|> IF true THEN (|> INSERT t) ELSE (|> DISTINCT)", Insert},
 		{"|> IF true THEN (|> INSERT t) ELSE (|> CREATE TABLE u (x INT64))", StatementTypeUnspecified},
+		{"|> IF true THEN (|> INSERT t) ELSEIF false THEN (|> CREATE TABLE u (x INT64)) ELSE (|> INSERT v)", StatementTypeUnspecified},
 	}
 	for _, tc := range tests {
 		file, err := parseFile(tc.sql)
@@ -75,6 +76,23 @@ func TestGetQuerySpanPipe(t *testing.T) {
 		}
 		if got := tableNames(span); len(got) != 1 || got[0] != "t" {
 			t.Errorf("tables = %v, want [t]", got)
+		}
+	})
+
+	t.Run("a sample's embedded query is walked", func(t *testing.T) {
+		sql := "SELECT * FROM INFORMATION_SCHEMA.TABLES |> TABLESAMPLE SYSTEM (10 PERCENT PARTITION BY (SELECT x FROM secret))"
+		span, err := GetQuerySpan(sql, DialectBigQuery)
+		if err != nil {
+			t.Fatalf("GetQuerySpan: %v", err)
+		}
+		found := false
+		for _, name := range tableNames(span) {
+			if name == "secret" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("tables = %v, want secret", tableNames(span))
 		}
 	})
 

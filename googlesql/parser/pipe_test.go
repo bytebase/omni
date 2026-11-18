@@ -121,6 +121,9 @@ func TestPipe_Operators(t *testing.T) {
 		{"|> RECURSIVE UNION ALL (|> AGGREGATE)", ast.T_PipeRecursiveUnion},
 		{"|> JOIN a ON true", ast.T_PipeJoin},
 		{"|> CALL f() AS g", ast.T_PipeCall},
+		{"|> CALL f(TABLE t)", ast.T_PipeCall},
+		{"|> CALL f(MODEL m)", ast.T_PipeCall},
+		{"|> INNER UNION ALL (SELECT 1)", ast.T_PipeSetOperation},
 		{"|> WINDOW x AS y", ast.T_PipeWindow},
 		{"|> DISTINCT", ast.T_PipeDistinct},
 		{"|> TABLESAMPLE SYSTEM (10 PERCENT)", ast.T_PipeTablesample},
@@ -173,6 +176,26 @@ func TestPipe_OperatorShapes(t *testing.T) {
 		}
 		if agg.Select.GroupBy == nil || len(agg.Select.GroupBy.Items) != 1 {
 			t.Errorf("GROUP BY = %+v, want one item", agg.Select.GroupBy)
+		}
+	})
+
+	t.Run("join child starts at its own first token", func(t *testing.T) {
+		sql := "|> LEFT JOIN t ON true"
+		pipe := subpipelineOf(t, firstStmt(t, sql))
+		op := pipe.Ops[0].(*ast.PipeJoin)
+		if op.Loc.Start != 0 {
+			t.Errorf("pipe join Loc = %+v, want it to start at |> (0)", op.Loc)
+		}
+		if want := strings.Index(sql, "LEFT"); op.Join.Loc.Start != want {
+			t.Errorf("embedded join Loc = %+v, want it to start at LEFT (%d)", op.Join.Loc, want)
+		}
+	})
+
+	t.Run("inner set operation mode", func(t *testing.T) {
+		pipe := subpipelineOf(t, firstStmt(t, "|> INNER UNION ALL (SELECT 1)"))
+		set := pipe.Ops[0].(*ast.PipeSetOperation)
+		if set.Set.OuterMode != "INNER" || set.Set.Op != ast.SetOpUnion {
+			t.Errorf("set = %+v, want INNER UNION ALL", set.Set)
 		}
 	})
 
@@ -310,6 +333,7 @@ func TestPipe_AcceptsValidNearMisses(t *testing.T) {
 		"|> SELECT x, |> WHERE true",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a || b) DEFINE a AS true, b AS true)",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN((a)) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(||a) DEFINE a AS true)",
 		"|> JOIN a USING (x, y)",
 		"|> FULL OUTER HASH JOIN a ON true",
 	}

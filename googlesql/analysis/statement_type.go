@@ -134,60 +134,78 @@ func StatementTypeOf(node ast.Node) StatementType {
 // writes rows and a pipe CREATE TABLE creates one; a nested branch that does
 // either makes the whole statement that kind. Every other operator only reads
 // or transforms the pipeline, so it reports Unspecified like a query does.
-func pipeStatementType(p *ast.Subpipeline) StatementType {
-	if p == nil {
+type pipeStatementTypes struct {
+	t        StatementType
+	conflict bool
+}
+
+// add records one path's type.
+func (a *pipeStatementTypes) add(t StatementType) {
+	if t == StatementTypeUnspecified {
+		return
+	}
+	switch {
+	case a.t == StatementTypeUnspecified:
+		a.t = t
+	case a.t != t:
+		a.conflict = true
+	}
+}
+
+// addAll records the types of a nested pipeline; its own conflict carries over.
+func (a *pipeStatementTypes) addAll(o pipeStatementTypes) {
+	if o.conflict {
+		a.conflict = true
+	}
+	a.add(o.t)
+}
+
+func (a pipeStatementTypes) result() StatementType {
+	if a.conflict {
 		return StatementTypeUnspecified
 	}
-	t := StatementTypeUnspecified
+	return a.t
+}
+
+// pipeStatementType reports the change a pipe suffix makes. A pipe INSERT
+// writes rows and a pipe CREATE TABLE creates one; a nested branch that does
+// either makes the whole statement that kind. Every other operator only reads
+// or transforms the pipeline, so it reports Unspecified like a query does. Two
+// different writes on different runtime paths conflict (no single type covers
+// both) and report Unspecified.
+func pipeStatementType(p *ast.Subpipeline) StatementType {
+	return pipeStatementTypesOf(p).result()
+}
+
+func pipeStatementTypesOf(p *ast.Subpipeline) pipeStatementTypes {
+	var acc pipeStatementTypes
+	if p == nil {
+		return acc
+	}
 	for _, op := range p.Ops {
-		t = mergeStatementTypes(t, pipeOperatorStatementType(op))
-	}
-	return t
-}
-
-// pipeOperatorStatementType reports the change one pipe operator makes,
-// including the subpipelines a branching operator holds.
-func pipeOperatorStatementType(op ast.Node) StatementType {
-	switch n := op.(type) {
-	case *ast.PipeInsert:
-		return Insert
-	case *ast.PipeCreateTable:
-		return CreateTable
-	case *ast.PipeLog:
-		return pipeStatementType(n.Pipeline)
-	case *ast.PipeIf:
-		t := StatementTypeUnspecified
-		for _, c := range n.Cases {
-			t = mergeStatementTypes(t, pipeStatementType(c.Then))
+		switch n := op.(type) {
+		case *ast.PipeInsert:
+			acc.add(Insert)
+		case *ast.PipeCreateTable:
+			acc.add(CreateTable)
+		case *ast.PipeLog:
+			acc.addAll(pipeStatementTypesOf(n.Pipeline))
+		case *ast.PipeIf:
+			for _, c := range n.Cases {
+				acc.addAll(pipeStatementTypesOf(c.Then))
+			}
+			acc.addAll(pipeStatementTypesOf(n.Else))
+		case *ast.PipeFork:
+			for _, branch := range n.Pipelines {
+				acc.addAll(pipeStatementTypesOf(branch))
+			}
+		case *ast.PipeTee:
+			for _, branch := range n.Pipelines {
+				acc.addAll(pipeStatementTypesOf(branch))
+			}
 		}
-		return mergeStatementTypes(t, pipeStatementType(n.Else))
-	case *ast.PipeFork:
-		t := StatementTypeUnspecified
-		for _, branch := range n.Pipelines {
-			t = mergeStatementTypes(t, pipeStatementType(branch))
-		}
-		return t
-	case *ast.PipeTee:
-		t := StatementTypeUnspecified
-		for _, branch := range n.Pipelines {
-			t = mergeStatementTypes(t, pipeStatementType(branch))
-		}
-		return t
 	}
-	return StatementTypeUnspecified
-}
-
-// mergeStatementTypes combines the types of the paths a statement can take. One
-// path making no change leaves the other; two different changes (an INSERT on
-// one branch, a CREATE TABLE on another) are Unspecified rather than a guess.
-func mergeStatementTypes(a, b StatementType) StatementType {
-	if a == StatementTypeUnspecified {
-		return b
-	}
-	if b == StatementTypeUnspecified || a == b {
-		return a
-	}
-	return StatementTypeUnspecified
+	return acc
 }
 
 func alterStatementType(kind ast.AlterObjectKind) StatementType {

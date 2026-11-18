@@ -252,7 +252,14 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 		}
 		return nil, p.syntaxErrorAtCur()
 
-	case kwCROSS, kwINNER, kwRIGHT, kwNATURAL, kwJOIN, kwHASH, kwLOOKUP:
+	case kwINNER:
+		// INNER can be a join type or a set operation's propagation mode.
+		if p.pipeSetOpAhead() {
+			return p.parsePipeSetOperation(start)
+		}
+		return p.parsePipeJoin(start)
+
+	case kwCROSS, kwRIGHT, kwNATURAL, kwJOIN, kwHASH, kwLOOKUP:
 		return p.parsePipeJoin(start)
 
 	case kwRECURSIVE:
@@ -415,6 +422,12 @@ func (p *Parser) pipeSetOpAhead() bool {
 		return false
 	case kwFULL, kwLEFT:
 		return p.setOpFollowsOuterMode()
+	case kwINNER:
+		// opt_corresponding_outer_mode's INNER mode has no OUTER form.
+		switch p.peekNext().Type {
+		case kwUNION, kwINTERSECT, kwEXCEPT:
+			return true
+		}
 	}
 	return false
 }
@@ -963,7 +976,9 @@ func (p *Parser) parseSubpipelineAfterOpen(openTok Token) (*ast.Subpipeline, err
 // parsePipeJoin parses `[NATURAL] [join type] [HASH|LOOKUP] JOIN [hint] <table>
 // [{ON expr | USING (col, …)}]`.
 func (p *Parser) parsePipeJoin(start int) (ast.Node, error) {
-	je := &ast.JoinExpr{Loc: ast.Loc{Start: start}}
+	// The wrapper starts at `|>`; the embedded join's own syntax starts at the
+	// first join keyword (NATURAL, the join type, a hint, or JOIN).
+	je := &ast.JoinExpr{Loc: ast.Loc{Start: p.cur.Loc.Start}}
 
 	if p.cur.Type == kwNATURAL {
 		p.advance()
@@ -1031,7 +1046,7 @@ func (p *Parser) parsePipeJoin(start int) (ast.Node, error) {
 	} else if len(je.Using) > 0 {
 		je.Loc.End = p.prev.Loc.End
 	}
-	return &ast.PipeJoin{Join: je, Loc: je.Loc}, nil
+	return &ast.PipeJoin{Join: je, Loc: ast.Loc{Start: start, End: je.Loc.End}}, nil
 }
 
 // parsePipeJoinCriteria parses the optional single ON/USING clause of a pipe
@@ -1058,21 +1073,9 @@ func (p *Parser) parsePipeJoinCriteria(je *ast.JoinExpr) error {
 // parsePipeCall parses `CALL <tvf> [[AS] alias]`.
 func (p *Parser) parsePipeCall(start int) (ast.Node, error) {
 	p.advance() // CALL
-	path, err := p.parseTablePath()
+	f, err := p.parsePipeTVF()
 	if err != nil {
 		return nil, err
-	}
-	if p.cur.Type != int('(') {
-		// tvf requires a call; a bare name is not a pipe CALL.
-		return nil, p.syntaxErrorAtCur()
-	}
-	fc, err := p.parseFuncCallSuffix(path)
-	if err != nil {
-		return nil, err
-	}
-	f, ok := fc.(*ast.FuncCall)
-	if !ok {
-		return nil, p.syntaxErrorAtCur()
 	}
 	te := &ast.TableExpr{Func: f, Loc: nodeLoc(f)}
 	if alias, ok, err := p.tryParseTableAlias(); err != nil {
@@ -1082,6 +1085,55 @@ func (p *Parser) parsePipeCall(start int) (ast.Node, error) {
 		te.Loc.End = p.prev.Loc.End
 	}
 	return &ast.PipeCall{Call: te, Loc: ast.Loc{Start: start, End: te.Loc.End}}, nil
+}
+
+// parsePipeTVF parses tvf: `(path_expression | "IF") "(" (tvf_argument
+// separator ",")* ")" hint?`. Unlike a scalar function call, a TVF argument may
+// be a table clause (`TABLE t`), a model, a connection or a descriptor, so the
+// arguments are parseCallArg's tvf_argument alternatives.
+func (p *Parser) parsePipeTVF() (*ast.FuncCall, error) {
+	var name *ast.PathExpr
+	if p.cur.Type == kwIF {
+		tok := p.advance()
+		name = &ast.PathExpr{Parts: []string{"IF"}, Loc: tok.Loc}
+	} else {
+		path, err := p.parsePathExpr()
+		if err != nil {
+			return nil, err
+		}
+		name = path
+	}
+	if p.cur.Type != int('(') {
+		// tvf requires the call parentheses.
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // '('
+	fc := &ast.FuncCall{Name: name, Loc: name.Loc}
+	if p.cur.Type != int(')') {
+		for {
+			arg, err := p.parseCallArg()
+			if err != nil {
+				return nil, err
+			}
+			fc.Args = append(fc.Args, arg)
+			if p.cur.Type != int(',') {
+				break
+			}
+			p.advance()
+		}
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	fc.Loc.End = closeTok.Loc.End
+	if p.cur.Type == int('@') {
+		if herr := p.skipHint(); herr != nil {
+			return nil, herr
+		}
+		fc.Loc.End = p.prev.Loc.End
+	}
+	return fc, nil
 }
 
 // parsePipeIf parses `IF cond THEN ( … ) [ELSEIF cond THEN ( … )]* [ELSE ( … )]`.
@@ -1497,7 +1549,7 @@ func (p *Parser) parseRowPatternExpr() (*ast.RowPattern, error) {
 // parseRowPatternConcatenationOrEmpty parses row_pattern_concatenation_or_empty:
 // a concatenation, or the empty pattern at an alternation boundary.
 func (p *Parser) parseRowPatternConcatenationOrEmpty() (*ast.RowPattern, error) {
-	if p.cur.Type == int('|') || p.cur.Type == int(')') {
+	if p.cur.Type == int('|') || p.cur.Type == tokBoolOr || p.cur.Type == int(')') {
 		return &ast.RowPattern{Kind: ast.RowPatternEmpty, Loc: p.cur.Loc}, nil
 	}
 	left, err := p.parseRowPatternFactor()

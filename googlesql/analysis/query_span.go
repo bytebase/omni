@@ -509,6 +509,14 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 					w.walkPredicate(item.Value)
 				}
 			}
+		case *ast.PipeTablesample:
+			if n.Sample != nil {
+				w.walkPredicate(n.Sample.Size)
+				for _, expr := range n.Sample.PartitionBy {
+					w.walkPredicate(expr)
+				}
+				w.walkPredicate(n.Sample.Repeatable)
+			}
 		case *ast.PipeJoin:
 			if n.Join != nil {
 				w.buildFromItem(n.Join.Right)

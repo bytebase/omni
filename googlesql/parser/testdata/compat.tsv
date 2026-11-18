@@ -4134,8 +4134,8 @@ accept	accept	engine	row_pattern_expr/row_pattern_concatenation_or_empty!insert	
 accept	accept	engine	row_pattern_expr/row_pattern_expr_|_row_pattern_concatenation_or_empty	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(|) DEFINE a AS NULL)
 reject	accept	engine	row_pattern_expr/row_pattern_expr_|_row_pattern_concatenation_or_empty!truncate	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(
 accept	accept	engine	row_pattern_expr/row_pattern_expr_|_row_pattern_concatenation_or_empty!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(| zzz) DEFINE a AS NULL)
-reject	accept	engine	row_pattern_expr/row_pattern_expr_||_row_pattern_concatenation_or_empty	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(||) DEFINE a AS NULL)
-reject	accept	engine	row_pattern_expr/row_pattern_expr_||_row_pattern_concatenation_or_empty!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(|| zzz) DEFINE a AS NULL)
+accept	accept	engine	row_pattern_expr/row_pattern_expr_||_row_pattern_concatenation_or_empty	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(||) DEFINE a AS NULL)
+accept	accept	engine	row_pattern_expr/row_pattern_expr_||_row_pattern_concatenation_or_empty!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(|| zzz) DEFINE a AS NULL)
 accept	accept	engine	row_pattern_concatenation_or_empty/row_pattern_concatenation	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a) DEFINE a AS NULL)
 accept	accept	engine	row_pattern_concatenation_or_empty/row_pattern_concatenation!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a zzz) DEFINE a AS NULL)
 accept	accept	engine	row_pattern_concatenation_or_empty/%empty	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN() DEFINE a AS NULL)

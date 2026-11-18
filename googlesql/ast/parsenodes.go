@@ -1376,7 +1376,7 @@ func (op SetOp) String() string {
 type SetOperation struct {
 	Op            SetOp
 	All           bool   // ALL (vs DISTINCT)
-	OuterMode     string // "" | "FULL" | "OUTER" | "LEFT"
+	OuterMode     string // "" | "FULL" | "OUTER" | "LEFT" | "INNER" (the corresponding-outer mode)
 	Strict        bool
 	Corresponding bool     // [STRICT] CORRESPONDING [BY (cols)]
 	ByName        bool     // BY NAME [ON (cols)]
