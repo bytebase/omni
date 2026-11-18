@@ -2553,6 +2553,11 @@ func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 		}
 		items = append(items, expr)
 		if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+			// One hint, and one only: Msg 10763, "GROUP BY clause can only
+			// contain one query hint" (measured).
+			if distributedAgg {
+				return nil, distributedAgg, p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
+			}
 			if err := p.parseGroupByDistributedAgg(); err != nil {
 				return nil, distributedAgg, err
 			}
@@ -2570,6 +2575,9 @@ func (p *Parser) parseGroupByList() (*nodes.List, bool, error) {
 	}
 	// groupByClause's own trailing ( With Identifier )?, after the last item.
 	if p.cur.Type == kwWITH && p.peekNext().Type == '(' {
+		if distributedAgg {
+			return nil, distributedAgg, p.newParseError(p.cur.Loc, "GROUP BY takes one query hint")
+		}
 		if err := p.parseGroupByDistributedAgg(); err != nil {
 			return nil, distributedAgg, err
 		}

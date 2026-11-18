@@ -770,17 +770,23 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 }
 
 // exprNamesVariable reports whether the expression names a variable, which a
-// rule's condition must.
+// rule's condition must. The walk keeps its own stack: a rule's condition is
+// a left-deep chain the parser reads by a loop, so a recursive walk would
+// overflow the stack before treeTooHigh sees the tree (depth.go).
 func exprNamesVariable(expr nodes.ExprNode) bool {
-	found := false
-	nodes.Inspect(expr, func(n nodes.Node) bool {
+	stack := []nodes.Node{expr}
+	var kids childLister
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
 		if _, ok := n.(*nodes.VariableRef); ok {
-			found = true
-			return false
+			return true
 		}
-		return !found
-	})
-	return found
+		kids.entered, kids.children = false, kids.children[:0]
+		nodes.Walk(&kids, n)
+		stack = append(stack, kids.children...)
+	}
+	return false
 }
 
 // parseEnableDisableTriggerStmt parses ENABLE TRIGGER or DISABLE TRIGGER.

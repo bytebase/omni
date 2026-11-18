@@ -274,6 +274,16 @@ func (p *Parser) parseDmlTarget() (nodes.TableExpr, error) {
 		return p.parseVariableDmlTarget(), nil
 	}
 	switch p.cur.Type {
+	case kwOPENDATASOURCE, kwOPENQUERY:
+		// Both are a call here, and the parenthesis is required: DELETE
+		// OPENQUERY is Msg 102 and UPDATE OPENQUERY SET ... is Msg 156
+		// (measured). parseRowsetFunction's fallback would take the word
+		// alone.
+		if p.peekNext().Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	switch p.cur.Type {
 	case kwOPENDATASOURCE:
 		return p.parseRowsetFunction()
 	case kwOPENQUERY:

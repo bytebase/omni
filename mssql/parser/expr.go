@@ -987,8 +987,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case kwTSEQUAL:
 		// tsEqualCall (TSql160.g:30641): TSEQUAL ( expression , expression ),
 		// a predicate of a search condition and nothing else. SQL Server
-		// refuses it in a select list (Msg 156) and with other than two
-		// arguments (Msg 102, measured).
+		// refuses it in a select list (Msg 156), with other than two
+		// arguments (Msg 102, measured), and reads each argument as an
+		// expression rather than a condition: IF TSEQUAL(1 AND 2, 3) SELECT 1
+		// is Msg 156 too.
 		if !p.inSearchCondition() || p.peekNext().Type != '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -997,22 +999,26 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
+		savedDepth := p.searchCondDepth
+		p.searchCondDepth = 0
 		first, err := p.parseExpr()
+		if err == nil {
+			if first == nil {
+				err = p.syntaxErrorAtCur()
+			} else {
+				_, err = p.expect(',')
+			}
+		}
+		var second nodes.ExprNode
+		if err == nil {
+			second, err = p.parseExpr()
+			if err == nil && second == nil {
+				err = p.syntaxErrorAtCur()
+			}
+		}
+		p.searchCondDepth = savedDepth
 		if err != nil {
 			return nil, err
-		}
-		if first == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if _, err := p.expect(','); err != nil {
-			return nil, err
-		}
-		second, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if second == nil {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
