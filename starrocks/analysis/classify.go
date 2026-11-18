@@ -151,7 +151,7 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		*ast.ShowRoutineLoadStmt, *ast.ShowRoutineLoadTaskStmt,
 		*ast.ShowJobStmt, *ast.ShowJobTaskStmt,
 		*ast.ShowConstraintsStmt, *ast.ShowAnalyzeStmt, *ast.ShowStatsStmt,
-		*ast.DescribeStmt, *ast.HelpStmt:
+		*ast.DescribeStmt, *ast.DescStorageVolumeStmt, *ast.HelpStmt:
 		return QueryTypeSelectInfoSchema, true
 	case *ast.ExplainStmt:
 		if n.Query == nil {

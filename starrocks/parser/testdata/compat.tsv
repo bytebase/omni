@@ -1313,7 +1313,7 @@ reject	reject	engine	statement/setUserPropertyStatement!drop-5	SET PROPERTY 'a' 
 reject	reject	engine	statement/setUserPropertyStatement!truncate	SET PROPERTY 'a' =
 reject	reject	engine	statement/setUserPropertyStatement!insert	SET PROPERTY 'a' = 'a' zzz;
 reject	reject	engine	statement/setUserPropertyStatement!swap	SETS PROPERTY 'a' = 'a';
-reject	accept	engine	statement/createStorageVolumeStatement	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	statement/createStorageVolumeStatement	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	statement/createStorageVolumeStatement!drop-1	STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	statement/createStorageVolumeStatement!drop-2	CREATE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	statement/createStorageVolumeStatement!drop-3	CREATE STORAGE a TYPE = a LOCATIONS =('a');
@@ -1329,7 +1329,7 @@ reject	reject	engine	statement/createStorageVolumeStatement!drop-12	CREATE STORA
 reject	reject	engine	statement/createStorageVolumeStatement!truncate	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a'
 reject	reject	engine	statement/createStorageVolumeStatement!insert	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') zzz;
 reject	reject	engine	statement/createStorageVolumeStatement!swap	CROSS STORAGE VOLUME a TYPE = a LOCATIONS =('a');
-reject	accept	engine	statement/alterStorageVolumeStatement	ALTER STORAGE VOLUME a COMMENT = 'a';
+accept	accept	engine	statement/alterStorageVolumeStatement	ALTER STORAGE VOLUME a COMMENT = 'a';
 reject	reject	engine	statement/alterStorageVolumeStatement!drop-1	STORAGE VOLUME a COMMENT = 'a';
 reject	reject	engine	statement/alterStorageVolumeStatement!drop-2	ALTER VOLUME a COMMENT = 'a';
 reject	reject	engine	statement/alterStorageVolumeStatement!drop-3	ALTER STORAGE a COMMENT = 'a';
@@ -1340,7 +1340,7 @@ reject	reject	engine	statement/alterStorageVolumeStatement!drop-7	ALTER STORAGE 
 reject	reject	engine	statement/alterStorageVolumeStatement!truncate	ALTER STORAGE VOLUME a COMMENT =
 reject	reject	engine	statement/alterStorageVolumeStatement!insert	ALTER STORAGE VOLUME a COMMENT = 'a' zzz;
 reject	reject	engine	statement/alterStorageVolumeStatement!swap	ANALYZE STORAGE VOLUME a COMMENT = 'a';
-reject	accept	engine	statement/dropStorageVolumeStatement	DROP STORAGE VOLUME a;
+accept	accept	engine	statement/dropStorageVolumeStatement	DROP STORAGE VOLUME a;
 reject	reject	engine	statement/dropStorageVolumeStatement!drop-1	STORAGE VOLUME a;
 reject	reject	engine	statement/dropStorageVolumeStatement!drop-2	DROP VOLUME a;
 reject	reject	engine	statement/dropStorageVolumeStatement!drop-3	DROP STORAGE a;
@@ -1355,7 +1355,7 @@ reject	reject	engine	statement/showStorageVolumesStatement!drop-3	SHOW STORAGE;
 reject	reject	engine	statement/showStorageVolumesStatement!truncate	SHOW STORAGE
 reject	reject	engine	statement/showStorageVolumesStatement!insert	SHOW STORAGE VOLUMES zzz;
 reject	reject	engine	statement/showStorageVolumesStatement!swap	SIGNED STORAGE VOLUMES;
-reject	accept	engine	statement/descStorageVolumeStatement	DESC STORAGE VOLUME a;
+accept	accept	engine	statement/descStorageVolumeStatement	DESC STORAGE VOLUME a;
 reject	reject	engine	statement/descStorageVolumeStatement!drop-2	DESC VOLUME a;
 reject	reject	engine	statement/descStorageVolumeStatement!drop-3	DESC STORAGE a;
 reject	reject	engine	statement/descStorageVolumeStatement!drop-4	DESC STORAGE VOLUME;
@@ -1514,24 +1514,24 @@ reject	reject	engine	statement/showPlanAdvisorStatement!drop-3	SHOW PLAN;
 reject	reject	engine	statement/showPlanAdvisorStatement!truncate	SHOW PLAN
 reject	reject	engine	statement/showPlanAdvisorStatement!insert	SHOW PLAN ADVISOR zzz;
 reject	reject	engine	statement/showPlanAdvisorStatement!swap	SIGNED PLAN ADVISOR;
-reject	accept	engine	statement/createWarehouseStatement	CREATE WAREHOUSE a;
+accept	accept	engine	statement/createWarehouseStatement	CREATE WAREHOUSE a;
 reject	reject	engine	statement/createWarehouseStatement!drop-1	WAREHOUSE a;
 reject	reject	engine	statement/createWarehouseStatement!drop-3	CREATE WAREHOUSE;
 reject	reject	engine	statement/createWarehouseStatement!truncate	CREATE WAREHOUSE
 reject	reject	engine	statement/createWarehouseStatement!insert	CREATE WAREHOUSE a zzz;
 reject	reject	engine	statement/createWarehouseStatement!swap	CROSS WAREHOUSE a;
-reject	accept	engine	statement/dropWarehouseStatement	DROP WAREHOUSE a;
+accept	accept	engine	statement/dropWarehouseStatement	DROP WAREHOUSE a;
 reject	reject	engine	statement/dropWarehouseStatement!drop-3	DROP WAREHOUSE;
 reject	reject	engine	statement/dropWarehouseStatement!truncate	DROP WAREHOUSE
 reject	reject	engine	statement/dropWarehouseStatement!insert	DROP WAREHOUSE a zzz;
 reject	reject	engine	statement/dropWarehouseStatement!swap	DUAL WAREHOUSE a;
-reject	accept	engine	statement/suspendWarehouseStatement	SUSPEND WAREHOUSE a;
+accept	accept	engine	statement/suspendWarehouseStatement	SUSPEND WAREHOUSE a;
 reject	reject	engine	statement/suspendWarehouseStatement!drop-2	SUSPEND a;
 reject	reject	engine	statement/suspendWarehouseStatement!drop-3	SUSPEND WAREHOUSE;
 reject	reject	engine	statement/suspendWarehouseStatement!truncate	SUSPEND WAREHOUSE
 reject	reject	engine	statement/suspendWarehouseStatement!insert	SUSPEND WAREHOUSE a zzz;
 reject	reject	engine	statement/suspendWarehouseStatement!swap	SWAP WAREHOUSE a;
-reject	accept	engine	statement/resumeWarehouseStatement	RESUME WAREHOUSE a;
+accept	accept	engine	statement/resumeWarehouseStatement	RESUME WAREHOUSE a;
 reject	reject	engine	statement/resumeWarehouseStatement!drop-2	RESUME a;
 reject	reject	engine	statement/resumeWarehouseStatement!drop-3	RESUME WAREHOUSE;
 reject	reject	engine	statement/resumeWarehouseStatement!truncate	RESUME WAREHOUSE
@@ -1642,13 +1642,13 @@ reject	reject	engine	createDbStatement(identifier_.)?/identifier_.!drop-2	CREATE
 accept	accept	engine	createDbStatement(identifier_.)?/identifier_.!truncate	CREATE DATABASE a
 reject	reject	engine	createDbStatement(identifier_.)?/identifier_.!insert	CREATE DATABASE a.zzz a;
 accept	accept	engine	createDbStatement(charsetDesc)?/%empty	CREATE DATABASE a;
-reject	accept	engine	createDbStatement(charsetDesc)?/charsetDesc	CREATE DATABASE a CHARSET a;
+accept	accept	engine	createDbStatement(charsetDesc)?/charsetDesc	CREATE DATABASE a CHARSET a;
 reject	reject	engine	createDbStatement(charsetDesc)?/charsetDesc!drop-2	CREATE DATABASE a CHARSET;
 reject	reject	engine	createDbStatement(charsetDesc)?/charsetDesc!truncate	CREATE DATABASE a CHARSET
 reject	reject	engine	createDbStatement(charsetDesc)?/charsetDesc!insert	CREATE DATABASE a CHARSET a zzz;
 reject	reject	engine	createDbStatement(charsetDesc)?/charsetDesc!swap	CREATE DATABASE a CHECK a;
 accept	accept	engine	createDbStatement(collateDesc)?/%empty	CREATE DATABASE a;
-reject	accept	engine	createDbStatement(collateDesc)?/collateDesc	CREATE DATABASE a COLLATE a;
+accept	accept	engine	createDbStatement(collateDesc)?/collateDesc	CREATE DATABASE a COLLATE a;
 reject	reject	engine	createDbStatement(collateDesc)?/collateDesc!drop-2	CREATE DATABASE a COLLATE;
 reject	reject	engine	createDbStatement(collateDesc)?/collateDesc!truncate	CREATE DATABASE a COLLATE
 reject	reject	engine	createDbStatement(collateDesc)?/collateDesc!insert	CREATE DATABASE a COLLATE a zzz;
@@ -1945,36 +1945,36 @@ reject	reject	engine	indexDesc(comment)?/comment!truncate	CREATE TABLE a(a, INDE
 reject	reject	engine	indexDesc(comment)?/comment!insert	CREATE TABLE a(a, INDEX a(a) COMMENT 'a' zzz);
 reject	reject	engine	indexDesc(comment)?/comment!swap	CREATE TABLE a(a, INDEX a(a) COMMIT 'a');
 reject	reject	engine	engineDesc/ENGINE_EQ_identifier	CREATE TABLE a(a) ENGINE = a;
-reject	accept	engine	charsetDesc/(DEFAULT)?_(CHAR_SET|CHARSET|CHARACTER_SET)_(EQ)?_ident~0656535b	CREATE DATABASE a CHARSET a;
-reject	accept	engine	charsetDesc(DEFAULT)?/%empty	CREATE DATABASE a CHARSET a;
+accept	accept	engine	charsetDesc/(DEFAULT)?_(CHAR_SET|CHARSET|CHARACTER_SET)_(EQ)?_ident~0656535b	CREATE DATABASE a CHARSET a;
+accept	accept	engine	charsetDesc(DEFAULT)?/%empty	CREATE DATABASE a CHARSET a;
 reject	reject	engine	charsetDesc(DEFAULT)?/%empty!insert	CREATE DATABASE a zzz CHARSET a;
-reject	accept	engine	charsetDesc(DEFAULT)?/DEFAULT	CREATE DATABASE a DEFAULT CHARSET a;
+accept	accept	engine	charsetDesc(DEFAULT)?/DEFAULT	CREATE DATABASE a DEFAULT CHARSET a;
 reject	reject	engine	charsetDesc(DEFAULT)?/DEFAULT!insert	CREATE DATABASE a DEFAULT zzz CHARSET a;
 reject	reject	engine	charsetDesc(DEFAULT)?/DEFAULT!swap	CREATE DATABASE a DEFERRED CHARSET a;
-reject	accept	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET	CREATE DATABASE a CHAR SET a;
+accept	accept	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET	CREATE DATABASE a CHAR SET a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!drop-1	CREATE DATABASE a SET a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!drop-2	CREATE DATABASE a CHAR a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!truncate	CREATE DATABASE a CHAR
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHAR_SET!insert	CREATE DATABASE a CHAR SET zzz a;
-reject	accept	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARSET	CREATE DATABASE a CHARSET a;
+accept	accept	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARSET	CREATE DATABASE a CHARSET a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARSET!insert	CREATE DATABASE a CHARSET zzz a;
-reject	accept	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET	CREATE DATABASE a CHARACTER SET a;
+accept	accept	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET	CREATE DATABASE a CHARACTER SET a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!drop-2	CREATE DATABASE a CHARACTER a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!truncate	CREATE DATABASE a CHARACTER
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!insert	CREATE DATABASE a CHARACTER SET zzz a;
 reject	reject	engine	charsetDesc(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!swap	CREATE DATABASE a CHARSET SET a;
-reject	accept	engine	charsetDesc(EQ)?/%empty	CREATE DATABASE a CHARSET a;
-reject	accept	engine	charsetDesc(EQ)?/EQ	CREATE DATABASE a CHARSET = a;
+accept	accept	engine	charsetDesc(EQ)?/%empty	CREATE DATABASE a CHARSET a;
+accept	accept	engine	charsetDesc(EQ)?/EQ	CREATE DATABASE a CHARSET = a;
 reject	reject	engine	charsetDesc(EQ)?/EQ!insert	CREATE DATABASE a CHARSET = zzz a;
-reject	accept	engine	collateDesc/(DEFAULT)?_COLLATE_(EQ)?_identifierOrString	CREATE DATABASE a COLLATE a;
-reject	accept	engine	collateDesc(DEFAULT)?/%empty	CREATE DATABASE a COLLATE a;
+accept	accept	engine	collateDesc/(DEFAULT)?_COLLATE_(EQ)?_identifierOrString	CREATE DATABASE a COLLATE a;
+accept	accept	engine	collateDesc(DEFAULT)?/%empty	CREATE DATABASE a COLLATE a;
 reject	reject	engine	collateDesc(DEFAULT)?/%empty!insert	CREATE DATABASE a zzz COLLATE a;
-reject	accept	engine	collateDesc(DEFAULT)?/DEFAULT	CREATE DATABASE a DEFAULT COLLATE a;
+accept	accept	engine	collateDesc(DEFAULT)?/DEFAULT	CREATE DATABASE a DEFAULT COLLATE a;
 reject	reject	engine	collateDesc(DEFAULT)?/DEFAULT!insert	CREATE DATABASE a DEFAULT zzz COLLATE a;
 reject	reject	engine	collateDesc(DEFAULT)?/DEFAULT!swap	CREATE DATABASE a DEFERRED COLLATE a;
-reject	accept	engine	collateDesc(EQ)?/%empty	CREATE DATABASE a COLLATE a;
+accept	accept	engine	collateDesc(EQ)?/%empty	CREATE DATABASE a COLLATE a;
 reject	reject	engine	collateDesc(EQ)?/%empty!insert	CREATE DATABASE a COLLATE zzz a;
-reject	accept	engine	collateDesc(EQ)?/EQ	CREATE DATABASE a COLLATE = a;
+accept	accept	engine	collateDesc(EQ)?/EQ	CREATE DATABASE a COLLATE = a;
 reject	reject	engine	collateDesc(EQ)?/EQ!insert	CREATE DATABASE a COLLATE = zzz a;
 accept	accept	engine	keyDesc/(AGGREGATE|UNIQUE|PRIMARY|DUPLICATE)_KEY_identifierList	ALTER SYSTEM AGGREGATE KEY(a);
 reject	reject	engine	keyDesc/(AGGREGATE|UNIQUE|PRIMARY|DUPLICATE)_KEY_identifierList!drop-1	ALTER SYSTEM KEY(a);
@@ -3218,25 +3218,25 @@ reject	reject	engine	dropExternalCatalogStatement(IF_EXISTS)?/IF_EXISTS!insert	D
 reject	reject	engine	dropExternalCatalogStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP CATALOG IGNORE EXISTS a;
 accept	accept	engine	showCatalogsStatement/SHOW_CATALOGS	SHOW CATALOGS;
 reject	accept	engine	alterCatalogStatement/ALTER_CATALOG_identifierOrString_modifyPropertiesClause	ALTER CATALOG a SET('a' = 'a');
-reject	accept	engine	createStorageVolumeStatement/CREATE_STORAGE_VOLUME_(IF_NOT_EXISTS)?_identifierOrStri~1bccde80	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
-reject	accept	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	createStorageVolumeStatement/CREATE_STORAGE_VOLUME_(IF_NOT_EXISTS)?_identifierOrStri~1bccde80	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/%empty!insert	CREATE STORAGE VOLUME zzz a TYPE = a LOCATIONS =('a');
-reject	accept	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE STORAGE VOLUME IF NOT EXISTS a TYPE = a LOCATIONS =('a');
+accept	accept	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE STORAGE VOLUME IF NOT EXISTS a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE STORAGE VOLUME NOT EXISTS a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE STORAGE VOLUME IF EXISTS a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE STORAGE VOLUME IF NOT a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE STORAGE VOLUME IF NOT
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE STORAGE VOLUME IF NOT EXISTS zzz a TYPE = a LOCATIONS =('a');
 reject	reject	engine	createStorageVolumeStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE STORAGE VOLUME IGNORE NOT EXISTS a TYPE = a LOCATIONS =('a');
-reject	accept	engine	createStorageVolumeStatement(comment)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
-reject	accept	engine	createStorageVolumeStatement(comment)?/comment	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') COMMENT 'a';
+accept	accept	engine	createStorageVolumeStatement(comment)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	createStorageVolumeStatement(comment)?/comment	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') COMMENT 'a';
 reject	reject	engine	createStorageVolumeStatement(comment)?/comment!drop-1	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') 'a';
 reject	reject	engine	createStorageVolumeStatement(comment)?/comment!drop-2	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') COMMENT;
 reject	reject	engine	createStorageVolumeStatement(comment)?/comment!truncate	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') COMMENT
 reject	reject	engine	createStorageVolumeStatement(comment)?/comment!insert	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') COMMENT 'a' zzz;
 reject	reject	engine	createStorageVolumeStatement(comment)?/comment!swap	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') COMMIT 'a';
-reject	accept	engine	createStorageVolumeStatement(properties)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
-reject	accept	engine	createStorageVolumeStatement(properties)?/properties	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTIES('a' = 'a');
+accept	accept	engine	createStorageVolumeStatement(properties)?/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	createStorageVolumeStatement(properties)?/properties	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTIES('a' = 'a');
 reject	reject	engine	createStorageVolumeStatement(properties)?/properties!drop-1	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a')('a' = 'a');
 reject	reject	engine	createStorageVolumeStatement(properties)?/properties!drop-2	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTIES 'a' = 'a');
 reject	reject	engine	createStorageVolumeStatement(properties)?/properties!drop-3	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTIES(= 'a');
@@ -3246,11 +3246,11 @@ reject	reject	engine	createStorageVolumeStatement(properties)?/properties!drop-6
 reject	reject	engine	createStorageVolumeStatement(properties)?/properties!truncate	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTIES('a' = 'a'
 reject	reject	engine	createStorageVolumeStatement(properties)?/properties!insert	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	createStorageVolumeStatement(properties)?/properties!swap	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a') PROPERTY('a' = 'a');
-reject	accept	engine	typeDesc/TYPE_EQ_identifier	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	typeDesc/TYPE_EQ_identifier	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	typeDesc/TYPE_EQ_identifier!truncate	CREATE STORAGE VOLUME a TYPE =
 reject	reject	engine	typeDesc/TYPE_EQ_identifier!insert	CREATE STORAGE VOLUME a TYPE = a zzz LOCATIONS =('a');
 reject	reject	engine	typeDesc/TYPE_EQ_identifier!swap	CREATE STORAGE VOLUME a TYPES = a LOCATIONS =('a');
-reject	accept	engine	locationsDesc/LOCATIONS_EQ_stringList	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	locationsDesc/LOCATIONS_EQ_stringList	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	locationsDesc/LOCATIONS_EQ_stringList!swap	CREATE STORAGE VOLUME a TYPE = a LOCK =('a');
 accept	accept	engine	showStorageVolumesStatement/SHOW_STORAGE_VOLUMES_(LIKE_string)?	SHOW STORAGE VOLUMES;
 accept	accept	engine	showStorageVolumesStatement(LIKE_string)?/%empty	SHOW STORAGE VOLUMES;
@@ -3260,18 +3260,18 @@ reject	reject	engine	showStorageVolumesStatement(LIKE_string)?/LIKE_string!drop-
 reject	reject	engine	showStorageVolumesStatement(LIKE_string)?/LIKE_string!truncate	SHOW STORAGE VOLUMES LIKE
 reject	reject	engine	showStorageVolumesStatement(LIKE_string)?/LIKE_string!insert	SHOW STORAGE VOLUMES LIKE 'a' zzz;
 reject	reject	engine	showStorageVolumesStatement(LIKE_string)?/LIKE_string!swap	SHOW STORAGE VOLUMES LIMIT 'a';
-reject	accept	engine	dropStorageVolumeStatement/DROP_STORAGE_VOLUME_(IF_EXISTS)?_identifierOrString	DROP STORAGE VOLUME a;
-reject	accept	engine	dropStorageVolumeStatement(IF_EXISTS)?/%empty	DROP STORAGE VOLUME a;
+accept	accept	engine	dropStorageVolumeStatement/DROP_STORAGE_VOLUME_(IF_EXISTS)?_identifierOrString	DROP STORAGE VOLUME a;
+accept	accept	engine	dropStorageVolumeStatement(IF_EXISTS)?/%empty	DROP STORAGE VOLUME a;
 reject	reject	engine	dropStorageVolumeStatement(IF_EXISTS)?/%empty!insert	DROP STORAGE VOLUME zzz a;
-reject	accept	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS	DROP STORAGE VOLUME IF EXISTS a;
+accept	accept	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS	DROP STORAGE VOLUME IF EXISTS a;
 reject	reject	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS!drop-1	DROP STORAGE VOLUME EXISTS a;
 reject	reject	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS!drop-2	DROP STORAGE VOLUME IF a;
 reject	reject	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS!truncate	DROP STORAGE VOLUME IF
 reject	reject	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP STORAGE VOLUME IF EXISTS zzz a;
 reject	reject	engine	dropStorageVolumeStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP STORAGE VOLUME IGNORE EXISTS a;
-reject	accept	engine	alterStorageVolumeStatement/ALTER_STORAGE_VOLUME_identifierOrString_alterStorageVol~e6296a82	ALTER STORAGE VOLUME a COMMENT = 'a';
-reject	accept	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/%empty	ALTER STORAGE VOLUME a COMMENT = 'a';
-reject	accept	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*	ALTER STORAGE VOLUME a COMMENT = 'a', COMMENT = 'a';
+accept	accept	engine	alterStorageVolumeStatement/ALTER_STORAGE_VOLUME_identifierOrString_alterStorageVol~e6296a82	ALTER STORAGE VOLUME a COMMENT = 'a';
+accept	accept	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/%empty	ALTER STORAGE VOLUME a COMMENT = 'a';
+accept	accept	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*	ALTER STORAGE VOLUME a COMMENT = 'a', COMMENT = 'a';
 reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*!drop-1	ALTER STORAGE VOLUME a COMMENT = 'a' COMMENT = 'a';
 reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*!drop-2	ALTER STORAGE VOLUME a COMMENT = 'a', = 'a';
 reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*!drop-3	ALTER STORAGE VOLUME a COMMENT = 'a', COMMENT 'a';
@@ -3279,9 +3279,9 @@ reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_
 reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*!truncate	ALTER STORAGE VOLUME a COMMENT = 'a', COMMENT =
 reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*!insert	ALTER STORAGE VOLUME a COMMENT = 'a', COMMENT = 'a' zzz;
 reject	reject	engine	alterStorageVolumeStatement(,_alterStorageVolumeClause)*/,_alterStorageVolumeClause_(,_alterStorageVolumeClause)*!swap	ALTER STORAGE VOLUME a COMMENT = 'a', COMMIT = 'a';
-reject	accept	engine	alterStorageVolumeClause/modifyStorageVolumeCommentClause	ALTER STORAGE VOLUME a COMMENT = 'a';
+accept	accept	engine	alterStorageVolumeClause/modifyStorageVolumeCommentClause	ALTER STORAGE VOLUME a COMMENT = 'a';
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumeCommentClause!swap	ALTER STORAGE VOLUME a COMMIT = 'a';
-reject	accept	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause	ALTER STORAGE VOLUME a SET('a' = 'a');
+accept	accept	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause	ALTER STORAGE VOLUME a SET('a' = 'a');
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause!drop-1	ALTER STORAGE VOLUME a('a' = 'a');
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause!drop-2	ALTER STORAGE VOLUME a SET 'a' = 'a');
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause!drop-3	ALTER STORAGE VOLUME a SET(= 'a');
@@ -3291,12 +3291,12 @@ reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClaus
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause!truncate	ALTER STORAGE VOLUME a SET('a' = 'a'
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause!insert	ALTER STORAGE VOLUME a SET('a' = 'a') zzz;
 reject	reject	engine	alterStorageVolumeClause/modifyStorageVolumePropertiesClause!swap	ALTER STORAGE VOLUME a SETS('a' = 'a');
-reject	accept	engine	modifyStorageVolumePropertiesClause/SET_propertyList	ALTER STORAGE VOLUME a SET('a' = 'a');
-reject	accept	engine	modifyStorageVolumeCommentClause/COMMENT_=_string	ALTER STORAGE VOLUME a COMMENT = 'a';
-reject	accept	engine	descStorageVolumeStatement/(DESC|DESCRIBE)_STORAGE_VOLUME_identifierOrString	DESC STORAGE VOLUME a;
-reject	accept	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESC	DESC STORAGE VOLUME a;
+accept	accept	engine	modifyStorageVolumePropertiesClause/SET_propertyList	ALTER STORAGE VOLUME a SET('a' = 'a');
+accept	accept	engine	modifyStorageVolumeCommentClause/COMMENT_=_string	ALTER STORAGE VOLUME a COMMENT = 'a';
+accept	accept	engine	descStorageVolumeStatement/(DESC|DESCRIBE)_STORAGE_VOLUME_identifierOrString	DESC STORAGE VOLUME a;
+accept	accept	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESC	DESC STORAGE VOLUME a;
 reject	reject	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESC!insert	DESC zzz STORAGE VOLUME a;
-reject	accept	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE	DESCRIBE STORAGE VOLUME a;
+accept	accept	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE	DESCRIBE STORAGE VOLUME a;
 reject	reject	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE!insert	DESCRIBE zzz STORAGE VOLUME a;
 reject	reject	engine	descStorageVolumeStatement(DESC|DESCRIBE)/DESCRIBE!swap	DICTIONARY STORAGE VOLUME a;
 accept	accept	engine	setDefaultStorageVolumeStatement/SET_identifierOrString_AS_DEFAULT_STORAGE_VOLUME	SET a AS DEFAULT STORAGE VOLUME;
@@ -7618,25 +7618,25 @@ reject	accept	engine	alterPlanAdvisorAddStatement/ALTER_PLAN_ADVISOR_ADD_querySt
 reject	accept	engine	truncatePlanAdvisorStatement/TRUNCATE_PLAN_ADVISOR	TRUNCATE PLAN ADVISOR;
 reject	accept	engine	alterPlanAdvisorDropStatement/ALTER_PLAN_ADVISOR_DROP_string	ALTER PLAN ADVISOR DROP 'a';
 accept	accept	engine	showPlanAdvisorStatement/SHOW_PLAN_ADVISOR	SHOW PLAN ADVISOR;
-reject	accept	engine	createWarehouseStatement/CREATE_WAREHOUSE_(IF_NOT_EXISTS)?_identifierOrString_(c~7a6215e1	CREATE WAREHOUSE a;
-reject	accept	engine	createWarehouseStatement(IF_NOT_EXISTS)?/%empty	CREATE WAREHOUSE a;
+accept	accept	engine	createWarehouseStatement/CREATE_WAREHOUSE_(IF_NOT_EXISTS)?_identifierOrString_(c~7a6215e1	CREATE WAREHOUSE a;
+accept	accept	engine	createWarehouseStatement(IF_NOT_EXISTS)?/%empty	CREATE WAREHOUSE a;
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/%empty!insert	CREATE WAREHOUSE zzz a;
-reject	accept	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE WAREHOUSE IF NOT EXISTS a;
+accept	accept	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE WAREHOUSE IF NOT EXISTS a;
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE WAREHOUSE NOT EXISTS a;
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE WAREHOUSE IF EXISTS a;
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE WAREHOUSE IF NOT a;
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE WAREHOUSE IF NOT
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE WAREHOUSE IF NOT EXISTS zzz a;
 reject	reject	engine	createWarehouseStatement(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE WAREHOUSE IGNORE NOT EXISTS a;
-reject	accept	engine	createWarehouseStatement(comment)?/%empty	CREATE WAREHOUSE a;
-reject	accept	engine	createWarehouseStatement(comment)?/comment	CREATE WAREHOUSE a COMMENT 'a';
+accept	accept	engine	createWarehouseStatement(comment)?/%empty	CREATE WAREHOUSE a;
+accept	accept	engine	createWarehouseStatement(comment)?/comment	CREATE WAREHOUSE a COMMENT 'a';
 reject	reject	engine	createWarehouseStatement(comment)?/comment!drop-1	CREATE WAREHOUSE a 'a';
 reject	reject	engine	createWarehouseStatement(comment)?/comment!drop-2	CREATE WAREHOUSE a COMMENT;
 reject	reject	engine	createWarehouseStatement(comment)?/comment!truncate	CREATE WAREHOUSE a COMMENT
 reject	reject	engine	createWarehouseStatement(comment)?/comment!insert	CREATE WAREHOUSE a COMMENT 'a' zzz;
 reject	reject	engine	createWarehouseStatement(comment)?/comment!swap	CREATE WAREHOUSE a COMMIT 'a';
-reject	accept	engine	createWarehouseStatement(properties)?/%empty	CREATE WAREHOUSE a;
-reject	accept	engine	createWarehouseStatement(properties)?/properties	CREATE WAREHOUSE a PROPERTIES('a' = 'a');
+accept	accept	engine	createWarehouseStatement(properties)?/%empty	CREATE WAREHOUSE a;
+accept	accept	engine	createWarehouseStatement(properties)?/properties	CREATE WAREHOUSE a PROPERTIES('a' = 'a');
 reject	reject	engine	createWarehouseStatement(properties)?/properties!drop-1	CREATE WAREHOUSE a('a' = 'a');
 reject	reject	engine	createWarehouseStatement(properties)?/properties!drop-2	CREATE WAREHOUSE a PROPERTIES 'a' = 'a');
 reject	reject	engine	createWarehouseStatement(properties)?/properties!drop-3	CREATE WAREHOUSE a PROPERTIES(= 'a');
@@ -7646,28 +7646,28 @@ reject	reject	engine	createWarehouseStatement(properties)?/properties!drop-6	CRE
 reject	reject	engine	createWarehouseStatement(properties)?/properties!truncate	CREATE WAREHOUSE a PROPERTIES('a' = 'a'
 reject	reject	engine	createWarehouseStatement(properties)?/properties!insert	CREATE WAREHOUSE a PROPERTIES('a' = 'a') zzz;
 reject	reject	engine	createWarehouseStatement(properties)?/properties!swap	CREATE WAREHOUSE a PROPERTY('a' = 'a');
-reject	accept	engine	dropWarehouseStatement/DROP_WAREHOUSE_(IF_EXISTS)?_identifierOrString	DROP WAREHOUSE a;
-reject	accept	engine	dropWarehouseStatement(IF_EXISTS)?/%empty	DROP WAREHOUSE a;
+accept	accept	engine	dropWarehouseStatement/DROP_WAREHOUSE_(IF_EXISTS)?_identifierOrString	DROP WAREHOUSE a;
+accept	accept	engine	dropWarehouseStatement(IF_EXISTS)?/%empty	DROP WAREHOUSE a;
 reject	reject	engine	dropWarehouseStatement(IF_EXISTS)?/%empty!insert	DROP WAREHOUSE zzz a;
-reject	accept	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS	DROP WAREHOUSE IF EXISTS a;
+accept	accept	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS	DROP WAREHOUSE IF EXISTS a;
 reject	reject	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-1	DROP WAREHOUSE EXISTS a;
 reject	reject	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-2	DROP WAREHOUSE IF a;
 reject	reject	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS!truncate	DROP WAREHOUSE IF
 reject	reject	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS!insert	DROP WAREHOUSE IF EXISTS zzz a;
 reject	reject	engine	dropWarehouseStatement(IF_EXISTS)?/IF_EXISTS!swap	DROP WAREHOUSE IGNORE EXISTS a;
-reject	accept	engine	suspendWarehouseStatement/SUSPEND_WAREHOUSE_(IF_EXISTS)?_identifier	SUSPEND WAREHOUSE a;
-reject	accept	engine	suspendWarehouseStatement(IF_EXISTS)?/%empty	SUSPEND WAREHOUSE a;
+accept	accept	engine	suspendWarehouseStatement/SUSPEND_WAREHOUSE_(IF_EXISTS)?_identifier	SUSPEND WAREHOUSE a;
+accept	accept	engine	suspendWarehouseStatement(IF_EXISTS)?/%empty	SUSPEND WAREHOUSE a;
 reject	reject	engine	suspendWarehouseStatement(IF_EXISTS)?/%empty!insert	SUSPEND WAREHOUSE zzz a;
-reject	accept	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS	SUSPEND WAREHOUSE IF EXISTS a;
+accept	accept	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS	SUSPEND WAREHOUSE IF EXISTS a;
 reject	reject	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-1	SUSPEND WAREHOUSE EXISTS a;
 reject	reject	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-2	SUSPEND WAREHOUSE IF a;
 reject	reject	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS!truncate	SUSPEND WAREHOUSE IF
 reject	reject	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS!insert	SUSPEND WAREHOUSE IF EXISTS zzz a;
 reject	reject	engine	suspendWarehouseStatement(IF_EXISTS)?/IF_EXISTS!swap	SUSPEND WAREHOUSE IGNORE EXISTS a;
-reject	accept	engine	resumeWarehouseStatement/RESUME_WAREHOUSE_(IF_EXISTS)?_identifier	RESUME WAREHOUSE a;
-reject	accept	engine	resumeWarehouseStatement(IF_EXISTS)?/%empty	RESUME WAREHOUSE a;
+accept	accept	engine	resumeWarehouseStatement/RESUME_WAREHOUSE_(IF_EXISTS)?_identifier	RESUME WAREHOUSE a;
+accept	accept	engine	resumeWarehouseStatement(IF_EXISTS)?/%empty	RESUME WAREHOUSE a;
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/%empty!insert	RESUME WAREHOUSE zzz a;
-reject	accept	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS	RESUME WAREHOUSE IF EXISTS a;
+accept	accept	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS	RESUME WAREHOUSE IF EXISTS a;
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-1	RESUME WAREHOUSE EXISTS a;
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!drop-2	RESUME WAREHOUSE IF a;
 reject	reject	engine	resumeWarehouseStatement(IF_EXISTS)?/IF_EXISTS!truncate	RESUME WAREHOUSE IF
@@ -9961,10 +9961,10 @@ accept	accept	engine	listPartitionValue/NULL	REFRESH MATERIALIZED VIEW a PARTITI
 reject	reject	engine	listPartitionValue/NULL!truncate	REFRESH MATERIALIZED VIEW a PARTITION(
 accept	accept	engine	listPartitionValue/string	REFRESH MATERIALIZED VIEW a PARTITION('a');
 reject	reject	engine	listPartitionValue/string!insert	REFRESH MATERIALIZED VIEW a PARTITION('a' zzz);
-reject	accept	engine	stringList/(_string_(,_string)*_)	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
-reject	accept	engine	stringList(,_string)*/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	stringList/(_string_(,_string)*_)	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
+accept	accept	engine	stringList(,_string)*/%empty	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a');
 reject	reject	engine	stringList(,_string)*/%empty!insert	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a' zzz);
-reject	accept	engine	stringList(,_string)*/,_string_(,_string)*	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a', 'a');
+accept	accept	engine	stringList(,_string)*/,_string_(,_string)*	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a', 'a');
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!drop-1	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a' 'a');
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!drop-2	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a',);
 reject	reject	engine	stringList(,_string)*/,_string_(,_string)*!truncate	CREATE STORAGE VOLUME a TYPE = a LOCATIONS =('a',

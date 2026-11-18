@@ -558,43 +558,269 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 }
 
 // ---------------------------------------------------------------------------
+// STORAGE VOLUME
+// ---------------------------------------------------------------------------
+
+// parseCreateStorageVolume parses createStorageVolumeStatement
+// (StarRocks.g4:782):
+//
+//	CREATE STORAGE VOLUME [IF NOT EXISTS] name TYPE = type
+//	    LOCATIONS = (uri, ...) [COMMENT 'text'] [PROPERTIES (...)]
+//
+// CREATE and STORAGE have already been consumed; cur is VOLUME. TYPE and
+// LOCATIONS both sit outside any optional group, so a statement that leaves
+// either one out is refused (the pinned server rejects
+// CREATE STORAGE VOLUME a LOCATIONS = ('a') and
+// CREATE STORAGE VOLUME a TYPE = a).
+func (p *Parser) parseCreateStorageVolume(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume VOLUME
+
+	stmt := &ast.CreateStorageVolumeStmt{}
+
+	if p.cur.Kind == kwIF {
+		p.advance() // consume IF
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfNotExists = true
+	}
+
+	name, nameLoc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	endLoc := nameLoc
+
+	// typeDesc (StarRocks.g4:787): TYPE EQ identifier.
+	if _, err := p.expect(kwTYPE); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('=')); err != nil {
+		return nil, err
+	}
+	typeName, typeLoc, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Type = typeName
+	endLoc = typeLoc
+
+	// locationsDesc (StarRocks.g4:791): LOCATIONS EQ stringList.
+	if _, err := p.expect(kwLOCATIONS); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('=')); err != nil {
+		return nil, err
+	}
+	locations, err := p.parseStringList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Locations = locations
+	endLoc = p.prev.Loc
+
+	// comment (StarRocks.g4:2734): COMMENT string.
+	if p.cur.Kind == kwCOMMENT {
+		p.advance() // consume COMMENT
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Comment = p.cur.Str
+		endLoc = p.cur.Loc
+		p.advance()
+	}
+
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		endLoc = p.prev.Loc
+	}
+
+	stmt.Loc = startLoc.Merge(endLoc)
+	return stmt, nil
+}
+
+// parseAlterStorageVolume parses alterStorageVolumeStatement
+// (StarRocks.g4:803):
+//
+//	ALTER STORAGE VOLUME name clause (',' clause)*
+//
+// ALTER and STORAGE have already been consumed; cur is VOLUME.
+func (p *Parser) parseAlterStorageVolume(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume VOLUME
+
+	name, nameLoc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &ast.AlterStorageVolumeStmt{Name: name}
+	endLoc := nameLoc
+
+	for {
+		clause, err := p.parseAlterStorageVolumeClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Clauses = append(stmt.Clauses, clause)
+		endLoc = clause.Loc
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	stmt.Loc = startLoc.Merge(endLoc)
+	return stmt, nil
+}
+
+// parseAlterStorageVolumeClause parses alterStorageVolumeClause
+// (StarRocks.g4:807): modifyStorageVolumeCommentClause |
+// modifyStorageVolumePropertiesClause.
+func (p *Parser) parseAlterStorageVolumeClause() (*ast.AlterStorageVolumeClause, error) {
+	startLoc := p.cur.Loc
+
+	switch p.cur.Kind {
+	case kwCOMMENT:
+		// modifyStorageVolumeCommentClause (StarRocks.g4:816):
+		// COMMENT '=' string, with the '=' obligatory.
+		p.advance() // consume COMMENT
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		clause := &ast.AlterStorageVolumeClause{
+			Type:    ast.StorageVolumeComment,
+			Comment: p.cur.Str,
+		}
+		p.advance() // consume the comment string
+		clause.Loc = startLoc.Merge(p.prev.Loc)
+		return clause, nil
+
+	case kwSET:
+		// modifyStorageVolumePropertiesClause (StarRocks.g4:812):
+		// SET propertyList.
+		p.advance() // consume SET
+		props, err := p.parsePropertyList()
+		if err != nil {
+			return nil, err
+		}
+		clause := &ast.AlterStorageVolumeClause{
+			Type:       ast.StorageVolumeProperties,
+			Properties: props,
+		}
+		clause.Loc = startLoc.Merge(p.prev.Loc)
+		return clause, nil
+
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+}
+
+// parseDropStorageVolume parses dropStorageVolumeStatement
+// (StarRocks.g4:799):
+//
+//	DROP STORAGE VOLUME [IF EXISTS] name
+//
+// DROP and STORAGE have already been consumed; cur is VOLUME.
+func (p *Parser) parseDropStorageVolume(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume VOLUME
+
+	stmt := &ast.DropStorageVolumeStmt{}
+
+	if p.cur.Kind == kwIF {
+		p.advance() // consume IF
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
+
+	name, nameLoc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	stmt.Loc = startLoc.Merge(nameLoc)
+	return stmt, nil
+}
+
+// parseDescStorageVolume parses descStorageVolumeStatement
+// (StarRocks.g4:820):
+//
+//	(DESC | DESCRIBE) STORAGE VOLUME name
+//
+// DESC and STORAGE have been consumed and cur is VOLUME; the caller checked
+// that VOLUME follows, since STORAGE and VOLUME are both nonReserved and DESC
+// STORAGE alone describes a table named storage.
+func (p *Parser) parseDescStorageVolume(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume VOLUME
+
+	name, nameLoc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &ast.DescStorageVolumeStmt{Name: name, Loc: startLoc.Merge(nameLoc)}
+	return stmt, nil
+}
+
+// ---------------------------------------------------------------------------
 // Shared dispatch helpers called from parser.go
 // ---------------------------------------------------------------------------
 
-// parseCreateStorage dispatches on the VAULT|POLICY token after STORAGE.
-// CREATE and STORAGE have already been consumed; cur is VAULT or POLICY.
+// parseCreateStorage dispatches on the VAULT|POLICY|VOLUME token after STORAGE.
+// CREATE and STORAGE have already been consumed; cur is VAULT, POLICY or
+// VOLUME.
 func (p *Parser) parseCreateStorage(startLoc ast.Loc) (ast.Node, error) {
 	switch p.cur.Kind {
 	case kwVAULT:
 		return p.parseCreateStorageVault(startLoc)
 	case kwPOLICY:
 		return p.parseCreateStoragePolicy(startLoc)
+	case kwVOLUME:
+		return p.parseCreateStorageVolume(startLoc)
 	default:
 		return p.unsupported("CREATE STORAGE")
 	}
 }
 
-// parseAlterStorage dispatches on VAULT|POLICY after STORAGE.
-// ALTER and STORAGE have already been consumed; cur is VAULT or POLICY.
+// parseAlterStorage dispatches on VAULT|POLICY|VOLUME after STORAGE.
+// ALTER and STORAGE have already been consumed; cur is VAULT, POLICY or
+// VOLUME.
 func (p *Parser) parseAlterStorage(startLoc ast.Loc) (ast.Node, error) {
 	switch p.cur.Kind {
 	case kwVAULT:
 		return p.parseAlterStorageVault(startLoc)
 	case kwPOLICY:
 		return p.parseAlterStoragePolicy(startLoc)
+	case kwVOLUME:
+		return p.parseAlterStorageVolume(startLoc)
 	default:
 		return p.unsupported("ALTER STORAGE")
 	}
 }
 
-// parseDropStorage dispatches on VAULT|POLICY after STORAGE.
-// DROP and STORAGE have already been consumed; cur is VAULT or POLICY.
+// parseDropStorage dispatches on VAULT|POLICY|VOLUME after STORAGE.
+// DROP and STORAGE have already been consumed; cur is VAULT, POLICY or
+// VOLUME.
 func (p *Parser) parseDropStorage(startLoc ast.Loc) (ast.Node, error) {
 	switch p.cur.Kind {
 	case kwVAULT:
 		return p.parseDropStorageVault(startLoc)
 	case kwPOLICY:
 		return p.parseDropStoragePolicy(startLoc)
+	case kwVOLUME:
+		return p.parseDropStorageVolume(startLoc)
 	default:
 		return p.unsupported("DROP STORAGE")
 	}
