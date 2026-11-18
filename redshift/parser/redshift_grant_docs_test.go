@@ -57,6 +57,13 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		}
 	}
 
+	// r_REVOKE writes a producer-side grantee as ID ( WITH GRANT OPTION )?, so
+	// the suffix revokes the grant option, as GRANT OPTION FOR does.
+	revoke := singleStmt(t, "REVOKE ALTER ON DATASHARE d FROM a WITH GRANT OPTION").(*nodes.GrantStmt)
+	if !revoke.GrantOption {
+		t.Error("REVOKE ... WITH GRANT OPTION: GrantOption = false, want true")
+	}
+
 	// DATASHARE is unreserved, so a grant that names no datashare after it reads
 	// it as the object's name, and the statement is a table grant.
 	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE TO a").(*nodes.GrantStmt); grant.Objtype != nodes.OBJECT_TABLE {
@@ -101,6 +108,9 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		// The docs' one-token GRANT_OPTION is notation, not SQL.
 		"REVOKE GRANT_OPTION CREATE FOR COPY JOBS IN DATABASE d FROM a",
 		"REVOKE GRANT OPTION CREATE MODEL FROM a",
+		// The procedure-to-datashare alternatives end at the datashare name.
+		"GRANT EXECUTE ON PROCEDURE p() TO DATASHARE d WITH GRANT OPTION",
+		"REVOKE EXECUTE ON PROCEDURE p() FROM DATASHARE d RESTRICT",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
@@ -115,44 +125,51 @@ func TestRedshiftGrantFederatedIdentity(t *testing.T) {
 	for _, tc := range []struct {
 		sql      string
 		grantees []string
-		objtype  nodes.ObjectType
+		option   string
 	}{
-		{"GRANT CONNECT TO AWSIDC:alice", []string{"awsidc:alice"}, nodes.OBJECT_DATABASE},
-		{"GRANT CONNECT TO ROLE AWSIDC:analysts", []string{"awsidc:analysts"}, nodes.OBJECT_DATABASE},
-		{"GRANT CONNECT TO ROLE :analysts", []string{"role:analysts"}, nodes.OBJECT_DATABASE},
-		{"GRANT CONNECT TO PUBLIC", nil, nodes.OBJECT_DATABASE},
-		{"GRANT CONNECT ON WORKGROUP TO AWSIDC:alice", []string{"awsidc:alice"}, nodes.OBJECT_DATABASE},
-		{"GRANT DEBUG ON DATABASE d TO AWSIDC:alice", []string{"awsidc:alice"}, nodes.OBJECT_DATABASE},
-		{"GRANT DEBUG ON DATABASE d TO ROLE AWSIDC:analysts", []string{"awsidc:analysts"}, nodes.OBJECT_DATABASE},
-		{"GRANT DEBUG ON DATABASE d TO ADMINS OF ACCOUNT '1234'", []string{"admins_of_account:1234"}, nodes.OBJECT_DATABASE},
-		{"REVOKE DEBUG ON DATABASE d FROM ADMINS OF ACCOUNT '1234'", []string{"admins_of_account:1234"}, nodes.OBJECT_DATABASE},
+		{"GRANT CONNECT TO AWSIDC:alice", []string{"awsidc:alice"}, ""},
+		{`GRANT CONNECT TO "AWSIDC:alice"`, []string{"AWSIDC:alice"}, ""},
+		{"GRANT CONNECT TO ROLE AWSIDC:analysts", []string{"awsidc:analysts"}, ""},
+		{`GRANT CONNECT TO ROLE "AWSIDC:analysts"`, []string{"AWSIDC:analysts"}, ""},
+		{"GRANT CONNECT TO ROLE :analysts", []string{"role:analysts"}, ""},
+		{"GRANT CONNECT TO PUBLIC", nil, ""},
+		{"GRANT CONNECT ON WORKGROUP TO AWSIDC:alice", []string{"awsidc:alice"}, "on_workgroup"},
+		{"GRANT DEBUG ON DATABASE d TO AWSIDC:alice", []string{"awsidc:alice"}, "on_database"},
+		{`GRANT DEBUG ON DATABASE "sales_db@finance-catalog" TO "IAM:sales_auditor"`, []string{"IAM:sales_auditor"}, "on_database"},
+		{"GRANT DEBUG ON DATABASE d TO ROLE AWSIDC:analysts", []string{"awsidc:analysts"}, "on_database"},
+		{"GRANT DEBUG ON DATABASE d TO ADMINS OF ACCOUNT '1234'", []string{"admins_of_account:1234"}, "on_database"},
+		{"REVOKE DEBUG ON DATABASE d FROM ADMINS OF ACCOUNT '1234'", []string{"admins_of_account:1234"}, "on_database"},
 	} {
-		grant, ok := singleStmt(t, tc.sql).(*nodes.GrantStmt)
+		grant, ok := singleStmt(t, tc.sql).(*nodes.GrantRoleStmt)
 		if !ok {
-			t.Fatalf("Parse(%q): expected GrantStmt", tc.sql)
+			t.Fatalf("Parse(%q): expected GrantRoleStmt", tc.sql)
 		}
-		if grant.Objtype != tc.objtype {
-			t.Errorf("Parse(%q): objtype = %v, want %v", tc.sql, grant.Objtype, tc.objtype)
+		if grant.GrantedRoles == nil || len(grant.GrantedRoles.Items) != 1 {
+			t.Fatalf("Parse(%q): granted permissions = %#v, want one", tc.sql, grant.GrantedRoles)
 		}
-		if grant.Privileges == nil || len(grant.Privileges.Items) != 1 {
-			t.Fatalf("Parse(%q): privileges = %#v, want one", tc.sql, grant.Privileges)
-		}
-		priv := grant.Privileges.Items[0].(*nodes.AccessPriv)
+		priv := grant.GrantedRoles.Items[0].(*nodes.AccessPriv)
 		if want := strings.ToLower(strings.Fields(tc.sql)[1]); priv.PrivName != want {
 			t.Errorf("Parse(%q): privilege = %q, want %q", tc.sql, priv.PrivName, want)
 		}
+		if priv.Loc.Start != strings.Index(strings.ToUpper(tc.sql), strings.ToUpper(priv.PrivName)) {
+			t.Errorf("Parse(%q): privilege Loc = %+v, want its own token", tc.sql, priv.Loc)
+		}
+		if got := findDefElem(grant.Opt, tc.option) != nil; tc.option != "" && !got {
+			t.Errorf("Parse(%q): Opt = %#v, want %s", tc.sql, grant.Opt, tc.option)
+		}
 		if len(tc.grantees) == 0 {
-			rs, ok := grant.Grantees.Items[0].(*nodes.RoleSpec)
+			rs, ok := grant.GranteeRoles.Items[0].(*nodes.RoleSpec)
 			if !ok || nodes.RoleSpecType(rs.Roletype) != nodes.ROLESPEC_PUBLIC {
-				t.Errorf("Parse(%q): grantee = %+v, want PUBLIC", tc.sql, grant.Grantees.Items[0])
+				t.Errorf("Parse(%q): grantee = %+v, want PUBLIC", tc.sql, grant.GranteeRoles.Items[0])
 			}
 			continue
 		}
-		for i, want := range tc.grantees {
-			rs, ok := grant.Grantees.Items[i].(*nodes.RoleSpec)
-			if !ok || rs.Rolename != want {
-				t.Errorf("Parse(%q): grantee %d = %+v, want %q", tc.sql, i, grant.Grantees.Items[i], want)
-			}
+		if len(grant.GranteeRoles.Items) != 1 {
+			t.Fatalf("Parse(%q): grantees = %#v, want one", tc.sql, grant.GranteeRoles)
+		}
+		rs, ok := grant.GranteeRoles.Items[0].(*nodes.RoleSpec)
+		if !ok || rs.Rolename != tc.grantees[0] {
+			t.Errorf("Parse(%q): grantee = %+v, want %q", tc.sql, grant.GranteeRoles.Items[0], tc.grantees[0])
 		}
 	}
 
@@ -164,6 +181,7 @@ func TestRedshiftGrantFederatedIdentity(t *testing.T) {
 		"GRANT CONNECT TO ROLE alice",
 		"GRANT CONNECT TO a, b",
 		"GRANT CONNECT ON TABLE t TO a:b",
+		"GRANT CONNECT TO ADMINS OF ACCOUNT '1'",
 		"GRANT DEBUG ON DATABASE d TO alice",
 		"GRANT DEBUG ON DATABASE d TO PUBLIC",
 		"GRANT DEBUG ON DATABASE d TO ADMINS ACCOUNT '1'",
@@ -247,6 +265,33 @@ func TestRedshiftGrantRepeatedColumnLists(t *testing.T) {
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+// TestRedshiftFuncArgNameVersusType pins the docs' argname reading against the
+// multiword types: `f(character varying)` is one parameter of that type, while
+// a column-name keyword before a type names the parameter (`f(int int)`).
+func TestRedshiftFuncArgNameVersusType(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		name string
+	}{
+		{"CREATE FUNCTION f(character varying) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(national character) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(bit varying) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(interval year) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(timestamp with time zone) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(int int) RETURNS int AS 's' LANGUAGE sql", "int"},
+		{"CREATE FUNCTION f(a int, b varchar(10)) RETURNS int AS 's' LANGUAGE sql", "a"},
+	} {
+		fn, ok := singleStmt(t, tc.sql).(*nodes.CreateFunctionStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected CreateFunctionStmt", tc.sql)
+		}
+		fp := fn.Parameters.Items[0].(*nodes.FunctionParameter)
+		if fp.Name != tc.name {
+			t.Errorf("Parse(%q): first parameter name = %q, want %q", tc.sql, fp.Name, tc.name)
 		}
 	}
 }

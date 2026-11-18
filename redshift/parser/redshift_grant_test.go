@@ -74,32 +74,36 @@ func TestRedshiftGrantModelParse(t *testing.T) {
 		}
 	}
 
-	// GRANT CREATE MODEL names no object: r_GRANT writes it as a privilege of the
-	// warehouse, with the grantee's optional WITH GRANT OPTION.
+	// GRANT CREATE MODEL names no object: it is a permission of the warehouse,
+	// kept in a GrantRoleStmt like Redshift's system permissions so the catalog
+	// records nothing for it.
 	for _, tc := range []struct {
-		sql      string
-		withOpt  bool
-		grantees int
+		sql             string
+		withGrantOption bool
+		grantees        int
 	}{
 		{"GRANT CREATE MODEL TO ml_admin", false, 1},
 		{"GRANT CREATE MODEL TO a WITH GRANT OPTION", true, 1},
 		{"GRANT CREATE MODEL TO ROLE a, GROUP g, PUBLIC", false, 3},
 	} {
-		grant, ok := singleStmt(t, tc.sql).(*nodes.GrantStmt)
+		grant, ok := singleStmt(t, tc.sql).(*nodes.GrantRoleStmt)
 		if !ok {
-			t.Fatalf("Parse(%q): expected GrantStmt", tc.sql)
+			t.Fatalf("Parse(%q): expected GrantRoleStmt", tc.sql)
 		}
-		if !grant.IsGrant || grant.Objtype != nodes.OBJECT_MODEL {
-			t.Fatalf("Parse(%q): isGrant/objtype = %v/%v, want grant on OBJECT_MODEL", tc.sql, grant.IsGrant, grant.Objtype)
+		if !grant.IsGrant {
+			t.Fatalf("Parse(%q): expected grant", tc.sql)
 		}
-		if grant.Objects != nil {
-			t.Fatalf("Parse(%q): objects = %#v, want none", tc.sql, grant.Objects)
+		if grant.GrantedRoles == nil || len(grant.GrantedRoles.Items) != 1 {
+			t.Fatalf("Parse(%q): granted permissions = %#v, want one", tc.sql, grant.GrantedRoles)
 		}
-		if grant.GrantOption != tc.withOpt {
-			t.Fatalf("Parse(%q): grant option = %v, want %v", tc.sql, grant.GrantOption, tc.withOpt)
+		if priv := grant.GrantedRoles.Items[0].(*nodes.AccessPriv); priv.PrivName != "create_model" {
+			t.Fatalf("Parse(%q): privilege = %q, want create_model", tc.sql, priv.PrivName)
 		}
-		if grant.Grantees == nil || len(grant.Grantees.Items) != tc.grantees {
-			t.Fatalf("Parse(%q): grantees = %#v, want %d", tc.sql, grant.Grantees, tc.grantees)
+		if grant.GranteeRoles == nil || len(grant.GranteeRoles.Items) != tc.grantees {
+			t.Fatalf("Parse(%q): grantees = %#v, want %d", tc.sql, grant.GranteeRoles, tc.grantees)
+		}
+		if got := findDefElem(grant.Opt, "grant_option") != nil; got != tc.withGrantOption {
+			t.Fatalf("Parse(%q): grant option = %v, want %v", tc.sql, got, tc.withGrantOption)
 		}
 	}
 }

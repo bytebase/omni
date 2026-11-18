@@ -281,13 +281,14 @@ func (p *Parser) parseFuncArg() (*nodes.FunctionParameter, error) {
 				p.restoreTokenStream(snap)
 			}
 		}
-	} else if p.isColId() {
+	} else if p.isColId() && !p.redshiftMultiwordTypeAhead() {
 		// Cases 2, 3, or 5: cur could be a param_name or the type.
 		//
 		// A param_name is a ColId here, not a type_function_name: the docs
 		// write [ [ argname ] argtype [, ...] ] and sample argname as any
 		// identifier, so a column-name keyword such as INT names one where a
-		// type follows it (`f(INT INT)`).
+		// type follows it (`f(INT INT)`). A token that begins a type running
+		// past it is the whole type, never a name, so the check comes first.
 		snap := p.snapshotTokenStream()
 		savedName := p.advance().Str // a ColId, as checked
 		argClass2, isArgClass2 := p.tryParseArgClass()
@@ -324,6 +325,21 @@ func (p *Parser) parseFuncArg() (*nodes.FunctionParameter, error) {
 		Mode:    mode,
 		Loc:     nodes.Loc{Start: paramLoc, End: p.prev.End},
 	}, nil
+}
+
+// redshiftMultiwordTypeAhead reports whether cur begins a type that runs past
+// it, as CHARACTER VARYING, DOUBLE PRECISION and INTERVAL DAY TO SECOND do. A
+// parameter name never is such a token: `f(character varying)` is one parameter
+// of that type, not `character` of type `varying`.
+func (p *Parser) redshiftMultiwordTypeAhead() bool {
+	if !p.isSimpleTypenameStart() {
+		return false
+	}
+	switch p.peekNext().Type {
+	case PRECISION, VARYING, CHARACTER, YEAR_P, MONTH_P, DAY_P, HOUR_P, MINUTE_P, SECOND_P, TO, WITH, WITHOUT:
+		return true
+	}
+	return false
 }
 
 // tryParseArgClass tries to parse an arg_class (IN, OUT, INOUT, IN OUT, VARIADIC).
