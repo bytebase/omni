@@ -628,6 +628,12 @@ func (p *Parser) settleTraceSetOpInto(query ast.Node) error {
 	if !ok {
 		return nil
 	}
+	if setOp.Into != nil {
+		if queryHasInto(setOp.Left) || queryHasInto(setOp.Right) {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
 	into, armEnd := takeRightmostSelectInto(setOp)
 	if queryHasInto(setOp) {
 		return p.syntaxErrorAtCur()
@@ -658,6 +664,12 @@ func (p *Parser) settleQueryInto(query ast.Node) error {
 	case *ast.SetOpStmt:
 		return p.settleTraceSetOpInto(q)
 	case *ast.ParenSelect:
+		if q.Into != nil {
+			if queryHasInto(q.Sel) {
+				return p.syntaxErrorAtCur()
+			}
+			return nil
+		}
 		if queryHasInto(q) {
 			return p.syntaxErrorAtCur()
 		}

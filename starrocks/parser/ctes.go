@@ -125,6 +125,9 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := p.settleQueryInto(query); err != nil {
+		return nil, err
+	}
 	attachWith(query, with)
 	return query, nil
 }

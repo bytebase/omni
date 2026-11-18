@@ -171,6 +171,7 @@ func TestOptimizerTraceRejects(t *testing.T) {
 		"CREATE MATERIALIZED VIEW mv AS (SELECT 1 INTO OUTFILE 'x')",
 		"CREATE MATERIALIZED VIEW mv AS SELECT 1 UNION (SELECT 2 INTO OUTFILE 'x')",
 		"WITH c AS (SELECT 1) (SELECT 1 INTO OUTFILE 'x')",
+		"SUBMIT TASK AS CREATE TABLE a AS WITH c AS (SELECT 1) SELECT 1 UNION (SELECT 2 INTO OUTFILE 'x')",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)
@@ -188,5 +189,11 @@ func TestExplainedParenthesizedWithQuery(t *testing.T) {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("%q: unexpected errors: %v", sql, errs)
 		}
+	}
+}
+
+func TestDoubleSettledOutfilePlan(t *testing.T) {
+	if _, errs := parseForTest("DESC WITH c AS (SELECT 1) (SELECT 1) UNION SELECT 2 INTO OUTFILE 'x'"); len(errs) != 0 {
+		t.Errorf("unexpected errors: %v", errs)
 	}
 }
