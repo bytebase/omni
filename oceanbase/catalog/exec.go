@@ -325,7 +325,15 @@ func stmtLocStart(node nodes.Node) int {
 		return s.Loc.Start
 	case *nodes.CreateViewStmt:
 		return s.Loc.Start
+	case *nodes.CreateMaterializedViewStmt:
+		return s.Loc.Start
+	case *nodes.CreateMaterializedViewLogStmt:
+		return s.Loc.Start
 	case *nodes.AlterViewStmt:
+		return s.Loc.Start
+	case *nodes.AlterMaterializedViewStmt:
+		return s.Loc.Start
+	case *nodes.AlterMaterializedViewLogStmt:
 		return s.Loc.Start
 	case *nodes.AlterTableStmt:
 		return s.Loc.Start
@@ -338,6 +346,8 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.DropIndexStmt:
 		return s.Loc.Start
 	case *nodes.DropViewStmt:
+		return s.Loc.Start
+	case *nodes.DropMaterializedViewLogStmt:
 		return s.Loc.Start
 	case *nodes.RenameTableStmt:
 		return s.Loc.Start

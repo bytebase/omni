@@ -88,4 +88,18 @@ func TestMaterializedView(t *testing.T) {
 	if dropLog.Table.Name != "t" {
 		t.Errorf("DROP MATERIALIZED VIEW LOG = %+v", dropLog)
 	}
+
+	for _, sql := range []string{
+		// opt_check_option requires CHECK and OPTION after WITH.
+		"CREATE MATERIALIZED VIEW a AS SELECT a WITH CHECK",
+		"CREATE MATERIALIZED VIEW a AS SELECT a WITH LOCAL",
+		"CREATE MATERIALIZED VIEW a AS SELECT a WITH CHECK a",
+		// Neither materialized view drop production takes TEMPORARY.
+		"DROP TEMPORARY MATERIALIZED VIEW a",
+		"DROP TEMPORARY MATERIALIZED VIEW LOG ON a",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) was accepted", sql)
+		}
+	}
 }

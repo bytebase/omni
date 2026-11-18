@@ -720,6 +720,9 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return p.parseDropViewStmt(start)
 
 	case kwMATERIALIZED:
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseDropMaterializedStmt(start)
 
 	case kwDATABASE, kwSCHEMA:

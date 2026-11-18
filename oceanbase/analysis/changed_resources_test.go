@@ -60,7 +60,12 @@ func TestExtractChangedResources(t *testing.T) {
 		{"CREATE PROCEDURE getUser(id INT) SELECT * FROM hello WHERE uid = id", StatementChanges{}},
 		// A qualified non-table object records its database only.
 		{"CREATE VIEW other_db.v AS SELECT 1", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
+		{"CREATE MATERIALIZED VIEW other_db.mv AS SELECT 1", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
+		{"CREATE MATERIALIZED VIEW LOG ON other_db.t", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
 		{"ALTER VIEW other_db.v AS SELECT 1", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
+		{"ALTER MATERIALIZED VIEW other_db.mv REFRESH FAST", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
+		{"ALTER MATERIALIZED VIEW LOG ON other_db.t NOPARALLEL", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
+		{"DROP MATERIALIZED VIEW LOG ON other_db.t", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
 		{"DROP VIEW v, other_db.v", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
 		{"CREATE FUNCTION other_db.f() RETURNS INT RETURN 1", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},
 		{"ALTER PROCEDURE other_db.p COMMENT 'c'", StatementChanges{Resources: []ChangedResource{databaseOnly("other_db")}}},

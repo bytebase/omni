@@ -103,18 +103,22 @@ func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMateri
 	stmt.Select = sel
 	stmt.SelectText = strings.TrimSpace(p.inputText(selectStart, p.pos()))
 
-	stmt.CheckOption = p.parseViewCheckOption()
+	checkOption, err := p.parseViewCheckOption()
+	if err != nil {
+		return nil, err
+	}
+	stmt.CheckOption = checkOption
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
 // parseViewCheckOption parses opt_check_option: WITH [CASCADED | LOCAL] CHECK
-// OPTION, and returns CASCADED, LOCAL, or "" when the clause is absent. It
-// follows the reading CREATE VIEW uses for the same rule.
-func (p *Parser) parseViewCheckOption() string {
+// OPTION, and returns CASCADED, LOCAL, or "" when the clause is absent. CHECK
+// and OPTION are both required once WITH stands there.
+func (p *Parser) parseViewCheckOption() (string, error) {
 	if p.cur.Type != kwWITH {
-		return ""
+		return "", nil
 	}
 	p.advance()
 	checkOption := "CASCADED"
@@ -124,13 +128,13 @@ func (p *Parser) parseViewCheckOption() string {
 		checkOption = "LOCAL"
 		p.advance()
 	}
-	if p.cur.Type == kwCHECK {
-		p.advance()
-		if p.cur.Type == kwOPTION {
-			p.advance()
-		}
+	if _, err := p.expect(kwCHECK); err != nil {
+		return "", err
 	}
-	return checkOption
+	if _, err := p.expect(kwOPTION); err != nil {
+		return "", err
+	}
+	return checkOption, nil
 }
 
 // parseMviewColumnList parses opt_mv_column_list's parentheses:

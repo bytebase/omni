@@ -148,12 +148,22 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 	// inferring the database from the ON table is out of scope.
 	case *ast.CreateViewStmt:
 		addObjectDatabase(n.Name)
+	case *ast.CreateMaterializedViewStmt:
+		addObjectDatabase(n.Name)
+	case *ast.CreateMaterializedViewLogStmt:
+		addObjectDatabase(n.Table)
 	case *ast.AlterViewStmt:
 		addObjectDatabase(n.Name)
+	case *ast.AlterMaterializedViewStmt:
+		addObjectDatabase(n.Name)
+	case *ast.AlterMaterializedViewLogStmt:
+		addObjectDatabase(n.Table)
 	case *ast.DropViewStmt:
 		for _, ref := range n.Views {
 			addObjectDatabase(ref)
 		}
+	case *ast.DropMaterializedViewLogStmt:
+		addObjectDatabase(n.Table)
 	case *ast.CreateFunctionStmt:
 		addObjectDatabase(n.Name)
 	case *ast.AlterRoutineStmt:
