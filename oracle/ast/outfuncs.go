@@ -4665,6 +4665,9 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 	if n.ConsiderFresh {
 		sb.WriteString(" :considerFresh true")
 	}
+	if n.FreshMode != "" {
+		sb.WriteString(fmt.Sprintf(" :freshMode %q", n.FreshMode))
+	}
 	if n.Annotations != nil && n.Annotations.Len() > 0 {
 		sb.WriteString(" :annotations (")
 		for i, item := range n.Annotations.Items {

@@ -684,7 +684,7 @@ type extraCloseShape struct {
 }
 
 func (s *extraCloseShape) observe(tok Token, word, prevWord string) {
-	if tok.Type == ';' || tok.Type == tokEOF {
+	if tok.Type == ';' || tok.Type == tokEOF || tok.Type == tokSCONST || tok.Type == tokNCHARLIT || tok.Type == tokQIDENT {
 		return
 	}
 	if s.pendingViewLog {

@@ -875,7 +875,11 @@ func (p *Parser) parseAlterMviewEvaluation(stmt *nodes.AlterMaterializedViewStmt
 		// rejection.
 		switch {
 		case p.atWord("CONSISTENT") && p.atNextWord("FRESH"):
+			stmt.FreshMode = "CONSISTENT FRESH"
 			p.advance()
+			p.advance()
+		case p.atWord("FRESH"):
+			stmt.FreshMode = "FRESH"
 			p.advance()
 		case p.atWord("CONSIDER") && p.atNextWord("FRESH"):
 			stmt.ConsiderFresh = true

@@ -3322,6 +3322,7 @@ type AlterMaterializedViewStmt struct {
 	// EVALUATE USING EDITION
 	EditionName   string // edition name
 	ConsiderFresh bool   // CONSIDER FRESH after the edition
+	FreshMode     string // FRESH or CONSISTENT FRESH after the edition
 
 	// ANNOTATIONS operations
 	Annotations *List // annotations_clause operations, one *DDLOption each

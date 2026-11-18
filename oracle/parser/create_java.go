@@ -328,9 +328,11 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 			addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: dir, Loc: dirLoc}, &nodes.StringLiteral{Val: file, Loc: fileLoc}}})
 			return nil
 		}
+		var prefix *nodes.StringLiteral
 		if p.isIdentLike() && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
 			// A word before the legacy subquery is accepted (compat.tsv's
-			// USING CLOB zzz SELECT 1 FROM dual row).
+			// USING CLOB zzz SELECT 1 FROM dual row), and the option keeps it.
+			prefix = &nodes.StringLiteral{Val: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
 			p.advance()
 		}
 		parens := p.cur.Type == '('
@@ -356,7 +358,12 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 				return err
 			}
 		}
-		addOption("USING", kind, optStart, &nodes.List{Items: []nodes.Node{sub}})
+		items := &nodes.List{}
+		if prefix != nil {
+			items.Items = append(items.Items, prefix)
+		}
+		items.Items = append(items.Items, sub)
+		addOption("USING", kind, optStart, items)
 	default:
 		return p.syntaxErrorAtCur()
 	}
