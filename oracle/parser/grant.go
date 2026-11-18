@@ -217,6 +217,11 @@ func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 	if repeated && !programs {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if programs {
+		if err := privs.checkProgramRoles(p); err != nil {
+			return nil, err
+		}
+	}
 	if stmt.Grantees, err = p.parseGrantees(programs, repeated); err != nil {
 		return nil, err
 	}
@@ -372,6 +377,27 @@ func (g *grantPrivileges) checkWithoutOn(p *Parser) error {
 		// A quoted role name may hold blanks; words that run on name a
 		// system privilege.
 		if item.start.Type != tokQIDENT && strings.Contains(item.name, " ") && !auditSystemPrivileges.names[item.name] {
+			return p.syntaxErrorAtTok(item.start)
+		}
+	}
+	return nil
+}
+
+// checkProgramRoles checks the privileges of a revoke from a program unit:
+// the page permits a role list or bare ALL, not ALL PRIVILEGES or a system
+// privilege.
+func (g *grantPrivileges) checkProgramRoles(p *Parser) error {
+	if g.all {
+		if g.privileges {
+			return p.syntaxErrorAtTok(g.allStart)
+		}
+		return nil
+	}
+	for _, item := range g.items {
+		if item.hasCols {
+			return p.syntaxErrorAtTok(item.columns)
+		}
+		if item.start.Type != tokQIDENT && strings.Contains(item.name, " ") {
 			return p.syntaxErrorAtTok(item.start)
 		}
 	}
@@ -638,7 +664,10 @@ func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
 	}
 	kind := p.cur.Str
 	p.advance()
-	if repeatedKind && isGrantProgramUnitKind(p.cur) && isGrantWordToken(p.peekNext()) {
+	// CONTAINER = is the statement's suffix, not a program name, so a kind
+	// word before it is the name of the simplified program unit.
+	container := p.isIdentLikeStrAt(p.peekNext(), "CONTAINER") && p.peekAhead(2)[1].Type == '='
+	if repeatedKind && !container && isGrantProgramUnitKind(p.cur) && isGrantWordToken(p.peekNext()) {
 		unitKind := p.cur.Str
 		p.advance()
 		obj, err := p.parseGrantObjectName(false)

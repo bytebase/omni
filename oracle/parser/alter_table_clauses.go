@@ -1695,13 +1695,14 @@ func (p *Parser) parseATNestedTableStorage() error {
 					return p.syntaxErrorAtCur()
 				}
 			}
+			columnStart := p.pos()
 			if err := p.parseATColumnProperties(nil); err != nil {
 				return err
 			}
 			if p.pos() == start {
 				return p.syntaxErrorAtCur()
 			}
-			if phase < 6 {
+			if p.pos() != columnStart && phase < 6 {
 				phase = 6
 			}
 		}
