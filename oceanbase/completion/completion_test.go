@@ -3043,3 +3043,23 @@ func TestComplete_MethodOpt(t *testing.T) {
 		}
 	}
 }
+
+// TestComplete_TableFactorSources: the table factors OceanBase adds are offered
+// where a table factor stands.
+func TestComplete_TableFactorSources(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	for _, sql := range []string{
+		"SELECT * FROM ",
+		"SELECT * FROM t JOIN ",
+		"SELECT * FROM t, ",
+	} {
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"SOURCE", "FILES", "JSON_TABLE", "LATERAL"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("%q: missing keyword %s; got %v", sql, kw, candidates)
+			}
+		}
+	}
+}

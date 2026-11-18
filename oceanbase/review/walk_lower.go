@@ -373,6 +373,7 @@ func (b *builder) createExternalTable(v *ast.CreateTableStmt) bool {
 		b.Optional()
 	}
 	b.Set(k, walk.Present, "")
+	b.Session(func() { b.w.external[k] = true })
 	return true
 }
 
@@ -395,6 +396,50 @@ func (b *builder) alterExternalTable(v *ast.AlterTableStmt) bool {
 	if v.Table.Schema != "" {
 		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
 	}
+	for _, cmd := range v.Commands {
+		if cmd == nil || cmd.Type != ast.ATRenameTable {
+			continue
+		}
+		b.Next()
+		if !b.renameExternal(r, cmd) {
+			return false
+		}
+	}
+	return true
+}
+
+// renameExternal records an ALTER EXTERNAL TABLE's RENAME TO in the ledger: the
+// relation keeps its empty kind and its mark as an external table.
+func (b *builder) renameExternal(r tableRef, c *ast.AlterTableCmd) bool {
+	dest := c.NewTable
+	if dest == nil {
+		dest = &ast.TableRef{Name: c.NewName, Loc: c.Loc}
+	}
+	to, st := b.ref(dest)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	if b.tooLong(spaceRelation, dest.Name, to.rng) {
+		return true
+	}
+	if to.db == r.db && to.name == r.name {
+		return true
+	}
+	if dest.Schema != "" {
+		b.databaseNeeds(to.db, dest.Schema, to.rng)
+	}
+	b.needFree(relKey(to.db, to.name), to.rng, to.written, "") // 1050: any relation takes the name
+	b.moveTable(r, to, "")
+	from, target := relKey(r.db, r.name), relKey(to.db, to.name)
+	b.Session(func() {
+		if b.w.external[from] {
+			delete(b.w.external, from)
+			b.w.external[target] = true
+		}
+	})
 	return true
 }
 

@@ -8,11 +8,6 @@ type Database struct {
 	Collation string
 	Tables    map[string]*Table // lowered name -> Table
 	Views     map[string]*View
-	// ExternalTables holds the lowered names of the external tables a change
-	// created. Their columns, location and format live in
-	// metadata.ExternalTableMetadata, which the catalog holds from a sync, so a
-	// name is all it keeps here; the name shares the relations' namespace (1050).
-	ExternalTables map[string]bool
 	// MaterializedViewLogs holds the base tables a materialized view log of
 	// the database is created on. The log itself is not modeled.
 	MaterializedViewLogs map[string]bool
@@ -33,7 +28,6 @@ func newDatabase(name, charset, collation string) *Database {
 		Collation:                 collation,
 		Tables:                    make(map[string]*Table),
 		Views:                     make(map[string]*View),
-		ExternalTables:            make(map[string]bool),
 		MaterializedViewLogs:      make(map[string]bool),
 		MaterializedViewLogsKnown: make(map[string]bool),
 		Functions:                 make(map[string]*Routine),

@@ -370,77 +370,22 @@ func TestExecAlterRenameLogRollback(t *testing.T) {
 	}
 }
 
-// TestExecLeavesExternalTablesAlone pins that the external-table statements
-// change no schema the catalog holds. metadata.ExternalTableMetadata is where an
-// external table's columns, location and format live, and the catalog holds it
-// from a sync rather than from DDL, so a CREATE EXTERNAL TABLE must not install
-// a plain table with the same name and columns.
-func TestExecLeavesExternalTablesAlone(t *testing.T) {
+// TestExecRefusesExternalTables pins that the catalog refuses the external-table
+// statements rather than applying one as a plain table: their definitions live in
+// metadata.ExternalTableMetadata, which it holds from a sync, not from DDL.
+func TestExecRefusesExternalTables(t *testing.T) {
 	c := New()
-	results, err := c.Exec("CREATE DATABASE test; USE test;\n"+
-		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\n"+
-		"ALTER EXTERNAL TABLE ext ADD COLUMN b INT", nil)
-	if err != nil {
-		t.Fatalf("Exec error: %v", err)
-	}
-	if len(results) != 4 {
-		t.Fatalf("got %d results, want 4", len(results))
-	}
-	db := c.GetDatabase("test")
-	if db == nil {
-		t.Fatal("GetDatabase(test) = nil")
-	}
-	if db.Tables["ext"] != nil {
-		t.Errorf("CREATE EXTERNAL TABLE installed a plain table ext: %#v", db.Tables["ext"])
-	}
-}
-
-// TestExecExternalTableName pins that a CREATE EXTERNAL TABLE claims its name:
-// the catalog cannot build the table's definition from DDL, but the name shares
-// the relations' namespace, so a later CREATE TABLE of it is 1050.
-func TestExecExternalTableName(t *testing.T) {
-	c := New()
-	sql := "CREATE DATABASE test; USE test;\n" +
-		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\n" +
-		"CREATE TABLE ext (a INT)"
-	results, err := c.Exec(sql, nil)
-	if err != nil {
-		t.Fatalf("Exec error: %v", err)
-	}
-	if len(results) != 4 {
-		t.Fatalf("got %d results, want 4", len(results))
-	}
-	for _, i := range []int{0, 1, 2} {
-		if results[i].Error != nil {
-			t.Errorf("statement %d: %v", i, results[i].Error)
+	for _, sql := range []string{
+		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV')",
+		"ALTER EXTERNAL TABLE ext ADD COLUMN b INT",
+	} {
+		results, err := c.Exec("CREATE DATABASE test; USE test;\n"+sql, nil)
+		if err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
 		}
-	}
-	if results[3].Error == nil {
-		t.Fatalf("CREATE TABLE ext succeeded beside the external table")
-	}
-}
-
-// TestExecExternalTableRename pins that a rename through ALTER EXTERNAL TABLE
-// moves the name the catalog holds.
-func TestExecExternalTableRename(t *testing.T) {
-	c := New()
-	sql := "CREATE DATABASE test; USE test;\n" +
-		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\n" +
-		"ALTER EXTERNAL TABLE ext RENAME TO renamed"
-	if _, err := c.Exec(sql, nil); err != nil {
-		t.Fatalf("Exec error: %v", err)
-	}
-	if _, err := c.Exec("CREATE TABLE ext (a INT)", nil); err != nil {
-		t.Fatalf("Exec error: %v", err)
-	}
-	db := c.GetDatabase("test")
-	if db == nil {
-		t.Fatal("GetDatabase(test) = nil")
-	}
-	if db.ExternalTables["ext"] {
-		t.Errorf("the old name is still held")
-	}
-	if !db.ExternalTables["renamed"] {
-		t.Errorf("renamed is not held: %#v", db.ExternalTables)
+		last := results[len(results)-1]
+		if last.Error == nil {
+			t.Errorf("Exec(%q) succeeded, want the catalog's refusal", sql)
+		}
 	}
 }

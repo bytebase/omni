@@ -52,7 +52,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			return false, errDupTable(tableName)
 		}
-		if db.Views[key] != nil || db.ExternalTables[key] {
+		if db.Views[key] != nil {
 			return false, errDupTable(tableName)
 		}
 		return false, nil
@@ -2787,71 +2787,4 @@ func refActionToString(action nodes.ReferenceAction) string {
 		// SHOW CREATE TABLE, where MySQL reads NO ACTION (TestScenario_C21, 21.5).
 		return "RESTRICT"
 	}
-}
-
-// createExternalTable records the name a CREATE EXTERNAL TABLE claims. The
-// table's columns, location, format and properties live in
-// metadata.ExternalTableMetadata, which the catalog holds from a sync and does
-// not build from DDL yet, so only the name is kept: it shares the relations'
-// namespace, and a later CREATE TABLE of it is 1050.
-func (c *Catalog) createExternalTable(stmt *nodes.CreateTableStmt) error {
-	dbName := ""
-	if stmt.Table != nil {
-		dbName = stmt.Table.Schema
-	}
-	db, err := c.resolveDatabase(dbName)
-	if err != nil {
-		return err
-	}
-	if stmt.Table == nil {
-		return nil
-	}
-	key := toLower(stmt.Table.Name)
-	if db.Tables[key] != nil || db.Views[key] != nil || db.ExternalTables[key] {
-		if stmt.IfNotExists {
-			return nil
-		}
-		return errDupTable(stmt.Table.Name)
-	}
-	db.ExternalTables[key] = true
-	return nil
-}
-
-// alterExternalTable applies an ALTER EXTERNAL TABLE: a rename moves the name the
-// catalog holds, and every other action changes a definition it does not hold.
-func (c *Catalog) alterExternalTable(stmt *nodes.AlterTableStmt) error {
-	if stmt.Table == nil {
-		return nil
-	}
-	db, err := c.resolveDatabase(stmt.Table.Schema)
-	if err != nil {
-		return err
-	}
-	old := toLower(stmt.Table.Name)
-	for _, cmd := range stmt.Commands {
-		if cmd == nil || cmd.Type != nodes.ATRenameTable {
-			continue
-		}
-		newName := cmd.NewName
-		to := db
-		if cmd.NewTable != nil {
-			newName = cmd.NewTable.Name
-			if cmd.NewTable.Schema != "" {
-				if to, err = c.resolveDatabase(cmd.NewTable.Schema); err != nil {
-					return err
-				}
-			}
-		}
-		if newName == "" {
-			continue
-		}
-		key := toLower(newName)
-		if to.Tables[key] != nil || to.Views[key] != nil {
-			return errDupTable(newName)
-		}
-		delete(db.ExternalTables, old)
-		to.ExternalTables[key] = true
-		db, old = to, key
-	}
-	return nil
 }

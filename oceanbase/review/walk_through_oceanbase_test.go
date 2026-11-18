@@ -52,6 +52,10 @@ func TestWalkThroughOceanBase(t *testing.T) {
 	// DROP TABLE takes an external table, the snapshot's or one the change made.
 	noFindingOB(t, "DROP TABLE ext;", shop)
 	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\nDROP TABLE ext2;", shop)
+	// A rename moves the ledger's name with it, so the new name is an external
+	// table too, and the name goes when it is dropped.
+	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\nALTER EXTERNAL TABLE ext2 RENAME TO ext3;\nDROP TABLE ext3;", shop)
+	oneFindingOB(t, "ALTER EXTERNAL TABLE ext RENAME TO t;", 0, "The name `t` is already taken.", shop)
 
 	t.Run("external tables and materialized views", func(t *testing.T) {
 		// They share the tables' namespace, of no kind the walk claims.

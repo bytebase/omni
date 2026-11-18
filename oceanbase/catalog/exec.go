@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -216,6 +217,12 @@ func isDML(stmt nodes.Node) bool {
 	}
 }
 
+// errExternalTable is why the catalog refuses the external-table statements.
+// Their definitions live in metadata.ExternalTableMetadata, which the catalog
+// holds from a sync, not from DDL; applying one as a plain table would leave a
+// table the server does not have, so it refuses the statement instead.
+var errExternalTable = errors.New("the catalog does not model external tables, so it does not apply CREATE or ALTER EXTERNAL TABLE")
+
 // processUtility applies one statement. source is the text it was parsed
 // from, which its Loc offsets index into, or "" when there is none.
 func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
@@ -227,12 +234,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.createDatabase(s)
 	case *nodes.CreateTableStmt:
 		if s.External {
-			// An external table's columns, location, format and properties are
-			// modeled by metadata.ExternalTableMetadata, which the catalog holds
-			// from a sync. It does not build one from DDL yet, so it keeps the
-			// name alone: the statement must not install a plain table of the
-			// name, nor leave the name free for one.
-			return c.createExternalTable(s)
+			return errExternalTable
 		}
 		var prior *Database
 		var priorKey string
@@ -271,10 +273,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropMaterializedViewLog(s)
 	case *nodes.AlterTableStmt:
 		if s.External {
-			// ALTER EXTERNAL TABLE changes a table the catalog keeps no
-			// definition for (see CreateTableStmt above); only a rename changes
-			// what it does hold, the name.
-			return c.alterExternalTable(s)
+			return errExternalTable
 		}
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:

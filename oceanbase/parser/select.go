@@ -1159,6 +1159,13 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
 			p.addRuleCandidate("database_ref")
+			// A table factor may also be a location-named source, a JSON_TABLE,
+			// a lateral subquery, or a parenthesized group.
+			p.addTokenCandidate(kwSOURCE)
+			p.addTokenCandidate(kwFILES)
+			p.addTokenCandidate(kwJSON_TABLE)
+			p.addTokenCandidate(kwLATERAL)
+			p.addTokenCandidate('(')
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -1210,6 +1217,12 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 		p.addTokenCandidate(kwNATURAL)
 		p.addTokenCandidate(kwINNER)
 		p.addTokenCandidate(kwSTRAIGHT_JOIN)
+		// The right side of a JOIN is a table factor too.
+		p.addTokenCandidate(kwSOURCE)
+		p.addTokenCandidate(kwFILES)
+		p.addTokenCandidate(kwJSON_TABLE)
+		p.addTokenCandidate(kwLATERAL)
+		p.addTokenCandidate('(')
 		p.addTokenCandidate(kwORDER)
 		p.addTokenCandidate(kwGROUP)
 		p.addTokenCandidate(kwHAVING)
@@ -1288,6 +1301,12 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
 			p.addRuleCandidate("database_ref")
+			// The joined table is a table factor, of any of its forms.
+			p.addTokenCandidate(kwSOURCE)
+			p.addTokenCandidate(kwFILES)
+			p.addTokenCandidate(kwJSON_TABLE)
+			p.addTokenCandidate(kwLATERAL)
+			p.addTokenCandidate('(')
 			return nil, &ParseError{Message: "collecting"}
 		}
 

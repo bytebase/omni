@@ -98,7 +98,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	if err := c.reanalyzeViews(ctx, views); err != nil {
 		return report, err
 	}
-	c.seedExternalTables(meta)
+
 	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
 		applyDatabaseSessionContext(db, sessionContexts(installed))
 	}
@@ -1001,22 +1001,4 @@ func unquoteIdent(s string) string {
 		return strings.ReplaceAll(s[1:len(s)-1], "``", "`")
 	}
 	return s
-}
-
-// seedExternalTables records the names of the snapshot's external tables. The
-// catalog holds no definition of one — metadata.ExternalTableMetadata is the
-// snapshot's — but the name shares the relations' namespace, so a CREATE TABLE
-// of it is 1050.
-func (c *Catalog) seedExternalTables(meta *metadata.DatabaseSchemaMetadata) {
-	db := c.GetDatabase(meta.GetName())
-	if db == nil {
-		return
-	}
-	for _, s := range meta.GetSchemas() {
-		for _, t := range s.GetExternalTables() {
-			if t.GetName() != "" {
-				db.ExternalTables[toLower(t.GetName())] = true
-			}
-		}
-	}
 }
