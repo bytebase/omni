@@ -152,6 +152,14 @@ modifiers:
 		}
 		stmt.Query = withStmt
 
+	case kwTRACE:
+		traceTok := p.advance() // consume TRACE
+		trace, err := p.parseOptimizerTrace(traceTok.Loc)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Query = trace
+
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

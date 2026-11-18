@@ -404,14 +404,31 @@ func (p *Parser) parseOptimizerTrace(startLoc ast.Loc) (ast.Node, error) {
 // starts with. ParenSelect and SetOpStmt carry no WITH field, so the clause
 // belongs to their leftmost SELECT.
 func attachWith(node ast.Node, with *ast.WithClause) {
-	switch n := node.(type) {
-	case *ast.SelectStmt:
-		n.With = with
-		n.Loc.Start = with.Loc.Start
-	case *ast.ParenSelect:
-		attachWith(n.Sel, with)
-	case *ast.SetOpStmt:
-		attachWith(n.Left, with)
+	for {
+		switch n := node.(type) {
+		case *ast.SelectStmt:
+			if n.With == nil {
+				n.With = with
+			} else {
+				// An inner WITH under the parentheses keeps its own scope.
+				// Keep both clauses, the outer first, so neither body is lost.
+				n.With = &ast.WithClause{
+					CTEs: append(append([]*ast.CTE(nil), with.CTEs...), n.With.CTEs...),
+					Loc:  with.Loc.Merge(n.With.Loc),
+				}
+			}
+			n.Loc.Start = with.Loc.Start
+			return
+		case *ast.ParenSelect:
+			node = n.Sel
+		case *ast.SetOpStmt:
+			// A set-operation chain is left-deep, so follow the spine in a
+			// loop; recursing here could exhaust the stack before the parser's
+			// tree-height check runs.
+			node = n.Left
+		default:
+			return
+		}
 	}
 }
 

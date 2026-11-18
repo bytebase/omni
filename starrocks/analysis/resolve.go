@@ -101,9 +101,6 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	if explain, ok := node.(*ast.ExplainStmt); ok && explain.Query != nil {
 		node = explain.Query
 	}
-	if trace, ok := node.(*ast.OptimizerTraceStmt); ok && trace.Query != nil {
-		node = trace.Query
-	}
 	queryType := Classify(single)
 	if classified, ok := astQueryType(node); ok {
 		queryType = classified

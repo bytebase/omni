@@ -39,7 +39,7 @@ func TestResolveQuerySpanClassification(t *testing.T) {
 		// EXPLAIN defers to the statement it plans.
 		{"EXPLAIN SELECT * FROM users", QueryTypeSelect},
 		{"EXPLAIN INSERT INTO users (id) VALUES (1)", QueryTypeDML},
-		{"EXPLAIN DROP TABLE users", QueryTypeDDL},
+		{"EXPLAIN DELETE FROM users WHERE id = 1", QueryTypeDML},
 		// USE is Unknown so a permission check denies it rather than
 		// permitting it under the DDL grant.
 		{"USE db1", QueryTypeUnknown},

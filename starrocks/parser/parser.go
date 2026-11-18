@@ -963,7 +963,7 @@ func dedupeErrors(errs []ParseError) []ParseError {
 // isQueryBody reports whether a statement may stand as a subquery body.
 func isQueryBody(n ast.Node) bool {
 	switch n.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect, *ast.OptimizerTraceStmt:
 		return true
 	}
 	return false

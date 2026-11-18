@@ -238,6 +238,21 @@ func TestExplainAnalyzeRejectsUpdateAndDelete(t *testing.T) {
 	}
 }
 
+// explainDesc prefixes queryStatement, INSERT, UPDATE and DELETE only.
+func TestExplainRejectsNonQueryStatements(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN DROP TABLE t",
+		"EXPLAIN CACHE SELECT a FROM t",
+		"EXPLAIN SUBMIT TASK AS INSERT INTO t SELECT 1",
+		"EXPLAIN DROP TASK t",
+		"EXPLAIN ALTER LOAD FOR t",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
 // TestDescPlansDML: insertStatement, updateStatement and deleteStatement each
 // take explainDesc? (StarRocks.g4:1183,1201,1205).
 func TestDescPlansDML(t *testing.T) {

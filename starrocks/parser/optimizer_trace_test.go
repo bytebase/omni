@@ -22,6 +22,7 @@ func TestOptimizerTrace(t *testing.T) {
 		{"TRACE ALL trace_name SELECT 1 FROM t", "ALL", "trace_name"},
 		{"TRACE ALL WITH c AS (SELECT 1) SELECT * FROM c", "ALL", ""},
 		{"TRACE ALL WITH c AS (SELECT 1) (SELECT * FROM c)", "ALL", ""},
+		{"TRACE ALL WITH c AS (SELECT 1) (WITH d AS (SELECT 2) SELECT * FROM c, d)", "ALL", ""},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			file, errs := parseForTest(tc.sql)
@@ -39,6 +40,22 @@ func TestOptimizerTrace(t *testing.T) {
 				t.Error("Query is nil")
 			}
 		})
+	}
+}
+
+func TestOptimizerTraceInQueryStatementPositions(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT INTO dst TRACE ALL SELECT * FROM src",
+		"CREATE TABLE dst AS TRACE ALL SELECT 1",
+	} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Errorf("%q: unexpected errors: %v", sql, errs)
+			continue
+		}
+		if len(file.Stmts) != 1 {
+			t.Errorf("%q: got %d statements, want 1", sql, len(file.Stmts))
+		}
 	}
 }
 

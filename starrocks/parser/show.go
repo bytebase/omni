@@ -633,6 +633,17 @@ func explainStartsQuery(kind TokenKind) bool {
 	return false
 }
 
+// explainableNode reports whether node is one of the statement shapes
+// explainDesc prefixes: queryStatement, INSERT, UPDATE or DELETE.
+func explainableNode(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect,
+		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		return true
+	}
+	return false
+}
+
 // parseExplain parses EXPLAIN, DESC and DESCRIBE statements.
 //
 //	(EXPLAIN | DESC | DESCRIBE) [ANALYZE|VERBOSE|LOGICAL|COSTS|SCHEDULER] query
@@ -691,6 +702,12 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 	if p.cur.Kind != tokEOF {
 		query, err := p.parseStmt()
 		if err == nil && query != nil {
+			// An explain prefix is only on queryStatement and the INSERT,
+			// UPDATE and DELETE statements, so a cache or task statement
+			// cannot follow it.
+			if !explainableNode(query) {
+				return nil, p.syntaxErrorAtCur()
+			}
 			// StarRocks refuses EXPLAIN ANALYZE over UPDATE and DELETE, while
 			// the plan-only levels stay readable over them.
 			if stmt.Type == "ANALYZE" {
