@@ -2716,6 +2716,12 @@ func tableExprLoc(te nodes.TableExpr) nodes.Loc {
 		return t.Loc
 	case *nodes.JsonTableExpr:
 		return t.Loc
+	case *nodes.ExternalTableRef:
+		return t.Loc
+	case *nodes.RbIterateExpr:
+		return t.Loc
+	case *nodes.UnnestExpr:
+		return t.Loc
 	}
 	return nodes.NoLoc()
 }

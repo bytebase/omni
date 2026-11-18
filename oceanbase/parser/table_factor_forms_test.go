@@ -93,3 +93,22 @@ func TestTableFactorTree(t *testing.T) {
 		t.Errorf("unnest = %#v, want two arguments, alias u and two columns", unnest)
 	}
 }
+
+// TestTableFactorJoinLoc pins that a join over the new table factors covers
+// them: tableExprLoc reads each factor's own Loc, so the join's range does not
+// fall back to NoLoc.
+func TestTableFactorJoinLoc(t *testing.T) {
+	const sql = "SELECT a FROM UNNEST(a) u JOIN RB_ITERATE(a) r JOIN SOURCE(TYPE = 's')"
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*nodes.SelectStmt)
+	join, ok := sel.From[0].(*nodes.JoinClause)
+	if !ok {
+		t.Fatalf("got %T, want *nodes.JoinClause", sel.From[0])
+	}
+	if join.Loc.Start != len("SELECT a FROM ") || join.Loc.End != len(sql) {
+		t.Errorf("join Loc = %+v, want the whole FROM list", join.Loc)
+	}
+}
