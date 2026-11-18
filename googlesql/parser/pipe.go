@@ -1212,11 +1212,10 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 	return fc, nil
 }
 
-// parsePipeTVFArg parses one tvf_argument of a TVF call. Two alternatives are
-// the pipe/CALL helpers' own — `INPUT TABLE` and a named argument whose value is
-// a table_clause (`arg => TABLE t`) — and the rest (`TABLE …` as a table_clause,
-// MODEL / CONNECTION / DESCRIPTOR clauses, named arguments, a positional
-// expression) are parseCallArg's.
+// parsePipeTVFArg parses one tvf_argument of a TVF call. `TABLE …` as a
+// table_clause and `INPUT TABLE` are read here; everything else (MODEL /
+// CONNECTION / DESCRIPTOR clauses, named arguments, a positional expression) is
+// parseCallArg's.
 func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
 	if p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF) {
 		// tvf_argument's table_clause: `TABLE <path|tvf> [WHERE expr]`. A bare
@@ -1230,31 +1229,7 @@ func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
 		return &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
 	}
 	if isIdentifierStart(p.cur.Type) && p.peekNext().Type == tokFatArrow {
-		// The value after `=>` may be a table_clause; the plain expression /
-		// lambda value is parseCallArg's.
-		nameTok := p.cur
-		name, err := p.identifierText(nameTok)
-		if err != nil {
-			return nil, err
-		}
-		p.advance() // identifier
-		p.advance() // '=>'
-		if p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF) {
-			// named_non_expr_argument: `arg => TABLE <path|tvf>`. A bare `arg =>
-			// TABLE` is the named_argument alternative, with the non-reserved
-			// TABLE keyword standing for an identifier expression (oracle: it
-			// accepts both).
-			tc, err := p.parseTableClauseOperand()
-			if err != nil {
-				return nil, err
-			}
-			return &ast.NamedArg{Name: name, Value: tc, Loc: ast.Loc{Start: nameTok.Loc.Start, End: tc.Loc.End}}, nil
-		}
-		val, err := p.parseArgValueMaybeLambda()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: nodeLoc(val).End}}, nil
+		return p.parseNamedTVFArg()
 	}
 	return p.parseCallArg()
 }

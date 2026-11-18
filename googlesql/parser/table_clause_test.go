@@ -150,6 +150,17 @@ func TestParseTableClause_TVF(t *testing.T) {
 	if tc := tableClauseOf(t, "TABLE f()@1"); tc.Table.Func == nil {
 		t.Error("a hinted tvf call did not parse")
 	}
+	// named_argument's fourth alternative: `identifier => input_table_argument`.
+	tc = tableClauseOf(t, "TABLE f(a => INPUT TABLE)")
+	if got := tc.Table.Func.Args; len(got) != 1 {
+		t.Fatalf("args = %+v, want 1", got)
+	}
+	if na, ok := tc.Table.Func.Args[0].(*ast.NamedArg); !ok || na.Name != "a" {
+		t.Fatalf("arg = %T %+v, want the named argument a", tc.Table.Func.Args[0], tc.Table.Func.Args[0])
+	} else if ca, ok := na.Value.(*ast.CallArg); !ok || ca.Kind != ast.CallArgInputTable {
+		t.Errorf("named argument value = %T, want an INPUT TABLE CallArg", na.Value)
+	}
+
 	// A bare keyword is also a plain identifier expression argument.
 	if tc := tableClauseOf(t, "TABLE f(CONNECTION)"); tc.Table.Func == nil {
 		t.Error("a bare CONNECTION argument did not parse")

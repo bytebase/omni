@@ -623,6 +623,33 @@ func TestCall(t *testing.T) {
 		}
 	})
 
+	// named_argument: `identifier => input_table_argument` and
+	// named_non_expr_argument: `identifier => table_clause` — the two non-expression
+	// value shapes a named tvf_argument has besides an expression / lambda.
+	t.Run("named input table and table clause", func(t *testing.T) {
+		c := parseCall(t, "CALL p(a => INPUT TABLE, b => TABLE t, c => 1)")
+		if len(c.Args) != 3 {
+			t.Fatalf("Args = %d, want 3", len(c.Args))
+		}
+		na, ok := c.Args[0].(*ast.NamedArg)
+		if !ok {
+			t.Fatalf("Args[0] = %T, want *ast.NamedArg", c.Args[0])
+		}
+		if ca, ok := na.Value.(*ast.CallArg); !ok || ca.Kind != ast.CallArgInputTable {
+			t.Errorf("Args[0] value = %+v, want an INPUT TABLE CallArg", na.Value)
+		}
+		// The table_clause value is modelled as the clause itself, as a TVF's
+		// positional `TABLE t` argument is (named_non_expr_argument wraps it in a
+		// subquery expression).
+		na, ok = c.Args[1].(*ast.NamedArg)
+		if !ok {
+			t.Fatalf("Args[1] = %T, want *ast.NamedArg", c.Args[1])
+		}
+		if _, ok := na.Value.(*ast.TableClause); !ok {
+			t.Errorf("Args[1] value = %T, want *ast.TableClause", na.Value)
+		}
+	})
+
 	t.Run("keyword field-access expression", func(t *testing.T) {
 		for _, sql := range []string{
 			"CALL p(model.col)",

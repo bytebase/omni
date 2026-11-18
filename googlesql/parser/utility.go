@@ -358,30 +358,65 @@ func (p *Parser) parseCallArg() (ast.Node, error) {
 		}
 	}
 
-	// Named argument: identifier '=>' value. The value may itself be a lambda —
-	// named_argument: identifier '=>' (expression | lambda_argument) — so
-	// `f => x -> x` and `f => (x) -> x` are valid (oracle: both accept). Reuses
-	// the expressions node's lambda-aware argument-value parser so CALL and TVF
-	// argument lists agree. (A bare POSITIONAL lambda `CALL p(x -> x)` is NOT a
-	// valid tvf_argument — the positional alternative is a plain expression — and
-	// the oracle rejects it; the positional branch below correctly uses parseExpr.)
+	// Named argument — see parseNamedTVFArg.
 	if isIdentifierStart(p.cur.Type) && p.peekNext().Type == tokFatArrow {
-		nameTok := p.advance()
-		name, err := p.identifierText(nameTok)
-		if err != nil {
-			return nil, err
-		}
-		p.advance() // '=>'
-		val, err := p.parseArgValueMaybeLambda()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: nodeLoc(val).End}}, nil
+		return p.parseNamedTVFArg()
 	}
 
 	// Positional expression (tvf_argument's `expression` alternative — NOT a
 	// lambda; a bare positional lambda is rejected by the grammar and the oracle).
 	return p.parseExpr()
+}
+
+// parseNamedTVFArg parses one named tvf_argument, `identifier => <value>`, after
+// the identifier has been recognised. The value is one of named_argument's three
+// alternatives or named_non_expr_argument's:
+//
+//	identifier => expression            (named_argument)
+//	identifier => lambda_argument        (named_argument; `f => x -> x`)
+//	identifier => input_table_argument   (named_argument; `f => INPUT TABLE`)
+//	identifier => table_clause           (named_non_expr_argument; `f => TABLE t`)
+//
+// Reuses the expressions node's lambda-aware argument-value parser so CALL and
+// TVF argument lists agree. (A bare POSITIONAL lambda `CALL p(x -> x)` is NOT a
+// valid tvf_argument — the positional alternative is a plain expression — and
+// the oracle rejects it.) The current token is the identifier.
+func (p *Parser) parseNamedTVFArg() (ast.Node, error) {
+	nameTok := p.cur
+	name, err := p.identifierText(nameTok)
+	if err != nil {
+		return nil, err
+	}
+	p.advance() // identifier
+	p.advance() // '=>'
+
+	var val ast.Node
+	end := 0
+	switch {
+	case p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE:
+		start := p.advance().Loc.Start // INPUT
+		p.advance()                    // TABLE
+		val = &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}
+		end = p.prev.Loc.End
+	case p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF):
+		// named_non_expr_argument's table_clause. A bare `arg => TABLE` is the
+		// named_argument alternative, with the non-reserved TABLE keyword standing
+		// for an identifier expression (oracle: it accepts both).
+		tc, err := p.parseTableClauseOperand()
+		if err != nil {
+			return nil, err
+		}
+		val = tc
+		end = tc.Loc.End
+	default:
+		v, err := p.parseArgValueMaybeLambda()
+		if err != nil {
+			return nil, err
+		}
+		val = v
+		end = nodeLoc(v).End
+	}
+	return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: end}}, nil
 }
 
 // parseCallTableArg parses table_clause as a CALL argument: `TABLE path_expression`
