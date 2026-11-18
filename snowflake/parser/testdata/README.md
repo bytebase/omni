@@ -88,8 +88,9 @@ Reading the sample there, and not the class, is what makes the page's own
 `../../testdata/tokens.tsv` samples every token class the grammar uses.
 
 The parser reads the page's `SHOW GRANTS ... INCLUDE HIERARCHY` now
-(`../show.go`, `ast.ShowStmt.IncludeHierarchy`), for `SHOW GRANTS TO` and `SHOW
-FUTURE GRANTS TO` a role, a database role or a user:
+(`../show.go`, `ast.ShowStmt.IncludeHierarchy`), for `SHOW GRANTS TO` a role, a
+database role or a user, and for `SHOW FUTURE GRANTS TO` a role or a database
+role, the grantee forms the page writes the clause after:
 https://docs.snowflake.com/en/sql-reference/sql/show-grants.
 
 This PR's fixes are in `docs-fixes.tsv` beside the pin bump's: `FOR INTERVAL

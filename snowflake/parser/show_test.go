@@ -345,6 +345,8 @@ func TestParseShowGrants(t *testing.T) {
 			// The page's future forms take it only after a role or a
 			// database role.
 			"SHOW FUTURE GRANTS TO USER u INCLUDE HIERARCHY",
+			// The page's forms name ROLE, DATABASE ROLE or USER.
+			"SHOW GRANTS TO analyst INCLUDE HIERARCHY",
 		} {
 			if _, err := Parse(sql); err == nil {
 				t.Errorf("%q: want a syntax error", sql)

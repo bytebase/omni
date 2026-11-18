@@ -534,12 +534,17 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		return nil
 	case kwTO:
 		p.advance() // consume TO
+		// The page's INCLUDE HIERARCHY forms name ROLE, DATABASE ROLE or
+		// USER, so a bare role name takes no clause.
+		explicit := p.cur.Type == kwROLE || p.cur.Type == kwDATABASE || p.cur.Type == kwUSER
 		grantee, err := p.parseGrantee()
 		if err != nil {
 			return err
 		}
 		stmt.GrantsTo = grantee
-		p.parseShowGrantsIncludeHierarchy(stmt)
+		if explicit {
+			p.parseShowGrantsIncludeHierarchy(stmt)
+		}
 		return p.parseShowGrantsToShareIn(stmt)
 	case kwOF:
 		p.advance() // consume OF
@@ -601,12 +606,15 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 
 	case kwTO:
 		p.advance() // consume TO
+		explicit := p.cur.Type == kwROLE || p.cur.Type == kwDATABASE
 		grantee, err := p.parseGrantee()
 		if err != nil {
 			return err
 		}
 		stmt.GrantsTo = grantee
-		p.parseShowGrantsIncludeHierarchy(stmt)
+		if explicit {
+			p.parseShowGrantsIncludeHierarchy(stmt)
+		}
 		return nil
 
 	default:
