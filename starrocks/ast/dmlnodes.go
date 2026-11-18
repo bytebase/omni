@@ -22,6 +22,7 @@ type InsertStmt struct {
 	PartitionStar bool        // true if PARTITION(*) was used
 	Columns       []string    // optional column list; nil if absent
 	ByName        bool        // true for INSERT ... BY NAME (column-name matching)
+	Blackhole     bool        // INSERT INTO BLACKHOLE() sink
 	FileTarget    []*Property // FILES(propertyList) target; nil for a table target (mutually exclusive with Target)
 	Properties    []*Property // optional PROPERTIES(...) before the source
 	// Source: exactly one of Values or Query is non-nil.

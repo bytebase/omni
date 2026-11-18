@@ -4513,7 +4513,7 @@ reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d2
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/FILES_propertyList!truncate	INSERT INTO FILES('a' = 'a'
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/FILES_propertyList!insert	INSERT INTO FILES('a' = 'a') zzz SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/FILES_propertyList!swap	INSERT INTO FILTER('a' = 'a') SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)	INSERT INTO BLACKHOLE() SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)	INSERT INTO BLACKHOLE() SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)!drop-1	INSERT INTO() SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)!drop-2	INSERT INTO BLACKHOLE) SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(qualifiedName_writeBranch?_partition~0a44d295)/BLACKHOLE_(_)!drop-3	INSERT INTO BLACKHOLE(SELECT CURRENT_USER;

@@ -358,9 +358,7 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 			if cte == nil || cte.Name == "" {
 				continue
 			}
-			name := strings.ToLower(cte.Name)
-			scope.names[name] = true
-			w.cteNames[name]++
+			scope.names[strings.ToLower(cte.Name)] = true
 		}
 		w.enterScope(scope)
 		defer w.leaveScope(scope)

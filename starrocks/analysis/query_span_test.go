@@ -1270,3 +1270,18 @@ func TestGetQuerySpanDMLSequentialCTEBodies(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want b and allowed", span.AccessTables)
 	}
 }
+
+// A CTE from one statement must not leak into the next statement's scope.
+func TestGetQuerySpanCTEDoesNotLeakAcrossStatements(t *testing.T) {
+	span, err := GetQuerySpan("CREATE VIEW v AS WITH c AS (SELECT * FROM real) SELECT 1 UNION SELECT 2; SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["real"] || !got["c"] {
+		t.Errorf("AccessTables = %+v, want real and c", span.AccessTables)
+	}
+}

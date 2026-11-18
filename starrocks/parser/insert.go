@@ -71,7 +71,18 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		stmt.FileTarget = props
 	}
 
-	if stmt.FileTarget == nil {
+	if p.cur.Kind == kwBLACKHOLE && p.peekNext().Kind == int('(') {
+		p.advance() // consume BLACKHOLE
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+		stmt.Blackhole = true
+	}
+
+	if stmt.FileTarget == nil && !stmt.Blackhole {
 		target, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
@@ -176,6 +187,27 @@ modifiers:
 			return nil, err
 		}
 		stmt.Query = trace
+
+	case int('('):
+		paren, err := p.parseParenSelect()
+		if err != nil {
+			return nil, err
+		}
+		result, err := p.parseSetOpTail(paren)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.settleQueryInto(result); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == kwINTO {
+			into, err := p.parseIntoOutfileClause()
+			if err != nil {
+				return nil, err
+			}
+			attachInto(result, into)
+		}
+		stmt.Query = result
 
 	case kwEXPLAIN, kwDESC, kwDESCRIBE:
 		// queryStatement's optional prefix is (explainDesc | optimizerTrace),
