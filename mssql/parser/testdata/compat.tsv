@@ -462,7 +462,7 @@ reject	reject	engine	statement/endConversationStatement!insert	END CONVERSATION 
 reject	reject	engine	statement/endConversationStatement!swap	ENDPOINT CONVERSATION 1
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements/(withCommonTableExpressionsAndXmlNamespaces)?_(select|d~26cf1717	SELECT *
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/%empty	SELECT *
-reject	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/%empty!insert	zzz SELECT *
+accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/%empty!insert	zzz SELECT *
 reject	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces!drop-1	CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces!drop-2	WITH(0x00) SELECT *

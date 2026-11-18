@@ -7,6 +7,7 @@ package parser
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
@@ -82,10 +83,12 @@ func Parse(sql string) (*nodes.List, error) {
 
 	var stmts []nodes.Node
 	// A batch begins at the text's start and after each GO: batch
-	// (TSql160.g:158), script (TSql160.g:118). impliedOnly is set once a
-	// batch's first statement is a procedure called by name without EXEC.
+	// (TSql160.g:158), script (TSql160.g:118). impliedBatch is set while the
+	// batch's first statement is a procedure called by name without EXEC, and
+	// declared holds the variables that batch declares so far.
 	batchStart := true
-	impliedOnly := false
+	impliedBatch := false
+	declared := map[string]bool{}
 	for p.cur.Type != tokEOF {
 		// Skip semicolons. A batch's first statement may not follow one: SQL
 		// Server refuses `; my_proc` (Msg 102), so the name is no longer the
@@ -94,16 +97,6 @@ func Parse(sql string) (*nodes.List, error) {
 			p.advance()
 			batchStart = false
 			continue
-		}
-		// The batch is the call and nothing else. SQL Server reads a
-		// statement after the call too, and a DECLARE of the batch's after
-		// it (`my_proc DECLARE @a INT` is accepted), but it reports 137 for
-		// a variable a later statement uses and does not declare, and omni
-		// does not resolve a batch's variables: `my_proc; SELECT @a` and
-		// `my_proc; SET @a = 1` would be read as accepted. Every row that
-		// names a call without EXEC is the call alone (testdata/compat.tsv).
-		if impliedOnly && p.cur.Type != kwGO {
-			return nil, p.syntaxErrorAtCur()
 		}
 		// Check for lexer errors before parsing statement.
 		if p.lexer.Err != nil {
@@ -131,7 +124,13 @@ func Parse(sql string) (*nodes.List, error) {
 		}
 		if first {
 			e, ok := stmt.(*nodes.ExecStmt)
-			impliedOnly = ok && e.Implied
+			impliedBatch = ok && e.Implied
+			declared = map[string]bool{}
+		}
+		if impliedBatch {
+			if name, at := p.impliedBatchVariable(stmt, stmtStart, p.prev.End, declared); name != "" {
+				return nil, p.newParseError(at, "Must declare the scalar variable \""+name+"\".")
+			}
 		}
 		if treeTooHigh(stmt, p.prev.End-stmtStart) {
 			return nil, nestedTooDeeply(stmtStart)
@@ -139,7 +138,7 @@ func Parse(sql string) (*nodes.List, error) {
 		_, batchStart = stmt.(*nodes.GoStmt)
 		if batchStart {
 			// A GO starts a batch, and the next statement is its first.
-			impliedOnly = false
+			impliedBatch = false
 		}
 		stmts = append(stmts, stmt)
 	}
@@ -148,6 +147,61 @@ func Parse(sql string) (*nodes.List, error) {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// impliedBatchVariable records the variables stmt declares and returns the
+// first it uses that its batch has not declared, with its offset.
+//
+// SQL Server's parser reports Msg 137 ("Must declare the scalar variable") for
+// a batch that uses a variable it does not declare, and a batch beginning with
+// a call without EXEC can hold statements after the call (measured: `my_proc
+// DECLARE @a INT` and `my_proc; SELECT 1` are accepted, `my_proc SET @a = 1`
+// and `my_proc @a` are Msg 137). omni reads the variables of such a batch
+// only: a row of compat.tsv is one statement, and its judge declares the
+// variable it names before asking again, which it cannot do for a
+// declaration that would take the call's place as the batch's first
+// statement. Every other batch is read as written, variable or not.
+//
+// A DECLARE declares a variable, and an EXEC's `@p = ...` names a parameter
+// rather than using a variable; every other @name a statement holds is a use,
+// which a token read of the statement finds whether the AST carries it as a
+// node or as a field (SET @a = ..., FETCH ... INTO @a, ...).
+func (p *Parser) impliedBatchVariable(stmt nodes.Node, start, end int, declared map[string]bool) (string, int) {
+	names := map[string]bool{}
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		switch v := n.(type) {
+		case *nodes.DeclareStmt:
+			if v.Variables == nil {
+				return true
+			}
+			for _, item := range v.Variables.Items {
+				if decl, ok := item.(*nodes.VariableDecl); ok {
+					declared[strings.ToLower(decl.Name)] = true
+				}
+			}
+		case *nodes.ExecArg:
+			if v.Name != "" {
+				names[strings.ToLower(v.Name)] = true
+			}
+		}
+		return true
+	})
+	if end <= start || end > len(p.source) {
+		return "", -1
+	}
+	lexer := NewLexer(p.source[start:end])
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == tokEOF {
+			return "", -1
+		}
+		if tok.Type != tokVARIABLE {
+			continue
+		}
+		if name := strings.ToLower(tok.Str); !declared[name] && !names[name] {
+			return tok.Str, start + tok.Loc
+		}
+	}
 }
 
 // isNilNode reports whether n is nil, including a typed nil such as a
@@ -542,7 +596,7 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		// A procedure called by name without EXEC as the batch's first
 		// statement (optSimpleExecute, TSql160.g:567). Everything else that
 		// starts with a name is not a statement.
-		if batchStart && (p.isIdentLike() || p.cur.Type == '.') {
+		if batchStart && p.isImpliedExecName() {
 			return p.parseImpliedExecStmt()
 		}
 		return nil, nil

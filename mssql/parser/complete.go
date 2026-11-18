@@ -269,16 +269,23 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 	}()
 
 	// Parse statements in a loop (like the normal Parse path) so that
-	// completion works after semicolons in multi-statement batches.
+	// completion works after semicolons in multi-statement batches, and keep
+	// the batch's first statement as Parse does: a procedure called by name
+	// without EXEC is one too (execute.go, parseImpliedExecStmt).
+	batchStart := true
 	for p.cur.Type != tokEOF {
 		if p.cur.Type == ';' {
 			p.advance()
+			batchStart = false
 			// After consuming semicolon, check if cursor is now reached.
 			p.checkCursor()
 			continue
 		}
 		prevPos := p.cur.Loc
+		p.batchStart = batchStart
+		wasGo := p.cur.Type == kwGO
 		p.parseStmt() //nolint:errcheck
+		batchStart = wasGo
 		// If the parser didn't advance (unrecognized token), skip it to avoid
 		// an infinite loop.
 		if p.cur.Loc == prevPos && p.cur.Type != tokEOF {

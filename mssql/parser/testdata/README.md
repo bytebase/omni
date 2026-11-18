@@ -13,7 +13,7 @@ a minute; a second recording on a fresh server wrote the same file.
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
 | One per alternative | 5,510 | 5,276 | 81 | 153 |
-| Near-misses | 11,960 | 11,782 | 29 | 149 |
+| Near-misses | 11,960 | 11,783 | 28 | 149 |
 | `suite:lexer` | 67 | 62 | 2 | 3 |
 
 SQL Server accepts 3,034 of the 5,510 alternatives. Five more alternatives get
@@ -92,7 +92,7 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,120 rows agree: 12,212 when the file was recorded, the rest closed family
+17,121 rows agree: 12,212 when the file was recorded, the rest closed family
 by family (#1034 to #1070, and then the batch's call by name, `ALTER
 AUTHORIZATION` and the refusals around it), each reading its option lists and
 clauses by the grammar and the server's checks. What is left, and why:
@@ -112,16 +112,7 @@ clauses by the grammar and the server's checks. What is left, and why:
     know (`DROP AGGREGATE`, `DROP XML SCHEMA`, `DROP PARTITION`), a
     `CREATE TABLE ... AS SELECT`, `ENABLE TRIGGER` without a name, a name of
     two words where the grammar wants one.
-- **Only SQL Server accepts (112):**
-  - A procedure called by name as a batch's first statement, when another
-    statement follows it (1: `zzz SELECT *`). omni reads the call only when
-    the batch is the call alone (`../execute.go`, `parseImpliedExecStmt`):
-    SQL Server reads a later statement too, but reports Msg 137 for a
-    variable that statement uses and the batch does not declare (`my_proc SET
-    @a = 1` is refused, `my_proc DECLARE @a INT` is not), and omni cannot
-    tell a use from a declaration without resolving a batch's variables. The
-    judge cannot declare the variable for the row either: a declaration
-    before the call moves the call off the batch's first statement.
+- **Only SQL Server accepts (111):**
   - ODBC escapes (19: `{fn NOW()}`, `{d '2020-01-01'}`), split comparison
     operators (`! =`, `< >`, 7) and `IS DISTINCT FROM` (8).
   - Graph `MATCH` arrows (14), and `ALTER TABLE ... ADD CONNECTION` (8), a

@@ -50,24 +50,13 @@ func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
 	}
 	stmt.Name = ref
 
-	// setParamList (TSql160.g:26422), the arguments EXEC takes.
+	// setParamList (TSql160.g:26422), the arguments EXEC takes. A variable
+	// among them is the batch's to declare; Parse reads it
+	// (impliedBatchVariable).
 	if p.impliedExecHasParams() {
 		args, err := p.parseExecArgList(true)
 		if err != nil {
 			return nil, err
-		}
-		for _, item := range args {
-			arg, ok := item.(*nodes.ExecArg)
-			if !ok {
-				continue
-			}
-			// A variable is the batch's to declare, and nothing declares one
-			// before the batch's first statement: SQL Server reports 137 for
-			// `my_proc @a`. A name such as `my_proc @a = 1` is a parameter's,
-			// not a variable (ExecArg.Name), and `@@ROWCOUNT` is the server's.
-			if v, ok := arg.Value.(*nodes.VariableRef); ok && !strings.HasPrefix(v.Name, "@@") {
-				return nil, p.newParseError(v.Loc.Start, "Must declare the scalar variable \""+v.Name+"\".")
-			}
 		}
 		if len(args) > 0 {
 			stmt.Args = &nodes.List{Items: args}
@@ -76,6 +65,27 @@ func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// isImpliedExecName reports whether the current token can name a procedure
+// called by name without EXEC. optSimpleExecute's predicate keeps its word
+// from being DISABLE, ENABLE, MOVE, GET, RECEIVE, SEND, THROW or RENAME
+// (TSql160.g:572), which start statements of their own: `ENABLE 1` is no call
+// (Msg 102, measured). RENAME stays out too, for Synapse's
+// renameEntityStatement (TSql160.g:476) that omni reads and the pinned server
+// has no statement for, though `RENAME 1` is a call to it.
+func (p *Parser) isImpliedExecName() bool {
+	if p.cur.Type != '.' && !p.isIdentLike() {
+		return false
+	}
+	if p.cur.Type == '.' || p.isDelimited(p.cur) {
+		return true
+	}
+	switch strings.ToUpper(p.cur.Str) {
+	case "DISABLE", "ENABLE", "MOVE", "GET", "RECEIVE", "SEND", "THROW", "RENAME":
+		return false
+	}
+	return true
 }
 
 // impliedExecHasParams reports whether the current token can begin the

@@ -89,10 +89,12 @@ func argsLen(stmt *nodes.ExecStmt) int {
 	return len(stmt.Args.Items)
 }
 
-// TestImpliedExecStmtBatchStart holds the call to the batch's first statement,
-// and the batch to the call: SQL Server reads a statement after it (verified),
-// but a variable such a later statement uses is the batch's to declare, and
-// omni reads no variable there (execute.go, parseImpliedExecStmt).
+// TestImpliedExecStmtBatchStart holds the call to the batch's first statement:
+// a GO starts a batch, a semicolon before the name takes its place away
+// (Msg 102), and the words optSimpleExecute's predicate keeps start their own
+// statements. A statement after the call is read as SQL Server reads it,
+// except that a variable it uses must be one the batch declares first (Msg
+// 137, measured): the call is where a declaration cannot precede.
 func TestImpliedExecStmtBatchStart(t *testing.T) {
 	// A GO starts a batch, so the call is its first statement again, and
 	// the statements after a later GO are statements.
@@ -105,29 +107,71 @@ func TestImpliedExecStmtBatchStart(t *testing.T) {
 		t.Fatalf("statement after GO = %s, want an *ast.ExecStmt with Implied", nodes.NodeToString(list.Items[2]))
 	}
 
+	// Statements after the call, and declarations its batch may hold.
+	for _, sql := range []string{
+		"my_proc; SELECT 1",
+		"my_proc DECLARE @a INT",
+		"my_proc; DECLARE @a INT; SELECT @a",
+		"my_proc @a = 1",
+		"my_proc @a = 1, @b = 2",
+		"my_proc; EXEC p @x = 1",
+		"my_proc; SELECT @@ROWCOUNT",
+		"my_proc PRINT '@a'",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v, want accepted", sql, err)
+		}
+	}
+
 	for _, sql := range []string{
 		// Not the batch's first statement: inside a batch a name is no
 		// statement.
 		"SELECT 1; my_proc",
 		// A semicolon before it: SQL Server refuses `; my_proc`.
 		"; my_proc",
-		// The batch is the call alone; SQL Server reads a later statement
-		// that uses a variable it must declare first (Msg 137).
-		"my_proc; SELECT 1",
-		"my_proc SELECT 1",
-		"my_proc\nSET @a = 1",
-		// A variable as an argument cannot be declared before the batch's
-		// first statement (Msg 137).
+		// A variable the batch does not declare (Msg 137), in the call's
+		// arguments or in a statement after it.
 		"my_proc @a",
+		"my_proc @a = @b",
 		"my_proc @a OUTPUT",
+		"my_proc SET @a = 1",
+		"my_proc; SELECT @a",
+		"my_proc FETCH c INTO @a",
+		"my_proc; SET @a = 1; DECLARE @a INT",
 		// More than four parts are no procedure name.
 		"a.b.c.d.e",
 		"a.b.c.d.e 1",
+		// The words optSimpleExecute's predicate keeps (TSql160.g:572).
+		"GET 1",
+		"ENABLE 1",
+		"DISABLE 1",
+		"MOVE 1",
+		"SEND 1",
+		"RECEIVE 1",
+		"THROW 1",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q): accepted, want rejected", sql)
 		} else if _, ok := err.(*ParseError); !ok {
 			t.Errorf("Parse(%q): %T, want *ParseError", sql, err)
+		}
+	}
+}
+
+// TestImpliedExecCompletion holds completion after a call by name to
+// completion after the same call with EXEC: the call is the batch's first
+// statement, and Collect reads it as one.
+func TestImpliedExecCompletion(t *testing.T) {
+	for _, tt := range []struct{ exec, implied string }{
+		{"EXEC foo @p = ", "foo @p = "},
+		{"EXEC foo 1, @p = ", "foo 1, @p = "},
+		{"EXEC foo ", "foo "},
+	} {
+		exec, implied := Collect(tt.exec, len(tt.exec)), Collect(tt.implied, len(tt.implied))
+		if len(implied.Rules) != len(exec.Rules) || len(implied.Tokens) != len(exec.Tokens) {
+			t.Errorf("Collect(%q) = %d tokens, %d rules; Collect(%q) = %d tokens, %d rules",
+				tt.implied, len(implied.Tokens), len(implied.Rules),
+				tt.exec, len(exec.Tokens), len(exec.Rules))
 		}
 	}
 }
