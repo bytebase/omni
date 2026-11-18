@@ -1766,9 +1766,9 @@ func (p *Parser) nestedPhysicalPhase(allowed atClauses, phase int) int {
 			// threshold.
 			return 4
 		}
-		if phase >= 4 {
-			// After INMEMORY, COMPRESS or NOCOMPRESS is the same
-			// organization alternative, not table compression.
+		if phase >= 3 {
+			// After table compression or INMEMORY, COMPRESS or NOCOMPRESS
+			// is the organization's prefix-compression alternative.
 			return 4
 		}
 	}
