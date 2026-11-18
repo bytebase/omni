@@ -302,6 +302,9 @@ func TestPipe_RejectsFragments(t *testing.T) {
 		"|> NATURAL JOIN t USING (x)",
 		"|> AGGREGATE x.* DESC",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{CAST(1 AS INT64)}) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1}?) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m `AFTER` MATCH SKIP PAST LAST ROW PATTERN(a) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m AFTER MATCH SKIP `PAST` LAST ROW PATTERN(a) DEFINE a AS true)",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {

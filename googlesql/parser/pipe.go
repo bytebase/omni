@@ -1372,7 +1372,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 		return nil, err
 	}
 	clause.Measures = measures
-	if p.curIsWord("AFTER") {
+	if p.curIsUnquotedWord("AFTER") {
 		p.advance()
 		if _, err := p.expect(kwMATCH); err != nil {
 			return nil, err
@@ -1381,7 +1381,7 @@ func (p *Parser) parseMatchRecognizeClause() (*ast.MatchRecognizeClause, error) 
 			return nil, err
 		}
 		switch {
-		case p.curIsWord("PAST"):
+		case p.curIsUnquotedWord("PAST"):
 			p.advance()
 			if _, err := p.expect(kwLAST); err != nil {
 				return nil, err
@@ -1682,6 +1682,7 @@ func (p *Parser) parseRowPatternQuantifier() (*ast.RowPatternQuantifier, error) 
 		p.advance()
 		if p.cur.Type == int(',') {
 			p.advance()
+			q.Bounded = true
 			if p.cur.Type != int('}') {
 				upper, err := p.parseGraphIntLiteralOrParameter()
 				if err != nil {
@@ -1694,9 +1695,10 @@ func (p *Parser) parseRowPatternQuantifier() (*ast.RowPatternQuantifier, error) 
 			if err != nil {
 				return nil, err
 			}
-			q.Lower = lower
 			if p.cur.Type == int(',') {
 				p.advance()
+				q.Bounded = true
+				q.Lower = lower
 				if p.cur.Type != int('}') {
 					upper, err := p.parseGraphIntLiteralOrParameter()
 					if err != nil {
@@ -1711,7 +1713,6 @@ func (p *Parser) parseRowPatternQuantifier() (*ast.RowPatternQuantifier, error) 
 		if _, err := p.expect(int('}')); err != nil {
 			return nil, err
 		}
-		q.Bounded = q.Lower != nil || q.Upper != nil
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

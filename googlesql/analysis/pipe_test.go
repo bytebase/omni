@@ -20,6 +20,7 @@ func TestClassifyPipe(t *testing.T) {
 		// A CALL argument that names a table is an access, so a system table
 		// beside it does not make the query a system-only read.
 		{"SELECT * FROM INFORMATION_SCHEMA.TABLES |> CALL f(TABLE secret)", Select},
+		{"SELECT * FROM INFORMATION_SCHEMA.TABLES |> UNION ALL TABLE f(TABLE secret)", Select},
 		{"|> AGGREGATE", Select},
 		{"|> WHERE x > 1 |> DISTINCT", Select},
 		// A piped statement keeps its head's classification: DESCRIBE and CALL

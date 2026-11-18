@@ -669,14 +669,23 @@ func (w *spanWalker) visitPipeCall(te *ast.TableExpr) {
 		return
 	}
 	if te.Func != nil {
-		for _, arg := range te.Func.Args {
-			if ca, ok := arg.(*ast.CallArg); ok && ca.Kind == ast.CallArgTable {
-				w.recordTable(ca.Path, "")
-			}
-		}
+		w.recordCallTableArgs(te.Func)
 		w.walkPredicate(te.Func)
 	}
 	w.registerFromAlias(te.Alias)
+}
+
+// recordCallTableArgs records the table a CALL/TVF argument names
+// (`f(TABLE t)`). A model or connection argument is not a table.
+func (w *spanWalker) recordCallTableArgs(fc *ast.FuncCall) {
+	if fc == nil {
+		return
+	}
+	for _, arg := range fc.Args {
+		if ca, ok := arg.(*ast.CallArg); ok && ca.Kind == ast.CallArgTable {
+			w.recordTable(ca.Path, "")
+		}
+	}
 }
 
 // visitPipeOperand walks one operand of a pipe set operation or recursive
@@ -687,6 +696,10 @@ func (w *spanWalker) visitPipeOperand(node ast.Node) {
 		w.visitBody(n)
 	case *ast.TableClause:
 		if n != nil {
+			if n.Table != nil && n.Table.Func != nil {
+				// A TABLE operand may be a TVF; its TABLE argument names a table.
+				w.recordCallTableArgs(n.Table.Func)
+			}
 			w.buildTableExpr(n.Table)
 			w.walkPredicate(n.Where)
 		}
