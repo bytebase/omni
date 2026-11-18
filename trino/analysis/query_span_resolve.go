@@ -86,7 +86,7 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 	if queryHasCorresponding(q.Body) {
 		span.Results = span.Results[:0]
 		for _, c := range cols {
-			span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources})
+			span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources, Star: c.opaque, Quoted: c.quoted})
 		}
 		return
 	}
@@ -101,7 +101,7 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 	if len(span.Results) == 0 {
 		if len(cols) > 0 && !hasOpaque(cols) {
 			for _, c := range cols {
-				span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources})
+				span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources, Quoted: c.quoted})
 			}
 		}
 		return
@@ -129,7 +129,7 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 		default:
 			// Resolved star: splice the expanded projection in place of the "*".
 			for _, c := range g {
-				newResults = append(newResults, ColumnInfo{Name: c.name, SourceColumns: c.sources})
+				newResults = append(newResults, ColumnInfo{Name: c.name, SourceColumns: c.sources, Quoted: c.quoted})
 			}
 		}
 	}
@@ -178,6 +178,9 @@ type outCol struct {
 	// opaque marks an unresolved star placeholder; a projection containing one
 	// has unknown width and blocks star expansion through it.
 	opaque bool
+	// quoted marks a name that came from a quoted identifier, which is matched
+	// case-sensitively (unquoted names fold to lower case).
+	quoted bool
 }
 
 // hasOpaque reports whether cols contains an unresolved star placeholder (the
@@ -423,6 +426,8 @@ func queryHasCorresponding(n parser.QueryNode) bool {
 	switch x := n.(type) {
 	case *parser.SetOperation:
 		return x.Corresponding || queryHasCorresponding(x.Left) || queryHasCorresponding(x.Right)
+	case *parser.ParenQuery:
+		return x.Inner != nil && queryHasCorresponding(x.Inner.Body)
 	default:
 		return false
 	}
@@ -493,6 +498,25 @@ func (m *armMerger) merge(right []outCol) {
 	}
 }
 
+// outColKey is the name key CORRESPONDING matches on: quoted names are
+// case-sensitive, unquoted names fold to lower case.
+func outColKey(c outCol) string {
+	if c.quoted {
+		return c.name
+	}
+	return strings.ToLower(c.name)
+}
+
+func identKey(id *ast.Identifier) string {
+	if id == nil {
+		return ""
+	}
+	if id.Quoted {
+		return id.Value
+	}
+	return strings.ToLower(id.Value)
+}
+
 // mergeCorresponding merges a CORRESPONDING arm by name. Without BY, the
 // result keeps the left columns whose names also occur on the right, in left
 // order. With BY, the listed names select and order the output columns. Each
@@ -503,7 +527,7 @@ func (m *armMerger) mergeCorresponding(right []outCol, by []*ast.Identifier) {
 	}
 	byName := make(map[string]outCol, len(right))
 	for _, c := range right {
-		key := strings.ToLower(c.name)
+		key := outColKey(c)
 		if _, ok := byName[key]; !ok {
 			byName[key] = c
 		}
@@ -527,13 +551,13 @@ func (m *armMerger) mergeCorresponding(right []outCol, by []*ast.Identifier) {
 	if len(by) > 0 {
 		leftByName := make(map[string]outCol, len(m.cols))
 		for _, left := range m.cols {
-			key := strings.ToLower(left.name)
+			key := outColKey(left)
 			if _, ok := leftByName[key]; !ok {
 				leftByName[key] = left
 			}
 		}
 		for _, id := range by {
-			key := strings.ToLower(id.Value)
+			key := identKey(id)
 			left, lok := leftByName[key]
 			rightCol, rok := byName[key]
 			if lok && rok {
@@ -542,7 +566,7 @@ func (m *armMerger) mergeCorresponding(right []outCol, by []*ast.Identifier) {
 		}
 	} else {
 		for _, left := range m.cols {
-			if rightCol, ok := byName[strings.ToLower(left.name)]; ok {
+			if rightCol, ok := byName[outColKey(left)]; ok {
 				add(left, rightCol)
 			}
 		}
@@ -570,10 +594,12 @@ func resolveSpecCols(spec *parser.QuerySpec, cte *cteDefs) []outCol {
 			continue
 		}
 		name := identName(item.Alias)
+		quoted := item.Alias != nil && item.Alias.Quoted
 		if name == "" {
 			name = renderExprName(item.Expr)
+			quoted = exprNameQuoted(item.Expr)
 		}
-		out = append(out, outCol{name: name, sources: scope.resolveExprRefs(item.Expr), item: idx})
+		out = append(out, outCol{name: name, quoted: quoted, sources: scope.resolveExprRefs(item.Expr), item: idx})
 	}
 	return out
 }
@@ -602,6 +628,20 @@ func (s *rscope) starItemCols(item parser.SelectItem, idx int) (cols []outCol, o
 		return []outCol{{name: name, sources: s.resolveExprRefs(item.Expr), item: idx, opaque: true}}, true
 	}
 	return nil, false
+}
+
+// exprNameQuoted reports whether a rendered expression name came from a quoted
+// identifier.
+func exprNameQuoted(expr parser.Expr) bool {
+	switch e := expr.(type) {
+	case *parser.ColumnRef:
+		return e.Name != nil && e.Name.Quoted
+	case *parser.Dereference:
+		return e.FieldName != nil && e.FieldName.Quoted
+	case *parser.ParenExpr:
+		return exprNameQuoted(e.Expr)
+	}
+	return false
 }
 
 // starQualifier returns the relation qualifier a `<rel>.*` select item names:
@@ -1010,7 +1050,7 @@ func joinProjection(left, right *starProjection, n *parser.Join) *starProjection
 		if !ok {
 			return nil
 		}
-		out = append(out, outCol{name: l[li].name, sources: unionRefs(l[li].sources, r[ri].sources)})
+		out = append(out, outCol{name: l[li].name, quoted: l[li].quoted, sources: unionRefs(l[li].sources, r[ri].sources)})
 		usedLeft[li] = true
 		usedRight[ri] = true
 	}
@@ -1066,10 +1106,10 @@ func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Ident
 	for i, a := range colAliases {
 		name := identName(a)
 		if n.WithOrdinality && i == len(colAliases)-1 {
-			cols = append(cols, outCol{name: name})
+			cols = append(cols, outCol{name: name, quoted: a.Quoted})
 			continue
 		}
-		cols = append(cols, outCol{name: name, sources: srcs})
+		cols = append(cols, outCol{name: name, quoted: a.Quoted, sources: srcs})
 	}
 	return cols
 }
@@ -1102,7 +1142,7 @@ func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast
 			case parser.JSONTableNestedColumn:
 				walk(col.Columns)
 			case parser.JSONTableOrdinalityColumn:
-				cols = append(cols, outCol{name: identName(col.Name)})
+				cols = append(cols, outCol{name: identName(col.Name), quoted: col.Name != nil && col.Name.Quoted})
 			default:
 				sources := append([]ColumnRef(nil), input...)
 				if col.OnEmpty != nil {
@@ -1111,7 +1151,7 @@ func (s *rscope) jsonTableColumns(n *parser.JSONTableRelation, colAliases []*ast
 				if col.OnError != nil {
 					sources = append(sources, s.resolveExprRefs(col.OnError.Default)...)
 				}
-				cols = append(cols, outCol{name: identName(col.Name), sources: sources})
+				cols = append(cols, outCol{name: identName(col.Name), quoted: col.Name != nil && col.Name.Quoted, sources: sources})
 			}
 		}
 	}
@@ -1599,6 +1639,7 @@ func applyColumnAliases(cols []outCol, aliases []*ast.Identifier) []outCol {
 		}
 		if name := identName(aliases[i]); name != "" {
 			out[i].name = name
+			out[i].quoted = aliases[i].Quoted
 		}
 	}
 	return out

@@ -88,6 +88,10 @@ type ColumnInfo struct {
 	// on the select item, not the name, so a column aliased to "*" stays an
 	// ordinary column.
 	Star bool
+
+	// Quoted reports that Name came from a quoted identifier and is therefore
+	// matched case-sensitively (unquoted names fold to lower case).
+	Quoted bool
 }
 
 // ColumnRef identifies a column by its optional catalog/schema/table qualifier
@@ -1106,8 +1110,10 @@ func (w *spanWalker) makeColumnInfo(item parser.SelectItem) ColumnInfo {
 
 	if name := identName(item.Alias); name != "" {
 		info.Name = name
+		info.Quoted = item.Alias.Quoted
 	} else {
 		info.Name = renderExprName(item.Expr)
+		info.Quoted = exprNameQuoted(item.Expr)
 	}
 	info.SourceColumns = w.collectDirectColumns(item.Expr)
 	return info
