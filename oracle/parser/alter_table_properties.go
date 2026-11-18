@@ -17,7 +17,7 @@ import (
 //	    GROUP log_group ( column [ NO LOG ] [, column [ NO LOG ] ]... ) [ ALWAYS ]
 //	supplemental_id_key_clause:
 //	    DATA ( { ALL | PRIMARY KEY | UNIQUE | FOREIGN KEY } [, ...] ) COLUMNS
-func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
+func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *nodes.List) error {
 	if err := p.atExpectWord("LOG"); err != nil {
 		return err
 	}
@@ -47,9 +47,19 @@ func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
 				default:
 					return p.syntaxErrorAtCur()
 				}
-				if p.cur.Type != ',' {
+				if objectProperties || p.cur.Type != ',' {
 					break
 				}
+				p.advance()
+			}
+			// ALTER TABLE's page puts COLUMNS after DATA's list; the
+			// object_properties of a nested table's storage table puts it
+			// inside the parentheses, as its own converted rule does.
+			insideColumns := objectProperties && p.cur.Type == kwCOLUMNS
+			if objectProperties && !insideColumns {
+				return p.syntaxErrorAtCur()
+			}
+			if insideColumns {
 				p.advance()
 			}
 			if err := p.atExpect(')'); err != nil {
@@ -57,8 +67,10 @@ func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
 			}
 			p.atOption(opts, start)
 			start = p.pos()
-			if err := p.atExpect(kwCOLUMNS); err != nil {
-				return err
+			if !insideColumns {
+				if err := p.atExpect(kwCOLUMNS); err != nil {
+					return err
+				}
 			}
 		case p.cur.Type == kwGROUP:
 			p.advance()
@@ -95,7 +107,7 @@ func (p *Parser) parseATSupplementalLogging(add bool, opts *nodes.List) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.atOption(opts, start)
-		if p.cur.Type != ',' {
+		if objectProperties || p.cur.Type != ',' {
 			return nil
 		}
 		p.advance()

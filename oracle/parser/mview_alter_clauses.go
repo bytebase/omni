@@ -187,6 +187,57 @@ func setAlterMviewAction(stmt *nodes.AlterMaterializedViewStmt, action string) {
 	}
 }
 
+// isAlterMviewSubpartitionTemplateQuantityStart reports the
+// hash_subparts_by_quantity alternative of set_subpartition_template, whose
+// reader ALTER TABLE does not share.
+func (p *Parser) isAlterMviewSubpartitionTemplateQuantityStart() bool {
+	if p.cur.Type != kwSET {
+		return false
+	}
+	toks := p.peekAhead(3)
+	return len(toks) == 3 && toks[0].Type == kwSUBPARTITION && p.isIdentLikeStrAt(toks[1], "TEMPLATE") && p.isIdentLikeStrAt(toks[2], "SUBPARTITIONS")
+}
+
+// parseAlterMviewSubpartitionTemplateQuantity reads
+// set_subpartition_template's hash_subparts_by_quantity:
+//
+//	SET SUBPARTITION TEMPLATE SUBPARTITIONS integer [ STORE IN ( tablespace [, tablespace ]... ) ]
+//
+// ALTER MATERIALIZED VIEW's page takes alter_table_partitioning from ALTER
+// TABLE's, which is where hash_subparts_by_quantity is defined
+// (oracle/parser/bnf/ALTER-TABLE.bnf). The pinned server answers ORA-14156
+// (invalid number of subpartitions specified in [SUBPARTITIONS | SUBPARTITION
+// TEMPLATE] clause) at SUBPARTITIONS here whatever the count and whatever the
+// view's partitioning, and reads the answer as an acceptance: the statement's
+// every token is lexed before any is parsed, so its probe reaches the tail and
+// says nothing. ALTER TABLE keeps its own reader, which takes an integer alone
+// (SET SUBPARTITION TEMPLATE 1): there the server repeats ORA-14156 at
+// SUBPARTITIONS after that token too, which is a rejection.
+func (p *Parser) parseAlterMviewSubpartitionTemplateQuantity() error {
+	p.advance() // consume SET
+	p.advance() // consume SUBPARTITION
+	if err := p.atExpectWord("TEMPLATE"); err != nil {
+		return err
+	}
+	if err := p.atExpectWord("SUBPARTITIONS"); err != nil {
+		return err
+	}
+	if p.cur.Type != tokICONST {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume the count
+	if p.atWord("STORE") {
+		p.advance() // consume STORE
+		if err := p.atExpect(kwIN); err != nil {
+			return err
+		}
+		if err := p.parseATNameList(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // parseAlterMviewProperties reads the property clauses an ALTER
 // MATERIALIZED VIEW may begin with. The pinned server takes them as ALTER
 // TABLE does its own: several, in any order (PCTFREE 5 NOLOGGING, CACHE
@@ -277,6 +328,9 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 	case p.atWord("MERGE") && p.atNextWord("SUBPARTITIONS"):
 		setAlterMviewAction(stmt, "PARTITION")
 		return p.parseAlterMviewMergeSubpartitions()
+	case p.isAlterMviewSubpartitionTemplateQuantityStart():
+		setAlterMviewAction(stmt, "PARTITION")
+		return p.parseAlterMviewSubpartitionTemplateQuantity()
 	case p.isAlterTablePartitioningStart():
 		setAlterMviewAction(stmt, "PARTITION")
 		cmd, err := p.parseAlterTablePartitioning()
