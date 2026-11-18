@@ -119,30 +119,61 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 	return nil, nil
 }
 
-// viewBodyMayNameNoColumn reports whether a 1054 from a view body can be the
-// engine's. It must be a SELECT with no FROM, and one whose body, nested queries
-// included, has no clause the analyzer cannot resolve a select alias in (HAVING,
-// GROUP BY, ORDER BY) and no schema-qualified function, whose argument may name a
-// stored function's column rather than a column of the body. Measured on mysql:8.0.46.
+// viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that
+// therefore names nothing: a target expression, or a WHERE, outside a nested
+// query's own scope. The alias-bearing clauses (HAVING, GROUP BY, ORDER BY) are
+// left alone because the analyzer cannot resolve a select alias there, and a
+// schema-qualified call is left alone because its argument may name a stored
+// function's column. Measured on mysql:8.0.46.
 func viewBodyMayNameNoColumn(sel *nodes.SelectStmt) bool {
 	if len(sel.From) != 0 {
 		return false
 	}
-	skip := false
-	nodes.Inspect(sel, func(n nodes.Node) bool {
+	if exprNamesColumn(sel.Where) {
+		return true
+	}
+	for _, item := range sel.TargetList {
+		var val nodes.ExprNode
+		switch target := item.(type) {
+		case *nodes.ResTarget:
+			val = target.Val
+		case nodes.ExprNode:
+			val = target
+		default:
+			continue
+		}
+		if exprNamesColumn(val) {
+			return true
+		}
+	}
+	return false
+}
+
+// exprNamesColumn reports whether expr reads a column of this scope. A nested
+// query has a scope of its own, and a schema-qualified call may name a stored
+// function's column.
+func exprNamesColumn(expr nodes.ExprNode) bool {
+	if expr == nil {
+		return false
+	}
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
 		switch e := n.(type) {
-		case *nodes.SelectStmt:
-			if e.Having != nil || len(e.GroupBy) != 0 || len(e.OrderBy) != 0 {
-				skip = true
+		case *nodes.ColumnRef:
+			if !e.Star {
+				found = true
 			}
+			return false
+		case *nodes.SubqueryExpr, *nodes.ExistsExpr:
+			return false
 		case *nodes.FuncCallExpr:
 			if e.Schema != "" {
-				skip = true
+				return false
 			}
 		}
-		return !skip
+		return !found
 	})
-	return !skip
+	return found
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter

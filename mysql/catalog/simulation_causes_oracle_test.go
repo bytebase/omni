@@ -328,6 +328,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code: 1054,
 		},
 		{
+			name: "CREATE VIEW over a missing column and an alias-bearing clause",
+			stmt: "CREATE VIEW a AS SELECT a HAVING 1",
+			code: 1054,
+		},
+		{
 			name: "CREATE VIEW over a missing column in WHERE",
 			stmt: "CREATE VIEW a AS SELECT 1 WHERE a",
 			code: 1054,
