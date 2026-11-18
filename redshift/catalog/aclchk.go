@@ -30,6 +30,27 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 
 	// Determine object type code.
 	objTypeCode := grantObjTypeCode(nodes.ObjectType(stmt.Objtype))
+	if objTypeCode == 'c' {
+		// A COPY template is no catalog object: its grants name nothing this
+		// catalog resolves, and no DDL statement reads them. What a grant to
+		// PUBLIC may not carry, and which privileges the object takes, are still
+		// checked, as for every object type.
+		if stmt.IsGrant && stmt.GrantOption {
+			for _, g := range grantees {
+				if g == "" {
+					return &Error{Code: CodeInvalidGrantOperation,
+						Message: "grant options can only be granted to roles"}
+				}
+			}
+		}
+		for _, priv := range privs {
+			if !isValidPrivilege(priv.name, objTypeCode) {
+				return &Error{Code: CodeInvalidGrantOperation,
+					Message: fmt.Sprintf("invalid privilege type %s for %s", priv.name, grantObjTypeName(objTypeCode))}
+			}
+		}
+		return nil
+	}
 
 	if stmt.IsGrant {
 		return c.execGrant(stmt, objTypeCode, privs, grantees)
@@ -204,6 +225,10 @@ func grantObjTypeCode(objType nodes.ObjectType) byte {
 		return 'n'
 	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
 		return 'T'
+	case nodes.OBJECT_TEMPLATE:
+		// A COPY template's privileges are ALTER, DROP and USAGE; its grants are
+		// recorded nowhere (see ExecGrantStmt).
+		return 'c'
 	default:
 		return 'r'
 	}
@@ -327,6 +352,11 @@ func isValidPrivilege(priv string, objTypeCode byte) bool {
 		case "USAGE":
 			return true
 		}
+	case 'c': // COPY template
+		switch p {
+		case "ALTER", "DROP", "USAGE":
+			return true
+		}
 	}
 	return false
 }
@@ -344,6 +374,8 @@ func grantObjTypeName(objTypeCode byte) string {
 		return "schema"
 	case 'T':
 		return "type"
+	case 'c':
+		return "template"
 	default:
 		return "object"
 	}
