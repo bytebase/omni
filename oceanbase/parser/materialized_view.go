@@ -18,7 +18,12 @@ func (p *Parser) parseCreateMaterializedStmt(start int, orReplace bool) (nodes.N
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if log, err := p.atMaterializedViewLog(""); err != nil {
+	target := "view_ref"
+	if orReplace {
+		// CREATE OR REPLACE takes a materialized view log only.
+		target = ""
+	}
+	if log, err := p.atMaterializedViewLog(target); err != nil {
 		return nil, err
 	} else if log {
 		return p.parseCreateMaterializedViewLogStmt(start, orReplace)
@@ -744,15 +749,14 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (*nodes.AlterMaterial
 	}
 	stmt := &nodes.AlterMaterializedViewStmt{Loc: nodes.Loc{Start: start}, Name: ref}
 
-	p.checkCursor()
-	if p.collectMode() {
-		for _, t := range []int{kwENABLE, kwDISABLE, kwPARALLEL, kwSET} {
-			p.addTokenCandidate(t)
-		}
-		return nil, &ParseError{Message: "collecting"}
-	}
-
 	for {
+		p.checkCursor()
+		if p.collectMode() {
+			for _, t := range []int{kwENABLE, kwDISABLE, kwPARALLEL, kwSET} {
+				p.addTokenCandidate(t)
+			}
+			return nil, &ParseError{Message: "collecting"}
+		}
 		action, err := p.parseAlterMviewAction()
 		if err != nil {
 			return nil, err
@@ -861,15 +865,14 @@ func (p *Parser) parseAlterMaterializedViewLogStmt(start int) (*nodes.AlterMater
 
 	stmt := &nodes.AlterMaterializedViewLogStmt{Loc: nodes.Loc{Start: start}, Table: ref}
 
-	p.checkCursor()
-	if p.collectMode() {
-		for _, t := range []int{kwPARALLEL, kwPURGE} {
-			p.addTokenCandidate(t)
-		}
-		return nil, &ParseError{Message: "collecting"}
-	}
-
 	for {
+		p.checkCursor()
+		if p.collectMode() {
+			for _, t := range []int{kwPARALLEL, kwPURGE} {
+				p.addTokenCandidate(t)
+			}
+			return nil, &ParseError{Message: "collecting"}
+		}
 		action, err := p.parseAlterMlogAction()
 		if err != nil {
 			return nil, err

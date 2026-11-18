@@ -176,4 +176,13 @@ func TestMaterializedViewCompletion(t *testing.T) {
 	if cs := Collect("CREATE MATERIALIZED VIEW LOG ON t ", len("CREATE MATERIALIZED VIEW LOG ON t ")); !cs.HasToken(kwPARALLEL) || !cs.HasToken(kwWITH) || !cs.HasToken(kwPURGE) {
 		t.Error("CREATE MATERIALIZED VIEW LOG offers no clause candidates")
 	}
+	if cs := Collect("CREATE MATERIALIZED VIEW ", len("CREATE MATERIALIZED VIEW ")); !cs.HasRule("view_ref") {
+		t.Error("Collect(\"CREATE MATERIALIZED VIEW \") does not offer view_ref")
+	}
+	if cs := Collect("ALTER MATERIALIZED VIEW mv NOPARALLEL, ", len("ALTER MATERIALIZED VIEW mv NOPARALLEL, ")); !cs.HasToken(kwPARALLEL) {
+		t.Error("ALTER MATERIALIZED VIEW after a comma offers no action candidates")
+	}
+	if cs := Collect("ALTER MATERIALIZED VIEW LOG ON t NOPARALLEL, ", len("ALTER MATERIALIZED VIEW LOG ON t NOPARALLEL, ")); !cs.HasToken(kwPURGE) {
+		t.Error("ALTER MATERIALIZED VIEW LOG after a comma offers no action candidates")
+	}
 }

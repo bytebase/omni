@@ -208,6 +208,9 @@ func (c *Catalog) alterMaterializedViewLog(stmt *nodes.AlterMaterializedViewLogS
 	if db.MaterializedViewLogsKnown[key] && !db.MaterializedViewLogs[key] {
 		return errUnknownTable(db.Name, stmt.Table.Name)
 	}
+	// A successful ALTER proves the log exists.
+	db.MaterializedViewLogs[key] = true
+	db.MaterializedViewLogsKnown[key] = true
 	return nil
 }
 

@@ -174,6 +174,7 @@ func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool, co
 			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view log", r.written, ""))
 			return true
 		}
+		state = materializedLogPresent
 	case materializedLogDrop:
 		if state == materializedLogAbsent {
 			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view log", r.written, ""))
