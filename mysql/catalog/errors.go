@@ -59,6 +59,7 @@ const (
 	ErrUnsupportedGeneratedStorageChange = 3106
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
+	ErrCannotPartOfFulltext              = 1283
 	ErrWrongNameForIndex                 = 1280
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
@@ -108,6 +109,7 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
+	ErrCannotPartOfFulltext:              "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
@@ -237,6 +239,13 @@ func errTableStorageEngineOption(table string) error {
 func errInvalidPerformanceSchema() error {
 	return &Error{Code: ErrInvalidPerformanceSchema, SQLState: sqlState(ErrInvalidPerformanceSchema),
 		Message: "Invalid performance_schema usage."}
+}
+
+// errCannotPartOfFulltext is 1283, a FULLTEXT key over a column whose type it
+// cannot index.
+func errCannotPartOfFulltext(name string) error {
+	return &Error{Code: ErrCannotPartOfFulltext, SQLState: sqlState(ErrCannotPartOfFulltext),
+		Message: fmt.Sprintf("Column '%s' cannot be part of FULLTEXT index", name)}
 }
 
 // errKeyColumnDoesNotExist is 1072, a key part naming a column the table does

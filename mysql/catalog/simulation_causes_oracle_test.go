@@ -81,6 +81,43 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1072,
 		},
 		{
+			// A FULLTEXT key takes the character types only.
+			name:  "ADD FULLTEXT over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(b)",
+			code:  1283,
+		},
+		{
+			name:  "ADD FULLTEXT of a name the table has over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT idx_d(c)",
+			code:  1061,
+		},
+		{
+			name:  "ADD FULLTEXT over a later-added column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(x), ADD x INT",
+			code:  1283,
+		},
+		{
+			name:  "ADD FULLTEXT over a later-added TEXT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(x), ADD x TEXT",
+			code:  0,
+		},
+		{
+			name:  "CREATE FULLTEXT INDEX over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "CREATE FULLTEXT INDEX ft ON a(b)",
+			code:  1283,
+		},
+		{
+			name:  "CREATE TABLE with a FULLTEXT key over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT, FULLTEXT KEY ft (b))",
+			code:  1283,
+		},
+		{
 			name:  "ADD SPATIAL over a missing column",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD SPATIAL(a)",

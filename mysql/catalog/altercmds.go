@@ -220,6 +220,10 @@ func checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd) error {
 				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
 					return err
 				}
+			case nodes.ConstrFulltextIndex:
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), true, false); err != nil {
+					return err
+				}
 			case nodes.ConstrSpatialIndex:
 				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
 					return err
@@ -958,6 +962,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+			return err
+		}
 		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,

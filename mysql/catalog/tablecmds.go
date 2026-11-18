@@ -663,6 +663,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 				return err
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -1905,6 +1908,11 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		if col == nil {
 			continue
 		}
+		// A FULLTEXT key takes the character types only: BLOB, VARBINARY, ENUM,
+		// SET and every non-string type are 1283 (measured on mysql:8.0.46).
+		if fulltext && !isFulltextColumnType(col.DataType) {
+			return errCannotPartOfFulltext(ic.Name)
+		}
 		if spatial {
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
@@ -1921,6 +1929,17 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 		}
 	}
 	return nil
+}
+
+// isFulltextColumnType reports whether a column's type may be part of a
+// FULLTEXT index: the character types, beside which MySQL refuses BLOB, VARBINARY,
+// ENUM and SET with 1283.
+func isFulltextColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return true
+	}
+	return false
 }
 
 func fixedLengthStringColumnLimit(col *Column) (int, bool) {

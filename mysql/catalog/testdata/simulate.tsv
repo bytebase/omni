@@ -845,7 +845,7 @@ ok	3708	engine	one_table@column	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRI
 ok	3708	engine	one_table@column	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
 ok	3708	engine	one_table@column	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
 ok	3708	engine	one_table@column	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
-ok	1283	engine	one_table@column	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
+1283	1283	engine	one_table@column	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1252	1687	engine	one_table@column	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@column	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
 1050	1050	engine	one_table@column	opt_create_partitioning_etc/partition_clause_opt_duplicate_as_qe	CREATE TABLE utf8mb4 PARTITION BY KEY();
@@ -940,7 +940,7 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	merge_insert_types/LAST_
 1060	1060	engine	one_table@column	opt_references/%empty	ALTER TABLE utf8mb4 ADD utf8mb4 INT;
 1060	1060	engine	one_table@column	opt_references/references	ALTER TABLE utf8mb4 ADD utf8mb4 INT REFERENCES utf8mb4;
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	table_constraint_def/key_or_index_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD KEY(utf8mb4);
-ok	1283	engine	one_table@column	table_constraint_def/FULLTEXT_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4);
+1283	1283	engine	one_table@column	table_constraint_def/FULLTEXT_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4);
 1252	1687	engine	one_table@column	table_constraint_def/SPATIAL_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4);
 ok:ae90a2db1cb7	ok:ae90a2db1cb7	engine	one_table@column	table_constraint_def/opt_constraint_name_constraint_key_type_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD UNIQUE(utf8mb4);
 ok	1239	engine	one_table@column	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4) REFERENCES utf8mb4;
@@ -1094,15 +1094,15 @@ ok	3812	engine	one_table@column	opt_constraint_enforcement/constraint_enforcemen
 ok:335fac073880	ok:335fac073880	engine	one_table@column	constraint_key_type/UNIQUE_SYM_opt_key_or_index!insert	ALTER TABLE utf8mb4 ADD UNIQUE zzz(utf8mb4);
 1091	1091	engine	one_table@column	key_or_index/KEY_SYM	ALTER TABLE utf8mb4 DROP KEY utf8mb4;
 1091	1091	engine	one_table@column	key_or_index/INDEX_SYM	ALTER TABLE utf8mb4 DROP INDEX utf8mb4;
-ok	1283	engine	one_table@column	opt_key_or_index/%empty!insert	ALTER TABLE utf8mb4 ADD FULLTEXT zzz(utf8mb4);
-ok	1283	engine	one_table@column	opt_key_or_index/key_or_index	ALTER TABLE utf8mb4 ADD FULLTEXT KEY(utf8mb4);
-ok	1283	engine	one_table@column	opt_key_or_index/key_or_index!insert	ALTER TABLE utf8mb4 ADD FULLTEXT KEY zzz(utf8mb4);
-ok	1283	engine	one_table@column	opt_key_or_index/key_or_index!swap	ALTER TABLE utf8mb4 ADD FULLTEXT KEYRING(utf8mb4);
+1283	1283	engine	one_table@column	opt_key_or_index/%empty!insert	ALTER TABLE utf8mb4 ADD FULLTEXT zzz(utf8mb4);
+1283	1283	engine	one_table@column	opt_key_or_index/key_or_index	ALTER TABLE utf8mb4 ADD FULLTEXT KEY(utf8mb4);
+1283	1283	engine	one_table@column	opt_key_or_index/key_or_index!insert	ALTER TABLE utf8mb4 ADD FULLTEXT KEY zzz(utf8mb4);
+1283	1283	engine	one_table@column	opt_key_or_index/key_or_index!swap	ALTER TABLE utf8mb4 ADD FULLTEXT KEYRING(utf8mb4);
 ok:ae90a2db1cb7	ok:ae90a2db1cb7	engine	one_table@column	opt_unique/UNIQUE_SYM	CREATE UNIQUE INDEX utf8mb4 ON utf8mb4(utf8mb4);
-ok	1283	engine	one_table@column	opt_fulltext_index_options/fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE;
-ok	1283	engine	one_table@column	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
-ok	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
-ok	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
+1283	1283	engine	one_table@column	opt_fulltext_index_options/fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE;
+1283	1283	engine	one_table@column	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
+1283	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
+1283	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
 1252	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1252	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1252	1687	engine	one_table@column	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
@@ -1352,7 +1352,7 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	merge_insert_types/LAST_S
 1060	1060	engine	one_table@index	opt_references/%empty	ALTER TABLE utf8mb4 ADD utf8mb4 INT;
 1060	1060	engine	one_table@index	opt_references/references	ALTER TABLE utf8mb4 ADD utf8mb4 INT REFERENCES utf8mb4;
 ok:21269654382f	ok:21269654382f	engine	one_table@index	table_constraint_def/key_or_index_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD KEY(utf8mb4);
-ok	1283	engine	one_table@index	table_constraint_def/FULLTEXT_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4);
+1283	1283	engine	one_table@index	table_constraint_def/FULLTEXT_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4);
 1252	1687	engine	one_table@index	table_constraint_def/SPATIAL_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4);
 ok:0447423567e9	ok:0447423567e9	engine	one_table@index	table_constraint_def/opt_constraint_name_constraint_key_type_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD UNIQUE(utf8mb4);
 ok	1239	engine	one_table@index	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4) REFERENCES utf8mb4;
@@ -1506,15 +1506,15 @@ ok	3812	engine	one_table@index	opt_constraint_enforcement/constraint_enforcement
 ok:67802516d5a3	ok:67802516d5a3	engine	one_table@index	constraint_key_type/UNIQUE_SYM_opt_key_or_index!insert	ALTER TABLE utf8mb4 ADD UNIQUE zzz(utf8mb4);
 ok:87f84bd8df32	ok:87f84bd8df32	engine	one_table@index	key_or_index/KEY_SYM	ALTER TABLE utf8mb4 DROP KEY utf8mb4;
 ok:87f84bd8df32	ok:87f84bd8df32	engine	one_table@index	key_or_index/INDEX_SYM	ALTER TABLE utf8mb4 DROP INDEX utf8mb4;
-ok	1283	engine	one_table@index	opt_key_or_index/%empty!insert	ALTER TABLE utf8mb4 ADD FULLTEXT zzz(utf8mb4);
-ok	1283	engine	one_table@index	opt_key_or_index/key_or_index	ALTER TABLE utf8mb4 ADD FULLTEXT KEY(utf8mb4);
-ok	1283	engine	one_table@index	opt_key_or_index/key_or_index!insert	ALTER TABLE utf8mb4 ADD FULLTEXT KEY zzz(utf8mb4);
-ok	1283	engine	one_table@index	opt_key_or_index/key_or_index!swap	ALTER TABLE utf8mb4 ADD FULLTEXT KEYRING(utf8mb4);
+1283	1283	engine	one_table@index	opt_key_or_index/%empty!insert	ALTER TABLE utf8mb4 ADD FULLTEXT zzz(utf8mb4);
+1283	1283	engine	one_table@index	opt_key_or_index/key_or_index	ALTER TABLE utf8mb4 ADD FULLTEXT KEY(utf8mb4);
+1283	1283	engine	one_table@index	opt_key_or_index/key_or_index!insert	ALTER TABLE utf8mb4 ADD FULLTEXT KEY zzz(utf8mb4);
+1283	1283	engine	one_table@index	opt_key_or_index/key_or_index!swap	ALTER TABLE utf8mb4 ADD FULLTEXT KEYRING(utf8mb4);
 1061	1061	engine	one_table@index	opt_unique/UNIQUE_SYM	CREATE UNIQUE INDEX utf8mb4 ON utf8mb4(utf8mb4);
-ok	1283	engine	one_table@index	opt_fulltext_index_options/fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE;
-ok	1283	engine	one_table@index	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
-ok	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
-ok	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
+1283	1283	engine	one_table@index	opt_fulltext_index_options/fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE;
+1283	1283	engine	one_table@index	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
+1283	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
+1283	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
 1252	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
 1252	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
 1252	1687	engine	one_table@index	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
