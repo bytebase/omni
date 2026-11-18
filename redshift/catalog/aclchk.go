@@ -80,6 +80,12 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 	// Extract grantees.
 	grantees := c.extractGrantees(stmt.Grantees)
 
+	if stmt.Targtype == nodes.ACL_TARGET_SCOPED {
+		// A scoped permission covers objects that do not exist yet: it names no
+		// object this catalog resolves and records nothing.
+		return nil
+	}
+
 	// Determine object type code.
 	objTypeCode := grantObjTypeCode(nodes.ObjectType(stmt.Objtype))
 	if objTypeCode == 'x' {
@@ -154,12 +160,19 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 	if stmt.Objects == nil {
 		return nil
 	}
+	perGrantee := false
+	for _, grantee := range grantees {
+		perGrantee = perGrantee || grantee.withGrantOption
+	}
 	for _, obj := range stmt.Objects.Items {
 		objOID, err := c.resolveGrantObject(objTypeCode, obj)
 		if err != nil {
 			return err
 		}
 		for _, grantee := range grantees {
+			// The option belongs to the grantee it follows where the parser
+			// recorded it there, and to the statement otherwise.
+			withGrant := grantee.withGrantOption || (stmt.GrantOption && !perGrantee)
 			for _, priv := range privs {
 				c.grants = append(c.grants, Grant{
 					ObjType:     objTypeCode,
@@ -167,7 +180,7 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 					Grantee:     grantee.name,
 					Privilege:   priv.name,
 					Columns:     priv.columns,
-					WithGrant:   stmt.GrantOption,
+					WithGrant:   withGrant,
 					Target:      nodes.ObjectType(stmt.Objtype),
 					GranteeKind: grantee.kind,
 					GranteeName: grantee.value,
@@ -199,12 +212,16 @@ func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []gr
 func (c *Catalog) revokeGrants(target nodes.ObjectType, objType byte, objOID uint32, grantees []grantee, privs []grantPriv) {
 	n := 0
 	for _, g := range c.grants {
-		if g.ObjType == objType && g.ObjOID == objOID && sameGrantTarget(g.Target, target) &&
-			matchGrantee(g, grantees) && matchPriv(g, privs) {
-			continue // remove
+		if g.ObjType != objType || g.ObjOID != objOID || !sameGrantTarget(g.Target, target) || !matchGrantee(g, grantees) {
+			c.grants[n] = g
+			n++
+			continue
 		}
-		c.grants[n] = g
-		n++
+		kept, keep := revokeOnGrant(g, privs)
+		if keep {
+			c.grants[n] = kept
+			n++
+		}
 	}
 	c.grants = c.grants[:n]
 }
@@ -232,19 +249,57 @@ func matchGrantee(g Grant, grantees []grantee) bool {
 	return false
 }
 
-// matchPriv holds a recorded grant's privilege and columns to a REVOKE's: a
-// column grant is revoked by a revoke naming those columns, and ALL PRIVILEGES
-// takes every grant of the privilege.
-func matchPriv(g Grant, privs []grantPriv) bool {
+// revokeOnGrant applies a REVOKE's privileges to one recorded grant. A privilege
+// revoke drops the grant; a column revoke takes the columns it names out of a
+// larger column grant and keeps the rest; ALL PRIVILEGES takes everything.
+func revokeOnGrant(g Grant, privs []grantPriv) (Grant, bool) {
 	for _, p := range privs {
-		if p.name == "ALL" {
-			return true
+		if p.name != "ALL" && p.name != g.Privilege {
+			continue
 		}
-		if p.name == g.Privilege && sameGrantColumns(p.columns, g.Columns) {
-			return true
+		if p.name == "ALL" || len(p.columns) == 0 || len(g.Columns) == 0 {
+			return g, false
+		}
+		if !grantColumnsInclude(g.Columns, p.columns) {
+			continue
+		}
+		rest := subtractGrantColumns(g.Columns, p.columns)
+		if len(rest) == 0 {
+			return g, false
+		}
+		g.Columns = rest
+		return g, true
+	}
+	return g, true
+}
+
+// grantColumnsInclude reports whether every column of a is in cols.
+func grantColumnsInclude(cols, a []string) bool {
+	have := make(map[string]bool, len(cols))
+	for _, c := range cols {
+		have[c] = true
+	}
+	for _, c := range a {
+		if !have[c] {
+			return false
 		}
 	}
-	return false
+	return true
+}
+
+// subtractGrantColumns returns cols without the columns in a.
+func subtractGrantColumns(cols, a []string) []string {
+	drop := make(map[string]bool, len(a))
+	for _, c := range a {
+		drop[c] = true
+	}
+	rest := make([]string, 0, len(cols))
+	for _, c := range cols {
+		if !drop[c] {
+			rest = append(rest, c)
+		}
+	}
+	return rest
 }
 
 // sameGrantColumns reports whether two column lists name the same columns.

@@ -207,19 +207,13 @@ func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, er
 		return nil, err
 	}
 	var grantees *nodes.List
-	var grantOption, procedureDatashare bool
+	var grantOption bool
 	if kind == redshiftGrantDatashare && !redshiftDatashareUsage(privs) {
 		// r_GRANT writes the producer-side grantee as
 		// ID ( WITH GRANT OPTION )? | ROLE role_name | GROUP group_name | PUBLIC.
 		grantees, grantOption, err = p.parseRedshiftOptionableGrantees(true)
 	} else {
-		grantees, procedureDatashare, err = p.parseRedshiftGranteeList(kind, objtype, objects, privs, true, true)
-		if !procedureDatashare && err == nil {
-			grantOption, err = p.parseOptGrantGrantOption()
-			if grantOption {
-				setLastGranteeGrantOption(grantees)
-			}
-		}
+		grantees, _, grantOption, err = p.parseRedshiftObjectGranteeList(kind, objtype, objects, privs)
 	}
 	if err != nil {
 		return nil, err
@@ -767,14 +761,42 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 	return result, nil
 }
 
-// setLastGranteeGrantOption marks the grantee a statement's trailing WITH GRANT
-// OPTION follows, which is the last one.
-func setLastGranteeGrantOption(grantees *nodes.List) {
-	if grantees == nil || len(grantees.Items) == 0 {
-		return
+// parseRedshiftObjectGranteeList parses an object grant's grantees, each with the
+// WITH GRANT OPTION the page puts after a username:
+//
+//	{ username [ WITH GRANT OPTION ] | ROLE role_name | GROUP group_name | PUBLIC } [, ...]
+//
+// It also reports whether any grantee carried the option, and whether the
+// grantees were the procedure-to-datashare form, which ends the statement.
+func (p *Parser) parseRedshiftObjectGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, objects, privs *nodes.List) (*nodes.List, bool, bool, error) {
+	grantees, procedureDatashare, err := p.parseRedshiftGranteeList(kind, objtype, objects, privs, true, true)
+	if err != nil || procedureDatashare {
+		return grantees, procedureDatashare, false, err
 	}
-	if rs, ok := grantees.Items[len(grantees.Items)-1].(*nodes.RoleSpec); ok {
-		rs.WithGrantOption = true
+	grantOption := false
+	for {
+		if p.cur.Type == WITH {
+			p.advance()
+			if _, err := p.expect(GRANT); err != nil {
+				return nil, false, false, err
+			}
+			if _, err := p.expect(OPTION); err != nil {
+				return nil, false, false, err
+			}
+			if rs, ok := grantees.Items[len(grantees.Items)-1].(*nodes.RoleSpec); ok {
+				rs.WithGrantOption = true
+			}
+			grantOption = true
+		}
+		if p.cur.Type != ',' {
+			return grantees, false, grantOption, nil
+		}
+		p.advance()
+		grantee, err := p.parseGrantee()
+		if err != nil {
+			return nil, false, false, err
+		}
+		grantees.Items = append(grantees.Items, grantee)
 	}
 }
 

@@ -287,3 +287,53 @@ func TestIAMRoleDefaultRendersAsKeyword(t *testing.T) {
 		t.Errorf("formatGrantee = %q, want %q", got, want)
 	}
 }
+
+// TestGrantOptionStaysOnItsGranteeAcrossLists holds the option on the grantee it
+// follows, before a later grantee without one.
+func TestGrantOptionStaysOnItsGranteeAcrossLists(t *testing.T) {
+	c := New()
+	for _, sql := range []string{
+		"CREATE SCHEMA s",
+		"CREATE TABLE s.t (id INT)",
+		"GRANT SELECT ON s.t TO bob WITH GRANT OPTION, alice",
+	} {
+		if err := execOne(t, c, sql); err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+	}
+	if len(c.grants) != 2 {
+		t.Fatalf("grants = %+v, want two", c.grants)
+	}
+	for _, g := range c.grants {
+		want := g.Grantee == "bob"
+		if g.WithGrant != want {
+			t.Errorf("grantee %q: WithGrant = %v, want %v", g.Grantee, g.WithGrant, want)
+		}
+	}
+	// A scoped permission covers objects that do not exist yet: Exec records
+	// nothing and resolves no object.
+	if err := execOne(t, c, "GRANT SELECT FOR TABLES IN SCHEMA s TO alice"); err != nil {
+		t.Fatalf("scoped grant: %v", err)
+	}
+}
+
+// TestPartialColumnRevokeTrimsGrant holds a column revoke to the columns it
+// names out of a larger column grant.
+func TestPartialColumnRevokeTrimsGrant(t *testing.T) {
+	c := New()
+	for _, sql := range []string{
+		"CREATE SCHEMA spectrum",
+		"CREATE TABLE spectrum.sales (a INT, b INT)",
+		"GRANT SELECT(a, b) ON EXTERNAL TABLE spectrum.sales TO IAM_ROLE 'r'",
+	} {
+		if err := execOne(t, c, sql); err != nil {
+			t.Fatalf("Exec(%q): %v", sql, err)
+		}
+	}
+	if err := execOne(t, c, "REVOKE SELECT(a) ON EXTERNAL TABLE spectrum.sales FROM IAM_ROLE 'r'"); err != nil {
+		t.Fatalf("REVOKE: %v", err)
+	}
+	if len(c.grants) != 1 || len(c.grants[0].Columns) != 1 || c.grants[0].Columns[0] != "b" {
+		t.Fatalf("grants = %+v, want SELECT(b) only", c.grants)
+	}
+}
