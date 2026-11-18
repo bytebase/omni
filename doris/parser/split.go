@@ -84,7 +84,7 @@ func SplitAll(input string) []Segment {
 	var proc procedureHead
 	var heldSemicolons []int
 	atStart := true
-	headOpen := false
+	var prev Token
 
 	// We need lookahead after kwBEGIN to disambiguate TCL from a compound
 	// block: one token for most followers, two for BEGIN WITH LABEL (WITH
@@ -162,11 +162,10 @@ func SplitAll(input string) []Segment {
 					// rule's `.*?` takes, not a compound block.
 					break
 				}
-				if !atStart && !headOpen {
+				if !atStart && expectsOperandAt(prev) {
 					// BEGIN is a non-reserved word Doris reads as a column
-					// (SELECT begin FROM t): only where a statement can begin
-					// — or where the procedure's body follows its COMMENT
-					// clause — does it open a block.
+					// (SELECT begin FROM t): where an operand is due it names
+					// one, and only elsewhere does it open a block.
 					break
 				}
 				next := peekToken()
@@ -203,16 +202,9 @@ func SplitAll(input string) []Segment {
 				proc.reset()
 			}
 			// A statement can begin at the start of the input, after a
-			// separator, and right after a procedure's own parentheses, whose
-			// COMMENT clause may stand between it and the body.
+			// separator, and right after a procedure's own parentheses.
 			atStart = tok.Kind == int(';') || closedParens
-			if closedParens {
-				headOpen = true
-			} else if tok.Kind != kwCOMMENT && tok.Kind != tokString && tok.Kind != int(')') {
-				// The parameter list's own parentheses close early on a type
-				// such as VARCHAR(50), leaving the list's ')' to come.
-				headOpen = false
-			}
+			prev = tok
 
 		case stateInBlock:
 			if frame.step(tok, peekToken()) {
@@ -317,9 +309,17 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			b.stack = append(b.stack, blockCaseStmt)
 		}
 	case kwBEGIN:
-		// A branch of an expression CASE holds an expression, where begin
-		// names a column (SELECT CASE WHEN 1 THEN begin ELSE 2 END).
-		if b.top() != blockCaseExpr && b.startsStatement() {
+		// BEGIN opens a block where an operand is not due (SELECT begin FROM t
+		// names a column). A branch of an expression CASE holds an expression,
+		// where begin names one too (SELECT CASE WHEN 1 THEN begin ELSE 2 END),
+		// while a statement CASE's THEN and ELSE begin statements. A compound
+		// statement's body opens after what its declaration ends with
+		// (DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN ... END).
+		opens := !b.expectsOperand() || b.startsStatement()
+		if b.top() == blockCaseExpr {
+			opens = false
+		}
+		if opens {
 			b.stack = append(b.stack, blockBegin)
 		}
 	case kwEND:
@@ -375,25 +375,34 @@ func startsStatementAt(prev Token) bool {
 	return false
 }
 
-// expectsOperand reports whether the last token read leaves an operand due,
-// so an END that follows names a column rather than closing an expression:
-// BEGIN and END are non-reserved words too (CASE WHEN end THEN ...). Every
-// other token — a literal, an identifier, a keyword standing for a value such
-// as NULL, the ')' of a call — ends an operand, and the END closes it.
-func (b *blockFrame) expectsOperand() bool {
-	switch b.prev.Kind {
+// expectsOperandAt reports whether prev leaves an operand due, so an END or a
+// BEGIN that follows names a column rather than opening or closing a
+// construct: both are non-reserved words Doris reads as identifiers
+// (CASE WHEN end THEN ..., SELECT begin FROM t). Every other token — a
+// literal, an identifier, a keyword standing for a value such as NULL, the ')'
+// of a call — ends an operand.
+func expectsOperandAt(prev Token) bool {
+	switch prev.Kind {
 	case int('('), int(','), int('='), int('<'), int('>'), int('+'), int('-'),
 		int('*'), int('/'), int('%'), int('&'), int('|'), int('^'), int('~'),
-		int('!'), int(':'),
+		int('!'),
 		tokLessEq, tokGreaterEq, tokNotEq, tokNullSafeEq, tokLogicalAnd,
 		tokDoublePipes, tokAssign, tokArrow, tokShiftLeft, tokShiftRight,
 		kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwXOR, kwIN, kwIS, kwLIKE,
+		kwREGEXP, kwRLIKE, kwMATCH, kwMATCH_ANY, kwMATCH_ALL, kwMATCH_PHRASE,
+		kwMATCH_PHRASE_EDGE, kwMATCH_PHRASE_PREFIX, kwMATCH_REGEXP,
 		kwBETWEEN, kwDIV, kwAS, kwCASE, kwSELECT, kwWHERE, kwBY, kwHAVING,
 		kwON, kwSET, kwDISTINCT, kwALL, kwEXISTS, kwFROM:
 		return true
+	case tokIdent:
+		// MOD is spelled as an identifier.
+		return strings.EqualFold(prev.Str, "MOD")
 	}
 	return false
 }
+
+// expectsOperand reports whether the last token read leaves an operand due.
+func (b *blockFrame) expectsOperand() bool { return expectsOperandAt(b.prev) }
 
 // top returns the innermost open construct.
 func (b *blockFrame) top() blockConstruct {

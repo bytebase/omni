@@ -285,8 +285,13 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		// NULL and CURRENT_DATE end an operand, so the CASE's END closes it.
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN NULL END; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN CURRENT_DATE END; END; SELECT 2;",
-		// A unary operator leaves an operand due too.
+		// A unary operator and a predicate operator leave an operand due too.
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN ! end THEN CASE WHEN 1 THEN 2 END ELSE 3 END; END; SELECT 9;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 'x' REGEXP end THEN CASE WHEN 1 THEN 2 END ELSE 3 END; END; SELECT 9;",
+		// A declaration's own body opens after what it ends with, and a type
+		// parenthesis closes the parameter list early.
+		"CREATE PROCEDURE p() BEGIN DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN SELECT 1; END; SELECT 2; END; SELECT 3;",
+		"CREATE PROCEDURE p(x VARCHAR(50), y INT) BEGIN SELECT 1; END; SELECT 2;",
 		// BEGIN after a statement's first word names a column.
 		"ALTER PROCEDURE a() SELECT begin FROM t; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN IF b THEN SET x = 1; END IF; END CASE; END; SELECT 2;",
