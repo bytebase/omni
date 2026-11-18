@@ -821,7 +821,22 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 	case *parser.ParenRelation:
 		return s.add(n.Inner, alias, colAliases)
 	case *parser.NearestRelation:
-		return s.add(n.From, alias, colAliases)
+		if alias == "" {
+			return s.add(n.From, "", colAliases)
+		}
+		// The NEAREST result is bound under its own alias; the input relation's
+		// alias is not exposed through it.
+		src := n.From
+		if ar, ok := src.(*parser.AliasedRelation); ok {
+			src = ar.Inner
+		}
+		proj := s.add(src, "", nil)
+		var cols []outCol
+		if proj != nil {
+			cols = applyColumnAliases(proj.flatten(), colAliases)
+		}
+		s.rels = append(s.rels, rbind{name: alias, derived: cols != nil, cols: cols})
+		return columnProjection(cols)
 	case *parser.TableRelation:
 		parts := normalizedParts(n.Name)
 		// A single-part name that matches an in-scope CTE is a derived relation

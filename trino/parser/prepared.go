@@ -405,6 +405,11 @@ func (p *Parser) stringSourceOffset(tok Token, decoded int) int {
 			n++
 			i += 2
 		} else if tok.Kind == tokUnicodeString && raw[i] == '\\' {
+			if i+1 < len(raw)-1 && raw[i+1] == '\\' {
+				n++
+				i += 2
+				continue
+			}
 			r, next, ok := unicodeEscapeAt(raw, i, len(raw)-1)
 			if !ok {
 				n++
@@ -428,6 +433,11 @@ func decodeUnicodeString(raw string) string {
 	var b strings.Builder
 	for i := 0; i < len(raw); {
 		if raw[i] == '\\' {
+			if i+1 < len(raw) && raw[i+1] == '\\' {
+				b.WriteByte('\\')
+				i += 2
+				continue
+			}
 			if r, next, ok := unicodeEscapeAt(raw, i, len(raw)); ok {
 				b.WriteRune(r)
 				i = next

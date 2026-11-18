@@ -1013,7 +1013,7 @@ func (p *Parser) parseIntervalLiteral() (Expr, error) {
 	// Optional leading precision: YEAR(3), SECOND(3, 9). The fractional part is
 	// only grammatical on the simple SECOND form; before TO only one integer is.
 	if p.cur.Kind == int('(') {
-		precEnd, err := p.parseIntervalPrecision(from, p.peekNext().Kind == kwTO)
+		precEnd, err := p.parseIntervalPrecision(from, p.intervalPrecisionFollowedByTo())
 		if err != nil {
 			return nil, err
 		}
@@ -1047,6 +1047,15 @@ func (p *Parser) parseIntervalLiteral() (Expr, error) {
 		}
 	}
 	return lit, nil
+}
+
+// intervalPrecisionFollowedByTo reports whether the parenthesized precision at
+// the cursor is followed by TO, checked without consuming input.
+func (p *Parser) intervalPrecisionFollowedByTo() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.skipParenGroup()
+	return p.cur.Kind == kwTO
 }
 
 // parseIntervalPrecision parses an interval qualifier's optional
