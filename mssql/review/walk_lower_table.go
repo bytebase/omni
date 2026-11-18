@@ -548,7 +548,9 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 	case ast.ATDropIndex:
 		// DROP INDEX name as a table element: the index must be one of the
 		// table's, and it is gone afterwards. Only the named index leaves: the
-		// other indexes of the table stay known.
+		// other indexes of the table stay known. A key's index carries the
+		// constraint's name and cannot be dropped on its own, as DROP INDEX
+		// reports for the same name (IndexBacksConstraint).
 		in, ok := keyed(a.IndexName)
 		if !ok {
 			return false
@@ -557,6 +559,8 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 			return true
 		}
 		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(a.IndexName), r.written), nil))
+		ixName := review.Code(ident(a.IndexName))
+		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", text("Index "+ixName+" enforces constraint "+ixName+".")).as(review.IndexBacksConstraint))
 		b.leave(spaceIndex, path, in)
 	case ast.ATDropColumn:
 		cn, ok := keyed(a.ColName)

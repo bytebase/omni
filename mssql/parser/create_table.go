@@ -359,12 +359,16 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Expect '='
+	// Every table option takes '=' and a value, and SQL Server refuses both
+	// `WITH (DATA_COMPRESSION)` and `WITH (FILETABLE_DIRECTORY = )` with
+	// Msg 102 (measured).
 	if p.cur.Type != '=' {
-		opt.Loc.End = p.prevEnd()
-		return opt, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
+	if p.cur.Type == ')' || p.cur.Type == ',' || p.cur.Type == tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// SYSTEM_VERSIONING = { ON | OFF } [ ( ... ) ]
 	if name == "SYSTEM_VERSIONING" {
@@ -1320,8 +1324,27 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			if ecErr != nil {
 				return nil, ecErr
 			}
-			if err := p.parseReferentialActions(cd); err != nil {
-				return nil, err
+			// A graph connection takes ON DELETE { NO ACTION | CASCADE } and
+			// nothing more: ON UPDATE, SET NULL, SET DEFAULT and a second ON
+			// are Msg 156 (measured).
+			if p.cur.Type == kwON {
+				p.advance()
+				if _, err := p.expect(kwDELETE); err != nil {
+					return nil, err
+				}
+				switch {
+				case p.cur.Type == kwNO:
+					p.advance()
+					if _, err := p.expect(kwACTION); err != nil {
+						return nil, err
+					}
+					cd.OnDelete = nodes.RefActNoAction
+				case p.cur.Type == kwCASCADE:
+					p.advance()
+					cd.OnDelete = nodes.RefActCascade
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 		} else {
 			return nil, p.syntaxErrorAtCur()

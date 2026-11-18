@@ -61,7 +61,14 @@ func (p *Parser) parseQueryParenthesisStmt() (*nodes.SelectStmt, error) {
 		return nil, err
 	}
 	if p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
-		return p.parseSetOperation(left)
+		if left, err = p.parseSetOperation(left); err != nil {
+			return nil, err
+		}
+	}
+	// The statement's own tails follow the last parenthesis: (SELECT 1)
+	// ORDER BY 1 is accepted (measured).
+	if err := p.parseSelectTails(left); err != nil {
+		return nil, err
 	}
 	return left, nil
 }
@@ -367,6 +374,19 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		}
 	}
 
+	if err := p.parseSelectTails(stmt); err != nil {
+		return nil, err
+	}
+
+	return stmt, nil
+}
+
+// parseSelectTails parses what a select may end with, after its operands:
+// ORDER BY, OFFSET ... FETCH, FOR XML/JSON/BROWSE and OPTION, and the checks
+// the finished statement must pass. A parenthesized query expression takes
+// them too: `(SELECT 1) ORDER BY 1` is accepted (measured).
+func (p *Parser) parseSelectTails(stmt *nodes.SelectStmt) error {
+	var err error
 	// ORDER BY
 	if p.cur.Type == kwORDER {
 		p.advance()
@@ -375,14 +395,14 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 			if p.collectMode() {
 				p.addRuleCandidate("columnref")
 				p.addRuleCandidate("func_name")
-				return nil, errCollecting
+				return errCollecting
 			}
 			stmt.OrderByClause, err = p.parseOrderByList()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if stmt.OrderByClause == nil || len(stmt.OrderByClause.Items) == 0 {
-				return nil, p.unexpectedToken()
+				return p.unexpectedToken()
 			}
 			// Completion: after ORDER BY list → sort direction, OFFSET, etc.
 			if p.collectMode() {
@@ -391,7 +411,7 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 				p.addTokenCandidate(kwOFFSET)
 				p.addTokenCandidate(kwFOR)
 				p.addTokenCandidate(kwOPTION)
-				return nil, errCollecting
+				return errCollecting
 			}
 		}
 	}
@@ -405,32 +425,32 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		// docs page).
 		stmt.OffsetClause, err = p.parseExpr()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if stmt.OffsetClause == nil {
-			return nil, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		if _, ok := p.match(kwROWS, kwROW); !ok {
-			return nil, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == kwFETCH {
 			fetchLoc := p.pos()
 			p.advance()
 			if _, ok := p.match(kwNEXT, kwFIRST); !ok {
-				return nil, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			count, err := p.parseExpr()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if count == nil {
-				return nil, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			if _, ok := p.match(kwROWS, kwROW); !ok {
-				return nil, p.syntaxErrorAtCur()
+				return p.syntaxErrorAtCur()
 			}
 			if _, err := p.expect(kwONLY); err != nil {
-				return nil, err
+				return err
 			}
 			stmt.FetchClause = &nodes.FetchClause{
 				Count: count,
@@ -445,7 +465,7 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		if next.Type == kwXML || next.Type == kwJSON || next.Type == kwBROWSE {
 			stmt.ForClause, err = p.parseForClause()
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 	}
@@ -457,14 +477,14 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 	if p.cur.Type == kwOPTION {
 		stmt.OptionClause, err = p.parseOptionClause()
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	// TOP ... WITH TIES needs an ORDER BY, which SQL Server checks while
 	// parsing: SELECT TOP 1 WITH TIES * is Msg 1062 (measured).
 	if stmt.Top != nil && stmt.Top.WithTies && stmt.OrderByClause == nil {
-		return nil, p.newParseError(stmt.Top.Loc.Start, "TOP WITH TIES needs an ORDER BY")
+		return p.newParseError(stmt.Top.Loc.Start, "TOP WITH TIES needs an ORDER BY")
 	}
 
 	// A subquery's ORDER BY needs TOP, OFFSET or FOR beside it, and FOR BROWSE
@@ -473,14 +493,14 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 	// BROWSE)).
 	if p.subqueryDepth > 0 {
 		if stmt.ForClause != nil && stmt.ForClause.Mode == nodes.ForBrowse {
-			return nil, p.newParseError(stmt.ForClause.Loc.Start, "FOR BROWSE is not allowed in a subquery")
+			return p.newParseError(stmt.ForClause.Loc.Start, "FOR BROWSE is not allowed in a subquery")
 		}
 		if stmt.OrderByClause != nil && stmt.Top == nil && stmt.ForClause == nil && stmt.OffsetClause == nil {
-			return nil, p.newParseError(nodes.NodeLoc(stmt.OrderByClause.Items[0]).Start, "ORDER BY is not allowed in a subquery without TOP, OFFSET or FOR")
+			return p.newParseError(nodes.NodeLoc(stmt.OrderByClause.Items[0]).Start, "ORDER BY is not allowed in a subquery without TOP, OFFSET or FOR")
 		}
 	}
 
-	return stmt, nil
+	return nil
 }
 
 // parseSetOperation parses the UNION/INTERSECT/EXCEPT chain that follows
