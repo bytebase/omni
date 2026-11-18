@@ -293,9 +293,13 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
-	// ALTER VIEW requires the view to exist.
-	if _, exists := db.Views[key]; !exists {
+	// ALTER VIEW requires an ordinary view to exist.
+	existing, exists := db.Views[key]
+	if !exists {
 		return errUnknownTable(db.Name, stmt.Name.Name)
+	}
+	if existing.Materialized {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, stmt.Name.Name)}
 	}
 
 	// A `?` parameter marker is not allowed in a view body; the engine rejects

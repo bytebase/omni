@@ -240,3 +240,29 @@ func TestExecRenameMaterializedView(t *testing.T) {
 		}
 	}
 }
+
+// TestExecAlterTableRenameLog pins that ALTER TABLE ... RENAME moves the
+// table's materialized view log state.
+func TestExecAlterTableRenameLog(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT); CREATE MATERIALIZED VIEW LOG ON t; ALTER TABLE t RENAME TO u;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"CREATE MATERIALIZED VIEW LOG ON t;", true},
+		{"CREATE MATERIALIZED VIEW LOG ON u;", true},
+		{"ALTER MATERIALIZED VIEW LOG ON u NOPARALLEL;", false},
+		{"DROP MATERIALIZED VIEW LOG ON u;", false},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got := len(results) == 1 && results[0].Error != nil; got != tc.wantErr {
+			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
+		}
+	}
+}

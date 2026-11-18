@@ -33,7 +33,7 @@ const gipkColumn = "my_row_id"
 
 // Relation kinds: tables and views share one space.
 const (
-	relTable = "table"
+	relTable        = "table"
 	relView  = "view"
 )
 

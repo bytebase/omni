@@ -593,6 +593,10 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			return true
 		}
 		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
+		if b.w.materialized[fk] {
+			delete(b.w.materialized, fk)
+			b.w.materialized[relKey(to.db, to.name)] = true
+		}
 		if state, ok := b.w.materializedLogs[fk]; ok {
 			delete(b.w.materializedLogs, fk)
 			b.w.materializedLogs[relKey(to.db, to.name)] = state
@@ -656,10 +660,12 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			// It may be a view, which DROP TABLE IF EXISTS leaves with a
 			// note (verified).
 			b.Set(k, walk.Unknown, "")
+			delete(b.w.materialized, k)
 			b.Forget(path)
 			b.droppedOwned(r)
 		default:
 			b.Set(k, walk.Absent, "")
+			delete(b.w.materialized, k)
 			delete(b.w.materializedLogs, k)
 			b.Clear(path)
 			b.droppedOwned(r)

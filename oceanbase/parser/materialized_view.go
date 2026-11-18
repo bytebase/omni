@@ -50,6 +50,17 @@ func (p *Parser) parseMaterializedViewKeyword() error {
 	return err
 }
 
+// materializedViewLogTableCursor offers a base table after ON in completion
+// mode.
+func (p *Parser) materializedViewLogTableCursor() error {
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("table_ref")
+		return &ParseError{Message: "collecting"}
+	}
+	return nil
+}
+
 // atMaterializedViewLog reports whether LOG stands at the cursor. In completion
 // mode it offers LOG and, when target is not empty, the target candidates the
 // statement that is not a log takes there.
@@ -123,6 +134,12 @@ func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMateri
 
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
+	}
+
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		return nil, &ParseError{Message: "collecting"}
 	}
 
 	selectStart := p.pos()
@@ -488,6 +505,9 @@ func (p *Parser) parseCreateMaterializedViewLogStmt(start int, orReplace bool) (
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
+	if err := p.materializedViewLogTableCursor(); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.CreateMaterializedViewLogStmt{
 		Loc:       nodes.Loc{Start: start},
@@ -664,7 +684,7 @@ func (p *Parser) parseAlterMaterializedStmt(start int) (nodes.Node, error) {
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if log, err := p.atMaterializedViewLog(""); err != nil {
+	if log, err := p.atMaterializedViewLog("view_ref"); err != nil {
 		return nil, err
 	} else if log {
 		return p.parseAlterMaterializedViewLogStmt(start)
@@ -777,6 +797,9 @@ func (p *Parser) parseAlterMaterializedViewLogStmt(start int) (*nodes.AlterMater
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
+	if err := p.materializedViewLogTableCursor(); err != nil {
+		return nil, err
+	}
 	ref, err := p.parseRelationFactor()
 	if err != nil {
 		return nil, err
@@ -856,6 +879,9 @@ func (p *Parser) parseDropMaterializedStmt(start int) (nodes.Node, error) {
 	} else if log {
 		p.advance() // consume LOG
 		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
+		if err := p.materializedViewLogTableCursor(); err != nil {
 			return nil, err
 		}
 		ref, err := p.parseRelationFactor()

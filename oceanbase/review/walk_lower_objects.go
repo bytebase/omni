@@ -106,6 +106,10 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
 	}
 	k := relKey(r.db, r.name)
+	if v.OrReplace && b.w.materialized[k] {
+		b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "view"))
+		return true
+	}
 	if v.OrReplace {
 		if f, _ := b.l.Lookup(k); f == walk.Present {
 			b.needKind(k, []string{relView}, r.rng, "", r.written, "view") // 1347
@@ -135,7 +139,7 @@ const (
 // materializedViewLog follows a materialized view log statement to its base
 // table. The walk models no log itself, but every form requires the table to
 // exist and be a base table, and it keeps whether a log of the table does.
-func (b *builder) materializedViewLog(tr *ast.TableRef, op int) bool {
+func (b *builder) materializedViewLog(tr *ast.TableRef, op int, replace bool) bool {
 	r, ok, lowered := b.tableOf(tr)
 	if !ok {
 		return lowered
@@ -144,7 +148,7 @@ func (b *builder) materializedViewLog(tr *ast.TableRef, op int) bool {
 	state := b.w.materializedLogs[k]
 	switch op {
 	case materializedLogCreate:
-		if state == materializedLogPresent {
+		if state == materializedLogPresent && !replace {
 			b.fail(r.rng, nil, review.NameTaken, alreadyExists("materialized view log", r.written, ""))
 			return true
 		}
@@ -199,10 +203,12 @@ func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
 		return true
 	case refOK:
 		k := relKey(r.db, r.name)
-		if !b.w.materialized[k] {
-			// An external table shares the empty kind, so only the walk's own
-			// record of materialized views recognises one.
-			b.needKind(k, nil, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+		switch f, kind := b.l.Lookup(k); {
+		case b.w.materialized[k]:
+		case f == walk.Present:
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, relWord(k, kind), "materialized view"))
+		default:
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 		}
 	}
 	return true
@@ -214,7 +220,12 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 	case refFailed:
 		return true
 	case refOK:
-		b.needKind(relKey(r.db, r.name), []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
+		k := relKey(r.db, r.name)
+		if b.w.materialized[k] {
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "view"))
+			return true
+		}
+		b.needKind(k, []string{relView}, r.rng, notFound("view", r.written, ""), r.written, "view") // 1146, 1347
 	}
 	return true
 }
@@ -235,6 +246,10 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 			return false
 		}
 		k := relKey(r.db, r.name)
+		if b.w.materialized[k] {
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "view"))
+			return true
+		}
 		f, kind := b.l.Lookup(k)
 		switch {
 		case !v.IfExists:
@@ -274,17 +289,18 @@ func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 		f, kind := b.l.Lookup(k)
 		switch {
 		case b.w.materialized[k]:
-			if !v.IfExists && f != walk.Present {
-				b.needKind(k, nil, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
-			}
 			if f == walk.Present {
 				b.Set(k, walk.Absent, "")
 				delete(b.w.materialized, k)
+			} else if !v.IfExists {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 			}
-		case !v.IfExists || (f == walk.Present && kind != ""):
-			// A missing name, or a known table, view or external table, is not
-			// the materialized view the statement drops.
-			b.needKind(k, nil, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+		case f == walk.Present:
+			// A known table, view or external table is the wrong kind even
+			// under IF EXISTS.
+			b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, relWord(k, kind), "materialized view"))
+		case !v.IfExists:
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view", r.written, ""))
 		}
 	}
 	return true

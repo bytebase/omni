@@ -885,6 +885,14 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
+	if _, ok := oldDB.MaterializedViewLogs[oldKey]; ok {
+		delete(oldDB.MaterializedViewLogs, oldKey)
+		newDB.MaterializedViewLogs[newKey] = true
+	}
+	if oldDB.MaterializedViewLogsKnown[oldKey] {
+		delete(oldDB.MaterializedViewLogsKnown, oldKey)
+		newDB.MaterializedViewLogsKnown[newKey] = true
+	}
 	return nil
 }
 

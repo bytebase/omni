@@ -226,15 +226,21 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)
 	case *nodes.CreateTableStmt:
+		var prior *Database
+		var priorKey string
+		if s.Table != nil {
+			if db, err := c.resolveDatabase(s.Table.Schema); err == nil {
+				prior, priorKey = db, toLower(s.Table.Name)
+			}
+		}
 		if err := c.createTable(s); err != nil {
 			return err
 		}
-		if s.Table != nil {
-			if db, err := c.resolveDatabase(s.Table.Schema); err == nil {
-				key := toLower(s.Table.Name)
-				db.MaterializedViewLogsKnown[key] = true
-				delete(db.MaterializedViewLogs, key)
-			}
+		if prior != nil && prior.Tables[priorKey] == nil {
+			// A table this statement created has no materialized view log. One
+			// it found already there keeps whatever the catalog knew.
+			prior.MaterializedViewLogsKnown[priorKey] = true
+			delete(prior.MaterializedViewLogs, priorKey)
 		}
 		return nil
 	case *nodes.CreateIndexStmt:
