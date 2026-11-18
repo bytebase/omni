@@ -132,11 +132,6 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		changes.DMLCount++
 		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
 
-	case *ast.MergeStmt:
-		addTable(n.Target, false)
-		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
-
 	// Non-table object DDL: gate by the object's own explicit database
 	// qualifier only. CREATE FUNCTION is absent because its AST keeps the name
 	// inside RawSignature rather than as an ObjectName.

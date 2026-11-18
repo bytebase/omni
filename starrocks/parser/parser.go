@@ -353,20 +353,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateTable()
 		case kwCATALOG:
 			return p.parseCreateCatalog()
-		case kwWORKLOAD:
-			// CREATE WORKLOAD GROUP ... or CREATE WORKLOAD POLICY ...
-			next := p.peekNext()
-			if next.Kind == kwGROUP {
-				return p.parseCreateWorkloadGroup(createTok.Loc)
-			}
-			if next.Kind == kwPOLICY {
-				return p.parseCreateWorkloadPolicy(createTok.Loc)
-			}
-			return p.unsupported("CREATE WORKLOAD")
 		case kwRESOURCE:
 			return p.parseCreateResource(createTok.Loc, false)
-		case kwSQL_BLOCK_RULE:
-			return p.parseCreateSQLBlockRule(createTok.Loc)
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
@@ -402,8 +390,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 				return nil, err
 			}
 			return p.parseCreateRepository(createTok.Loc, true)
-		case kwSTAGE:
-			return p.parseCreateStage(createTok.Loc)
 		case kwFILE:
 			return p.parseCreateFile(createTok.Loc)
 		case kwROW:
@@ -444,21 +430,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterStorage(alterTok.Loc)
 		case kwREPOSITORY:
 			return p.parseAlterRepository(alterTok.Loc)
-		case kwWORKLOAD:
-			// ALTER WORKLOAD GROUP ... or ALTER WORKLOAD POLICY ...
-			alterLoc := p.prev.Loc
-			next := p.peekNext()
-			if next.Kind == kwGROUP {
-				return p.parseAlterWorkloadGroup(alterLoc)
-			}
-			if next.Kind == kwPOLICY {
-				return p.parseAlterWorkloadPolicy(alterLoc)
-			}
-			return p.unsupported("ALTER WORKLOAD")
 		case kwRESOURCE:
 			return p.parseAlterResource(p.prev.Loc)
-		case kwSQL_BLOCK_RULE:
-			return p.parseAlterSQLBlockRule(p.prev.Loc)
 		case kwDICTIONARY:
 			return p.parseAlterDictionary(p.prev.Loc)
 		case kwROLE:
@@ -494,24 +467,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropStorage(dropTok.Loc)
 		case kwREPOSITORY:
 			return p.parseDropRepository(dropTok.Loc)
-		case kwSTAGE:
-			return p.parseDropStage(dropTok.Loc)
 		case kwFILE:
 			return p.parseDropFile(dropTok.Loc)
-		case kwWORKLOAD:
-			// DROP WORKLOAD GROUP ... or DROP WORKLOAD POLICY ...
-			next := p.peekNext()
-			if next.Kind == kwGROUP {
-				return p.parseDropWorkloadGroup(dropTok.Loc)
-			}
-			if next.Kind == kwPOLICY {
-				return p.parseDropWorkloadPolicy(dropTok.Loc)
-			}
-			return p.unsupported("DROP WORKLOAD")
 		case kwRESOURCE:
 			return p.parseDropResource(dropTok.Loc)
-		case kwSQL_BLOCK_RULE:
-			return p.parseDropSQLBlockRule(dropTok.Loc)
 		case kwROW:
 			p.advance() // consume ROW
 			return p.parseDropRowPolicy(dropTok.Loc)
@@ -574,11 +533,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwDELETE:
 		deleteTok := p.advance() // consume DELETE
 		return p.parseDeleteStmt(deleteTok.Loc.Start)
-	case kwMERGE:
-		mergeTok := p.advance() // consume MERGE; cur is now INTO
-		return p.parseMergeStmt(mergeTok.Loc)
-	case kwCALL:
-		return p.parseCallProcedure()
 
 	// Load / Export. StarRocks has no COPY statement: StarRocks.g4 has no
 	// COPY rule and the pinned 3.4.10 server answers "COPY INTO t FROM
@@ -648,10 +602,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Set / Unset
 	case kwSET:
 		setTok := p.advance() // consume SET
-		// SET DEFAULT STORAGE VAULT name
-		if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwSTORAGE {
-			return p.parseSetDefaultStorageVault(setTok.Loc)
-		}
 		// setDefaultStorageVolumeStatement (StarRocks.g4:824):
 		// SET identifierOrString AS DEFAULT STORAGE VOLUME
 		if (isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString) && p.peekNext().Kind == kwAS {

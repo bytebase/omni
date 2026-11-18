@@ -324,9 +324,6 @@ func TestInstallPluginFromPath(t *testing.T) {
 	if stmt.Source != "/home/users/doris/auditdemo.zip" {
 		t.Errorf("Source: got %q", stmt.Source)
 	}
-	if stmt.IsSoname {
-		t.Error("IsSoname should be false")
-	}
 }
 
 func TestInstallPluginFromDir(t *testing.T) {
@@ -357,13 +354,11 @@ func TestInstallPluginFromURLWithProperties(t *testing.T) {
 	}
 }
 
-func TestInstallPluginSoname(t *testing.T) {
-	stmt := parseInstallPluginStmt(t, `INSTALL PLUGIN FROM SONAME "mylib.so"`)
-	if !stmt.IsSoname {
-		t.Error("IsSoname should be true")
-	}
-	if stmt.Source != "mylib.so" {
-		t.Errorf("Source: got %q", stmt.Source)
+// TestInstallPluginSonameRefused: installPluginStatement (StarRocks.g4:1889)
+// has no SONAME, and the pinned server refuses the Doris form.
+func TestInstallPluginSonameRefused(t *testing.T) {
+	if _, errs := parseForTest(`INSTALL PLUGIN FROM SONAME "mylib.so"`); len(errs) == 0 {
+		t.Error("INSTALL PLUGIN FROM SONAME parsed, want a syntax error")
 	}
 }
 

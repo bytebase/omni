@@ -11,22 +11,6 @@ import (
 // helpers
 // ---------------------------------------------------------------------------
 
-func parseCallProcedureStmt(t *testing.T, sql string) *ast.CallProcedureStmt {
-	t.Helper()
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.CallProcedureStmt)
-	if !ok {
-		t.Fatalf("expected *ast.CallProcedureStmt, got %T", file.Stmts[0])
-	}
-	return stmt
-}
-
 func parseDropProcedureStmt(t *testing.T, sql string) *ast.DropProcedureStmt {
 	t.Helper()
 	file, errs := parseForTest(sql)
@@ -57,40 +41,6 @@ func parseCreateProcedureStmt(t *testing.T, sql string) *ast.CreateProcedureStmt
 		t.Fatalf("expected *ast.CreateProcedureStmt, got %T", file.Stmts[0])
 	}
 	return stmt
-}
-
-// ---------------------------------------------------------------------------
-// CALL
-// ---------------------------------------------------------------------------
-
-func TestCallProcedure_NoArgs(t *testing.T) {
-	stmt := parseCallProcedureStmt(t, "CALL my_proc()")
-	if stmt.Name.String() != "my_proc" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_proc")
-	}
-	if len(stmt.Args) != 0 {
-		t.Errorf("Args: got %d, want 0", len(stmt.Args))
-	}
-}
-
-func TestCallProcedure_WithArgs(t *testing.T) {
-	stmt := parseCallProcedureStmt(t, "CALL my_proc(1, 'a')")
-	if stmt.Name.String() != "my_proc" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_proc")
-	}
-	if len(stmt.Args) != 2 {
-		t.Fatalf("Args: got %d, want 2", len(stmt.Args))
-	}
-}
-
-func TestCallProcedure_QualifiedName(t *testing.T) {
-	stmt := parseCallProcedureStmt(t, "CALL db.my_proc(1)")
-	if stmt.Name.String() != "db.my_proc" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "db.my_proc")
-	}
-	if len(stmt.Args) != 1 {
-		t.Fatalf("Args: got %d, want 1", len(stmt.Args))
-	}
 }
 
 // ---------------------------------------------------------------------------
@@ -226,10 +176,6 @@ func TestProcedureNodeTags(t *testing.T) {
 	cp := &ast.CreateProcedureStmt{}
 	if cp.Tag() != ast.T_CreateProcedureStmt {
 		t.Errorf("CreateProcedureStmt.Tag() = %v, want T_CreateProcedureStmt", cp.Tag())
-	}
-	call := &ast.CallProcedureStmt{}
-	if call.Tag() != ast.T_CallProcedureStmt {
-		t.Errorf("CallProcedureStmt.Tag() = %v, want T_CallProcedureStmt", call.Tag())
 	}
 	dp := &ast.DropProcedureStmt{}
 	if dp.Tag() != ast.T_DropProcedureStmt {

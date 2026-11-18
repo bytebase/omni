@@ -114,12 +114,8 @@ var _ Node = (*UnlockTablesStmt)(nil)
 //
 //	INSTALL PLUGIN FROM 'source_path_or_url'
 //	    [PROPERTIES("key"="value", ...)]
-//
-//	INSTALL PLUGIN FROM SONAME 'library_name'
-//	    [PROPERTIES("key"="value", ...)]
 type InstallPluginStmt struct {
-	Source     string      // path/URL or library name
-	IsSoname   bool        // true when SONAME keyword was present
+	Source     string // path/URL or library name
 	Properties []*Property
 	Loc        Loc
 }
