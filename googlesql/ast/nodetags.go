@@ -103,6 +103,55 @@ const (
 	T_GroupingItem
 	T_WindowDef
 
+	// Pipe syntax (googlesql/parser-pipe node).
+	//
+	// The pipe suffix: a subpipeline statement, a statement followed by a pipe
+	// suffix, the subpipeline node itself, and one node per pipe operator
+	// (pipe_operator). These mirror googlesql.tm's pipe grammar.
+	T_SubpipelineStmt
+	T_PipeStatement
+	T_Subpipeline
+	T_ItemOrder
+	T_PipeWhere
+	T_PipeSelect
+	T_PipeExtend
+	T_PipeAggregate
+	T_PipeRename
+	T_PipeRenameItem
+	T_PipeLimitOffset
+	T_PipeOrderBy
+	T_PipeSetOperation
+	T_PipeRecursiveUnion
+	T_PipeJoin
+	T_PipeCall
+	T_PipeWindow
+	T_PipeDistinct
+	T_PipeTablesample
+	T_PipeAs
+	T_PipeDescribe
+	T_PipeStaticDescribe
+	T_PipeAssert
+	T_PipeLog
+	T_PipeDrop
+	T_PipeSet
+	T_PipeSetItem
+	T_PipePivot
+	T_PipeUnpivot
+	T_PipeIf
+	T_PipeIfCase
+	T_PipeFork
+	T_PipeTee
+	T_PipeWith
+	T_PipeExportData
+	T_PipeCreateTable
+	T_PipeInsert
+	T_PipeMatchRecognize
+	T_TableClause
+	T_MatchRecognizeClause
+	T_MatchRecognizeDefine
+	T_RowPattern
+	T_RowPatternQuantifier
+
 	// Core DDL (googlesql/parser-ddl node).
 	//
 	// CREATE / ALTER / DROP over TABLE / VIEW / INDEX / SCHEMA / DATABASE for the
@@ -416,6 +465,92 @@ func (t NodeTag) String() string {
 		return "GroupingItem"
 	case T_WindowDef:
 		return "WindowDef"
+	case T_SubpipelineStmt:
+		return "SubpipelineStmt"
+	case T_PipeStatement:
+		return "PipeStatement"
+	case T_Subpipeline:
+		return "Subpipeline"
+	case T_ItemOrder:
+		return "ItemOrder"
+	case T_PipeWhere:
+		return "PipeWhere"
+	case T_PipeSelect:
+		return "PipeSelect"
+	case T_PipeExtend:
+		return "PipeExtend"
+	case T_PipeAggregate:
+		return "PipeAggregate"
+	case T_PipeRename:
+		return "PipeRename"
+	case T_PipeRenameItem:
+		return "PipeRenameItem"
+	case T_PipeLimitOffset:
+		return "PipeLimitOffset"
+	case T_PipeOrderBy:
+		return "PipeOrderBy"
+	case T_PipeSetOperation:
+		return "PipeSetOperation"
+	case T_PipeRecursiveUnion:
+		return "PipeRecursiveUnion"
+	case T_PipeJoin:
+		return "PipeJoin"
+	case T_PipeCall:
+		return "PipeCall"
+	case T_PipeWindow:
+		return "PipeWindow"
+	case T_PipeDistinct:
+		return "PipeDistinct"
+	case T_PipeTablesample:
+		return "PipeTablesample"
+	case T_PipeAs:
+		return "PipeAs"
+	case T_PipeDescribe:
+		return "PipeDescribe"
+	case T_PipeStaticDescribe:
+		return "PipeStaticDescribe"
+	case T_PipeAssert:
+		return "PipeAssert"
+	case T_PipeLog:
+		return "PipeLog"
+	case T_PipeDrop:
+		return "PipeDrop"
+	case T_PipeSet:
+		return "PipeSet"
+	case T_PipeSetItem:
+		return "PipeSetItem"
+	case T_PipePivot:
+		return "PipePivot"
+	case T_PipeUnpivot:
+		return "PipeUnpivot"
+	case T_PipeIf:
+		return "PipeIf"
+	case T_PipeIfCase:
+		return "PipeIfCase"
+	case T_PipeFork:
+		return "PipeFork"
+	case T_PipeTee:
+		return "PipeTee"
+	case T_PipeWith:
+		return "PipeWith"
+	case T_PipeExportData:
+		return "PipeExportData"
+	case T_PipeCreateTable:
+		return "PipeCreateTable"
+	case T_PipeInsert:
+		return "PipeInsert"
+	case T_PipeMatchRecognize:
+		return "PipeMatchRecognize"
+	case T_TableClause:
+		return "TableClause"
+	case T_MatchRecognizeClause:
+		return "MatchRecognizeClause"
+	case T_MatchRecognizeDefine:
+		return "MatchRecognizeDefine"
+	case T_RowPattern:
+		return "RowPattern"
+	case T_RowPatternQuantifier:
+		return "RowPatternQuantifier"
 	case T_OptionsEntry:
 		return "OptionsEntry"
 	case T_KeyPart:

@@ -172,8 +172,9 @@ func TestLexer_UnquotedIdentifiers(t *testing.T) {
 		{"underscore_start", "_x", []expect{{tokIdentifier, "_x"}}},
 		{"with_digits", "x123", []expect{{tokIdentifier, "x123"}}},
 		{"all_underscore", "___", []expect{{tokIdentifier, "___"}}},
-		// '$' is not an identifier char in GoogleSQL: "x$y" -> "x", then bad byte.
-		// (covered in error tests) — here we check '@' splits identifiers.
+		// '$' is not an identifier char in GoogleSQL: "x$y" -> "x", then DOLLAR_SIGN,
+		// then "y" (covered in the dollar tests) — here we check '@' splits
+		// identifiers.
 		{"at_splits", "x@y", []expect{{tokIdentifier, "x"}, {int('@'), ""}, {tokIdentifier, "y"}}},
 	}
 	runLexerCases(t, cases)
@@ -700,30 +701,34 @@ func TestLexer_UnterminatedBlockComment(t *testing.T) {
 }
 
 func TestLexer_InvalidByte(t *testing.T) {
-	// '$' is not a valid GoogleSQL byte (no $ token, not an identifier char).
-	tokens, errs := Tokenize("$")
+	// A backslash is not a valid byte outside a string literal.
+	tokens, errs := Tokenize("\\")
 	if len(errs) == 0 {
-		t.Fatalf("expected a lex error for '$', tokens=%+v", tokens)
+		t.Fatalf("expected a lex error for '\\', tokens=%+v", tokens)
 	}
 	if tokens[0].Type != tokInvalid {
 		t.Errorf("expected tokInvalid, got %s", TokenName(tokens[0].Type))
 	}
 }
 
-func TestLexer_DollarInIdentifierIsError(t *testing.T) {
-	// "x$y" -> "x" (ident), then '$' is invalid, then "y" (ident).
+func TestLexer_DollarAnchor(t *testing.T) {
+	// '$' is the DOLLAR_SIGN token (the row-pattern end anchor), and it splits
+	// identifiers: "x$y" -> ident x, '$', ident y.
 	tokens, errs := Tokenize("x$y")
-	if len(errs) != 1 {
-		t.Fatalf("expected exactly 1 lex error, got %d: %+v", len(errs), errs)
+	if len(errs) != 0 {
+		t.Fatalf("unexpected lex errors: %+v", errs)
 	}
-	if tokens[0].Type != tokIdentifier || tokens[0].Str != "x" {
-		t.Errorf("token[0] = %+v, want ident x", tokens[0])
+	if len(tokens) != 4 { // x, $, y, EOF
+		t.Fatalf("got %d tokens: %+v", len(tokens), tokens)
+	}
+	if tokens[0].Type != tokIdentifier || tokens[1].Type != int('$') || tokens[2].Type != tokIdentifier {
+		t.Errorf("tokens = %+v, want ident, '$', ident", tokens)
 	}
 }
 
 func TestLexer_ErrorRecoveryContinues(t *testing.T) {
 	// After a bad byte, lexing should continue and produce subsequent tokens.
-	tokens, errs := Tokenize("SELECT $ FROM t")
+	tokens, errs := Tokenize("SELECT \\ FROM t")
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 lex error, got %d: %+v", len(errs), errs)
 	}
