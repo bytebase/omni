@@ -895,12 +895,24 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 		}
 		return p.parseIdentifierOrFunction()
 	case kwOVERLAY:
-		// Without '(' OVERLAY is an ordinary non-reserved identifier; with '(' the
-		// overlay primary commits, so a malformed overlay reports where Trino does.
+		// Without '(' OVERLAY is an ordinary non-reserved identifier. With '(' try
+		// the overlay primary first; if that fails, an ordinary function call may
+		// still parse (`overlay(1, 2)`), otherwise keep the overlay error so a
+		// malformed overlay reports where Trino does.
 		if p.peekNext().Kind != int('(') {
 			return p.parseIdentifierOrFunction()
 		}
-		return p.parseOverlay()
+		cp := p.checkpoint()
+		overlay, overlayErr := p.parseOverlay()
+		if overlayErr == nil {
+			return overlay, nil
+		}
+		p.restore(cp)
+		if ordinary, err := p.parseIdentifierOrFunction(); err == nil {
+			return ordinary, nil
+		}
+		p.restore(cp)
+		return nil, overlayErr
 	case kwEXTRACT:
 		return p.parseExtract()
 	case kwTRIM:

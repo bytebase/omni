@@ -291,6 +291,10 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		if n.Query != nil {
 			w.visitQuery(n.Query, true /* outermost */)
 		}
+	case *parser.WithFunctionStmt:
+		if n.Query != nil {
+			w.visitQuery(n.Query, true /* outermost */)
+		}
 	case *parser.DescribeOutputStmt:
 		if n.Query != nil {
 			w.visitQuery(n.Query, true /* outermost */)

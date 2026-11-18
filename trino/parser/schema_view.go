@@ -262,7 +262,7 @@ func (p *Parser) parseCreateViewStmt(startOffset int) (ast.Node, error) {
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-	query, err := p.parseQuery()
+	query, err := p.parseRootQuery()
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +463,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(startOffset int) (ast.Node, err
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-	query, err := p.parseQuery()
+	query, err := p.parseRootQuery()
 	if err != nil {
 		return nil, err
 	}

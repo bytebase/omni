@@ -143,7 +143,7 @@ func (p *Parser) parseInsertStmt() (ast.Node, error) {
 	// D-INS1: the source query is mandatory. parseQuery handles SELECT / VALUES
 	// / TABLE / WITH … / a parenthesized query (and reports a leading
 	// WITH FUNCTION inline routine as unsupported, deferred to parser-routines).
-	src, err := p.parseQuery()
+	src, err := p.parseRootQuery()
 	if err != nil {
 		return nil, err
 	}

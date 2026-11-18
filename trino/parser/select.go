@@ -830,7 +830,7 @@ func (p *Parser) parseGroupBy() (*GroupBy, error) {
 // element follows.
 func startsGroupingElement(kind TokenKind) bool {
 	switch kind {
-	case kwROLLUP, kwCUBE, kwGROUPING, int('('):
+	case kwROLLUP, kwCUBE, kwGROUPING, kwAUTO, int('('):
 		return true
 	default:
 		return startsExpression(kind)

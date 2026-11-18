@@ -472,7 +472,7 @@ func (p *Parser) finishCreateTableAs(startOffset int, orReplace, ifNotExists boo
 
 	// The query may be parenthesized: `AS (query)`. parseQuery handles the
 	// SELECT / VALUES / TABLE / WITH … forms and a leading '(' subquery.
-	query, err := p.parseQuery()
+	query, err := p.parseRootQuery()
 	if err != nil {
 		return nil, err
 	}

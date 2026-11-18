@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/trino/ast"
 )
@@ -403,12 +404,82 @@ func (p *Parser) stringSourceOffset(tok Token, decoded int) int {
 		if raw[i] == '\'' && i+1 < len(raw)-1 && raw[i+1] == '\'' {
 			n++
 			i += 2
+		} else if tok.Kind == tokUnicodeString && raw[i] == '\\' {
+			r, next, ok := unicodeEscapeAt(raw, i, len(raw)-1)
+			if !ok {
+				n++
+				i++
+			} else {
+				n += utf8.RuneLen(r)
+				i = next
+			}
 		} else {
 			n++
 			i++
 		}
 	}
 	return tok.Loc.Start + i
+}
+
+// decodeUnicodeString decodes the default-escape (backslash) Unicode literal
+// body the lexer captured verbatim: \XXXX, \+XXXXXX, or the escape character
+// doubled. raw is the inter-quote text, without the surrounding U&'…'.
+func decodeUnicodeString(raw string) string {
+	var b strings.Builder
+	for i := 0; i < len(raw); {
+		if raw[i] == '\\' {
+			if r, next, ok := unicodeEscapeAt(raw, i, len(raw)); ok {
+				b.WriteRune(r)
+				i = next
+				continue
+			}
+		}
+		b.WriteByte(raw[i])
+		i++
+	}
+	return b.String()
+}
+
+// unicodeEscapeAt reads a \XXXX or \+XXXXXX escape at i, where end bounds the
+// literal body. It returns the rune and the index just past the escape.
+func unicodeEscapeAt(raw string, i, end int) (rune, int, bool) {
+	if i >= end || raw[i] != '\\' {
+		return 0, i, false
+	}
+	digits := 4
+	start := i + 1
+	if start < end && raw[start] == '+' {
+		digits = 6
+		start++
+	}
+	if start+digits > end {
+		return 0, i, false
+	}
+	v := 0
+	for j := 0; j < digits; j++ {
+		d := hexValue(raw[start+j])
+		if d < 0 {
+			return 0, i, false
+		}
+		v = v*16 + d
+	}
+	if v > utf8.MaxRune {
+		return 0, i, false
+	}
+	return rune(v), start + digits, true
+}
+
+func hexValue(b byte) int {
+	switch {
+	case b >= '0' && b <= '9':
+		return int(b - '0')
+	case b >= 'a' && b <= 'f':
+		return int(b-'a') + 10
+	case b >= 'A' && b <= 'F':
+		return int(b-'A') + 10
+	default:
+		return -1
+	}
 }
 
 // parseExecuteStmt parses both EXECUTE forms, dispatching on a leading
@@ -485,7 +556,11 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 	// trailing-token error is reported before execution, so validate only when
 	// the statement itself ended.
 	if (strTok.Kind == tokString || strTok.Kind == tokUnicodeString) && p.cur.Kind == tokEOF {
-		inner, err := Parse(strTok.Str)
+		sql := strTok.Str
+		if strTok.Kind == tokUnicodeString {
+			sql = decodeUnicodeString(sql)
+		}
+		inner, err := Parse(sql)
 		if err != nil {
 			if errs := AllErrors(err); len(errs) > 0 {
 				return nil, &ParseError{
