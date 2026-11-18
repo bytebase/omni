@@ -135,8 +135,12 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool, mods []*nodes.DD
 		}
 	case p.cur.Type == kwAS:
 		// source_char is Java source, not SQL, and runs to the end of the
-		// parsed range; see javaSourceHead. Take it verbatim.
-		if err := p.parseSourceText(opts); err != nil {
+		// parsed range; see javaSourceHead. Take it verbatim. Oracle reads
+		// the missing source as an acceptance (compat.tsv's CREATE JAVA
+		// SOURCE AS row).
+		if stmt.Name == nil && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';') {
+			p.advance() // consume AS
+		} else if err := p.parseSourceText(opts); err != nil {
 			return nil, err
 		}
 	default:
@@ -268,11 +272,11 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 	case p.isKeywordStr("BFILE") && p.peekNext().Type == '(':
 		p.advance() // consume BFILE
 		p.advance() // consume (
-		if !p.isCreateTableNameStart() {
-			return p.syntaxErrorAtCur()
+		dir := ""
+		if p.isCreateTableNameStart() {
+			dir = p.cur.Str
+			p.advance()
 		}
-		dir := p.cur.Str
-		p.advance()
 		if err := p.expectCreateTableToken(','); err != nil {
 			return err
 		}
@@ -288,6 +292,37 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"), p.isKeywordStr("BFILE"):
 		kind := p.cur.Str
 		p.advance()
+		if p.isStatementEnd() {
+			// Oracle reads USING CLOB with no subquery as an acceptance
+			// (compat.tsv's row).
+			addOption("USING", kind, optStart, nil)
+			return nil
+		}
+		if kind == "BFILE" && p.isCreateTableNameStart() && p.peekNext().Type == ',' {
+			// BFILE followed by a directory and a file name without its
+			// parentheses is accepted too (compat.tsv's USING BFILE a, 's')
+			// row).
+			dir := p.cur.Str
+			p.advance()
+			if err := p.expectCreateTableToken(','); err != nil {
+				return err
+			}
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			file := p.cur.Str
+			p.advance()
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
+			}
+			addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.String{Str: dir}, &nodes.String{Str: file}}})
+			return nil
+		}
+		if p.isIdentLike() && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
+			// A word before the legacy subquery is accepted (compat.tsv's
+			// USING CLOB zzz SELECT 1 FROM dual row).
+			p.advance()
+		}
 		parens := p.cur.Type == '('
 		if parens {
 			p.advance() // consume (

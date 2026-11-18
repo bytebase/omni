@@ -898,6 +898,12 @@ func (p *Parser) parseCreateTableDescribedPartitions(clause *nodes.PartitionClau
 		if p.isCreateTableNameStart() && !p.isCreateTableHashPartitionAttributeStart() {
 			def.Name = p.cur.Str
 			p.advance()
+		} else if (p.cur.Type == kwPARTITION || p.cur.Type == kwREAD || p.atWord("INNER") ||
+			p.atWord("ONLY") || p.atWord("NOCOPY")) && (p.peekNext().Type == ')' || p.peekNext().Type == ',') {
+			// Oracle reads one of these words as the partition's name when
+			// nothing follows it (compat.tsv's PARTITION INNER and kin rows).
+			def.Name = p.cur.Str
+			p.advance()
 		}
 		if err := p.parseCreateTablePartitionDescription(def); err != nil {
 			return err

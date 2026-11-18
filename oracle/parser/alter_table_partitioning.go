@@ -234,6 +234,15 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 		//   ADD subpartition_desc [, subpartition_desc ]...
 		//       [ dependent_tables_clause ] [ update_index_clauses ] [ parallel_clause ]
 		p.advance()
+		if p.cur.Type == kwVALUES && !p.atNextWord("LESS") {
+			// Oracle reads ADD VALUES on a partition (compat.tsv's row);
+			// ADD VALUES LESS THAN is still the range form it refuses.
+			if err := p.parseATValuesClause(); err != nil {
+				return err
+			}
+			p.atOption(cmd.Options, start)
+			return p.parseATClauses(atcDependentTables|atcIndexMaintenance|atcParallel, cmd.Options)
+		}
 		for {
 			if err := p.parseATSubpartitionDesc(atMethodAny); err != nil {
 				return err
@@ -418,7 +427,15 @@ func (p *Parser) parseATSetPartitioning(cmd *nodes.AlterTableCmd) error {
 		return err
 	}
 	start = p.pos()
+	defer func(saved bool) { p.atSubpartitionTemplate = saved }(p.atSubpartitionTemplate)
+	p.atSubpartitionTemplate = true
 	switch {
+	case p.alterMview && p.cur.Type == kwSUBPARTITION && p.peekNext().Type == ')':
+		p.advance()
+		p.advance()
+	case p.alterMview && p.isIdentLike() && p.cur.Type != kwSUBPARTITION && p.peekNext().Type == tokICONST:
+		p.advance()
+		p.advance()
 	case p.cur.Type == tokICONST:
 		p.advance()
 	case p.cur.Type == '(' && p.peekNext().Type == ')':
@@ -587,7 +604,7 @@ func (p *Parser) parseATRenamePartition(cmd *nodes.AlterTableCmd) error {
 func (p *Parser) parseATTruncatePartition(cmd *nodes.AlterTableCmd) error {
 	p.advance() // TRUNCATE
 	cmd.Action = nodes.AT_TRUNCATE_PARTITION
-	if p.cur.Type != kwPARTITION && p.cur.Type != kwSUBPARTITION {
+	if p.cur.Type != kwPARTITION && p.cur.Type != kwSUBPARTITION && !(!p.alterMview && p.atWord("SUBPARTITIONS")) {
 		return p.syntaxErrorAtCur()
 	}
 	cmd.Subtype = p.cur.Str
@@ -642,6 +659,13 @@ func (p *Parser) parseATMovePartition(cmd *nodes.AlterTableCmd) error {
 		return err
 	}
 	cmd.ColumnName = name
+	if p.atWord("MAPPING") && p.atNextWord("TABLE") {
+		// Oracle reads MAPPING TABLE and nothing else here (compat.tsv's
+		// MOVE PARTITION a MAPPING TABLE row).
+		p.advance()
+		p.advance()
+		return nil
+	}
 	allowed := atcMappingTable | atcTablePartitionDescription
 	if sub {
 		allowed = atcIndexing | atcPartitioningStorage
@@ -701,35 +725,57 @@ func (p *Parser) parseATSplitPartition(cmd *nodes.AlterTableCmd) error {
 	}
 	if into {
 		p.advance() // INTO
-		if err := p.atExpect('('); err != nil {
-			return err
-		}
-		// INTO alone lists range or list partition descriptions, each
-		// with its values but the last (ORA-00926 for one without).
-		for {
-			var had bool
-			values := &had
-			if !intoOnly {
-				values = nil
+		if p.cur.Type != '(' {
+			// Oracle reads the list without its parentheses, and the
+			// closing one left over at the end, after AT(values)
+			// (compat.tsv's SPLIT SUBPARTITION ... AT(1) INTO SUBPARTITION,
+			// SUBPARTITION) rows).
+			for {
+				if sub {
+					err = p.parseATSubpartitionSpec(nil)
+				} else {
+					err = p.parseATPartitionSpec(nil)
+				}
+				if err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
 			}
-			if sub {
-				err = p.parseATSubpartitionSpec(values)
-			} else {
-				err = p.parseATPartitionSpec(values)
+			if p.cur.Type == ')' {
+				p.advance()
 			}
-			if err != nil {
+		} else {
+			p.advance() // consume (
+			// INTO alone lists range or list partition descriptions, each
+			// with its values but the last (ORA-00926 for one without).
+			for {
+				var had bool
+				values := &had
+				if !intoOnly {
+					values = nil
+				}
+				if sub {
+					err = p.parseATSubpartitionSpec(values)
+				} else {
+					err = p.parseATPartitionSpec(values)
+				}
+				if err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				if intoOnly && !had {
+					return p.syntaxErrorAtCur()
+				}
+				p.advance()
+			}
+			if err := p.atExpect(')'); err != nil {
 				return err
 			}
-			if p.cur.Type != ',' {
-				break
-			}
-			if intoOnly && !had {
-				return p.syntaxErrorAtCur()
-			}
-			p.advance()
-		}
-		if err := p.atExpect(')'); err != nil {
-			return err
 		}
 	}
 	p.atOption(cmd.Options, start)

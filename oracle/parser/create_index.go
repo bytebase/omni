@@ -430,7 +430,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 	}
 
 	seen := map[string]bool{}
-	for p.cur.Type == kwWITH {
+	for p.cur.Type == kwWITH || p.atWord("WITHOUT") {
+		withoutTok := p.cur
+		without := p.atWord("WITHOUT")
 		p.advance()
 		switch {
 		case p.cur.Type == kwLOCAL:
@@ -448,6 +450,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			p.advance()
 			stmt.WithLocal = true
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
+			if without {
+				return nil, p.syntaxErrorAtTok(withoutTok)
+			}
 			if err := p.ixOnce(seen, "STORAGE"); err != nil {
 				return nil, err
 			}
@@ -461,6 +466,13 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			if err := p.parseArrayDMLTail(); err != nil {
 				return nil, err
 			}
+			stmt.ArrayDML = true
+		case p.isKeywordStr("DML"):
+			// WITH DML leaves ARRAY out (compat.tsv's row).
+			if without {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
 			stmt.ArrayDML = true
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -498,24 +510,31 @@ func (p *Parser) parseArrayDMLTail() error {
 	if p.cur.Type != '(' {
 		return nil
 	}
-	p.advance()
-	for i := 0; i < 2; i++ {
-		if i > 0 {
-			if p.cur.Type != ',' {
+	for {
+		p.advance() // consume (
+		for i := 0; i < 2; i++ {
+			if i > 0 {
+				if p.cur.Type != ',' {
+					return p.syntaxErrorAtCur()
+				}
+				p.advance()
+			}
+			if name, err := p.parseOperatorType(); err != nil {
+				return err
+			} else if name == "" {
 				return p.syntaxErrorAtCur()
 			}
-			p.advance()
 		}
-		if name, err := p.parseOperatorType(); err != nil {
-			return err
-		} else if name == "" {
+		if p.cur.Type != ')' {
 			return p.syntaxErrorAtCur()
 		}
+		p.advance()
+		// The page allows a list of pairs; Oracle takes one or more.
+		if p.cur.Type != ',' || p.peekNext().Type != '(' {
+			break
+		}
+		p.advance() // consume ,
 	}
-	if p.cur.Type != ')' {
-		return p.syntaxErrorAtCur()
-	}
-	p.advance()
 	return nil
 }
 
@@ -618,7 +637,9 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 	}
 
 	seen := map[string]bool{}
-	for p.cur.Type == kwWITH {
+	for p.cur.Type == kwWITH || p.atWord("WITHOUT") {
+		withoutTok := p.cur
+		without := p.atWord("WITHOUT")
 		p.advance()
 		switch {
 		case p.cur.Type == kwLOCAL:
@@ -632,12 +653,29 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 			p.advance()
 			stmt.WithLocal = true
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
+			if without {
+				return nil, p.syntaxErrorAtTok(withoutTok)
+			}
 			if err := p.ixOnce(seen, "STORAGE"); err != nil {
 				return nil, err
 			}
 			if stmt.StorageTable, err = p.parseStorageTableTail(); err != nil {
 				return nil, err
 			}
+		case p.isKeywordStr("ARRAY"):
+			if err := p.ixOnce(seen, "ARRAY"); err != nil {
+				return nil, err
+			}
+			if err := p.parseArrayDMLTail(); err != nil {
+				return nil, err
+			}
+			stmt.ArrayDML = true
+		case p.isKeywordStr("DML"):
+			if without {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			stmt.ArrayDML = true
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}

@@ -284,6 +284,10 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 		Loc:       nodes.Loc{Start: start},
 	}
 
+	// [ EDITIONABLE | NONEDITIONABLE ]
+	if p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE") {
+		p.advance()
+	}
 	// SYNONYM keyword
 	if p.cur.Type == kwSYNONYM {
 		p.advance()
@@ -304,6 +308,18 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 	}
 	if stmt.Name == nil || stmt.Name.Name == "" {
 		return nil, p.syntaxErrorAtCur()
+	}
+
+	// [ SHARING = NONE ]
+	if p.isKeywordStr("SHARING") {
+		toks := p.peekAhead(3)
+		if len(toks) == 3 && toks[0].Type == '=' && p.isIdentLikeStrAt(toks[1], "NONE") {
+			sharing, err := p.parseSharingClause()
+			if err != nil {
+				return nil, err
+			}
+			_ = sharing
+		}
 	}
 
 	if p.cur.Type != kwFOR {

@@ -41,6 +41,8 @@ import (
 // (ORA-14051 at LOB) and its QUERY REWRITE { ENABLE | DISABLE } (ORA-02000
 // at ENABLE): it takes { ENABLE | DISABLE } QUERY REWRITE.
 func (p *Parser) parseAlterMviewStmt(start int) (*nodes.AlterMaterializedViewStmt, error) {
+	defer func(saved bool) { p.alterMview = saved }(p.alterMview)
+	p.alterMview = true
 	stmt := &nodes.AlterMaterializedViewStmt{Loc: nodes.Loc{Start: start}}
 	if p.cur.Type == kwIF && p.peekNext().Type == kwEXISTS {
 		p.advance() // consume IF
@@ -223,10 +225,17 @@ func (p *Parser) parseAlterMviewSubpartitionTemplateQuantity() error {
 		return err
 	}
 	if p.cur.Type != tokICONST {
+		// Oracle reads SUBPARTITIONS with no quantity as an acceptance on
+		// ALTER MATERIALIZED VIEW, where ALTER TABLE answers ORA-14156.
+		if p.alterMview && (p.cur.Type == tokEOF || p.cur.Type == ';') {
+			return nil
+		}
 		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume the count
+	stored := false
 	if p.atWord("STORE") {
+		stored = true
 		p.advance() // consume STORE
 		if err := p.atExpect(kwIN); err != nil {
 			return err
@@ -234,6 +243,13 @@ func (p *Parser) parseAlterMviewSubpartitionTemplateQuantity() error {
 		if err := p.parseATNameList(); err != nil {
 			return err
 		}
+	}
+	if p.alterMview && !stored && p.isIdentLike() && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';') {
+		// Oracle reads a word that ends the statement after a bare quantity
+		// as an acceptance (compat.tsv's ... SUBPARTITIONS 1 zzz row). With
+		// STORE IN, or a word before more tokens, it answers ORA-14156
+		// before the tail, so that stays refused.
+		p.advance()
 	}
 	return nil
 }
@@ -308,6 +324,13 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 				return p.syntaxErrorAtCur()
 			}
 		}
+	case p.cur.Type == kwADD && p.atNextWord("PARTITIONING"):
+		// Oracle reads ADD PARTITIONING as an acceptance on a materialized
+		// view (compat.tsv's row).
+		setAlterMviewAction(stmt, "PARTITION")
+		p.advance() // consume ADD
+		p.advance() // consume PARTITIONING
+		return nil
 	case p.cur.Type == kwADD && p.peekNext().Type != kwPARTITION && !p.atNextWord("OVERFLOW"):
 		// ADD leads ADD PARTITION or ADD OVERFLOW; Oracle refuses anything
 		// else at the word after it.
@@ -427,9 +450,130 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 	case p.atWord("ANNOTATIONS"):
 		setAlterMviewAction(stmt, "ANNOTATIONS")
 		p.advance() // consume ANNOTATIONS
-		return p.parseATAnnotations()
+		return p.parseAlterMviewAnnotations()
 	}
 	return nil
+}
+
+// parseAlterMviewAnnotations reads ALTER MATERIALIZED VIEW's
+// annotations_clause. ALTER TABLE's reader holds the page's items strictly;
+// Oracle's view reader also takes REMOVE ALL, an annotation name without
+// ADD, and an unquoted word after such a name (compat.tsv's ADMIN a,
+// DUALITY a and REMOVE ALL zzz rows), while a reserved word there is still
+// no annotation name (RENAME ALL is refused).
+func (p *Parser) parseAlterMviewAnnotations() error {
+	if err := p.atExpect('('); err != nil {
+		return err
+	}
+	for first := true; ; first = false {
+		switch {
+		case p.cur.Type == kwADD, p.cur.Type == kwDROP:
+			p.advance()
+			if p.cur.Type == kwIF {
+				p.advance()
+				if p.cur.Type == kwNOT {
+					p.advance()
+				}
+				if err := p.atExpect(kwEXISTS); err != nil {
+					return err
+				}
+			}
+			if err := p.parseATName(); err != nil {
+				return err
+			}
+			if p.cur.Type == tokSCONST {
+				p.advance()
+			}
+		case p.atWord("REPLACE"):
+			p.advance()
+			if err := p.parseATName(); err != nil {
+				return err
+			}
+			if p.cur.Type == tokSCONST {
+				p.advance()
+			}
+		case p.atWord("REMOVE") && p.atNextWord("ALL"):
+			p.advance()
+			p.advance()
+			for p.isIdentLike() {
+				p.advance()
+			}
+		case p.isKeywordStr("ALL"):
+			p.advance()
+		default:
+			if !p.isATNameStart() {
+				return p.syntaxErrorAtCur()
+			}
+			if err := p.parseATName(); err != nil {
+				return err
+			}
+			if first {
+				for p.isIdentLike() {
+					p.advance()
+				}
+			}
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return p.atExpect(')')
+}
+
+// parseAlterMviewInmemoryColumnItem reads the inmemory_column_clause of
+// ALTER MATERIALIZED VIEW. Oracle is looser there than ALTER TABLE's
+// reader: MEMCOMPRESS may be left out, any words may stand after QUERY,
+// the column list's parentheses may be left out around one column, and an
+// item after a comma may be followed by a word (compat.tsv's
+// alterMaterializedView_inmemory_column_clause rows).
+func (p *Parser) parseAlterMviewInmemoryColumnItem() error {
+	p.advance() // consume INMEMORY
+	if !p.atWord("MEMCOMPRESS") {
+		if p.cur.Type != kwFOR {
+			return p.syntaxErrorAtCur()
+		}
+	} else {
+		p.advance() // consume MEMCOMPRESS
+		if err := p.atExpect(kwFOR); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == kwFOR {
+		p.advance()
+	}
+	if !p.atWord("QUERY") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume QUERY
+	for p.isIdentLike() && p.peekNext().Type != ')' {
+		p.advance()
+	}
+	if p.isStatementEnd() {
+		return nil
+	}
+	if p.cur.Type != '(' {
+		if p.isATNameStart() && p.peekNext().Type == ')' {
+			p.advance()
+			p.advance()
+			return nil
+		}
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume (
+	if err := p.parseATName(); err != nil {
+		return err
+	}
+	for p.cur.Type == ',' {
+		p.advance() // consume ,
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+		for p.isIdentLike() {
+			p.advance()
+		}
+	}
+	return p.atExpect(')')
 }
 
 // parseAlterMviewPhysicalAttrs reads physical_attributes_clause, one item
@@ -649,7 +793,27 @@ func (p *Parser) parseAlterMviewEvaluation(stmt *nodes.AlterMaterializedViewStmt
 		p.advance() // consume EDITION
 		var err error
 		stmt.EditionName, err = p.parseATNameString()
-		return err
+		if err != nil {
+			return err
+		}
+		// Oracle reads what follows the edition as acceptances: a word
+		// (compat.tsv's ... EDITION a zzz), FRESH, CONSISTENT FRESH, and
+		// CONSIDER FRESH with a word after it. CONSIDER alone is still a
+		// rejection.
+		switch {
+		case p.atWord("CONSISTENT") && p.atNextWord("FRESH"):
+			p.advance()
+			p.advance()
+		case p.atWord("CONSIDER") && p.atNextWord("FRESH"):
+			p.advance()
+			p.advance()
+			for p.isIdentLike() {
+				p.advance()
+			}
+		case p.isIdentLike() && !p.atWord("CONSIDER"):
+			p.advance()
+		}
+		return nil
 	}
 	return p.parseMviewEditionRef(true)
 }

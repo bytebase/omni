@@ -1640,6 +1640,7 @@ type ColumnDef struct {
 	DropIdentity            bool            // DROP IDENTITY (ALTER TABLE MODIFY)
 	Constraints             *List           // column constraints (list of *ColumnConstraint)
 	Collation               string          // COLLATE
+	Annotations             bool            // ANNOTATIONS clause present
 	Loc                     Loc             // start location
 }
 

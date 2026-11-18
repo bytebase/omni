@@ -444,6 +444,18 @@ func (p *Parser) isATIndexCompressionStart() bool {
 // parseATIndexCompression reads index_compression.
 func (p *Parser) parseATIndexCompression() error {
 	if p.cur.Type == kwCOMPRESS {
+		// COMPRESS ADVANCED [ LOW | HIGH ] is accepted where the group ends
+		// right after it (compat.tsv's ALTER MATERIALIZED VIEW rows); a word
+		// after it is refused at ADVANCED, as it was before.
+		toks := p.peekAhead(3)
+		if len(toks) == 3 && p.isIdentLikeStrAt(toks[0], "ADVANCED") &&
+			(toks[1].Type == ')' ||
+				((p.isIdentLikeStrAt(toks[1], "LOW") || p.isIdentLikeStrAt(toks[1], "HIGH")) && toks[2].Type == ')')) {
+			p.advance() // COMPRESS
+			p.advance() // ADVANCED
+			p.atOptOneOf("LOW", "HIGH")
+			return nil
+		}
 		p.advance()
 		if p.cur.Type == tokICONST {
 			p.advance()
@@ -2261,9 +2273,21 @@ func (p *Parser) parseATMethodValues(method atMethod) error {
 		return p.parseATListValues()
 	case atMethodHash:
 		return nil
-	}
-	if p.cur.Type == kwVALUES {
-		return p.parseATValuesClause()
+	case atMethodAny:
+		// A template names no method: Oracle reads a description's values
+		// with or without VALUES (compat.tsv's SUBPARTITION LESS THAN(1)
+		// row), and takes none for a hash subpartition.
+		if p.cur.Type == kwVALUES {
+			return p.parseATValuesClause()
+		}
+		if p.alterMview && p.atSubpartitionTemplate && p.atWord("LESS") {
+			p.advance()
+			if err := p.atExpectWord("THAN"); err != nil {
+				return err
+			}
+			return p.parseATBoundValues(true)
+		}
+		return nil
 	}
 	return nil
 }
@@ -2274,6 +2298,11 @@ func (p *Parser) parseATMethodValues(method atMethod) error {
 // operation: dependent_tables_clause, update_index_clauses and the like.
 func (p *Parser) isATPartitionNameHere(allowed atClauses) bool {
 	if !p.isATNameStart() || p.cur.Type == kwVALUES {
+		return false
+	}
+	if p.alterMview && p.atSubpartitionTemplate && p.atWord("LESS") {
+		// A materialized view's template takes range values without VALUES
+		// (compat.tsv's SUBPARTITION LESS THAN(1) row).
 		return false
 	}
 	// A word that ends the partition is its name (ADD PARTITION INDEXING).
@@ -2343,8 +2372,33 @@ func (p *Parser) parseATSubpartitionDesc(method atMethod) error {
 	if p.isATPartitionNameHere(allowed) {
 		p.advance()
 	}
+	if p.alterMview && p.atSubpartitionTemplate && p.cur.Type == '(' && p.peekNext().Type != ')' {
+		// Oracle reads a parenthesized list where a hash subpartition has
+		// no values (compat.tsv's SUBPARTITION(1) row).
+		depth := 0
+		for {
+			switch p.cur.Type {
+			case tokEOF, ';':
+				return p.syntaxErrorAtCur()
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 {
+					p.advance()
+					return p.parseATClauses(allowed, nil)
+				}
+			}
+			p.advance()
+		}
+	}
 	if err := p.parseATMethodValues(method); err != nil {
 		return err
+	}
+	if p.alterMview && p.atSubpartitionTemplate && p.isIdentLike() && (p.peekNext().Type == ',' || p.peekNext().Type == ')') {
+		// Oracle reads a trailing word after the values as an acceptance
+		// (compat.tsv's SUBPARTITION VALUES LESS THAN(1) zzz row).
+		p.advance()
 	}
 	return p.parseATClauses(allowed, nil)
 }
@@ -2583,8 +2637,24 @@ func (p *Parser) parseATSubpartitionBy(method *atMethod) error {
 //
 // A quantity stands for hash subpartitions only (ORA-14603).
 func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
+	defer func(saved bool) { p.atSubpartitionTemplate = saved }(p.atSubpartitionTemplate)
+	p.atSubpartitionTemplate = true
 	p.advance() // SUBPARTITION
 	p.advance() // TEMPLATE
+	if p.alterMview {
+		// Oracle reads a bare SUBPARTITION here, and a word where
+		// SUBPARTITIONS stands, as acceptances on ALTER MATERIALIZED VIEW.
+		if p.cur.Type == kwSUBPARTITION && p.peekNext().Type == ')' {
+			p.advance()
+			p.advance()
+			return nil
+		}
+		if p.isIdentLike() && p.cur.Type != kwSUBPARTITION && p.peekNext().Type == tokICONST {
+			p.advance()
+			p.advance()
+			return nil
+		}
+	}
 	if p.cur.Type == tokICONST && (method == atMethodAny || method == atMethodHash) {
 		p.advance()
 		return nil

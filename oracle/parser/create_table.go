@@ -213,12 +213,20 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		}
 		return nil, nil
 	default:
+		if p.isKeywordStr("NOFORCE") && p.peekNext().Type == kwVIEW {
+			return p.parseCreateViewStmt(start, orReplace)
+		}
 		if p.isKeywordStr("NOFORCE") && isAnalyticObjectWord(p.peekNext()) {
 			return p.parseCreateForcedAnalyticObject(start, orReplace)
 		}
 		// Check for "NO FORCE VIEW"
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
 			return p.parseCreateViewStmt(start, orReplace)
+		}
+		// Check for EDITIONABLE / NONEDITIONABLE SYNONYM
+		if (p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE")) && p.peekNext().Type == kwSYNONYM {
+			p.advance()
+			return p.parseCreateSynonymStmt(start, orReplace, public)
 		}
 		// Check for EDITIONING / EDITIONABLE / NONEDITIONABLE VIEW
 		if p.isIdentLike() && (p.cur.Str == "EDITIONING" || p.cur.Str == "EDITIONABLE" || p.cur.Str == "NONEDITIONABLE") {
@@ -653,6 +661,20 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		if col.Domain == nil || col.Domain.Name == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
+	} else if (p.cur.Type == kwIDENTITY || p.cur.Type == kwKEY || p.cur.Type == kwNULLS ||
+		p.cur.Type == kwSAMPLE || p.cur.Type == kwUSING) &&
+		(p.alterTableModifyColumn ||
+			((p.cur.Type == kwKEY || p.cur.Type == kwNULLS) && p.createTableColumns &&
+				(p.peekNext().Type == ')' || p.peekNext().Type == ','))) {
+		// Oracle leaves the datatype of a MODIFY column to the resolve
+		// phase too: MODIFY (a KEY), MODIFY (a IDENTITY) and MODIFY (a
+		// NULLS) are accepted (compat.tsv's rows).
+		col.TypeName = &nodes.TypeName{
+			Names:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: p.cur.Str}}},
+			TypeMods: &nodes.List{},
+			Loc:      nodes.Loc{Start: p.pos(), End: p.cur.End},
+		}
+		p.advance()
 	} else if p.isTypeName() && !p.isCreateTableColumnClauseStart() {
 		// COLLATE, ENCRYPT, ANNOTATIONS and SCOPE IS start clauses of a
 		// column without a datatype, not a datatype.
@@ -726,7 +748,7 @@ func isOracleTypeToken(tokenType int) bool {
 }
 
 func columnDefHasProperties(col *nodes.ColumnDef) bool {
-	return col.Sort || col.Visible || col.Invisible || col.Default != nil ||
+	return col.Annotations || col.Sort || col.Visible || col.Invisible || col.Default != nil ||
 		col.Identity != nil || col.Virtual != nil || col.NotNull || col.Null ||
 		col.DropIdentity || col.Encrypt != "" || col.Collation != "" ||
 		(col.Constraints != nil && col.Constraints.Len() > 0)
@@ -902,7 +924,7 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				return err
 			}
 
-		case kwCONSTRAINT:
+		case kwCONSTRAINT, kwCONSTRAINTS:
 			cc, parseErr504 := p.parseColumnConstraint()
 			if parseErr504 != nil {
 				return parseErr504
@@ -974,6 +996,7 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					if err := p.parseCreateTableAnnotations(); err != nil {
 						return err
 					}
+					col.Annotations = true
 				case "SORT":
 					p.advance()
 					col.Sort = true
@@ -1022,7 +1045,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 //
 //	SCOPE IS [ schema . ] scope_table | WITH ROWID
 func (p *Parser) parseInlineRefConstraint(col *nodes.ColumnDef) error {
-	if col.TypeName == nil || !col.TypeName.IsRef {
+	// Oracle reads SCOPE IS and WITH ROWID on a column with no datatype, and
+	// on any column of ALTER TABLE ... ADD (compat.tsv's inline_ref_constraint
+	// rows); CREATE TABLE's typed non-REF column still refuses them.
+	if col.TypeName != nil && !col.TypeName.IsRef && !p.alterTableAddColumn && !p.alterTableAddList {
 		return p.syntaxErrorAtCur()
 	}
 	cc := &nodes.ColumnConstraint{Loc: nodes.Loc{Start: p.pos()}}
@@ -1098,6 +1124,7 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, compl
 		typ        nodes.ConstraintType
 		keys       []target
 		refColumns *nodes.List
+		inline     bool
 	}
 	columns := map[string]*nodes.ColumnDef{}
 	refs := map[target]bool{}
@@ -1112,7 +1139,7 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, compl
 		refs[key] = col.TypeName != nil && col.TypeName.IsRef
 		for _, cItem := range col.Constraints.Items {
 			if cc, ok := cItem.(*nodes.ColumnConstraint); ok {
-				constraints = append(constraints, constraint{cc, cc.Type, []target{key}, cc.RefColumns})
+				constraints = append(constraints, constraint{cc, cc.Type, []target{key}, cc.RefColumns, true})
 			}
 		}
 	}
@@ -1179,7 +1206,11 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, compl
 				return p.syntaxErrorAtNode(c.node)
 			}
 		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
-			if col != nil && (col.TypeName == nil || !col.TypeName.IsRef) {
+			// CREATE TABLE's typed non-REF column refuses these, and so does
+			// an out-of-line one; a column with no datatype, and an inline
+			// one of ALTER TABLE ... ADD, takes them (compat.tsv's
+			// inline_ref_constraint rows).
+			if col != nil && col.TypeName != nil && !col.TypeName.IsRef && (complete || !c.inline) {
 				return p.syntaxErrorAtNode(c.node)
 			}
 			if c.typ == nodes.CONSTRAINT_SCOPE {
@@ -1389,7 +1420,7 @@ func (p *Parser) parseIdentitySignedInteger() error {
 // 1, ORA-22890 for CONSTRAINT c SCOPE IS t and CONSTRAINT c WITH ROWID).
 func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	start := p.pos()
-	p.advance() // consume CONSTRAINT
+	p.advance() // consume CONSTRAINT or CONSTRAINTS
 
 	name, parseErr523 := p.parseIdentifier()
 	if parseErr523 != nil {

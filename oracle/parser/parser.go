@@ -42,6 +42,18 @@ type Parser struct {
 	// column definitions with the datatype left to the engine.
 	alterTableAddColumn bool
 
+	// alterTableModifyColumn is set while a column of ALTER TABLE MODIFY is
+	// parsed. Oracle leaves a word there to the resolve phase, as it does a
+	// bare ADD column: MODIFY (a KEY), MODIFY (a IDENTITY) and MODIFY (a
+	// NULLS) are accepted (compat.tsv's alterTable_inline_constraint,
+	// modify_col_properties and DROP IDENTITY rows).
+	alterTableModifyColumn bool
+
+	// alterTableAddList is set while the columns of ALTER TABLE ... ADD (
+	// ... ) are parsed, where a column takes SCOPE IS or WITH ROWID whatever
+	// its datatype, as a bare ADD column does.
+	alterTableAddList bool
+
 	// upgradeIncludingData is set while the column_properties of ALTER
 	// TABLE's upgrade_table_clause (UPGRADE [ NOT ] INCLUDING DATA ...) are
 	// parsed. Oracle answers ORA-01735 at byte 0 for the option and reads no
@@ -54,6 +66,19 @@ type Parser struct {
 	// index-organized table, or of its partitions, is parsed: only there
 	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).
 	createTableIndexOrganized bool
+
+	// alterMview is set while ALTER MATERIALIZED VIEW is parsed. Oracle's
+	// reader for the clauses it shares with ALTER TABLE is looser there:
+	// it takes a bare SUBPARTITION after SUBPARTITION TEMPLATE, a word
+	// where SUBPARTITIONS stands, a subpartition description without
+	// VALUES, and an annotations_clause as balanced text.
+	alterMview bool
+
+	// atSubpartitionTemplate is set while a subpartition template's
+	// description list is parsed. Oracle reads a description's values
+	// without VALUES, a parenthesized list where a hash subpartition has no
+	// values, and a trailing word there on ALTER MATERIALIZED VIEW.
+	atSubpartitionTemplate bool
 
 	// createTablePartitionsOfLog is set while CREATE MATERIALIZED VIEW LOG's
 	// table_partitioning_clauses are read with CREATE TABLE's reader: a
@@ -641,6 +666,74 @@ func checkSelectionDelimiters(sql string, start, end int, choices *ccChoices) er
 	return scanDelimiters(lexer, sql, end, func() bool { return true })
 }
 
+// extraCloseShape records the statement shape that Oracle still parses
+// when one closing parenthesis is left over at its end (ALTER ... SPLIT
+// SUBPARTITION ... INTO ..., ALTER MATERIALIZED VIEW's bare subpartition
+// template and in-memory column list, and CREATE JAVA ... USING BFILE).
+// Every other extra closing parenthesis is a syntax error.
+type extraCloseShape struct {
+	alter, create           bool
+	materialized, mviewLog  bool
+	table, java             bool
+	split, subpartition, at bool
+	atParen, into           bool
+	set, template           bool
+	templateBare            bool
+	seenInmemory, bfile     bool
+}
+
+func (s *extraCloseShape) observe(tok Token, word, prevWord string) {
+	if tok.Type == ';' || tok.Type == tokEOF {
+		return
+	}
+	switch word {
+	case "ALTER":
+		s.alter = true
+	case "CREATE":
+		s.create = true
+	case "MATERIALIZED":
+		s.materialized = true
+	case "TABLE":
+		s.table = true
+	case "JAVA":
+		s.java = true
+	case "LOG":
+		if s.materialized {
+			s.mviewLog = true
+		}
+	case "SPLIT":
+		s.split = true
+	case "SUBPARTITION":
+		s.subpartition = true
+		if prevWord == "TEMPLATE" {
+			s.templateBare = true
+		}
+	case "AT":
+		s.at = true
+	case "INTO":
+		s.into = true
+	case "SET":
+		s.set = true
+	case "TEMPLATE":
+		s.template = true
+	case "INMEMORY":
+		s.seenInmemory = true
+	case "BFILE":
+		s.bfile = true
+	}
+	if tok.Type == '(' && prevWord == "AT" {
+		s.atParen = true
+	}
+}
+
+func (s *extraCloseShape) allowsExtraClose() bool {
+	split := s.alter && s.split && s.subpartition && s.atParen && s.into
+	mviewTemplate := s.alter && s.materialized && !s.mviewLog && s.set && s.subpartition && s.template && s.templateBare
+	mviewInmemory := s.alter && s.materialized && !s.mviewLog && s.seenInmemory
+	javaBfile := s.create && s.java && s.bfile
+	return split || mviewTemplate || mviewInmemory || javaBfile
+}
+
 // scanDelimiters checks the parentheses of the tokens lexer returns up to
 // end, reporting an imbalance only while settled says the selection the
 // lexer reads is the one to check.
@@ -648,8 +741,20 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 	depth := 0
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
+	var shape extraCloseShape
+	var prevWord string
+	var extraClose *Token
+	afterExtra := false
 	for {
 		tok := lexer.NextToken()
+		if tok.Type != tokEOF {
+			word := strings.ToUpper(tok.Str)
+			shape.observe(tok, word, prevWord)
+			prevWord = word
+			if extraClose != nil {
+				afterExtra = true
+			}
+		}
 		if lexer.Err != nil {
 			return nil
 		}
@@ -669,7 +774,19 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 		switch tok.Type {
 		case ';':
 			javaHead = embeddedSourceHead{}
+			shape = extraCloseShape{}
+			extraClose = nil
+			afterExtra = false
+			prevWord = ""
 		case tokEOF:
+			if extraClose != nil {
+				if depth == -1 && !afterExtra && settled() && shape.allowsExtraClose() {
+					return nil
+				}
+				if settled() {
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+				}
+			}
 			if depth > 0 && settled() {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
@@ -678,9 +795,19 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 			depth++
 		case ')':
 			depth--
-			if depth < 0 && settled() {
-				text := ")"
-				return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
+			if depth < 0 {
+				// Only a closing parenthesis that ends the statement may be
+				// read as Oracle does; one in the middle is the error it
+				// always was.
+				next := lexer.lookahead(lexer.pos, lexer.end).NextToken()
+				if depth == -1 && extraClose == nil && next.Type == tokEOF {
+					extraClose = &tok
+					continue
+				}
+				if settled() {
+					text := ")"
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
+				}
 			}
 		}
 	}
