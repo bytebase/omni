@@ -757,8 +757,8 @@ func (p *Parser) parseExecuteImmediateStmt() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	// The dynamic SQL expression and USING argument expressions may embed
-	// subqueries; fill them for the query-span walker.
-	p.fillSubqueries(stmt)
+	// subqueries; the statement dispatch (parseMaybePipeSuffixStmt) fills them
+	// for the query-span walker.
 	return stmt, nil
 }
 

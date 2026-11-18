@@ -199,3 +199,47 @@ func TestResolveQuerySpanNonQueries(t *testing.T) {
 		})
 	}
 }
+
+// TestResolveQuerySpanTableFunctions: the table sources OceanBase's grammar adds
+// — UNNEST, RB_ITERATE and a table read from a location — are analyzed rather
+// than refused as an unsupported source.
+func TestResolveQuerySpanTableFunctions(t *testing.T) {
+	for _, statement := range []string{
+		"SELECT * FROM UNNEST(t1.a, t1.b) AS u(c, d)",
+		"SELECT c FROM UNNEST(t1.a) AS u(c)",
+		"SELECT * FROM RB_ITERATE(t1.a) AS x(v)",
+		"SELECT * FROM SOURCE(TYPE = 's')",
+		"SELECT * FROM 's'(FORMAT(TYPE = 'csv')) AS e",
+		// A column of a source whose file schema is unknown resolves rather
+		// than reading as a missing column.
+		"SELECT a FROM SOURCE(TYPE = 's')",
+		"SELECT e.a FROM 's'(FORMAT(TYPE = 'csv')) AS e",
+		// A snapshot may read a table too.
+		"SELECT * FROM t1 AS OF SNAPSHOT (SELECT max(a) FROM t1)",
+		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE t1",
+		"LOAD DATA FROM(SELECT a FROM SOURCE(TYPE = 's')) INTO TABLE t1",
+		// Without a column alias list the outputs are the arguments.
+		"SELECT * FROM t1, UNNEST(t1.a)",
+		"SELECT * FROM RB_ITERATE(t1.a)",
+		// A format value may read a table.
+		"SELECT a FROM 's'(FORMAT(FIELD_DELIMITER = (SELECT a FROM t1)))",
+		"FOR COLUMNS",
+	} {
+		if _, err := resolve(t, statement); err != nil {
+			t.Errorf("ResolveQuerySpan(%q): %v", statement, err)
+		}
+	}
+}
+
+// TestResolveQuerySpanMethodOptClassified pins that a method_opt statement has a
+// permission class: Bytebase's SQL service denies a statement left unknown, and
+// this one is now parsed.
+func TestResolveQuerySpanMethodOptClassified(t *testing.T) {
+	span, err := resolve(t, "FOR COLUMNS")
+	if err != nil {
+		t.Fatalf("ResolveQuerySpan: %v", err)
+	}
+	if span.Type == analysis.QueryTypeUnknown {
+		t.Errorf("FOR COLUMNS is QueryTypeUnknown, want a class")
+	}
+}

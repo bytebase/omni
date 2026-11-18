@@ -111,16 +111,8 @@ var divergenceFlaggedForms = []struct {
 	sql  string
 	note string
 }{
-	{
-		name: "WITH_SESSION_prefix",
-		sql:  "WITH SESSION foo = 1 SELECT 1",
-		note: "divergence #4 (D2): WITH SESSION query prefix is 481 but absent from the legacy grammar; deferred P1",
-	},
-	{
-		name: "set_op_CORRESPONDING",
-		sql:  "SELECT 1 UNION CORRESPONDING SELECT 1",
-		note: "divergence #6 (D3): set-op CORRESPONDING is 481 but absent from the legacy grammar; deferred P1",
-	},
+	// WITH SESSION and set-op CORRESPONDING were the two flagged forms here;
+	// both are implemented now and are accepted by the ordinary parser.
 }
 
 // TestSelect_DivergenceFlaggedRejected verifies omni rejects each flagged
@@ -135,13 +127,19 @@ func TestSelect_DivergenceFlaggedRejected(t *testing.T) {
 	}
 }
 
-// TestSelect_DivergenceFlaggedOracleAccepts documents that Trino 481 ACCEPTS each
-// flagged form — confirming the divergence is real (omni rejects, 481 accepts).
-// This is the evidence half of the divergence packet.
+// TestSelect_DivergenceFlaggedOracleAccepts holds the two former divergence
+// forms (WITH SESSION and set-op CORRESPONDING) to both omni and the recorded
+// Trino: both accept them now.
 func TestSelect_DivergenceFlaggedOracleAccepts(t *testing.T) {
 	o := connectOracle(t)
-	for _, d := range divergenceFlaggedForms {
+	for _, d := range []struct{ name, sql string }{
+		{"WITH_SESSION_prefix", "WITH SESSION foo = 1 SELECT 1"},
+		{"set_op_CORRESPONDING", "SELECT 1 UNION CORRESPONDING SELECT 1"},
+	} {
 		t.Run(d.name, func(t *testing.T) {
+			if _, errs := parseForTest(d.sql); len(errs) != 0 {
+				t.Errorf("omni rejects %q: %v", d.sql, errs)
+			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			res, err := o.CheckSyntax(ctx, d.sql)
@@ -149,8 +147,7 @@ func TestSelect_DivergenceFlaggedOracleAccepts(t *testing.T) {
 				t.Fatalf("Trino gave no answer for %q: %v", d.sql, err)
 			}
 			if !res.Accepted {
-				t.Errorf("Trino 481 REJECTED %q (errorName=%s); the divergence assumes 481 accepts it — re-check the ledger",
-					d.sql, res.ErrorName)
+				t.Errorf("Trino 481 REJECTED %q (errorName=%s)", d.sql, res.ErrorName)
 			}
 		})
 	}

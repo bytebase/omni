@@ -27,22 +27,21 @@ import "github.com/bytebase/omni/trino/ast"
 // `a INTERSECT b UNION c` == `(a INTERSECT b) UNION c`. parseQueryTerm parses a
 // UNION/EXCEPT chain whose operands are INTERSECT chains.
 //
-// Divergence #6 (D3 in select.go): the `CORRESPONDING` set-op modifier valid in
-// Trino 481 is ABSENT from the legacy grammar (where the only modifier is
-// setQuantifier = DISTINCT/ALL). It is a deferred P1 extension; not parsed here
-// (omni rejects `UNION CORRESPONDING`, Trino 481 accepts it). Recorded in the
-// migration divergence ledger.
+// The `CORRESPONDING [BY (col, …)]` set-op modifier (divergence #6, now
+// resolved) is parsed by parseCorresponding and recorded on SetOperation.
 
 // SetOperation is a binary set operation `left <op> [quantifier] right`
 // (the setOperation queryTerm alternative). Op is "UNION", "INTERSECT", or
 // "EXCEPT". Quantifier is "" (no modifier), "DISTINCT", or "ALL". Left and Right
 // are the operand query terms.
 type SetOperation struct {
-	Op         string // "UNION", "INTERSECT", or "EXCEPT"
-	Quantifier string // "", "DISTINCT", or "ALL"
-	Left       QueryNode
-	Right      QueryNode
-	Loc        ast.Loc
+	Op              string // "UNION", "INTERSECT", or "EXCEPT"
+	Quantifier      string // "", "DISTINCT", or "ALL"
+	Corresponding   bool
+	CorrespondingBy []*ast.Identifier
+	Left            QueryNode
+	Right           QueryNode
+	Loc             ast.Loc
 }
 
 func (n *SetOperation) Span() ast.Loc { return n.Loc }
@@ -65,16 +64,22 @@ func (p *Parser) finishQueryTerm(left QueryNode) (QueryNode, error) {
 	for p.cur.Kind == kwUNION || p.cur.Kind == kwEXCEPT {
 		opTok := p.advance() // consume UNION / EXCEPT
 		quant := p.parseSetQuantifier()
+		corr, corrBy, err := p.parseCorresponding()
+		if err != nil {
+			return nil, err
+		}
 		right, err := p.parseIntersectTerm()
 		if err != nil {
 			return nil, err
 		}
 		left = &SetOperation{
-			Op:         opTok.Str,
-			Quantifier: quant,
-			Left:       left,
-			Right:      right,
-			Loc:        ast.Loc{Start: left.Span().Start, End: right.Span().End},
+			Op:              opTok.Str,
+			Quantifier:      quant,
+			Corresponding:   corr,
+			CorrespondingBy: corrBy,
+			Left:            left,
+			Right:           right,
+			Loc:             ast.Loc{Start: left.Span().Start, End: right.Span().End},
 		}
 	}
 	return left, nil
@@ -97,30 +102,53 @@ func (p *Parser) finishIntersectTerm(left QueryNode) (QueryNode, error) {
 	for p.cur.Kind == kwINTERSECT {
 		opTok := p.advance() // consume INTERSECT
 		quant := p.parseSetQuantifier()
+		corr, corrBy, err := p.parseCorresponding()
+		if err != nil {
+			return nil, err
+		}
 		right, err := p.parseQueryPrimary()
 		if err != nil {
 			return nil, err
 		}
 		left = &SetOperation{
-			Op:         opTok.Str,
-			Quantifier: quant,
-			Left:       left,
-			Right:      right,
-			Loc:        ast.Loc{Start: left.Span().Start, End: right.Span().End},
+			Op:              opTok.Str,
+			Quantifier:      quant,
+			Corresponding:   corr,
+			CorrespondingBy: corrBy,
+			Left:            left,
+			Right:           right,
+			Loc:             ast.Loc{Start: left.Span().Start, End: right.Span().End},
 		}
 	}
 	return left, nil
 }
 
 // parseSetQuantifier consumes an optional `DISTINCT | ALL` set-operation
-// modifier and returns its spelling ("" when absent). The CORRESPONDING modifier
-// (Trino 481) is a deferred P1 extension and is intentionally NOT consumed here
-// (D3) — leaving it surfaces as the syntax error a legacy-scope parser reports.
+// modifier and returns its spelling ("" when absent). CORRESPONDING is separate
+// (parseCorresponding).
 func (p *Parser) parseSetQuantifier() string {
 	if tok, ok := p.match(kwDISTINCT, kwALL); ok {
 		return tok.Str
 	}
 	return ""
+}
+
+// parseCorresponding parses the optional `CORRESPONDING [BY (col, …)]` set-op
+// modifier.
+func (p *Parser) parseCorresponding() (bool, []*ast.Identifier, error) {
+	if p.cur.Kind != kwCORRESPONDING {
+		return false, nil, nil
+	}
+	p.advance() // consume CORRESPONDING
+	if p.cur.Kind != kwBY {
+		return true, nil, nil
+	}
+	p.advance() // consume BY
+	cols, _, err := p.parseColumnAliases()
+	if err != nil {
+		return false, nil, err
+	}
+	return true, cols, nil
 }
 
 // parseQueryPrimary parses a `queryPrimary`: a SELECT block, `TABLE

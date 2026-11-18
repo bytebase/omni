@@ -295,13 +295,12 @@ func (p *Parser) parseFullTextTableRef() (nodes.TableExpr, error) {
 	}
 	result.SearchCondition = sc
 
-	// Options: LANGUAGE <expr> and/or integer TopN, in either order.
-	for _, ok := p.match(','); ok; _, ok = p.match(',') {
-		switch {
-		case p.cur.Type == kwLANGUAGE:
-			if result.Language != nil {
-				return nil, p.unexpectedToken()
-			}
+	// Options: [ , LANGUAGE language_term ] [ , top_n_by_rank ], in that
+	// order: SQL Server refuses top_n_by_rank before LANGUAGE
+	// (CONTAINSTABLE(a, a, 'a', 1, LANGUAGE 0x00) is Msg 102, measured).
+	if _, ok := p.match(','); ok {
+		more := true
+		if p.cur.Type == kwLANGUAGE {
 			p.advance()
 			lang, err := p.parseExpr()
 			if err != nil {
@@ -311,10 +310,9 @@ func (p *Parser) parseFullTextTableRef() (nodes.TableExpr, error) {
 				return nil, p.unexpectedToken()
 			}
 			result.Language = lang
-		default:
-			if result.TopN != nil {
-				return nil, p.unexpectedToken()
-			}
+			_, more = p.match(',')
+		}
+		if more {
 			topN, err := p.parseFullTextTopN()
 			if err != nil {
 				return nil, err

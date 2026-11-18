@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/mssql/ast"
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
 
 // rowsetNameDeclare declares the XML document handle the OPENXML cases pass,
@@ -67,10 +68,15 @@ var rowsetNameCases = []struct {
 	{"ad_hoc_join_right", "SELECT * FROM t1 JOIN " + adHocSource + ".db.dbo.t x ON x.a = t1.a", true, "OPENDATASOURCE db.dbo.t AS x"},
 	{"ad_hoc_call_alone", "SELECT * FROM " + adHocSource, false, ""},
 	{"ad_hoc_call_alias", "SELECT * FROM " + adHocSource + " x", false, ""},
-	{"ad_hoc_one_part", "SELECT * FROM " + adHocSource + ".t", false, ""},
-	{"ad_hoc_two_parts", "SELECT * FROM " + adHocSource + ".dbo.t", false, ""},
-	{"ad_hoc_four_parts", "SELECT * FROM " + adHocSource + ".x.db.dbo.t", false, ""},
-	{"ad_hoc_column", "SELECT * FROM " + adHocSource + ".db.dbo.t.c", false, ""},
+	// SQL Server reads one to four parts, and looks the name up: it answers
+	// Msg 208 for each of these, which is the parser having read it (compat.tsv
+	// records the same reading, objectOrString/schemaObjectThreePartName).
+	{"ad_hoc_one_part", "SELECT * FROM " + adHocSource + ".t", true, "OPENDATASOURCE t"},
+	{"ad_hoc_two_parts", "SELECT * FROM " + adHocSource + ".dbo.t", true, "OPENDATASOURCE dbo.t"},
+	{"ad_hoc_four_parts", "SELECT * FROM " + adHocSource + ".x.db.dbo.t", true, "OPENDATASOURCE db.dbo.t"},
+	{"ad_hoc_column", "SELECT * FROM " + adHocSource + ".db.dbo.t.c", true, "OPENDATASOURCE dbo.t.c"},
+	// A fifth part is Msg 117: the object name has more prefixes than three.
+	{"ad_hoc_five_parts", "SELECT * FROM " + adHocSource + ".a.b.c.d.e", false, ""},
 	{"ad_hoc_function", "SELECT * FROM " + adHocSource + ".db.dbo.f()", false, ""},
 	{"ad_hoc_table_hint", "SELECT * FROM " + adHocSource + ".db.dbo.t WITH (NOLOCK)", false, ""},
 	{"ad_hoc_alias_table_hint", "SELECT * FROM " + adHocSource + ".db.dbo.t x WITH (NOLOCK)", false, ""},
@@ -157,7 +163,7 @@ func TestRowsetNameOracle(t *testing.T) {
 			if err != nil {
 				t.Fatalf("oracle error: %v", err)
 			}
-			ssAccepts := ssErr == nil
+			ssAccepts := ssReadName(ssErr)
 			if ssAccepts != tc.accepts {
 				t.Errorf("table says SQL Server %s but it %s (%v):\n  SQL: %s",
 					boolToAcceptReject(tc.accepts), boolToAcceptReject(ssAccepts), ssErr, sql)
@@ -171,6 +177,27 @@ func TestRowsetNameOracle(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ssReadName reads SQL Server's answer as a parser's: every error is a
+// rejection but a lookup of what the server holds, which says its parser read
+// the name. The judge of compat.tsv reads them the same way (Msg 208 among
+// sqlServerLookups).
+func ssReadName(err error) bool {
+	if err == nil {
+		return true
+	}
+	all, ok := testcontainer.ServerErrors(err)
+	if !ok {
+		return false
+	}
+	for _, e := range all {
+		switch e.Number {
+		case 208, 448, 911, 7609, 7678, 15151:
+			return true
+		}
+	}
+	return false
 }
 
 // TestRowsetNameLoc checks the spans of an OPENDATASOURCE table and an OPENXML

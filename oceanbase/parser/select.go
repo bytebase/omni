@@ -1159,6 +1159,13 @@ func (p *Parser) parseTableReferenceList() ([]nodes.TableExpr, error) {
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
 			p.addRuleCandidate("database_ref")
+			// A table factor may also be a location-named source, a JSON_TABLE,
+			// a lateral subquery, or a parenthesized group.
+			p.addTokenCandidate(kwSOURCE)
+			p.addTokenCandidate(kwFILES)
+			p.addTokenCandidate(kwJSON_TABLE)
+			p.addTokenCandidate(kwLATERAL)
+			p.addTokenCandidate('(')
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -1210,6 +1217,12 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 		p.addTokenCandidate(kwNATURAL)
 		p.addTokenCandidate(kwINNER)
 		p.addTokenCandidate(kwSTRAIGHT_JOIN)
+		// The right side of a JOIN is a table factor too.
+		p.addTokenCandidate(kwSOURCE)
+		p.addTokenCandidate(kwFILES)
+		p.addTokenCandidate(kwJSON_TABLE)
+		p.addTokenCandidate(kwLATERAL)
+		p.addTokenCandidate('(')
 		p.addTokenCandidate(kwORDER)
 		p.addTokenCandidate(kwGROUP)
 		p.addTokenCandidate(kwHAVING)
@@ -1288,6 +1301,12 @@ func (p *Parser) parseJoinChain(left nodes.TableExpr, allowChain bool) (nodes.Ta
 		if p.collectMode() {
 			p.addRuleCandidate("table_ref")
 			p.addRuleCandidate("database_ref")
+			// The joined table is a table factor, of any of its forms.
+			p.addTokenCandidate(kwSOURCE)
+			p.addTokenCandidate(kwFILES)
+			p.addTokenCandidate(kwJSON_TABLE)
+			p.addTokenCandidate(kwLATERAL)
+			p.addTokenCandidate('(')
 			return nil, &ParseError{Message: "collecting"}
 		}
 
@@ -1673,6 +1692,17 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			Lateral: true,
 		}
 
+		// use_flashback: `FROM LATERAL (SELECT ...) AS OF SNAPSHOT 1`. AS OF is
+		// always the flashback here and never an alias called of: the grammar
+		// reads the pair that way, so `(SELECT ...) AS OF` is a 1064.
+		if p.cur.Type == kwAS && p.peekNext().Type == kwOF {
+			flashback, err := p.parseUseFlashback()
+			if err != nil {
+				return nil, err
+			}
+			sub.Flashback = flashback
+		}
+
 		// Optional alias: [AS] alias
 		if _, ok := p.match(kwAS); ok {
 			alias, _, err := p.parseIdentOrText()
@@ -1728,6 +1758,16 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				Select: sel,
 			}
 
+			// use_flashback: `FROM (SELECT ...) AS OF SNAPSHOT 1 t`. AS OF is
+			// always the flashback here and never an alias called of.
+			if p.cur.Type == kwAS && p.peekNext().Type == kwOF {
+				flashback, err := p.parseUseFlashback()
+				if err != nil {
+					return nil, err
+				}
+				sub.Flashback = flashback
+			}
+
 			// Optional alias: [AS] alias
 			if _, ok := p.match(kwAS); ok {
 				alias, _, err := p.parseIdentOrText()
@@ -1777,7 +1817,24 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		return foldTableReferenceList(refs), nil
 	}
 
-	// JSON_TABLE(expr, path COLUMNS (...)) AS alias
+	// url_expr: a table read from a location rather than from a stored table —
+	// 's'(FORMAT(...) [PATTERN ...]), SOURCE(...) or FILES(...).
+	if p.atURLExpr() {
+		return p.parseExternalTableRef()
+	}
+
+	// RB_ITERATE(simple_expr) and UNNEST(simple_expr_list): table functions of
+	// OceanBase's own, with an optional [AS] alias and column list.
+	if p.cur.Type == tokIDENT && p.peekNext().Type == '(' {
+		switch {
+		case p.isBareWord("RB_ITERATE"):
+			return p.parseRbIterate()
+		case p.isBareWord("UNNEST"):
+			return p.parseUnnest()
+		}
+	}
+
+	// JSON_TABLE(expr, path COLUMNS (...)) [AS] alias
 	if p.cur.Type == kwJSON_TABLE && p.peekNext().Type == '(' {
 		return p.parseJsonTable()
 	}
@@ -1865,11 +1922,21 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 		return nil, err
 	}
 
-	// [AS] alias (required for JSON_TABLE)
-	p.match(kwAS)
-	alias, _, aErr := p.parseIdentOrText()
-	if aErr != nil {
-		return nil, aErr
+	// [AS] alias. One of json_table_expr's alternatives has none, so
+	// `FROM JSON_TABLE(...)` parses without one.
+	alias := ""
+	if _, ok := p.match(kwAS); ok {
+		name, _, err := p.parseIdentOrText()
+		if err != nil {
+			return nil, err
+		}
+		alias = name
+	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+		name, _, err := p.parseIdentOrText()
+		if err != nil {
+			return nil, err
+		}
+		alias = name
 	}
 
 	return &nodes.JsonTableExpr{
@@ -1914,10 +1981,15 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 	defer p.leaveNesting()
 	start := p.pos()
 
-	// NESTED [PATH] path COLUMNS (column_list)
+	// NESTED PATH path COLUMNS (column_list). PATH is required: the grammar also
+	// derives NESTED literal COLUMNS (...), which the pinned server answers 1064
+	// for (json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)
+	// in testdata/compat.tsv).
 	if p.cur.Type == kwNESTED {
 		p.advance()
-		p.match(kwPATH) // optional PATH keyword
+		if _, err := p.expect(kwPATH); err != nil {
+			return nil, err
+		}
 		if p.cur.Type != tokSCONST {
 			return nil, &ParseError{Message: "expected path string in NESTED", Position: p.cur.Loc}
 		}
@@ -1951,10 +2023,12 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		Name: name,
 	}
 
-	// FOR ORDINALITY
+	// FOR ORDINALITY, both words: `a FOR` alone is a 1064.
 	if p.cur.Type == kwFOR {
 		p.advance()
-		p.match(kwORDINALITY)
+		if _, err := p.expect(kwORDINALITY); err != nil {
+			return nil, err
+		}
 		col.Ordinality = true
 		col.Loc.End = p.prev.End
 		return col, nil
@@ -2660,6 +2734,12 @@ func tableExprLoc(te nodes.TableExpr) nodes.Loc {
 	case *nodes.SubqueryExpr:
 		return t.Loc
 	case *nodes.JsonTableExpr:
+		return t.Loc
+	case *nodes.ExternalTableRef:
+		return t.Loc
+	case *nodes.RbIterateExpr:
+		return t.Loc
+	case *nodes.UnnestExpr:
 		return t.Loc
 	}
 	return nodes.NoLoc()

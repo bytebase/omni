@@ -180,6 +180,9 @@ type CreateTableStmt struct {
 	Loc         Loc
 	IfNotExists bool
 	Temporary   bool
+	// External is set by CREATE EXTERNAL TABLE's special_table_type, which is
+	// one of TEMPORARY and EXTERNAL and never both.
+	External    bool
 	Table       *TableRef
 	Columns     []*ColumnDef
 	Constraints []*Constraint
@@ -197,8 +200,11 @@ func (s *CreateTableStmt) stmtNode() {}
 
 // AlterTableStmt represents an ALTER TABLE statement.
 type AlterTableStmt struct {
-	Loc      Loc
-	Table    *TableRef
+	Loc   Loc
+	Table *TableRef
+	// External is set by ALTER EXTERNAL TABLE, which takes the same actions and
+	// two of its own: ADD PARTITION (...) LOCATION 's' and DROP PARTITION LOCATION 's'.
+	External bool
 	Commands []*AlterTableCmd
 }
 
@@ -272,6 +278,11 @@ const (
 	// and Option, where DELAYED stands, names it.
 	ATAddColumnGroup
 	ATDropColumnGroup
+	// ALTER EXTERNAL TABLE's own actions: ADD PARTITION (...) LOCATION 's'
+	// holds the added partitions in PartitionValues and the path in Location;
+	// DROP PARTITION LOCATION 's' holds only the path.
+	ATAddExternalPartition
+	ATDropExternalPartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -297,6 +308,11 @@ type AlterTableCmd struct {
 	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem   // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
+	// PartitionValues holds an external table's added partitions, each a column
+	// and its value, and Location the path that follows them (or the one a DROP
+	// PARTITION names).
+	PartitionValues []*Assignment
+	Location        string
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -951,6 +967,10 @@ type SubqueryExpr struct {
 	Alias      string   // AS alias (for derived tables)
 	Columns    []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
 	Quantifier string   // "ANY" / "SOME" / "ALL" for `expr op {ANY|SOME|ALL} (subquery)`; empty for scalar subquery
+	// Flashback is the use_flashback a derived table may carry before its alias,
+	// as in `FROM (SELECT ...) AS OF SNAPSHOT 1 t` (table_factor's
+	// select_with_parens use_flashback alternative).
+	Flashback *TableFlashback
 }
 
 func (e *SubqueryExpr) nodeTag()   {}
@@ -1112,6 +1132,43 @@ type TableRef struct {
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// ExternalTableRef is a table read from a location rather than from a stored
+// table. tbl_name takes it as url_expr: a quoted path with its FORMAT and
+// PATTERN, or OceanBase's SOURCE(...) and FILES(...) table functions, with
+// opt_as_alias after it.
+//
+// Ref: url_expr and url_table_function_expr in sql_parser_mysql_mode.y
+// (oceanbase v4.3.5_CE_BP6, lines 14499-14549).
+type ExternalTableRef struct {
+	Loc Loc
+	// Function is "SOURCE" or "FILES" for a table function, and "" for a quoted
+	// path. A path names its location itself, and SOURCE(...) carries properties
+	// rather than a path; FILES(...) names its location with LOCATION.
+	Function string
+	Path     string              // the location: the quoted path, or FILES' LOCATION 's'
+	Source   []*ExternalProperty // SOURCE(...): external_properties_list
+	Format   []*ExternalProperty // FORMAT(...): external_file_format_list
+	Pattern  string              // PATTERN 's'
+	// PatternSet marks the clause present, since PATTERN '' is a pattern and not
+	// an absent one.
+	PatternSet bool
+	Alias      string // opt_as_alias: AS relation_name
+}
+
+func (r *ExternalTableRef) nodeTag()   {}
+func (r *ExternalTableRef) tableExpr() {}
+
+// ExternalProperty is one entry of a SOURCE(...) or FORMAT(...) list: a word
+// and the value the grammar gives it, as TYPE = 'csv' or SKIP_HEADER = 1.
+// NULL_IF and COLUMN_BLOOM_FILTER keep their parenthesized list as a RowExpr.
+type ExternalProperty struct {
+	Loc   Loc
+	Name  string   // the property's word, in upper case
+	Value ExprNode // its value
+}
+
+func (p *ExternalProperty) nodeTag() {}
 
 // TableSample is the sample_clause of a table reference, with its seed:
 // SAMPLE [BLOCK | HYBRID] [ALL | BASE | INCR] (percent) [SEED (n)].
@@ -2001,15 +2058,23 @@ func (s *EventSchedule) nodeTag() {}
 // `(a, @v)` names a column and a variable rather than two columns, one of
 // them called "@v".
 type LoadDataStmt struct {
-	Loc                Loc
-	IsXML              bool // true for LOAD XML, false for LOAD DATA
-	LowPriority        bool // LOW_PRIORITY modifier
-	Concurrent         bool // CONCURRENT modifier
-	Local              bool
-	Infile             string // INFILE 'file_name' (empty for the Aurora S3 form)
-	FromS3             bool   // Aurora MySQL: LOAD DATA [FROM] S3 ... / LOAD XML FROM S3 ...
-	S3Kind             string // Aurora MySQL: FILE | PREFIX | MANIFEST (empty when omitted; FILE is the server default)
-	S3URI              string // Aurora MySQL: the 's3[-region]://bucket/key' literal after S3 [FILE | PREFIX | MANIFEST]
+	Loc         Loc
+	IsXML       bool // true for LOAD XML, false for LOAD DATA
+	LowPriority bool // LOW_PRIORITY modifier
+	Concurrent  bool // CONCURRENT modifier
+	Local       bool
+	Infile      string // INFILE 'file_name' (empty for the Aurora S3 form)
+	FromS3      bool   // Aurora MySQL: LOAD DATA [FROM] S3 ... / LOAD XML FROM S3 ...
+	S3Kind      string // Aurora MySQL: FILE | PREFIX | MANIFEST (empty when omitted; FILE is the server default)
+	S3URI       string // Aurora MySQL: the 's3[-region]://bucket/key' literal after S3 [FILE | PREFIX | MANIFEST]
+	// Source is OceanBase's LOAD DATA ... FROM url_spec: a location the rows come
+	// from, instead of an INFILE. A url_spec that is a query over one is in
+	// SourceQuery.
+	Source      *ExternalTableRef
+	SourceQuery *SelectStmt
+	// OnError is opt_on_error, as written: "LOG ERRORS",
+	// "LOG ERRORS REJECT LIMIT 1" or "LOG ERRORS REJECT LIMIT UNLIMITED".
+	OnError            string
 	Replace            bool
 	Ignore             bool
 	Table              *TableRef
@@ -2078,6 +2143,43 @@ type AnalyzeTableStmt struct {
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
 func (s *AnalyzeTableStmt) stmtNode() {}
+
+// MethodOptStmt is method_opt, which the grammar reaches as a statement of its
+// own (stmt: method_opt): the statistics method of DBMS_STATS, which the server
+// parses and runs nothing for.
+//
+// Ref: method_opt, method_list, method, for_all, size_clause, for_columns and
+// for_columns_item in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines
+// 23802-23941).
+type MethodOptStmt struct {
+	Loc     Loc
+	Methods []*StatsMethod
+}
+
+func (s *MethodOptStmt) nodeTag()  {}
+func (s *MethodOptStmt) stmtNode() {}
+
+// StatsMethod is one method of method_opt: FOR ALL [INDEXED | HIDDEN] COLUMNS
+// [size_clause], or FOR COLUMNS with its for_columns_list.
+type StatsMethod struct {
+	Loc     Loc
+	ForAll  bool                   // FOR ALL, where false is FOR COLUMNS
+	Indexed string                 // "INDEXED" or "HIDDEN", and "" without one
+	Size    string                 // FOR ALL's size_clause: "AUTO", "REPEAT", "SKEWONLY" or a number
+	Items   []*StatsForColumnsItem // for_columns_list, for FOR COLUMNS
+}
+
+func (m *StatsMethod) nodeTag() {}
+
+// StatsForColumnsItem is one for_columns_item: a column_clause, a size_clause,
+// or a column with the size that follows it.
+type StatsForColumnsItem struct {
+	Loc     Loc
+	Columns []string // column_clause: one column name, or an extension's '(' column_name_list ')'
+	Size    string   // size_clause: "AUTO", "REPEAT", "SKEWONLY" or the number as written
+}
+
+func (i *StatsForColumnsItem) nodeTag() {}
 
 // OptimizeTableStmt represents an OPTIMIZE TABLE statement.
 type OptimizeTableStmt struct {
@@ -2515,6 +2617,36 @@ type JsonTableColumn struct {
 }
 
 func (c *JsonTableColumn) nodeTag() {}
+
+// RbIterateExpr is RB_ITERATE(expr) [AS] alias [(column)], a table function of
+// OceanBase's own: the rows of an array produced by a row-based expression.
+//
+// Ref: rb_iterate_expr in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6,
+// line 25536).
+type RbIterateExpr struct {
+	Loc    Loc
+	Arg    ExprNode // the simple_expr inside the parentheses
+	Alias  string   // [AS] relation_name
+	Column string   // the relation_name in parentheses after the alias, and "" without one
+}
+
+func (e *RbIterateExpr) nodeTag()   {}
+func (e *RbIterateExpr) tableExpr() {}
+
+// UnnestExpr is UNNEST(expr_list) [AS] alias [(column list)], which reads the
+// rows of the arrays its arguments produce.
+//
+// Ref: unnest_expr in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line
+// 25559).
+type UnnestExpr struct {
+	Loc     Loc
+	Args    []ExprNode // simple_expr_list
+	Alias   string     // [AS] relation_name
+	Columns []string   // relation_name_list in parentheses after the alias
+}
+
+func (e *UnnestExpr) nodeTag()   {}
+func (e *UnnestExpr) tableExpr() {}
 
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {

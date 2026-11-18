@@ -30,6 +30,49 @@ import (
 
 // parseInsertStmt parses an INSERT statement. INSERT is the current token.
 func (p *Parser) parseInsertStmt() (ast.Node, error) {
+	stmt, err := p.parseInsertPrefix(false)
+	if err != nil {
+		return nil, err
+	}
+
+	// The data source: VALUES list | query | ( query ) | TABLE clause.
+	// onConflictAllowed tracks whether the source admits a trailing ON CONFLICT
+	// (the grammar's alternatives 2 and 3); a bare top-level query (alt 1's
+	// `query` that is NOT parenthesized) does NOT.
+	onConflictAllowed, err := p.parseInsertSource(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	// on_conflict_clause (only after the VALUES / TABLE / ( query ) sources).
+	if p.cur.Type == kwON {
+		if !onConflictAllowed {
+			return nil, p.syntaxErrorAtCur()
+		}
+		oc, err := p.parseOnConflict()
+		if err != nil {
+			return nil, err
+		}
+		stmt.OnConflict = oc
+	}
+
+	if err := p.parseInsertTail(stmt); err != nil {
+		return nil, err
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseInsertPrefix parses insert_statement_in_pipe_prefix (the part both the
+// statement and the pipe INSERT operator share):
+//
+//	INSERT opt_or_ignore_replace_update? INTO? <target> hint? column_list?
+//
+// cur is at INSERT. pipe is true for the pipe operator, where no data source
+// follows, so a '(' is always a column list (in the statement it may instead
+// open the parenthesized-query source).
+func (p *Parser) parseInsertPrefix(pipe bool) (*ast.InsertStmt, error) {
 	start := p.cur.Loc.Start
 	p.advance() // INSERT
 
@@ -65,7 +108,7 @@ func (p *Parser) parseInsertStmt() (ast.Node, error) {
 	// parenthesized query primary), whereas a column list opens with a column
 	// name (an identifier). atQueryStart only peeks one token, so it misses the
 	// nested `((SELECT …))` case — handle the leading '(' explicitly here.
-	if p.cur.Type == int('(') && !p.insertSourceParenFollows() {
+	if p.cur.Type == int('(') && (pipe || !p.insertSourceParenFollows()) {
 		cols, err := p.parseColumnList()
 		if err != nil {
 			return nil, err
@@ -73,32 +116,18 @@ func (p *Parser) parseInsertStmt() (ast.Node, error) {
 		stmt.Columns = cols
 	}
 
-	// The data source: VALUES list | query | ( query ) | TABLE clause.
-	// onConflictAllowed tracks whether the source admits a trailing ON CONFLICT
-	// (the grammar's alternatives 2 and 3); a bare top-level query (alt 1's
-	// `query` that is NOT parenthesized) does NOT.
-	onConflictAllowed, err := p.parseInsertSource(stmt)
-	if err != nil {
-		return nil, err
-	}
+	return stmt, nil
+}
 
-	// on_conflict_clause (only after the VALUES / TABLE / ( query ) sources).
-	if p.cur.Type == kwON {
-		if !onConflictAllowed {
-			return nil, p.syntaxErrorAtCur()
-		}
-		oc, err := p.parseOnConflict()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OnConflict = oc
-	}
-
+// parseInsertTail parses the trailing `ASSERT_ROWS_MODIFIED …` and
+// `THEN RETURN …` clauses shared by insert_statement and
+// insert_statement_in_pipe.
+func (p *Parser) parseInsertTail(stmt *ast.InsertStmt) error {
 	// opt_assert_rows_modified.
 	if p.cur.Type == kwASSERT_ROWS_MODIFIED {
 		ar, err := p.parseAssertRowsModified()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		stmt.AssertRows = ar
 	}
@@ -107,13 +136,11 @@ func (p *Parser) parseInsertStmt() (ast.Node, error) {
 	if p.cur.Type == kwTHEN {
 		ret, err := p.parseReturning()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		stmt.Returning = ret
 	}
-
-	stmt.Loc.End = p.prev.Loc.End
-	return stmt, nil
+	return nil
 }
 
 // parseInsertOrAction parses opt_or_ignore_replace_update and returns the

@@ -33,7 +33,7 @@ const gipkColumn = "my_row_id"
 
 // Relation kinds: tables and views share one space.
 const (
-	relTable        = "table"
+	relTable = "table"
 	relView  = "view"
 )
 
@@ -110,6 +110,9 @@ type mysqlSnapshot struct {
 	// materialized lists the relation keys of the snapshot's materialized
 	// views, which share the empty kind with its external tables.
 	materialized map[string]bool
+	// external lists the relation keys of the snapshot's external tables,
+	// which DROP TABLE drops where a materialized view stays.
+	external map[string]bool
 	// ignoresFKs lists those of the tables whose engine ignores foreign
 	// keys.
 	ignoresFKs map[string]bool
@@ -136,6 +139,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 		triggered:        make(map[string]bool),
 		ignoresFKs:       make(map[string]bool),
 		materialized:     make(map[string]bool),
+		external:         make(map[string]bool),
 		partial:          make(map[[2]string]bool),
 	}
 	s.db, _ = nameKey(spaceDatabase, db.GetName(), foldTables)
@@ -217,6 +221,7 @@ func newMySQLSnapshot(db *metadata.DatabaseSchemaMetadata, foldTables, oceanBase
 			for _, t := range schema.GetExternalTables() {
 				if k, ok := nameKey(spaceRelation, t.GetName(), foldTables); ok {
 					s.relations[k] = ""
+					s.external[k] = true
 					mark(spaceRelation, "", k)
 				}
 			}

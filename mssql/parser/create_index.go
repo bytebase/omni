@@ -1864,9 +1864,13 @@ func (p *Parser) parseDropAggregateStmt() (*nodes.DropAggregateStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// IF EXISTS
-	if _, ok := p.match(kwIF); ok {
-		p.match(kwEXISTS)
+	// IF EXISTS, both words, and then a name: DROP AGGREGATE, DROP AGGREGATE
+	// IF and DROP AGGREGATE IF a are Msg 102 (measured).
+	if p.cur.Type == kwIF {
+		p.advance()
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
 		stmt.IfExists = true
 	}
 
@@ -1874,6 +1878,9 @@ func (p *Parser) parseDropAggregateStmt() (*nodes.DropAggregateStmt, error) {
 	stmt.Name, err = p.parseTableRef()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.Name == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

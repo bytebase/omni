@@ -158,13 +158,25 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		// sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines 4162 and 4238).
 		var tables []nodes.TableExpr
 		leadingDot := p.cur.Type == '.'
-		if leadingDot {
+		// A url_expr is the single-table form's tbl_name too: `DELETE FROM
+		// SOURCE(...)`, `DELETE FROM 's'(FORMAT(...))` and `DELETE FROM
+		// FILES(...)` delete from an external table. The multi-table list holds
+		// relation_factors alone, so this is the single-table form.
+		externalTable := p.atURLExpr()
+		switch {
+		case externalTable:
+			ref, err := p.parseExternalTableRef()
+			if err != nil {
+				return nil, err
+			}
+			tables = []nodes.TableExpr{ref}
+		case leadingDot:
 			ref, err := p.parseRelationFactor()
 			if err != nil {
 				return nil, err
 			}
 			tables = []nodes.TableExpr{ref}
-		} else {
+		default:
 			list, err := p.parseDeleteTableList()
 			if err != nil {
 				return nil, err
@@ -179,7 +191,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		// USING holds bare table names (or aliases declared in USING), so an
 		// alias or PARTITION there followed by USING is a syntax error in
 		// MySQL.
-		singleTableOnly := leadingDot
+		singleTableOnly := leadingDot || externalTable
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
 				// The single-table form's table is a tbl_name, with its partitions,

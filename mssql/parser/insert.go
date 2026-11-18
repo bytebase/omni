@@ -46,8 +46,11 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 		stmt.Top = top
 	}
 
-	// Optional INTO
-	p.match(kwINTO)
+	// Optional INTO, or OVER, which SQL Server reads too (insertSpecification's
+	// (Into|Over)?; INSERT OVER a DEFAULT VALUES is accepted, measured).
+	if _, ok := p.match(kwINTO); !ok {
+		p.match(kwOVER)
+	}
 
 	// Completion: after INSERT [INTO] → table_ref
 	if p.collectMode() {

@@ -487,6 +487,8 @@ func TestOperators_DisambiguateMinus(t *testing.T) {
 	// '-' alone vs '->' vs '-}'.
 	assertKinds(t, "-", []TokenKind{int('-')})
 	assertKinds(t, "->", []TokenKind{tokArrow})
+	assertKinds(t, "::", []TokenKind{tokDoubleColon})
+	assertKinds(t, "@", []TokenKind{int('@')})
 	assertKinds(t, "-}", []TokenKind{tokRCurlyHyphen})
 	assertKinds(t, "a - b", []TokenKind{tokIdent, int('-'), tokIdent})
 }
@@ -521,9 +523,9 @@ func TestOperators_TrinoAbsentAreRejected(t *testing.T) {
 	// but Trino's lexer does NOT have any token for. TrinoLexer.g4 routes them to
 	// the UNRECOGNIZED_ catch-all, so omni must flag each (tokInvalid + error)
 	// rather than silently accept an over-permissive token. Notably absent:
-	// '&', '~', '@', '#', backslash, and the bare operators ':=', '::', '<<',
-	// '>>', '&&' (only their constituent single chars or nothing exist).
-	for _, ch := range []string{"&", "~", "@", "#", "\\"} {
+	// '&', '~', '#', backslash, and the bare operators ':=', '<<', '>>', '&&'
+	// (only their constituent single chars or nothing exist).
+	for _, ch := range []string{"&", "~", "#", "\\"} {
 		tokens, errs := Tokenize(ch)
 		if len(errs) == 0 || errs[0].Msg != errUnknownChar {
 			t.Errorf("Trino-absent %q: expected errUnknownChar, got errs=%v", ch, errs)
@@ -755,14 +757,13 @@ func TestClass_LiteralsNotReserved(t *testing.T) {
 
 func TestClass_Counts(t *testing.T) {
 	// Guardrails on the grammar-derived classification, counted directly from
-	// TrinoLexer.g4 (292 alphabetic keyword literals + UTF8/UTF16/UTF32 whose
-	// literals contain digits = 295 keyword tokens) and the nonReserved rule in
-	// TrinoParser.g4 (213 tokens), therefore 295-213 = 82 reserved.
-	if got := len(keywordMap); got != 295 {
-		t.Errorf("keywordMap size: got %d, want 295", got)
+	// the grammar's keyword literals and nonReserved rule. All added keywords are
+	// non-reserved, so 311-229 = 82 reserved.
+	if got := len(keywordMap); got != 311 {
+		t.Errorf("keywordMap size: got %d, want 311", got)
 	}
-	if got := len(nonReservedKeywords); got != 213 {
-		t.Errorf("nonReservedKeywords size: got %d, want 213", got)
+	if got := len(nonReservedKeywords); got != 229 {
+		t.Errorf("nonReservedKeywords size: got %d, want 229", got)
 	}
 	reserved := 0
 	seen := map[TokenKind]bool{}

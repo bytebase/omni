@@ -32,6 +32,16 @@ import (
 // parseWithClause parses a with_clause. WITH is the current token. It returns
 // the WithClause; the following query body is parsed by the caller (parseQuery).
 func (p *Parser) parseWithClause() (*ast.WithClause, error) {
+	return p.parseWithClauseBody(false)
+}
+
+// parseWithClauseWithTrailingComma parses the pipe WITH form, which allows a
+// comma after its last entry (pipe_with: with_clause ","?).
+func (p *Parser) parseWithClauseWithTrailingComma() (*ast.WithClause, error) {
+	return p.parseWithClauseBody(true)
+}
+
+func (p *Parser) parseWithClauseBody(allowTrailingComma bool) (*ast.WithClause, error) {
 	withTok := p.advance() // WITH
 	wc := &ast.WithClause{Loc: withTok.Loc}
 
@@ -50,6 +60,9 @@ func (p *Parser) parseWithClause() (*ast.WithClause, error) {
 			break
 		}
 		p.advance()
+		if allowTrailingComma && !isIdentifierStart(p.cur.Type) {
+			break
+		}
 	}
 	wc.Loc.End = p.prev.Loc.End
 	return wc, nil

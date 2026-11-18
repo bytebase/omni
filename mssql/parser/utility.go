@@ -675,33 +675,34 @@ func (p *Parser) parseCreateDefaultStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// [ schema_name . ] default_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		name := p.cur.Str
+	if !p.isIdentLike() && p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	name := p.cur.Str
+	p.advance()
+	if p.cur.Type == '.' {
+		p.advance() // consume '.'
+		if !p.isIdentLike() && p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		name = name + "." + p.cur.Str
 		p.advance()
-		if p.cur.Type == '.' {
-			p.advance() // consume '.'
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				name = name + "." + p.cur.Str
-				p.advance()
-			}
-		}
-		stmt.Name = name
 	}
+	stmt.Name = name
 
-	// AS constant_expression
-	var opts []nodes.Node
-	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		// Parse the expression that follows AS
-		expr, _ := p.parseExpr()
-		if expr != nil {
-			opts = append(opts, &nodes.String{Str: "AS"})
-			opts = append(opts, expr)
-		}
+	// AS constant_expression, both required: CREATE DEFAULT AS 1 and
+	// CREATE DEFAULT a AS are Msg 156 and Msg 102 (measured).
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
 	}
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
 	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "AS"}, expr}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
@@ -724,35 +725,68 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 	}
 
 	// [ schema_name . ] rule_name
-	if p.isIdentLike() || p.cur.Type == tokSCONST {
-		name := p.cur.Str
+	if !p.isIdentLike() && p.cur.Type != tokSCONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	name := p.cur.Str
+	p.advance()
+	if p.cur.Type == '.' {
+		p.advance() // consume '.'
+		if !p.isIdentLike() && p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		name = name + "." + p.cur.Str
 		p.advance()
-		if p.cur.Type == '.' {
-			p.advance() // consume '.'
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				name = name + "." + p.cur.Str
-				p.advance()
-			}
-		}
-		stmt.Name = name
 	}
+	stmt.Name = name
 
-	// AS condition_expression
-	var opts []nodes.Node
-	if p.cur.Type == kwAS {
-		p.advance() // consume AS
-		expr, _ := p.parseExpr()
-		if expr != nil {
-			opts = append(opts, &nodes.String{Str: "AS"})
-			opts = append(opts, expr)
-		}
+	// AS condition_expression, both required: CREATE RULE AS 1 = 1 is
+	// Msg 156 and CREATE RULE a AS 1 = is Msg 102 (measured). SQL Server
+	// then refuses a condition with no variable (Msg 160), which is its
+	// check on the tree and not on the text.
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
 	}
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
+	// The rule's condition_expression is a search condition.
+	p.enterSearchCondition()
+	expr, err := p.parseExpr()
+	p.leaveSearchCondition()
+	if err != nil {
+		return nil, err
 	}
+	if expr == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// SQL Server refuses a rule whose condition names no variable: the rule
+	// binds to a column through it, so CREATE RULE a AS 1 = 1 is Msg 160,
+	// "Rule does not contain a variable" (measured).
+	if !exprNamesVariable(expr) {
+		return nil, p.newParseError(loc, "rule does not contain a variable")
+	}
+	stmt.Options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "AS"}, expr}}
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil
+}
+
+// exprNamesVariable reports whether the expression names a variable, which a
+// rule's condition must. The walk keeps its own stack: a rule's condition is
+// a left-deep chain the parser reads by a loop, so a recursive walk would
+// overflow the stack before treeTooHigh sees the tree (depth.go).
+func exprNamesVariable(expr nodes.ExprNode) bool {
+	stack := []nodes.Node{expr}
+	var kids childLister
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if _, ok := n.(*nodes.VariableRef); ok {
+			return true
+		}
+		kids.entered, kids.children = false, kids.children[:0]
+		nodes.Walk(&kids, n)
+		stack = append(stack, kids.children...)
+	}
+	return false
 }
 
 // parseEnableDisableTriggerStmt parses ENABLE TRIGGER or DISABLE TRIGGER.
@@ -762,6 +796,9 @@ func (p *Parser) parseCreateRuleStmt() (*nodes.SecurityStmt, error) {
 //
 //	{ ENABLE | DISABLE } TRIGGER { [ schema_name . ] trigger_name [ , ...n ] | ALL }
 //	    ON { object_name | DATABASE | ALL SERVER }
+//
+// The ON clause and its scope are required: SQL Server refuses
+// DISABLE TRIGGER ALL and ENABLE TRIGGER a with Msg 102 (measured).
 func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisableTriggerStmt, error) {
 	loc := p.pos()
 	p.advance() // consume ENABLE or DISABLE
@@ -772,59 +809,59 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisabl
 		Loc:    nodes.Loc{Start: loc, End: -1},
 	}
 
-	// { trigger_name [ , ...n ] | ALL }
+	// { trigger_name [ , ...n ] | ALL }: SQL Server requires it, and the ON
+	// clause with it (DISABLE TRIGGER a is Msg 102, DISABLE TRIGGER ON a is
+	// Msg 156, measured).
 	if p.cur.Type == kwALL {
 		stmt.TriggerAll = true
 		p.advance()
 	} else {
 		var triggers []nodes.Node
 		for {
-			if p.isIdentLike() || p.cur.Type == tokSCONST {
-				// Possibly schema-qualified: schema.trigger_name
-				name := p.cur.Str
-				p.advance()
-				if p.cur.Type == '.' {
-					p.advance()
-					if p.isIdentLike() {
-						name = name + "." + p.cur.Str
-						p.advance()
-					}
-				}
-				triggers = append(triggers, &nodes.String{Str: name})
-			} else {
-				break
+			if !p.isIdentLike() && p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			// Possibly schema-qualified: schema.trigger_name
+			name := p.cur.Str
+			p.advance()
+			if p.cur.Type == '.' {
+				p.advance()
+				if p.isIdentLike() {
+					name = name + "." + p.cur.Str
+					p.advance()
+				}
+			}
+			triggers = append(triggers, &nodes.String{Str: name})
 			if _, ok := p.match(','); !ok {
 				break
 			}
 		}
-		if len(triggers) > 0 {
-			stmt.Triggers = &nodes.List{Items: triggers}
-		}
+		stmt.Triggers = &nodes.List{Items: triggers}
 	}
 
 	// ON { object_name | DATABASE | ALL SERVER }
-	if _, ok := p.match(kwON); ok {
-		if p.cur.Type == kwDATABASE {
-			stmt.OnDatabase = true
-			p.advance()
-		} else if p.cur.Type == kwALL {
-			// ALL SERVER (triggerScope, TSql160.g:25412)
-			p.advance()
-			if !p.matchIdentCI("SERVER") {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.OnAllServer = true
-		} else {
-			obj, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			if obj == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.OnObject = obj
+	if _, err := p.expect(kwON); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwDATABASE {
+		stmt.OnDatabase = true
+		p.advance()
+	} else if p.cur.Type == kwALL {
+		// ALL SERVER (triggerScope, TSql160.g:25412)
+		p.advance()
+		if !p.matchIdentCI("SERVER") {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.OnAllServer = true
+	} else {
+		obj, err := p.parseTableRef()
+		if err != nil {
+			return nil, err
+		}
+		if obj == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.OnObject = obj
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -1331,10 +1368,13 @@ func (p *Parser) parseLinenoStmt() (*nodes.LinenoStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	if p.cur.Type == tokICONST {
-		stmt.LineNo = int(p.cur.Ival)
-		p.advance()
+	// LINENO integer: the integer is required, and a bare LINENO is Msg 102
+	// (measured).
+	if p.cur.Type != tokICONST {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.LineNo = int(p.cur.Ival)
+	p.advance()
 
 	stmt.Loc.End = p.prevEnd()
 	return stmt, nil

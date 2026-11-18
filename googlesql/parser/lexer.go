@@ -609,10 +609,12 @@ func (l *Lexer) scanOperatorOrPunct(ch byte) Token {
 			return l.emitMulti(start, 2, tokAtAt)
 		}
 		return l.emitSingle(start, ch) // AT_SYMBOL '@'
-	case '*', '/', '%', '~', '^', '&', '(', ')', '[', ']', '{', '}', ',', ';', '.', ':', '?':
+	case '*', '/', '%', '~', '^', '&', '(', ')', '[', ']', '{', '}', ',', ';', '.', ':', '?', '$':
+		// '$' is the DOLLAR_SIGN token (googlesql.tm:192), the row-pattern end
+		// anchor. It is not an identifier character.
 		return l.emitSingle(start, ch)
 	}
-	// Unknown byte (e.g. '$', which is not a GoogleSQL token).
+	// Unknown byte.
 	l.errors = append(l.errors, LexError{Loc: ast.Loc{Start: start, End: start + 1}, Msg: errInvalidByte})
 	l.pos++
 	return Token{Type: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}

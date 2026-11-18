@@ -291,13 +291,50 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 	case *ast.SubqueryExpr:
 		// Derived table: resolve the inner SELECT, then build a virtual table
 		// from its target list so outer queries can reference derived columns.
+		// A derived table over a source whose columns are known only when the
+		// query runs has no columns to expand either.
 		if t.Select != nil {
 			r.Resolve(t.Select)
+			if t.Alias != "" && selectHasUnknownColumns(t.Select) {
+				sc.unknownColumns[strings.ToLower(t.Alias)] = true
+			}
 			vt := buildDerivedVirtualTable(t)
 			if vt != nil && t.Alias != "" {
 				sc.add(t, t.Alias, vt)
 			}
 		}
+	case *ast.UnnestExpr:
+		// A table function's outputs are the columns it declares, or, without a
+		// column alias list, the arguments it returns rows from. Without an
+		// alias its columns are unqualified.
+		names := t.Columns
+		if len(names) == 0 {
+			for _, arg := range t.Args {
+				if name := tableFunctionArgumentName(arg); name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+		if len(names) == 0 {
+			return
+		}
+		var cols []ResolverColumn
+		for i, name := range names {
+			cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
+		}
+		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: cols})
+	case *ast.RbIterateExpr:
+		name := t.Column
+		if name == "" {
+			name = tableFunctionArgumentName(t.Arg)
+		}
+		if name == "" {
+			return
+		}
+		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
+	case *ast.ExternalTableRef:
+		// The file's columns are known only when the query runs, so there is
+		// nothing to expand here.
 	}
 }
 
@@ -327,11 +364,19 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position in
 
 	// Check for qualified star: t1.*
 	if col, ok := expr.(*ast.ColumnRef); ok && col.Star {
+		if sc.unknownColumns[strings.ToLower(col.Table)] {
+			return []ast.ExprNode{target}
+		}
 		return r.expandQualifiedStar(col.Table, sc)
 	}
 
 	// Check for unqualified star: *
 	if _, ok := expr.(*ast.StarExpr); ok {
+		// A source whose columns are known only when the query runs — a table
+		// read from a location — cannot be expanded: the star stays as it is.
+		if sc.hasUnknownColumns() {
+			return []ast.ExprNode{target}
+		}
 		return r.expandStar(sc)
 	}
 
@@ -926,4 +971,31 @@ type AmbiguousColumnError struct {
 
 func (e *AmbiguousColumnError) Error() string {
 	return fmt.Sprintf("column %q is ambiguous, found in tables: %s", e.Column, strings.Join(e.Tables, ", "))
+}
+
+// tableFunctionArgumentName is the output name a table function takes from an
+// argument: a column's name, and "" for an expression that has none.
+func tableFunctionArgumentName(arg ast.ExprNode) string {
+	if col, ok := arg.(*ast.ColumnRef); ok {
+		return col.Column
+	}
+	return ""
+}
+
+// selectHasUnknownColumns reports whether a query reads a relation whose columns
+// are known only when it runs, directly or through a derived table.
+func selectHasUnknownColumns(sel *ast.SelectStmt) bool {
+	if sel == nil {
+		return false
+	}
+	return itemHasUnknownColumnsInList(sel.From)
+}
+
+func itemHasUnknownColumnsInList(items []ast.TableExpr) bool {
+	for _, te := range items {
+		if itemHasUnknownColumns(te) {
+			return true
+		}
+	}
+	return false
 }

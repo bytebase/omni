@@ -115,7 +115,10 @@ var callableKeywordManifest = []callableKeyword{
 	{keyword: "SESSION_USER", role: roleNiladic, acceptSample: "SELECT SESSION_USER"},
 	{keyword: "SYSTEM_USER", role: roleNiladic, acceptSample: "SELECT SYSTEM_USER"},
 	{keyword: "USER", role: roleNiladic, acceptSample: "SELECT USER"},
-	{keyword: "CURRENT_DATE", role: roleNiladic, acceptSample: "SELECT CURRENT_DATE"},
+	// CURRENT_DATE is ScriptDOM's parameterlessCall for another engine: the
+	// pinned SQL Server 2022 refuses `SELECT CURRENT_DATE` with Msg 156
+	// (compat.tsv's parameterlessCall/CurrentDate), and only the ODBC escape
+	// {fn CURRENT_DATE()} reaches it.
 	{keyword: "IDENTITYCOL", role: roleNiladic, acceptSample: "SELECT IDENTITYCOL FROM t"},
 	{keyword: "ROWGUIDCOL", role: roleNiladic, acceptSample: "SELECT ROWGUIDCOL FROM t"},
 }

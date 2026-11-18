@@ -98,6 +98,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	if err := c.reanalyzeViews(ctx, views); err != nil {
 		return report, err
 	}
+
 	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
 		applyDatabaseSessionContext(db, sessionContexts(installed))
 	}

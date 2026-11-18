@@ -89,6 +89,12 @@ func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, code review.Find
 		return d, nil, review.TableNotBackupable, "Prior backup can't back up the table variable " + review.Code(t.Name) + ".\n\nTurn off **Prior backup** for this change."
 	case *ast.TableRef:
 		ref = backedUp(t, d.from)
+	case *ast.AliasedTableRef, *ast.AdHocTableRef, *ast.FuncCallExpr:
+		// A rowset function or a call is no table to copy, and the backup's
+		// analysis refuses it: UPDATE and DELETE take one as their target
+		// (compat.tsv's dmlTarget rows), so the rule refuses it here too
+		// rather than approve a statement the backup cannot read.
+		return d, nil, review.TableNotBackupable, "Prior backup can't back up a rowset function or a function call as a statement's target.\n\nName the table the change writes, or turn off **Prior backup** for this change."
 	}
 	switch {
 	case ref == nil || strings.HasPrefix(ref.Object, "#"):

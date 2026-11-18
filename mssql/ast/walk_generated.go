@@ -940,6 +940,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *WithClause:
 		walkList(v, n.XmlNamespaces)
+		Walk(v, n.CTContext)
 		walkList(v, n.CTEs)
 	case *WritetextStmt:
 		if n.Column != nil {
