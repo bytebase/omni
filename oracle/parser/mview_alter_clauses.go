@@ -450,7 +450,12 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 	case p.atWord("ANNOTATIONS"):
 		setAlterMviewAction(stmt, "ANNOTATIONS")
 		p.advance() // consume ANNOTATIONS
-		return p.parseAlterMviewAnnotations()
+		anns, err := p.parseAlterMviewAnnotations()
+		if err != nil {
+			return err
+		}
+		stmt.Annotations = anns
+		return nil
 	}
 	return nil
 }
@@ -461,13 +466,18 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 // ADD, and an unquoted word after such a name (compat.tsv's ADMIN a,
 // DUALITY a and REMOVE ALL zzz rows), while a reserved word there is still
 // no annotation name (RENAME ALL is refused).
-func (p *Parser) parseAlterMviewAnnotations() error {
+func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
+	anns := &nodes.List{}
 	if err := p.atExpect('('); err != nil {
-		return err
+		return nil, err
 	}
 	for first := true; ; first = false {
+		start := p.pos()
+		op := ""
+		var name, value string
 		switch {
 		case p.cur.Type == kwADD, p.cur.Type == kwDROP:
+			op = p.cur.Str
 			p.advance()
 			if p.cur.Type == kwIF {
 				p.advance()
@@ -475,51 +485,72 @@ func (p *Parser) parseAlterMviewAnnotations() error {
 					p.advance()
 				}
 				if err := p.atExpect(kwEXISTS); err != nil {
-					return err
+					return nil, err
 				}
 			}
 			if err := p.parseATName(); err != nil {
-				return err
+				return nil, err
 			}
+			name = p.prev.Str
 			if p.cur.Type == tokSCONST {
+				value = p.cur.Str
 				p.advance()
 			}
 		case p.atWord("REPLACE"):
+			op = "REPLACE"
 			p.advance()
 			if err := p.parseATName(); err != nil {
-				return err
+				return nil, err
 			}
+			name = p.prev.Str
 			if p.cur.Type == tokSCONST {
+				value = p.cur.Str
 				p.advance()
 			}
 		case p.atWord("REMOVE") && p.atNextWord("ALL"):
+			op = "REMOVE"
 			p.advance()
 			p.advance()
 			for p.isIdentLike() {
 				p.advance()
 			}
-			return p.atExpect(')')
+			opt := &nodes.DDLOption{Key: op, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+			anns.Items = append(anns.Items, opt)
+			if err := p.atExpect(')'); err != nil {
+				return nil, err
+			}
+			return anns, nil
 		case p.isKeywordStr("ALL"):
 			p.advance()
+			name = p.prev.Str
 		default:
 			if !p.isATNameStart() {
-				return p.syntaxErrorAtCur()
+				return nil, p.syntaxErrorAtCur()
 			}
 			if err := p.parseATName(); err != nil {
-				return err
+				return nil, err
 			}
+			name = p.prev.Str
 			if first {
 				for p.isIdentLike() {
 					p.advance()
 				}
 			}
 		}
+		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+		if value != "" {
+			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.String{Str: value}}}
+		}
+		anns.Items = append(anns.Items, opt)
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
 	}
-	return p.atExpect(')')
+	if err := p.atExpect(')'); err != nil {
+		return nil, err
+	}
+	return anns, nil
 }
 
 // parseAlterMviewInmemoryColumnItem reads the inmemory_column_clause of

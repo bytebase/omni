@@ -3322,6 +3322,9 @@ type AlterMaterializedViewStmt struct {
 	// EVALUATE USING EDITION
 	EditionName string // edition name
 
+	// ANNOTATIONS operations
+	Annotations *List // annotations_clause operations, one *DDLOption each
+
 	// MODIFY SCOPE FOR
 	ScopeColumn string      // ref column name
 	ScopeTable  *ObjectName // target table name

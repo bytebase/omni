@@ -4660,6 +4660,16 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 	if n.EditionName != "" {
 		sb.WriteString(fmt.Sprintf(" :editionName %q", n.EditionName))
 	}
+	if n.Annotations != nil && n.Annotations.Len() > 0 {
+		sb.WriteString(" :annotations (")
+		for i, item := range n.Annotations.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
+	}
 	if n.ScopeColumn != "" {
 		sb.WriteString(fmt.Sprintf(" :scopeColumn %q", n.ScopeColumn))
 	}
