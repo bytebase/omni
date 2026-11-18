@@ -110,12 +110,14 @@ func TestParseComparison(t *testing.T) {
 	}
 }
 
-// TestParseBoolean tests boolean operators.
+// TestParseBoolean tests boolean operators, which belong to a search
+// condition: SQL Server refuses them in a select list (SELECT 1 = 1 AND 2 = 2
+// is Msg 102, measured).
 func TestParseBoolean(t *testing.T) {
 	tests := []string{
-		"SELECT 1 = 1 AND 2 = 2",
-		"SELECT 1 = 1 OR 2 = 2",
-		"SELECT NOT 1 = 1",
+		"SELECT 1 WHERE 1 = 1 AND 2 = 2",
+		"SELECT 1 WHERE 1 = 1 OR 2 = 2",
+		"SELECT 1 WHERE NOT 1 = 1",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -832,12 +834,13 @@ func TestParseExpressions(t *testing.T) {
 	})
 
 	t.Run("logical", func(t *testing.T) {
+		// In a search condition, the only place a boolean is a value.
 		tests := []string{
-			"SELECT 1 = 1 AND 2 = 2",
-			"SELECT 1 = 1 OR 2 = 2",
-			"SELECT NOT 1 = 1",
-			"SELECT 1 = 1 AND 2 = 2 OR 3 = 3",
-			"SELECT NOT (1 = 1 AND 2 = 2)",
+			"SELECT 1 WHERE 1 = 1 AND 2 = 2",
+			"SELECT 1 WHERE 1 = 1 OR 2 = 2",
+			"SELECT 1 WHERE NOT 1 = 1",
+			"SELECT 1 WHERE 1 = 1 AND 2 = 2 OR 3 = 3",
+			"SELECT 1 WHERE NOT (1 = 1 AND 2 = 2)",
 		}
 		for _, sql := range tests {
 			t.Run(sql, func(t *testing.T) {

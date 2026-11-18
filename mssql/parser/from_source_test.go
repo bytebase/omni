@@ -28,7 +28,7 @@ func TestTableSourceShapes(t *testing.T) {
 		"SELECT * FROM OPENXML(@a, 'a', 1)",
 		"SELECT * FROM OPENXML(@a, @b, @c)",
 		"SELECT * FROM OPENQUERY(srv, 'SELECT 1')",
-		"SELECT * FROM OPENROWSET(a)",
+		"SELECT * FROM OPENROWSET('SQLNCLI', 'srv', 'SELECT 1')",
 		"SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)",
 	} {
 		ParseAndCheck(t, sql)
@@ -55,7 +55,13 @@ func TestTableSourceShapes(t *testing.T) {
 		"SELECT * FROM OPENQUERY(1)",
 		"SELECT * FROM OPENQUERY('srv', 'SELECT 1')",
 		"SELECT * FROM OPENQUERY(srv)",
-		// fulltextTableOptions' top-N argument is an integer or a variable.
+		// OPENROWSET's first argument is the provider, a string literal:
+		// an identifier there is Msg 156, near OPENROWSET.
+		"SELECT * FROM OPENROWSET(a)",
+		"SELECT * FROM OPENROWSET(a) zzz",
+		// fulltextTableOptions' top-N argument is an integer or a variable,
+		// and it follows LANGUAGE, which it may not precede.
+		"SELECT * FROM CONTAINSTABLE(a, a, 'a', 1, LANGUAGE 0x00)",
 		"SELECT * FROM CONTAINSTABLE(a, a, 'a', 0x00)",
 		// SPATIAL_WINDOW_MAX_CELLS takes a value.
 		"DELETE a WITH(SPATIAL_WINDOW_MAX_CELLS =)",

@@ -75,8 +75,29 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) {
 	loc := p.pos()
 
+	// A name may start with dots, which name empty parts (identifierListElement,
+	// TSql160.g:30332): SQL Server reads FROM .a, FROM ..a and FROM .a() (measured).
+	var leading []string
+	for p.cur.Type == '.' {
+		// A name holds at most four parts, and a fifth is Msg 117: "The object
+		// name '....a' contains more than the maximum number of prefixes"
+		// (measured).
+		if len(leading) == 3 {
+			return nil, p.newParseError(p.cur.Loc, "an object name has at most four parts")
+		}
+		leading = append(leading, "")
+		p.advance() // consume .
+		if p.collectMode() {
+			p.addRuleCandidate(completionRule)
+			return nil, errCollecting
+		}
+	}
+
 	name, ok := p.parseIdentifier()
 	if !ok {
+		if len(leading) > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return nil, nil
 	}
 	if p.collectMode() && p.cursorOff <= p.prev.End {
@@ -90,8 +111,13 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 	}
 
 	// Collect dot-separated parts
-	parts := []string{name}
+	parts := append(leading, name)
 	for p.cur.Type == '.' {
+		// Four parts are the most, and a fifth is Msg 117: "The object name
+		// '...a.b' contains more than the maximum number of prefixes".
+		if len(parts) == 4 {
+			return nil, p.newParseError(p.cur.Loc, "an object name has at most four parts")
+		}
 		p.advance() // consume .
 		// Completion: after dot in qualified name → caller-specific object rule.
 		if p.collectMode() {
@@ -335,11 +361,13 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	// Static method call: type::Method(args)
 	if p.cur.Type == tokCOLONCOLON {
 		p.advance() // consume ::
-		method := ""
-		if p.isIdentLike() {
-			method = p.cur.Str
-			p.advance()
+		// A static method call names its method: SELECT a :: is Msg 102
+		// (measured).
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
 		}
+		method := p.cur.Str
+		p.advance()
 		mc := &nodes.MethodCallExpr{
 			Type:   &nodes.DataType{Name: name, Loc: nodes.Loc{Start: loc, End: -1}},
 			Method: method,
@@ -604,11 +632,11 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 			// Check for :: static method call: schema.type::Method(args)
 			if p.cur.Type == tokCOLONCOLON {
 				p.advance() // consume ::
-				method := ""
-				if p.isIdentLike() {
-					method = p.cur.Str
-					p.advance()
+				if !p.isIdentLike() {
+					return nil, p.syntaxErrorAtCur()
 				}
+				method := p.cur.Str
+				p.advance()
 				dt := &nodes.DataType{Name: partName, Loc: nodes.Loc{Start: loc, End: -1}}
 				if len(parts) > 0 {
 					dt.Schema = parts[0]
@@ -644,7 +672,9 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 
 			parts = append(parts, partName)
 		} else {
-			break
+			// A dot names the next part: SELECT a. and SELECT a.b. are Msg 102
+			// (measured).
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 

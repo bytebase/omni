@@ -71,9 +71,43 @@ func TestRewriteResultLimit(t *testing.T) {
 			want:      "SELECT x FROM t ORDER BY x FOR UPDATE",
 		},
 		{
-			name:      "unparsable query is unchanged",
+			// A pipe query's limit is a `|> LIMIT` operator, so the cap is
+			// appended as one.
+			name:      "pipe query gets a pipe limit",
 			statement: "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
-			want:      "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
+			want:      "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1 |> LIMIT 100",
+		},
+		{
+			name:      "pipe query limit is lowered",
+			statement: "SELECT x FROM t |> LIMIT 5000",
+			want:      "SELECT x FROM t |> LIMIT 100",
+		},
+		{
+			name:      "pipe query limit all is capped by another operator",
+			statement: "SELECT x FROM t |> LIMIT ALL",
+			want:      "SELECT x FROM t |> LIMIT ALL |> LIMIT 100",
+		},
+		{
+			name:      "suffix-only statement gets a pipe limit",
+			statement: "|> WHERE x > 1",
+			want:      "|> WHERE x > 1 |> LIMIT 100",
+		},
+		{
+			name:      "non-literal pipe limit is unchanged",
+			statement: "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
+			want:      "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
+		},
+		{
+			// The `TABLE t` query primary is a query, so the in-place LIMIT binds at
+			// the clause's end like any other query.
+			name:      "table clause",
+			statement: "TABLE t",
+			want:      "TABLE t LIMIT 100",
+		},
+		{
+			name:      "table clause with filter",
+			statement: "TABLE t WHERE a > 1",
+			want:      "TABLE t WHERE a > 1 LIMIT 100",
 		},
 		{
 			name:      "dml is unchanged",
@@ -100,6 +134,20 @@ func TestStatementWithResultLimit(t *testing.T) {
 		dialect   Dialect
 		want      string
 	}{
+		{
+			name:      "bigquery caps a suffix-only statement with a pipe limit",
+			statement: "|> WHERE x > 1",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "|> WHERE x > 1 |> LIMIT 10",
+		},
+		{
+			name:      "bigquery appends a literal cap after a parameterized pipe limit",
+			statement: "|> LIMIT @n",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "|> LIMIT @n |> LIMIT 10",
+		},
 		{
 			name:      "bigquery wraps a select",
 			statement: "SELECT * FROM t",

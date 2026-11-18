@@ -77,7 +77,8 @@ func TableRequirePK(stmts []ast.Node, original *v1review.Schema) []v1review.Find
 	for i, stmt := range stmts {
 		switch n := stmt.(type) {
 		case *ast.CreateTableStmt:
-			if n.Table == nil {
+			// An external table has no in-engine primary key to require.
+			if n.Table == nil || n.External {
 				continue
 			}
 			table := n.Table.Name
@@ -99,7 +100,7 @@ func TableRequirePK(stmts []ast.Node, original *v1review.Schema) []v1review.Find
 				}
 			}
 		case *ast.AlterTableStmt:
-			if n.Table == nil {
+			if n.Table == nil || n.External {
 				continue
 			}
 			table := n.Table.Name

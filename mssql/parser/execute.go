@@ -69,11 +69,12 @@ func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
 
 // isImpliedExecName reports whether the current token can name a procedure
 // called by name without EXEC. optSimpleExecute's predicate keeps its word
-// from being DISABLE, ENABLE, MOVE, GET, RECEIVE, SEND, THROW or RENAME
+// from being DISABLE, ENABLE, MOVE, GET, RECEIVE, SEND or THROW
 // (TSql160.g:572), which start statements of their own: `ENABLE 1` is no call
-// (Msg 102, measured). RENAME stays out too, for Synapse's
-// renameEntityStatement (TSql160.g:476) that omni reads and the pinned server
-// has no statement for, though `RENAME 1` is a call to it.
+// (Msg 102, measured). RENAME is not among them: SQL Server 2022 has no
+// RENAME statement, so `RENAME a` is a call to a procedure RENAME, as it is
+// for ScriptDOM's identifier, and the Synapse forms omni does read are
+// dispatched before this by their OBJECT or DATABASE word.
 func (p *Parser) isImpliedExecName() bool {
 	if p.cur.Type != '.' && !p.isIdentLike() {
 		return false
@@ -82,7 +83,7 @@ func (p *Parser) isImpliedExecName() bool {
 		return true
 	}
 	switch strings.ToUpper(p.cur.Str) {
-	case "DISABLE", "ENABLE", "MOVE", "GET", "RECEIVE", "SEND", "THROW", "RENAME":
+	case "DISABLE", "ENABLE", "MOVE", "GET", "RECEIVE", "SEND", "THROW":
 		return false
 	}
 	return true

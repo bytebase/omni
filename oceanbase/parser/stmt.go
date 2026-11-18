@@ -21,7 +21,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 			kwLOCK, kwUNLOCK,
 			kwGRANT, kwREVOKE,
 			kwLOAD, kwPREPARE, kwEXECUTE, kwDEALLOCATE,
-			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR,
+			kwANALYZE, kwOPTIMIZE, kwCHECK, kwREPAIR, kwFOR,
 			kwFLUSH, kwRESET, kwKILL, kwDO,
 			kwXA, kwCALL, kwHELP,
 		}
@@ -136,6 +136,10 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwANALYZE:
 		return p.parseAnalyzeTableStmt()
+
+	case kwFOR:
+		// method_opt, which the grammar reaches as a statement of its own.
+		return p.parseMethodOptStmt()
 
 	case kwOPTIMIZE:
 		return p.parseOptimizeTableStmt()
@@ -365,7 +369,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	// Completion: after CREATE keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwMATERIALIZED, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwMATERIALIZED, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwEXTERNAL} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -380,16 +384,30 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	}
 
 	temporary := false
+	external := false
 
-	// TEMPORARY
+	// TEMPORARY, or EXTERNAL: special_table_type has one of the two and never
+	// both, and EXTERNAL stands before TABLE alone (CREATE EXTERNAL TABLE).
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
+	} else if p.cur.Type == kwEXTERNAL {
+		p.advance()
+		external = true
+		// Completion: after CREATE EXTERNAL, TABLE is the only continuation.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwTABLE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(start, temporary)
+		return p.parseCreateTableStmt(start, temporary, external)
 
 	case kwINDEX:
 		return p.parseCreateIndexStmt(start, false, false, false)
@@ -600,7 +618,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// Completion: after ALTER keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwMATERIALIZED, kwFUNCTION, kwPROCEDURE, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwMATERIALIZED, kwFUNCTION, kwPROCEDURE, kwEVENT, kwEXTERNAL} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -608,6 +626,21 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	if stmt, ok, err := p.parseClusterDDL(start, "ALTER"); ok {
 		return stmt, err
+	}
+
+	// ALTER EXTERNAL TABLE: alter_table_stmt's EXTERNAL alternative, which takes
+	// the same actions as ALTER TABLE and two of its own.
+	if p.cur.Type == kwEXTERNAL {
+		p.advance()
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwTABLE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseAlterExternalTableStmt(start)
 	}
 
 	// ALTER DISKGROUP is one of alter_system_stmt's alternatives.

@@ -16,6 +16,9 @@ import (
 //	describe_info:       identifier? maybe_slashed_or_dashed_path_expression opt_from_path_expression?
 //	rename_statement:    RENAME identifier path_expression TO path_expression
 //	call_statement:      CALL path_expression '(' (tvf_argument (',' tvf_argument)*)? ')'
+//	show_statement:      SHOW show_target from_path_expression? like_string_literal?
+//	import_statement:    IMPORT import_type path_expression_or_string opt_as_or_into_alias opt_options_list
+//	module_statement:    MODULE path_expression opt_options_list
 //
 // CORRECTNESS (correctness-protocol.md). Adjudication per oracle.md:
 //   - CALL is parsed in FULL by the live Spanner emulator (it validates the arg
@@ -337,6 +340,10 @@ func (p *Parser) parseCallStmt() (ast.Node, error) {
 // expression, which parseExpr handles.)
 func (p *Parser) parseCallArg() (ast.Node, error) {
 	switch p.cur.Type {
+	case kwINPUT:
+		if p.peekNext().Type == kwTABLE {
+			return p.parseCallInputTableArg()
+		}
 	case kwTABLE:
 		if isIdentifierStart(p.peekNext().Type) {
 			return p.parseCallTableArg()
@@ -355,30 +362,73 @@ func (p *Parser) parseCallArg() (ast.Node, error) {
 		}
 	}
 
-	// Named argument: identifier '=>' value. The value may itself be a lambda —
-	// named_argument: identifier '=>' (expression | lambda_argument) — so
-	// `f => x -> x` and `f => (x) -> x` are valid (oracle: both accept). Reuses
-	// the expressions node's lambda-aware argument-value parser so CALL and TVF
-	// argument lists agree. (A bare POSITIONAL lambda `CALL p(x -> x)` is NOT a
-	// valid tvf_argument — the positional alternative is a plain expression — and
-	// the oracle rejects it; the positional branch below correctly uses parseExpr.)
+	// Named argument — see parseNamedTVFArg.
 	if isIdentifierStart(p.cur.Type) && p.peekNext().Type == tokFatArrow {
-		nameTok := p.advance()
-		name, err := p.identifierText(nameTok)
-		if err != nil {
-			return nil, err
-		}
-		p.advance() // '=>'
-		val, err := p.parseArgValueMaybeLambda()
-		if err != nil {
-			return nil, err
-		}
-		return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: nodeLoc(val).End}}, nil
+		return p.parseNamedTVFArg()
 	}
 
 	// Positional expression (tvf_argument's `expression` alternative — NOT a
 	// lambda; a bare positional lambda is rejected by the grammar and the oracle).
 	return p.parseExpr()
+}
+
+// parseNamedTVFArg parses one named tvf_argument, `identifier => <value>`, after
+// the identifier has been recognised. The value is one of named_argument's three
+// alternatives or named_non_expr_argument's:
+//
+//	identifier => expression            (named_argument)
+//	identifier => lambda_argument        (named_argument; `f => x -> x`)
+//	identifier => input_table_argument   (named_argument; `f => INPUT TABLE`)
+//	identifier => table_clause           (named_non_expr_argument; `f => TABLE t`)
+//
+// Reuses the expressions node's lambda-aware argument-value parser so CALL and
+// TVF argument lists agree. (A bare POSITIONAL lambda `CALL p(x -> x)` is NOT a
+// valid tvf_argument — the positional alternative is a plain expression — and
+// the oracle rejects it.) The current token is the identifier.
+func (p *Parser) parseNamedTVFArg() (ast.Node, error) {
+	nameTok := p.cur
+	name, err := p.identifierText(nameTok)
+	if err != nil {
+		return nil, err
+	}
+	p.advance() // identifier
+	p.advance() // '=>'
+
+	var val ast.Node
+	end := 0
+	switch {
+	case p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE:
+		start := p.advance().Loc.Start // INPUT
+		p.advance()                    // TABLE
+		val = &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}
+		end = p.prev.Loc.End
+	case p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF):
+		// named_non_expr_argument's table_clause. A bare `arg => TABLE` is the
+		// named_argument alternative, with the non-reserved TABLE keyword standing
+		// for an identifier expression (oracle: it accepts both).
+		tc, err := p.parseTableClauseOperand()
+		if err != nil {
+			return nil, err
+		}
+		val = tc
+		end = tc.Loc.End
+	default:
+		v, err := p.parseArgValueMaybeLambda()
+		if err != nil {
+			return nil, err
+		}
+		val = v
+		end = nodeLoc(v).End
+	}
+	return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: end}}, nil
+}
+
+// parseCallInputTableArg parses input_table_argument, `INPUT TABLE`, the tvf
+// argument that names the call's input table. INPUT is the current token.
+func (p *Parser) parseCallInputTableArg() (ast.Node, error) {
+	start := p.advance().Loc.Start // INPUT
+	p.advance()                    // TABLE
+	return &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
 }
 
 // parseCallTableArg parses table_clause as a CALL argument: `TABLE path_expression`
@@ -437,4 +487,168 @@ func (p *Parser) parseCallDescriptorArg() (ast.Node, error) {
 	arg.Columns = cols
 	arg.Loc.End = p.prev.Loc.End
 	return arg, nil
+}
+
+// ---------------------------------------------------------------------------
+// SHOW / IMPORT / MODULE (the module system and the metadata SHOW)
+// ---------------------------------------------------------------------------
+//
+// Grammar (googlesql.tm):
+//
+//	show_statement:   SHOW show_target from_path_expression? like_string_literal?
+//	show_target:      "MATERIALIZED" "VIEWS" | identifier
+//	import_statement: IMPORT import_type path_expression_or_string
+//	                    opt_as_or_into_alias opt_options_list
+//	import_type:      MODULE | PROTO
+//	module_statement: MODULE path_expression opt_options_list
+//
+// ORACLE NOTE: the Spanner emulator answers "Statement not supported: ShowStmt"
+// (and ImportStmt / ModuleStmt / UndropStmt) from statement dispatch, BEFORE it
+// parses the body — it accepts `SHOW a zzz` and `IMPORT MODULE` alike — so no
+// SHOW / IMPORT / MODULE row of testdata/compat.tsv is a parse verdict. The
+// grammar governs, and the canonical ZetaSQL corpus
+// (testdata/legacy/zetasql/parser/testdata/{show,modules}.sql) is the breadth
+// oracle these parsers are held to.
+
+// parseShowStmt parses a show_statement. SHOW is the current token. SHOW may
+// carry a pipe suffix (sql_statement_body_maybe_pipe_suffix), so the dispatch
+// routes it through parseMaybePipeSuffixStmt.
+func (p *Parser) parseShowStmt() (ast.Node, error) {
+	show := p.advance() // SHOW
+	stmt := &ast.ShowStmt{Loc: show.Loc}
+
+	// show_target: MATERIALIZED VIEWS | identifier. The two-word form is the
+	// grammar's own target; `SHOW `MATERIALIZED VIEWS`` (one backtick-quoted
+	// identifier) is the identifier alternative.
+	switch {
+	case p.cur.Type == kwMATERIALIZED && p.peekNext().Type == kwVIEWS:
+		p.advance() // MATERIALIZED
+		p.advance() // VIEWS
+		stmt.Target = "MATERIALIZED VIEWS"
+	case isIdentifierStart(p.cur.Type):
+		tok := p.advance()
+		target, err := p.identifierText(tok)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Target = target
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Loc.End = p.prev.Loc.End
+
+	// from_path_expression? — FROM maybe_slashed_or_dashed_path_expression, so a
+	// dashed BigQuery project (`SHOW TABLES FROM my-project.ds`) is one path. The
+	// rule's slashed alternative (`FROM /span/global/foo`) is the same deliberate
+	// gap parseDescribeStmt documents: parseTablePath reads the dotted and dashed
+	// forms only.
+	if _, ok := p.match(kwFROM); ok {
+		from, err := p.parseTablePath()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = from
+		stmt.Loc.End = from.Loc.End
+	}
+
+	// like_string_literal? — LIKE string_literal (the literal, not a pattern
+	// expression).
+	if _, ok := p.match(kwLIKE); ok {
+		if p.cur.Type != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Like = lit
+		stmt.Loc.End = nodeLoc(lit).End
+	}
+	return stmt, nil
+}
+
+// parseImportStmt parses an import_statement. IMPORT is the current token.
+func (p *Parser) parseImportStmt() (ast.Node, error) {
+	imp := p.advance() // IMPORT
+	stmt := &ast.ImportStmt{Loc: imp.Loc}
+
+	// import_type: MODULE | PROTO.
+	switch p.cur.Type {
+	case kwMODULE:
+		p.advance()
+		stmt.Kind = ast.ImportModule
+	case kwPROTO:
+		p.advance()
+		stmt.Kind = ast.ImportProto
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// path_expression_or_string.
+	if p.cur.Type == tokString {
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = lit
+	} else {
+		path, err := p.parsePathExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = path
+	}
+	stmt.Loc.End = p.prev.Loc.End
+
+	// opt_as_or_into_alias: AS identifier | INTO identifier | empty.
+	switch p.cur.Type {
+	case kwAS, kwINTO:
+		kw := p.advance()
+		stmt.AliasKeyword = p.tokenSource(kw)
+		aliasTok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		alias, err := p.identifierText(aliasTok)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Alias = alias
+		stmt.Loc.End = aliasTok.Loc.End
+	}
+
+	// opt_options_list.
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
+	}
+	return stmt, nil
+}
+
+// parseModuleStmt parses a module_statement. MODULE is the current token.
+func (p *Parser) parseModuleStmt() (ast.Node, error) {
+	mod := p.advance() // MODULE
+	stmt := &ast.ModuleStmt{Loc: mod.Loc}
+
+	name, err := p.parsePathExpr()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	stmt.Loc.End = name.Loc.End
+
+	// opt_options_list.
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
+	}
+	return stmt, nil
 }

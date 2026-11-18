@@ -320,6 +320,8 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		cols := &nodes.List{}
 		var col *nodes.ColumnDef
 		var constraints []*nodes.AlterTableCmd
+		savedAddList := p.alterTableAddList
+		p.alterTableAddList = true
 		for {
 			itemStart := p.pos()
 			var tc *nodes.TableConstraint
@@ -353,6 +355,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			}
 			p.advance() // consume ','
 		}
+		p.alterTableAddList = savedAddList
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -627,6 +630,8 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 // take. In a list (inList), a column followed by ',' or ')' is read alone;
 // otherwise one followed by the end of the statement or by another action.
 func (p *Parser) parseATModifyColumn(inList bool) (*nodes.ColumnDef, error) {
+	defer func(saved bool) { p.alterTableModifyColumn = saved }(p.alterTableModifyColumn)
+	p.alterTableModifyColumn = true
 	if p.isATNameStart() {
 		next := p.peekNext()
 		var alone bool
@@ -1447,7 +1452,13 @@ func (p *Parser) parseAlterTableInmemory() (*nodes.AlterTableCmd, error) {
 	p.atOption(cmd.Options, start)
 	for p.isATInmemoryStart() {
 		optStart := p.pos()
-		if err := p.parseATInmemoryColumnItem(); err != nil {
+		var err error
+		if p.alterMview {
+			err = p.parseAlterMviewInmemoryColumnItem()
+		} else {
+			err = p.parseATInmemoryColumnItem()
+		}
+		if err != nil {
 			return nil, err
 		}
 		p.atOption(cmd.Options, optStart)

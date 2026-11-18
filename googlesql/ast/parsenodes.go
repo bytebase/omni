@@ -1177,8 +1177,9 @@ var (
 //	[WITH [RECURSIVE] cte, …] <body> [ORDER BY …] [LIMIT n [OFFSET m]] [FOR UPDATE]
 //
 // With is the optional leading WITH clause (nil if absent). Body is the query
-// body — a *SelectStmt, a *SetOperation, or a nested *QueryStmt (a parenthesized
-// `( query )` query_primary). OrderBy / Limit / Offset are the trailing
+// body — a *SelectStmt, a *SetOperation, a *TableClause (the `TABLE t` query
+// primary), or a nested *QueryStmt (a parenthesized `( query )` query_primary).
+// OrderBy / Limit / Offset are the trailing
 // query-level modifiers (nil/absent when not present). ForUpdate records a
 // trailing `FOR UPDATE` (Spanner row-locking; parses in the union grammar).
 type QueryStmt struct {
@@ -1189,7 +1190,11 @@ type QueryStmt struct {
 	Offset    Node         // trailing OFFSET (only with Limit); nil if absent
 	ForUpdate bool         // trailing FOR UPDATE (Spanner)
 	Parens    bool         // true if this query was wrapped in `( … )` as a query_primary
-	Loc       Loc
+	// Pipe is the query's trailing pipe suffix (`query pipe_and_pipe_operator`,
+	// e.g. `SELECT x FROM t |> WHERE x > 1 |> AGGREGATE COUNT(*)`); nil if the
+	// query has none. The operators run left to right on the query's output.
+	Pipe *Subpipeline
+	Loc  Loc
 }
 
 // Tag implements Node.
@@ -1301,11 +1306,29 @@ type SelectItem struct {
 	Star      bool           // true for `*` or `expr.*`
 	Modifiers *StarModifiers // EXCEPT/REPLACE; nil if none
 	Alias     string         // `[AS] alias` (expression form only); "" if absent
-	Loc       Loc
+	// Order is the optional `[ASC|DESC] [NULLS FIRST|LAST]` suffix a pipe
+	// selection item carries (pipe_selection_item_with_order); nil otherwise.
+	// Outside a pipe list a select item has no ordering suffix.
+	Order *ItemOrder
+	Loc   Loc
 }
 
 // Tag implements Node.
 func (n *SelectItem) Tag() NodeTag { return T_SelectItem }
+
+// ItemOrder is the ordering suffix a pipe selection item or pipe GROUP BY item
+// accepts (selection_item_order): `[ASC|DESC] [NULLS FIRST|LAST]`. In a
+// selection item NULLS requires ASC/DESC; a grouping item also takes a bare
+// NULLS FIRST/LAST. HasDir records an explicit ASC/DESC, Desc selects DESC.
+type ItemOrder struct {
+	Desc       bool
+	HasDir     bool
+	NullsFirst *bool // nil = unspecified
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *ItemOrder) Tag() NodeTag { return T_ItemOrder }
 
 // SetOp enumerates the set-operation kind (query_set_operation_type).
 type SetOp int
@@ -1354,7 +1377,7 @@ func (op SetOp) String() string {
 type SetOperation struct {
 	Op            SetOp
 	All           bool   // ALL (vs DISTINCT)
-	OuterMode     string // "" | "FULL" | "OUTER" | "LEFT"
+	OuterMode     string // "" | "FULL" | "OUTER" | "LEFT" | "INNER" (the corresponding-outer mode)
 	Strict        bool
 	Corresponding bool     // [STRICT] CORRESPONDING [BY (cols)]
 	ByName        bool     // BY NAME [ON (cols)]
@@ -1691,6 +1714,9 @@ type GroupingItem struct {
 	Kind  GroupingKind
 	Expr  Node   // for GroupingExpr; nil otherwise
 	Alias string // GroupingExpr `AS alias`; "" if absent
+	// Order is the optional `[ASC|DESC] [NULLS FIRST|LAST]` suffix a pipe
+	// AGGREGATE GROUP BY item carries (opt_grouping_item_order); nil otherwise.
+	Order *ItemOrder
 	Items []Node // for ROLLUP/CUBE/GROUPING SETS; nil otherwise
 	Loc   Loc
 }
@@ -1726,6 +1752,564 @@ var (
 	_ Node = (*GroupByClause)(nil)
 	_ Node = (*GroupingItem)(nil)
 	_ Node = (*WindowDef)(nil)
+)
+
+// ===========================================================================
+// Pipe syntax (googlesql/parser-pipe node)
+//
+// GoogleSQL's pipe syntax (googlesql.tm §"pipe operators"): a statement is a
+// pipe *suffix* alone (`|> AGGREGATE …`, subpipeline_statement), a query
+// followed by one (`SELECT … |> WHERE …`), or one of the statements that may
+// return a table followed by one (`DESCRIBE … |> …`, sql_statement_body_
+// maybe_pipe_suffix). Each `|>` introduces one PipeOperator node, and a
+// Subpipeline is a list of them (the grammar's ASTSubpipeline).
+//
+// A pipe operator's operand rule is reused wherever the same clause already
+// exists elsewhere in the grammar (WHERE, LIMIT/OFFSET, ORDER BY, the select
+// list, GROUP BY, JOIN, PIVOT/UNPIVOT, TABLESAMPLE, WITH, EXPORT DATA, CREATE
+// TABLE, INSERT), so those nodes are the operands here too. An operator with
+// no operand of its own (DISTINCT, DESCRIBE, STATIC_DESCRIBE) carries only its
+// Loc.
+
+// SubpipelineStmt is a statement that is nothing but a pipe suffix
+// (sql_statement_body_no_pipe_suffix → subpipeline_statement):
+//
+//	|> WHERE x > 1 |> AGGREGATE COUNT(*)
+//
+// Pipeline holds at least one operator. Its input is the implicit table the
+// pipeline is run against; the statement itself names no source.
+type SubpipelineStmt struct {
+	Pipeline *Subpipeline
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *SubpipelineStmt) Tag() NodeTag { return T_SubpipelineStmt }
+
+// PipeStatement is a statement that can return a table, followed by a pipe
+// suffix (sql_statement_body: sql_statement_body_maybe_pipe_suffix
+// pipe_and_pipe_operator*):
+//
+//	DESCRIBE t |> AGGREGATE COUNT(*)
+//
+// Head is the statement (*DescribeStmt, *CallStmt, *ExecuteImmediateStmt,
+// *RunBatchStmt, *ShowStmt); Pipeline holds at least one operator.
+type PipeStatement struct {
+	Head     Node
+	Pipeline *Subpipeline
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *PipeStatement) Tag() NodeTag { return T_PipeStatement }
+
+// Subpipeline is a list of pipe operators run left to right (subpipeline):
+// `|> op |> op …`. Ops holds at least one operator unless the subpipeline was
+// written with parentheses (subpipeline_with_parens, where `()` is allowed and
+// Parens is true).
+type Subpipeline struct {
+	Ops    []Node // *PipeWhere … *PipeMatchRecognize
+	Parens bool   // true for `( … )`
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *Subpipeline) Tag() NodeTag { return T_Subpipeline }
+
+// PipeWhere is `|> WHERE expr` (pipe_where).
+type PipeWhere struct {
+	Expr Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *PipeWhere) Tag() NodeTag { return T_PipeWhere }
+
+// PipeSelect is `|> SELECT [WINDOW …]` (pipe_select). The select clause is a
+// *SelectStmt holding the item list (and optional window definitions); a pipe
+// SELECT has no FROM/WHERE/GROUP BY of its own.
+type PipeSelect struct {
+	Select *SelectStmt
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeSelect) Tag() NodeTag { return T_PipeSelect }
+
+// PipeExtend is `|> EXTEND item, … [WINDOW …]` (pipe_extend). Items and Window
+// are held on a *SelectStmt, as the grammar does.
+type PipeExtend struct {
+	Select *SelectStmt
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeExtend) Tag() NodeTag { return T_PipeExtend }
+
+// PipeAggregate is `|> AGGREGATE [WITH modifier [OPTIONS(…)]] item, …
+// [GROUP BY item, …]` (pipe_aggregate). Select holds the aggregate item list
+// and, when present, the GROUP BY clause; SelectWith holds the WITH modifier's
+// name ("" if absent).
+type PipeAggregate struct {
+	Select *SelectStmt
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeAggregate) Tag() NodeTag { return T_PipeAggregate }
+
+// PipeRename is `|> RENAME old [AS] new, …` (pipe_rename).
+type PipeRename struct {
+	Items []*PipeRenameItem
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeRename) Tag() NodeTag { return T_PipeRename }
+
+// PipeRenameItem is one `old [AS] new` entry of a pipe RENAME.
+type PipeRenameItem struct {
+	Old string
+	New string
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *PipeRenameItem) Tag() NodeTag { return T_PipeRenameItem }
+
+// PipeLimitOffset is `|> LIMIT n [OFFSET m]` / `|> LIMIT ALL [OFFSET m]`
+// (pipe_limit_offset). All is true for the `LIMIT ALL` form (Limit nil).
+type PipeLimitOffset struct {
+	Limit  Node // count expression; nil for LIMIT ALL
+	All    bool // LIMIT ALL
+	Offset Node // OFFSET expression; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeLimitOffset) Tag() NodeTag { return T_PipeLimitOffset }
+
+// PipeOrderBy is `|> ORDER BY item, …` (pipe_order_by).
+type PipeOrderBy struct {
+	Items []*OrderItem
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeOrderBy) Tag() NodeTag { return T_PipeOrderBy }
+
+// PipeSetOperation is `|> UNION|INTERSECT|EXCEPT ALL|DISTINCT <operand>, …`
+// (pipe_set_operation). Set carries the operation and its metadata with a nil
+// Left (the left operand is the pipe input); Right holds each comma-separated
+// operand, a *QueryStmt (a parenthesized query) or a *TableClause.
+type PipeSetOperation struct {
+	Set   *SetOperation
+	Right []Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeSetOperation) Tag() NodeTag { return T_PipeSetOperation }
+
+// PipeRecursiveUnion is
+//
+//	|> RECURSIVE UNION|INTERSECT|EXCEPT ALL|DISTINCT [WITH DEPTH …] <rhs> [AS alias]
+//
+// (pipe_recursive_union). Set carries the operation with a nil Left. RHS is the
+// recursive operand: a *QueryStmt (a parenthesized query) or a *Subpipeline (a
+// parenthesized subpipeline). Depth is the optional recursion-depth modifier;
+// Alias the trailing `AS name` ("" if absent).
+type PipeRecursiveUnion struct {
+	Set   *SetOperation
+	Depth *RecursionDepth
+	RHS   Node // *QueryStmt | *Subpipeline
+	Alias string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeRecursiveUnion) Tag() NodeTag { return T_PipeRecursiveUnion }
+
+// PipeJoin is `|> [NATURAL] [join type] [HASH|LOOKUP] JOIN [hint] <table>
+// [ON expr | USING (col, …)]` (pipe_join). Join is the parsed *JoinExpr with a
+// nil Left: a pipe JOIN has no left side of its own, its input comes from the
+// pipeline.
+type PipeJoin struct {
+	Join *JoinExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *PipeJoin) Tag() NodeTag { return T_PipeJoin }
+
+// PipeCall is `|> CALL tvf [(args)] [[AS] alias]` (pipe_call). Call is a
+// *TableExpr holding the table-valued function and its alias.
+type PipeCall struct {
+	Call *TableExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *PipeCall) Tag() NodeTag { return T_PipeCall }
+
+// PipeWindow is `|> WINDOW item, …` (pipe_window).
+type PipeWindow struct {
+	Items []*SelectItem
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeWindow) Tag() NodeTag { return T_PipeWindow }
+
+// PipeDistinct is `|> DISTINCT` (pipe_distinct).
+type PipeDistinct struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *PipeDistinct) Tag() NodeTag { return T_PipeDistinct }
+
+// PipeTablesample is `|> TABLESAMPLE …` (pipe_tablesample).
+type PipeTablesample struct {
+	Sample *SampleClause
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeTablesample) Tag() NodeTag { return T_PipeTablesample }
+
+// PipeAs is `|> AS name` (pipe_as).
+type PipeAs struct {
+	Alias string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeAs) Tag() NodeTag { return T_PipeAs }
+
+// PipeDescribe is `|> DESCRIBE` (pipe_describe).
+type PipeDescribe struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *PipeDescribe) Tag() NodeTag { return T_PipeDescribe }
+
+// PipeStaticDescribe is `|> STATIC_DESCRIBE` (pipe_static_describe).
+type PipeStaticDescribe struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *PipeStaticDescribe) Tag() NodeTag { return T_PipeStaticDescribe }
+
+// PipeAssert is `|> ASSERT expr, …` (pipe_assert).
+type PipeAssert struct {
+	Conditions []Node
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *PipeAssert) Tag() NodeTag { return T_PipeAssert }
+
+// PipeLog is `|> LOG [hint] [( … )]` (pipe_log). Pipeline is the logged
+// subpipeline, nil when the operator has no parentheses.
+type PipeLog struct {
+	Pipeline *Subpipeline
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *PipeLog) Tag() NodeTag { return T_PipeLog }
+
+// PipeDrop is `|> DROP col, …` (pipe_drop).
+type PipeDrop struct {
+	Columns []string
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *PipeDrop) Tag() NodeTag { return T_PipeDrop }
+
+// PipeSet is `|> SET col = expr, …` (pipe_set).
+type PipeSet struct {
+	Items []*PipeSetItem
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeSet) Tag() NodeTag { return T_PipeSet }
+
+// PipeSetItem is one `col = expr` assignment of a pipe SET (pipe_set_item).
+type PipeSetItem struct {
+	Column string
+	Value  Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeSetItem) Tag() NodeTag { return T_PipeSetItem }
+
+// PipePivot is `|> PIVOT ( … ) [[AS] alias]` (pipe_pivot).
+type PipePivot struct {
+	Pivot *PivotClause
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipePivot) Tag() NodeTag { return T_PipePivot }
+
+// PipeUnpivot is `|> UNPIVOT ( … ) [[AS] alias]` (pipe_unpivot).
+type PipeUnpivot struct {
+	Unpivot *UnpivotClause
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *PipeUnpivot) Tag() NodeTag { return T_PipeUnpivot }
+
+// PipeIf is `|> IF cond THEN ( … ) [ELSEIF cond THEN ( … )]… [ELSE ( … )]`
+// (pipe_if). Cases holds the IF and ELSEIF branches in order; Else the optional
+// ELSE subpipeline (nil if absent).
+type PipeIf struct {
+	Cases []*PipeIfCase
+	Else  *Subpipeline
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PipeIf) Tag() NodeTag { return T_PipeIf }
+
+// PipeIfCase is one `IF|ELSEIF cond THEN ( … )` branch of a pipe IF.
+type PipeIfCase struct {
+	Condition Node
+	Then      *Subpipeline
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *PipeIfCase) Tag() NodeTag { return T_PipeIfCase }
+
+// PipeFork is `|> FORK [( … )], ( … )` (pipe_fork). Pipelines holds the
+// branches.
+type PipeFork struct {
+	Pipelines []*Subpipeline
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *PipeFork) Tag() NodeTag { return T_PipeFork }
+
+// PipeTee is `|> TEE [( … )], ( … )` (pipe_tee). Pipelines holds the branches;
+// it is empty for the bare `|> TEE` form.
+type PipeTee struct {
+	Pipelines []*Subpipeline
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *PipeTee) Tag() NodeTag { return T_PipeTee }
+
+// PipeWith is `|> WITH cte, …` (pipe_with).
+type PipeWith struct {
+	With *WithClause
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *PipeWith) Tag() NodeTag { return T_PipeWith }
+
+// PipeExportData is `|> EXPORT DATA [WITH CONNECTION …] [OPTIONS(…)]`
+// (pipe_export_data). Export carries the parsed export_data_no_query: its
+// Query is nil, because the data exported is the pipe input.
+type PipeExportData struct {
+	Export *ExportDataStmt
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeExportData) Tag() NodeTag { return T_PipeExportData }
+
+// PipeCreateTable is `|> CREATE [OR REPLACE] [scope] TABLE …`
+// (pipe_create_table). Create carries the create_table_statement_prefix; its
+// AsQuery is nil, because the rows come from the pipe input.
+type PipeCreateTable struct {
+	Create *CreateTableStmt
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeCreateTable) Tag() NodeTag { return T_PipeCreateTable }
+
+// PipeInsert is `|> INSERT [mode] [INTO] target [hint] [(cols)]
+// [ON CONFLICT …] [ASSERT_ROWS_MODIFIED …] [THEN RETURN …]`
+// (insert_statement_in_pipe). Insert carries the parsed *InsertStmt; its Rows,
+// Query and TableClause are nil, because the rows inserted come from the pipe
+// input.
+type PipeInsert struct {
+	Insert *InsertStmt
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeInsert) Tag() NodeTag { return T_PipeInsert }
+
+// PipeMatchRecognize is `|> MATCH_RECOGNIZE ( … ) [[AS] alias]`
+// (pipe_match_recognize).
+type PipeMatchRecognize struct {
+	Clause *MatchRecognizeClause
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *PipeMatchRecognize) Tag() NodeTag { return T_PipeMatchRecognize }
+
+// TableClause is a `TABLE <table> [WHERE expr]` operand (table_clause),
+// as a pipe set operation takes it.
+type TableClause struct {
+	Table *TableExpr
+	Where Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *TableClause) Tag() NodeTag { return T_TableClause }
+
+// MatchRecognizeClause is a MATCH_RECOGNIZE clause (match_recognize_clause).
+//
+//	MATCH_RECOGNIZE ( [PARTITION BY …] ORDER BY … MEASURES …
+//	  [AFTER MATCH SKIP …] PATTERN ( … ) DEFINE name AS expr, …
+//	  [OPTIONS(…)] ) [[AS] alias]
+//
+// AfterMatchSkip is "PAST LAST ROW", "TO NEXT ROW", or "". Definitions holds
+// the DEFINE list; Pattern the row pattern; Alias the trailing alias ("" if
+// absent).
+type MatchRecognizeClause struct {
+	PartitionBy    []Node
+	OrderBy        []*OrderItem
+	Measures       []*SelectItem
+	AfterMatchSkip string
+	Pattern        *RowPattern
+	Definitions    []*MatchRecognizeDefine
+	Options        []*OptionsEntry
+	Alias          string
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *MatchRecognizeClause) Tag() NodeTag { return T_MatchRecognizeClause }
+
+// MatchRecognizeDefine is one `name AS expr` entry of a MATCH_RECOGNIZE
+// DEFINE list (with_expression_variable).
+type MatchRecognizeDefine struct {
+	Name string
+	Expr Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *MatchRecognizeDefine) Tag() NodeTag { return T_MatchRecognizeDefine }
+
+// RowPatternKind enumerates a row pattern shape (row_pattern_expr and below).
+type RowPatternKind int
+
+const (
+	// RowPatternEmpty is the empty pattern (an empty alternative, or `()`).
+	RowPatternEmpty RowPatternKind = iota
+	// RowPatternVariable is a pattern variable (an identifier).
+	RowPatternVariable
+	// RowPatternAnchorStart is `^`.
+	RowPatternAnchorStart
+	// RowPatternAnchorEnd is `$`.
+	RowPatternAnchorEnd
+	// RowPatternConcat is two patterns in sequence, left then right.
+	RowPatternConcat
+	// RowPatternAlternate is `left | right`.
+	RowPatternAlternate
+	// RowPatternQuantified is a pattern with a quantifier.
+	RowPatternQuantified
+)
+
+// RowPattern is one node of a MATCH_RECOGNIZE row pattern. Name holds the
+// variable for RowPatternVariable; Left/Right the operands of
+// RowPatternConcat/RowPatternAlternate; Quantifier the quantifier of
+// RowPatternQuantified. Parens records parentheses around the pattern without
+// changing its kind.
+type RowPattern struct {
+	Kind       RowPatternKind
+	Name       string
+	Left       *RowPattern
+	Right      *RowPattern
+	Quantifier *RowPatternQuantifier
+	Parens     bool
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *RowPattern) Tag() NodeTag { return T_RowPattern }
+
+// RowPatternQuantifier is a row pattern quantifier: `?`, `*`, `+`, `{n}`, or a
+// bounded `{n,m}` / `{n,}` / `{,m}`, optionally reluctant (a trailing `?`).
+// Symbol is "?", "*", "+", or "" for a braced form; Count holds the fixed `{n}`
+// count; a bounded form sets Bounded and carries Lower / Upper (nil for an open
+// bound).
+type RowPatternQuantifier struct {
+	Symbol    string
+	Reluctant bool
+	Count     Node
+	Bounded   bool
+	Lower     Node
+	Upper     Node
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *RowPatternQuantifier) Tag() NodeTag { return T_RowPatternQuantifier }
+
+// Compile-time assertions that the pipe node types satisfy Node.
+var (
+	_ Node = (*SubpipelineStmt)(nil)
+	_ Node = (*PipeStatement)(nil)
+	_ Node = (*Subpipeline)(nil)
+	_ Node = (*PipeWhere)(nil)
+	_ Node = (*PipeSelect)(nil)
+	_ Node = (*PipeExtend)(nil)
+	_ Node = (*PipeAggregate)(nil)
+	_ Node = (*PipeRename)(nil)
+	_ Node = (*PipeRenameItem)(nil)
+	_ Node = (*PipeLimitOffset)(nil)
+	_ Node = (*PipeOrderBy)(nil)
+	_ Node = (*PipeSetOperation)(nil)
+	_ Node = (*PipeRecursiveUnion)(nil)
+	_ Node = (*PipeJoin)(nil)
+	_ Node = (*PipeCall)(nil)
+	_ Node = (*PipeWindow)(nil)
+	_ Node = (*PipeDistinct)(nil)
+	_ Node = (*PipeTablesample)(nil)
+	_ Node = (*PipeAs)(nil)
+	_ Node = (*PipeDescribe)(nil)
+	_ Node = (*PipeStaticDescribe)(nil)
+	_ Node = (*PipeAssert)(nil)
+	_ Node = (*PipeLog)(nil)
+	_ Node = (*PipeDrop)(nil)
+	_ Node = (*PipeSet)(nil)
+	_ Node = (*PipeSetItem)(nil)
+	_ Node = (*PipePivot)(nil)
+	_ Node = (*PipeUnpivot)(nil)
+	_ Node = (*PipeIf)(nil)
+	_ Node = (*PipeIfCase)(nil)
+	_ Node = (*PipeFork)(nil)
+	_ Node = (*PipeTee)(nil)
+	_ Node = (*PipeWith)(nil)
+	_ Node = (*PipeExportData)(nil)
+	_ Node = (*PipeCreateTable)(nil)
+	_ Node = (*PipeInsert)(nil)
+	_ Node = (*PipeMatchRecognize)(nil)
+	_ Node = (*TableClause)(nil)
+	_ Node = (*MatchRecognizeClause)(nil)
+	_ Node = (*MatchRecognizeDefine)(nil)
+	_ Node = (*RowPattern)(nil)
+	_ Node = (*RowPatternQuantifier)(nil)
 )
 
 // ===========================================================================
@@ -3220,6 +3804,69 @@ type DescribeStmt struct {
 // Tag implements Node.
 func (n *DescribeStmt) Tag() NodeTag { return T_DescribeStmt }
 
+// ShowStmt is a SHOW statement (grammar: show_statement):
+//
+//	SHOW show_target [FROM path_expression] [LIKE string_literal]
+//
+// Target is the show_target: an identifier (normalized, backticks removed), or
+// the two-word "MATERIALIZED VIEWS". From is the optional `FROM <path>`
+// qualifier; nil if absent. Like is the optional LIKE string literal (*Literal);
+// nil if absent.
+type ShowStmt struct {
+	Target string    // show_target text (e.g. "TABLES" or "MATERIALIZED VIEWS")
+	From   *PathExpr // FROM path_expression; nil if absent
+	Like   Node      // LIKE string_literal; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ShowStmt) Tag() NodeTag { return T_ShowStmt }
+
+// ImportKind is the `import_type` of an IMPORT statement: MODULE or PROTO.
+type ImportKind int
+
+const (
+	// ImportModule is `IMPORT MODULE` (the ZetaSQL module system).
+	ImportModule ImportKind = iota + 1
+	// ImportProto is `IMPORT PROTO`.
+	ImportProto
+)
+
+// ImportStmt is an IMPORT statement (grammar: import_statement):
+//
+//	IMPORT import_type path_expression_or_string [AS|INTO identifier] [OPTIONS(...)]
+//
+// Kind is MODULE or PROTO. Name is the imported module's path (*PathExpr) or,
+// where the grammar takes a string literal, a *Literal. Alias is the optional
+// alias name ("" if absent) and AliasKeyword records which word introduced it
+// ("AS" or "INTO", "" if absent). Options is the optional OPTIONS(...) list.
+type ImportStmt struct {
+	Kind         ImportKind
+	Name         Node            // *PathExpr | *Literal (string_literal)
+	Alias        string          // alias identifier; "" if absent
+	AliasKeyword string          // "AS" | "INTO" | ""
+	Options      []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *ImportStmt) Tag() NodeTag { return T_ImportStmt }
+
+// ModuleStmt is a MODULE statement (grammar: module_statement):
+//
+//	MODULE path_expression [OPTIONS(...)]
+//
+// A module declares the path it defines; Options is the optional OPTIONS(...)
+// list.
+type ModuleStmt struct {
+	Name    *PathExpr       // module path
+	Options []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ModuleStmt) Tag() NodeTag { return T_ModuleStmt }
+
 // RenameStmt is a RENAME statement (grammar: rename_statement):
 //
 //	RENAME <object-kind> <path> TO <path>
@@ -3236,6 +3883,28 @@ type RenameStmt struct {
 // Tag implements Node.
 func (n *RenameStmt) Tag() NodeTag { return T_RenameStmt }
 
+// UndropStmt is an UNDROP statement (grammar: undrop_statement):
+//
+//	UNDROP schema_object_kind opt_if_not_exists path_expression
+//	  at_system_time? opt_options_list
+//
+// The grammar's action allows only the SCHEMA kind ("UNDROP <kind> is not
+// supported" otherwise), so ObjectKind is always "SCHEMA" here; it is kept so
+// the statement round-trips. IfNotExists records `IF NOT EXISTS`. Name is the
+// restored schema's path. ForSystemTime is the optional `FOR SYSTEM_TIME AS OF
+// expr`; nil if absent. Options is the optional OPTIONS(...) list.
+type UndropStmt struct {
+	ObjectKind    string          // the schema_object_kind spelling (SCHEMA)
+	IfNotExists   bool            // IF NOT EXISTS was present
+	Name          *PathExpr       // the restored object's path
+	ForSystemTime Node            // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Options       []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
+
 // CallArgKind discriminates the non-expression shapes of a CALL argument
 // (tvf_argument). A plain expression / named argument is carried directly as the
 // argument Node (an expression or *NamedArg); the table / model / connection /
@@ -3245,6 +3914,9 @@ type CallArgKind int
 const (
 	// CallArgTable is `TABLE <path>` (table_clause).
 	CallArgTable CallArgKind = iota
+	// CallArgInputTable is `INPUT TABLE` (input_table_argument), which names
+	// the call's input table rather than a table path.
+	CallArgInputTable
 	// CallArgModel is `MODEL <path>` (model_clause).
 	CallArgModel
 	// CallArgConnection is `CONNECTION <path>|DEFAULT` (connection_clause).
@@ -3313,13 +3985,14 @@ var (
 //	    aux_load_data_from_files_options_list opt_external_table_with_clauses?
 //	clone_data_statement:   CLONE DATA INTO maybe_dashed_path_expression FROM clone_data_source_list
 //
-// All four are BigQuery-ONLY at the GoogleSQL union level (oracle.md): the
-// Spanner emulator hard-syntax-rejects them, so the union parser accepts them on
-// the authority of the legacy .g4 + the BigQuery truth1 corpus (OTHER-001 EXPORT
-// DATA, OTHER-003 LOAD DATA). bytebase does not consume these today (P1 parity),
-// but the parser must accept-and-model them so Diagnose reports them as valid
-// rather than a false syntax error, and GetQuerySpan can reach the embedded
-// query of EXPORT DATA / the table targets of LOAD/CLONE.
+// All four are BigQuery-only at the GoogleSQL union level (oracle.md), and the
+// Spanner emulator gives no syntax verdict on them: it answers "Statement not
+// supported: …Stmt" from statement dispatch, before it parses a body (it accepts
+// `LOAD DATA INTO FROM FILES()` too). The union parser accepts them on the
+// authority of the grammar + the BigQuery truth1 corpus (OTHER-001 EXPORT DATA,
+// OTHER-003 LOAD DATA), so Diagnose reports them as valid rather than a false
+// syntax error, and GetQuerySpan can reach the embedded query of EXPORT DATA /
+// the table targets of LOAD/CLONE.
 
 // ExportDataStmt is `EXPORT DATA [WITH CONNECTION conn] [OPTIONS(...)] AS query`
 // (export_data_statement). The query is required (export_data_statement =
@@ -3347,6 +4020,26 @@ type ExportModelStmt struct {
 
 // Tag implements Node.
 func (n *ExportModelStmt) Tag() NodeTag { return T_ExportModelStmt }
+
+// ExportMetadataStmt is `EXPORT TABLE METADATA FROM <path>` (grammar:
+// export_metadata_statement):
+//
+//	EXPORT (TABLE | TABLE FUNCTION) METADATA FROM maybe_dashed_path_expression
+//	  [WITH CONNECTION conn] [OPTIONS(...)]
+//
+// The `TABLE FUNCTION` form is a grammar action error and never reaches this
+// node. Path is the exported table; HasConnection / ConnectionName and Options
+// are the same optional clauses ExportDataStmt carries.
+type ExportMetadataStmt struct {
+	Path           *PathExpr       // the exported table (maybe_dashed_path_expression)
+	HasConnection  bool            // a WITH CONNECTION clause was present
+	ConnectionName string          // connection path text, or "DEFAULT"; "" if absent
+	Options        []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *ExportMetadataStmt) Tag() NodeTag { return T_ExportMetadataStmt }
 
 // LoadDataStmt is a `LOAD DATA { INTO | OVERWRITE } …` statement
 // (aux_load_data_statement). It loads external files (FROM FILES (options)) into
@@ -3408,6 +4101,7 @@ func (n *CloneDataSource) Tag() NodeTag { return T_CloneDataSource }
 var (
 	_ Node = (*ExportDataStmt)(nil)
 	_ Node = (*ExportModelStmt)(nil)
+	_ Node = (*ExportMetadataStmt)(nil)
 	_ Node = (*LoadDataStmt)(nil)
 	_ Node = (*CloneDataStmt)(nil)
 	_ Node = (*CloneDataSource)(nil)

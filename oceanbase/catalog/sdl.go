@@ -135,6 +135,12 @@ func validateSDLStmt(stmt nodes.Node) error {
 		if s.Select != nil {
 			return fmt.Errorf("SDL does not allow CREATE TABLE ... AS SELECT statements")
 		}
+		// An external table lives in metadata.ExternalTableMetadata, which the
+		// loader does not build from DDL: accepting it would report success
+		// while omitting the object.
+		if s.External {
+			return fmt.Errorf("SDL does not allow CREATE EXTERNAL TABLE statements")
+		}
 		return nil
 	case *nodes.CreateDatabaseStmt,
 		*nodes.CreateIndexStmt,

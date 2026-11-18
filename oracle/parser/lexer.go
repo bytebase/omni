@@ -1030,7 +1030,11 @@ func (l *Lexer) lexInitial() Token {
 		return Token{Type: int(ch), Str: string(ch), Loc: l.start}
 	}
 
-	// Two-character tokens
+	// Two-character tokens, with whitespace allowed between the two
+	// characters: Oracle reads 'a' | | 'b', 1 ! = 2 and 1 < > 2 as the
+	// two-character operators ||, != and <> (compat.tsv's suite:lexer
+	// rows). The lexer joins only those pairs, so a lone |, ! or < is
+	// still one token.
 	if l.pos+1 < l.end {
 		ch2 := l.input[l.pos : l.pos+2]
 		switch ch2 {
@@ -1071,6 +1075,9 @@ func (l *Lexer) lexInitial() Token {
 			l.pos += 2
 			return Token{Type: tokLABELCLOSE, Str: ">>", Loc: l.start}
 		}
+		if tok, ok := l.spacedOperator(ch); ok {
+			return tok
+		}
 	}
 
 	// Numbers
@@ -1095,6 +1102,38 @@ func (l *Lexer) lexInitial() Token {
 	// Self-delimiting single characters
 	l.pos++
 	return Token{Type: int(ch), Str: string(ch), Loc: l.start}
+}
+
+// spacedOperator reads the two-character operators Oracle's lexer still
+// reads when whitespace separates their characters: ||, != and <>. The
+// caller has already consumed neither character.
+func (l *Lexer) spacedOperator(ch byte) (Token, bool) {
+	var want byte
+	var typ int
+	switch ch {
+	case '|':
+		want, typ = '|', tokCONCAT
+	case '!':
+		want, typ = '=', tokNOTEQ
+	case '<':
+		want, typ = '>', tokNOTEQ
+	default:
+		return Token{}, false
+	}
+	i := l.pos + 1
+	for i < l.end {
+		switch l.input[i] {
+		case ' ', '\t', '\n', '\r', '\f':
+			i++
+			continue
+		}
+		break
+	}
+	if i >= l.end || l.input[i] != want {
+		return Token{}, false
+	}
+	l.pos = i + 1
+	return Token{Type: typ, Str: string([]byte{ch, want}), Loc: l.start}, true
 }
 
 // skipWhitespace skips whitespace characters.
@@ -1313,20 +1352,24 @@ func (l *Lexer) lexNumber() Token {
 		}
 	}
 
-	// Exponent
+	// Exponent. Oracle lexes 1e as the number 1 followed by the name e, not
+	// as a broken numeric literal (compat.tsv's suite:lexer row SELECT 1e
+	// FROM dual), so an e with no digits after it is left for the next
+	// token.
 	if l.pos < l.end && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
+		ePos := l.pos
 		l.pos++
 		if l.pos < l.end && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
 			l.pos++
 		}
-		if l.pos >= l.end || !isDigit(l.input[l.pos]) {
-			l.Err = fmt.Errorf("invalid numeric literal")
-			return Token{Type: tokEOF, Loc: l.start}
+		if l.pos < l.end && isDigit(l.input[l.pos]) {
+			for l.pos < l.end && isDigit(l.input[l.pos]) {
+				l.pos++
+			}
+			isFloat = true
+		} else {
+			l.pos = ePos
 		}
-		for l.pos < l.end && isDigit(l.input[l.pos]) {
-			l.pos++
-		}
-		isFloat = true
 	}
 
 	// Oracle allows d/D suffix for double, f/F for float (in some contexts)

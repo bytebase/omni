@@ -80,6 +80,8 @@ func TestTableRequirePK(t *testing.T) {
 			want: []pkFinding{{"a", 1, "CREATE TABLE a (x INT)"}, {"b", 0, "CREATE TABLE b (x INT)"}}},
 		{name: "database not part of the name", sqls: []string{"CREATE TABLE d1.t (x INT)", "CREATE TABLE d2.t (y INT PRIMARY KEY)"}},
 		{name: "routine body not judged", sqls: []string{"CREATE PROCEDURE p() BEGIN CREATE TABLE t (a INT); END"}},
+		{name: "external table not judged", sqls: []string{"CREATE EXTERNAL TABLE e (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV')"}},
+		{name: "external alter not judged", sqls: []string{"ALTER EXTERNAL TABLE book DROP PRIMARY KEY"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			if diff := cmp.Diff(tt.want, requirePK(t, original, tt.sqls...)); diff != "" {

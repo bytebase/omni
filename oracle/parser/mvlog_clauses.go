@@ -1502,20 +1502,38 @@ func (p *Parser) parseMVLogSplit(stmt *nodes.AlterMviewLogStmt) error {
 	}
 	if p.cur.Type == kwINTO {
 		p.advance()
-		if err := p.atExpect('('); err != nil {
-			return err
-		}
-		for {
-			if err := p.parseMVLogPartitionOrSubpartitionSpec(sub, p.isMVLogSpecListFollow); err != nil {
-				return err
+		if p.cur.Type != '(' {
+			// Oracle reads the list without its parentheses, and the
+			// closing one left over at the end (compat.tsv's
+			// ALTER MATERIALIZED VIEW LOG ... AT(1) INTO SUBPARTITION,
+			// SUBPARTITION) row).
+			for {
+				if err := p.parseMVLogPartitionOrSubpartitionSpec(sub, p.isMVLogSpecListFollow); err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
 			}
-			if p.cur.Type != ',' {
-				break
+			if p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
 			}
 			p.advance()
-		}
-		if err := p.atExpect(')'); err != nil {
-			return err
+		} else {
+			p.advance() // consume (
+			for {
+				if err := p.parseMVLogPartitionOrSubpartitionSpec(sub, p.isMVLogSpecListFollow); err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+			if err := p.atExpect(')'); err != nil {
+				return err
+			}
 		}
 	}
 	if p.isMVLogIndexMaintenanceStart() {

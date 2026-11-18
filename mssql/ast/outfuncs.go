@@ -571,6 +571,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 	if n.GroupByAll {
 		sb.WriteString(" :groupByAll true")
 	}
+	if n.GroupByDistributedAgg {
+		sb.WriteString(" :groupByDistributedAgg true")
+	}
 	if n.HavingClause != nil {
 		sb.WriteString(" :having ")
 		writeNode(sb, n.HavingClause)
@@ -2790,6 +2793,10 @@ func writeWithClause(sb *strings.Builder, n *WithClause) {
 		sb.WriteString(" :xmlNamespaces ")
 		writeNode(sb, n.XmlNamespaces)
 	}
+	if n.CTContext != nil {
+		sb.WriteString(" :ctContext ")
+		writeNode(sb, n.CTContext)
+	}
 	if n.CTEs != nil {
 		sb.WriteString(" :ctes ")
 		writeNode(sb, n.CTEs)
@@ -3246,6 +3253,9 @@ func writeAlterTableAction(sb *strings.Builder, n *AlterTableAction) {
 	if n.Index != nil {
 		sb.WriteString(" :index ")
 		writeNode(sb, n.Index)
+	}
+	if n.IndexName != "" {
+		sb.WriteString(fmt.Sprintf(" :indexName \"%s\"", escapeString(n.IndexName)))
 	}
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")

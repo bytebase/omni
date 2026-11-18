@@ -86,6 +86,12 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "Online migration runs only an "+review.Code("ALTER TABLE")+".\n\nTurn off **Online migration** for this change.")
 			break
 		}
+		if v.External {
+			// gh-ost migrates a table it copies into another; an external table
+			// has no storage of its own to copy.
+			r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "Online migration can't alter an external table.\n\nTurn off **Online migration** for this change.")
+			break
+		}
 		for _, cmd := range v.Commands {
 			if cmd == nil {
 				continue

@@ -253,6 +253,54 @@ func TestDropExternalSchema(t *testing.T) {
 	}
 }
 
+// --- UNDROP ---
+
+func undropOf(t *testing.T, sql string) *ast.UndropStmt {
+	t.Helper()
+	n := parseOneStmt(t, sql)
+	u, ok := n.(*ast.UndropStmt)
+	if !ok {
+		t.Fatalf("parseOneStmt(%q): got %T, want *ast.UndropStmt", sql, n)
+	}
+	return u
+}
+
+// TestUndropSchema covers undrop_statement's one kind the grammar's action
+// allows. Only SCHEMA parses: the rule reports "UNDROP <kind> is not supported"
+// for every other schema_object_kind, which is why the `UNDROP CONNECTION …`
+// rows of testdata/compat.tsv stay open (the emulator takes them at dispatch
+// without parsing the body).
+func TestUndropSchema(t *testing.T) {
+	u := undropOf(t, "UNDROP SCHEMA myschema")
+	if u.ObjectKind != "SCHEMA" || u.Name == nil || u.Name.String() != "myschema" {
+		t.Errorf("undrop = %+v, want SCHEMA myschema", u)
+	}
+	if u.Loc.Start != 0 || u.Loc.End != len("UNDROP SCHEMA myschema") {
+		t.Errorf("Loc = %+v, want (0, %d)", u.Loc, len("UNDROP SCHEMA myschema"))
+	}
+
+	u = undropOf(t, "UNDROP SCHEMA IF NOT EXISTS ds.my_schema FOR SYSTEM_TIME AS OF TIMESTAMP '2020-01-01' OPTIONS(a = 1)")
+	if !u.IfNotExists || u.ForSystemTime == nil || len(u.Options) != 1 {
+		t.Errorf("undrop = %+v, want IF NOT EXISTS + FOR SYSTEM_TIME + OPTIONS", u)
+	}
+
+	// The AS OF expression and the OPTIONS values may embed subqueries, which the
+	// dispatch fills; a malformed one fails the strict parse.
+	assertSubqueriesFilled(t, undropOf(t, "UNDROP SCHEMA s OPTIONS(a = (SELECT 1))"))
+	assertReject(t, "UNDROP SCHEMA s OPTIONS(a = (SELECT 1 FROM t x y))")
+}
+
+func TestUndropSchema_Rejects(t *testing.T) {
+	for _, sql := range []string{
+		"UNDROP",                    // no kind
+		"UNDROP CONNECTION a",       // only SCHEMA survives the rule's action
+		"UNDROP SCHEMA",             // the name is required
+		"UNDROP SCHEMA IF EXISTS a", // IF NOT EXISTS, not IF EXISTS
+	} {
+		assertReject(t, sql)
+	}
+}
+
 // --- CREATE DATABASE ---
 
 func TestCreateDatabase(t *testing.T) {

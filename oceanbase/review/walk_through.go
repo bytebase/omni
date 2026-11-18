@@ -141,10 +141,14 @@ func nameTaken(name string) string {
 // wrongKind reads "`v` is a view, not a table.", and "`v` isn't a table."
 // when the kind it is is not known.
 func wrongKind(name, kind, need string) string {
-	if kind == "" {
-		return review.Code(name) + " isn't a " + need + "."
+	article := "a "
+	if need != "" && strings.ContainsRune("aeiou", rune(need[0])) {
+		article = "an "
 	}
-	return review.Code(name) + " is a " + kind + ", not a " + need + "."
+	if kind == "" {
+		return review.Code(name) + " isn't " + article + need + "."
+	}
+	return review.Code(name) + " is a " + kind + ", not " + article + need + "."
 }
 
 // statesTwice reads "This statement adds column `c` twice.".
@@ -208,6 +212,10 @@ type walker struct {
 	// materialized lists the relations the walk holds as materialized views.
 	// Their ledger kind is empty, as an external table's is.
 	materialized map[walk.Key]bool
+	// external lists the relations that are external tables, whose kind is
+	// empty: a DROP TABLE takes one, where a materialized view's kind is empty
+	// too and stays.
+	external map[walk.Key]bool
 	// materializedLogs holds each table's materialized view log state, as
 	// materializedLogUnknown, materializedLogPresent, or materializedLogAbsent.
 	materializedLogs map[walk.Key]int
@@ -231,6 +239,7 @@ func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walke
 		ignoresFKs:       make(map[walk.Key]bool),
 		materialized:     make(map[walk.Key]bool),
 		materializedLogs: make(map[walk.Key]int),
+		external:         make(map[walk.Key]bool),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true
@@ -240,6 +249,9 @@ func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walke
 	}
 	for name := range snap.materialized {
 		w.materialized[relKey(snap.db, name)] = true
+	}
+	for name := range snap.external {
+		w.external[relKey(snap.db, name)] = true
 	}
 	return w
 }

@@ -422,6 +422,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// GQL graph query: GRAPH <name> <gql ops> (gql_statement). Owned by the
 		// parser-gql node (graph_query.go).
 		return p.parseGQLStmt()
+	case kwTABLE:
+		// `TABLE t` is a query (query_primary's table_clause_reserved), a read
+		// equivalent to `SELECT * FROM t`; it takes the query's trailing
+		// ORDER BY / LIMIT / pipe suffix like any other query.
+		return p.parseQueryStatement()
 	case int('('):
 		// Parenthesized query at top level, e.g. (SELECT 1) UNION ALL (SELECT 2).
 		return p.parseQueryStatement()
@@ -433,6 +438,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// Spanner rejects `FROM t` as a syntax error). parseQuery routes a leading
 		// FROM to parseQueryPrimary, which produces exactly that rejection.
 		return p.parseQueryStatement()
+	case tokPipe:
+		// A statement that is only a pipe suffix (subpipeline_statement). It is
+		// a complete statement in the grammar, not a fragment: `|> AGGREGATE
+		// COUNT(*) |> WHERE n > 1` runs against the pipeline's input. Its
+		// operators' expressions may embed subqueries, so fill them like the
+		// other statements.
+		return p.parseStmtWithSubqueries(p.parseSubpipelineStmt)
 
 	// --- DDL ---
 	case kwCREATE:
@@ -448,7 +460,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwRENAME:
 		return p.parseRenameStmt()
 	case kwUNDROP:
-		return p.unsupported("UNDROP")
+		// UNDROP SCHEMA [IF NOT EXISTS] <path> [FOR SYSTEM_TIME AS OF expr]
+		// [OPTIONS(…)] (undrop_statement). The grammar's action allows only
+		// SCHEMA; every other kind is a syntax error, as in ZetaSQL. The
+		// AS OF expression and the OPTIONS values may embed subqueries, so wrap
+		// for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseUndropStmt)
 	case kwTRUNCATE:
 		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
 		return p.parseStmtWithSubqueries(p.parseTruncateStmt)
@@ -498,6 +515,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// parseSetStmt itself.
 		return p.parseSetStmt()
 	case kwRUN:
+		// RUN BATCH is a sql_statement_body_no_pipe_suffix form: the
+		// pipe-capable rule holds the distinct run_statement, which this
+		// parser does not read, so a suffix after RUN BATCH is not accepted.
 		return p.parseRunBatchStmt()
 	case kwABORT:
 		return p.parseAbortBatchStmt()
@@ -506,11 +526,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwEXPLAIN:
 		return p.unsupported("EXPLAIN")
 	case kwDESCRIBE:
-		return p.parseDescribeStmt()
+		// DESCRIBE may carry a pipe suffix
+		// (sql_statement_body_maybe_pipe_suffix): `DESCRIBE t |> AGGREGATE …`.
+		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
 	case kwDESC:
-		return p.parseDescribeStmt()
+		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
 	case kwSHOW:
-		return p.unsupported("SHOW")
+		// SHOW show_target [FROM path] [LIKE 'str'] (show_statement), one of the
+		// statements that may carry a pipe suffix
+		// (sql_statement_body_maybe_pipe_suffix). Owned by the parser-utility
+		// node (utility.go).
+		return p.parseMaybePipeSuffixStmt(p.parseShowStmt)
 	case kwANALYZE:
 		return p.parseAnalyzeStmt()
 	case kwASSERT:
@@ -519,17 +545,25 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseStmtWithSubqueries(p.parseAssertStmt)
 	case kwCALL:
 		// CALL arguments are full expressions that may embed subqueries; wrap so
-		// they are re-parsed (fillSubqueries) like the query / DML paths.
-		return p.parseStmtWithSubqueries(p.parseCallStmt)
+		// they are re-parsed (fillSubqueries) like the query / DML paths. CALL is
+		// one of the statements that may carry a pipe suffix
+		// (sql_statement_body_maybe_pipe_suffix).
+		return p.parseMaybePipeSuffixStmt(p.parseCallStmt)
 	case kwEXECUTE:
 		// EXECUTE IMMEDIATE <sql> [INTO ...] [USING ...] (execute_immediate) — owned
 		// by the parser-scripting node. The SQL / USING expressions may embed
-		// subqueries, filled by parseExecuteImmediateStmt itself.
-		return p.parseExecuteImmediateStmt()
+		// subqueries, filled by parseExecuteImmediateStmt itself. It may carry a
+		// pipe suffix like CALL.
+		return p.parseMaybePipeSuffixStmt(p.parseExecuteImmediateStmt)
 	case kwIMPORT:
-		return p.unsupported("IMPORT")
+		// IMPORT MODULE|PROTO <path|string> [AS|INTO alias] [OPTIONS(…)]
+		// (import_statement, parser-utility). The OPTIONS values are full
+		// expressions that may embed subqueries, so wrap for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseImportStmt)
 	case kwMODULE:
-		return p.unsupported("MODULE")
+		// MODULE <path> [OPTIONS(…)] (module_statement, parser-utility). Same
+		// OPTIONS subquery filling.
+		return p.parseStmtWithSubqueries(p.parseModuleStmt)
 	case kwEXPORT:
 		// EXPORT DATA (AS query) | EXPORT MODEL | EXPORT … METADATA (parser-utility,
 		// still a stub). DATA/MODEL carry expressions (the AS query; OPTIONS values)
@@ -622,6 +656,24 @@ func (p *Parser) parseQueryStatement() (ast.Node, error) {
 // as a diagnostic, matching the query-statement path.
 func (p *Parser) parseStmtWithSubqueries(parse func() (ast.Node, error)) (ast.Node, error) {
 	n, err := parse()
+	if err != nil {
+		return nil, err
+	}
+	p.fillSubqueries(n)
+	return n, nil
+}
+
+// parseMaybePipeSuffixStmt parses one of the statements that may carry a pipe
+// suffix (sql_statement_body_maybe_pipe_suffix) and wraps it when a suffix
+// follows, then fills every expression-embedded subquery in the result — in
+// the statement and in the pipe operators' expressions alike.
+func (p *Parser) parseMaybePipeSuffixStmt(parse func() (ast.Node, error)) (ast.Node, error) {
+	start := p.cur.Loc.Start
+	n, err := parse()
+	if err != nil {
+		return nil, err
+	}
+	n, err = p.parseMaybePipeSuffix(n, start)
 	if err != nil {
 		return nil, err
 	}

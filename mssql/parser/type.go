@@ -53,14 +53,16 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		Loc:  nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Check for schema-qualified type: schema.typename
+	// Check for schema-qualified type: schema.typename, whose second name is
+	// required: DECLARE @a a. is Msg 102 (measured).
 	if p.cur.Type == '.' {
 		p.advance()
 		dt.Schema = name
-		if p.isIdentLike() {
-			dt.Name = p.cur.Str
-			p.advance()
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
 		}
+		dt.Name = p.cur.Str
+		p.advance()
 	}
 
 	// NATIONAL takes CHAR, CHARACTER and TEXT, and VARYING follows CHAR,
@@ -83,20 +85,22 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt.Name += " VARYING"
 	}
 
-	// Check for (precision[, scale]) or (MAX) or (length)
+	// Check for (precision[, scale]) or (MAX) or (length). The parameters are
+	// dataTypeParametersOpt's MAX or integer [, integer]: SQL Server refuses
+	// DECLARE @a a(a), a(), a(MAXDOP) and a(1,) with Msg 102 (measured).
 	if p.cur.Type == '(' {
 		p.advance()
 		if p.cur.Type == kwMAX {
 			dt.MaxLength = true
 			p.advance()
 		} else {
-			length, err := p.parseExpr()
+			length, err := p.parseTypeParameter()
 			if err != nil {
 				return nil, err
 			}
 			dt.Length = length
 			if _, ok := p.match(','); ok {
-				scale, err := p.parseExpr()
+				scale, err := p.parseTypeParameter()
 				if err != nil {
 					return nil, err
 				}
@@ -112,6 +116,21 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 
 	dt.Loc.End = p.prevEnd()
 	return dt, nil
+}
+
+// parseTypeParameter parses one integer parameter of a data type, the
+// integer of dataTypeParametersOpt (TSql160.g:30301).
+func (p *Parser) parseTypeParameter() (nodes.ExprNode, error) {
+	if p.cur.Type != tokICONST {
+		return nil, p.syntaxErrorAtCur()
+	}
+	tok := p.advance()
+	return &nodes.Literal{
+		Type: nodes.LitInteger,
+		Ival: tok.Ival,
+		Str:  tok.Str,
+		Loc:  nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
+	}, nil
 }
 
 // parseDoublePrecisionType parses DOUBLE PRECISION [ ( { MAX | integer } ) ]

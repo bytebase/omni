@@ -171,7 +171,6 @@ var officialCorpusSkips = map[string]string{
 	"bigquery/datatypes.md#0": "OUT-OF-SCOPE: DT-001 BigQuery-extended typed literals (INT64 '42', BOOL 'TRUE', STRING 'hello', BYTES, FLOAT64) — legacy .g4 only has DATE/TIME/DATETIME/TIMESTAMP/NUMERIC/JSON typed literals; live Spanner oracle also REJECTS `SELECT INT64 '42'` (Syntax error). NUMERIC/DATE/TIMESTAMP literals in the same block parse; the INT64/BOOL/STRING ones do not.",
 	"bigquery/ddl.md#12":      "OUT-OF-SCOPE: DDL-013 CREATE EXTERNAL SCHEMA — no migration node (legacy create_external_schema_statement is a ZetaSQL long-tail form not in the P0/P1 DAG)",
 	"bigquery/ddl.md#13":      "OUT-OF-SCOPE: DDL-014 CREATE [OR REPLACE] EXTERNAL TABLE — no migration node (legacy create_external_table_statement, ZetaSQL long-tail)",
-	"bigquery/ddl.md#42":      "OUT-OF-SCOPE: UNDROP SCHEMA — no migration node (legacy undrop_statement, not in the DAG)",
 	"bigquery/ddl.md#45":      "OUT-OF-SCOPE: DROP EXTERNAL TABLE — no migration node (DROP external-object variant, ZetaSQL long-tail)",
 	"spanner/ddl.md#37":       "OUT-OF-SCOPE: CREATE MODEL … INPUT/OUTPUT — ML model DDL, no migration node",
 	"spanner/ddl.md#38":       "OUT-OF-SCOPE: ALTER MODEL … SET OPTIONS — ML model DDL, no migration node",

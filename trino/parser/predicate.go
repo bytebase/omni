@@ -74,11 +74,13 @@ func (*QuantifiedComparisonExpr) exprNode()       {}
 
 // BetweenExpr is `value [NOT] BETWEEN lower AND upper` (the between predicate).
 type BetweenExpr struct {
-	Not   bool
-	Value Expr
-	Lower Expr
-	Upper Expr
-	Loc   ast.Loc
+	Not        bool
+	Symmetric  bool
+	Asymmetric bool
+	Value      Expr
+	Lower      Expr
+	Upper      Expr
+	Loc        ast.Loc
 }
 
 func (n *BetweenExpr) Span() ast.Loc { return n.Loc }
@@ -154,6 +156,34 @@ type IsBooleanExpr struct {
 func (n *IsBooleanExpr) Span() ast.Loc { return n.Loc }
 func (*IsBooleanExpr) exprNode()       {}
 
+// MatchExpr is `value MATCH [UNIQUE] [SIMPLE|PARTIAL|FULL] ( query )` (the
+// match predicate). Type is "" for the default match type.
+type MatchExpr struct {
+	Unique   bool
+	Type     string // "", "SIMPLE", "PARTIAL", or "FULL"
+	Value    Expr
+	Subquery *SubqueryExpr
+	Loc      ast.Loc
+}
+
+func (n *MatchExpr) Span() ast.Loc { return n.Loc }
+func (*MatchExpr) exprNode()       {}
+
+// startsBarePredicate reports whether the current token begins a predicate
+// with no left value expression, the `predicate[null]` form of a simple CASE's
+// WHEN clause.
+func startsBarePredicate(kind TokenKind, next TokenKind) bool {
+	switch kind {
+	case int('='), tokNotEq, int('<'), tokLessEq, int('>'), tokGreaterEq,
+		kwBETWEEN, kwIN, kwLIKE, kwIS, kwMATCH:
+		return true
+	case kwNOT:
+		return next == kwBETWEEN || next == kwIN || next == kwLIKE
+	default:
+		return false
+	}
+}
+
 // parsePredicateSuffix attaches at most one predicate to the already-parsed
 // valueExpression `left`, returning `left` unchanged when no predicate follows.
 // It is the `predicate_?` of the predicated rule; the non-associativity (one
@@ -186,6 +216,18 @@ func (p *Parser) parsePredicateSuffix(left Expr) (Expr, error) {
 		return p.parseNegatablePredicate(left, false, ast.NoLoc())
 	case kwIS:
 		return p.parseIsPredicate(left)
+	case kwMATCH:
+		// MATCH is non-reserved. It is the predicate only when the whole
+		// MATCH [UNIQUE] [SIMPLE|PARTIAL|FULL] (query) shape parses; otherwise
+		// it is an alias for the valueExpression and the next token is judged by
+		// the caller (`SELECT 1.5 MATCH UNIQUE …` errors at UNIQUE).
+		cp := p.checkpoint()
+		expr, err := p.parseMatchPredicate(left)
+		if err == nil {
+			return expr, nil
+		}
+		p.restore(cp)
+		return left, nil
 	default:
 		return left, nil
 	}
@@ -197,21 +239,32 @@ func (p *Parser) parsePredicateSuffix(left Expr) (Expr, error) {
 func (p *Parser) parseComparison(left Expr) (Expr, error) {
 	opTok := p.advance()
 	op := comparisonOpText(opTok)
+	start := opTok.Loc.Start
+	if left != nil {
+		start = left.Span().Start
+	}
 
 	if q, ok := comparisonQuantifierText(p.cur.Kind); ok && p.peekNext().Kind == int('(') {
+		// ALL/SOME/ANY are also non-reserved function names. The quantified form
+		// applies only when the parenthesized content is a query; otherwise the
+		// right-hand value is the ordinary function call `ALL(...)`.
+		cp := p.checkpoint()
 		p.advance()            // consume the quantifier
 		openTok := p.advance() // consume '('
-		subq, err := p.parseSubqueryPlaceholder(openTok.Loc.Start, SubqueryQuantified)
-		if err != nil {
-			return nil, err
+		if p.startsQuery() {
+			subq, err := p.parseSubqueryPlaceholder(openTok.Loc.Start, SubqueryQuantified)
+			if err != nil {
+				return nil, err
+			}
+			return &QuantifiedComparisonExpr{
+				Op:         op,
+				Quantifier: q,
+				Left:       left,
+				Subquery:   subq,
+				Loc:        ast.Loc{Start: start, End: subq.Loc.End},
+			}, nil
 		}
-		return &QuantifiedComparisonExpr{
-			Op:         op,
-			Quantifier: q,
-			Left:       left,
-			Subquery:   subq,
-			Loc:        ast.Loc{Start: left.Span().Start, End: subq.Loc.End},
-		}, nil
+		p.restore(cp)
 	}
 
 	right, err := p.parseValueExpr()
@@ -222,7 +275,7 @@ func (p *Parser) parseComparison(left Expr) (Expr, error) {
 		Op:    op,
 		Left:  left,
 		Right: right,
-		Loc:   ast.Loc{Start: left.Span().Start, End: right.Span().End},
+		Loc:   ast.Loc{Start: start, End: right.Span().End},
 	}, nil
 }
 
@@ -231,7 +284,10 @@ func (p *Parser) parseComparison(left Expr) (Expr, error) {
 // preceding NOT was consumed. notLoc is the NOT token's Loc (valid only when not
 // is true) so the result span starts at NOT.
 func (p *Parser) parseNegatablePredicate(left Expr, not bool, notLoc ast.Loc) (Expr, error) {
-	start := left.Span().Start
+	start := p.cur.Loc.Start
+	if left != nil {
+		start = left.Span().Start
+	}
 	if not {
 		start = notLoc.Start
 	}
@@ -252,6 +308,15 @@ func (p *Parser) parseNegatablePredicate(left Expr, not bool, notLoc ast.Loc) (E
 // are valueExpressions (not full booleanExpressions).
 func (p *Parser) parseBetween(left Expr, not bool, start int) (Expr, error) {
 	p.advance() // consume BETWEEN
+	symmetric, asymmetric := false, false
+	switch p.cur.Kind {
+	case kwSYMMETRIC:
+		p.advance()
+		symmetric = true
+	case kwASYMMETRIC:
+		p.advance()
+		asymmetric = true
+	}
 	lower, err := p.parseValueExpr()
 	if err != nil {
 		return nil, err
@@ -264,11 +329,57 @@ func (p *Parser) parseBetween(left Expr, not bool, start int) (Expr, error) {
 		return nil, err
 	}
 	return &BetweenExpr{
-		Not:   not,
-		Value: left,
-		Lower: lower,
-		Upper: upper,
-		Loc:   ast.Loc{Start: start, End: upper.Span().End},
+		Not:        not,
+		Symmetric:  symmetric,
+		Asymmetric: asymmetric,
+		Value:      left,
+		Lower:      lower,
+		Upper:      upper,
+		Loc:        ast.Loc{Start: start, End: upper.Span().End},
+	}, nil
+}
+
+// parseMatchPredicate parses `MATCH [UNIQUE] [SIMPLE|PARTIAL|FULL] ( query )`
+// (MATCH is current).
+func (p *Parser) parseMatchPredicate(left Expr) (Expr, error) {
+	matchTok := p.advance() // consume MATCH
+	start := matchTok.Loc.Start
+	if left != nil {
+		start = left.Span().Start
+	}
+	unique := false
+	if p.cur.Kind == kwUNIQUE {
+		p.advance()
+		unique = true
+	}
+	matchType := ""
+	switch p.cur.Kind {
+	case kwSIMPLE, kwPARTIAL, kwFULL:
+		matchType = p.advance().Str
+	}
+	openTok, err := p.expect(int('('))
+	if err != nil {
+		return nil, err
+	}
+	if !p.startsQueryOrParenthesized() {
+		return nil, p.exprErrorAt("expected a query in MATCH(")
+	}
+	sub, err := p.parseSubqueryPlaceholder(openTok.Loc.Start, SubqueryMatch)
+	if err != nil {
+		return nil, err
+	}
+	// A body that is no query is a syntax error at the '(' in Trino's reading,
+	// not at the body's first token. In a strict parse the body was already
+	// parsed in place, so SubqueryExpr.Query says whether it is a query.
+	if p.strictTrailing && sub.Query == nil {
+		return nil, &ParseError{Position: openTok.Loc.Start, End: openTok.Loc.End, Message: "expected a query in MATCH("}
+	}
+	return &MatchExpr{
+		Unique:   unique,
+		Type:     matchType,
+		Value:    left,
+		Subquery: sub,
+		Loc:      ast.Loc{Start: start, End: sub.Loc.End},
 	}, nil
 }
 
@@ -353,6 +464,10 @@ func (p *Parser) parseLike(left Expr, not bool, start int) (Expr, error) {
 // them).
 func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 	isTok := p.advance() // consume IS
+	start := isTok.Loc.Start
+	if left != nil {
+		start = left.Span().Start
+	}
 	not := false
 	if p.cur.Kind == kwNOT {
 		p.advance() // consume NOT
@@ -364,7 +479,7 @@ func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 		return &IsNullExpr{
 			Not:   not,
 			Value: left,
-			Loc:   ast.Loc{Start: left.Span().Start, End: nullTok.Loc.End},
+			Loc:   ast.Loc{Start: start, End: nullTok.Loc.End},
 		}, nil
 	case kwDISTINCT:
 		p.advance() // consume DISTINCT
@@ -379,7 +494,7 @@ func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 			Not:   not,
 			Value: left,
 			Right: right,
-			Loc:   ast.Loc{Start: left.Span().Start, End: right.Span().End},
+			Loc:   ast.Loc{Start: start, End: right.Span().End},
 		}, nil
 	case kwTRUE, kwFALSE, kwUNKNOWN:
 		boolTok := p.advance()
@@ -387,7 +502,7 @@ func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 			Not:   not,
 			Value: left,
 			Test:  strings.ToUpper(boolTok.Str),
-			Loc:   ast.Loc{Start: left.Span().Start, End: boolTok.Loc.End},
+			Loc:   ast.Loc{Start: start, End: boolTok.Loc.End},
 		}, nil
 	default:
 		return nil, &ParseError{Position: isTok.Loc.Start, End: isTok.Loc.End, Message: "expected NULL, DISTINCT FROM, TRUE, FALSE, or UNKNOWN after IS"}

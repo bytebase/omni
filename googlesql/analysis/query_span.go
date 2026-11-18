@@ -412,11 +412,383 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 	case *ast.TruncateStmt:
 		w.recordTable(n.Target, "")
 		w.walkPredicate(n.Where)
+	case *ast.SubpipelineStmt:
+		// A statement that is only a pipe suffix runs against an input table it
+		// never names, so its output columns cannot be resolved. The tables its
+		// operators do name (a pipe JOIN, a CALL, a set operation's TABLE
+		// operand) are still recorded, and the span fails closed.
+		w.visitPipe(n.Pipeline)
+		w.failClosed(fmt.Errorf("a pipe statement's input table is not named, so its output columns cannot be resolved (fail closed)"))
+	case *ast.PipeStatement:
+		// Same for a table-returning statement followed by a pipe suffix.
+		w.visitPipe(n.Pipeline)
+		w.failClosed(fmt.Errorf("a statement followed by a pipe suffix does not expose resolved output columns (fail closed)"))
 	default:
 		// DDL and everything else: walk for table references generically. The
 		// generic table-discovery pass records every PathExpr that sits in a
 		// table position (CTAS source, VIEW body, the target name).
 		w.discoverTables(node)
+	}
+}
+
+// visitPipe records the tables a pipe suffix names and recurses into the
+// operators that hold another subpipeline. A pipe operator's input is the
+// pipeline itself, so most operators name no table; the ones that do are a
+// JOIN, a CALL, a set operation's query/TABLE operand, a recursive union's
+// operand, a CTE list, and the statements a pipe operator can carry (INSERT,
+// CREATE TABLE). A pipe operator's expressions (WHERE, EXTEND, AGGREGATE, SET,
+// ASSERT, IF conditions, MATCH_RECOGNIZE …) are walked for predicate-column
+// references and embedded subqueries.
+func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
+	if p == nil {
+		return
+	}
+	// A pipe WITH makes its CTEs visible to the operators after it, so they
+	// enter scope progressively as the pipeline is walked.
+	var scope *cteScope
+	for _, op := range p.Ops {
+		if n, ok := op.(*ast.PipeWith); ok {
+			if n.With == nil {
+				continue
+			}
+			if scope == nil {
+				scope = &cteScope{names: make(map[string]bool), columns: make(map[string][]projColumn), parent: w.scope}
+				w.scope = scope
+			}
+			recursive := n.With.Recursive
+			for _, cte := range n.With.CTEs {
+				if cte == nil || cte.Name == "" {
+					continue
+				}
+				w.span.CTEs = append(w.span.CTEs, cte.Name)
+				lower := strings.ToLower(cte.Name)
+				if recursive {
+					scope.names[lower] = true
+				}
+				var cols []projColumn
+				if cte.Query != nil {
+					cols = w.resolveCTEColumns(cte, recursive, scope, lower)
+				}
+				cols = applyCTEColumnAliases(cols, cte.Columns)
+				scope.names[lower] = true
+				scope.columns[lower] = cols
+			}
+			continue
+		}
+		switch n := op.(type) {
+		case *ast.PipeWhere:
+			w.walkPredicate(n.Expr)
+		case *ast.PipeSelect:
+			w.walkPipeSelect(n.Select)
+		case *ast.PipeExtend:
+			w.walkPipeSelect(n.Select)
+		case *ast.PipeAggregate:
+			w.walkPipeSelect(n.Select)
+		case *ast.PipeWindow:
+			w.walkPipeItems(n.Items)
+		case *ast.PipeOrderBy:
+			for _, item := range n.Items {
+				if item != nil {
+					w.walkPredicate(item.Expr)
+				}
+			}
+		case *ast.PipeLimitOffset:
+			w.walkPredicate(n.Limit)
+			w.walkPredicate(n.Offset)
+		case *ast.PipeAssert:
+			for _, cond := range n.Conditions {
+				w.walkPredicate(cond)
+			}
+		case *ast.PipeSet:
+			for _, item := range n.Items {
+				if item != nil {
+					w.walkSubqueriesOnly(item.Value)
+				}
+			}
+		case *ast.PipeTablesample:
+			w.walkSampleExpressions(n.Sample)
+		case *ast.PipePivot:
+			w.walkPivotExpressions(n.Pivot)
+		case *ast.PipeUnpivot:
+			w.walkUnpivotExpressions(n.Unpivot)
+		case *ast.PipeJoin:
+			if n.Join != nil {
+				w.buildFromItem(n.Join.Right)
+				w.recordSourceTVFArgs(n.Join.Right)
+				w.walkPredicate(n.Join.On)
+			}
+		case *ast.PipeCall:
+			w.visitPipeCall(n.Call)
+		case *ast.PipeSetOperation:
+			for _, rhs := range n.Right {
+				w.visitPipeOperand(rhs)
+			}
+		case *ast.PipeRecursiveUnion:
+			w.visitPipeOperand(n.RHS)
+		case *ast.PipeInsert:
+			w.discoverTables(n.Insert)
+		case *ast.PipeCreateTable:
+			w.discoverTables(n.Create)
+		case *ast.PipeLog:
+			w.visitPipe(n.Pipeline)
+		case *ast.PipeIf:
+			for _, c := range n.Cases {
+				w.walkPredicate(c.Condition)
+				w.visitPipe(c.Then)
+			}
+			w.visitPipe(n.Else)
+		case *ast.PipeFork:
+			for _, branch := range n.Pipelines {
+				w.visitPipe(branch)
+			}
+		case *ast.PipeTee:
+			for _, branch := range n.Pipelines {
+				w.visitPipe(branch)
+			}
+		case *ast.PipeMatchRecognize:
+			if n.Clause != nil {
+				for _, expr := range n.Clause.PartitionBy {
+					w.walkPredicate(expr)
+				}
+				for _, item := range n.Clause.OrderBy {
+					if item != nil {
+						w.walkPredicate(item.Expr)
+					}
+				}
+				for _, item := range n.Clause.Measures {
+					if item != nil {
+						w.walkPredicate(item.Expr)
+					}
+				}
+				for _, def := range n.Clause.Definitions {
+					if def != nil {
+						w.walkPredicate(def.Expr)
+					}
+				}
+				for _, opt := range n.Clause.Options {
+					if opt != nil {
+						w.walkSubqueriesOnly(opt.Value)
+					}
+				}
+			}
+		}
+	}
+	if scope != nil {
+		w.scope = scope.parent
+	}
+}
+
+// walkPivotExpressions walks a PIVOT clause's expressions for embedded
+// subqueries. They are output expressions, so they are not predicate columns.
+func (w *spanWalker) walkPivotExpressions(pv *ast.PivotClause) {
+	if pv == nil {
+		return
+	}
+	for _, agg := range pv.Aggregates {
+		if agg != nil {
+			w.walkSubqueriesOnly(agg.Expr)
+		}
+	}
+	w.walkSubqueriesOnly(pv.For)
+	for _, v := range pv.Values {
+		if v != nil {
+			w.walkSubqueriesOnly(v.Expr)
+		}
+	}
+}
+
+// walkUnpivotExpressions walks an UNPIVOT clause's expressions for embedded
+// subqueries.
+func (w *spanWalker) walkUnpivotExpressions(up *ast.UnpivotClause) {
+	if up == nil {
+		return
+	}
+	w.walkSubqueriesOnly(up.NameColumn)
+	for _, item := range up.Items {
+		if item == nil {
+			continue
+		}
+		for _, col := range item.Columns {
+			w.walkSubqueriesOnly(col)
+		}
+	}
+}
+
+// walkSampleExpressions walks a TABLESAMPLE clause's size, PARTITION BY and
+// seed expressions for embedded subqueries.
+func (w *spanWalker) walkSampleExpressions(sc *ast.SampleClause) {
+	if sc == nil {
+		return
+	}
+	w.walkPredicate(sc.Size)
+	for _, expr := range sc.PartitionBy {
+		w.walkPredicate(expr)
+	}
+	w.walkPredicate(sc.Repeatable)
+}
+
+// walkPipeItems walks a pipe selection item list for embedded subqueries: each
+// item's expression and its star REPLACE values. The items are output
+// expressions, so they are not predicate columns.
+func (w *spanWalker) walkPipeItems(items []*ast.SelectItem) {
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		w.walkSubqueriesOnly(item.Expr)
+		if item.Modifiers != nil {
+			for _, r := range item.Modifiers.Replace {
+				if r != nil {
+					w.walkSubqueriesOnly(r.Value)
+				}
+			}
+		}
+	}
+}
+
+// walkPipeSelect walks the item list and GROUP BY of a pipe operator that holds
+// a *SelectStmt (SELECT / EXTEND / AGGREGATE).
+func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
+	if sel == nil {
+		return
+	}
+	// The items are output expressions, not predicate positions: walk only the
+	// subqueries they embed. GROUP BY items are predicate positions.
+	w.walkPipeItems(sel.Items)
+	if sel.GroupBy != nil {
+		for _, gi := range sel.GroupBy.Items {
+			if gi == nil {
+				continue
+			}
+			w.walkPredicate(gi.Expr)
+			for _, e := range gi.Items {
+				w.walkPredicate(e)
+			}
+		}
+	}
+	for _, win := range sel.Window {
+		if win != nil {
+			w.walkWindowSpec(win.Spec)
+		}
+	}
+}
+
+// pipeKeepsProjection reports whether every operator in a pipe suffix leaves
+// the input's output columns alone. Filtering and ordering change rows, not
+// columns; SELECT, EXTEND, AGGREGATE, RENAME, DROP, SET, JOIN, CALL, PIVOT,
+// UNPIVOT and the set operations change them, so a span carrying the input's
+// projection is not the statement's projection.
+func pipeKeepsProjection(p *ast.Subpipeline) bool {
+	if p == nil {
+		return true
+	}
+	for _, op := range p.Ops {
+		switch n := op.(type) {
+		case *ast.PipeWhere, *ast.PipeOrderBy, *ast.PipeLimitOffset, *ast.PipeDistinct,
+			*ast.PipeTablesample, *ast.PipeAssert, *ast.PipeWith, *ast.PipeAs:
+		case *ast.PipeLog:
+			if !pipeKeepsProjection(n.Pipeline) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// visitPipeCall walks a pipe CALL's table-valued function. A TABLE argument
+// (`CALL f(TABLE t)`) names a table the call reads, so it is recorded as an
+// access; the remaining arguments are walked for column references and
+// subqueries. A model or connection argument is not a table.
+func (w *spanWalker) visitPipeCall(te *ast.TableExpr) {
+	if te == nil {
+		return
+	}
+	if te.Func != nil {
+		w.recordCallTableArgs(te.Func)
+		w.walkPredicate(te.Func)
+	}
+	w.registerFromAlias(te.Alias)
+}
+
+// recordSourceTVFArgs records the table arguments of the TVFs in a joined FROM
+// source (a TableExpr, an UNNEST, or a join tree of them), which buildFromItem
+// walks for their ordinary expressions only.
+func (w *spanWalker) recordSourceTVFArgs(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.TableExpr:
+		if n.Func != nil {
+			w.recordCallTableArgs(n.Func)
+		}
+	case *ast.JoinExpr:
+		w.recordSourceTVFArgs(n.Left)
+		w.recordSourceTVFArgs(n.Right)
+	}
+}
+
+// recordCallTableArgs records the table a CALL/TVF argument names
+// (`f(TABLE t)`). A model or connection argument is not a table.
+func (w *spanWalker) recordCallTableArgs(fc *ast.FuncCall) {
+	if fc == nil {
+		return
+	}
+	for _, arg := range fc.Args {
+		w.recordTVFArgument(arg)
+	}
+}
+
+// recordTVFArgument records the table a TVF argument names, in each shape the
+// grammar gives it: `TABLE t` as a CallArg, the table_clause form as a
+// TableClause, and a named argument whose value is one (`arg => TABLE t`).
+func (w *spanWalker) recordTVFArgument(arg ast.Node) {
+	switch a := arg.(type) {
+	case *ast.CallArg:
+		if a.Kind == ast.CallArgTable {
+			w.recordTable(a.Path, "")
+		}
+	case *ast.TableClause:
+		w.recordTableClauseTables(a)
+	case *ast.NamedArg:
+		if tc, ok := a.Value.(*ast.TableClause); ok {
+			w.recordTableClauseTables(tc)
+		}
+	}
+}
+
+// recordTableClauseTables records a table_clause's table (or its TVF arguments)
+// and its optional WHERE filter.
+func (w *spanWalker) recordTableClauseTables(tc *ast.TableClause) {
+	if tc == nil {
+		return
+	}
+	if tc.Table != nil {
+		if tc.Table.Func != nil {
+			w.recordCallTableArgs(tc.Table.Func)
+			w.walkPredicate(tc.Table.Func)
+		} else {
+			w.recordTable(tc.Table.Path, "")
+		}
+		w.walkPivotExpressions(tc.Table.Pivot)
+		w.walkUnpivotExpressions(tc.Table.Unpivot)
+		w.walkSampleExpressions(tc.Table.Sample)
+	}
+	w.walkPredicate(tc.Where)
+}
+
+// visitPipeOperand walks one operand of a pipe set operation or recursive
+// union: a parenthesized query body, a TABLE clause, or a nested subpipeline.
+func (w *spanWalker) visitPipeOperand(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.QueryStmt:
+		w.visitBody(n)
+	case *ast.TableClause:
+		if n != nil {
+			w.recordTableClauseTables(n)
+			w.buildTableExpr(n.Table)
+		}
+	case *ast.Subpipeline:
+		w.visitPipe(n)
 	}
 }
 
@@ -469,6 +841,17 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	}
 
 	results := w.visitBody(q.Body)
+
+	// A query's pipe suffix transforms the query's output. The head query's
+	// projection is kept (a superset of the columns a `|> SELECT`/`|> DROP`
+	// leaves, and the base of what `|> EXTEND`/`|> AGGREGATE` add), and the
+	// tables the operators name are recorded.
+	if q.Pipe != nil {
+		w.visitPipe(q.Pipe)
+		if !pipeKeepsProjection(q.Pipe) {
+			w.failClosed(fmt.Errorf("a pipe operator after a query changes the query's projection, which this walker does not resolve (fail closed)"))
+		}
+	}
 
 	// Query-level ORDER BY / LIMIT / OFFSET keys may reference columns.
 	for _, item := range q.OrderBy {
@@ -643,6 +1026,33 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 		return w.visitSelect(n)
 	case *ast.SetOperation:
 		return w.visitSetOp(n)
+	case *ast.TableClause:
+		// The `TABLE t` query primary (table_clause_reserved) is `SELECT * FROM t`:
+		// build the clause's source relation (which records the table / TVF
+		// arguments and walks pivot/sample expressions) and project it as a bare
+		// star, so the clause's output carries the same lineage as the explicit
+		// SELECT * would — including a CTE's resolved columns.
+		prevFrom, prevLeaves := w.fromAliases, w.leaves
+		w.fromAliases = map[string]bool{}
+		w.leaves = &leafSet{}
+		fromRels := w.buildFromRelations([]ast.Node{n.Table})
+		// A TVF's `TABLE u` argument names a table the call reads; buildFromItem
+		// walks a TVF's ordinary expressions only.
+		w.recordSourceTVFArgs(n.Table)
+		w.walkPredicate(n.Where)
+		w.fromAliases, w.leaves = prevFrom, prevLeaves
+		if w.tablesOnly {
+			return nil
+		}
+		if len(fromRels) == 0 {
+			// A TVF source's output columns are unknowable (buildTableExpr returns no
+			// relation for a function call), so the clause's projection cannot be
+			// resolved: fail closed rather than report an empty column list, which a
+			// masking consumer would read as "nothing to mask".
+			w.failClosed(fmt.Errorf("a TABLE clause over a table-valued function has no resolvable output columns (fail closed)"))
+			return nil
+		}
+		return w.starProjColumns(allColumns(fromRels), nil)
 	}
 	return nil
 }
@@ -866,6 +1276,9 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 		// AND the source resolves to a value relation projecting the element
 		// column(s) with the argument's lineage.
 		w.walkPredicate(n.Array)
+		w.walkPivotExpressions(n.Pivot)
+		w.walkUnpivotExpressions(n.Unpivot)
+		w.walkSampleExpressions(n.Sample)
 		return w.finishUnnestRelation(w.unnestElementColumns(n.Array), n.Alias, n.WithOffset, n.WithOffsetAlias)
 	}
 	return nil
@@ -1085,6 +1498,9 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 		}
 	}
 	w.walkPredicate(n.SystemTime)
+	w.walkPivotExpressions(n.Pivot)
+	w.walkUnpivotExpressions(n.Unpivot)
+	w.walkSampleExpressions(n.Sample)
 	return rel
 }
 
@@ -1401,6 +1817,37 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 		if n.Object == ast.DropTable || n.Object == ast.DropView {
 			w.recordTable(n.Name, "")
 		}
+	case *ast.ExportMetadataStmt:
+		// The exported table is the statement's source; its metadata is read.
+		w.recordTable(n.Path, "")
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.ImportStmt:
+		// IMPORT reads a module, not a table; an OPTIONS value's subquery is still
+		// a read.
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.ModuleStmt:
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.CallStmt:
+		// A CALL's tvf_argument list may name tables — positionally (`TABLE t`) or
+		// as a named argument whose value is a table_clause (`arg => TABLE t`) —
+		// and its argument expressions may embed subqueries.
+		for _, arg := range n.Args {
+			w.recordTVFArgument(arg)
+			if na, ok := arg.(*ast.NamedArg); ok {
+				w.walkSubqueriesOnly(na.Value)
+				continue
+			}
+			if _, ok := arg.(*ast.CallArg); ok {
+				// A clause, not an expression.
+				continue
+			}
+			w.walkSubqueriesOnly(arg)
+		}
+	case *ast.UndropStmt:
+		// UNDROP names a schema, not a table; its AS OF expression and OPTIONS
+		// values may embed subqueries.
+		w.walkSubqueriesOnly(n.ForSystemTime)
+		w.walkOptionsSubqueries(n.Options)
 	case *ast.CreateSchemaStmt, *ast.CreateDatabaseStmt:
 		// Schema/Database creates have no table reference of lineage interest.
 	default:
@@ -1634,6 +2081,17 @@ func (w *spanWalker) walkSubqueriesOnly(expr ast.Node) {
 	}
 	ew := &exprWalk{w: w, followSub: true}
 	ew.walk(expr)
+}
+
+// walkOptionsSubqueries records the tables read by subqueries inside an OPTIONS
+// list's values, which the parser fills (fillSubqueries). Options are metadata
+// rather than lineage, so only their subqueries are followed.
+func (w *spanWalker) walkOptionsSubqueries(opts []*ast.OptionsEntry) {
+	for _, opt := range opts {
+		if opt != nil {
+			w.walkSubqueriesOnly(opt.Value)
+		}
+	}
 }
 
 // walkWindowSpec walks a window specification's PARTITION BY / ORDER BY / frame

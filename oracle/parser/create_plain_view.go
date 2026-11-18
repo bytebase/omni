@@ -157,7 +157,7 @@ func (p *Parser) finishCreatePlainViewStmt(stmt *nodes.CreateViewStmt) (*nodes.C
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwCONSTRAINT {
+		if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
 			p.advance()
 			stmt.ConstraintName = p.cur.Str
 			if err := p.parseCreateTableName(); err != nil {

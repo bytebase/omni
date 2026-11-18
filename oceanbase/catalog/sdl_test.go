@@ -92,6 +92,13 @@ func TestSDLValidation(t *testing.T) {
 			sql:     "SELECT 1;",
 			wantErr: "SDL does not allow SELECT statements",
 		},
+		{
+			// The loader builds metadata.ExternalTableMetadata from a sync, not
+			// from DDL, so it cannot install the object.
+			name:    "CREATE EXTERNAL TABLE rejected",
+			sql:     "CREATE DATABASE app; USE app; CREATE EXTERNAL TABLE e (a int) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');",
+			wantErr: "SDL does not allow CREATE EXTERNAL TABLE statements",
+		},
 		// ---- Rejected destructive DDL ----
 		{
 			name:    "DROP TABLE rejected",

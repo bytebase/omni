@@ -1298,6 +1298,10 @@ func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 			b.WriteString(" ")
 			b.WriteString(t.Alias)
 		}
+	case *ast.ExternalTableRef, *ast.RbIterateExpr, *ast.UnnestExpr:
+		// These carry no ExprNode form, so their own writer is the text:
+		// the source as written, as a subquery's is.
+		writeTableExpr(b, tbl)
 	default:
 		writeExprAlias(b, tbl.(ast.ExprNode))
 	}
@@ -1365,9 +1369,113 @@ func writeTableExpr(b *strings.Builder, tbl ast.TableExpr) {
 		writeJoinClause(b, t)
 	case *ast.SubqueryExpr:
 		writeSubqueryTableExpr(b, t)
+	case *ast.ExternalTableRef:
+		b.WriteString(deparseExternalTableRef(t))
+	case *ast.RbIterateExpr:
+		b.WriteString("rb_iterate(")
+		writeExpr(b, t.Arg)
+		b.WriteString(")")
+		if t.Alias != "" {
+			b.WriteString(" " + quoteIdent(t.Alias))
+			if t.Column != "" {
+				b.WriteString("(" + quoteIdent(t.Column) + ")")
+			}
+		}
+	case *ast.UnnestExpr:
+		b.WriteString("unnest(")
+		for i, arg := range t.Args {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeExpr(b, arg)
+		}
+		b.WriteString(")")
+		if t.Alias != "" {
+			b.WriteString(" " + quoteIdent(t.Alias))
+			if len(t.Columns) > 0 {
+				b.WriteString("(")
+				for i, col := range t.Columns {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					b.WriteString(quoteIdent(col))
+				}
+				b.WriteString(")")
+			}
+		}
 	default:
 		fmt.Fprintf(b, "/* unsupported table expr: %T */", tbl)
 	}
+}
+
+// deparseExternalTableRef writes a table read from a location: a quoted path
+// with its format and pattern, or SOURCE(...) or FILES(...), with the alias
+// after it.
+func deparseExternalTableRef(t *ast.ExternalTableRef) string {
+	var b strings.Builder
+	switch t.Function {
+	case "SOURCE":
+		b.WriteString("source(")
+		writeExternalProperties(&b, t.Source)
+		b.WriteString(")")
+	case "FILES":
+		b.WriteString("files(location ")
+		b.WriteString(quoteStringValue(t.Path))
+		b.WriteString(", format(")
+		writeExternalProperties(&b, t.Format)
+		b.WriteString(")")
+		if t.PatternSet {
+			b.WriteString(", pattern ")
+			b.WriteString(quoteStringValue(t.Pattern))
+		}
+		b.WriteString(")")
+	default:
+		b.WriteString(quoteStringValue(t.Path))
+		b.WriteString("(format(")
+		writeExternalProperties(&b, t.Format)
+		b.WriteString(")")
+		if t.PatternSet {
+			b.WriteString(" pattern ")
+			b.WriteString(quoteStringValue(t.Pattern))
+		}
+		b.WriteString(")")
+	}
+	if t.Alias != "" {
+		b.WriteString(" as " + quoteIdent(t.Alias))
+	}
+	return b.String()
+}
+
+// writeExternalProperties writes the entries of a SOURCE(...) or FORMAT(...)
+// list as `name = value` pairs. A value the grammar gives a parenthesized list
+// — NULL_IF and COLUMN_BLOOM_FILTER — keeps its parentheses.
+func writeExternalProperties(b *strings.Builder, props []*ast.ExternalProperty) {
+	for i, prop := range props {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(strings.ToLower(prop.Name))
+		b.WriteString(" = ")
+		if list, ok := prop.Value.(*ast.RowExpr); ok {
+			b.WriteString("(")
+			for j, item := range list.Items {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeExpr(b, item)
+			}
+			b.WriteString(")")
+			continue
+		}
+		writeExpr(b, prop.Value)
+	}
+}
+
+// quoteStringValue quotes a raw string as OceanBase writes a string literal.
+func quoteStringValue(s string) string {
+	escaped := strings.ReplaceAll(s, `\`, `\\`)
+	escaped = strings.ReplaceAll(escaped, "'", `\'`)
+	return "'" + escaped + "'"
 }
 
 // writeJoinClause formats a JOIN clause.
@@ -1425,6 +1533,20 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 				// Tables were swapped above, so swap names to match original SQL
 				leftName, rightName = rightName, leftName
 			}
+			if leftName == "" || rightName == "" {
+				// A side with no name to qualify its columns, such as an
+				// unaliased table function, keeps its USING: expanding it to ON
+				// would write `on((``.`c` = ...))`, which is no SQL.
+				b.WriteString(" using(")
+				for i, col := range cond.Columns {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					b.WriteString(quoteIdent(col))
+				}
+				b.WriteString(")")
+				break
+			}
 			b.WriteString(" on(")
 			writeUsingAsOn(b, cond.Columns, leftName, rightName)
 			b.WriteString(")")
@@ -1444,6 +1566,14 @@ func tableExprName(tbl ast.TableExpr) string {
 		}
 		return t.Name
 	case *ast.SubqueryExpr:
+		return t.Alias
+	case *ast.UnnestExpr:
+		return t.Alias
+	case *ast.RbIterateExpr:
+		return t.Alias
+	case *ast.ExternalTableRef:
+		// A location is no relation name: with no alias the side keeps its
+		// USING rather than qualifying columns by a path.
 		return t.Alias
 	default:
 		return ""
@@ -1477,6 +1607,14 @@ func writeSubqueryTableExpr(b *strings.Builder, s *ast.SubqueryExpr) {
 		writeSelectStmt(b, s.Select, false)
 	}
 	b.WriteString(")")
+	if s.Flashback != nil {
+		if s.Flashback.Proctime {
+			b.WriteString(" as of proctime()")
+		} else {
+			b.WriteString(" as of snapshot ")
+			writeExpr(b, s.Flashback.Snapshot)
+		}
+	}
 	if s.Alias != "" {
 		b.WriteString(" " + quoteIdent(s.Alias))
 	}

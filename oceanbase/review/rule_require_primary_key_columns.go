@@ -116,7 +116,9 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 			st.kind = barrier
 		case *ast.BeginStmt, *ast.UnlockTablesStmt,
-			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt:
+			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt,
+			*ast.MethodOptStmt:
+			// method_opt changes no name and runs nothing.
 			continue
 		case *ast.CommitStmt:
 			// COMMIT RELEASE ends the session.

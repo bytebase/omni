@@ -602,7 +602,7 @@
 < row
 : int64 1
 > query
-| SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x
+| SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x LIMIT 2
 < result
 < column "x" "INTEGER"
 < row

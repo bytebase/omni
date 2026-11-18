@@ -430,7 +430,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 	}
 
 	seen := map[string]bool{}
-	for p.cur.Type == kwWITH {
+	for p.cur.Type == kwWITH || p.atWord("WITHOUT") {
+		withoutTok := p.cur
+		without := p.atWord("WITHOUT")
 		p.advance()
 		switch {
 		case p.cur.Type == kwLOCAL:
@@ -439,15 +441,26 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			}
 			p.advance()
 			if p.isKeywordStr("RANGE") {
-				stmt.WithRange = true
+				if without {
+					stmt.WithoutRange = true
+				} else {
+					stmt.WithRange = true
+				}
 				p.advance()
 			}
 			if p.cur.Type != kwPARTITION {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
-			stmt.WithLocal = true
+			if without {
+				stmt.WithoutLocal = true
+			} else {
+				stmt.WithLocal = true
+			}
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
+			if without {
+				return nil, p.syntaxErrorAtTok(withoutTok)
+			}
 			if err := p.ixOnce(seen, "STORAGE"); err != nil {
 				return nil, err
 			}
@@ -458,9 +471,25 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			if err := p.ixOnce(seen, "ARRAY"); err != nil {
 				return nil, err
 			}
-			if err := p.parseArrayDMLTail(); err != nil {
+			pairs, err := p.parseArrayDMLTail()
+			if err != nil {
 				return nil, err
 			}
+			stmt.ArrayDMLTypes = append(stmt.ArrayDMLTypes, pairs...)
+			if without {
+				stmt.WithoutArrayDML = true
+			} else {
+				stmt.ArrayDML = true
+			}
+		case p.isKeywordStr("DML"):
+			// WITH DML leaves ARRAY out (compat.tsv's row).
+			if without {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if err := p.ixOnce(seen, "ARRAY"); err != nil {
+				return nil, err
+			}
+			p.advance()
 			stmt.ArrayDML = true
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -490,33 +519,70 @@ func (p *Parser) parseStorageTableTail() (string, error) {
 //
 // The page allows a list of pairs; Oracle takes one (WITH ARRAY DML (a, a),
 // (a, a) is refused at the second).
-func (p *Parser) parseArrayDMLTail() error {
+func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 	p.advance() // ARRAY
 	if err := p.ixWord("DML"); err != nil {
-		return err
+		return nil, err
 	}
 	if p.cur.Type != '(' {
-		return nil
+		return nil, nil
 	}
-	p.advance()
-	for i := 0; i < 2; i++ {
-		if i > 0 {
-			if p.cur.Type != ',' {
-				return p.syntaxErrorAtCur()
+	var pairs []*nodes.ArrayDMLTypePair
+	for {
+		pairStart := p.pos()
+		p.advance() // consume (
+		var names [2]*nodes.ObjectName
+		for i := 0; i < 2; i++ {
+			if i > 0 {
+				if p.cur.Type != ',' {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance()
 			}
-			p.advance()
+			name, err := p.parseArrayDMLType()
+			if err != nil {
+				return nil, err
+			}
+			if name == nil || name.Name == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			names[i] = name
 		}
-		if name, err := p.parseOperatorType(); err != nil {
-			return err
-		} else if name == "" {
-			return p.syntaxErrorAtCur()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		pairs = append(pairs, &nodes.ArrayDMLTypePair{Type: names[0], VarrayType: names[1], Loc: nodes.Loc{Start: pairStart, End: p.prev.End}})
+		// The page allows a list of pairs; Oracle takes one or more.
+		if p.cur.Type != ',' || p.peekNext().Type != '(' {
+			break
+		}
+		p.advance() // consume ,
 	}
-	if p.cur.Type != ')' {
-		return p.syntaxErrorAtCur()
+	return pairs, nil
+}
+
+// parseArrayDMLType reads one ARRAY DML type: a name that may be qualified,
+// which unlike a parameter type is never two words such as LONG RAW.
+func (p *Parser) parseArrayDMLType() (*nodes.ObjectName, error) {
+	if !p.isATNameStart() && !isOracleTypeToken(p.cur.Type) {
+		return nil, p.syntaxErrorAtCur()
 	}
+	start := p.pos()
+	name := p.cur.Str
 	p.advance()
-	return nil
+	on := &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+	if p.cur.Type == '.' {
+		p.advance()
+		if !p.isATNameStart() && !isOracleTypeToken(p.cur.Type) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		on.Schema = name
+		on.Name = p.cur.Str
+		p.advance()
+		on.Loc.End = p.prev.End
+	}
+	return on, nil
 }
 
 // parseIndextypeOp reads [ schema. ] operator ( parameter_type [, ...] ).
@@ -602,6 +668,7 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 		}
 	}
 
+	seen := map[string]bool{}
 	// using_type_clause: USING [ schema. ] implementation_type [ array_DML_clause ]
 	if p.cur.Type == kwUSING {
 		p.advance()
@@ -610,15 +677,19 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 		}
 		if p.cur.Type == kwWITH && p.peekNext().Str == "ARRAY" {
 			p.advance()
-			if err := p.parseArrayDMLTail(); err != nil {
+			pairs, err := p.parseArrayDMLTail()
+			if err != nil {
 				return nil, err
 			}
+			stmt.ArrayDMLTypes = append(stmt.ArrayDMLTypes, pairs...)
+			seen["ARRAY"] = true
 			stmt.ArrayDML = true
 		}
 	}
 
-	seen := map[string]bool{}
-	for p.cur.Type == kwWITH {
+	for p.cur.Type == kwWITH || p.atWord("WITHOUT") {
+		withoutTok := p.cur
+		without := p.atWord("WITHOUT")
 		p.advance()
 		switch {
 		case p.cur.Type == kwLOCAL:
@@ -630,14 +701,44 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
-			stmt.WithLocal = true
+			if without {
+				stmt.WithoutLocal = true
+			} else {
+				stmt.WithLocal = true
+			}
 		case p.isKeywordStr("SYSTEM") || p.cur.Type == kwUSER:
+			if without {
+				return nil, p.syntaxErrorAtTok(withoutTok)
+			}
 			if err := p.ixOnce(seen, "STORAGE"); err != nil {
 				return nil, err
 			}
 			if stmt.StorageTable, err = p.parseStorageTableTail(); err != nil {
 				return nil, err
 			}
+		case p.isKeywordStr("ARRAY"):
+			if err := p.ixOnce(seen, "ARRAY"); err != nil {
+				return nil, err
+			}
+			pairs, err := p.parseArrayDMLTail()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ArrayDMLTypes = append(stmt.ArrayDMLTypes, pairs...)
+			if without {
+				stmt.WithoutArrayDML = true
+			} else {
+				stmt.ArrayDML = true
+			}
+		case p.isKeywordStr("DML"):
+			if without {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if err := p.ixOnce(seen, "ARRAY"); err != nil {
+				return nil, err
+			}
+			p.advance()
+			stmt.ArrayDML = true
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
