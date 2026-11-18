@@ -121,7 +121,8 @@ generated from. A byte is `DBMS_SQL.LAST_ERROR_POSITION`.
 | --- | --- | --- |
 | `suite:reference` | 16 | refused, or `INVALID` (`PLS-00589`); only `PLS-001xx` counts as syntax |
 | `ALTER MATERIALIZED VIEW ... SUBPARTITIONS 1 ...` | 12 | `ORA-14156` at `SUBPARTITIONS` (52) |
-| `GRANT`/`REVOKE` to and from program units | 35 | `ORA-28700`, `ORA-28701` at 0 |
+| `GRANT`/`REVOKE` to and from program units | 32 | `ORA-28700`, `ORA-28701` at 0: no role list is read |
+| `GRANT a TO a, a zzz`, `... BY a`, `... IDENTIFIED BY a,` | 4 | `ORA-01700` at 14, `ORA-03001` at 13, `ORA-00989` at 28 |
 | `ALTER TABLE ... UPGRADE [NOT] INCLUDING DATA` | 5 | `ORA-01735` at 0 on `t`; no column property is read |
 | `MODIFY [SUB]PARTITION a LOB(a(RETENTION)` | 3 | `ORA-03059` at `LOB` (25, 37, 40) |
 | `ALTER TABLE a MODIFY (PARTITION PARTITION)` | 1 | `ORA-00904` at `PARTITION` (21) on `t` |
@@ -151,7 +152,6 @@ generated from. A byte is `DBMS_SQL.LAST_ERROR_POSITION`.
 | `MERGE INTO a` / `MERGE INTO USING s ...` | 2 | `ORA-38107` at 0 (no `USING`); `ORA-00942` at 11 |
 | `SELECT * FOR UPDATE WAIT` | 1 | `ORA-30020` at 24, the end |
 | `ASSOCIATE STATISTICS ... USING a` | 1 | `ORA-29820` at 0 (no statistics type) |
-| `GRANT TO FUNCTION a` | 1 | `ORA-28700` at 0 |
 
 Two families are left as rows for another reason. `TABLESPACE SET` in a
 materialized view or its log answers `ORA-02538` at the clause (byte 0 in the

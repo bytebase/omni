@@ -284,10 +284,39 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) (*node
 // BNF: oracle/parser/bnf/DROP-RESTORE-POINT.bnf
 //
 //	DROP RESTORE POINT restore_point [ FOR PLUGGABLE DATABASE pdb_name ] ;
+//
+// Unlike the other simple DROPs it takes no IF [NOT] EXISTS and no FORCE:
+// Oracle answers ORA-11600 at the name after IF [NOT] EXISTS and ORA-03049
+// at FORCE.
 func (p *Parser) parseDropRestorePointStmt(start int) (*nodes.DropStmt, error) {
-	stmt, err := p.parseDropSimpleStmt(nodes.OBJECT_RESTORE_POINT, start)
+	stmt := &nodes.DropStmt{
+		ObjectType: nodes.OBJECT_RESTORE_POINT,
+		Names:      &nodes.List{},
+		Loc:        nodes.Loc{Start: start},
+	}
+	if p.cur.Type == kwIF {
+		p.advance() // consume IF
+		if p.isKeywordStr("NOT") {
+			p.advance()
+		}
+		if err := p.expectCreateTableToken(kwEXISTS); err != nil {
+			return nil, err
+		}
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwFORCE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	name, err := p.parseObjectName()
 	if err != nil {
 		return nil, err
+	}
+	if name == nil || name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Names.Items = append(stmt.Names.Items, name)
+	if p.cur.Type == kwFORCE {
+		return nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR

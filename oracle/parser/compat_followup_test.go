@@ -34,6 +34,10 @@ func TestParseFollowupForms(t *testing.T) {
 		`CREATE MATERIALIZED VIEW a JSON(a) STORE AS AS SELECT 1 FROM dual`,
 		`CREATE MATERIALIZED VIEW a JSON(a) AS AS SELECT 1 FROM dual`,
 		`CREATE VECTOR INDEX a ON a(a) ORGANIZATION PARTITIONS`,
+		// A repeated name both columns define is oracle's ORA-00957 check,
+		// left to the recorded over-accepts (see alter_table.go); a DOMAIN
+		// defines its column's type as a datatype does.
+		`ALTER TABLE a ADD (a NUMBER, a DOMAIN d)`,
 	}
 	for _, sql := range accepted {
 		if _, err := Parse(sql); err != nil {
@@ -41,9 +45,10 @@ func TestParseFollowupForms(t *testing.T) {
 		}
 	}
 
-	// The bytes are compat.tsv's: Oracle reports a reference partitioning's
-	// byte at the constraint, PURGE's TABLESPACE SET at the name after SET,
-	// and a list's repeated bare column at the name.
+	// The bytes are compat.tsv's where a row holds them: Oracle reports a
+	// reference partitioning's byte at the constraint, PURGE's TABLESPACE SET
+	// at the name after SET, a list's repeated bare column at the name, and
+	// DROP RESTORE POINT's IF [NOT] EXISTS and FORCE at what follows.
 	refusedAt := []struct {
 		sql  string
 		want int
@@ -52,6 +57,10 @@ func TestParseFollowupForms(t *testing.T) {
 		{`CREATE TABLE a PARTITION BY REFERENCE(a) zzz`, 38},
 		{`PURGE TABLESPACE SET a`, 21},
 		{`ALTER TABLE a ADD(a NUMBER, a)`, 28},
+		// DROP RESTORE POINT takes no IF [NOT] EXISTS (ORA-11600 at the
+		// name) and no FORCE (ORA-03049 at the word).
+		{`DROP RESTORE POINT IF EXISTS a`, 29},
+		{`DROP RESTORE POINT a FORCE`, 21},
 	}
 	for _, c := range refusedAt {
 		_, err := Parse(c.sql)

@@ -348,7 +348,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 					err = p.syntaxErrorAtCur()
 				}
 				if err == nil {
-					if col.TypeName == nil && listed[col.Name] {
+					if col.TypeName == nil && col.Domain == nil && listed[col.Name] {
 						err = p.syntaxErrorAtTok(itemTok)
 					} else {
 						listed[col.Name] = true
