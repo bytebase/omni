@@ -290,7 +290,7 @@ func (p *Parser) parseInsertPartition() ([]string, bool, error) {
 	}
 
 	var parts []string
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, false, err
 	}
@@ -298,7 +298,7 @@ func (p *Parser) parseInsertPartition() ([]string, bool, error) {
 
 	for p.cur.Kind == int(',') {
 		p.advance() // consume ','
-		name, _, err = p.parseIdentifier()
+		name, _, err = p.parseIdentifierOrString()
 		if err != nil {
 			return nil, false, err
 		}
