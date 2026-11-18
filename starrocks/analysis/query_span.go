@@ -188,13 +188,7 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		// its tables AND its Results populate.
 		w.visitSetOpArm(n, true /* outermost */)
 	case *ast.DataCacheSelectStmt:
-		w.visitDataCacheSelect(n, true /* outermost */)
-	case *ast.OptimizerTraceStmt:
-		// Tracing is a flag on the query it wraps, so the wrapped query is
-		// still the outermost one and its projection is the result set.
-		if n.Query != nil {
-			w.analyzeStmt(n.Query)
-		}
+		w.visitDataCacheSelect(n)
 	default:
 		w.validateEmbeddedSubqueries(node)
 	}
@@ -267,7 +261,7 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			w.visitSetOp(q, false)
 			return false
 		case *ast.DataCacheSelectStmt:
-			w.visitDataCacheSelect(q, false)
+			w.visitDataCacheSelect(q)
 			return false
 		case *ast.TableRef:
 			// A physical table referenced by DML — UPDATE ... FROM secret,
@@ -581,8 +575,9 @@ func (w *spanWalker) recordTableName(name *ast.ObjectName, alias string, loc ast
 // visitDataCacheSelect walks CACHE SELECT's source and select list. Its FROM is
 // a bare qualified name, so the ordinary TableRef path never sees it, and a
 // span that omitted it would let a cache read a table the access check never
-// sees.
-func (w *spanWalker) visitDataCacheSelect(stmt *ast.DataCacheSelectStmt, outermost bool) {
+// sees. Its select list is not the statement's result set: CACHE SELECT prints
+// no data, so Results stays empty.
+func (w *spanWalker) visitDataCacheSelect(stmt *ast.DataCacheSelectStmt) {
 	if stmt == nil {
 		return
 	}
@@ -591,18 +586,9 @@ func (w *spanWalker) visitDataCacheSelect(stmt *ast.DataCacheSelectStmt, outermo
 		w.walkExpr(stmt.Where)
 	}
 	for _, item := range stmt.Items {
-		if item == nil {
-			continue
-		}
-		if outermost && !w.resolved {
-			w.span.Results = append(w.span.Results, w.makeColumnInfo(item))
-		}
-		if item.Expr != nil {
+		if item != nil && item.Expr != nil {
 			w.walkExpr(item.Expr)
 		}
-	}
-	if outermost {
-		w.resolved = true
 	}
 }
 

@@ -48,8 +48,15 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 // readsRows reports whether a statement returns a result set without being a
 // read-only query: ADMIN SHOW inspects the cluster and answers with rows.
 func readsRows(node ast.Node) bool {
-	admin, ok := node.(*ast.AdminStmt)
-	return ok && strings.EqualFold(admin.Verb, "SHOW")
+	switch n := node.(type) {
+	case *ast.AdminStmt:
+		return strings.EqualFold(n.Verb, "SHOW")
+	case *ast.SubmitTaskStmt:
+		// SUBMIT TASK answers with the task name and its status (SUBMITTED,
+		// REJECTED or FAILED), so the driver reads rows rather than Exec'ing.
+		return true
+	}
+	return false
 }
 
 // parseStatements parses every non-empty statement of text, which a trailing

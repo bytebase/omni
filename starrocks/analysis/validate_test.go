@@ -51,6 +51,18 @@ func TestValidateQueryServerState(t *testing.T) {
 	}
 }
 
+// SUBMIT TASK returns the task name and its status, so the driver must read
+// rows even though the statement is not read-only.
+func TestValidateQuerySubmitTask(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("SUBMIT TASK AS INSERT INTO t SELECT 1")
+	if err != nil {
+		t.Fatalf("ValidateQuery: %v", err)
+	}
+	if readOnly || !returnsData {
+		t.Errorf("SUBMIT TASK = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
+	}
+}
+
 // TRACE plans the query it wraps and never runs it, so it is read-only like
 // EXPLAIN, including over a query that writes out a file.
 func TestValidateQueryOptimizerTrace(t *testing.T) {

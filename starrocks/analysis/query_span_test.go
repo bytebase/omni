@@ -1157,7 +1157,18 @@ func TestGetQuerySpanNewStatements(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetQuerySpan returned error: %v", err)
 	}
-	if len(span.Results) != 1 || span.Results[0].Name != "exposed" {
-		t.Errorf("Results = %+v, want the traced query's exposed column", span.Results)
+	if len(span.Results) != 0 {
+		t.Errorf("Results = %+v, want none: TRACE answers with trace rows, not the query's columns", span.Results)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "t" {
+		t.Errorf("AccessTables = %+v, want t", span.AccessTables)
+	}
+
+	span, err = GetQuerySpan("CACHE SELECT secret AS exposed FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("Results = %+v, want none: CACHE SELECT prints no data", span.Results)
 	}
 }

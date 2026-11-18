@@ -177,9 +177,22 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 	if _, err := p.expect(kwINTERVAL); err != nil {
 		return nil, err
 	}
+	// The grammar's value is an expression. StarRocks unwraps parentheses and
+	// then requires an integer literal, so `(1)` is accepted and
+	// `CURRENT_USER` is not.
+	parens := 0
+	for p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		parens++
+	}
 	value, err := p.expect(tokInt)
 	if err != nil {
 		return nil, err
+	}
+	for range parens {
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
 	}
 	schedule.Interval = value.Str
 
@@ -387,8 +400,23 @@ func (p *Parser) parseOptimizerTrace(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
+// attachWith sets the WITH clause on the query a parenthesized or set-op tree
+// starts with. ParenSelect and SetOpStmt carry no WITH field, so the clause
+// belongs to their leftmost SELECT.
+func attachWith(node ast.Node, with *ast.WithClause) {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		n.With = with
+		n.Loc.Start = with.Loc.Start
+	case *ast.ParenSelect:
+		attachWith(n.Sel, with)
+	case *ast.SetOpStmt:
+		attachWith(n.Left, with)
+	}
+}
+
 // parseTraceQuery parses the queryRelation optimizerTrace wraps: a SELECT,
-// WITH ... SELECT, or parenthesized query, with any set operations attached.
+// WITH ... query, or parenthesized query, with any set operations attached.
 // EXPLAIN takes any statement, but TRACE takes a query only.
 func (p *Parser) parseTraceQuery() (ast.Node, error) {
 	switch p.cur.Kind {
@@ -399,11 +427,28 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 		}
 		return p.parseSetOpTail(selectStmt)
 	case kwWITH:
-		selectStmt, err := p.parseWithSelect()
+		with, err := p.parseWithClause()
 		if err != nil {
 			return nil, err
 		}
-		return p.parseSetOpTail(selectStmt)
+		switch p.cur.Kind {
+		case kwSELECT:
+			selectStmt, err := p.parseSelectStmt()
+			if err != nil {
+				return nil, err
+			}
+			selectStmt.With = with
+			selectStmt.Loc.Start = with.Loc.Start
+			return p.parseSetOpTail(selectStmt)
+		case int('('):
+			paren, err := p.parseParenSelect()
+			if err != nil {
+				return nil, err
+			}
+			attachWith(paren, with)
+			return p.parseSetOpTail(paren)
+		}
+		return nil, p.syntaxErrorAtCur()
 	case int('('):
 		paren, err := p.parseParenSelect()
 		if err != nil {

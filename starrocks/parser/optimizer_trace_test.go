@@ -21,6 +21,7 @@ func TestOptimizerTrace(t *testing.T) {
 		{"TRACE REASON SELECT 1", "REASON", ""},
 		{"TRACE ALL trace_name SELECT 1 FROM t", "ALL", "trace_name"},
 		{"TRACE ALL WITH c AS (SELECT 1) SELECT * FROM c", "ALL", ""},
+		{"TRACE ALL WITH c AS (SELECT 1) (SELECT * FROM c)", "ALL", ""},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
 			file, errs := parseForTest(tc.sql)
