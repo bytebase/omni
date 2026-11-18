@@ -291,14 +291,19 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 		if err := p.expectCreateTableToken(')'); err != nil {
 			return err
 		}
-		addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: dir, Loc: dirLoc}, &nodes.StringLiteral{Val: file, Loc: fileLoc}}})
+		items := &nodes.List{}
+		if dir != "" {
+			items.Items = append(items.Items, &nodes.StringLiteral{Val: dir, Loc: dirLoc})
+		}
+		items.Items = append(items.Items, &nodes.StringLiteral{Val: file, Loc: fileLoc})
+		addOption("USING", "BFILE", optStart, items)
 	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"), p.isKeywordStr("BFILE"):
 		kind := p.cur.Str
 		p.advance()
 		if p.isStatementEnd() {
 			// Oracle reads USING CLOB with no subquery as an acceptance
-			// (compat.tsv's row).
-			addOption("USING", kind, optStart, nil)
+			// (compat.tsv's row). The key is not the quoted-key form.
+			addOption("USING_SOURCE", kind, optStart, nil)
 			return nil
 		}
 		if kind == "BFILE" && p.isCreateTableNameStart() && p.peekNext().Type == ',' {

@@ -476,6 +476,10 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 		start := p.pos()
 		op := ""
 		if carryDrop {
+			if p.cur.Type == kwADD || p.cur.Type == kwDROP || p.atWord("REPLACE") ||
+				p.atWord("REMOVE") {
+				return nil, p.syntaxErrorAtCur()
+			}
 			op = "DROP"
 		}
 		var name, value string
