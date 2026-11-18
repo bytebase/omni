@@ -9701,7 +9701,7 @@ reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!dro
 reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!drop-6	DELETE OPENQUERY(a, 'a'
 reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENQUERY(a, 'a') zzz
 reject	reject	engine	openRowset/openQueryRowset_simpleTableReferenceAliasOpt!swap	DELETE OPENROWSET(a, 'a')
-reject	accept	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
+accept	accept	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt	DELETE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-1	DELETE('a', 'a').a
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-2	DELETE OPENDATASOURCE 'a', 'a').a
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-3	DELETE OPENDATASOURCE(, 'a').a
@@ -9710,7 +9710,7 @@ reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-5	
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-6	DELETE OPENDATASOURCE('a', 'a'.a
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-7	DELETE OPENDATASOURCE('a', 'a') a
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!drop-8	DELETE OPENDATASOURCE('a', 'a').
-reject	accept	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
+accept	accept	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!insert	DELETE OPENDATASOURCE('a', 'a').a zzz
 reject	reject	engine	openRowset/adhocRowset_simpleTableReferenceAliasOpt!swap	DELETE OPENJSON('a', 'a').a
 reject	reject	engine	openRowsetRowset/OpenRowSet_LeftParenthesis_(openRowsetParams|internalOp~76f1c8b5	DELETE OPENROWSET(a)
 reject	reject	engine	openRowsetRowset(openRowsetParams|internalOpenRowsetA~de372c4e)/openRowsetParams	DELETE OPENROWSET('a', 'a', a)
@@ -9817,7 +9817,7 @@ reject	reject	engine	openRowsetBulkHint/simpleBulkInsertOptionWithValue	DELETE O
 reject	reject	engine	openRowsetBulkHint/openRowsetBulkOrderHint	DELETE OPENROWSET(BULK 'a', ORDER(a))
 reject	reject	engine	openRowsetBulkHintNoValue/Identifier	DELETE OPENROWSET(BULK 'a', a)
 accept	accept	engine	openQueryRowset/OpenQuery_LeftParenthesis_identifier_Comma_stringLitera~ef6ae9e0	DELETE OPENQUERY(a, 'a')
-reject	accept	engine	adhocRowset/adhocDataSource_Dot_objectOrString	DELETE OPENDATASOURCE('a', 'a').a
+accept	accept	engine	adhocRowset/adhocDataSource_Dot_objectOrString	DELETE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	openRowsetParams/stringLiteral_Comma_((stringLiteral_Semicolon_(stringLi~88f996fa	DELETE OPENROWSET('a', 'a', a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246	DELETE OPENROWSET('a', 'a';;, a)
 reject	reject	engine	openRowsetParams((stringLiteral_Semicolon_(stringLite~58032b56)/stringLiteral_Semicolon_(stringLiteral)?_Semicolon_(str~635f2246!drop-1	DELETE OPENROWSET('a',;;, a)
@@ -14307,7 +14307,7 @@ reject	reject	engine	stringOrVariable/variable!insert	SETUSER @a zzz
 accept	accept	engine	stringOrGlobalVariableOrVariable/stringLiteral	EXECUTE('a')
 accept	accept	engine	stringOrGlobalVariableOrVariable/globalVariableOrVariableReference	EXECUTE(@a)
 reject	reject	engine	stringOrGlobalVariableOrVariable/globalVariableOrVariableReference!insert	EXECUTE(@a zzz)
-reject	accept	engine	objectOrString/schemaObjectThreePartName	DELETE OPENDATASOURCE('a', 'a').a
+accept	accept	engine	objectOrString/schemaObjectThreePartName	DELETE OPENDATASOURCE('a', 'a').a
 reject	reject	engine	objectOrString/stringLiteral	DELETE OPENDATASOURCE('a', 'a').'a'
 reject	reject	engine	objectOrString/stringLiteral!insert	DELETE OPENDATASOURCE('a', 'a').'a' zzz
 accept	accept	engine	authorizationOpt/(authorization)?	CREATE SCHEMA a

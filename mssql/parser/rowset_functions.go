@@ -137,10 +137,10 @@ func (p *Parser) parseOpenXMLWithTable() (*nodes.TableRef, error) {
 //
 //	OPENDATASOURCE ( provider_name , init_string ) . database . schema . object [ [ AS ] alias ]
 //
-// SQL Server takes two string literals as the arguments and exactly three
-// name parts, of which database and schema may be empty (db..t, ...t). The
-// call alone, a shorter or longer name, a column list, a table hint, and
-// TABLESAMPLE are errors.
+// SQL Server takes two string literals as the arguments and one to four name
+// parts, of which the last is the object and the others may be empty
+// (db..t, ...t). The call alone, a fifth part, a column list, a table hint,
+// and TABLESAMPLE are errors.
 func (p *Parser) parseAdHocTableRef(fc *nodes.FuncCallExpr) (*nodes.AdHocTableRef, error) {
 	var args []nodes.Node
 	if fc.Args != nil {
@@ -159,31 +159,34 @@ func (p *Parser) parseAdHocTableRef(fc *nodes.FuncCallExpr) (*nodes.AdHocTableRe
 		return nil, err
 	}
 	objLoc := p.pos()
-	var parts [3]string
-	for i := range parts {
-		if i > 0 {
-			if _, err := p.expect('.'); err != nil {
-				return nil, err
-			}
-		}
+	// objectOrString's three-part name, of which SQL Server takes one to four
+	// parts, an empty part being a dot of its own: .a, .a.b, .db..t,
+	// .server.db.schema.object (measured; the fourth is the remote server's).
+	var parts []string
+	for {
 		if name, ok := p.parseIdentifier(); ok {
-			parts[i] = name
+			parts = append(parts, name)
+		} else {
+			parts = append(parts, "")
 		}
+		if p.cur.Type != '.' {
+			break
+		}
+		if len(parts) == 4 {
+			return nil, p.unexpectedToken()
+		}
+		p.advance() // consume '.'
 	}
-	if parts[2] == "" || p.cur.Type == '.' {
+	if parts[len(parts)-1] == "" {
 		return nil, p.unexpectedToken()
 	}
 
 	ref := &nodes.AdHocTableRef{
 		DataSource: fc,
-		Object: &nodes.TableRef{
-			Database: parts[0],
-			Schema:   parts[1],
-			Object:   parts[2],
-			Loc:      nodes.Loc{Start: objLoc, End: p.prevEnd()},
-		},
-		Loc: nodes.Loc{Start: fc.Loc.Start, End: -1},
+		Object:     &nodes.TableRef{Loc: nodes.Loc{Start: objLoc, End: p.prevEnd()}},
+		Loc:        nodes.Loc{Start: fc.Loc.Start, End: -1},
 	}
+	assignObjectRefParts(ref.Object, parts)
 	ref.Alias = p.parseOptionalAlias()
 	ref.Loc.End = p.prevEnd()
 	return ref, nil
