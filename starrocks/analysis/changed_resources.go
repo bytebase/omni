@@ -136,7 +136,13 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		// Only EXPLAIN ANALYZE runs its statement; the plan-only levels write
 		// nothing.
 		if n.Type == "ANALYZE" && n.Query != nil {
-			inner := ExtractChangedResources(n.Query, database, text)
+			// The DML text starts at the child, not at DESC ANALYZE.
+			childText := text
+			if loc := ast.NodeLoc(n.Query); loc.IsValid() && loc.Start >= 0 &&
+				loc.End <= len(text) && loc.Start < loc.End {
+				childText = text[loc.Start:loc.End]
+			}
+			inner := ExtractChangedResources(n.Query, database, childText)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
 			changes.DMLCount += inner.DMLCount
