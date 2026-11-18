@@ -1132,7 +1132,7 @@ reject	reject	engine	statement/showSnapshotStatement!drop-4	SHOW SNAPSHOT ON;
 reject	reject	engine	statement/showSnapshotStatement!truncate	SHOW SNAPSHOT ON
 reject	reject	engine	statement/showSnapshotStatement!insert	SHOW SNAPSHOT ON a zzz;
 reject	reject	engine	statement/showSnapshotStatement!swap	SIGNED SNAPSHOT ON a;
-reject	accept	engine	statement/createRepositoryStatement	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
+accept	accept	engine	statement/createRepositoryStatement	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	statement/createRepositoryStatement!drop-1	REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	statement/createRepositoryStatement!drop-2	CREATE a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	statement/createRepositoryStatement!drop-3	CREATE REPOSITORY WITH BROKER ON LOCATION 'a';
@@ -6962,22 +6962,22 @@ reject	reject	engine	showSnapshotStatement(WHERE_expression)?/WHERE_expression!d
 reject	reject	engine	showSnapshotStatement(WHERE_expression)?/WHERE_expression!truncate	SHOW SNAPSHOT ON a WHERE
 reject	reject	engine	showSnapshotStatement(WHERE_expression)?/WHERE_expression!insert	SHOW SNAPSHOT ON a WHERE CURRENT_USER zzz;
 reject	reject	engine	showSnapshotStatement(WHERE_expression)?/WHERE_expression!swap	SHOW SNAPSHOT ON a WHITELIST CURRENT_USER;
-reject	accept	engine	createRepositoryStatement/CREATE_(READ_ONLY)?_REPOSITORY_identifier_WITH_BROKER_(~16aa7a17	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
-reject	accept	engine	createRepositoryStatement(READ_ONLY)?/%empty	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
+accept	accept	engine	createRepositoryStatement/CREATE_(READ_ONLY)?_REPOSITORY_identifier_WITH_BROKER_(~16aa7a17	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
+accept	accept	engine	createRepositoryStatement(READ_ONLY)?/%empty	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	createRepositoryStatement(READ_ONLY)?/%empty!insert	CREATE zzz REPOSITORY a WITH BROKER ON LOCATION 'a';
-reject	accept	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY	CREATE READ ONLY REPOSITORY a WITH BROKER ON LOCATION 'a';
+accept	accept	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY	CREATE READ ONLY REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY!drop-1	CREATE ONLY REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY!drop-2	CREATE READ REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY!truncate	CREATE READ
 reject	reject	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY!insert	CREATE READ ONLY zzz REPOSITORY a WITH BROKER ON LOCATION 'a';
 reject	reject	engine	createRepositoryStatement(READ_ONLY)?/READ_ONLY!swap	CREATE REASON ONLY REPOSITORY a WITH BROKER ON LOCATION 'a';
-reject	accept	engine	createRepositoryStatement(identifierOrString)?/%empty	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
+accept	accept	engine	createRepositoryStatement(identifierOrString)?/%empty	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
 accept	accept	engine	createRepositoryStatement(identifierOrString)?/%empty!insert	CREATE REPOSITORY a WITH BROKER zzz ON LOCATION 'a';
 accept	accept	engine	createRepositoryStatement(identifierOrString)?/identifierOrString	CREATE REPOSITORY a WITH BROKER a ON LOCATION 'a';
 reject	reject	engine	createRepositoryStatement(identifierOrString)?/identifierOrString!truncate	CREATE REPOSITORY a WITH BROKER
 reject	reject	engine	createRepositoryStatement(identifierOrString)?/identifierOrString!insert	CREATE REPOSITORY a WITH BROKER a zzz ON LOCATION 'a';
-reject	accept	engine	createRepositoryStatement(PROPERTIES_propertyList)?/%empty	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
-reject	accept	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTIES('a' = 'a');
+accept	accept	engine	createRepositoryStatement(PROPERTIES_propertyList)?/%empty	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a';
+accept	accept	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTIES('a' = 'a');
 reject	reject	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-1	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a'('a' = 'a');
 reject	reject	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-2	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTIES 'a' = 'a');
 reject	reject	engine	createRepositoryStatement(PROPERTIES_propertyList)?/PROPERTIES_propertyList!drop-3	CREATE REPOSITORY a WITH BROKER ON LOCATION 'a' PROPERTIES(= 'a');
@@ -9018,13 +9018,13 @@ accept	accept	engine	literalExpression/string	SELECT 'a';
 accept	accept	engine	literalExpression/string!insert	SELECT 'a' zzz;
 accept	accept	engine	literalExpression/interval	SELECT INTERVAL CURRENT_USER YEAR;
 accept	accept	engine	literalExpression/interval!drop-1	SELECT CURRENT_USER YEAR;
-reject	accept	engine	literalExpression/interval!drop-2	SELECT INTERVAL YEAR;
+accept	accept	engine	literalExpression/interval!drop-2	SELECT INTERVAL YEAR;
 reject	reject	engine	literalExpression/interval!drop-3	SELECT INTERVAL CURRENT_USER;
 reject	reject	engine	literalExpression/interval!truncate	SELECT INTERVAL CURRENT_USER
 accept	accept	engine	literalExpression/interval!insert	SELECT INTERVAL CURRENT_USER YEAR zzz;
 reject	reject	engine	literalExpression/interval!swap	SELECT INTO CURRENT_USER YEAR;
-accept	reject	engine	literalExpression/unitBoundary	SELECT FLOOR;
-accept	reject	engine	literalExpression/unitBoundary!insert	SELECT FLOOR zzz;
+reject	reject	engine	literalExpression/unitBoundary	SELECT FLOOR;
+reject	reject	engine	literalExpression/unitBoundary!insert	SELECT FLOOR zzz;
 accept	accept	engine	literalExpression/binary	SELECT X'00';
 accept	accept	engine	literalExpression/binary!insert	SELECT X'00' zzz;
 accept	accept	engine	literalExpression/PARAMETER	SELECT ?;
@@ -10280,9 +10280,9 @@ accept	accept	engine	unitIdentifier/MILLISECOND!insert	SELECT INTERVAL CURRENT_U
 reject	reject	engine	unitIdentifier/MILLISECOND!swap	SELECT INTERVAL CURRENT_USER MIN;
 accept	accept	engine	unitIdentifier/MICROSECOND	SELECT INTERVAL CURRENT_USER MICROSECOND;
 accept	accept	engine	unitIdentifier/MICROSECOND!insert	SELECT INTERVAL CURRENT_USER MICROSECOND zzz;
-accept	reject	engine	unitBoundary/FLOOR	SELECT FLOOR;
-accept	reject	engine	unitBoundary/CEIL	SELECT CEIL;
-accept	reject	engine	unitBoundary/CEIL!insert	SELECT CEIL zzz;
+reject	reject	engine	unitBoundary/FLOOR	SELECT FLOOR;
+reject	reject	engine	unitBoundary/CEIL	SELECT CEIL;
+reject	reject	engine	unitBoundary/CEIL!insert	SELECT CEIL zzz;
 accept	accept	engine	type/baseType	ALTER SYSTEM ADD COLUMN a BOOLEAN;
 accept	accept	engine	type/decimalType	ALTER SYSTEM ADD COLUMN a DECIMAL;
 reject	reject	engine	type/decimalType!insert	ALTER SYSTEM ADD COLUMN a DECIMAL zzz;
@@ -10582,7 +10582,7 @@ accept	accept	engine	nonReserved/BACKENDS!insert	SELECT BACKENDS zzz;
 accept	accept	engine	nonReserved/BACKUP	SELECT BACKUP;
 accept	accept	engine	nonReserved/BACKUP!insert	SELECT BACKUP zzz;
 accept	accept	engine	nonReserved/BEGIN	SELECT BEGIN;
-reject	accept	engine	nonReserved/BEGIN!insert	SELECT BEGIN zzz;
+accept	accept	engine	nonReserved/BEGIN!insert	SELECT BEGIN zzz;
 reject	reject	engine	nonReserved/BEGIN!swap	SELECT BETWEEN;
 accept	accept	engine	nonReserved/BITMAP_UNION	SELECT BITMAP_UNION;
 accept	accept	engine	nonReserved/BITMAP_UNION!insert	SELECT BITMAP_UNION zzz;
@@ -10591,7 +10591,7 @@ accept	accept	engine	nonReserved/BLACKLIST	SELECT BLACKLIST;
 accept	accept	engine	nonReserved/BLACKLIST!insert	SELECT BLACKLIST zzz;
 accept	accept	engine	nonReserved/BLACKHOLE	SELECT BLACKHOLE;
 accept	accept	engine	nonReserved/BLACKHOLE!insert	SELECT BLACKHOLE zzz;
-reject	accept	engine	nonReserved/BINARY	SELECT BINARY;
+accept	accept	engine	nonReserved/BINARY	SELECT BINARY;
 accept	accept	engine	nonReserved/BINARY!insert	SELECT BINARY zzz;
 reject	reject	engine	nonReserved/BINARY!swap	SELECT BITMAP;
 accept	accept	engine	nonReserved/BODY	SELECT BODY;
@@ -10614,8 +10614,8 @@ accept	accept	engine	nonReserved/BEFORE	SELECT BEFORE;
 accept	accept	engine	nonReserved/BEFORE!insert	SELECT BEFORE zzz;
 accept	accept	engine	nonReserved/CACHE	SELECT CACHE;
 accept	accept	engine	nonReserved/CACHE!insert	SELECT CACHE zzz;
-reject	accept	engine	nonReserved/CAST	SELECT CAST;
-reject	accept	engine	nonReserved/CAST!insert	SELECT CAST zzz;
+accept	accept	engine	nonReserved/CAST	SELECT CAST;
+accept	accept	engine	nonReserved/CAST!insert	SELECT CAST zzz;
 accept	accept	engine	nonReserved/CANCEL	SELECT CANCEL;
 accept	accept	engine	nonReserved/CANCEL!insert	SELECT CANCEL zzz;
 reject	reject	engine	nonReserved/CANCEL!swap	SELECT CASE;
@@ -10623,7 +10623,7 @@ accept	accept	engine	nonReserved/CATALOG	SELECT CATALOG;
 accept	accept	engine	nonReserved/CATALOG!insert	SELECT CATALOG zzz;
 accept	accept	engine	nonReserved/CATALOGS	SELECT CATALOGS;
 accept	accept	engine	nonReserved/CATALOGS!insert	SELECT CATALOGS zzz;
-accept	reject	engine	nonReserved/CEIL	SELECT CEIL;
+reject	reject	engine	nonReserved/CEIL	SELECT CEIL;
 accept	accept	engine	nonReserved/CHAIN	SELECT CHAIN;
 accept	accept	engine	nonReserved/CHAIN!insert	SELECT CHAIN zzz;
 reject	reject	engine	nonReserved/CHAIN!swap	SELECT CHAR;
@@ -10728,8 +10728,8 @@ accept	accept	engine	nonReserved/EXECUTE!insert	SELECT EXECUTE zzz;
 reject	reject	engine	nonReserved/EXECUTE!swap	SELECT EXISTS;
 accept	accept	engine	nonReserved/EXTERNAL	SELECT EXTERNAL;
 accept	accept	engine	nonReserved/EXTERNAL!insert	SELECT EXTERNAL zzz;
-reject	accept	engine	nonReserved/EXTRACT	SELECT EXTRACT;
-reject	accept	engine	nonReserved/EXTRACT!insert	SELECT EXTRACT zzz;
+accept	accept	engine	nonReserved/EXTRACT	SELECT EXTRACT;
+accept	accept	engine	nonReserved/EXTRACT!insert	SELECT EXTRACT zzz;
 accept	accept	engine	nonReserved/EVERY	SELECT EVERY;
 accept	accept	engine	nonReserved/EVERY!insert	SELECT EVERY zzz;
 reject	reject	engine	nonReserved/EVERY!swap	SELECT EXCEPT;
@@ -10753,7 +10753,7 @@ accept	accept	engine	nonReserved/FILTER!insert	SELECT FILTER zzz;
 accept	accept	engine	nonReserved/FIRST	SELECT FIRST;
 accept	accept	engine	nonReserved/FIRST!insert	SELECT FIRST zzz;
 reject	reject	engine	nonReserved/FIRST!swap	SELECT FIRST_VALUE;
-accept	reject	engine	nonReserved/FLOOR	SELECT FLOOR;
+reject	reject	engine	nonReserved/FLOOR	SELECT FLOOR;
 accept	accept	engine	nonReserved/FOLLOWING	SELECT FOLLOWING;
 accept	accept	engine	nonReserved/FOLLOWING!insert	SELECT FOLLOWING zzz;
 reject	reject	engine	nonReserved/FOLLOWING!swap	SELECT FOR;
@@ -10827,8 +10827,8 @@ accept	accept	engine	nonReserved/INTEGRATIONS!insert	SELECT INTEGRATIONS zzz;
 accept	accept	engine	nonReserved/INTERMEDIATE	SELECT INTERMEDIATE;
 accept	accept	engine	nonReserved/INTERMEDIATE!insert	SELECT INTERMEDIATE zzz;
 reject	reject	engine	nonReserved/INTERMEDIATE!swap	SELECT INTERSECT;
-reject	accept	engine	nonReserved/INTERVAL	SELECT INTERVAL;
-reject	accept	engine	nonReserved/INTERVAL!insert	SELECT INTERVAL zzz;
+accept	accept	engine	nonReserved/INTERVAL	SELECT INTERVAL;
+accept	accept	engine	nonReserved/INTERVAL!insert	SELECT INTERVAL zzz;
 reject	reject	engine	nonReserved/INTERVAL!swap	SELECT INTO;
 accept	accept	engine	nonReserved/ISOLATION	SELECT ISOLATION;
 accept	accept	engine	nonReserved/ISOLATION!insert	SELECT ISOLATION zzz;
@@ -11246,16 +11246,16 @@ accept	accept	engine	nonReserved/WAREHOUSES	SELECT WAREHOUSES;
 accept	accept	engine	nonReserved/WAREHOUSES!insert	SELECT WAREHOUSES zzz;
 accept	accept	engine	nonReserved/YEAR	SELECT YEAR;
 accept	accept	engine	nonReserved/YEAR!insert	SELECT YEAR zzz;
-reject	accept	engine	nonReserved/DOTDOTDOT	SELECT...;
-reject	accept	engine	nonReserved/DOTDOTDOT!insert	SELECT...zzz;
+accept	accept	engine	nonReserved/DOTDOTDOT	SELECT...;
+accept	accept	engine	nonReserved/DOTDOTDOT!insert	SELECT...zzz;
 accept	accept	engine	nonReserved/NGRAMBF	SELECT NGRAMBF;
 accept	accept	engine	nonReserved/NGRAMBF!insert	SELECT NGRAMBF zzz;
 accept	accept	engine	nonReserved/VECTOR	SELECT VECTOR;
 accept	accept	engine	nonReserved/VECTOR!insert	SELECT VECTOR zzz;
 accept	accept	engine	nonReserved/FIELD	SELECT FIELD;
 accept	accept	engine	nonReserved/FIELD!insert	SELECT FIELD zzz;
-reject	accept	engine	nonReserved/ARRAY_ELEMENT	SELECT [*];
-reject	accept	engine	nonReserved/ARRAY_ELEMENT!insert	SELECT [*] zzz;
+accept	accept	engine	nonReserved/ARRAY_ELEMENT	SELECT [*];
+accept	accept	engine	nonReserved/ARRAY_ELEMENT!insert	SELECT [*] zzz;
 accept	accept	engine	nonReserved/PERSISTENT	SELECT PERSISTENT;
 accept	accept	engine	nonReserved/PERSISTENT!insert	SELECT PERSISTENT zzz;
 accept	accept	engine	suite:pr2a	CREATE TABLE agg_pct (k INT, p PERCENTILE PERCENTILE_UNION) AGGREGATE KEY(k) DISTRIBUTED BY HASH(k) BUCKETS 1
@@ -12071,44 +12071,44 @@ accept	accept	engine	suite:keywords	SELECT 1 AS WHITELIST
 accept	accept	engine	suite:keywords	SELECT 1 AS WORKLOAD
 accept	accept	engine	suite:keywords	SELECT 1 AS WRITE
 accept	accept	engine	suite:keywords	SELECT 1 AS XOR
-accept	reject	engine	suite:doris-residue	CALL my_proc()
-accept	reject	engine	suite:doris-residue	CALL db.my_proc(1)
-accept	reject	engine	suite:doris-residue	CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")
-accept	reject	engine	suite:doris-residue	ALTER WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="20%")
-accept	reject	engine	suite:doris-residue	DROP WORKLOAD GROUP IF EXISTS g1
+reject	reject	engine	suite:doris-residue	CALL my_proc()
+reject	reject	engine	suite:doris-residue	CALL db.my_proc(1)
+reject	reject	engine	suite:doris-residue	CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")
+reject	reject	engine	suite:doris-residue	ALTER WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="20%")
+reject	reject	engine	suite:doris-residue	DROP WORKLOAD GROUP IF EXISTS g1
 reject	reject	engine	suite:doris-residue	SHOW WORKLOAD GROUPS
 reject	reject	engine	suite:doris-residue	CREATE WORKLOAD POLICY p1 CONDITION (be_id = 1) ACTION (SET (k = 1))
-accept	reject	engine	suite:doris-residue	CREATE SQL_BLOCK_RULE r1 PROPERTIES("sql"="select 1")
-accept	reject	engine	suite:doris-residue	ALTER SQL_BLOCK_RULE r1 PROPERTIES("enable"="false")
-accept	reject	engine	suite:doris-residue	DROP SQL_BLOCK_RULE IF EXISTS r1
-accept	reject	engine	suite:doris-residue	CREATE STAGE s PROPERTIES("endpoint"="ep")
-accept	reject	engine	suite:doris-residue	DROP STAGE s
+reject	reject	engine	suite:doris-residue	CREATE SQL_BLOCK_RULE r1 PROPERTIES("sql"="select 1")
+reject	reject	engine	suite:doris-residue	ALTER SQL_BLOCK_RULE r1 PROPERTIES("enable"="false")
+reject	reject	engine	suite:doris-residue	DROP SQL_BLOCK_RULE IF EXISTS r1
+reject	reject	engine	suite:doris-residue	CREATE STAGE s PROPERTIES("endpoint"="ep")
+reject	reject	engine	suite:doris-residue	DROP STAGE s
 reject	reject	engine	suite:doris-residue	CREATE ENCRYPT KEY k AS 'abc'
 reject	reject	engine	suite:doris-residue	DROP ENCRYPT KEY k
-accept	reject	engine	suite:doris-residue	CREATE STORAGE VAULT v PROPERTIES("type"="S3")
-accept	reject	engine	suite:doris-residue	ALTER STORAGE VAULT v PROPERTIES("type"="S3")
-accept	reject	engine	suite:doris-residue	DROP STORAGE VAULT v
+reject	reject	engine	suite:doris-residue	CREATE STORAGE VAULT v PROPERTIES("type"="S3")
+reject	reject	engine	suite:doris-residue	ALTER STORAGE VAULT v PROPERTIES("type"="S3")
+reject	reject	engine	suite:doris-residue	DROP STORAGE VAULT v
 reject	reject	engine	suite:doris-residue	UNSET DEFAULT STORAGE VAULT
-accept	reject	engine	suite:doris-residue	MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) BUCKETS 1
-accept	reject	engine	suite:doris-residue	ALTER TABLE t ADD CONSTRAINT pk_id PRIMARY KEY (id)
-accept	reject	engine	suite:doris-residue	ALTER TABLE t DROP CONSTRAINT pk_id
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATEV1) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATEV2) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATETIMEV1(3)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATETIMEV2(3)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DECIMALV3(10, 2)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (j JSONB) DUPLICATE KEY(j) DISTRIBUTED BY HASH(j) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (i IPV4) DUPLICATE KEY(i) DISTRIBUTED BY HASH(i) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (i IPV6) DUPLICATE KEY(i) DISTRIBUTED BY HASH(i) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (v VARIANT) DUPLICATE KEY(v) DISTRIBUTED BY HASH(v) BUCKETS 1
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (q QUANTILE_STATE) DUPLICATE KEY(q) DISTRIBUTED BY HASH(q) BUCKETS 1
-accept	reject	engine	suite:doris-residue	SELECT CAST(1 AS AGG_STATE)
-accept	reject	engine	suite:doris-residue	CREATE TABLE t (id INT) DISTRIBUTED BY RANDOM BUCKETS AUTO
-accept	reject	engine	suite:doris-residue	CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8
-accept	reject	engine	suite:doris-residue	CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_EXPIRE INTERVAL 10 DAY
-accept	reject	engine	suite:doris-residue	ALTER USER 'jack' FAILED_LOGIN_ATTEMPTS 3
-accept	reject	engine	suite:doris-residue	ALTER USER 'jack' PASSWORD_LOCK_TIME 1 DAY
+reject	reject	engine	suite:doris-residue	MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) BUCKETS 1
+reject	reject	engine	suite:doris-residue	ALTER TABLE t ADD CONSTRAINT pk_id PRIMARY KEY (id)
+reject	reject	engine	suite:doris-residue	ALTER TABLE t DROP CONSTRAINT pk_id
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (d DATEV1) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (d DATEV2) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (d DATETIMEV1(3)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (d DATETIMEV2(3)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (d DECIMALV3(10, 2)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (j JSONB) DUPLICATE KEY(j) DISTRIBUTED BY HASH(j) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (i IPV4) DUPLICATE KEY(i) DISTRIBUTED BY HASH(i) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (i IPV6) DUPLICATE KEY(i) DISTRIBUTED BY HASH(i) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (v VARIANT) DUPLICATE KEY(v) DISTRIBUTED BY HASH(v) BUCKETS 1
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (q QUANTILE_STATE) DUPLICATE KEY(q) DISTRIBUTED BY HASH(q) BUCKETS 1
+reject	reject	engine	suite:doris-residue	SELECT CAST(1 AS AGG_STATE)
+reject	reject	engine	suite:doris-residue	CREATE TABLE t (id INT) DISTRIBUTED BY RANDOM BUCKETS AUTO
+reject	reject	engine	suite:doris-residue	CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8
+reject	reject	engine	suite:doris-residue	CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_EXPIRE INTERVAL 10 DAY
+reject	reject	engine	suite:doris-residue	ALTER USER 'jack' FAILED_LOGIN_ATTEMPTS 3
+reject	reject	engine	suite:doris-residue	ALTER USER 'jack' PASSWORD_LOCK_TIME 1 DAY
 reject	reject	engine	suite:doris-residue	ALTER USER 'jack' ACCOUNT LOCK
 reject	reject	engine	suite:doris-residue	ALTER USER 'jack' ACCOUNT UNLOCK
 reject	reject	engine	suite:doris-residue	CREATE ROW POLICY p ON t AS PERMISSIVE FOR SELECT USING (a = 1)
@@ -12122,12 +12122,12 @@ reject	reject	engine	suite:doris-residue	UNSET VARIABLE myvar
 reject	reject	engine	suite:doris-residue	ALTER MATERIALIZED VIEW partition_mv REFRESH COMPLETE
 reject	reject	engine	suite:doris-residue	CREATE MATERIALIZED VIEW mv REFRESH ASYNC STARTS '2024-12-01 20:30:00' AS SELECT 1
 reject	reject	engine	suite:doris-residue	CREATE JOB j ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO t SELECT 1
-accept	reject	engine	suite:doris-residue	INSTALL PLUGIN FROM SONAME "mylib.so"
+reject	reject	engine	suite:doris-residue	INSTALL PLUGIN FROM SONAME "mylib.so"
 reject	reject	engine	suite:doris-residue	GRANT USAGE ON WORKLOAD GROUP 'g1' TO a
-accept	reject	engine	suite:doris-residue	ALTER TABLE orders ADD CONSTRAINT fk_cust FOREIGN KEY (customer_id) REFERENCES customers (id)
-accept	reject	engine	suite:doris-residue	CREATE REPOSITORY s3_repo WITH S3 ON LOCATION "s3://bucket/path" PROPERTIES("s3.endpoint" = "s3.us-east-1.amazonaws.com")
-accept	reject	engine	suite:doris-residue	CREATE REPOSITORY hdfs_repo WITH HDFS ON LOCATION "hdfs://path" PROPERTIES("dfs.nameservices" = "ns")
-accept	reject	engine	suite:doris-residue	CREATE DICTIONARY IF NOT EXISTS my_dict USING my_table (id KEY, name VALUE) LAYOUT(HASH_MAP) PROPERTIES("read_timeout" = "3000")
+reject	reject	engine	suite:doris-residue	ALTER TABLE orders ADD CONSTRAINT fk_cust FOREIGN KEY (customer_id) REFERENCES customers (id)
+reject	reject	engine	suite:doris-residue	CREATE REPOSITORY s3_repo WITH S3 ON LOCATION "s3://bucket/path" PROPERTIES("s3.endpoint" = "s3.us-east-1.amazonaws.com")
+reject	reject	engine	suite:doris-residue	CREATE REPOSITORY hdfs_repo WITH HDFS ON LOCATION "hdfs://path" PROPERTIES("dfs.nameservices" = "ns")
+reject	reject	engine	suite:doris-residue	CREATE DICTIONARY IF NOT EXISTS my_dict USING my_table (id KEY, name VALUE) LAYOUT(HASH_MAP) PROPERTIES("read_timeout" = "3000")
 reject	reject	engine	suite:characters	SELECT 1 \ 2
 accept	accept	engine	suite:characters	SELECT 1 \
 reject	reject	engine	suite:characters	SELECT 1 AS a\b
