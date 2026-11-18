@@ -96,6 +96,10 @@ func (p *Parser) parseAlterSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, erro
 		err = p.parseSecurityPolicyWithOptions(stmt, "ALTER")
 	case p.cur.Type == kwADD && p.peekNext().Type == kwNOT,
 		p.cur.Type == kwDROP && p.peekNext().Type == kwNOT:
+		// ADD NOT FOR REPLICATION sets the flag and DROP NOT FOR REPLICATION
+		// clears it (alterSecurityPolicyStatement, TSql160.g:23439), so the two
+		// statements read differently.
+		add := p.cur.Type == kwADD
 		p.advance() // ADD or DROP
 		p.advance() // NOT
 		if _, e := p.expect(kwFOR); e != nil {
@@ -106,7 +110,7 @@ func (p *Parser) parseAlterSecurityPolicyStmt() (*nodes.SecurityPolicyStmt, erro
 			err = e
 			break
 		}
-		stmt.NotForReplication = true
+		stmt.NotForReplication = add
 	case p.cur.Type == kwADD, p.cur.Type == kwALTER, p.cur.Type == kwDROP:
 		stmt.Predicates, err = p.parseSecurityPredicateList("ALTER")
 	default:

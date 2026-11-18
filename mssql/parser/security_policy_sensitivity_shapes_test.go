@@ -46,6 +46,29 @@ func TestSecurityPolicyShapes(t *testing.T) {
 		checkLocation(t, sql, "SecurityPredicate", block.Loc)
 	})
 
+	// ADD NOT FOR REPLICATION sets the flag and DROP NOT FOR REPLICATION clears
+	// it (alterSecurityPolicyStatement, TSql160.g:23439), so the two statements
+	// do not read alike.
+	t.Run("replication", func(t *testing.T) {
+		for _, tt := range []struct {
+			sql  string
+			want bool
+		}{
+			{"ALTER SECURITY POLICY a ADD NOT FOR REPLICATION", true},
+			{"ALTER SECURITY POLICY a DROP NOT FOR REPLICATION", false},
+			{"CREATE SECURITY POLICY a NOT FOR REPLICATION", true},
+		} {
+			list := ParseAndCheck(t, tt.sql)
+			stmt, ok := list.Items[0].(*ast.SecurityPolicyStmt)
+			if !ok {
+				t.Fatalf("Parse(%q): %T, want *ast.SecurityPolicyStmt", tt.sql, list.Items[0])
+			}
+			if stmt.NotForReplication != tt.want {
+				t.Errorf("Parse(%q): NotForReplication = %v, want %v", tt.sql, stmt.NotForReplication, tt.want)
+			}
+		}
+	})
+
 	// The body of an ALTER is one alternative, and its WITH takes STATE alone:
 	// SCHEMABINDING is the CREATE's (Msg 102 at the option), a second option is
 	// Msg 102 at the comma.

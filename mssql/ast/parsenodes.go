@@ -3487,7 +3487,7 @@ type SecurityPolicyStmt struct {
 	Predicates        *List     // list of *SecurityPredicate (for CREATE/ALTER)
 	StateOn           *bool     // WITH (STATE = ON|OFF); nil if unspecified
 	SchemaBinding     *bool     // WITH (SCHEMABINDING = ON|OFF); nil if unspecified
-	NotForReplication bool
+	NotForReplication bool      // true for NOT FOR REPLICATION, false for an ALTER that drops it
 	Loc               Loc
 }
 
