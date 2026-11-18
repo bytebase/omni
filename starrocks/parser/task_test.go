@@ -268,4 +268,30 @@ func TestSubmitTaskSetVarHint(t *testing.T) {
 	if _, errs := parseForTest("SUBMIT /*+ SET_VAR(warehouse=x) */ TASK AS INSERT INTO t SELECT 1"); len(errs) == 0 {
 		t.Error("hinted warehouse parsed, want rejected")
 	}
+
+	file, errs = parseForTest("SUBMIT /*+ SET_VAR(pipeline_dop=-1) */ TASK AS INSERT INTO t SELECT 1")
+	if len(errs) != 0 {
+		t.Fatalf("negative hint errors: %v", errs)
+	}
+	stmt = file.Stmts[0].(*ast.SubmitTaskStmt)
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Value != "-1" ||
+		stmt.Properties[0].Loc.End <= stmt.Properties[0].Loc.Start {
+		t.Errorf("negative hint properties = %+v", stmt.Properties)
+	}
+
+	// A hint before SUBMIT belongs to no task property.
+	file, errs = parseForTest("/*+ SET_VAR(warehouse=x) */ SUBMIT TASK AS INSERT INTO t SELECT 1")
+	if len(errs) != 0 {
+		t.Fatalf("leading hint errors: %v", errs)
+	}
+	if got := file.Stmts[0].(*ast.SubmitTaskStmt); len(got.Properties) != 0 {
+		t.Errorf("leading hint properties = %+v, want none", got.Properties)
+	}
+}
+
+func TestSubmitTaskNestedCTESetOperation(t *testing.T) {
+	sql := "SUBMIT TASK AS INSERT INTO t WITH a AS (WITH b AS (SELECT 1) SELECT * FROM b UNION SELECT 2) SELECT * FROM a"
+	if _, errs := parseForTest(sql); len(errs) != 0 {
+		t.Errorf("unexpected errors: %v", errs)
+	}
 }

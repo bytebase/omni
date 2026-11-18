@@ -19,13 +19,13 @@ import (
 //	    AS (createTableAsSelectStatement | insertStatement | dataCacheSelectStatement)
 //
 // taskClause is properties or taskScheduleDesc.
-func (p *Parser) parseSubmitTask(startLoc ast.Loc) (ast.Node, error) {
+func (p *Parser) parseSubmitTask(startLoc ast.Loc, hints []*ast.Property) (ast.Node, error) {
 	if _, err := p.expect(kwTASK); err != nil {
 		return nil, err
 	}
 
 	stmt := &ast.SubmitTaskStmt{Loc: startLoc}
-	for _, prop := range p.hints {
+	for _, prop := range hints {
 		if strings.EqualFold(prop.Key, "warehouse") {
 			return nil, &ParseError{
 				Position: prop.Loc.Start,
@@ -34,8 +34,7 @@ func (p *Parser) parseSubmitTask(startLoc ast.Loc) (ast.Node, error) {
 			}
 		}
 	}
-	stmt.Properties = append(stmt.Properties, p.hints...)
-	p.hints = nil
+	stmt.Properties = append(stmt.Properties, hints...)
 
 	// The name is optional. PROPERTIES and SCHEDULE are non-reserved
 	// identifiers, so they are a name unless the token after them opens a

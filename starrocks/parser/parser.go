@@ -174,15 +174,17 @@ func (p *Parser) recordHint(tokens []Token) {
 			}
 			valTok := tokens[i]
 			value := valTok.Str
+			valEnd := valTok.Loc.End
 			if valTok.Kind == int('-') && i+1 < len(tokens) {
 				i++
 				value = "-" + tokens[i].Str
+				valEnd = tokens[i].Loc.End
 			}
 			i++
 			p.hints = append(p.hints, &ast.Property{
 				Key:   keyTok.Str,
 				Value: value,
-				Loc:   ast.Loc{Start: keyTok.Loc.Start, End: valTok.Loc.End},
+				Loc:   ast.Loc{Start: keyTok.Loc.Start, End: valEnd},
 			})
 			if i < len(tokens) && tokens[i].Kind == int(',') {
 				i++
@@ -590,8 +592,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwINSERT:
 		return p.parseInsert()
 	case kwSUBMIT:
+		hintStart := len(p.hints)
 		submitTok := p.advance() // consume SUBMIT
-		return p.parseSubmitTask(submitTok.Loc)
+		hints := append([]*ast.Property(nil), p.hints[hintStart:]...)
+		p.hints = nil
+		return p.parseSubmitTask(submitTok.Loc, hints)
 	case kwCACHE:
 		return p.parseDataCacheSelect()
 	case kwUPDATE:

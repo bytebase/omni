@@ -185,7 +185,10 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	// a plain SELECT followed by optional set-operator tail (UNION/INTERSECT/EXCEPT).
 	var innerStmt ast.Node
 	if p.cur.Kind == kwWITH {
-		innerStmt, err = p.parseWithSelect()
+		innerStmt, err = p.parseWithStatement()
+		if err == nil && !isQueryBody(innerStmt) {
+			err = p.syntaxErrorAtCur()
+		}
 	} else {
 		sel, err2 := p.parseSelectStmt()
 		if err2 != nil {

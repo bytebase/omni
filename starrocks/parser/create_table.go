@@ -882,7 +882,14 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 		}
 		for {
 			start := p.cur.Loc.Start
-			expr, err := p.parseExpr()
+			var expr ast.Node
+			var err error
+			if explicitType {
+				// Explicit RANGE takes a primaryExpression only.
+				expr, err = p.parsePrimaryExpr()
+			} else {
+				expr, err = p.parseExpr()
+			}
 			if err != nil {
 				return nil, err
 			}
