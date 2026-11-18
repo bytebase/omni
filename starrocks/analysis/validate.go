@@ -55,6 +55,9 @@ func readsRows(node ast.Node) bool {
 		// SUBMIT TASK answers with the task name and its status (SUBMITTED,
 		// REJECTED or FAILED), so the driver reads rows rather than Exec'ing.
 		return true
+	case *ast.DataCacheSelectStmt:
+		// CACHE SELECT returns the cache warm-up metrics.
+		return true
 	case *ast.ExplainStmt:
 		// EXPLAIN ANALYZE runs and profiles its statement. Over DML the
 		// statement is not read-only, but the profile is still a result set.

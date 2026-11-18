@@ -51,6 +51,17 @@ func TestValidateQueryServerState(t *testing.T) {
 	}
 }
 
+// CACHE SELECT returns the cache warm-up metrics, so the driver reads rows.
+func TestValidateQueryDataCacheSelect(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("CACHE SELECT a FROM t")
+	if err != nil {
+		t.Fatalf("ValidateQuery: %v", err)
+	}
+	if readOnly || !returnsData {
+		t.Errorf("CACHE SELECT = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
+	}
+}
+
 // SUBMIT TASK returns the task name and its status, so the driver must read
 // rows even though the statement is not read-only.
 func TestValidateQuerySubmitTask(t *testing.T) {

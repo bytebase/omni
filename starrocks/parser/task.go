@@ -292,7 +292,9 @@ func taskIntervalSeconds(interval, unit string) (int64, bool) {
 		return 0, false
 	}
 	if value > math.MaxInt64/factor {
-		return 0, false
+		// Java's TimeUnit conversion saturates a positive overflow to
+		// Long.MAX_VALUE, so the engine accepts these intervals.
+		return math.MaxInt64, true
 	}
 	return value * factor, true
 }
@@ -323,10 +325,12 @@ func validTaskStart(s string) bool {
 		layouts = []string{"2006-01-02"}
 	case 14:
 		layouts = []string{"20060102150405"}
+	case 16:
+		layouts = []string{"2006-01-02 15:04", "2006-01-02T15:04"}
 	case 19:
-		layouts = []string{"2006-01-02 15:04:05"}
+		layouts = []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05"}
 	case 26:
-		layouts = []string{"2006-01-02 15:04:05.000000"}
+		layouts = []string{"2006-01-02 15:04:05.000000", "2006-01-02T15:04:05.000000"}
 	default:
 		return false
 	}
