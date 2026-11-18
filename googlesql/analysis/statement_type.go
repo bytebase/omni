@@ -60,7 +60,11 @@ func StatementTypeOf(node ast.Node) StatementType {
 	case *ast.SubpipelineStmt:
 		return pipeStatementType(n.Pipeline)
 	case *ast.PipeStatement:
-		if t := pipeStatementType(n.Pipeline); t != StatementTypeUnspecified {
+		t, conflict := pipeStatementResult(n.Pipeline)
+		if conflict {
+			return StatementTypeUnspecified
+		}
+		if t != StatementTypeUnspecified {
 			return t
 		}
 		// A reading suffix keeps the head's type: a piped CALL still executes.
@@ -174,7 +178,15 @@ func (a pipeStatementTypes) result() StatementType {
 // different writes on different runtime paths conflict (no single type covers
 // both) and report Unspecified.
 func pipeStatementType(p *ast.Subpipeline) StatementType {
-	return pipeStatementTypesOf(p).result()
+	t, _ := pipeStatementResult(p)
+	return t
+}
+
+// pipeStatementResult reports the pipe suffix's type and whether two runtime
+// paths make different changes, which no single type describes.
+func pipeStatementResult(p *ast.Subpipeline) (StatementType, bool) {
+	acc := pipeStatementTypesOf(p)
+	return acc.result(), acc.conflict
 }
 
 func pipeStatementTypesOf(p *ast.Subpipeline) pipeStatementTypes {

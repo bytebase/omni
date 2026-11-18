@@ -15,8 +15,8 @@ GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 1,889 | 326 | 399 |
-| Near-misses | 6,223 | 5,080 | 1,109 | 34 |
+| One per alternative | 2,614 | 1,891 | 324 | 399 |
+| Near-misses | 6,223 | 5,082 | 1,107 | 34 |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -47,8 +47,8 @@ A recording cannot judge this family. The emulator answers a statement
 containing a pipe operator as one it does not run, without a syntax error, so
 `compat.tsv` records `accept` for every one of them — including text the grammar
 refuses, such as `|> ALL`, `|> FULL`, `|> WHERE`, or a pipe statement with a
-required token dropped (`|> ORDER BY`). Of the 1,165 pipe rows, 409 are valid
-per the grammar and now agree; the other 756 are the only-Spanner rows left, and
+required token dropped (`|> ORDER BY`). Of the 1,165 pipe rows, 413 are valid
+per the grammar and now agree; the other 752 are the only-Spanner rows left, and
 the grammar, not the recording, is what refuses them. Two of those are the
 select-list `expr.*` form over a non-path expression (`|> EXTEND NULL.*`): the
 grammar derives it, and omni's dot-star support is path-only, as it was before

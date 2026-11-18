@@ -436,8 +436,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case tokPipe:
 		// A statement that is only a pipe suffix (subpipeline_statement). It is
 		// a complete statement in the grammar, not a fragment: `|> AGGREGATE
-		// COUNT(*) |> WHERE n > 1` runs against the pipeline's input.
-		return p.parseSubpipelineStmt()
+		// COUNT(*) |> WHERE n > 1` runs against the pipeline's input. Its
+		// operators' expressions may embed subqueries, so fill them like the
+		// other statements.
+		return p.parseStmtWithSubqueries(p.parseSubpipelineStmt)
 
 	// --- DDL ---
 	case kwCREATE:

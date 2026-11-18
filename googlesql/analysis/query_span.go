@@ -487,7 +487,7 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 		case *ast.PipeWindow:
 			for _, item := range n.Items {
 				if item != nil {
-					w.walkPredicate(item.Expr)
+					w.walkSubqueriesOnly(item.Expr)
 				}
 			}
 		case *ast.PipeOrderBy:
@@ -506,7 +506,7 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 		case *ast.PipeSet:
 			for _, item := range n.Items {
 				if item != nil {
-					w.walkPredicate(item.Value)
+					w.walkSubqueriesOnly(item.Value)
 				}
 			}
 		case *ast.PipeTablesample:
@@ -516,6 +516,32 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 					w.walkPredicate(expr)
 				}
 				w.walkPredicate(n.Sample.Repeatable)
+			}
+		case *ast.PipePivot:
+			if n.Pivot != nil {
+				for _, agg := range n.Pivot.Aggregates {
+					if agg != nil {
+						w.walkSubqueriesOnly(agg.Expr)
+					}
+				}
+				w.walkSubqueriesOnly(n.Pivot.For)
+				for _, v := range n.Pivot.Values {
+					if v != nil {
+						w.walkSubqueriesOnly(v.Expr)
+					}
+				}
+			}
+		case *ast.PipeUnpivot:
+			if n.Unpivot != nil {
+				w.walkSubqueriesOnly(n.Unpivot.NameColumn)
+				for _, item := range n.Unpivot.Items {
+					if item == nil {
+						continue
+					}
+					for _, col := range item.Columns {
+						w.walkSubqueriesOnly(col)
+					}
+				}
 			}
 		case *ast.PipeJoin:
 			if n.Join != nil {
@@ -570,6 +596,11 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 						w.walkPredicate(def.Expr)
 					}
 				}
+				for _, opt := range n.Clause.Options {
+					if opt != nil {
+						w.walkSubqueriesOnly(opt.Value)
+					}
+				}
 			}
 		}
 	}
@@ -584,9 +615,11 @@ func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
 	if sel == nil {
 		return
 	}
+	// The items are output expressions, not predicate positions: walk only the
+	// subqueries they embed. GROUP BY items are predicate positions.
 	for _, item := range sel.Items {
 		if item != nil {
-			w.walkPredicate(item.Expr)
+			w.walkSubqueriesOnly(item.Expr)
 		}
 	}
 	if sel.GroupBy != nil {
@@ -594,6 +627,11 @@ func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
 			if gi != nil {
 				w.walkPredicate(gi.Expr)
 			}
+		}
+	}
+	for _, win := range sel.Window {
+		if win != nil {
+			w.walkWindowSpec(win.Spec)
 		}
 	}
 }
@@ -610,7 +648,7 @@ func pipeKeepsProjection(p *ast.Subpipeline) bool {
 	for _, op := range p.Ops {
 		switch n := op.(type) {
 		case *ast.PipeWhere, *ast.PipeOrderBy, *ast.PipeLimitOffset, *ast.PipeDistinct,
-			*ast.PipeTablesample, *ast.PipeAssert, *ast.PipeWith:
+			*ast.PipeTablesample, *ast.PipeAssert, *ast.PipeWith, *ast.PipeAs:
 		case *ast.PipeLog:
 			if !pipeKeepsProjection(n.Pipeline) {
 				return false

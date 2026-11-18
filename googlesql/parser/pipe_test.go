@@ -296,6 +296,12 @@ func TestPipe_RejectsFragments(t *testing.T) {
 		"|> LOG(WHERE true)",
 		"|> IF true THEN () ELSEIF@1 false THEN ()",
 		"|> IF true THEN () ELSE IF false THEN ()",
+		"|> `LOG`",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a) DEFINE a AS true,)",
+		"|> CROSS JOIN t ON true",
+		"|> NATURAL JOIN t USING (x)",
+		"|> AGGREGATE x.* DESC",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{CAST(1 AS INT64)}) DEFINE a AS true)",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
@@ -334,6 +340,15 @@ func TestPipe_AcceptsValidNearMisses(t *testing.T) {
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a || b) DEFINE a AS true, b AS true)",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN((a)) DEFINE a AS true)",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(||a) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a$) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1,3}) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1,}) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{,3}) DEFINE a AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1,3}?) DEFINE a AS true)",
+		"|> UNION ALL TABLE f(TABLE t)",
+		"|> EXTEND x, WINDOW w AS ()",
+		"|> CROSS JOIN t",
+		"|> NATURAL JOIN t",
 		"|> JOIN a USING (x, y)",
 		"|> FULL OUTER HASH JOIN a ON true",
 	}

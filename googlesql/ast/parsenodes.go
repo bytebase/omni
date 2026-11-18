@@ -2247,13 +2247,18 @@ type RowPattern struct {
 // Tag implements Node.
 func (n *RowPattern) Tag() NodeTag { return T_RowPattern }
 
-// RowPatternQuantifier is a row pattern quantifier: `?`, `*`, `+`, or `{n}`,
-// optionally reluctant (a trailing `?`). Count holds the `{n}` count; Symbol
-// is "?", "*", "+", or "" for the `{n}` form.
+// RowPatternQuantifier is a row pattern quantifier: `?`, `*`, `+`, `{n}`, or a
+// bounded `{n,m}` / `{n,}` / `{,m}`, optionally reluctant (a trailing `?`).
+// Symbol is "?", "*", "+", or "" for a braced form; Count holds the fixed `{n}`
+// count; a bounded form sets Bounded and carries Lower / Upper (nil for an open
+// bound).
 type RowPatternQuantifier struct {
 	Symbol    string
 	Reluctant bool
 	Count     Node
+	Bounded   bool
+	Lower     Node
+	Upper     Node
 	Loc       Loc
 }
 

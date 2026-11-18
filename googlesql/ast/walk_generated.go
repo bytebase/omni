@@ -976,6 +976,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *RowPatternQuantifier:
 		Walk(v, n.Count)
+		Walk(v, n.Lower)
+		Walk(v, n.Upper)
 	case *SampleClause:
 		Walk(v, n.Size)
 		walkNodes(v, n.PartitionBy)

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -24,6 +26,17 @@ import (
 // ORDER BY, the select list, GROUP BY, JOIN, PIVOT/UNPIVOT, TABLESAMPLE, WITH,
 // EXPORT DATA, CREATE TABLE, INSERT). A nested subpipeline goes through
 // enterNesting, so the nesting bound covers `( … ( … ) … )` chains.
+
+// curIsUnquotedWord reports whether the current token is the unquoted word
+// `word`. LOG, TEE and FORK are non-reserved keywords the lexer reads as plain
+// identifiers; a backtick-quoted `LOG` is an identifier of the same text but is
+// not the operator, so the check compares the token's byte span with its text.
+func (p *Parser) curIsUnquotedWord(word string) bool {
+	if p.cur.Type != tokIdentifier || !strings.EqualFold(p.cur.Str, word) {
+		return false
+	}
+	return p.cur.Loc.End-p.cur.Loc.Start == len(p.cur.Str)
+}
 
 // parseSubpipelineStmt parses a statement that is only a pipe suffix
 // (subpipeline_statement). The current token is `|>`.
@@ -368,6 +381,11 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 		return &ast.PipeWith{With: wc, Loc: loc(wc.Loc.End)}, nil
 
 	case kwEXPORT:
+		// export_data_no_query is `EXPORT DATA …`. The helper does not require
+		// DATA here: compat.tsv records the emulator accepting the truncated
+		// `|> EXPORT` and `|> EXPORT AS` (its pipe statement answers are not a
+		// parse verdict; see testdata/README.md), and requiring DATA would
+		// regress those two recorded rows without a re-record.
 		stmt, err := p.parseExportDataNoQuery()
 		if err != nil {
 			return nil, err
@@ -397,11 +415,11 @@ func (p *Parser) parsePipeOperatorBody(start int) (ast.Node, error) {
 	// LOG, TEE and FORK are non-reserved keywords the lexer reads as ordinary
 	// identifiers, so they are recognized by spelling.
 	switch {
-	case p.curIsWord("LOG"):
+	case p.curIsUnquotedWord("LOG"):
 		return p.parsePipeLog(start)
-	case p.curIsWord("TEE"):
+	case p.curIsUnquotedWord("TEE"):
 		return p.parsePipeTee(start)
-	case p.curIsWord("FORK"):
+	case p.curIsUnquotedWord("FORK"):
 		return p.parsePipeFork(start)
 	}
 	return nil, p.syntaxErrorAtCur()
@@ -488,7 +506,7 @@ func (p *Parser) parsePipeSelectionList(withOrder, allowEmpty bool) ([]*ast.Sele
 // selection item, so a list ended (this is how the trailing comma is allowed).
 func (p *Parser) atPipeItemListEnd() bool {
 	switch p.cur.Type {
-	case int(','), int(')'), int(';'), tokEOF, tokPipe, kwGROUP:
+	case int(','), int(')'), int(';'), tokEOF, tokPipe, kwGROUP, kwWINDOW:
 		return true
 	}
 	return false
@@ -509,7 +527,7 @@ func (p *Parser) parsePipeSelectionItem(withOrder bool) (*ast.SelectItem, error)
 		// parseSelectItem admits a bare `*`; pipe_selection_item does not.
 		return nil, p.syntaxErrorAtCur()
 	}
-	if withOrder && (p.cur.Type == kwASC || p.cur.Type == kwDESC) {
+	if withOrder && !item.Star && (p.cur.Type == kwASC || p.cur.Type == kwDESC) {
 		ord, err := p.parseItemOrder(false)
 		if err != nil {
 			return nil, err
@@ -843,19 +861,15 @@ func (p *Parser) parseParenthesizedQuery() (*ast.QueryStmt, error) {
 // [PIVOT|UNPIVOT …] [WHERE expr]`.
 func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 	tableTok := p.advance() // TABLE
-	path, err := p.parseTablePath()
+	path, err := p.parsePathExpr()
 	if err != nil {
 		return nil, err
 	}
 	te := &ast.TableExpr{Path: path, Loc: path.Loc}
 	if p.cur.Type == int('(') {
-		fc, err := p.parseFuncCallSuffix(path)
+		f, err := p.parsePipeTVFAfterName(path)
 		if err != nil {
 			return nil, err
-		}
-		f, ok := fc.(*ast.FuncCall)
-		if !ok {
-			return nil, p.syntaxErrorAtCur()
 		}
 		te = &ast.TableExpr{Func: f, Loc: nodeLoc(f)}
 		if alias, ok, err := p.tryParseTableAlias(); err != nil {
@@ -1037,8 +1051,10 @@ func (p *Parser) parsePipeJoin(start int) (ast.Node, error) {
 	}
 	je.Right = right
 
-	if err := p.parsePipeJoinCriteria(je); err != nil {
-		return nil, err
+	if !je.Natural && je.Type != ast.JoinCross {
+		if err := p.parsePipeJoinCriteria(je); err != nil {
+			return nil, err
+		}
 	}
 	je.Loc.End = qLoc(right).End
 	if je.On != nil {
@@ -1103,6 +1119,12 @@ func (p *Parser) parsePipeTVF() (*ast.FuncCall, error) {
 		}
 		name = path
 	}
+	return p.parsePipeTVFAfterName(name)
+}
+
+// parsePipeTVFAfterName parses the call part of a tvf after its name:
+// `"(" (tvf_argument separator ",")* ")" hint?`.
+func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error) {
 	if p.cur.Type != int('(') {
 		// tvf requires the call parentheses.
 		return nil, p.syntaxErrorAtCur()
@@ -1486,9 +1508,6 @@ func (p *Parser) parseMatchRecognizeDefines() ([]*ast.MatchRecognizeDefine, erro
 			break
 		}
 		p.advance()
-		if p.atPipeItemListEnd() {
-			break
-		}
 	}
 	return defs, nil
 }
@@ -1657,22 +1676,51 @@ func (p *Parser) parseRowPatternQuantifier() (*ast.RowPatternQuantifier, error) 
 	case int('?'), int('*'), int('+'):
 		q.Symbol = string(rune(p.cur.Type))
 		p.advance()
-		if p.cur.Type == int('?') {
-			q.Reluctant = true
-			p.advance()
-		}
 	case int('{'):
+		// `{n}` (fixed) or `{n,m}` / `{n,}` / `{,m}` (bounded); the bounds are
+		// int_literal_or_parameter (no CAST, no arithmetic).
 		p.advance()
-		count, err := p.parseIntLiteralOrParameterOrCast()
-		if err != nil {
-			return nil, err
+		if p.cur.Type == int(',') {
+			p.advance()
+			if p.cur.Type != int('}') {
+				upper, err := p.parseGraphIntLiteralOrParameter()
+				if err != nil {
+					return nil, err
+				}
+				q.Upper = upper
+			}
+		} else {
+			lower, err := p.parseGraphIntLiteralOrParameter()
+			if err != nil {
+				return nil, err
+			}
+			q.Lower = lower
+			if p.cur.Type == int(',') {
+				p.advance()
+				if p.cur.Type != int('}') {
+					upper, err := p.parseGraphIntLiteralOrParameter()
+					if err != nil {
+						return nil, err
+					}
+					q.Upper = upper
+				}
+			} else {
+				q.Count = lower
+			}
 		}
 		if _, err := p.expect(int('}')); err != nil {
 			return nil, err
 		}
-		q.Count = count
+		q.Bounded = q.Lower != nil || q.Upper != nil
 	default:
 		return nil, p.syntaxErrorAtCur()
+	}
+	// A symbol quantifier and a bounded quantifier may be reluctant.
+	if q.Symbol != "" || q.Bounded {
+		if p.cur.Type == int('?') {
+			q.Reluctant = true
+			p.advance()
+		}
 	}
 	q.Loc.End = p.prev.Loc.End
 	return q, nil
