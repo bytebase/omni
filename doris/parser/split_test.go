@@ -234,15 +234,38 @@ func TestProcedureTextFollowsSplit(t *testing.T) {
 	// ALTER and REPLACE reach a procedure only through PROCEDURE or PROC, and
 	// the name is multipartIdentifier (identifier ('.' identifier)*) whose first
 	// part a reserved keyword cannot be, so other statements keep their
-	// separators even when their text leaves a parenthesis open.
+	// separators even when their text leaves a parenthesis open. So does a
+	// procedure's own parenthesis when it never closes.
 	for _, sql := range []string{
 		"ALTER TABLE t ADD COLUMN c DECIMAL(10; SELECT 1;",
 		"ALTER PROCEDURE a zzz (; SELECT 1;",
 		"ALTER PROCEDURE a. (; SELECT 1;",
 		"ALTER PROCEDURE SELECT (; SELECT 1;",
+		"ALTER PROCEDURE a(x; SELECT 1;",
 	} {
 		if got := Split(sql); len(got) != 2 {
 			t.Errorf("Split(%q) = %+v, want 2 segments", sql, got)
+		}
+	}
+}
+
+// END IF, END LOOP and END CASE close their own statement, not the block, so a
+// procedure with control flow in its body stays one statement, as it does for
+// Parse.
+func TestSplitControlFlowEndInBody(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE p() BEGIN IF a THEN b; END IF; END; SELECT 1;",
+		"CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; END; SELECT 1;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END; SELECT 1;",
+		"ALTER PROCEDURE a() BEGIN WHILE b DO SET a = 1; END WHILE; END; SELECT 1;",
+	} {
+		segments := Split(sql)
+		if len(segments) != 2 {
+			t.Errorf("Split(%q) = %d segments, want 2", sql, len(segments))
+			continue
+		}
+		if _, err := Parse(segments[0].Text); err != nil {
+			t.Errorf("Parse(%q) = %v, want it accepted", segments[0].Text, err)
 		}
 	}
 }

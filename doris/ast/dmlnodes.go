@@ -204,6 +204,7 @@ type CopyIntoStmt struct {
 	Columns     []string      // optional column list, COPY INTO t(c1, c2)
 	Stage       string        // the stage as written: "@stage", "@`stage`" or "@~"
 	Pattern     string        // the glob of @stage('glob'), or ""
+	HasPattern  bool          // whether a glob was stated, since @stage('') states an empty one
 	SelectItems []*SelectItem // the query's select list, for (SELECT ... FROM @stage)
 	Where       Node          // the query's WHERE, or nil
 	Properties  []*Property

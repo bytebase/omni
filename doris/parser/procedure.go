@@ -68,11 +68,12 @@ func (p *Parser) parseAlterProcedure(startLoc ast.Loc) (ast.Node, error) {
 	if p.cur.Kind != int('(') {
 		return nil, p.syntaxErrorAtCur()
 	}
-	raw, err := p.collectProcedureParens()
-	if err != nil {
+	open := p.cur.Loc.Start
+	if _, err := p.collectProcedureParens(); err != nil {
 		return nil, err
 	}
-	stmt.RawText = strings.TrimSpace(raw + " " + p.collectProcedureTail())
+	p.collectProcedureTail()
+	stmt.RawText = strings.TrimSpace(p.textBetween(open, p.prev.Loc.End))
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
@@ -111,11 +112,12 @@ func (p *Parser) parseProcedureTail(stmt *ast.CreateProcedureStmt) error {
 	// does this (compat.tsv's statement(OR_REPLACE)?/%empty row,
 	// CREATE PROCEDURE a()).
 	stmt.Parameters, stmt.Comment, stmt.Body = nil, "", ""
-	raw, err := p.collectProcedureParens()
-	if err != nil {
+	open := p.cur.Loc.Start
+	if _, err := p.collectProcedureParens(); err != nil {
 		return err
 	}
-	stmt.RawText = strings.TrimSpace(raw + " " + p.collectProcedureTail())
+	p.collectProcedureTail()
+	stmt.RawText = strings.TrimSpace(p.textBetween(open, p.prev.Loc.End))
 	stmt.Loc.End = p.prev.Loc.End
 	return nil
 }
@@ -203,7 +205,9 @@ func (p *Parser) collectProcedureTail() string {
 				depth++
 			}
 		case kwEND:
-			if depth > 0 {
+			// END IF, END LOOP and their kin close their own statement, not
+			// the block, as they do in Split.
+			if depth > 0 && !isControlFlowEndFollower(p.peekNext()) {
 				depth--
 			}
 		}
@@ -322,6 +326,12 @@ func (p *Parser) collectProcedureBody() (string, ast.Loc, error) {
 		case kwBEGIN:
 			depth++
 		case kwEND:
+			// END IF, END LOOP and their kin close their own statement,
+			// not the block (isControlFlowEndFollower); p.cur is the word
+			// after this END.
+			if isControlFlowEndFollower(p.cur) {
+				break
+			}
 			depth--
 			if depth == 0 {
 				endTok = tok

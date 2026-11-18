@@ -121,7 +121,7 @@ func (p *Parser) parseCopyInto() (ast.Node, error) {
 		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err
 		}
-		if stmt.Stage, stmt.Pattern, err = p.parseCopyStage(); err != nil {
+		if stmt.Stage, stmt.Pattern, stmt.HasPattern, err = p.parseCopyStage(); err != nil {
 			return nil, err
 		}
 		if p.cur.Kind == kwWHERE {
@@ -134,7 +134,7 @@ func (p *Parser) parseCopyInto() (ast.Node, error) {
 			return nil, err
 		}
 	} else {
-		if stmt.Stage, stmt.Pattern, err = p.parseCopyStage(); err != nil {
+		if stmt.Stage, stmt.Pattern, stmt.HasPattern, err = p.parseCopyStage(); err != nil {
 			return nil, err
 		}
 	}
@@ -179,34 +179,36 @@ func (p *Parser) parseCopySelectList() ([]*ast.SelectItem, error) {
 //
 //	ATSIGN (stage=identifier | TILDE) (LEFT_PAREN pattern=STRING_LITERAL RIGHT_PAREN)?
 //
-// returning the stage as written — "@stage", "@`stage`", "@~" — and the glob it
-// takes, or "" for one without a pattern. The text is the source's, so a quoted
-// stage name stays distinguishable from the tilde: @`~` names a stage, @~ is
-// the user stage. cur must be on the '@'.
-func (p *Parser) parseCopyStage() (stage, pattern string, err error) {
+// returning the stage as written — "@stage", "@`stage`", "@~" — the glob it
+// takes, and whether it stated one: @stage(”) states an empty glob, which is
+// not the same source as @stage. The text is the source's, so a quoted stage
+// name stays distinguishable from the tilde: @`~` names a stage, @~ is the user
+// stage. cur must be on the '@'.
+func (p *Parser) parseCopyStage() (stage, pattern string, hasPattern bool, err error) {
 	if p.cur.Kind != int('@') {
-		return "", "", p.syntaxErrorAtCur()
+		return "", "", false, p.syntaxErrorAtCur()
 	}
 	at := p.advance() // consume '@'
 
 	if p.cur.Kind == int('~') {
 		p.advance()
 	} else if _, _, err := p.parseIdentifier(); err != nil {
-		return "", "", err
+		return "", "", false, err
 	}
 	stage = p.textBetween(at.Loc.Start, p.prev.Loc.End)
 
 	if p.cur.Kind == int('(') {
 		p.advance() // consume '('
 		if p.cur.Kind != tokString {
-			return "", "", p.syntaxErrorAtCur()
+			return "", "", false, p.syntaxErrorAtCur()
 		}
+		hasPattern = true
 		pattern = p.advance().Str
 		if _, err := p.expect(int(')')); err != nil {
-			return "", "", err
+			return "", "", false, err
 		}
 	}
-	return stage, pattern, nil
+	return stage, pattern, hasPattern, nil
 }
 
 // parseStringList parses '(' STRING_LITERAL (',' STRING_LITERAL)* ')': at

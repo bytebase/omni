@@ -91,6 +91,7 @@ func init() {
 		"CREATE",
 		"ALTER",
 		"DROP",
+		"REPLACE",
 		"GRANT",
 		"REVOKE",
 		"ADMIN",

@@ -153,12 +153,12 @@ func TestAlterProcedure(t *testing.T) {
 		name    string
 		rawText string
 	}{
-		{"ALTER PROCEDURE a()", "a", ""},
-		{"ALTER PROCEDURE a(zzz)", "a", "zzz"},
-		{"ALTER PROCEDURE a(a zzz)", "a", "a zzz"},
-		{"ALTER PROCEDURE a() zzz", "a", "zzz"},
-		{"ALTER PROCEDURE a(x;y)", "a", "x;y"},
-		{"ALTER PROC db.a()", "db.a", ""},
+		{"ALTER PROCEDURE a()", "a", "()"},
+		{"ALTER PROCEDURE a(zzz)", "a", "(zzz)"},
+		{"ALTER PROCEDURE a(a zzz)", "a", "(a zzz)"},
+		{"ALTER PROCEDURE a() zzz", "a", "() zzz"},
+		{"ALTER PROCEDURE a(x;y)", "a", "(x;y)"},
+		{"ALTER PROC db.a()", "db.a", "()"},
 	}
 	for _, tc := range tests {
 		stmt := parseAlterProcedureStmt(t, tc.sql)
@@ -282,6 +282,21 @@ func TestCreateProcedure_ProcSpelling(t *testing.T) {
 // The grammar's trailing `.*?` takes what follows a body as well, so a
 // procedure with text after END is still a statement — as REPLACE PROCEDURE
 // a() BEGIN END zzz is for the engine.
+// END IF and END LOOP close their own statement, not the BEGIN...END block
+// (isControlFlowEndFollower), so the body keeps the whole text.
+func TestCreateProcedure_ControlFlowBody(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE p() BEGIN IF a THEN SET b = 1; END IF; END",
+		"CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; END",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END",
+	} {
+		stmt := parseCreateProcedureStmt(t, sql)
+		if !strings.HasPrefix(stmt.Body, "BEGIN") || !strings.HasSuffix(stmt.Body, "END") {
+			t.Errorf("Parse(%q): Body = %q, want the whole block", sql, stmt.Body)
+		}
+	}
+}
+
 func TestCreateProcedure_TextAfterBody(t *testing.T) {
 	stmt := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a() BEGIN SELECT 1; END zzz")
 	if !strings.Contains(stmt.Body, "SELECT 1") {
@@ -311,10 +326,10 @@ func TestCreateProcedure_FreeText(t *testing.T) {
 		sql     string
 		rawText string
 	}{
-		{"CREATE PROCEDURE a()", ""},
-		{"CREATE PROCEDURE a(zzz)", "zzz"},
-		{"CREATE PROCEDURE a(a zzz)", "a zzz"},
-		{"CREATE PROCEDURE a() zzz", "zzz"},
+		{"CREATE PROCEDURE a()", "()"},
+		{"CREATE PROCEDURE a(zzz)", "(zzz)"},
+		{"CREATE PROCEDURE a(a zzz)", "(a zzz)"},
+		{"CREATE PROCEDURE a() zzz", "() zzz"},
 	}
 	for _, tc := range tests {
 		stmt := parseCreateProcedureStmt(t, tc.sql)

@@ -257,18 +257,25 @@ func TestCopyIntoStageAndSelect(t *testing.T) {
 }
 
 // Stage keeps the source's spelling, so the tilde and a quoted identifier that
-// spells one are told apart, and a quoted name keeps its backticks.
+// spells one are told apart, and a quoted name keeps its backticks. HasPattern
+// tells @stage(”) — an empty glob — from @stage.
 func TestCopyIntoStageSpelling(t *testing.T) {
-	tests := []struct{ sql, stage string }{
-		{"COPY INTO t FROM @~", "@~"},
-		{"COPY INTO t FROM @`~`", "@`~`"},
-		{"COPY INTO t FROM @stage", "@stage"},
-		{"COPY INTO t FROM @`a.b`", "@`a.b`"},
+	tests := []struct {
+		sql, stage, pattern string
+		hasPattern          bool
+	}{
+		{"COPY INTO t FROM @~", "@~", "", false},
+		{"COPY INTO t FROM @`~`", "@`~`", "", false},
+		{"COPY INTO t FROM @stage", "@stage", "", false},
+		{"COPY INTO t FROM @`a.b`", "@`a.b`", "", false},
+		{"COPY INTO t FROM @stage('')", "@stage", "", true},
+		{"COPY INTO t FROM @stage('p*')", "@stage", "p*", true},
 	}
 	for _, tc := range tests {
 		stmt := mustParseCopyInto(t, tc.sql)
-		if stmt.Stage != tc.stage {
-			t.Errorf("Parse(%q): Stage = %q, want %q", tc.sql, stmt.Stage, tc.stage)
+		if stmt.Stage != tc.stage || stmt.Pattern != tc.pattern || stmt.HasPattern != tc.hasPattern {
+			t.Errorf("Parse(%q): Stage = %q Pattern = %q HasPattern = %v, want %q %q %v",
+				tc.sql, stmt.Stage, stmt.Pattern, stmt.HasPattern, tc.stage, tc.pattern, tc.hasPattern)
 		}
 	}
 }

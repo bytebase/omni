@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 // Segment represents one top-level SQL statement extracted from a source string.
 //
 // Text is the raw substring of the input from ByteStart (inclusive) to
@@ -80,6 +82,7 @@ func SplitAll(input string) []Segment {
 	state := stateTop
 	depth := 0
 	var proc procedureHead
+	var heldSemicolons []int
 
 	// We need lookahead after kwBEGIN to disambiguate TCL from a compound
 	// block: one token for most followers, two for BEGIN WITH LABEL (WITH
@@ -142,7 +145,13 @@ func SplitAll(input string) []Segment {
 
 		switch state {
 		case stateTop:
+			wasInParens := proc.inParens
 			proc.step(tok)
+			if wasInParens && !proc.inParens {
+				// The parentheses closed: what they held belongs to the
+				// statement.
+				heldSemicolons = heldSemicolons[:0]
+			}
 			switch tok.Kind {
 			case kwBEGIN:
 				if proc.inParens {
@@ -170,7 +179,9 @@ func SplitAll(input string) []Segment {
 				if proc.inParens {
 					// A ';' inside a procedure's parentheses separates
 					// nothing: it is part of the statement
-					// (DorisParser.g4:43 LEFT_PAREN .*? RIGHT_PAREN).
+					// (DorisParser.g4:43 LEFT_PAREN .*? RIGHT_PAREN). It is
+					// a separator again if the parentheses never close.
+					heldSemicolons = append(heldSemicolons, tok.Loc.Start)
 					continue
 				}
 				// tok.Loc.Start is the position of the `;`, tok.Loc.End is
@@ -186,7 +197,7 @@ func SplitAll(input string) []Segment {
 			case kwBEGIN:
 				depth++
 			case kwEND:
-				if depth > 0 {
+				if depth > 0 && !isControlFlowEndFollower(peekToken()) {
 					depth--
 					if depth == 0 {
 						state = stateTop
@@ -195,6 +206,14 @@ func SplitAll(input string) []Segment {
 			}
 			// Semicolons and all other tokens are absorbed in stateInBlock.
 		}
+	}
+
+	// A procedure's parentheses that never close hold separators the reader
+	// set aside: they are the statements' delimiters again, so the caller can
+	// still get at what follows them.
+	for _, held := range heldSemicolons {
+		emit(held)
+		stmtStart = held + 1
 	}
 
 	// Trailing segment — whatever remains after the last `;` (or the whole
@@ -215,6 +234,25 @@ func isDorisTCLBeginFollower(tok Token) bool {
 	switch tok.Kind {
 	case int(';'), tokEOF, kwTRANSACTION, kwWORK:
 		return true
+	}
+	return false
+}
+
+// isControlFlowEndFollower reports whether tok, following an END inside a
+// compound block, names the statement the END closes — END IF, END LOOP, END
+// WHILE, END REPEAT, END CASE — rather than the block itself. MySQL's control
+// flow, which Doris's procedures follow, opens no block of its own, so such an
+// END closes nothing here. LOOP, WHILE, REPEAT and FOR have no keyword of
+// their own and arrive as identifiers.
+func isControlFlowEndFollower(tok Token) bool {
+	switch tok.Kind {
+	case kwIF, kwCASE:
+		return true
+	case tokIdent:
+		switch strings.ToUpper(tok.Str) {
+		case "LOOP", "WHILE", "REPEAT", "FOR":
+			return true
+		}
 	}
 	return false
 }

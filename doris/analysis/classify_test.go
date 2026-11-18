@@ -54,6 +54,9 @@ func TestClassify(t *testing.T) {
 		{"ALTER TABLE t ADD COLUMN c INT", QueryTypeDDL},
 		{"alter table t drop column c", QueryTypeDDL},
 		{"DROP TABLE t", QueryTypeDDL},
+		// REPLACE leads a procedure statement alone (DorisParser.g4:43), so
+		// the keyword alone says DDL.
+		{"REPLACE PROCEDURE a()", QueryTypeDDL},
 		{"drop view v", QueryTypeDDL},
 		{"GRANT SELECT ON t TO u", QueryTypeDDL},
 		{"REVOKE INSERT ON t FROM u", QueryTypeDDL},
@@ -189,6 +192,10 @@ func TestClassifyStatementCopyAndProcedures(t *testing.T) {
 		t.Run(tc.statement, func(t *testing.T) {
 			if got := ClassifyStatement(tc.statement); got != tc.want {
 				t.Errorf("ClassifyStatement(%q) = %s, want %s", tc.statement, got, tc.want)
+			}
+			// The keyword fallback answers the same, REPLACE included.
+			if got := Classify(tc.statement); got != tc.want {
+				t.Errorf("Classify(%q) = %s, want %s", tc.statement, got, tc.want)
 			}
 		})
 	}
