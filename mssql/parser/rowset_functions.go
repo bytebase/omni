@@ -199,6 +199,19 @@ func (p *Parser) parseAdHocTableRef(fc *nodes.FuncCallExpr) (*nodes.AdHocTableRe
 // expressions; their shapes are checked where they differ.
 func checkRowsetArgs(funcTok int, args []nodes.Node) error {
 	switch funcTok {
+	case kwOPENROWSET:
+		// OPENROWSET's first argument is the provider name, a string
+		// literal (openRowsetParams) or BULK, and SQL Server refuses the
+		// identifier internalOpenRowsetArgs takes in a FROM clause:
+		// SELECT * FROM OPENROWSET(a) is Msg 156, near OPENROWSET
+		// (measured). BULK is refused earlier, as its own rule needs an
+		// alias.
+		if len(args) == 0 {
+			return &ParseError{Message: "OPENROWSET takes a provider name", Position: -1}
+		}
+		if lit, ok := args[0].(*nodes.Literal); !ok || lit.Type != nodes.LitString {
+			return &ParseError{Message: "OPENROWSET takes a provider name as a string literal", Position: nodes.NodeLoc(args[0]).Start}
+		}
 	case kwOPENQUERY:
 		if len(args) != 2 {
 			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[len(args)-1]).Start}

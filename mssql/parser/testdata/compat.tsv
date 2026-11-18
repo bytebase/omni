@@ -8910,12 +8910,12 @@ reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableM
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-9	SELECT * FROM @a.a() a(a
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!insert	SELECT * FROM @a.a() a(a) zzz
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/derivedTable	SELECT * FROM(SELECT *) a
-accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset	SELECT * FROM OPENROWSET(a)
+reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset	SELECT * FROM OPENROWSET(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!drop-1	SELECT * FROM(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!drop-2	SELECT * FROM OPENROWSET a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!drop-3	SELECT * FROM OPENROWSET()
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!drop-4	SELECT * FROM OPENROWSET(a
-accept	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!insert	SELECT * FROM OPENROWSET(a) zzz
+reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!insert	SELECT * FROM OPENROWSET(a) zzz
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/openRowset!swap	SELECT * FROM OPENXML(a)
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/fulltextTableReference	SELECT * FROM CONTAINSTABLE(a, a, 'a')
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/fulltextTableReference!drop-1	SELECT * FROM(a, a, 'a')
@@ -9568,7 +9568,7 @@ reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_intege
 reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable!truncate	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00,
 reject	reject	engine	fulltextTableOptions(Comma_integerOrVariable)?/Comma_integerOrVariable!insert	SELECT * FROM CONTAINSTABLE(a, a, 'a', LANGUAGE 0x00, 1 zzz)
 accept	accept	engine	fulltextTableOptions(Comma_languageExpression)?/%empty	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1)
-accept	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1, LANGUAGE 0x00)
+reject	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1, LANGUAGE 0x00)
 reject	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression!drop-1	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1 LANGUAGE 0x00)
 reject	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression!drop-2	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1, 0x00)
 reject	reject	engine	fulltextTableOptions(Comma_languageExpression)?/Comma_languageExpression!drop-3	SELECT * FROM CONTAINSTABLE(a, a, 'a', 1, LANGUAGE)
