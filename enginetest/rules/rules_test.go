@@ -113,3 +113,10 @@ func TestReadFileRequiresTheHeader(t *testing.T) {
 		t.Errorf("want a missing-header error, got %v", err)
 	}
 }
+
+func TestReadFileRejectsAPathOutsideTheRepo(t *testing.T) {
+	_, err := Parse("rules.tsv", []byte(columnsHeader+"\nr\tengine/../../outside.go\tparseR\n"))
+	if err == nil || !strings.Contains(err.Error(), "repo-relative") {
+		t.Errorf("want an escaping-path error, got %v", err)
+	}
+}

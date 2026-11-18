@@ -105,7 +105,8 @@ func (e Entry) validate() error {
 	if e.File == "" {
 		return fmt.Errorf("%s: empty file", e.Rule)
 	}
-	if filepath.IsAbs(e.File) || strings.HasPrefix(filepath.ToSlash(e.File), "../") {
+	clean := filepath.Clean(filepath.FromSlash(e.File))
+	if filepath.IsAbs(e.File) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("%s: file %q is not repo-relative", e.Rule, e.File)
 	}
 	if e.Function == "" {
@@ -158,14 +159,27 @@ func Problems(s Suite) ([]string, error) {
 			problems = append(problems, fmt.Sprintf("%s: rule %s has no rules.tsv row", s.Compat, rule))
 		}
 	}
+	// Many rows share one parser file; read its declarations once.
+	declared := map[string]map[string]bool{}
+	cached := map[string]error{}
 	for _, e := range rf.Entries {
 		if !want[e.Rule] {
 			problems = append(problems, fmt.Sprintf("%s:%d: rule %s is named by no compat.tsv row", s.Rules, e.line, e.Rule))
 			continue
 		}
 		path := filepath.Join(s.Root, filepath.FromSlash(e.File))
-		if err := declare(path, e.Function); err != nil {
+		funcs, ok := declared[path]
+		if !ok {
+			funcs, cached[path] = declaredFuncs(path)
+			declared[path] = funcs
+		}
+		if err := cached[path]; err != nil {
 			problems = append(problems, fmt.Sprintf("%s:%d: rule %s: %v", s.Rules, e.line, e.Rule, err))
+			continue
+		}
+		if !funcs[e.Function] {
+			problems = append(problems, fmt.Sprintf("%s:%d: rule %s: %s does not declare func %s or func (p *Parser) %s",
+				s.Rules, e.line, e.Rule, path, e.Function, e.Function))
 		}
 	}
 	return problems, nil
@@ -180,27 +194,29 @@ func sortedKeys(m map[string]bool) []string {
 	return out
 }
 
-// declare reports whether path declares function, either as a function or as
-// a method on Parser.
-func declare(path, function string) error {
+// declaredFuncs returns the functions path declares, either as functions or
+// as methods on Parser.
+func declaredFuncs(path string) (map[string]bool, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, nil, parser.SkipObjectResolution)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	funcs := map[string]bool{}
 	for _, d := range f.Decls {
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Name.Name != function {
+		if !ok {
 			continue
 		}
 		if fd.Recv == nil {
-			return nil
+			funcs[fd.Name.Name] = true
+			continue
 		}
 		if len(fd.Recv.List) == 1 && receiverName(fd.Recv.List[0].Type) == "Parser" {
-			return nil
+			funcs[fd.Name.Name] = true
 		}
 	}
-	return fmt.Errorf("%s does not declare func %s or func (p *Parser) %s", path, function, function)
+	return funcs, nil
 }
 
 func receiverName(e ast.Expr) string {
