@@ -147,11 +147,13 @@ func TestParseExecuteDbtProject(t *testing.T) {
 		"EXECUTE DBT PROJECT":                0,
 		"EXECUTE DBT PROJECT IF EXISTS":      0,
 		"EXECUTE DBT PROJECT ARGS = 'build'": 1,
-		"EXECUTE DBT PROJECT FROM WORKSPACE \"USER$\".PUBLIC.\"ws\" PROJECT_ROOT = 'p'": 2,
-		"EXECUTE DBT PROJECT FROM WORKSPACE w IMPORTS = ('s')":                          2, // the workspace form's
-		"EXECUTE DBT PROJECT IMPORTS = ('s')":                                           1, // no project at all
-		"EXECUTE DBT PROJECT p":                                                         0,
-		"EXECUTE DBT PROJECT if":                                                        0, // a project named IF
+		"EXECUTE DBT PROJECT FROM WORKSPACE \"USER$\".PUBLIC.\"ws\" PROJECT_ROOT = 'p'":   2,
+		"EXECUTE DBT PROJECT FROM WORKSPACE w IMPORTS = ('s')":                            2, // the workspace form's
+		"EXECUTE DBT PROJECT IMPORTS = ('s')":                                             1, // no project at all
+		"EXECUTE DBT PROJECT IMPORTS = (SYSTEM$DBT_GET_LAST_RUN_TARGET('s', 'run'))":      1,
+		"EXECUTE DBT PROJECT IMPORTS = (SYSTEM$DBT_GET_LAST_RUN_TARGET('s', 'run', 'p'))": 1,
+		"EXECUTE DBT PROJECT p":  0,
+		"EXECUTE DBT PROJECT if": 0, // a project named IF
 	} {
 		if s := mustExecuteStmt(t, in, "DBT PROJECT"); len(s.Clauses) != clauses {
 			t.Errorf("%q: clauses = %q", in, clauseKeywords(s))
@@ -169,7 +171,7 @@ func TestParseExecuteDbtProject(t *testing.T) {
 		"EXECUTE DBT PROJECT p IMPORTS = (SYSTEM$LOCATE_DBT_ARCHIVE())",
 		"EXECUTE DBT PROJECT IMPORTS = (SYSTEM$DBT_GET_LAST_RUN_TARGET())",
 		"EXECUTE DBT PROJECT IMPORTS = (SYSTEM$DBT_GET_LAST_RUN_TARGET(1))",
-		"EXECUTE DBT PROJECT IMPORTS = (SYSTEM$DBT_GET_LAST_RUN_TARGET('s', 't'))",
+		"EXECUTE DBT PROJECT IMPORTS = (SYSTEM$DBT_GET_LAST_RUN_TARGET('s', 't', 'u', 'v'))",
 		"EXECUTE DBT PROJECT p IMPORTS = ('s' AS a)",
 		"EXECUTE DBT PROJECT p IMPORTS = ()",
 		"EXECUTE DBT PROJECT p ENV_VARS = (K = 'v')",

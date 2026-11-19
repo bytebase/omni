@@ -85,8 +85,6 @@ func TestShowClassClauses(t *testing.T) {
 		sql, qualifier, name string
 	}{
 		{"SHOW SEMANTIC DIMENSIONS LIKE 'c%' IN tpch_rev_analysis FOR METRIC order_average_value STARTS WITH 'C' LIMIT 3", "FOR METRIC", "ORDER_AVERAGE_VALUE"},
-		{"SHOW SEMANTIC DIMENSIONS IN SCHEMA.a FOR METRIC m", "FOR METRIC", "M"},
-		{"SHOW SEMANTIC DIMENSIONS IN DATABASE.a FOR METRIC m", "FOR METRIC", "M"},
 		{"SHOW VERSIONS LIKE 'VERSION$%' IN ARTIFACT REPOSITORY my_db.my_schema.my_app_repo FOR PACKAGE my_package LIMIT 10", "FOR PACKAGE", "MY_PACKAGE"},
 		{"SHOW RELEASE DIRECTIVES IN APPLICATION PACKAGE pkg FOR RELEASE CHANNEL qa", "FOR RELEASE CHANNEL", "QA"},
 		{"SHOW SHARED CONTENT IN APPLICATION PACKAGE decl_share_app_pkg FOR VERSION VERSION$2", "FOR VERSION", "VERSION$2"},
@@ -99,19 +97,6 @@ func TestShowClassClauses(t *testing.T) {
 		stmt := parseOneShow(t, tt.sql)
 		if stmt.Qualifier != tt.qualifier || stmt.QualifierName == nil || stmt.QualifierName.Normalize() != tt.name {
 			t.Errorf("%q: qualifier = %q %v", tt.sql, stmt.Qualifier, stmt.QualifierName)
-		}
-	}
-
-	// The semantic pages' IN choice takes a <semantic_view_name>, a QNAME,
-	// so SCHEMA.a and DATABASE.a are names rather than scope keywords.
-	for _, tt := range []struct{ sql, name string }{
-		{"SHOW SEMANTIC FACTS IN DATABASE.a", "DATABASE.A"},
-		{"SHOW SEMANTIC METRICS IN SCHEMA.a", "SCHEMA.A"},
-		{"SHOW SEMANTIC METRICS IN SCHEMA.a STARTS WITH 'C' LIMIT 2", "SCHEMA.A"},
-	} {
-		stmt := parseOneShow(t, tt.sql)
-		if stmt.Scope != ast.ShowScopeSchema || stmt.ScopeName == nil || stmt.ScopeName.Normalize() != tt.name {
-			t.Errorf("%q: scope=%v name=%v", tt.sql, stmt.Scope, stmt.ScopeName)
 		}
 	}
 
@@ -130,8 +115,8 @@ func TestShowClassClauses(t *testing.T) {
 		"SHOW SHARED CONTENT IN APPLICATION PACKAGE p",
 		// FOR METRIC follows IN <semantic_view_name> only.
 		"SHOW SEMANTIC DIMENSIONS IN SCHEMA s FOR METRIC m",
-		// Only the semantic pages take a QNAME as their IN choice; the
-		// others write the SCHEMA scope and a name.
+		// SCHEMA is a limited keyword in a SHOW command, so SCHEMA.a is not
+		// a schema name.
 		"SHOW AGENTS IN SCHEMA.a",
 		"SHOW SEMANTIC DIMENSIONS FOR METRIC m",
 		// Each clause belongs to its class and scope.

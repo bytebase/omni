@@ -117,25 +117,18 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 35 rows
+## What is left: 38 rows
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
-and parser changes above closed 69; #1459 left 49. This pass closes 14 more,
-both parser gaps the pages derive:
-
-- **`execute-dbt-project` (11).** The page writes two forms, and the second
-  brackets `FROM WORKSPACE` and still lists `IMPORTS`, so
-  `EXECUTE DBT PROJECT IMPORTS = (...)` with no project at all is the page's
-  shape. `dbtExecuteWorkspaceProps` now takes `IMPORTS` beside `PROJECT_ROOT`,
-  and `execImports` holds each of the page's five system functions to the one
-  string argument their own pages give it.
-- **`show-semantic-dimensions`, `-facts`, `-metrics` (3).** The pages' `IN`
-  choice takes a `<semantic_view_name>`, a QNAME, before the `ACCOUNT`,
-  `DATABASE` and `SCHEMA` scopes. Snowflake does not reserve `SCHEMA`, so
-  `IN SCHEMA.a` is a semantic view named `a` in database `SCHEMA`, not the
-  `SCHEMA` scope with a stray `.a`; `parseShowScope` reads the dotted form for
-  those three classes alone, because other pages write only the scope
-  keywords.
+and parser changes above closed 69; #1459 left 49. This pass closes 11 more:
+`execute-dbt-project`'s second form brackets `FROM WORKSPACE` and still lists
+`IMPORTS`, so `EXECUTE DBT PROJECT IMPORTS = (...)` with no project at all is
+the page's shape
+([page](https://docs.snowflake.com/en/sql-reference/sql/execute-dbt-project)).
+`dbtExecuteWorkspaceProps` now takes `IMPORTS` beside `PROJECT_ROOT`, and
+`validImportCall` holds each of the page's five system functions to the
+arguments its own page gives it: one string for the two locators, and one to
+three for the three `SYSTEM$DBT_GET_LAST_*_RUN_TARGET` lookups.
 
 The remaining rows are all `reject` in omni and `accept` in the docs, grouped
 by the page whose notation or reading leaves them:
@@ -147,9 +140,9 @@ by the page whose notation or reading leaves them:
 | create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )`: the page's list of supported default properties is prose in its TASK_DEFAULTS parameter, so `a = a` and a repeated one are the notation's, not a stated form ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)). |
 | create-interactive-warehouse | 2 | `objectProperties` and `objectParams` are one `NAME = value` per line, which the converter reads as any number of them, so the run may name the same property twice. The page's examples never repeat one, but its parameters do not say one may not be set twice either. Rewriting the list to forbid a repeat in `docs-fixes.tsv` means fixing the page's order, which stops the docs deriving the unordered combinations omni accepts (`COMMENT` before `MAX_CONCURRENCY_LEVEL`, as `TestParseCreateInteractiveWarehouse` holds), so the row stays until an engine oracle settles it; no parser change was made to fit the sample. |
 | alter-organization-user, create-organization-user | 2 | The same `objectProperties` run, one row for each page: `EMAIL = 's' EMAIL = 's'` is the converter's sample of a repeat ([alter](https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user), [create](https://docs.snowflake.com/en/sql-reference/sql/create-organization-user)). |
+| show-semantic-dimensions, -facts, -metrics | 3 | `IN SCHEMA.a`: the pages' `IN` choice does take a `<semantic_view_name>`, a QNAME, but Snowflake's [reserved and limited keywords](https://docs.snowflake.com/en/sql-reference/reserved-keywords) say `SCHEMA` and `DATABASE` "cannot be used as an identifier in a SHOW command (e.g. 'SHOW … IN <identifier>')". So the row is the docs grammar reading a limited keyword as a name, not a form the engine takes; the documented schema scope is `SCHEMA <db_name>.<schema_name>`, and the name would have to be quoted. |
 
-The agree count moved from 20,472 to 20,486 and the total and `undocumented`
-counts stay at 73,743 and 53,222: every closed row was already in the file,
-and the four property-run rows keep the grammar the docs page writes. The pin
-is the same: only the parser and its tests moved. No `expected` cell was edited
+The agree count moved from 20,472 to 20,483; the total, `undocumented` count
+and docs pin stay at 73,743, 53,222 and the same digest, because these were
+parser gaps in statements the file already held. No `expected` cell was edited
 by hand, and no alternative row that agreed with the docs stopped agreeing.

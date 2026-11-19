@@ -505,10 +505,10 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 				return err
 			}
 			call, ok := x.(*ast.FuncCallExpr)
-			if !ok || !oneStringArg(call) {
+			if !ok || !validImportCall(call) {
 				return &ParseError{
 					Position: e.Loc.Start, End: p.prev.Loc.End,
-					Message: "syntax error: IMPORTS takes a source location, or a system function call with one string",
+					Message: "syntax error: IMPORTS takes a source location, or a system function call with string arguments",
 				}
 			}
 			e.Expr = x
@@ -527,14 +527,29 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 	})
 }
 
-// oneStringArg reports whether call is the page's system function: it takes
-// exactly one string, as SYSTEM$LOCATE_DBT_ARCHIVE('<query_id>') does.
-func oneStringArg(call *ast.FuncCallExpr) bool {
-	if len(call.Args) != 1 {
+// validImportCall reports whether call is one of the page's system functions
+// with the arguments its own page gives it: SYSTEM$LOCATE_DBT_ARCHIVE and
+// SYSTEM$LOCATE_DBT_ARTIFACTS take one string, a query id, and the three
+// SYSTEM$DBT_GET_LAST_*_RUN_TARGET functions take one to three strings, the
+// project and optionally the commands and target path.
+// https://docs.snowflake.com/en/sql-reference/functions/system_dbt_get_last_successful_run_target
+// https://docs.snowflake.com/en/sql-reference/functions/system_locate_dbt_archive
+func validImportCall(call *ast.FuncCallExpr) bool {
+	max := 1
+	switch strings.ToUpper(call.Name.Name.Name) {
+	case "SYSTEM$DBT_GET_LAST_SUCCESSFUL_RUN_TARGET", "SYSTEM$DBT_GET_LAST_FAILED_RUN_TARGET", "SYSTEM$DBT_GET_LAST_RUN_TARGET":
+		max = 3
+	}
+	if len(call.Args) < 1 || len(call.Args) > max {
 		return false
 	}
-	lit, ok := call.Args[0].(*ast.Literal)
-	return ok && lit.Kind == ast.LitString
+	for _, arg := range call.Args {
+		lit, ok := arg.(*ast.Literal)
+		if !ok || lit.Kind != ast.LitString {
+			return false
+		}
+	}
+	return true
 }
 
 // execBundleArgs reads ( { '<arg>' | :<variable> } [ , ... ] ).

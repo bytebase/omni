@@ -277,27 +277,6 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 		return p.parseShowModelScope(stmt, word)
 	}
 
-	// SCHEMA.a and DATABASE.a are qualified names, not the scope keywords,
-	// on the three SHOW SEMANTIC pages: their IN choice takes a
-	// <semantic_view_name>, a QNAME, before the ACCOUNT, DATABASE and SCHEMA
-	// scopes, and SCHEMA.a is one because Snowflake does not reserve SCHEMA.
-	// A bare keyword (IN SCHEMA) still scopes to every schema, and a name
-	// after it (IN SCHEMA a) is that schema's. Other pages write only the
-	// scope keywords, so IN SCHEMA.a stays a syntax error there.
-	// https://docs.snowflake.com/en/sql-reference/sql/show-semantic-dimensions
-	switch stmt.ObjectClass {
-	case "SEMANTIC DIMENSIONS", "SEMANTIC FACTS", "SEMANTIC METRICS":
-		if (p.cur.Type == kwSCHEMA || p.cur.Type == kwDATABASE) && p.peekNext().Type == '.' {
-			name, err := p.parseObjectName()
-			if err != nil {
-				return err
-			}
-			stmt.Scope = ast.ShowScopeSchema
-			stmt.ScopeName = name
-			return nil
-		}
-	}
-
 	switch p.cur.Type {
 	case kwACCOUNT:
 		p.advance()
