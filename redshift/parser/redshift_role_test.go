@@ -96,3 +96,162 @@ func TestRedshiftDropRoleBehaviorParse(t *testing.T) {
 		}
 	}
 }
+
+// TestRedshiftAlterRoleClauseListParse pins r_ALTER_ROLE's comma-separated
+// RENAME TO and OWNER TO clauses and the EXTERNALID TO tail. One clause keeps
+// the node PostgreSQL gives it; a repeat or an EXTERNALID tail is an
+// AlterRoleStmt's option list.
+func TestRedshiftAlterRoleClauseListParse(t *testing.T) {
+	rename, ok := singleStmt(t, "ALTER ROLE role1 RENAME TO role2").(*nodes.RenameStmt)
+	if !ok {
+		t.Fatalf("expected RenameStmt, got %T", singleStmt(t, "ALTER ROLE role1 RENAME TO role2"))
+	}
+	if rename.Subname != "role1" || rename.Newname != "role2" {
+		t.Fatalf("rename %q -> %q, want role1 -> role2", rename.Subname, rename.Newname)
+	}
+	if rename.Loc.Start < 0 || rename.Loc.End <= rename.Loc.Start {
+		t.Fatalf("Loc = %#v, want the statement's byte range", rename.Loc)
+	}
+
+	owner, ok := singleStmt(t, "ALTER ROLE role1 OWNER TO user1").(*nodes.AlterOwnerStmt)
+	if !ok {
+		t.Fatalf("expected AlterOwnerStmt, got %T", singleStmt(t, "ALTER ROLE role1 OWNER TO user1"))
+	}
+	if owner.ObjectType != nodes.OBJECT_ROLE || owner.Newowner.Rolename != "user1" {
+		t.Fatalf("owner = %#v, want role1 owned by user1", owner)
+	}
+
+	for _, tc := range []struct {
+		sql    string
+		names  []string
+		values []string
+	}{
+		{"ALTER ROLE a RENAME TO b, RENAME TO c", []string{"rename_to", "rename_to"}, []string{"b", "c"}},
+		{"ALTER ROLE a RENAME TO b, OWNER TO c", []string{"rename_to", "owner_to"}, []string{"b", "c"}},
+		{"ALTER ROLE a RENAME TO b EXTERNALID TO x", []string{"rename_to", "externalid"}, []string{"b", "x"}},
+	} {
+		alter, ok := singleStmt(t, tc.sql).(*nodes.AlterRoleStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected AlterRoleStmt, got %T", tc.sql, singleStmt(t, tc.sql))
+		}
+		if alter.Role == nil || alter.Role.Rolename != "a" {
+			t.Fatalf("Parse(%q): role = %#v, want a", tc.sql, alter.Role)
+		}
+		if alter.Options == nil || len(alter.Options.Items) != len(tc.names) {
+			t.Fatalf("Parse(%q): options = %#v, want %d", tc.sql, alter.Options, len(tc.names))
+		}
+		for i, name := range tc.names {
+			elem, ok := alter.Options.Items[i].(*nodes.DefElem)
+			if !ok || elem.Defname != name {
+				t.Fatalf("Parse(%q): option %d = %#v, want %q", tc.sql, i, alter.Options.Items[i], name)
+			}
+			switch arg := elem.Arg.(type) {
+			case *nodes.String:
+				if arg.Str != tc.values[i] {
+					t.Fatalf("Parse(%q): option %d = %q, want %q", tc.sql, i, arg.Str, tc.values[i])
+				}
+			case *nodes.RoleSpec:
+				if arg.Rolename != tc.values[i] {
+					t.Fatalf("Parse(%q): option %d = %q, want %q", tc.sql, i, arg.Rolename, tc.values[i])
+				}
+			default:
+				t.Fatalf("Parse(%q): option %d arg = %T", tc.sql, i, elem.Arg)
+			}
+		}
+	}
+
+	// ALTER USER's RENAME TO is one of its options, so the list goes on after it
+	// with any other option.
+	user, ok := singleStmt(t, "ALTER USER a RENAME TO b, CREATEDB").(*nodes.AlterRoleStmt)
+	if !ok {
+		t.Fatalf("expected AlterRoleStmt, got %T", singleStmt(t, "ALTER USER a RENAME TO b, CREATEDB"))
+	}
+	if user.Options == nil || len(user.Options.Items) != 2 {
+		t.Fatalf("options = %#v, want rename_to and createdb", user.Options)
+	}
+	if elem, ok := user.Options.Items[0].(*nodes.DefElem); !ok || elem.Defname != "rename_to" {
+		t.Fatalf("option 0 = %#v, want rename_to", user.Options.Items[0])
+	}
+	if elem, ok := user.Options.Items[1].(*nodes.DefElem); !ok || elem.Defname != "createdb" {
+		t.Fatalf("option 1 = %#v, want createdb", user.Options.Items[1])
+	}
+	// RENAME TO is one option among the others, so it may come after them.
+	reordered, ok := singleStmt(t, "ALTER USER a CREATEDB, RENAME TO b").(*nodes.AlterRoleStmt)
+	if !ok {
+		t.Fatalf("expected AlterRoleStmt, got %T", singleStmt(t, "ALTER USER a CREATEDB, RENAME TO b"))
+	}
+	if reordered.Options == nil || len(reordered.Options.Items) != 2 {
+		t.Fatalf("options = %#v, want createdb and rename_to", reordered.Options)
+	}
+	for i, want := range []string{"createdb", "rename_to"} {
+		if elem, ok := reordered.Options.Items[i].(*nodes.DefElem); !ok || elem.Defname != want {
+			t.Fatalf("option %d = %#v, want %s", i, reordered.Options.Items[i], want)
+		}
+	}
+	if rename, ok := singleStmt(t, "ALTER USER a RENAME TO b").(*nodes.RenameStmt); !ok || rename.Newname != "b" {
+		t.Fatalf("ALTER USER a RENAME TO b = %#v, want a RenameStmt", rename)
+	}
+
+	// EXTERNALID takes TO, and a comma takes a clause after it.
+	for _, sql := range []string{
+		"ALTER ROLE a RENAME TO b EXTERNALID b",
+		"ALTER ROLE a RENAME TO b,",
+		"ALTER ROLE a RENAME TO b, TO c",
+		// alterUser_option (',' alterUser_option)*: the commas follow an option.
+		"ALTER USER u, PASSWORD 'x'",
+		"ALTER USER u CREATEDB,,",
+		// ALTER USER's EXTERNALID is an option, not ALTER ROLE's TO tail.
+		"ALTER USER u RENAME TO v EXTERNALID TO x",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+// TestRedshiftCreateGroupWithListParse pins r_CREATE_GROUP's WITH clause, which
+// the docs repeat with commas between the user lists and whose USER list is
+// optional.
+func TestRedshiftCreateGroupWithListParse(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE GROUP a WITH, WITH",
+		"CREATE GROUP a WITH USER b, WITH USER c",
+		"CREATE GROUP a WITH USER b, WITH",
+	} {
+		create, ok := singleStmt(t, sql).(*nodes.CreateRoleStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected CreateRoleStmt, got %T", sql, singleStmt(t, sql))
+		}
+		if create.StmtType != nodes.ROLESTMT_GROUP || create.Role != "a" {
+			t.Fatalf("Parse(%q): = %#v, want group a", sql, create)
+		}
+	}
+	for _, sql := range []string{
+		"CREATE GROUP a WITH,",
+		// The commas belong to the WITH block.
+		"CREATE GROUP a, WITH USER b",
+		"CREATE GROUP a, CREATEDB",
+		"CREATE GROUP a WITH USER b, USER c",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+// TestRedshiftAlterUserOwnerRejected pins OWNER TO to ALTER ROLE: r_ALTER_USER
+// has RENAME TO among its options and no OWNER.
+func TestRedshiftAlterUserOwnerRejected(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER USER a OWNER TO b",
+		"ALTER USER a WITH OWNER TO b",
+		"ALTER USER a RENAME TO b, OWNER TO c",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	if _, err := Parse("ALTER ROLE a OWNER TO b"); err != nil {
+		t.Errorf("Parse(ALTER ROLE a OWNER TO b): %v", err)
+	}
+}

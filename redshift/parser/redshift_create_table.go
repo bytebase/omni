@@ -29,8 +29,11 @@ func (p *Parser) consumeRedshiftWord(word string) bool {
 	return true
 }
 
+// parseRedshiftOptionWord parses the keyword a table attribute takes (EVEN,
+// ALL, KEY, YES, NO). A quoted name is no keyword, so only an unquoted word
+// parses here.
 func (p *Parser) parseRedshiftOptionWord() (string, error) {
-	if p.isColLabel() {
+	if p.isColLabel() && !p.isDelimitedIdentToken(p.cur) {
 		tok := p.advance()
 		return tok.Str, nil
 	}
@@ -41,13 +44,13 @@ func (p *Parser) parseRedshiftCreateTableAttributes() (*nodes.List, error) {
 	var items []nodes.Node
 	for {
 		switch {
-		case p.consumeRedshiftWord("diststyle"):
+		case p.acceptRedshiftKeyword("diststyle"):
 			style, err := p.parseRedshiftOptionWord()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("diststyle", &nodes.String{Str: strings.ToLower(style)}))
-		case p.consumeRedshiftWord("distkey"):
+		case p.acceptRedshiftKeyword("distkey"):
 			var cols nodes.Node
 			if p.cur.Type == '(' {
 				p.advance()
@@ -69,10 +72,10 @@ func (p *Parser) parseRedshiftCreateTableAttributes() (*nodes.List, error) {
 			if p.redshiftWordEqual("compound") || p.redshiftWordEqual("interleaved") {
 				sortStyle = strings.ToLower(p.advance().Str)
 			}
-			if !p.consumeRedshiftWord("sortkey") {
+			if !p.acceptRedshiftKeyword("sortkey") {
 				return nil, p.syntaxErrorAtCur()
 			}
-			if p.consumeRedshiftWord("auto") {
+			if p.acceptRedshiftKeyword("auto") {
 				if sortStyle != "" {
 					items = append(items, makeDefElem("sortstyle", &nodes.String{Str: sortStyle}))
 				}
@@ -96,13 +99,13 @@ func (p *Parser) parseRedshiftCreateTableAttributes() (*nodes.List, error) {
 				items = append(items, makeDefElem("sortstyle", &nodes.String{Str: sortStyle}))
 			}
 			items = append(items, makeDefElem("sortkey", cols))
-		case p.consumeRedshiftWord("encode"):
+		case p.acceptRedshiftKeyword("encode"):
 			encoding := "auto"
 			if p.isColLabel() {
 				encoding = strings.ToLower(p.advance().Str)
 			}
 			items = append(items, makeDefElem("encode", &nodes.String{Str: encoding}))
-		case p.consumeRedshiftWord("backup"):
+		case p.acceptRedshiftKeyword("backup"):
 			backup, err := p.parseRedshiftOptionWord()
 			if err != nil {
 				return nil, err
@@ -127,15 +130,15 @@ func (p *Parser) parseRedshiftCreateTableAttributesInto(options *nodes.List) (*n
 
 func (p *Parser) parseRedshiftColumnAttribute() (nodes.Node, error) {
 	switch {
-	case p.consumeRedshiftWord("encode"):
+	case p.acceptRedshiftKeyword("encode"):
 		encoding, err := p.parseRedshiftOptionWord()
 		if err != nil {
 			return nil, err
 		}
 		return makeDefElem("encode", &nodes.String{Str: strings.ToLower(encoding)}), nil
-	case p.consumeRedshiftWord("distkey"):
+	case p.acceptRedshiftKeyword("distkey"):
 		return makeDefElem("distkey", nil), nil
-	case p.consumeRedshiftWord("sortkey"):
+	case p.acceptRedshiftKeyword("sortkey"):
 		return makeDefElem("sortkey", nil), nil
 	case p.cur.Type == IDENTITY_P:
 		return p.parseRedshiftIdentityColumnConstraint()
@@ -150,18 +153,10 @@ func (p *Parser) parseRedshiftIdentityColumnConstraint() (*nodes.Constraint, err
 
 	var opts *nodes.List
 	if p.cur.Type == '(' {
-		p.advance()
-		var items []nodes.Node
-		if p.cur.Type != ')' {
-			items = append(items, makeDefElem("start", p.parseNumericOnly()))
-			if p.cur.Type == ',' {
-				p.advance()
-				items = append(items, makeDefElem("increment", p.parseNumericOnly()))
-			}
-		}
-		p.expect(')')
-		if len(items) > 0 {
-			opts = &nodes.List{Items: items}
+		var err error
+		opts, err = p.parseRedshiftIdentitySeedStepOptions()
+		if err != nil {
+			return nil, err
 		}
 	}
 

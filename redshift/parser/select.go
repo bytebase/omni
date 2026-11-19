@@ -226,6 +226,12 @@ func (p *Parser) parseSimpleSelectLeaf() (*nodes.SelectStmt, error) {
 //	    [ HAVING condition ]
 //	    [ WINDOW window_name AS ( window_definition ) [, ...] ]
 func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
+	// PRIOR is CONNECT BY's prefix operator, and a SELECT inside that condition
+	// is a scope of its own, where the word names a column again.
+	savedInConnectBy := p.inConnectBy
+	p.inConnectBy = false
+	defer func() { p.inConnectBy = savedInConnectBy }()
+
 	loc := p.pos()
 	p.advance() // consume SELECT
 	stmt := &nodes.SelectStmt{}
@@ -283,6 +289,8 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		// Also valid: expression operators (AS for alias, comma for next target)
 		p.addTokenCandidate(',')
 		p.addTokenCandidate(AS)
+		// And the hierarchical clauses, whose CONNECT BY may come first.
+		p.addRedshiftConnectByCandidates()
 		return stmt, nil
 	}
 
@@ -319,6 +327,7 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 			} {
 				p.addTokenCandidate(t)
 			}
+			p.addRedshiftConnectByCandidates()
 			return stmt, nil
 		}
 	}
@@ -341,6 +350,25 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 			} {
 				p.addTokenCandidate(t)
 			}
+			p.addRedshiftConnectByCandidates()
+			return stmt, nil
+		}
+	}
+
+	// START WITH / CONNECT BY, Redshift's hierarchical-query clauses. They sit
+	// between WHERE and GROUP BY, as r_SELECT_synopsis writes them.
+	if p.isRedshiftConnectByStart() {
+		if err := p.parseRedshiftConnectBy(stmt); err != nil {
+			return nil, err
+		}
+		if p.collectMode() {
+			for _, t := range []int{
+				GROUP_P, HAVING, QUALIFY, WINDOW,
+				ORDER, LIMIT, OFFSET, FETCH, FOR,
+				UNION, EXCEPT, INTERSECT, ';',
+			} {
+				p.addTokenCandidate(t)
+			}
 			return stmt, nil
 		}
 	}
@@ -351,17 +379,27 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		if _, err := p.expect(BY); err != nil {
 			return nil, err
 		}
-		// Check for ALL or DISTINCT
+		// GROUP BY takes ALL, DISTINCT or a list. ALL is a modifier in
+		// PostgreSQL's grammar and an alternative to the list in Redshift's docs,
+		// so both readings parse: GROUP BY ALL alone, and GROUP BY ALL
+		// rollup(a, b) from a query written for PostgreSQL. redshift/parsertest
+		// (TestParseGroupByAll, GROUP BY ALL a) and redshift/pgregress
+		// (groupingsets.sql) pin the modifier, and GroupAll beside GroupClause
+		// records which reading was written.
 		if p.cur.Type == ALL {
 			p.advance()
-			// GROUP BY ALL is treated the same as GROUP BY (all is default)
+			stmt.GroupAll = true
 		} else if p.cur.Type == DISTINCT {
 			p.advance()
 			stmt.GroupDistinct = true
 		}
-		stmt.GroupClause, err = p.parseGroupByList()
-		if err != nil {
-			return nil, err
+		if !stmt.GroupAll || p.collectMode() || (p.isAExprStart() && !p.isReservedForClause()) {
+			// GROUP BY ALL may stand alone; collecting the list as well keeps
+			// its expressions among the candidates.
+			stmt.GroupClause, err = p.parseGroupByList()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if p.collectMode() {
 			for _, t := range []int{
@@ -421,10 +459,19 @@ func (p *Parser) parseRedshiftTopClause(stmt *nodes.SelectStmt) error {
 	return nil
 }
 
+// parseRedshiftExcludeList parses the EXCLUDE clause r_SELECT_synopsis and
+// r_SELECT_INTO put after the select list. r_EXCLUDE_list writes the names
+// with the parentheses optional, so both forms parse:
+//
+//	[ EXCLUDE ( column_name [, ...] ) ]
+//	[ EXCLUDE column_name [, ...] ]
+//
+// Each name is recorded as a String, in the order written.
 func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 	p.advance() // consume EXCLUDE
-	if _, err := p.expect('('); err != nil {
-		return nil, err
+	parenthesized := p.cur.Type == '('
+	if parenthesized {
+		p.advance()
 	}
 	name, err := p.parseColId()
 	if err != nil {
@@ -439,10 +486,73 @@ func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 		}
 		items = append(items, &nodes.String{Str: name})
 	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
+	if parenthesized {
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 	return &nodes.List{Items: items}, nil
+}
+
+// addRedshiftConnectByCandidates registers the hierarchical clauses for
+// completion: START, whose WITH follows it, and CONNECT BY, which no token type
+// names. Once START is read only its WITH can follow.
+func (p *Parser) addRedshiftConnectByCandidates() {
+	if p.cur.Type == START {
+		p.addTokenCandidate(WITH)
+		return
+	}
+	p.addTokenCandidate(START)
+	p.addWordCandidate("CONNECT BY")
+}
+
+// parseRedshiftConnectBy parses the hierarchical-query clauses the docs write
+// as START WITH <condition> CONNECT BY <condition>, with START WITH optional:
+//
+//	[ (START WITH <expr>) CONNECT BY <expr> ]
+//
+// Grammar reference: selectSynopsis and selectInto in RedshiftDocs.g4.
+func (p *Parser) parseRedshiftConnectBy(stmt *nodes.SelectStmt) error {
+	if p.cur.Type == START {
+		p.advance() // consume START
+		if _, err := p.expect(WITH); err != nil {
+			return err
+		}
+		cond, err := p.parseAExpr(0)
+		if err != nil {
+			return err
+		}
+		if cond == nil && !p.collectMode() {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.StartWith = cond
+		if p.collectMode() {
+			// The clause goes on with CONNECT BY, which no token type names.
+			p.addWordCandidate("CONNECT BY")
+			return nil
+		}
+	}
+	// CONNECT is no keyword of this package, so it is matched as the unquoted
+	// word.
+	if !p.acceptRedshiftKeyword("connect") {
+		return p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(BY); err != nil {
+		return err
+	}
+	// PRIOR is the condition's prefix operator, and a name everywhere else.
+	savedInConnectBy := p.inConnectBy
+	p.inConnectBy = true
+	cond, err := p.parseAExpr(0)
+	p.inConnectBy = savedInConnectBy
+	if err != nil {
+		return err
+	}
+	if cond == nil && !p.collectMode() {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.ConnectBy = cond
+	return nil
 }
 
 // parseValuesClause parses a VALUES clause.

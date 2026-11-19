@@ -188,6 +188,29 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 		return n, nil
 	case UNIQUE:
 		return p.parseUniquePredicate()
+	case PRIOR:
+		// CONNECT BY's PRIOR marks the parent row's side of the condition
+		// (CONNECT BY PRIOR id = parent_id). PRIOR is unreserved everywhere
+		// else, where it names a column, so only a CONNECT BY condition reads
+		// it as the prefix operator.
+		if !p.inConnectBy {
+			return p.parseCExpr()
+		}
+		p.advance()
+		arg, err := p.parseAExpr(precUnary)
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		n := &nodes.A_Expr{
+			Kind:  nodes.AEXPR_OP,
+			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: "prior"}}},
+			Rexpr: arg,
+		}
+		setNodeLoc(n, loc, p.prev.End)
+		return n, nil
 	case OPERATOR:
 		// OPERATOR is an unreserved keyword: before any token but '('
 		// it is a column name.
@@ -2918,6 +2941,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	}
 
 	loc := p.pos()
+	quoted := p.isDelimitedIdentToken(p.cur)
 	name, err := p.parseColId()
 	if err != nil {
 		return nil, err
@@ -3037,6 +3061,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	// Simple column reference
 	return &nodes.ColumnRef{
 		Fields: &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
+		Quoted: quoted,
 	}, nil
 }
 
@@ -3931,6 +3956,12 @@ func (p *Parser) parseTargetEl() (nodes.Node, error) {
 // and should not be consumed as an alias.
 func (p *Parser) isReservedForClause() bool {
 	if p.curIdentEquals("minus") {
+		return true
+	}
+	// START WITH and CONNECT BY are clauses of a SELECT, and START and CONNECT
+	// are names everywhere else, so only the clause's own continuation reserves
+	// them (SELECT * FROM t START WITH 1 CONNECT BY 1).
+	if p.isRedshiftConnectByStart() {
 		return true
 	}
 	switch p.cur.Type {

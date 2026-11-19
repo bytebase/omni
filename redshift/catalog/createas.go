@@ -147,6 +147,11 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		RowTypeOID:    rowTypeOID,
 		ArrayOID:      arrayOID,
 		AnalyzedQuery: analyzedQuery,
+		// The storage the statement names stays with the relation: a migration
+		// re-creates the materialized view from it.
+		MatViewAccessMethod:       into.AccessMethod,
+		MatViewAccessMethodQuoted: into.AccessMethodQuoted,
+		MatViewOptions:            into.Options,
 	}
 
 	schema.Relations[mvName] = rel

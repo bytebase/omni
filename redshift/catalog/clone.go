@@ -115,6 +115,11 @@ func (c *Catalog) Clone() *Catalog {
 			}
 			cr.PartitionBound = &pb
 		}
+		// MatViewOptions: deep copy, so a caller building a target catalog does
+		// not change the source's storage.
+		if r.MatViewOptions != nil {
+			cr.MatViewOptions = cloneNodeList(r.MatViewOptions)
+		}
 		// AnalyzedQuery: shallow copy (shared, not mutated by dry-run).
 		// Fix Schema pointer.
 		cr.Schema = clone.schemas[r.Schema.OID]
