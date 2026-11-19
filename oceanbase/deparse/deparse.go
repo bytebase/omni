@@ -805,11 +805,7 @@ func deparseExprAlias(node ast.ExprNode) string {
 func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 	switch n := node.(type) {
 	case *ast.ColumnRef:
-		if n.Table != "" {
-			b.WriteString(n.Table)
-			b.WriteString(".")
-		}
-		b.WriteString(n.Column)
+		writeColumnRefAlias(b, n)
 	case *ast.IntLit:
 		fmt.Fprintf(b, "%d", n.Value)
 	case *ast.FloatLit:
@@ -988,9 +984,9 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
-			// LEAD and LAG write RESPECT/IGNORE NULLS after their first
-			// argument, so the alias keeps it in place.
-			if i == 0 && (upperName == "LEAD" || upperName == "LAG") && n.NullTreatment != "" {
+			// A treatment written inside the parameter list stays after the
+			// first argument, so the alias keeps it in place.
+			if i == 0 && n.NullTreatment != "" && n.NullTreatmentInArgs {
 				b.WriteString(" ")
 				b.WriteString(strings.ToUpper(n.NullTreatment))
 				b.WriteString(" NULLS")
@@ -1009,7 +1005,7 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(" FROM ")
 			b.WriteString(strings.ToUpper(n.FromFirstLast))
 		}
-		if n.NullTreatment != "" && upperName != "LEAD" && upperName != "LAG" {
+		if n.NullTreatment != "" && !n.NullTreatmentInArgs {
 			b.WriteString(" ")
 			b.WriteString(strings.ToUpper(n.NullTreatment))
 			b.WriteString(" NULLS")
@@ -3098,9 +3094,9 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
-			// LEAD and LAG write RESPECT/IGNORE NULLS after their first argument,
-			// `lead(a ignore nulls, 2)`.
-			if i == 0 && (name == "LEAD" || name == "LAG") && n.NullTreatment != "" {
+			// A treatment written inside the parameter list follows the first
+			// argument, `lead(a ignore nulls, 2)`.
+			if i == 0 && n.NullTreatment != "" && n.NullTreatmentInArgs {
 				b.WriteString(" ")
 				b.WriteString(strings.ToLower(n.NullTreatment))
 				b.WriteString(" nulls")
@@ -3121,7 +3117,7 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		b.WriteString(" from ")
 		b.WriteString(strings.ToLower(n.FromFirstLast))
 	}
-	if n.NullTreatment != "" && name != "LEAD" && name != "LAG" {
+	if n.NullTreatment != "" && !n.NullTreatmentInArgs {
 		b.WriteString(" ")
 		b.WriteString(strings.ToLower(n.NullTreatment))
 		b.WriteString(" nulls")

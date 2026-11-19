@@ -275,3 +275,36 @@ func TestRemoteSequenceAndEscapeAliases(t *testing.T) {
 		})
 	}
 }
+
+// TestNestedCatalogAliasAndNullTreatmentPlace pins that a nested catalog-
+// qualified operand keeps all four parts in a rebuilt alias, and that a window
+// function's null treatment stays where the statement wrote it.
+func TestNestedCatalogAliasAndNullTreatmentPlace(t *testing.T) {
+	for _, c := range []struct{ input, want string }{
+		{
+			"SELECT c.db.t.a + 1 FROM t",
+			"select (`c`.`db`.`t`.`a` + 1) AS `c.db.t.a + 1` from `t`",
+		},
+		{
+			"SELECT FIRST_VALUE(a IGNORE NULLS) OVER () FROM t",
+			"select first_value(`t`.`a` ignore nulls) OVER ( )  AS `FIRST_VALUE(a IGNORE NULLS) OVER ()` from `t`",
+		},
+		{
+			"SELECT FIRST_VALUE(a) IGNORE NULLS OVER () FROM t",
+			"select first_value(`t`.`a`) ignore nulls OVER ( )  AS `FIRST_VALUE(a) IGNORE NULLS OVER ()` from `t`",
+		},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			list, err := parser.Parse(c.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", c.input, err)
+			}
+			resolved := (&Resolver{Lookup: func(string) *ResolverTable {
+				return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "a", Position: 1}}}
+			}}).Resolve(list.Items[0].(*ast.SelectStmt))
+			if got := DeparseSelect(resolved); got != c.want {
+				t.Errorf("DeparseSelect(%q)\n got %s\nwant %s", c.input, got, c.want)
+			}
+		})
+	}
+}

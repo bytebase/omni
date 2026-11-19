@@ -440,7 +440,10 @@ func (s *CreateIndexStmt) stmtNode() {}
 type LobStorageClause struct {
 	Loc    Loc
 	Column string // column_name
-	Chunk  string // lob_chunk_size's CHUNK value, as written
+	Chunk  string // lob_chunk_size's last CHUNK value, as written
+	// Chunks holds every lob_storage_parameters entry in the order written: the
+	// grammar lets a clause repeat `CHUNK n`, and each occurrence is kept.
+	Chunks []string
 }
 
 func (c *LobStorageClause) nodeTag() {}
@@ -980,6 +983,10 @@ type FuncCallExpr struct {
 	// "RESPECT" or "IGNORE", whether written inside the argument list or after
 	// it. Only FIRST_VALUE, LAST_VALUE, LEAD, LAG and NTH_VALUE take it.
 	NullTreatment string
+	// NullTreatmentInArgs records which of the two places it was written in:
+	// LEAD's and LAG's parameter list (and FIRST_VALUE's, LAST_VALUE's on some
+	// spellings) end with it, and the trailing form follows the ')'.
+	NullTreatmentInArgs bool
 	// FromFirstLast is NTH_VALUE's FROM FIRST or FROM LAST, as "FIRST" or
 	// "LAST". It follows the argument list and precedes NullTreatment.
 	FromFirstLast string

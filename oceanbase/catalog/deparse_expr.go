@@ -244,9 +244,9 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 			continue
 		}
 		writeAnalyzedExpr(b, arg, q)
-		// LEAD and LAG write RESPECT/IGNORE NULLS after their first argument, the
-		// other window functions after the ')'.
-		if i == 0 && (lower == "lead" || lower == "lag") && f.NullTreatment != "" {
+		// A treatment written inside the parameter list follows the first
+		// argument; the trailing form comes after the ')'.
+		if i == 0 && f.NullTreatmentInArgs && f.NullTreatment != "" {
 			b.WriteString(" ")
 			b.WriteString(strings.ToLower(f.NullTreatment))
 			b.WriteString(" nulls")
@@ -259,7 +259,7 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 		b.WriteString(" from ")
 		b.WriteString(strings.ToLower(f.FromFirstLast))
 	}
-	if f.NullTreatment != "" && lower != "lead" && lower != "lag" {
+	if f.NullTreatment != "" && !f.NullTreatmentInArgs {
 		b.WriteString(" ")
 		b.WriteString(strings.ToLower(f.NullTreatment))
 		b.WriteString(" nulls")

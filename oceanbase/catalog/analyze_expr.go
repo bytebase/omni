@@ -186,12 +186,13 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		return &CoalesceExprQ{Args: args}, nil
 	}
 	result := &FuncCallExprQ{
-		Name:          lower,
-		Args:          args,
-		IsAggregate:   isAggregateFunc(fc.Name),
-		Distinct:      fc.Quantifier.RemovesDuplicates(),
-		FromFirstLast: fc.FromFirstLast,
-		NullTreatment: fc.NullTreatment,
+		Name:                lower,
+		Args:                args,
+		IsAggregate:         isAggregateFunc(fc.Name),
+		Distinct:            fc.Quantifier.RemovesDuplicates(),
+		FromFirstLast:       fc.FromFirstLast,
+		NullTreatment:       fc.NullTreatment,
+		NullTreatmentInArgs: fc.NullTreatmentInArgs,
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)

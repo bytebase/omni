@@ -135,8 +135,17 @@ func querySpanResultNamed(results []QuerySpanResult, name string) (QuerySpanResu
 	return QuerySpanResult{}, false
 }
 
-func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName string) ([]QuerySpanResult, bool) {
+func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName, tableName string) ([]QuerySpanResult, bool) {
 	findInTableSource := func(tableSource tableSource) ([]QuerySpanResult, bool) {
+		byAlias := tableName != "" && tableSource.HasAlias() && strings.EqualFold(tableName, tableSource.GetEffectiveName())
+		if !byAlias {
+			if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
+				return nil, false
+			}
+			if catalogName == "" && tableSource.GetCatalogName() != "" {
+				return nil, false
+			}
+		}
 		if q.ignoreCaseSensitive {
 			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
 				return nil, false
@@ -173,12 +182,16 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 	findInTableSource := func(tableSource tableSource) (QuerySpanResult, bool) {
 		// A catalog-qualified reference names a relation of another catalog, and
 		// a reference without one names no such relation: neither binds to the
-		// other, whatever the database and table are called.
-		if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
-			return QuerySpanResult{}, false
-		}
-		if catalogName == "" && tableSource.GetCatalogName() != "" {
-			return QuerySpanResult{}, false
+		// other, whatever the database and table are called. An alias names the
+		// relation itself, so no catalog travels with it.
+		byAlias := tableName != "" && tableSource.HasAlias() && strings.EqualFold(tableName, tableSource.GetEffectiveName())
+		if !byAlias {
+			if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
+				return QuerySpanResult{}, false
+			}
+			if catalogName == "" && tableSource.GetCatalogName() != "" {
+				return QuerySpanResult{}, false
+			}
 		}
 		if q.ignoreCaseSensitive {
 			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
@@ -727,7 +740,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 			if t.Alias != "" {
 				name = t.Alias
 			}
-			return &unknownColumnsTable{pseudoTable{Name: name, DBName: t.Schema, CatalogName: t.Catalog}}, nil
+			return &unknownColumnsTable{pseudoTable{Name: name, DBName: t.Schema, CatalogName: t.Catalog, Aliased: t.Alias != ""}}, nil
 		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
@@ -949,7 +962,7 @@ func (q *querySpanExtractor) extractTargetList(targets []ast.ExprNode, fromSourc
 		switch t := target.(type) {
 		case *ast.ResTarget:
 			if _, ok := t.Val.(*ast.StarExpr); ok {
-				fields, err := q.extractTableWild("", "", fromSources)
+				fields, err := q.extractTableWild("", "", "", fromSources)
 				if err != nil {
 					return nil, err
 				}
@@ -965,7 +978,7 @@ func (q *querySpanExtractor) extractTargetList(targets []ast.ExprNode, fromSourc
 				continue
 			}
 		case *ast.StarExpr:
-			fields, err := q.extractTableWild("", "", fromSources)
+			fields, err := q.extractTableWild("", "", "", fromSources)
 			if err != nil {
 				return nil, err
 			}
@@ -1274,11 +1287,11 @@ func (q *querySpanExtractor) extractColumnWild(columnRef *ast.ColumnRef, fromSou
 	if columnRef == nil {
 		return nil, nil
 	}
-	return q.extractTableWild(columnRef.Schema, columnRef.Table, fromSources)
+	return q.extractTableWild(columnRef.Catalog, columnRef.Schema, columnRef.Table, fromSources)
 }
 
-func (q *querySpanExtractor) extractTableWild(databaseName, tableName string, fromSources []tableSource) ([]QuerySpanResult, error) {
-	if databaseName == "" && tableName == "" {
+func (q *querySpanExtractor) extractTableWild(catalogName, databaseName, tableName string, fromSources []tableSource) ([]QuerySpanResult, error) {
+	if catalogName == "" && databaseName == "" && tableName == "" {
 		var result []QuerySpanResult
 		for _, fromSource := range fromSources {
 			result = append(result, fromSource.GetQuerySpanResult()...)
@@ -1286,7 +1299,7 @@ func (q *querySpanExtractor) extractTableWild(databaseName, tableName string, fr
 		return result, nil
 	}
 
-	result, ok := q.getAllTableColumnSources(databaseName, tableName)
+	result, ok := q.getAllTableColumnSources(catalogName, databaseName, tableName)
 	if !ok {
 		return nil, &NotFoundError{
 			Database: &databaseName,

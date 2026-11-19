@@ -392,7 +392,18 @@ func writeNode(sb *strings.Builder, node Node) {
 	case *GeneratedColumn:
 		writeGeneratedColumn(sb, n)
 	case *LobStorageClause:
-		fmt.Fprintf(sb, "{LOB_STORAGE :loc %d :column %s :chunk %q}", n.Loc.Start, n.Column, n.Chunk)
+		fmt.Fprintf(sb, "{LOB_STORAGE :loc %d :column %s :chunk %q", n.Loc.Start, n.Column, n.Chunk)
+		if len(n.Chunks) > 1 {
+			sb.WriteString(" :chunks (")
+			for i, chunk := range n.Chunks {
+				if i > 0 {
+					sb.WriteString(" ")
+				}
+				fmt.Fprintf(sb, "%q", chunk)
+			}
+			sb.WriteString(")")
+		}
+		sb.WriteString("}")
 	case *ColumnConstraint:
 		writeColumnConstraint(sb, n)
 	case *Constraint:
@@ -2761,6 +2772,9 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 	}
 	if n.NullTreatment != "" {
 		fmt.Fprintf(sb, " :null_treatment %s", n.NullTreatment)
+		if n.NullTreatmentInArgs {
+			sb.WriteString(" :null_treatment_in_args true")
+		}
 	}
 	if n.Over != nil {
 		sb.WriteString(" :over ")

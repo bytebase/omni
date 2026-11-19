@@ -12906,3 +12906,21 @@ func TestRepeatedLoadDataOptionsAreKept(t *testing.T) {
 		t.Errorf("one LOGFILE and two have the same tree: %s", one)
 	}
 }
+
+func TestRepeatedLobChunksAndNullTreatmentPlace(t *testing.T) {
+	repeated := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD (a INT) JSON(a) STORE AS (CHUNK 1 CHUNK 2)").Items[0])
+	if !strings.Contains(repeated, ":chunks (") || !strings.Contains(repeated, `"1" "2"`) {
+		t.Errorf("repeated CHUNK values lost: %s", repeated)
+	}
+	once := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD (a INT) JSON(a) STORE AS (CHUNK 2)").Items[0])
+	if once == repeated {
+		t.Errorf("one CHUNK and two have the same tree: %s", once)
+	}
+
+	// The null treatment keeps the place it was written in.
+	inArgs := ast.NodeToString(ParseAndCheck(t, "SELECT FIRST_VALUE(a IGNORE NULLS) OVER ()").Items[0])
+	trailing := ast.NodeToString(ParseAndCheck(t, "SELECT FIRST_VALUE(a) IGNORE NULLS OVER ()").Items[0])
+	if inArgs == trailing || !strings.Contains(inArgs, ":null_treatment_in_args true") {
+		t.Errorf("null treatment place lost:\n in-args  %s\n trailing %s", inArgs, trailing)
+	}
+}

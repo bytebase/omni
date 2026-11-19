@@ -279,3 +279,21 @@ func TestRemoteCatalogColumnDoesNotBindLocally(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
 }
+
+// TestRemoteAliasAndWildcardStayRemote pins that an alias-qualified reference to
+// a remote relation resolves (its columns are unknown, not missing), and that a
+// catalog-qualified wildcard never reports a same-named local table's columns.
+func TestRemoteAliasAndWildcardStayRemote(t *testing.T) {
+	span, err := resolve(t, "SELECT x.a FROM c1.db.t1 AS x")
+	require.NoError(t, err)
+	require.Equal(t, []string{"a<-"}, renderResults(span))
+
+	span, err = resolve(t, "SELECT c1.db.t1.* FROM c1.db.t1, db.t1")
+	require.NoError(t, err)
+	require.Empty(t, span.Results)
+	for resource := range span.SourceColumns {
+		if resource.Table == "t1" && resource.Column != "" {
+			t.Errorf("remote wildcard reported a local column: %s", renderSet(span.SourceColumns))
+		}
+	}
+}

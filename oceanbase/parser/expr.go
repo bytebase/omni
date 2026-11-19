@@ -1151,6 +1151,7 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 				return nil, err
 			}
 			fc.NullTreatment = t
+			fc.NullTreatmentInArgs = true
 			if p.cur.Type != ')' && !(upperName == "LEAD" || upperName == "LAG") {
 				return nil, p.syntaxErrorAtCur()
 			}

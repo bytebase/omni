@@ -233,3 +233,14 @@ var oceanBaseForms = []walktest.Form{
 func TestWalkThroughOceanBaseLowersEveryForm(t *testing.T) {
 	walktest.Coverage(t, append(append([]walktest.Form{}, walkForms...), oceanBaseForms...), formLowering(oceanBaseSchema(), dialect{oceanBase: true}))
 }
+
+func TestWalkThroughRejectedAlterActions(t *testing.T) {
+	shop := review.Target{Schema: oceanBaseSchema(), LowerCaseTableNames: 1}
+	// A column is no BEFORE target of its own move (1054).
+	oneFindingOB(t, "ALTER TABLE t MODIFY a INT BEFORE a;", 0, "Column `a` doesn't exist in `t`.", shop)
+	oneFindingOB(t, "ALTER TABLE t CHANGE a b INT BEFORE b;", 0, "Column `b` doesn't exist in `t`.", shop)
+	// REFRESH is an external table's and a storage cache policy is shared
+	// storage's: both are refused rather than followed as no-ops.
+	oneFindingOB(t, "ALTER TABLE t REFRESH;", 0, "OceanBase refreshes no metadata of table `t`.", shop)
+	oneFindingOB(t, "ALTER TABLE t ALTER INDEX i STORAGE_CACHE_POLICY(GLOBAL = 's');", 0, "OceanBase has no storage cache policy for an index.", shop)
+}

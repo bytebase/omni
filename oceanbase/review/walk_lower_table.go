@@ -160,9 +160,11 @@ func alterNoFacts(c *ast.AlterTableCmd) bool {
 		ast.ATOptimizePartition, ast.ATRebuildPartition, ast.ATRepairPartition, ast.ATDiscardPartitionTablespace,
 		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy,
 		ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAlterPartitionStorageCachePolicy, ast.ATAddSubpartition,
-		// REMOVE TTL and REFRESH change nothing the walk keeps: the first drops
-		// a table's TTL, the second refreshes an external table's metadata.
-		ast.ATRemoveTTL, ast.ATRefresh, ast.ATAlterIndexParallel, ast.ATAlterIndexStorageCachePolicy:
+		// REMOVE TTL drops a table's TTL, and ALTER INDEX ... PARALLEL changes
+		// only metadata the walk does not keep. REFRESH and an index's
+		// STORAGE_CACHE_POLICY are refused by the engine and the catalog, so
+		// they are no no-ops (alterCmd).
+		ast.ATRemoveTTL, ast.ATAlterIndexParallel:
 		return true
 	case ast.ATAddConstraint:
 		return c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck
@@ -198,14 +200,14 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return false
 		}
 		b.after(r, c.After, rng)
-		b.after(r, c.Before, rng)
+		b.before(r, c.Before, c.Column.Name, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
 		if c.Column == nil || !b.renameColumn(r, c.Name, c.Column.Name, rng) {
 			return false
 		}
 		b.after(r, c.After, rng)
-		b.after(r, c.Before, rng)
+		b.before(r, c.Before, c.Column.Name, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
@@ -269,6 +271,13 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.leave(fk)
 			b.arrive(tk)
 		}
+	case ast.ATRefresh:
+		// REFRESH is an external table's, and the walk follows base tables: the
+		// engine answers 1210 for an ordinary one.
+		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refreshes no metadata of table "+review.Code(r.written)+".") // 1210
+	case ast.ATAlterIndexStorageCachePolicy:
+		// The policy is shared storage's alone: the engine answers 1235.
+		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" has no storage cache policy for an index.") // 1235
 	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible, ast.ATAlterIndexParallel:
 		k, ok := b.key(spaceIndex, c.Name)
 		if !ok {
@@ -412,6 +421,20 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after, before string
 func (b *builder) after(r tableRef, after string, rng review.Range) {
 	if k, ok := b.key(spaceColumn, after); ok {
 		b.need(colKey(r.db, r.name, k), walk.Present, nil, rng, notFound("column", ident(after), r.written), "") // 1054
+	}
+}
+
+// before checks a BEFORE target: the column being replaced is no target of its
+// own move, which the engine answers with 1054, and any other name must exist.
+func (b *builder) before(r tableRef, before, replaced string, rng review.Range) {
+	if before == "" || !strings.EqualFold(before, replaced) {
+		b.after(r, before, rng)
+		return
+	}
+	// The name is the column being replaced, so it is never a target of the
+	// move: the engine answers 1054 whether or not the column exists.
+	if k, ok := b.key(spaceColumn, before); ok {
+		b.fail(rng, []walk.Key{colKey(r.db, r.name, k)}, review.ObjectNotFound, notFound("column", ident(before), r.written))
 	}
 }
 

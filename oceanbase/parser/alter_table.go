@@ -733,15 +733,17 @@ func (p *Parser) parseLobStorageClause(cmd *nodes.AlterTableCmd) error {
 		return p.syntaxErrorAtCur()
 	}
 	clause.Chunk = p.cur.Str
+	clause.Chunks = append(clause.Chunks, p.cur.Str)
 	p.advance()
 	// lob_storage_parameters is one or more parameters written next to each
-	// other; CHUNK is the only one the grammar has.
+	// other; CHUNK is the only one the grammar has, and it may repeat.
 	for p.isBareWord("CHUNK") {
 		p.advance()
 		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
 			return p.syntaxErrorAtCur()
 		}
 		clause.Chunk = p.cur.Str
+		clause.Chunks = append(clause.Chunks, p.cur.Str)
 		p.advance()
 	}
 	if _, err := p.expect(')'); err != nil {
