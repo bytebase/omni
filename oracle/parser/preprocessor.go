@@ -24,7 +24,8 @@ import (
 // which the parser rejects and Split lexes past, with the nesting error for
 // one nested too deeply: the evaluators walk its tree recursively.
 func staticCondition(source string, loc nodes.Loc) (ccValue, bool, *ParseError) {
-	sub := &Parser{lexer: NewLexerRange(source, loc.Start, loc.End), source: source}
+	// A condition is PL/SQL's: its expressions take ~=, which SQL's do not.
+	sub := &Parser{lexer: NewLexerRange(source, loc.Start, loc.End), source: source, plsqlCode: true}
 	sub.advance()
 	expr, err := sub.parseExpr()
 	if err != nil || expr == nil || sub.cur.Type != tokEOF {
@@ -1572,7 +1573,8 @@ func powerOverflows(a, b *big.Rat) bool {
 // the lexer evaluated: an expression (PLS-00103) that is a static Boolean
 // expression (staticConditionFault).
 func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
-	sub := &Parser{lexer: NewLexerRange(p.source, loc.Start, loc.End), source: p.source}
+	// A condition is PL/SQL's: its expressions take ~=, which SQL's do not.
+	sub := &Parser{lexer: NewLexerRange(p.source, loc.Start, loc.End), source: p.source, plsqlCode: true}
 	sub.advance()
 	expr, err := sub.parseExpr()
 	if err != nil {

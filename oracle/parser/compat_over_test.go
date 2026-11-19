@@ -50,9 +50,12 @@ func TestOverAcceptsRefused(t *testing.T) {
 		{"CREATE FUNCTION IF NOT a RETURN NUMBER IS BEGIN RETURN 1; END;", 23},
 		// A materialized view's inmemory_column_clause writes its columns
 		// first and then INMEMORY or NO INMEMORY (ORA-00922 where the query
-		// starts).
+		// starts), and a materialized view takes one inmemory_table_clause,
+		// which its columns belong to.
 		{"CREATE MATERIALIZED VIEW a INMEMORY(a) AS SELECT 1 FROM dual", 39},
 		{"CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY(a) INMEMORY AS SELECT 1 FROM dual", 47},
+		{"CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY INMEMORY AS SELECT 1 FROM dual", 57},
+		{"CREATE MATERIALIZED VIEW a INMEMORY(a) NO INMEMORY NO INMEMORY AS SELECT 1 FROM dual", 51},
 		// Oracle's SQL lexer reads ~= as ~ then = (ORA-00911 at the ~).
 		{"SELECT 1 FROM dual WHERE 1 ~= 2", 27},
 		{"SELECT CASE WHEN 'a' ~= 'b' THEN 1 ELSE 0 END FROM dual", 21},
@@ -104,14 +107,23 @@ func TestOverAcceptsRefused(t *testing.T) {
 		// A table's, which writes the keyword first, and a column list alone.
 		"CREATE TABLE a(a NUMBER) INMEMORY(a)",
 		"CREATE TABLE a(a NUMBER) INMEMORY(a) NO INMEMORY",
-		// PL/SQL's ~=, which its lexer reads whole.
+		// PL/SQL's ~=, which its lexer reads whole, in a condition and in a
+		// conditional compilation directive.
 		"BEGIN IF 1 ~= 2 THEN NULL; END IF; END;",
 		"DECLARE x NUMBER := 1; BEGIN WHILE x ~= 2 LOOP NULL; END LOOP; END;",
+		"BEGIN $IF 1 ~= 2 $THEN NULL; $ELSE NULL; $END END;",
 		`SELECT 1 "a b" FROM dual`,
 	}
 	for _, sql := range accepted {
 		if _, err := Parse(sql); err != nil {
 			t.Errorf("Parse(%q): %v, want it taken", sql, err)
 		}
+	}
+
+	// A statement the parser refuses is still a statement of its own to
+	// Split, whose boundaries the execution log reads.
+	segments := Split(`SELECT 1 "a""b" FROM dual; SELECT 2 FROM dual; SELECT 3 FROM dual`)
+	if len(segments) != 3 {
+		t.Errorf("Split of three statements around an unreadable one = %d segments, want 3", len(segments))
 	}
 }

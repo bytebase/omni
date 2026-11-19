@@ -328,9 +328,13 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 			}
 			columnClause = true
 			if mview {
+				// A materialized view's columns belong to its one
+				// inmemory_table_clause, which the columns do not count
+				// without.
 				if err := p.parseMviewInmemoryColumnKeyword(); err != nil {
 					return err
 				}
+				*tableClause = true
 			}
 		} else if !*tableClause {
 			if err := p.parseCreateTableInmemoryAttributes(memcompress); err != nil {
