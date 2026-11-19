@@ -635,6 +635,37 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a CACHE",
 			code:  8242,
 		},
+		// A cached table takes CACHE and NOCACHE and nothing else.
+		{
+			name:  "ADD COLUMN on a cached table",
+			setup: []string{oneTable, "ALTER TABLE a CACHE"},
+			stmt:  "ALTER TABLE a ADD COLUMN e INT",
+			code:  8242,
+		},
+		{
+			name:  "DROP TABLE of a cached table",
+			setup: []string{oneTable, "ALTER TABLE a CACHE"},
+			stmt:  "DROP TABLE a",
+			code:  8242,
+		},
+		{
+			name:  "TRUNCATE of a cached table",
+			setup: []string{oneTable, "ALTER TABLE a CACHE"},
+			stmt:  "TRUNCATE TABLE a",
+			code:  8242,
+		},
+		{
+			name:  "CREATE INDEX on a cached table",
+			setup: []string{oneTable, "ALTER TABLE a CACHE"},
+			stmt:  "CREATE INDEX i2 ON a (c)",
+			code:  8242,
+		},
+		{
+			name:  "NOCACHE of a cached table",
+			setup: []string{oneTable, "ALTER TABLE a CACHE"},
+			stmt:  "ALTER TABLE a NOCACHE",
+			code:  0,
+		},
 		{
 			name:       "ALTER TABLE PARTITION BY KEY with no column",
 			setup:      []string{oneTable},

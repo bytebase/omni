@@ -13,6 +13,9 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		if tbl == nil {
 			return errNoSuchTable(oldDB.Name, pair.Old.Name)
 		}
+		if tbl.Cached {
+			return errCachedTable("Rename Table")
+		}
 
 		newDB, err := c.resolveDatabase(pair.New.Schema)
 		if err != nil {

@@ -312,6 +312,14 @@ func errAutoRandomBaseNoColumn() error {
 		Message: "Invalid auto random: alter auto_random_base of a non auto_random table"}
 }
 
+// errCachedTable is 8242 for a statement a cached table cannot take. TiDB names
+// the operation that was refused: "'Alter Table' is unsupported on cache
+// tables." NOCACHE is the one statement it takes (read on v8.5.5).
+func errCachedTable(op string) error {
+	return &Error{Code: ErrCacheTableUnsupported, SQLState: sqlState(ErrCacheTableUnsupported),
+		Message: fmt.Sprintf("'%s' is unsupported on cache tables.", op)}
+}
+
 // errFKKeyRefMismatch is 1239 for a table-level FOREIGN KEY that names no
 // referenced column: TiDB requires the referenced column list there, and
 // answers this whether or not the referenced table exists.

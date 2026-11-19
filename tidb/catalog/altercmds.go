@@ -40,6 +40,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) == 0 {
 		return nil
 	}
+	// A cached table takes CACHE and NOCACHE and nothing else, one command at a
+	// time: v8.5.5 answers 8242 to every other ALTER, `NOCACHE, ADD COLUMN`
+	// included (read on v8.5.5).
+	if tbl.Cached && !singleCacheCommand(stmt.Commands) {
+		return errCachedTable("Alter Table")
+	}
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
 		return c.execAlterCmd(db, tbl, stmt.Commands[0])
@@ -67,6 +73,15 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// singleCacheCommand reports whether the ALTER TABLE is the one form a cached
+// table takes: a single CACHE or NOCACHE.
+func singleCacheCommand(cmds []*nodes.AlterTableCmd) bool {
+	if len(cmds) != 1 || cmds[0] == nil {
+		return false
+	}
+	return cmds[0].Type == nodes.ATCache || cmds[0].Type == nodes.ATNoCache
 }
 
 // checkMultiCmdColumnRefs enforces TiDB v8.5.5's rule that every column a
@@ -212,8 +227,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// at all: v8.5.5 answers 8242 "'partition mode' is unsupported on cache
 		// tables".
 		if tbl.Partitioning != nil {
-			return &Error{Code: ErrCacheTableUnsupported, SQLState: sqlState(ErrCacheTableUnsupported),
-				Message: "'partition mode' is unsupported on cache tables."}
+			return errCachedTable("partition mode")
 		}
 		tbl.Cached = true
 		return nil

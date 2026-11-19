@@ -297,6 +297,44 @@ func TestAlterTableCache(t *testing.T) {
 	}
 }
 
+// TestCachedTableTakesOnlyNoCache: v8.5.5 answers 8242 to every statement
+// against a cached table but CACHE and NOCACHE, so the catalog refuses them
+// too; NOCACHE is the way out (read on 2026-11-19).
+func TestCachedTableTakesOnlyNoCache(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t ADD COLUMN b INT",
+		"ALTER TABLE t NOCACHE, ADD COLUMN b INT",
+		"DROP TABLE t",
+		"TRUNCATE TABLE t",
+		"CREATE INDEX i ON t (a)",
+		"RENAME TABLE t TO t2",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			c := newCatalogWithTable(t, "(a INT, KEY i (a))")
+			execAll(t, c, "ALTER TABLE t CACHE;")
+			err := execExpectError(t, c, sql+";")
+			if err == nil {
+				t.Fatalf("%q was accepted on a cached table", sql)
+			}
+			if !strings.Contains(err.Error(), "8242") {
+				t.Errorf("error = %v, want 8242", err)
+			}
+			// The refused statement left the table as it was.
+			if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "/* CACHED ON */") {
+				t.Errorf("%q changed a cached table:\n%s", sql, ddl)
+			}
+		})
+	}
+
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "ALTER TABLE t CACHE;")
+	execAll(t, c, "ALTER TABLE t NOCACHE;")
+	execAll(t, c, "ALTER TABLE t ADD COLUMN b INT;")
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "`b` int") {
+		t.Errorf("ADD COLUMN after NOCACHE did not apply:\n%s", ddl)
+	}
+}
+
 // TestAlterTableClausesKeepTheRestOfTheStatement: a clause in a multi-clause
 // statement must not swallow the one beside it. The no-effect clauses are the
 // risk: a reader that consumed one token too many would lose the action after
