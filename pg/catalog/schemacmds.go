@@ -131,6 +131,15 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			}
 			c.removeFunctionsInSchema(s)
 			c.removeTypesInSchema(s)
+			var exts []*Extension
+			for _, ext := range c.extensions {
+				if ext.SchemaOID == s.OID {
+					exts = append(exts, ext)
+				}
+			}
+			for _, ext := range exts {
+				c.removeExtensionMetadata(ext)
+			}
 		}
 
 		c.removeGrantsForObject('n', s.OID)

@@ -953,6 +953,7 @@ func (c *Catalog) typeShellMake(name string, namespace uint32) uint32 {
 	}
 	c.typeByOID[oid] = bt
 	c.typeByName[typeKey{ns: namespace, name: name}] = bt
+	c.recordTypeOwner(oid)
 	return oid
 }
 

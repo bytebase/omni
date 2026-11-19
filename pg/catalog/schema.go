@@ -35,6 +35,11 @@ func (c *Catalog) schemaHasObjects(s *Schema) bool {
 			return true
 		}
 	}
+	for _, ext := range c.extensions {
+		if ext.SchemaOID == s.OID {
+			return true
+		}
+	}
 	return false
 }
 

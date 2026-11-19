@@ -1298,6 +1298,85 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if c9.schemaByName["public"].Relations["unowned_snap_t"] == nil {
 			t.Fatal("DROP OWNED BY alice deleted snapshot table with empty Owner")
 		}
+
+		// #129: extensions track ownership and drop with their members as one
+		// unit during DROP OWNED.
+		c10 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE ext_role",
+			"SET ROLE ext_role",
+			"CREATE EXTENSION citext",
+			"RESET ROLE",
+			"CREATE TABLE ext_dep_t (c citext)",
+		} {
+			if code := simulationCatalogCode(t, c10, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c10, "DROP OWNED BY ext_role RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED on in-use extension answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c10.extByName["citext"] == nil {
+			t.Fatal("failed DROP OWNED unregistered citext")
+		}
+		if code := simulationCatalogCode(t, c10, "DROP TABLE ext_dep_t"); code != "0" {
+			t.Fatalf("DROP TABLE ext_dep_t: %s", code)
+		}
+		if code := simulationCatalogCode(t, c10, "DROP OWNED BY ext_role RESTRICT"); code != "0" {
+			t.Fatalf("DROP OWNED BY ext_role: %s", code)
+		}
+		if c10.extByName["citext"] != nil {
+			t.Fatal("DROP OWNED left citext registered in extByName")
+		}
+		if code := simulationCatalogCode(t, c10, "DROP ROLE ext_role"); code != "0" {
+			t.Fatalf("DROP ROLE ext_role: %s", code)
+		}
+
+		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
+		// automatic column dependency.
+		c11 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"SET ROLE alice",
+			"CREATE TABLE old_t (id int)",
+			"CREATE SEQUENCE s_owned OWNED BY old_t.id",
+			"SET ROLE bob",
+			"CREATE TABLE new_t (id int)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c11, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c11, "ALTER SEQUENCE s_owned OWNED BY new_t.id"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("ALTER SEQUENCE OWNED BY mismatch answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
+		}
+		if code := simulationCatalogCode(t, c11, "DROP TABLE old_t"); code != "0" {
+			t.Fatalf("DROP TABLE old_t: %s", code)
+		}
+		if c11.schemaByName["public"].Sequences["s_owned"] != nil {
+			t.Fatal("failed ALTER SEQUENCE OWNED BY lost previous DepAuto link to old_t")
+		}
+
+		// #131: completing a shell type under another role fails with 42501.
+		c12 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"SET ROLE alice",
+			"CREATE TYPE sh_t",
+			"CREATE FUNCTION sh_t_in(cstring) RETURNS sh_t LANGUAGE internal IMMUTABLE STRICT AS 'int4in'",
+			"CREATE FUNCTION sh_t_out(sh_t) RETURNS cstring LANGUAGE internal IMMUTABLE STRICT AS 'int4out'",
+			"SET ROLE bob",
+		} {
+			if code := simulationCatalogCode(t, c12, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c12, "CREATE TYPE sh_t (INPUT = sh_t_in, OUTPUT = sh_t_out)"); code != CodeInsufficientPrivilege {
+			t.Fatalf("shell completion by non-owner answered %s, want %s", code, CodeInsufficientPrivilege)
+		}
 	})
 
 	for _, tc := range cases {

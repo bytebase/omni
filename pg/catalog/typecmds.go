@@ -1222,6 +1222,19 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 		analyzeOID = c.findProcByName(analyzeFnName)
 	}
 
+	// pg: src/backend/catalog/pg_type.c — TypeCreate (shell ownership check)
+	if shellOwner := c.typeOwners[existing.OID]; shellOwner != "" && shellOwner != c.currentOwner() {
+		return &Error{
+			Code:    CodeInsufficientPrivilege,
+			Message: fmt.Sprintf("must be owner of type %s", name),
+		}
+	}
+
+	arrayTypeName := fmt.Sprintf("_%s", name)
+	if err := c.moveArrayTypeName(schema, arrayTypeName); err != nil {
+		return err
+	}
+
 	// Allocate array OID.
 	arrayOID := c.oidGen.Next()
 
@@ -1247,13 +1260,6 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	existing.Storage = storage
 	existing.TypeMod = -1
 	existing.Collation = collation
-
-	// Create the array type.
-	// pg: src/backend/commands/typecmds.c — DefineType (line 610-646)
-	arrayTypeName := fmt.Sprintf("_%s", name)
-	if err := c.moveArrayTypeName(schema, arrayTypeName); err != nil {
-		return err
-	}
 
 	// Array alignment: must be at least TYPALIGN_INT.
 	// pg: src/backend/commands/typecmds.c — DefineType (line 613)

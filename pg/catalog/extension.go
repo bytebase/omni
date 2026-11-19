@@ -15,6 +15,7 @@ type Extension struct {
 	OID         uint32
 	Name        string
 	SchemaOID   uint32
+	OwnerName   string
 	Relocatable bool
 	// Version is the VERSION the extension was created with, or "" when the
 	// statement named none.
@@ -129,6 +130,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		OID:         c.oidGen.Next(),
 		Name:        stmt.Extname,
 		SchemaOID:   targetSchema.OID,
+		OwnerName:   c.currentOwner(),
 		Relocatable: true,
 		Version:     version,
 	}
@@ -136,6 +138,302 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	c.extByName[ext.Name] = ext
 
 	return nil
+}
+
+// removeExtensionObjects handles DROP EXTENSION for one or more extensions,
+// validating external dependencies across all member objects before removal.
+func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
+	if stmt.Objects == nil {
+		return nil
+	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	var exts []*Extension
+	dropExtNames := map[string]bool{}
+	for _, obj := range stmt.Objects.Items {
+		_, extName := extractDropObjectName(obj)
+		ext := c.extByName[extName]
+		if ext == nil {
+			if stmt.Missing_ok {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("extension %q does not exist, skipping", extName))
+				continue
+			}
+			if c.snapshot {
+				continue
+			}
+			return errUndefinedObject("extension", extName)
+		}
+		if !dropExtNames[ext.Name] {
+			dropExtNames[ext.Name] = true
+			exts = append(exts, ext)
+		}
+	}
+	if len(exts) == 0 {
+		return nil
+	}
+
+	inExtDrop := func(oid uint32) bool {
+		extName := c.extensionMembers[oid]
+		return extName != "" && dropExtNames[extName]
+	}
+	type memberRel struct {
+		schema *Schema
+		rel    *Relation
+	}
+	var rels []memberRel
+	relOIDs := map[uint32]bool{}
+	type memberIdx struct {
+		schema *Schema
+		idx    *Index
+	}
+	var idxs []memberIdx
+	idxOIDs := map[uint32]bool{}
+	type memberSeq struct {
+		schema *Schema
+		seq    *Sequence
+	}
+	var seqs []memberSeq
+	seqOIDs := map[uint32]bool{}
+	for _, s := range c.schemas {
+		for _, rel := range s.Relations {
+			if inExtDrop(rel.OID) {
+				rels = append(rels, memberRel{schema: s, rel: rel})
+				relOIDs[rel.OID] = true
+			}
+		}
+		for _, idx := range s.Indexes {
+			if inExtDrop(idx.OID) {
+				idxs = append(idxs, memberIdx{schema: s, idx: idx})
+				idxOIDs[idx.OID] = true
+			}
+		}
+		for _, seq := range s.Sequences {
+			if inExtDrop(seq.OID) {
+				seqs = append(seqs, memberSeq{schema: s, seq: seq})
+				seqOIDs[seq.OID] = true
+			}
+		}
+	}
+	var procs []*UserProc
+	procOIDs := map[uint32]bool{}
+	for _, proc := range c.userProcs {
+		if inExtDrop(proc.OID) {
+			procs = append(procs, proc)
+			procOIDs[proc.OID] = true
+		}
+	}
+	var types []*BuiltinType
+	typeOIDs := map[uint32]bool{}
+	seenPrimary := map[uint32]bool{}
+	for _, bt := range c.typeByOID {
+		if !inExtDrop(bt.OID) || bt.OID < FirstNormalObjectId {
+			continue
+		}
+		typeOIDs[bt.OID] = true
+		if bt.Elem != 0 || bt.Type == 'm' || bt.Type == 'c' {
+			continue
+		}
+		if !seenPrimary[bt.OID] {
+			seenPrimary[bt.OID] = true
+			types = append(types, bt)
+			for _, famOID := range c.typeFamilyOIDs(bt) {
+				typeOIDs[famOID] = true
+			}
+		}
+	}
+	for _, x := range rels {
+		if x.rel.RowTypeOID != 0 {
+			typeOIDs[x.rel.RowTypeOID] = true
+		}
+		if x.rel.ArrayOID != 0 {
+			typeOIDs[x.rel.ArrayOID] = true
+		}
+	}
+	domConOIDs := map[uint32]bool{}
+	for oid := range typeOIDs {
+		if dt := c.domainTypes[oid]; dt != nil {
+			for _, dc := range dt.Constraints {
+				domConOIDs[dc.OID] = true
+			}
+		}
+	}
+	inDropSet := func(objType byte, objOID uint32) bool {
+		if inExtDrop(objOID) {
+			return true
+		}
+		switch objType {
+		case 'r':
+			return relOIDs[objOID]
+		case 'i':
+			return idxOIDs[objOID] || (c.indexes[objOID] != nil && relOIDs[c.indexes[objOID].RelOID])
+		case 's':
+			return seqOIDs[objOID] || (c.sequenceByOID[objOID] != nil && relOIDs[c.sequenceByOID[objOID].OwnerRelOID])
+		case 'f':
+			return procOIDs[objOID]
+		case 't':
+			return typeOIDs[objOID]
+		case 'c':
+			return domConOIDs[objOID] || (c.constraints[objOID] != nil && relOIDs[c.constraints[objOID].RelOID])
+		case 'g':
+			return c.triggers[objOID] != nil && relOIDs[c.triggers[objOID].RelOID]
+		case 'p':
+			return c.policies[objOID] != nil && relOIDs[c.policies[objOID].RelOID]
+		}
+		return false
+	}
+
+	if !cascade {
+		extLabel := exts[0].Name
+		for _, x := range rels {
+			for _, dep := range c.relationDependents(x.rel.OID, 0) {
+				if dep.Normal && !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			if x.rel.RowTypeOID != 0 {
+				if bt := c.typeByOID[x.rel.RowTypeOID]; bt != nil {
+					for _, depRelOID := range c.typeRelationDependents(bt) {
+						if !relOIDs[depRelOID] {
+							return errDependentObjects("extension", extLabel)
+						}
+					}
+					for _, dep := range c.typeNormalDependents(bt) {
+						if !inDropSet(dep.ObjType, dep.ObjOID) {
+							return errDependentObjects("extension", extLabel)
+						}
+					}
+				}
+			}
+		}
+		for _, x := range seqs {
+			for _, dep := range c.findNormalDependents('s', x.seq.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+		}
+		for _, proc := range procs {
+			for _, dep := range c.findNormalDependents('f', proc.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+		}
+		for _, bt := range types {
+			for _, depRelOID := range c.typeRelationDependents(bt) {
+				if !relOIDs[depRelOID] {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for _, dep := range c.typeNormalDependents(bt) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+		}
+	}
+
+	for _, x := range rels {
+		if c.relationByOID[x.rel.OID] == nil {
+			continue
+		}
+		if cascade {
+			c.cascadeDropRelation(x.rel)
+			continue
+		}
+		c.removeRelation(x.schema, x.rel.Name, x.rel)
+	}
+	for _, x := range idxs {
+		if x.schema.Indexes[x.idx.Name] == x.idx {
+			c.removeIndex(x.schema, x.idx.Name, x.idx)
+		}
+	}
+	for _, x := range seqs {
+		if c.sequenceByOID[x.seq.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('s', x.seq.OID)) > 0 {
+			c.dropDependents('s', x.seq.OID)
+		}
+		if c.sequenceByOID[x.seq.OID] != nil {
+			c.removeSequence(x.schema, x.seq)
+		}
+	}
+	for _, proc := range procs {
+		if c.userProcs[proc.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('f', proc.OID)) > 0 {
+			c.dropDependents('f', proc.OID)
+		}
+		if c.userProcs[proc.OID] != nil {
+			c.removeFunction(proc.OID, proc.Name)
+		}
+	}
+	for _, bt := range types {
+		if c.typeByOID[bt.OID] == nil {
+			continue
+		}
+		if cascade {
+			for _, depRelOID := range c.typeRelationDependents(bt) {
+				if depRel := c.relationByOID[depRelOID]; depRel != nil {
+					c.cascadeDropRelation(depRel)
+				}
+			}
+			c.dropTypeDependents(bt)
+		}
+		if c.typeByOID[bt.OID] != nil {
+			c.deleteUserType(bt)
+		}
+	}
+	for _, ext := range exts {
+		c.removeExtensionMetadata(ext)
+	}
+	return nil
+}
+
+// removeExtensionMetadata unregisters ext and cleans up its extension-member
+// tracking, operator classes/families, access methods, comments, and grants.
+func (c *Catalog) removeExtensionMetadata(ext *Extension) {
+	if ext == nil {
+		return
+	}
+	delete(c.extensions, ext.OID)
+	delete(c.extByName, ext.Name)
+	c.removeComments('e', ext.OID)
+	memberOIDs := map[uint32]bool{}
+	for oid, extName := range c.extensionMembers {
+		if extName == ext.Name {
+			memberOIDs[oid] = true
+			delete(c.extensionMembers, oid)
+			if opc := c.opClasses[oid]; opc != nil {
+				if opc.IsDefault {
+					delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
+				}
+				delete(c.opClasses, oid)
+			}
+			delete(c.opFamilies, oid)
+			if am := c.accessMethods[oid]; am != nil && oid >= FirstNormalObjectId {
+				delete(c.accessMethods, oid)
+				delete(c.accessMethodByName, am.Name)
+			}
+		}
+	}
+	if len(memberOIDs) > 0 {
+		for key := range c.extensionComments {
+			if memberOIDs[key.ObjOID] {
+				delete(c.extensionComments, key)
+				delete(c.comments, key)
+			}
+		}
+		kept := c.grants[:0]
+		for _, g := range c.grants {
+			if g.FromExtension && memberOIDs[g.ObjOID] {
+				continue
+			}
+			kept = append(kept, g)
+		}
+		c.grants = kept
+	}
 }
 
 // markExtensionMembers records the objects whose OIDs fall in [first, end)

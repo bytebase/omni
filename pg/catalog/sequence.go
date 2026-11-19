@@ -295,6 +295,8 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	// Duplicate DefElem detection.
 	// pg: src/backend/commands/sequence.c — init_params (duplicate option checks)
 	var sawIncrement, sawMinValue, sawMaxValue, sawStart, sawRestart, sawCache, sawCycle, sawOwnedBy bool
+	var clearOwnedBy bool
+	var newOwnedBy string
 
 	// Process DefElem options.
 	if stmt.Options != nil {
@@ -374,15 +376,9 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				if list, ok := d.Arg.(*nodes.List); ok {
 					parts := stringListItems(list)
 					if len(parts) == 1 && strings.ToUpper(parts[0]) == "NONE" {
-						seq.OwnerRelOID = 0
-						seq.OwnerAttNum = 0
-						c.removeDepsOf('s', seq.OID)
+						clearOwnedBy = true
 					} else if len(parts) >= 2 {
-						ownedBy := parts[len(parts)-2] + "." + parts[len(parts)-1]
-						c.removeDepsOf('s', seq.OID)
-						if err := c.setSequenceOwner(seq, seq.Schema, ownedBy); err != nil {
-							return err
-						}
+						newOwnedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
 					}
 				}
 			}
@@ -405,6 +401,16 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 
 	if seq.MinValue >= seq.MaxValue {
 		return errInvalidParameterValue("MINVALUE must be less than MAXVALUE")
+	}
+
+	if clearOwnedBy {
+		seq.OwnerRelOID = 0
+		seq.OwnerAttNum = 0
+		c.removeDepsOf('s', seq.OID)
+	} else if newOwnedBy != "" {
+		if err := c.setSequenceOwner(seq, seq.Schema, newOwnedBy); err != nil {
+			return err
+		}
 	}
 
 	// Validate START (or RESTART) value is within [MinValue, MaxValue].
@@ -549,6 +555,7 @@ func (c *Catalog) setSequenceOwner(seq *Sequence, schema *Schema, ownedBy string
 		return errUndefinedColumn(colName)
 	}
 
+	c.removeDepsOf('s', seq.OID)
 	seq.OwnerRelOID = rel.OID
 	seq.OwnerAttNum = rel.Columns[idx].AttNum
 	c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[idx].AttNum), DepAuto)

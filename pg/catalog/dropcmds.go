@@ -43,6 +43,8 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.RemoveRelations(stmt)
 	case nodes.OBJECT_SCHEMA:
 		return c.RemoveSchemas(stmt)
+	case nodes.OBJECT_EXTENSION:
+		return c.removeExtensionObjects(stmt)
 
 	// No-op object types: these objects are not tracked by pgddl.
 	case nodes.OBJECT_COLLATION,
@@ -62,8 +64,7 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		nodes.OBJECT_TSPARSER,
 		nodes.OBJECT_TSDICTIONARY,
 		nodes.OBJECT_TSTEMPLATE,
-		nodes.OBJECT_TSCONFIGURATION,
-		nodes.OBJECT_EXTENSION:
+		nodes.OBJECT_TSCONFIGURATION:
 		return nil
 
 	default:

@@ -587,6 +587,11 @@ func (c *Catalog) roleInUse(name string) bool {
 			return true
 		}
 	}
+	for _, ext := range c.extensions {
+		if ext.OwnerName == name {
+			return true
+		}
+	}
 	return false
 }
 
@@ -615,6 +620,20 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	}
 	sort.Slice(ownedSchemas, func(i, j int) bool { return ownedSchemas[i].OID < ownedSchemas[j].OID })
 
+	var ownedExts []*Extension
+	ownedExtNames := map[string]bool{}
+	for _, ext := range c.extensions {
+		if (ext.OwnerName != "" && owners[ext.OwnerName]) || (cascade && ownedSchemaOIDs[ext.SchemaOID]) {
+			ownedExts = append(ownedExts, ext)
+			ownedExtNames[ext.Name] = true
+		}
+	}
+	sort.Slice(ownedExts, func(i, j int) bool { return ownedExts[i].OID < ownedExts[j].OID })
+	inOwnedExt := func(oid uint32) bool {
+		extName := c.extensionMembers[oid]
+		return extName != "" && ownedExtNames[extName]
+	}
+
 	type ownedRel struct {
 		schema *Schema
 		rel    *Relation
@@ -623,7 +642,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	ownedRelOIDs := map[uint32]bool{}
 	for _, schema := range c.schemas {
 		for _, rel := range schema.Relations {
-			if owners[rel.OwnerName] || (cascade && ownedSchemaOIDs[schema.OID]) {
+			if owners[rel.OwnerName] || inOwnedExt(rel.OID) || (cascade && ownedSchemaOIDs[schema.OID]) {
 				rels = append(rels, ownedRel{schema: schema, rel: rel})
 				ownedRelOIDs[rel.OID] = true
 			}
@@ -666,7 +685,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				ownedIdxOIDs[idx.OID] = true
 				continue
 			}
-			if owners[idx.OwnerName] || (cascade && ownedSchemaOIDs[schema.OID]) {
+			if owners[idx.OwnerName] || inOwnedExt(idx.OID) || (cascade && ownedSchemaOIDs[schema.OID]) {
 				indexes = append(indexes, ownedIdx{schema: schema, idx: idx})
 				ownedIdxOIDs[idx.OID] = true
 			}
@@ -676,7 +695,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				ownedSeqOIDs[seq.OID] = true
 				continue
 			}
-			if owners[seq.OwnerName] || (cascade && ownedSchemaOIDs[schema.OID]) {
+			if owners[seq.OwnerName] || inOwnedExt(seq.OID) || (cascade && ownedSchemaOIDs[schema.OID]) {
 				seqs = append(seqs, ownedSeq{schema: schema, seq: seq})
 				ownedSeqOIDs[seq.OID] = true
 			}
@@ -688,7 +707,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	var procs []*UserProc
 	ownedProcOIDs := map[uint32]bool{}
 	for _, proc := range c.userProcs {
-		if owners[proc.OwnerName] || (cascade && proc.Schema != nil && ownedSchemaOIDs[proc.Schema.OID]) {
+		if owners[proc.OwnerName] || inOwnedExt(proc.OID) || (cascade && proc.Schema != nil && ownedSchemaOIDs[proc.Schema.OID]) {
 			procs = append(procs, proc)
 			ownedProcOIDs[proc.OID] = true
 		}
@@ -720,17 +739,18 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			}
 		}
 	}
-	if cascade {
-		for _, bt := range c.typeByOID {
-			if !ownedSchemaOIDs[bt.Namespace] || bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'm' || bt.Type == 'c' {
-				continue
-			}
-			if !seenPrimaryType[bt.OID] {
-				seenPrimaryType[bt.OID] = true
-				types = append(types, bt)
-				for _, famOID := range c.typeFamilyOIDs(bt) {
-					ownedTypeOIDs[famOID] = true
-				}
+	for _, bt := range c.typeByOID {
+		if bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'm' || bt.Type == 'c' {
+			continue
+		}
+		if !inOwnedExt(bt.OID) && !(cascade && ownedSchemaOIDs[bt.Namespace]) {
+			continue
+		}
+		if !seenPrimaryType[bt.OID] {
+			seenPrimaryType[bt.OID] = true
+			types = append(types, bt)
+			for _, famOID := range c.typeFamilyOIDs(bt) {
+				ownedTypeOIDs[famOID] = true
 			}
 		}
 	}
@@ -814,6 +834,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			}
 			for _, bt := range c.typeByOID {
 				if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'm' && bt.Type != 'c' && !ownedTypeOIDs[bt.OID] {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for _, ext := range c.extensions {
+				if ext.SchemaOID == s.OID && !ownedExtNames[ext.Name] {
 					return errDependentObjects("schema", s.Name)
 				}
 			}
@@ -947,6 +972,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			delete(c.typeOwners, oid)
 		}
 	}
+	for _, ext := range ownedExts {
+		if c.extensions[ext.OID] != nil {
+			c.removeExtensionMetadata(ext)
+		}
+	}
 	for _, s := range ownedSchemas {
 		if c.schemas[s.OID] == nil {
 			continue
@@ -1073,6 +1103,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			c.databaseOwners[name] = newOwner
 		}
 	}
+	for _, ext := range c.extensions {
+		if owners[ext.OwnerName] {
+			ext.OwnerName = newOwner
+		}
+	}
 	return nil
 }
 
@@ -1164,6 +1199,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for name, owner := range c.databaseOwners {
 		if owner == oldName {
 			c.databaseOwners[name] = stmt.Newname
+		}
+	}
+	for _, ext := range c.extensions {
+		if ext.OwnerName == oldName {
+			ext.OwnerName = stmt.Newname
 		}
 	}
 	for i := range c.grants {
