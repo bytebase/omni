@@ -1592,8 +1592,10 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		// both sides is 1215, where one side alone is 5031: ADD FOREIGN KEY (a)
 		// REFERENCES a (a) and (zz) REFERENCES a (zz) are 1215, while (a)
 		// REFERENCES a (zz) and (zz) REFERENCES a (b) are 5031
-		// (TestSimulationCausesOracle).
-		if toLower(con.RefTable) == toLower(tbl.Name) && i < len(con.RefColumns) && toLower(con.RefColumns[i]) == toLower(colName) {
+		// (TestSimulationCausesOracle). The table has to be this one, named the way
+		// refTbl above was found: another database's table of the same name is not
+		// self-referencing.
+		if refDB == db && toLower(con.RefTable) == toLower(tbl.Name) && i < len(con.RefColumns) && toLower(con.RefColumns[i]) == toLower(colName) {
 			return errCannotAddForeign()
 		}
 		return errFKNoSuchColumn()
