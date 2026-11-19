@@ -234,7 +234,8 @@ func validateGeneratedColumnSelfReference(colDef *nodes.ColumnDef) error {
 	}
 	self := false
 	nodes.Inspect(colDef.Generated.Expr, func(n nodes.Node) bool {
-		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && strings.EqualFold(cr.Column, colDef.Name) {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Table == "" && cr.Schema == "" &&
+			cr.Column != "" && strings.EqualFold(cr.Column, colDef.Name) {
 			self = true
 			return false
 		}

@@ -38,7 +38,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		// ANALYZE, CHECK, OPTIMIZE and REPAIR PARTITION do not open the table
 		// when it is the statement's only action: mysql:8.0.46 takes each on a
-		// table that is not there, naming ALL or a partition alike.
+		// table that is not there, naming ALL or a partition alike. A view of
+		// the name is taken too: the server answers no SQL error for these four
+		// and reports an operation-failed status row instead, so the statement
+		// leaves the view as it was.
 		if alterIsPartitionMaintenanceOnly(stmt.Commands) {
 			return nil
 		}
