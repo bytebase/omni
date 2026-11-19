@@ -59,13 +59,9 @@ func (c *Catalog) CreateAccessMethod(stmt *nodes.CreateAmStmt) error {
 
 	// Both index and table access-method handlers take one `internal` argument.
 	// pg: src/backend/commands/amcmds.c — lookup_am_handler_func
-	var handlerOID uint32
-	if stmt.HandlerName != nil {
-		var err error
-		handlerOID, err = c.resolveAMHandlerOID(stmt.HandlerName)
-		if err != nil {
-			return err
-		}
+	handlerOID, err := c.resolveAMHandlerOID(stmt.HandlerName, stmt.Amtype)
+	if err != nil {
+		return err
 	}
 
 	am := &AccessMethod{
@@ -83,43 +79,64 @@ func (c *Catalog) CreateAccessMethod(stmt *nodes.CreateAmStmt) error {
 	return nil
 }
 
-func (c *Catalog) resolveAMHandlerOID(handlerName *nodes.List) (uint32, error) {
-	schemaName, funcName := qualifiedName(handlerName)
-	if funcName == "" {
-		return 0, nil
+func (c *Catalog) resolveAMHandlerOID(handlerName *nodes.List, amType byte) (uint32, error) {
+	if handlerName == nil {
+		return 0, errUndefinedObject("handler function", "")
 	}
+	schemaName, funcName := qualifiedName(handlerName)
 	want := []uint32{INTERNALOID}
-	findInNamespace := func(nsOID uint32) uint32 {
+	if funcName == "" {
+		return 0, errUndefinedFunction("", want)
+	}
+	findInNamespace := func(nsOID uint32) *BuiltinProc {
 		if ns := c.schemas[nsOID]; ns != nil {
 			if bp := c.findExactProc(ns, funcName, want); bp != nil {
-				return bp.OID
+				return bp
 			}
 			if nsOID == PGCatalogNamespace {
 				for _, p := range c.procByName[funcName] {
 					if p.OID < FirstNormalObjectId && int(p.NArgs) == 1 && p.ArgTypes[0] == INTERNALOID {
-						return p.OID
+						return p
 					}
 				}
 			}
-			if candidates := c.findUserProcsByName(ns, funcName); len(candidates) == 1 {
-				return candidates[0].OID
-			}
 		}
-		return 0
+		return nil
 	}
+	var bp *BuiltinProc
 	if schemaName != "" {
 		schema, err := c.resolveTargetSchema(schemaName)
 		if err != nil {
 			return 0, err
 		}
-		return findInNamespace(schema.OID), nil
-	}
-	for _, nsOID := range c.searchPathWithCatalog() {
-		if oid := findInNamespace(nsOID); oid != 0 {
-			return oid, nil
+		bp = findInNamespace(schema.OID)
+	} else {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if found := findInNamespace(nsOID); found != nil {
+				bp = found
+				break
+			}
 		}
 	}
-	return 0, nil
+	if bp == nil {
+		return 0, errUndefinedFunction(funcName, want)
+	}
+	switch amType {
+	case 't':
+		if bp.RetType != TABLEAMHANDLEROID {
+			return 0, &Error{Code: CodeWrongObjectType,
+				Message: fmt.Sprintf("function %s must return type table_am_handler", funcName)}
+		}
+	case 'i':
+		if bp.RetType != INDEXAMHANDLEROID {
+			return 0, &Error{Code: CodeWrongObjectType,
+				Message: fmt.Sprintf("function %s must return type index_am_handler", funcName)}
+		}
+	default:
+		return 0, &Error{Code: CodeInternalError,
+			Message: fmt.Sprintf("unrecognized access method type: %c", amType)}
+	}
+	return bp.OID, nil
 }
 
 func (c *Catalog) lookupIndexAccessMethod(name string) (*AccessMethod, error) {

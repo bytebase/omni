@@ -27,7 +27,7 @@ func (c *Catalog) schemaHasObjects(s *Schema) bool {
 	}
 	// Check for user-defined types in this namespace.
 	for _, bt := range c.typeByOID {
-		if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'm' && bt.Type != 'c' {
+		if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'c' {
 			return true
 		}
 	}

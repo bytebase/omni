@@ -1320,7 +1320,7 @@ func (c *Catalog) renameSequence(stmt *nodes.RenameStmt) error {
 
 // renameTrigger renames a trigger on a relation.
 //
-// pg: src/backend/commands/alter.c — ExecRenameStmt (OBJECT_TRIGGER case)
+// pg: src/backend/commands/trigger.c — renametrig
 func (c *Catalog) renameTrigger(stmt *nodes.RenameStmt) error {
 	var schemaName, relName string
 	if stmt.Relation != nil {
@@ -1336,21 +1336,42 @@ func (c *Catalog) renameTrigger(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
 	newName := stmt.Newname
 
-	// Check for duplicate trigger name on this relation.
+	var found *Trigger
+	for _, trig := range c.triggersByRel[rel.OID] {
+		if trig.Name == oldName {
+			found = trig
+			break
+		}
+	}
+	if found == nil {
+		return errUndefinedTrigger(oldName, relName)
+	}
+	if found.ParentTriggerOID != 0 {
+		return errInvalidObjectDefinition(fmt.Sprintf("cannot rename trigger %q on table %q because it is inherited", oldName, rel.Name))
+	}
+
 	for _, trig := range c.triggersByRel[rel.OID] {
 		if trig.Name == newName {
 			return errDuplicateObject("trigger", newName)
 		}
 	}
-
-	// Find and rename.
-	for _, trig := range c.triggersByRel[rel.OID] {
-		if trig.Name == oldName {
-			trig.Name = newName
-			return nil
+	if rel.RelKind == 'p' && found.ForEachRow && !found.IsConstraint {
+		if err := c.checkPartitionTriggerName(rel, newName, false); err != nil {
+			return err
 		}
 	}
-	return errUndefinedTrigger(oldName, relName)
+
+	c.renameTriggerRecursive(found, newName)
+	return nil
+}
+
+func (c *Catalog) renameTriggerRecursive(trig *Trigger, newName string) {
+	trig.Name = newName
+	for _, child := range c.triggers {
+		if child.ParentTriggerOID == trig.OID {
+			c.renameTriggerRecursive(child, newName)
+		}
+	}
 }
 
 // renameConstraint renames a constraint on a relation.
@@ -2251,6 +2272,23 @@ func (c *Catalog) atExecAttachPartition(schema *Schema, parent *Relation, pc *no
 		return err
 	}
 
+	// Preflight trigger-name collisions before mutating partition links.
+	for _, trig := range c.triggersByRel[parent.OID] {
+		if !trig.ForEachRow || trig.IsConstraint {
+			continue
+		}
+		for _, existing := range c.triggersByRel[part.OID] {
+			if existing.Name == trig.Name {
+				return errDuplicateObject("trigger", trig.Name)
+			}
+		}
+		if part.RelKind == 'p' {
+			if err := c.checkPartitionTriggerName(part, trig.Name, false); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Store partition bound.
 	if pc.Bound != nil {
 		part.PartitionBound = &PartitionBound{
@@ -2869,7 +2907,7 @@ func (c *Catalog) alterTypeNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchem
 		return nil
 	}
 
-	// Check for name conflicts (including composite backing relation and range multirange).
+	// Check for name conflicts (including composite backing relation).
 	if c.typeByName[typeKey{ns: newSchema.OID, name: typeName}] != nil {
 		return errDuplicateObject("type", typeName)
 	}
@@ -2880,30 +2918,11 @@ func (c *Catalog) alterTypeNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchem
 			}
 		}
 	}
-	var mr, mra *BuiltinType
-	if bt.Type == 'r' {
-		if rt := c.rangeTypes[bt.OID]; rt != nil && rt.MultirangeOID != 0 {
-			mr = c.typeByOID[rt.MultirangeOID]
-			if mr != nil {
-				if c.typeByName[typeKey{ns: newSchema.OID, name: mr.TypeName}] != nil {
-					return errDuplicateObject("type", mr.TypeName)
-				}
-				if mr.Array != 0 {
-					mra = c.typeByOID[mr.Array]
-				}
-			}
-		}
-	}
 	if bt.Array != 0 {
 		if at := c.typeByOID[bt.Array]; at != nil {
 			if err := c.ensureArrayTypeNameFree(newSchema.OID, at.TypeName); err != nil {
 				return err
 			}
-		}
-	}
-	if mra != nil {
-		if err := c.ensureArrayTypeNameFree(newSchema.OID, mra.TypeName); err != nil {
-			return err
 		}
 	}
 
@@ -2921,20 +2940,11 @@ func (c *Catalog) alterTypeNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchem
 		}
 	}
 
-	// Move range metadata and companion multirange + multirange array.
+	// Update range metadata namespace (PostgreSQL keeps the companion multirange
+	// in its own namespace until moved explicitly).
 	if bt.Type == 'r' {
 		if rt := c.rangeTypes[bt.OID]; rt != nil {
 			rt.Namespace = newSchema.OID
-		}
-		if mr != nil {
-			delete(c.typeByName, typeKey{ns: oldSchema.OID, name: mr.TypeName})
-			mr.Namespace = newSchema.OID
-			c.typeByName[typeKey{ns: newSchema.OID, name: mr.TypeName}] = mr
-		}
-		if mra != nil {
-			delete(c.typeByName, typeKey{ns: oldSchema.OID, name: mra.TypeName})
-			mra.Namespace = newSchema.OID
-			c.typeByName[typeKey{ns: newSchema.OID, name: mra.TypeName}] = mra
 		}
 	}
 

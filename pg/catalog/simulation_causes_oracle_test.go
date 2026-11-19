@@ -1878,7 +1878,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// #167: DROP OWNED over an extension that defines an access method keeps
 		// external users of it (an index built ON the method) and takes them
 		// with a CASCADE.
-		RegisterExtensionSQL("test_am_ext", "CREATE ACCESS METHOD test_am TYPE INDEX HANDLER btbuild;")
+		RegisterExtensionSQL("test_am_ext", "CREATE ACCESS METHOD test_am TYPE INDEX HANDLER bthandler;")
 		defer delete(extensionScripts, "test_am_ext")
 		c39 := New()
 		for _, stmt := range []string{
@@ -1972,7 +1972,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 
 		// #175 & #176: CREATE TABLE AS and LIKE-cloned indexes record their
 		// access-method dependencies.
-		RegisterExtensionSQL("test_am_ext2", "CREATE ACCESS METHOD test_am2 TYPE INDEX HANDLER btbuild;")
+		RegisterExtensionSQL("test_am_ext2", "CREATE ACCESS METHOD test_am2 TYPE INDEX HANDLER bthandler;")
 		defer delete(extensionScripts, "test_am_ext2")
 		c43 := New()
 		for _, stmt := range []string{
@@ -2265,7 +2265,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 
 		// #194: an extension's own opclass of its own access method does not
 		// block DROP OWNED of the extension owner.
-		RegisterExtensionSQL("test_self_am", "CREATE ACCESS METHOD self_am TYPE INDEX HANDLER btbuild; CREATE OPERATOR FAMILY self_fam USING self_am;")
+		RegisterExtensionSQL("test_self_am", "CREATE ACCESS METHOD self_am TYPE INDEX HANDLER bthandler; CREATE OPERATOR FAMILY self_fam USING self_am;")
 		defer delete(extensionScripts, "test_self_am")
 		c58 := New()
 		for _, stmt := range []string{
@@ -2882,11 +2882,94 @@ func TestSimulationCausesOracle(t *testing.T) {
 			"CREATE SCHEMA mv_s2",
 			"CREATE TYPE mv_s1.rng AS RANGE (SUBTYPE = int4)",
 			"ALTER TYPE mv_s1.rng SET SCHEMA mv_s2",
+		} {
+			if code := simulationCatalogCode(t, c85, stmt); code != "0" {
+				t.Fatalf("range SET SCHEMA setup failed on %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c85, "DROP SCHEMA mv_s1 RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP SCHEMA mv_s1 while multirange remains answered %s, want %s", code, CodeDependentObjects)
+		}
+		for _, stmt := range []string{
+			"ALTER TYPE mv_s1.rng_multirange SET SCHEMA mv_s2",
 			"DROP SCHEMA mv_s1 RESTRICT",
 		} {
 			if code := simulationCatalogCode(t, c85, stmt); code != "0" {
-				t.Fatalf("range SET SCHEMA + DROP SCHEMA failed on %s with %s", stmt, code)
+				t.Fatalf("multirange SET SCHEMA + DROP SCHEMA failed on %s with %s", stmt, code)
 			}
+		}
+
+		// Access method handler signature/return-type validation.
+		c86 := New()
+		for _, stmt := range []string{
+			"CREATE FUNCTION bad_am_h0() RETURNS void LANGUAGE sql AS 'SELECT 1'",
+			"CREATE FUNCTION bad_am_h1(internal) RETURNS int4 LANGUAGE internal AS 'bthandler'",
+		} {
+			if code := simulationCatalogCode(t, c86, stmt); code != "0" {
+				t.Fatalf("AM handler test setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c86, "CREATE ACCESS METHOD bad_am0 TYPE TABLE HANDLER bad_am_h0"); code != CodeUndefinedFunction {
+			t.Fatalf("AM handler wrong-arg answered %s, want %s", code, CodeUndefinedFunction)
+		}
+		if code := simulationCatalogCode(t, c86, "CREATE ACCESS METHOD bad_am1 TYPE TABLE HANDLER bad_am_h1"); code != CodeWrongObjectType {
+			t.Fatalf("AM handler wrong-rettype answered %s, want %s", code, CodeWrongObjectType)
+		}
+		if code := simulationCatalogCode(t, c86, "DROP FUNCTION bad_am_h0()"); code != "0" {
+			t.Fatalf("DROP FUNCTION bad_am_h0() answered %s, want 0", code)
+		}
+
+		// Partitioned FK clones record dependencies on all equality operator groups
+		// (PFEqOp, PPEqOp, FFEqOp).
+		RegisterExtensionSQL("test_fk_ffeq_ext", `
+			CREATE FUNCTION fk_ff_eq(fk_ext_u, fk_ext_u) RETURNS bool LANGUAGE sql IMMUTABLE AS 'SELECT true';
+			CREATE OPERATOR = (LEFTARG = fk_ext_u, RIGHTARG = fk_ext_u, FUNCTION = fk_ff_eq, COMMUTATOR = =, HASHES, MERGES);
+		`)
+		defer delete(extensionScripts, "test_fk_ffeq_ext")
+		c87 := New()
+		for _, stmt := range []string{
+			"CREATE TYPE fk_ext_u AS (v int4)",
+			"CREATE FUNCTION fk_pf_eq(int4, fk_ext_u) RETURNS bool LANGUAGE sql IMMUTABLE AS 'SELECT true'",
+			"CREATE OPERATOR = (LEFTARG = int4, RIGHTARG = fk_ext_u, FUNCTION = fk_pf_eq)",
+			"CREATE EXTENSION test_fk_ffeq_ext",
+			"CREATE TABLE fk_ref (id int4 PRIMARY KEY)",
+			"CREATE TABLE fk_par (p int4, r fk_ext_u, CONSTRAINT fk_par_c FOREIGN KEY (r) REFERENCES fk_ref(id)) PARTITION BY LIST (p)",
+			"CREATE TABLE fk_ch PARTITION OF fk_par FOR VALUES IN (1)",
+			"ALTER TABLE fk_par DETACH PARTITION fk_ch",
+			"DROP TABLE fk_par",
+		} {
+			if code := simulationCatalogCode(t, c87, stmt); code != "0" {
+				t.Fatalf("partition FK op setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c87, "DROP EXTENSION test_fk_ffeq_ext RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION RESTRICT over detached partition FFEqOp answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c87, "DROP EXTENSION test_fk_ffeq_ext CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION CASCADE: %s", code)
+		}
+
+		// Partitioned trigger creation preflights existing child trigger collisions.
+		c88 := New()
+		for _, stmt := range []string{
+			"CREATE FUNCTION pt_trig_fn() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'",
+			"CREATE TABLE pt_par (a int) PARTITION BY LIST (a)",
+			"CREATE TABLE pt_ch1 PARTITION OF pt_par FOR VALUES IN (1)",
+			"CREATE TABLE pt_ch2 PARTITION OF pt_par FOR VALUES IN (2)",
+			"CREATE TRIGGER dup_tr BEFORE INSERT ON pt_ch2 FOR EACH ROW EXECUTE FUNCTION pt_trig_fn()",
+		} {
+			if code := simulationCatalogCode(t, c88, stmt); code != "0" {
+				t.Fatalf("partition trigger setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c88, "CREATE TRIGGER dup_tr BEFORE INSERT ON pt_par FOR EACH ROW EXECUTE FUNCTION pt_trig_fn()"); code != CodeDuplicateObject {
+			t.Fatalf("CREATE TRIGGER colliding with child partition trigger answered %s, want %s", code, CodeDuplicateObject)
+		}
+		if par := c88.schemaByName["public"].Relations["pt_par"]; par != nil && len(c88.triggersByRel[par.OID]) != 0 {
+			t.Fatal("failed parent CREATE TRIGGER registered trigger on parent")
+		}
+		if ch1 := c88.schemaByName["public"].Relations["pt_ch1"]; ch1 != nil && len(c88.triggersByRel[ch1.OID]) != 0 {
+			t.Fatal("failed parent CREATE TRIGGER cloned trigger onto earlier sibling partition")
 		}
 	})
 

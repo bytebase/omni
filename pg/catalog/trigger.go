@@ -247,22 +247,26 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("function %q does not exist", funcName)}
 	}
 
-	// Check for duplicate trigger name on this relation.
-	// pg: src/backend/commands/trigger.c — CreateTrigger (trigger replacement)
+	// Check for duplicate trigger name on this relation (and descendant partitions
+	// before mutating anything).
+	// pg: src/backend/commands/trigger.c — CreateTrigger (trigger replacement + partition recursion)
+	var existingOnRel *Trigger
 	for _, trig := range c.triggersByRel[rel.OID] {
 		if trig.Name == trigName {
-			if orReplace {
-				// Cannot replace constraint triggers.
-				// pg: src/backend/commands/trigger.c — CreateTrigger
-				if trig.IsConstraint {
-					return errInvalidObjectDefinition(fmt.Sprintf(
-						"cannot replace trigger %q because it is a constraint trigger", trigName))
-				}
-				// Replace: remove old trigger.
-				c.removeTrigger(trig)
-				break
+			if !orReplace {
+				return errDuplicateObject("trigger", trigName)
 			}
-			return errDuplicateObject("trigger", trigName)
+			if trig.IsConstraint {
+				return errInvalidObjectDefinition(fmt.Sprintf(
+					"cannot replace trigger %q because it is a constraint trigger", trigName))
+			}
+			existingOnRel = trig
+			break
+		}
+	}
+	if rel.RelKind == 'p' && forEachRow && !isConstraint {
+		if err := c.checkPartitionTriggerName(rel, trigName, orReplace); err != nil {
+			return err
 		}
 	}
 
@@ -294,6 +298,10 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	// pg: src/backend/commands/trigger.c — CreateTrigger (line 549-553)
 	if oldTransName != "" && newTransName != "" && oldTransName == newTransName {
 		return errInvalidObjectDefinition(fmt.Sprintf("OLD TABLE name and NEW TABLE name cannot be the same"))
+	}
+
+	if existingOnRel != nil {
+		c.removeTrigger(existingOnRel)
 	}
 
 	trigOID := c.oidGen.Next()
@@ -376,11 +384,43 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	return nil
 }
 
+func (c *Catalog) checkPartitionTriggerName(parent *Relation, trigName string, orReplace bool) error {
+	for _, childOID := range c.findPartitionChildRelations(parent.OID) {
+		partition := c.relationByOID[childOID]
+		if partition == nil {
+			continue
+		}
+		for _, t := range c.triggersByRel[partition.OID] {
+			if t.Name == trigName {
+				if !orReplace {
+					return errDuplicateObject("trigger", trigName)
+				}
+				if t.IsConstraint {
+					return errInvalidObjectDefinition(fmt.Sprintf(
+						"cannot replace trigger %q because it is a constraint trigger", trigName))
+				}
+			}
+		}
+		if partition.RelKind == 'p' {
+			if err := c.checkPartitionTriggerName(partition, trigName, orReplace); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (c *Catalog) cloneSingleTriggerToPartitions(parent *Relation, trig *Trigger) {
 	for _, childOID := range c.findPartitionChildRelations(parent.OID) {
 		partition := c.relationByOID[childOID]
 		if partition == nil {
 			continue
+		}
+		for _, existing := range c.triggersByRel[partition.OID] {
+			if existing.Name == trig.Name {
+				c.removeTrigger(existing)
+				break
+			}
 		}
 		var partCols []int16
 		if trig.Columns != nil {

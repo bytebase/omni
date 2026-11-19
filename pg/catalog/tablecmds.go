@@ -1860,7 +1860,7 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 			Namespace:    schema.OID,
 			Columns:      partLocalAttnums,
 			FRelOID:      con.FRelOID,
-			FColumns:     con.FColumns,
+			FColumns:     slices.Clone(con.FColumns),
 			FKUpdAction:  con.FKUpdAction,
 			FKDelAction:  con.FKDelAction,
 			FKMatchType:  con.FKMatchType,
@@ -1869,10 +1869,10 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 			Validated:    true,
 			ConIsLocal:   true,
 			ConParentID:  con.OID,
-			PFEqOp:       con.PFEqOp,
-			PPEqOp:       con.PPEqOp,
-			FFEqOp:       con.FFEqOp,
-			FKDelSetCols: con.FKDelSetCols,
+			PFEqOp:       slices.Clone(con.PFEqOp),
+			PPEqOp:       slices.Clone(con.PPEqOp),
+			FFEqOp:       slices.Clone(con.FFEqOp),
+			FKDelSetCols: slices.Clone(con.FKDelSetCols),
 		}
 
 		c.registerConstraint(partition.OID, partCon)
@@ -1881,10 +1881,17 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 		if con.FRelOID != 0 {
 			c.recordDependency('c', partCon.OID, 0, 'r', con.FRelOID, 0, DepNormal)
 			c.recordColumnDependencies('c', partCon.OID, con.FRelOID, con.FColumns, DepNormal)
+			if refIdxOID := c.lookupFKSupportingIndex(con.FRelOID, con.FColumns); refIdxOID != 0 {
+				c.recordDependency('c', partCon.OID, 0, 'r', refIdxOID, 0, DepNormal)
+			}
 		}
-		for _, opOID := range con.PFEqOp {
-			if opOID >= FirstNormalObjectId {
-				c.recordDependency('c', partCon.OID, 0, 'O', opOID, 0, DepNormal)
+		seenFKOp := map[uint32]bool{}
+		for _, opGroup := range [][]uint32{con.PFEqOp, con.PPEqOp, con.FFEqOp} {
+			for _, opOID := range opGroup {
+				if opOID >= FirstNormalObjectId && !seenFKOp[opOID] {
+					seenFKOp[opOID] = true
+					c.recordDependency('c', partCon.OID, 0, 'O', opOID, 0, DepNormal)
+				}
 			}
 		}
 	}
