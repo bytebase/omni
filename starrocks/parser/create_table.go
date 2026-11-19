@@ -704,13 +704,14 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			}
 			if p.strictCTAS {
 				if partDesc.RangeExplicit && !partDesc.HasDefinitions ||
-					len(partDesc.FuncExprs) > 0 && !(partDesc.RangeExplicit && partDesc.RangeScalar) {
+					partDesc.RangeExplicit && len(partDesc.FuncExprs) > 0 && !partDesc.RangeScalar {
 					return p.syntaxErrorAtCur()
 				}
 				for _, item := range partDesc.Partitions {
 					switch partDesc.Type {
 					case "RANGE":
 						if item.FromStep || len(item.InValues) > 0 ||
+							(item.ValuesChecked && !item.ValuesValid) ||
 							(!item.IsMaxValue && len(item.Values) == 0 && !item.IsStep) {
 							return p.syntaxErrorAtCur()
 						}
@@ -1140,16 +1141,19 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 				return nil, err
 			}
 
+			item.ValuesChecked = true
 			if p.cur.Kind == kwMAXVALUE {
 				item.IsMaxValue = true
+				item.ValuesValid = true
 				item.Loc.End = p.cur.Loc.End
 				p.advance()
 			} else {
-				vals, endLoc, err := p.parsePartitionValueList()
+				vals, endLoc, valid, err := p.parsePartitionValueListKind()
 				if err != nil {
 					return nil, err
 				}
 				item.Values = vals
+				item.ValuesValid = valid
 				item.Loc.End = endLoc
 			}
 
@@ -1331,37 +1335,46 @@ func (p *Parser) parseBatchRangePartition(startLoc ast.Loc) (*ast.PartitionItem,
 // parsePartitionValueList parses: '(' value [, value]* ')'
 // Returns the values as strings and the end byte offset.
 func (p *Parser) parsePartitionValueList() ([]string, int, error) {
+	vals, end, _, err := p.parsePartitionValueListKind()
+	return vals, end, err
+}
+
+func (p *Parser) parsePartitionValueListKind() ([]string, int, bool, error) {
 	if _, err := p.expect(int('(')); err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
 	var vals []string
+	valid := true
 	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind != tokString && p.cur.Kind != kwMAXVALUE {
+			valid = false
+		}
 		val, err := p.parsePartitionValueDef()
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, false, err
 		}
 		vals = append(vals, val)
 
 		if p.cur.Kind == int(',') {
 			p.advance()
 			if p.strictCTAS && p.cur.Kind == int(')') {
-				return nil, 0, p.syntaxErrorAtCur()
+				return nil, 0, false, p.syntaxErrorAtCur()
 			}
 			continue
 		}
 		if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-			return nil, 0, p.syntaxErrorAtCur()
+			return nil, 0, false, p.syntaxErrorAtCur()
 		}
 		break
 	}
 
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
-	return vals, closeTok.Loc.End, nil
+	return vals, closeTok.Loc.End, valid, nil
 }
 
 // parsePartitionValueDef parses a single partition value:

@@ -159,6 +159,8 @@ type PartitionItem struct {
 	Name          string     // partition name (empty for step partitions)
 	IsMaxValue    bool       // VALUES LESS THAN MAXVALUE
 	Values        []string   // raw value strings for LESS THAN / fixed
+	ValuesChecked bool       // Values came from a checked range value list
+	ValuesValid   bool       // every checked RANGE value is MAXVALUE or a quoted string
 	InValues      [][]string // for IN partitions: list of value values
 	InValuesValid bool       // every IN value is NULL or a quoted string
 	// Step partition fields
