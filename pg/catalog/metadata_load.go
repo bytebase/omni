@@ -58,6 +58,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		return report, err
 	}
 	c.snapshot = true
+	if dbOwner := meta.GetOwner(); dbOwner != "" {
+		c.roles[dbOwner] = true
+	}
 	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
 		if err := c.installGroup(ctx, group, opts.Full, report); err != nil {
 			return report, err
@@ -102,18 +105,19 @@ type metadataObject struct {
 	// parent is the relation an index or constraint belongs to.
 	parent string
 
-	extension *metadata.ExtensionMetadata
-	enum      *metadata.EnumTypeMetadata
-	composite *metadata.CompositeTypeMetadata
-	sequence  *metadata.SequenceMetadata
-	table     *metadata.TableMetadata
-	view      *metadata.ViewMetadata
-	matView   *metadata.MaterializedViewMetadata
-	function  *metadata.FunctionMetadata
-	index     *metadata.IndexMetadata
-	fk        *metadata.ForeignKeyMetadata
-	check     *metadata.CheckConstraintMetadata
-	exclude   *metadata.ExcludeConstraintMetadata
+	schemaMeta *metadata.SchemaMetadata
+	extension  *metadata.ExtensionMetadata
+	enum       *metadata.EnumTypeMetadata
+	composite  *metadata.CompositeTypeMetadata
+	sequence   *metadata.SequenceMetadata
+	table      *metadata.TableMetadata
+	view       *metadata.ViewMetadata
+	matView    *metadata.MaterializedViewMetadata
+	function   *metadata.FunctionMetadata
+	index      *metadata.IndexMetadata
+	fk         *metadata.ForeignKeyMetadata
+	check      *metadata.CheckConstraintMetadata
+	exclude    *metadata.ExcludeConstraintMetadata
 
 	// procedure marks a function that is a procedure.
 	procedure bool
@@ -209,7 +213,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			continue
 		}
 		schema := s.GetName()
-		out = append(out, &metadataObject{kind: metadataSchema, schema: schema, name: schema})
+		out = append(out, &metadataObject{kind: metadataSchema, schema: schema, name: schema, schemaMeta: s})
 		owned, identity := sequenceOwners(s)
 		for _, e := range s.GetEnumTypes() {
 			out = append(out, &metadataObject{kind: metadataEnum, schema: schema, name: e.GetName(), enum: e, skipDump: e.GetSkipDump()})
@@ -304,7 +308,7 @@ func appendPartitionTables(out []*metadataObject, schema string, t *metadata.Tab
 				kind:   metadataTable,
 				schema: partitionSchema,
 				name:   p.GetName(),
-				table:  &metadata.TableMetadata{Name: p.GetName(), Columns: columns},
+				table:  &metadata.TableMetadata{Name: p.GetName(), Owner: t.GetOwner(), Columns: columns},
 			}
 			if p.GetExpression() != "" && p.GetValue() != "" {
 				o.partitionOf, o.partitionParentSchema, o.partitionBound = parent, parentSchema, p.GetValue()
@@ -727,10 +731,11 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		err := c.CreateSchemaCommand(&nodes.CreateSchemaStmt{Schemaname: o.schema})
 		// New() already created public, pg_catalog, and the other built-in schemas.
 		var catErr *Error
-		if errors.As(err, &catErr) && catErr.Code == CodeDuplicateSchema {
-			return nil
+		if err != nil && !(errors.As(err, &catErr) && catErr.Code == CodeDuplicateSchema) {
+			return err
 		}
-		return err
+		c.setSnapshotSchemaOwner(o)
+		return nil
 	case metadataExtension:
 		sql := "CREATE EXTENSION " + quoteIdent(o.name)
 		if o.schema != "" {
@@ -1278,6 +1283,23 @@ func (c *Catalog) replaceWithStandIn(o *metadataObject, err error, report *LoadM
 
 var errNoStandIn = errors.New("no stand-in for this kind of object")
 
+// setSnapshotSchemaOwner records the owner a snapshot reports for a schema,
+// or clears the session-derived owner when the snapshot left it unspecified.
+func (c *Catalog) setSnapshotSchemaOwner(o *metadataObject) {
+	sch := c.schemaByName[o.schema]
+	if sch == nil || sch.OID == PGCatalogNamespace || sch.OID == PGToastNamespace {
+		return
+	}
+	owner := ""
+	if o.schemaMeta != nil {
+		owner = o.schemaMeta.GetOwner()
+	}
+	sch.OwnerName = owner
+	if owner != "" {
+		c.roles[owner] = true
+	}
+}
+
 // setSnapshotTableOwner records the owner a snapshot reports for a table,
 // on the table and its indexes. A snapshot is installed as the session user,
 // which is not the owner the server reported.
@@ -1289,6 +1311,7 @@ func (c *Catalog) setSnapshotTableOwner(o *metadataObject) {
 	if owner == "" {
 		return
 	}
+	c.roles[owner] = true
 	rel := c.GetRelation(o.schema, o.name)
 	if rel == nil {
 		return

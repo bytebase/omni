@@ -533,8 +533,12 @@ func (c *Catalog) setSequenceOwner(seq *Sequence, schema *Schema, ownedBy string
 			tableName, relKindDescription(rel.RelKind)))
 	}
 
-	// Validate sequence and table are in the same schema.
-	// pg: src/backend/commands/sequence.c — process_owned_by (line 1640-1648)
+	// Validate sequence and table have the same owner and are in the same schema.
+	// pg: src/backend/commands/sequence.c — process_owned_by
+	if !c.snapshot && seq.OwnerName != "" && rel.OwnerName != "" && seq.OwnerName != rel.OwnerName {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: "sequence must have same owner as table it is linked to"}
+	}
 	if seq.Schema != nil && rel.Schema != nil && seq.Schema.OID != rel.Schema.OID {
 		return &Error{Code: CodeFeatureNotSupported,
 			Message: fmt.Sprintf("sequence must be in same schema as table it is linked to")}

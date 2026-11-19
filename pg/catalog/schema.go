@@ -4,10 +4,18 @@ package catalog
 type Schema struct {
 	OID       uint32
 	Name      string
-	Owner     string // role name of the schema owner (empty = current user)
+	Owner     string // explicit AUTHORIZATION / ALTER OWNER (for diff/SDL)
+	OwnerName string // effective role owner (for DROP ROLE / DROP OWNED / REASSIGN / RENAME)
 	Relations map[string]*Relation
 	Indexes   map[string]*Index
 	Sequences map[string]*Sequence
+}
+
+func (s *Schema) effectiveOwner() string {
+	if s.OwnerName != "" {
+		return s.OwnerName
+	}
+	return s.Owner
 }
 
 // schemaHasObjects returns true if the schema contains any objects.

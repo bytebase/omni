@@ -39,11 +39,16 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 		}
 		return errDuplicateSchema(schemaName)
 	}
+	effectiveOwner := ownerName
+	if effectiveOwner == "" {
+		effectiveOwner = c.currentOwner()
+	}
 	oid := c.oidGen.Next()
 	s := &Schema{
 		OID:       oid,
 		Name:      schemaName,
 		Owner:     ownerName,
+		OwnerName: effectiveOwner,
 		Relations: make(map[string]*Relation),
 		Indexes:   make(map[string]*Index),
 		Sequences: make(map[string]*Sequence),
@@ -55,10 +60,18 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 	// pg: src/backend/commands/schemacmds.c — CreateSchemaCommand (schemaElts loop)
 	if stmt.SchemaElts != nil {
 		// Temporarily prepend the new schema to the search path so that
-		// unqualified DDL targets land in the newly created schema.
+		// unqualified DDL targets land in the newly created schema, and run
+		// under AUTHORIZATION role when specified.
 		prevSearchPath := c.searchPath
+		prevCurrentUser := c.currentUser
 		c.searchPath = append([]string{schemaName}, prevSearchPath...)
-		defer func() { c.searchPath = prevSearchPath }()
+		if ownerName != "" {
+			c.currentUser = ownerName
+		}
+		defer func() {
+			c.searchPath = prevSearchPath
+			c.currentUser = prevCurrentUser
+		}()
 
 		for _, elt := range stmt.SchemaElts.Items {
 			if elt == nil {

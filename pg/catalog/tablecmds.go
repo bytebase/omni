@@ -987,28 +987,83 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 		targets = append(targets, target{schema: schema, rel: rel, name: relName})
 	}
 
+	dropRelOIDs := map[uint32]bool{}
+	dropTypeOIDs := map[uint32]bool{}
 	for _, t := range targets {
+		dropRelOIDs[t.rel.OID] = true
+		if t.rel.RowTypeOID != 0 {
+			dropTypeOIDs[t.rel.RowTypeOID] = true
+		}
+		if t.rel.ArrayOID != 0 {
+			dropTypeOIDs[t.rel.ArrayOID] = true
+		}
+	}
+	if !cascade {
+		kind := "table"
+		if removeType == nodes.OBJECT_VIEW {
+			kind = "view"
+		} else if removeType == nodes.OBJECT_MATVIEW {
+			kind = "materialized view"
+		}
+		for _, t := range targets {
+			for _, dep := range c.relationDependents(t.rel.OID, 0) {
+				if !dep.Normal {
+					continue
+				}
+				if (dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) ||
+					(dep.ObjType == 'c' && c.constraints[dep.ObjOID] != nil && dropRelOIDs[c.constraints[dep.ObjOID].RelOID]) {
+					continue
+				}
+				return errDependentObjects(kind, t.name)
+			}
+			if t.rel.RowTypeOID != 0 {
+				if bt := c.typeByOID[t.rel.RowTypeOID]; bt != nil {
+					for _, depRelOID := range c.typeRelationDependents(bt) {
+						if !dropRelOIDs[depRelOID] {
+							return errDependentObjects(kind, t.name)
+						}
+					}
+					for _, dep := range c.typeNormalDependents(bt) {
+						if (dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) ||
+							(dep.ObjType == 't' && dropTypeOIDs[dep.ObjOID]) ||
+							(dep.ObjType == 'c' && c.constraints[dep.ObjOID] != nil && dropRelOIDs[c.constraints[dep.ObjOID].RelOID]) {
+							continue
+						}
+						return errDependentObjects(kind, t.name)
+					}
+				}
+			}
+		}
+	}
+
+	for _, t := range targets {
+		if c.relationByOID[t.rel.OID] == nil {
+			continue
+		}
 		// Check for normal dependents. The relation's own constraints,
 		// indexes and generated columns go with it.
 		// pg: src/backend/catalog/dependency.c — reportDependentObjects
 		if hasNormalDependent(c.relationDependents(t.rel.OID, 0)) {
-			if !cascade {
-				kind := "table"
-				if removeType == nodes.OBJECT_VIEW {
-					kind = "view"
-				} else if removeType == nodes.OBJECT_MATVIEW {
-					kind = "materialized view"
-				}
-				return errDependentObjects(kind, t.name)
-			}
 			if removeType == nodes.OBJECT_VIEW || removeType == nodes.OBJECT_MATVIEW {
 				c.dropViewDependents('r', t.rel.OID)
 			} else {
 				c.dropDependents('r', t.rel.OID)
 			}
 		}
-
-		c.removeRelation(t.schema, t.name, t.rel)
+		if cascade && t.rel.RowTypeOID != 0 {
+			if bt := c.typeByOID[t.rel.RowTypeOID]; bt != nil {
+				for _, depRelOID := range c.typeRelationDependents(bt) {
+					if depRel := c.relationByOID[depRelOID]; depRel != nil && depRel.OID != t.rel.OID {
+						c.dropDependents('r', depRel.OID)
+						c.removeRelation(depRel.Schema, depRel.Name, depRel)
+					}
+				}
+				c.dropTypeDependents(bt)
+			}
+		}
+		if c.relationByOID[t.rel.OID] != nil {
+			c.removeRelation(t.schema, t.name, t.rel)
+		}
 	}
 	return nil
 }

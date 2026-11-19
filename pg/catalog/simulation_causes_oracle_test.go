@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -131,6 +132,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"ALTER ROLE current user RENAME TO another name", "missing", "ALTER ROLE postgres RENAME TO alice", CodeFeatureNotSupported},
 		{"SET default_tablespace to a missing tablespace", "missing", "SET default_tablespace = missing", CodeInvalidParameterValue},
 		{"CREATE partitioned table under SET default_tablespace = pg_default", "missing", "SET default_tablespace = pg_default;\nCREATE TABLE p (b int) PARTITION BY RANGE (b)", CodeFeatureNotSupported},
+		{"ALTER SEQUENCE OWNER TO another role on a serial sequence", "missing", "DROP ROLE IF EXISTS alice;\nCREATE ROLE alice;\nCREATE TABLE s_tbl (id serial);\nALTER SEQUENCE s_tbl_id_seq OWNER TO alice", CodeFeatureNotSupported},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -1087,6 +1089,110 @@ func TestSimulationCausesOracle(t *testing.T) {
 			if idx.Tablespace != "" {
 				t.Fatalf("temp index %s tablespace = %q, want empty default", idx.Name, idx.Tablespace)
 			}
+		}
+	})
+
+	// #117, #118, #119, #120, #121: table-owned sequence owners, public and
+	// implicit-owner schemas in DROP OWNED, owned table row-type dependents,
+	// and snapshot-discovered owner roles.
+	t.Run("table-owned sequences, schema ownership, row-type deps and snapshot owners", func(t *testing.T) {
+		// #117: table-owned sequences reject independent owner changes (0A000)
+		// while allowing a no-op owner change to the existing owner.
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE TABLE t (id serial)",
+			"ALTER SEQUENCE t_id_seq OWNER TO CURRENT_USER",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "ALTER SEQUENCE t_id_seq OWNER TO alice"); code != CodeFeatureNotSupported {
+			t.Fatalf("catalog answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+		if code := simulationCatalogCode(t, c, "ALTER TABLE t_id_seq OWNER TO alice"); code != CodeFeatureNotSupported {
+			t.Fatalf("catalog answered %s, want %s", code, CodeFeatureNotSupported)
+		}
+
+		// #118 & #119: schemas created without AUTHORIZATION record the current
+		// role, and DROP OWNED drops owned schemas including public.
+		c2 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"SET ROLE alice",
+			"CREATE SCHEMA s_implicit",
+			"RESET ROLE",
+			"ALTER SCHEMA public OWNER TO alice",
+		} {
+			if code := simulationCatalogCode(t, c2, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c2, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s while owning schemas", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c2, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED BY alice with %s", code)
+		}
+		if c2.schemaByName["s_implicit"] != nil || c2.schemaByName["public"] != nil {
+			t.Fatal("DROP OWNED BY alice kept owned schema")
+		}
+		if code := simulationCatalogCode(t, c2, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE alice after dropping owned schemas with %s", code)
+		}
+
+		// #120: external tables using an owned ordinary table's composite row
+		// type block DROP OWNED RESTRICT without partial deletion.
+		c3 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"SET ROLE alice",
+			"CREATE TABLE keep_me (id int)",
+			"CREATE TABLE a_row (id int)",
+			"SET ROLE bob",
+			"CREATE TABLE b_uses_a (x a_row)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c3, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c3, "DROP OWNED BY alice RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s when external table uses row type", code, CodeDependentObjects)
+		}
+		if c3.schemaByName["public"].Relations["a_row"] == nil || c3.schemaByName["public"].Relations["keep_me"] == nil {
+			t.Fatal("failed DROP OWNED deleted owned tables despite external row-type dependency")
+		}
+
+		// #121: snapshot-loaded owners register in c.roles so CREATE ROLE sees
+		// duplicates and DROP ROLE checks dependencies.
+		c4 := New()
+		_, err := c4.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Schemas: []*metadata.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadata.TableMetadata{{
+					Name:    "snap_t",
+					Owner:   "alice",
+					Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}},
+				}},
+			}},
+		}, LoadMetadataOptions{Full: true})
+		if err != nil {
+			t.Fatalf("LoadMetadata: %v", err)
+		}
+		if code := simulationCatalogCode(t, c4, "CREATE ROLE alice"); code != CodeDuplicateObject {
+			t.Fatalf("snapshot CREATE ROLE alice answered %s, want %s", code, CodeDuplicateObject)
+		}
+		if code := simulationCatalogCode(t, c4, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("snapshot DROP ROLE alice answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c4, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("snapshot DROP OWNED BY alice answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c4, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("snapshot DROP ROLE alice after DROP OWNED answered %s, want 0", code)
 		}
 	})
 

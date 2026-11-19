@@ -212,6 +212,7 @@ func (c *Catalog) alterSchemaOwner(stmt *nodes.AlterOwnerStmt) error {
 		return err
 	}
 	s.Owner = owner
+	s.OwnerName = owner
 	return nil
 }
 
@@ -371,6 +372,12 @@ func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds
 			if err := c.checkRole(owner); err != nil {
 				return err
 			}
+			if seq.OwnerRelOID != 0 && owner != seq.OwnerName {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: fmt.Sprintf("cannot change owner of sequence %q", seq.Name),
+				}
+			}
 			newOwner = owner
 			hasOwner = true
 		}
@@ -500,7 +507,7 @@ func (c *Catalog) DefineRole(stmt *nodes.CreateRoleStmt) error {
 // the named role.
 func (c *Catalog) roleInUse(name string) bool {
 	for _, schema := range c.schemas {
-		if schema.Owner == name {
+		if schema.OID != PGCatalogNamespace && schema.OID != PGToastNamespace && schema.effectiveOwner() == name {
 			return true
 		}
 		for _, rel := range schema.Relations {
@@ -564,10 +571,10 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	var ownedSchemas []*Schema
 	ownedSchemaOIDs := map[uint32]bool{}
 	for _, schema := range c.schemas {
-		if schema.OID == PGCatalogNamespace || schema.OID == PGToastNamespace || schema.Name == "public" {
+		if schema.OID == PGCatalogNamespace || schema.OID == PGToastNamespace {
 			continue
 		}
-		if schema.Owner != "" && owners[schema.Owner] {
+		if so := schema.effectiveOwner(); so != "" && owners[so] {
 			ownedSchemas = append(ownedSchemas, schema)
 			ownedSchemaOIDs[schema.OID] = true
 		}
@@ -784,16 +791,16 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 				return errDependentObjects(dropRelKindLabel(x.rel.RelKind), x.rel.Name)
 			}
-			if x.rel.RelKind == 'c' && x.rel.RowTypeOID != 0 {
+			if x.rel.RowTypeOID != 0 {
 				if bt := c.typeByOID[x.rel.RowTypeOID]; bt != nil {
 					for _, depRelOID := range c.typeRelationDependents(bt) {
 						if !ownedRelOIDs[depRelOID] {
-							return errDependentObjects("type", x.rel.Name)
+							return errDependentObjects(dropRelKindLabel(x.rel.RelKind), x.rel.Name)
 						}
 					}
 					for _, dep := range c.typeNormalDependents(bt) {
 						if !inDropSet(dep.ObjType, dep.ObjOID) {
-							return errDependentObjects("type", x.rel.Name)
+							return errDependentObjects(dropRelKindLabel(x.rel.RelKind), x.rel.Name)
 						}
 					}
 				}
@@ -847,7 +854,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		if hasNormalDependent(c.relationDependents(x.rel.OID, 0)) {
 			c.dropDependents('r', x.rel.OID)
 		}
-		if x.rel.RelKind == 'c' && x.rel.RowTypeOID != 0 {
+		if cascade && x.rel.RowTypeOID != 0 {
 			if bt := c.typeByOID[x.rel.RowTypeOID]; bt != nil {
 				for _, depRelOID := range c.typeRelationDependents(bt) {
 					if depRel := c.relationByOID[depRelOID]; depRel != nil && depRel.OID != x.rel.OID {
@@ -996,8 +1003,13 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 		return err
 	}
 	for _, schema := range c.schemas {
-		if schema.Owner != "" && owners[schema.Owner] {
-			schema.Owner = newOwner
+		if schema.OID != PGCatalogNamespace && schema.OID != PGToastNamespace {
+			if so := schema.effectiveOwner(); so != "" && owners[so] {
+				schema.OwnerName = newOwner
+				if schema.Owner != "" {
+					schema.Owner = newOwner
+				}
+			}
 		}
 		for _, rel := range schema.Relations {
 			if owners[rel.OwnerName] {
@@ -1079,8 +1091,13 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	delete(c.roles, oldName)
 	c.roles[stmt.Newname] = true
 	for _, schema := range c.schemas {
-		if schema.Owner == oldName {
-			schema.Owner = stmt.Newname
+		if schema.OID != PGCatalogNamespace && schema.OID != PGToastNamespace {
+			if schema.Owner == oldName {
+				schema.Owner = stmt.Newname
+			}
+			if schema.OwnerName == oldName {
+				schema.OwnerName = stmt.Newname
+			}
 		}
 		for _, rel := range schema.Relations {
 			if rel.OwnerName == oldName {
@@ -1147,6 +1164,9 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 			return err
 		}
 		if !c.roles[name] {
+			if c.roleInUse(name) {
+				return errDependentObjects("role", name)
+			}
 			continue // a snapshot may know a role the catalog does not
 		}
 		if name == c.currentOwner() || name == c.currentSessionUser() {

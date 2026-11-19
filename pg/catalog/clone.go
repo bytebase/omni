@@ -64,6 +64,7 @@ func (c *Catalog) Clone() *Catalog {
 			OID:       s.OID,
 			Name:      s.Name,
 			Owner:     s.Owner,
+			OwnerName: s.OwnerName,
 			Relations: make(map[string]*Relation, len(s.Relations)),
 			Indexes:   make(map[string]*Index, len(s.Indexes)),
 			Sequences: make(map[string]*Sequence, len(s.Sequences)),
