@@ -468,16 +468,27 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 // target, with the metadata its drop took with it.
 func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
 	qn := migrationQualifiedName(rel.Schema.Name, rel.Name)
+	// The column list a view was declared with lives on the relation, not in
+	// its definition, so it is written back here or the names are lost.
+	cols := ""
+	if len(rel.Columns) > 0 {
+		names := make([]string, len(rel.Columns))
+		for i, col := range rel.Columns {
+			names[i] = quoteIdentAlways(col.Name)
+		}
+		cols = " (" + strings.Join(names, ", ") + ")"
+	}
 	var sql string
 	if rel.RelKind == 'm' {
 		def, _ := to.GetMatViewDefinition(rel.Schema.Name, rel.Name)
-		sql = fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
-			qn, deparseMatViewOptions(rel), strings.TrimRight(def, " \t\n\r;"))
+		sql = fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s%s AS %s",
+			qn, cols, deparseMatViewOptions(rel), strings.TrimRight(def, " \t\n\r;"))
 	} else {
 		def, _ := to.GetViewDefinition(rel.Schema.Name, rel.Name)
 		var b strings.Builder
 		b.WriteString("CREATE VIEW ")
 		b.WriteString(qn)
+		b.WriteString(cols)
 		b.WriteString(" AS ")
 		b.WriteString(strings.TrimRight(def, " \t\n\r;"))
 		switch rel.CheckOption {
@@ -505,6 +516,9 @@ func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
 	// with it too, their comments along with them.
 	for _, trig := range to.TriggersOf(rel.OID) {
 		ops = append(ops, buildCreateTriggerOp(to, rel.Schema.Name, rel.Name, trig))
+		if state := buildRestoreTriggerStateOp(rel, trig); state != nil {
+			ops = append(ops, *state)
+		}
 		ops = append(ops, buildTriggerCommentOps(to, rel, trig)...)
 	}
 	if rel.RelKind == 'm' {
@@ -542,6 +556,35 @@ func buildReplacedMetadataOps(to *Catalog, rel *Relation) []MigrationOp {
 		ops = append(ops, buildIndexCommentOps(to, rel, idx)...)
 	}
 	return ops
+}
+
+// buildRestoreTriggerStateOp writes the state a re-created trigger had:
+// CREATE TRIGGER always makes it an ordinary enabled one, and the diff's own
+// state operation was filtered with the relation.
+func buildRestoreTriggerStateOp(rel *Relation, trig *Trigger) *MigrationOp {
+	var action string
+	switch trig.Enabled {
+	case 'D':
+		action = "DISABLE TRIGGER"
+	case 'A':
+		action = "ENABLE ALWAYS TRIGGER"
+	case 'R':
+		action = "ENABLE REPLICA TRIGGER"
+	default:
+		return nil
+	}
+	return &MigrationOp{
+		Type:          OpAlterTrigger,
+		SchemaName:    rel.Schema.Name,
+		ObjectName:    trig.Name,
+		ParentObject:  rel.Name,
+		SQL:           fmt.Sprintf("ALTER TABLE %s %s %s", migrationQualifiedName(rel.Schema.Name, rel.Name), action, quoteIdentAlways(trig.Name)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'T',
+		ObjOID:        trig.OID,
+		Priority:      PriorityTrigger,
+	}
 }
 
 // buildTriggerCommentOps puts back the comments a trigger had, which its

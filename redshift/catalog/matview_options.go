@@ -19,7 +19,15 @@ import (
 func deparseMatViewOptions(rel *Relation) string {
 	var sb strings.Builder
 	if rel.MatViewAccessMethod != "" {
-		fmt.Fprintf(&sb, " USING %s", strings.ToUpper(rel.MatViewAccessMethod))
+		switch {
+		case rel.MatViewAccessMethodQuoted:
+			// A delimited name keeps its spelling and its quotes.
+			fmt.Fprintf(&sb, " USING %s", quoteIdentAlways(rel.MatViewAccessMethod))
+		case strings.EqualFold(rel.MatViewAccessMethod, "iceberg"):
+			sb.WriteString(" USING ICEBERG")
+		default:
+			fmt.Fprintf(&sb, " USING %s", strings.ToUpper(rel.MatViewAccessMethod))
+		}
 	}
 	elems := rel.MatViewOptions
 	each := func(name string, render func(elem *nodes.DefElem) string) {

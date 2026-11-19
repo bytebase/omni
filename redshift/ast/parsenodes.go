@@ -243,15 +243,18 @@ func (n *Alias) Tag() NodeTag { return T_Alias }
 
 // IntoClause represents SELECT INTO clause.
 type IntoClause struct {
-	Rel            *RangeVar      // target relation name
-	ColNames       *List          // column names to assign, or NIL
-	AccessMethod   string         // table access method
-	Options        *List          // options from WITH clause
-	OnCommit       OnCommitAction // what to do at commit time
-	TableSpaceName string         // table space to use, or NULL
-	ViewQuery      Node           // materialized view's SELECT query
-	SkipData       bool           // true for WITH NO DATA
-	Loc            Loc            // token location
+	Rel          *RangeVar // target relation name
+	ColNames     *List     // column names to assign, or NIL
+	AccessMethod string    // table access method
+	// AccessMethodQuoted records that the name was written as a delimited
+	// identifier, which the parser folds and the deparser must quote again.
+	AccessMethodQuoted bool
+	Options            *List          // options from WITH clause
+	OnCommit           OnCommitAction // what to do at commit time
+	TableSpaceName     string         // table space to use, or NULL
+	ViewQuery          Node           // materialized view's SELECT query
+	SkipData           bool           // true for WITH NO DATA
+	Loc                Loc            // token location
 }
 
 func (n *IntoClause) Tag() NodeTag { return T_IntoClause }

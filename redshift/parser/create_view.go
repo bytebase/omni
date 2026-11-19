@@ -392,6 +392,7 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	// nor a table space. ICEBERG is the unquoted keyword there, so a quoted
 	// "iceberg" is a table access method's name.
 	iceberg := p.cur.Type == USING && p.redshiftTokIsWord(p.peekNext(), "iceberg")
+	accessMethodQuoted := p.cur.Type == USING && p.isDelimitedIdentToken(p.peekNext())
 	accessMethod, err := p.parseOptAccessMethod()
 	if err != nil {
 		return nil, err
@@ -414,12 +415,13 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	}
 
 	return &nodes.IntoClause{
-		Rel:            rv,
-		ColNames:       colNames,
-		AccessMethod:   accessMethod,
-		Options:        options,
-		TableSpaceName: tableSpace,
-		Loc:            nodes.Loc{Start: loc, End: p.prev.End},
+		Rel:                rv,
+		ColNames:           colNames,
+		AccessMethod:       accessMethod,
+		AccessMethodQuoted: accessMethodQuoted,
+		Options:            options,
+		TableSpaceName:     tableSpace,
+		Loc:                nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 

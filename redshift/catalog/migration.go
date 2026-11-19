@@ -64,6 +64,7 @@ const (
 	OpAlterType          MigrationOpType = "AlterType"
 	OpCreateTrigger      MigrationOpType = "CreateTrigger"
 	OpDropTrigger        MigrationOpType = "DropTrigger"
+	OpAlterTrigger       MigrationOpType = "AlterTrigger"
 	OpCreateEventTrigger MigrationOpType = "CreateEventTrigger"
 	OpDropEventTrigger   MigrationOpType = "DropEventTrigger"
 	OpAlterEventTrigger  MigrationOpType = "AlterEventTrigger"

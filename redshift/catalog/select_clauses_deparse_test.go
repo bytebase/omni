@@ -797,3 +797,80 @@ CREATE VIEW v_read AS SELECT id FROM mv;`)
 		t.Fatalf("plan = %v, want the trigger's comment written again", plan.Ops)
 	}
 }
+
+// TestMigrationMatViewReplaceKeepsColumnListAndTriggerState pins what a
+// re-created dependent keeps beyond its definition: the column names it was
+// declared with, and its trigger's enable state.
+func TestMigrationMatViewReplaceKeepsColumnListAndTriggerState(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE VIEW child (x) AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE VIEW child (x) AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []*Catalog{from, to} {
+		rel := c.GetRelation("", "child")
+		trig := &Trigger{
+			OID:        c.oidGen.Next(),
+			Name:       "child_insert",
+			RelOID:     rel.OID,
+			Timing:     TriggerInsteadOf,
+			Events:     TriggerEventInsert,
+			ForEachRow: true,
+			Enabled:    'D',
+		}
+		c.triggers[trig.OID] = trig
+		c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	columnList, disabled := false, false
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateView && strings.Contains(op.SQL, `"child"`) && strings.Contains(op.SQL, `("x")`) {
+			columnList = true
+		}
+		if strings.Contains(op.SQL, "DISABLE TRIGGER") && strings.Contains(op.SQL, "child_insert") {
+			disabled = true
+		}
+	}
+	if !columnList {
+		t.Fatalf("plan = %v, want the re-created view's column list", plan.Ops)
+	}
+	if !disabled {
+		t.Fatalf("plan = %v, want the trigger's disabled state restored", plan.Ops)
+	}
+}
+
+// TestMigrationMatViewReplaceKeepsQuotedAccessMethod pins a delimited access
+// method: it keeps its spelling and its quotes.
+func TestMigrationMatViewReplaceKeepsQuotedAccessMethod(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv USING "MyAM" AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv USING "MyAM" BACKUP YES AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := GenerateMigration(from, to, Diff(from, to))
+	found := false
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateView && strings.Contains(op.SQL, "MATERIALIZED VIEW") {
+			if !strings.Contains(op.SQL, `USING "MyAM"`) {
+				t.Fatalf("re-created view = %q, want USING \"MyAM\"", op.SQL)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("plan = %v, want the view re-created", plan.Ops)
+	}
+}

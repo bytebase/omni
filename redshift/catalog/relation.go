@@ -93,7 +93,10 @@ type Relation struct {
 	// Iceberg form's LOCATION, PARTITIONED BY and TABLE PROPERTIES). Both are
 	// kept as parsed so a migration re-creates the view as it was written.
 	MatViewAccessMethod string
-	MatViewOptions      *nodes.List
+	// MatViewAccessMethodQuoted records that the access method was written as a
+	// delimited identifier, so the deparser quotes it again.
+	MatViewAccessMethodQuoted bool
+	MatViewOptions            *nodes.List
 
 	// ON COMMIT behavior for temp tables.
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop
