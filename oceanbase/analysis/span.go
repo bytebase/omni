@@ -155,12 +155,15 @@ type tableSource interface {
 
 // pseudoTable is a derived relation: a CTE, subquery, alias or join.
 type pseudoTable struct {
-	Name    string
+	Name string
+	// DBName is the database a relation of another catalog or a database link
+	// names, which a column reference to it is qualified with.
+	DBName  string
 	Columns []QuerySpanResult
 }
 
 func (p *pseudoTable) GetTableName() string                  { return p.Name }
-func (*pseudoTable) GetDatabaseName() string                 { return "" }
+func (p *pseudoTable) GetDatabaseName() string               { return p.DBName }
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // unknownColumnsTable is a relation whose columns are known only when the query

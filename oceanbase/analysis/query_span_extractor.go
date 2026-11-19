@@ -718,7 +718,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 			if t.Alias != "" {
 				name = t.Alias
 			}
-			return &unknownColumnsTable{pseudoTable{Name: name}}, nil
+			return &unknownColumnsTable{pseudoTable{Name: name, DBName: t.Schema}}, nil
 		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
@@ -1671,6 +1671,11 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 					collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
 				}
 			}
+		}
+	case *ast.PurgeStmt:
+		// PURGE TABLE names the table it empties out of the recycle bin.
+		if n.Kind == "TABLE" {
+			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
 		}
 	case *ast.ExplainStmt:
 		collectAccessTablesFromNode(result, n.Stmt, defaultDatabase)

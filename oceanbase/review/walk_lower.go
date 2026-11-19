@@ -209,6 +209,13 @@ func (b *builder) alterDatabase(v *ast.AlterDatabaseStmt) bool {
 }
 
 func (b *builder) use(v *ast.UseStmt) bool {
+	// `USE catalog.db` selects a database of another catalog, which the ledger
+	// does not hold: the session's database is unknown rather than the local
+	// database of that name.
+	if v.Catalog != "" {
+		b.Session(func() { b.w.lost = true })
+		return true
+	}
 	d, ok := b.key(spaceDatabase, v.Database)
 	if !ok {
 		b.Session(func() { b.w.lost = true })
