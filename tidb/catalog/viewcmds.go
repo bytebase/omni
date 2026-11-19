@@ -165,8 +165,10 @@ func viewBlockStar(sel *nodes.SelectStmt, source string) error {
 			expr = rt.Val
 		}
 		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star {
+			// The name a star asks for may be schema-qualified; the error TiDB
+			// words names the table only (read on v8.5.5).
 			if qualifier := starQualifier(e); !relations[qualifier] {
-				return errStarNamesNoTable(qualifier)
+				return errStarNamesNoTable(e.Table)
 			}
 		}
 	}
