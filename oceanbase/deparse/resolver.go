@@ -435,6 +435,12 @@ func (r *Resolver) expandStar(sc *fromScope) []ast.ExprNode {
 	}
 	result := make([]ast.ExprNode, 0, len(cols))
 	for _, c := range cols {
+		// A FULL join's surviving key is COALESCE(left, right); a qualified
+		// star (l.*) keeps its own side's column instead.
+		if merged, ok := sc.fullKeys[c.key()]; ok {
+			result = append(result, &ast.ResTarget{Name: c.name, Val: merged})
+			continue
+		}
 		result = append(result, &ast.ResTarget{
 			Name: c.name,
 			Val: &ast.ColumnRef{
@@ -631,8 +637,13 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 	}
 
 	// A column a NATURAL or USING join joins on is the one copy the join
-	// keeps, which comes from its right input in a RIGHT join.
+	// keeps, which comes from its right input in a RIGHT join. A FULL join
+	// keeps COALESCE(left, right) instead, since either side may be the null
+	// one.
 	if c, ok := sc.coalesced[strings.ToLower(col.Column)]; ok {
+		if merged, ok := sc.fullKeys[c.key()]; ok {
+			return merged
+		}
 		col.Table = c.qualifier
 		return col
 	}

@@ -2869,6 +2869,9 @@ type CollateExpr struct {
 	Loc       Loc
 	Expr      ExprNode
 	Collation string
+	// Quoted is set when the collation was written as a string literal, which
+	// collation_name allows: `a COLLATE 'x y'` keeps its quotes in deparse.
+	Quoted bool
 }
 
 func (e *CollateExpr) nodeTag()  {}

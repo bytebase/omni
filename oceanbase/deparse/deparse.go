@@ -2687,7 +2687,11 @@ func writeCollateExpr(b *strings.Builder, n *ast.CollateExpr) {
 	b.WriteString("(")
 	writeBitOperand(b, n.Expr)
 	b.WriteString(" collate ")
-	b.WriteString(n.Collation)
+	if n.Quoted {
+		b.WriteString(quoteStringValue(n.Collation))
+	} else {
+		b.WriteString(n.Collation)
+	}
 	b.WriteString(")")
 }
 

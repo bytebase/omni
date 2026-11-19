@@ -3760,6 +3760,9 @@ func writeIndexColumn(sb *strings.Builder, n *IndexColumn) {
 	if n.Desc {
 		sb.WriteString(" :desc true")
 	}
+	if n.HasColumnID {
+		fmt.Fprintf(sb, " :column_id %d", n.ColumnID)
+	}
 	sb.WriteString("}")
 }
 

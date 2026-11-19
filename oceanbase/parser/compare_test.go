@@ -12833,3 +12833,19 @@ func TestOrigDefaultKeepsSignKindAndPrecision(t *testing.T) {
 		t.Errorf("NOW precision lost in ORIG_DEFAULT: NOW(3)=%s NOW()=%s", now3, now0)
 	}
 }
+
+func TestIndexColumnIDAndVectorParametersNeedLimit(t *testing.T) {
+	// opt_column_id's ID on an index column is retained and serialized.
+	withID := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD KEY (a ID 1)").Items[0])
+	if !strings.Contains(withID, ":column_id 1") {
+		t.Errorf("index column ID missing from NodeToString: %s", withID)
+	}
+	if plain := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD KEY (a)").Items[0]); plain == withID {
+		t.Errorf("index column ID is invisible: %s", plain)
+	}
+
+	// opt_with_vector_index_parameters follows a required limit_clause.
+	ParseAndCheck(t, "SELECT a FROM t ORDER BY a LIMIT 1 PARAMETERS(x = 1)")
+	ParseExpectError(t, "SELECT a FROM t ORDER BY a PARAMETERS(x = 1)")
+	ParseExpectError(t, "SELECT a FROM t APPROX PARAMETERS(x = 1)")
+}

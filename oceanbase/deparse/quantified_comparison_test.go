@@ -171,3 +171,62 @@ func TestCastIgnoreAndGroupingSetRewrite(t *testing.T) {
 		t.Errorf("grouping set item = %T, want the IF rewritten to *ast.CaseExpr", set.Items[0])
 	}
 }
+
+// TestFullJoinKeepsMergedKey pins that the deparser's own resolver merges a FULL
+// join's key both in `SELECT *` and in an explicit unqualified projection, so a
+// right-only row keeps its value.
+func TestFullJoinKeepsMergedKey(t *testing.T) {
+	lookup := func(name string) *ResolverTable {
+		columns := map[string][]ResolverColumn{
+			"l": {{Name: "id", Position: 1}, {Name: "lx", Position: 2}},
+			"r": {{Name: "id", Position: 1}, {Name: "rx", Position: 2}},
+		}[name]
+		if columns == nil {
+			return nil
+		}
+		return &ResolverTable{Name: name, Columns: columns}
+	}
+	for _, c := range []struct{ input, want string }{
+		{
+			"SELECT * FROM l NATURAL FULL JOIN r",
+			"select coalesce(`l`.`id`,`r`.`id`) AS `id`,`l`.`lx` AS `lx`,`r`.`rx` AS `rx` from (`l` full join `r` on((`l`.`id` = `r`.`id`)))",
+		},
+		{
+			"SELECT id FROM l FULL JOIN r USING(id)",
+			"select coalesce(`l`.`id`,`r`.`id`) AS `id` from (`l` full join `r` on((`l`.`id` = `r`.`id`)))",
+		},
+		{
+			// A qualified star stays side-specific.
+			"SELECT l.* FROM l FULL JOIN r USING(id)",
+			"select `l`.`id` AS `id`,`l`.`lx` AS `lx` from (`l` full join `r` on((`l`.`id` = `r`.`id`)))",
+		},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			list, err := parser.Parse(c.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", c.input, err)
+			}
+			resolved := (&Resolver{Lookup: lookup}).Resolve(list.Items[0].(*ast.SelectStmt))
+			if got := DeparseSelect(resolved); got != c.want {
+				t.Errorf("DeparseSelect(%q)\n got %s\nwant %s", c.input, got, c.want)
+			}
+		})
+	}
+}
+
+// TestQuotedCollateRoundTrips pins that a string-valued collation keeps its
+// quotes, so the deparsed expression parses back to the same node.
+func TestQuotedCollateRoundTrips(t *testing.T) {
+	const input = "SELECT a COLLATE 'x y' FROM t"
+	list, err := parser.Parse(input)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*ast.SelectStmt)
+	if got, want := DeparseSelect(sel), "select (`a` collate 'x y') AS `a COLLATE x y` from `t`"; got != want {
+		t.Fatalf("DeparseSelect(%q) = %s, want %s", input, got, want)
+	}
+	if _, err := parser.Parse("SELECT a COLLATE 'x y' FROM t"); err != nil {
+		t.Fatalf("re-parse: %v", err)
+	}
+}

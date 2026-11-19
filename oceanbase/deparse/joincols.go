@@ -50,6 +50,11 @@ type fromScope struct {
 	// reference to that name means, when a NATURAL or USING join joins on it.
 	coalesced map[string]joinColumn
 
+	// fullKeys maps the surviving column of a FULL join to the expression that
+	// merges both sides, COALESCE(left, right): either side may be the null one,
+	// so the surviving column alone would project NULL for a right-only row.
+	fullKeys map[colKey]ast.ExprNode
+
 	// firsts caches, for an input of a NATURAL or USING join, each lowered
 	// column name to the first column of that name in the input's result.
 	firsts map[ast.TableExpr]map[string]joinColumn
@@ -342,6 +347,29 @@ func (sc *fromScope) joinOn(j *ast.JoinClause, names []string) (ast.ExprNode, bo
 		sc.coalesced[strings.ToLower(p.l.name)] = p.l
 	}
 	sc.joined[j] = lefts
+	// A FULL join merges each key into one column either side may fill, so the
+	// column's value is COALESCE(left, right); a nested FULL join's own merge
+	// stays inside it.
+	if j.Type == ast.JoinFull || j.Type == ast.JoinNaturalFull {
+		if sc.fullKeys == nil {
+			sc.fullKeys = make(map[colKey]ast.ExprNode)
+		}
+		for i := range pairs {
+			key := pairs[i].l.key()
+			var left ast.ExprNode = &ast.ColumnRef{Table: pairs[i].l.qualifier, Column: pairs[i].l.name}
+			if prior, ok := sc.fullKeys[key]; ok {
+				left = prior
+			}
+			sc.fullKeys[key] = &ast.FuncCallExpr{
+				Name:      "coalesce",
+				HasParens: true,
+				Args: []ast.ExprNode{
+					left,
+					&ast.ColumnRef{Table: pairs[i].r.qualifier, Column: pairs[i].r.name},
+				},
+			}
+		}
+	}
 	return columnEqualities(lefts, rights), true
 }
 

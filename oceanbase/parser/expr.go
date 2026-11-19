@@ -184,7 +184,9 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 
 		case p.cur.Type == kwCOLLATE:
 			p.advance() // consume COLLATE
-			// collation_name is a name or a string literal.
+			// collation_name is a name or a string literal, and a string keeps
+			// its quoting: `a COLLATE 'x y'` is no identifier.
+			quoted := p.cur.Type == tokSCONST
 			collation, _, err := p.parseIdentOrText()
 			if err != nil {
 				return nil, err
@@ -193,6 +195,7 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 				Loc:       nodes.Loc{Start: start, End: p.prev.End},
 				Expr:      left,
 				Collation: collation,
+				Quoted:    quoted,
 			}
 			continue
 		}

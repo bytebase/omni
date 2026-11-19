@@ -135,6 +135,13 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 		}
 		return nil, err
 	}
+	// A FULL join's key read unqualified is COALESCE(left, right): an r-only row
+	// would project NULL from the surviving left column alone.
+	if levelsUp == 0 {
+		if merged, ok := scope.fullJoinColumn(ref.Column); ok {
+			return merged, nil
+		}
+	}
 	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
 }
 

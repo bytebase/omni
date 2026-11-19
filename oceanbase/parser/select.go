@@ -1014,6 +1014,11 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	if (len(stmt.VectorIndexParams) > 0 || stmt.Approx) && len(stmt.OrderBy) == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// That production also writes limit_clause before the parameters, so
+	// `SELECT a FROM t ORDER BY a PARAMETERS(x = 1)` is a 1064.
+	if len(stmt.VectorIndexParams) > 0 && stmt.Limit == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
 	if p.cur.Type == kwFOR {

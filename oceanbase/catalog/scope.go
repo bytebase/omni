@@ -29,6 +29,10 @@ type analyzerScope struct {
 	// merged key takes: COALESCE(left, right), nested as the joins nest.
 	fullJoinExprs map[string]AnalyzedExpr
 
+	// fullJoinByColumn maps a lowered merged key's name to the entry whose star
+	// expansion and unqualified references carry the merged expression.
+	fullJoinByColumn map[string]string
+
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
 	markedJoins map[*JoinExprNodeQ]map[string]bool
@@ -118,7 +122,21 @@ func (s *analyzerScope) addFullJoinExpr(entryName, column string, expr AnalyzedE
 	if s.fullJoinExprs == nil {
 		s.fullJoinExprs = map[string]AnalyzedExpr{}
 	}
+	if s.fullJoinByColumn == nil {
+		s.fullJoinByColumn = map[string]string{}
+	}
 	s.fullJoinExprs[strings.ToLower(entryName)+"."+strings.ToLower(column)] = expr
+	s.fullJoinByColumn[strings.ToLower(column)] = strings.ToLower(entryName)
+}
+
+// fullJoinColumn returns the merged expression a FULL join gives an
+// unqualified key of that name, if the scope holds one.
+func (s *analyzerScope) fullJoinColumn(column string) (AnalyzedExpr, bool) {
+	entryName, ok := s.fullJoinByColumn[strings.ToLower(column)]
+	if !ok {
+		return nil, false
+	}
+	return s.fullJoinExpr(entryName, column)
 }
 
 // fullJoinExpr returns the expression a FULL join's merged column takes in the

@@ -605,3 +605,26 @@ func TestOdbcEscapeViewMetadata(t *testing.T) {
 		t.Errorf("v_escape column %q recorded no collation", col.Name)
 	}
 }
+
+func TestFullJoinExplicitKeyProjection(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_key AS SELECT id FROM l FULL JOIN r USING (id);
+	`)
+
+	if got, want := DeparseQuery(c.GetDatabase("testdb").Views["v_key"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, `r`.`id`) as `id` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_key) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id FROM v_key"))
+	assertNoError(t, err)
+	assertLineage(t, collectColumnLineage(c, q.ExpandMergeViews(c)), []resultLineage{
+		{Name: "id", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "l", Column: "id"},
+			{DB: "testdb", Table: "r", Column: "id"},
+		}},
+	})
+}

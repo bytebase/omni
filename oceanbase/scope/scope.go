@@ -78,6 +78,12 @@ func (s *Scope) ResolveColumn(colName string) (int, int, error) {
 	foundPos := 0
 	for i, e := range s.entries {
 		for j, c := range e.Table.Columns {
+			// A USING or NATURAL join lists its key once: the copy it hides is
+			// no second match, so `SELECT id FROM l JOIN r USING (id)` reads one
+			// column rather than an ambiguous name.
+			if s.coalescedCols[strings.ToLower(e.Name)+"."+strings.ToLower(c.Name)] {
+				continue
+			}
 			if strings.ToLower(c.Name) == lower {
 				if foundIdx >= 0 {
 					return 0, 0, fmt.Errorf("column '%s' is ambiguous", colName)
