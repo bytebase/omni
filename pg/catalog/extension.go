@@ -193,6 +193,8 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	}
 	var seqs []memberSeq
 	seqOIDs := map[uint32]bool{}
+	var cascadeIdxs []*Index
+	dropIdxOIDs := map[uint32]bool{}
 	for _, s := range c.schemas {
 		for _, rel := range s.Relations {
 			if inExtDrop(rel.OID) {
@@ -330,6 +332,37 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 				}
 			}
 		}
+		for oid, extName := range c.extensionMembers {
+			if !dropExtNames[extName] {
+				continue
+			}
+			for _, dep := range c.findNormalDependents('o', oid) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+		}
+	}
+
+	// Operator classes belong to the extension, so an index that references
+	// one goes with a CASCADE drop too.
+	if cascade {
+		for oid, extName := range c.extensionMembers {
+			if !dropExtNames[extName] {
+				continue
+			}
+			for _, dep := range c.findNormalDependents('o', oid) {
+				if dep.ObjType != 'i' || dropIdxOIDs[dep.ObjOID] {
+					continue
+				}
+				idx := c.indexes[dep.ObjOID]
+				if idx == nil {
+					continue
+				}
+				cascadeIdxs = append(cascadeIdxs, idx)
+				dropIdxOIDs[idx.OID] = true
+			}
+		}
 	}
 
 	for _, x := range rels {
@@ -345,6 +378,11 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	for _, x := range idxs {
 		if x.schema.Indexes[x.idx.Name] == x.idx {
 			c.removeIndex(x.schema, x.idx.Name, x.idx)
+		}
+	}
+	for _, idx := range cascadeIdxs {
+		if c.indexes[idx.OID] == idx {
+			c.removeIndex(idx.Schema, idx.Name, idx)
 		}
 	}
 	for _, x := range seqs {
@@ -412,6 +450,9 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 				delete(c.opClasses, oid)
 			}
 			delete(c.opFamilies, oid)
+			if c.operByOID[oid] != nil {
+				c.removeOperator(oid)
+			}
 			if am := c.accessMethods[oid]; am != nil && oid >= FirstNormalObjectId {
 				delete(c.accessMethods, oid)
 				delete(c.accessMethodByName, am.Name)

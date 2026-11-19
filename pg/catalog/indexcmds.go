@@ -318,6 +318,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	if analyzedWhere != nil {
 		c.recordDependencyOnSingleRelExpr('i', idx.OID, analyzedWhere, rel.OID, DepNormal, DepAuto)
 	}
+	c.recordOpClassDependencies('i', idx.OID, opClasses)
 
 	return nil
 }
@@ -354,6 +355,31 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 }
 
 // registerIndex adds an index to all catalog maps.
+// recordOpClassDependencies records a NORMAL dependency of an index on each
+// operator class it names, so dropping the operator class (or the extension
+// that owns it) reports the index as a dependent.
+//
+// pg: src/backend/catalog/index.c — index_create (opclass dependencies)
+func (c *Catalog) recordOpClassDependencies(objType byte, objOID uint32, opClasses []string) {
+	seen := map[uint32]bool{}
+	for _, name := range opClasses {
+		if name == "" {
+			continue
+		}
+		last := name
+		if i := strings.LastIndexByte(last, '.'); i >= 0 {
+			last = last[i+1:]
+		}
+		for oid, opc := range c.opClasses {
+			if opc.Name != last || seen[oid] {
+				continue
+			}
+			seen[oid] = true
+			c.recordDependency(objType, objOID, 0, 'o', oid, 0, DepNormal)
+		}
+	}
+}
+
 func (c *Catalog) registerIndex(schema *Schema, idx *Index) {
 	c.indexes[idx.OID] = idx
 	c.indexesByRel[idx.RelOID] = append(c.indexesByRel[idx.RelOID], idx)

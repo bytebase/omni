@@ -145,6 +145,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
 		idx.Tablespace = normalizeTablespace(effectiveTablespace)
 		idx.OwnerName = rel.OwnerName
+		c.recordOpClassDependencies('i', idx.OID, idx.OpClasses)
 	} else {
 		idx.IsUnique = true
 		idx.IsPrimary = isPrimary

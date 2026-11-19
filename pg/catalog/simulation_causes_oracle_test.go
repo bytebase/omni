@@ -1332,6 +1332,53 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("DROP ROLE ext_role: %s", code)
 		}
 
+		// #132: an external index on an extension operator class is a RESTRICT
+		// dependent, and CASCADE drops it.
+		c13 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION pg_trgm",
+			"CREATE TABLE trgm_t (t text)",
+			"CREATE INDEX trgm_idx ON trgm_t USING gin (t gin_trgm_ops)",
+		} {
+			if code := simulationCatalogCode(t, c13, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c13, "DROP EXTENSION pg_trgm"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION on an index-using opclass answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c13.extByName["pg_trgm"] == nil || c13.schemaByName["public"].Indexes["trgm_idx"] == nil {
+			t.Fatal("failed DROP EXTENSION pg_trgm changed the catalog")
+		}
+		if code := simulationCatalogCode(t, c13, "DROP EXTENSION pg_trgm CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION pg_trgm CASCADE: %s", code)
+		}
+		if c13.extByName["pg_trgm"] != nil || c13.schemaByName["public"].Indexes["trgm_idx"] != nil {
+			t.Fatal("DROP EXTENSION pg_trgm CASCADE left the extension or its opclass index")
+		}
+
+		// #133: extension-owned operators leave the catalog with the extension.
+		c14 := New()
+		if code := simulationCatalogCode(t, c14, "CREATE EXTENSION pg_trgm"); code != "0" {
+			t.Fatalf("CREATE EXTENSION pg_trgm: %s", code)
+		}
+		pctBefore := len(c14.operByKey[operKey{name: "%", left: TEXTOID, right: TEXTOID}])
+		if pctBefore == 0 {
+			t.Fatal("pg_trgm did not register its % operator")
+		}
+		if code := simulationCatalogCode(t, c14, "DROP EXTENSION pg_trgm"); code != "0" {
+			t.Fatalf("DROP EXTENSION pg_trgm: %s", code)
+		}
+		if ops := c14.operByKey[operKey{name: "%", left: TEXTOID, right: TEXTOID}]; len(ops) != 0 {
+			t.Fatalf("DROP EXTENSION left %d %% operators in operByKey", len(ops))
+		}
+		if code := simulationCatalogCode(t, c14, "CREATE EXTENSION pg_trgm"); code != "0" {
+			t.Fatalf("recreating pg_trgm: %s", code)
+		}
+		if ops := c14.operByKey[operKey{name: "%", left: TEXTOID, right: TEXTOID}]; len(ops) != pctBefore {
+			t.Fatalf("recreated pg_trgm registered %d %% operators, want %d", len(ops), pctBefore)
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

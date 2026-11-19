@@ -19,9 +19,9 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 	// Parse parameters from the DefElem list.
 	// pg: src/backend/commands/operatorcmds.c — DefineOperator (line 98-170)
 	var (
-		functionName  string
-		leftTypeName  *nodes.TypeName
-		rightTypeName *nodes.TypeName
+		functionName   string
+		leftTypeName   *nodes.TypeName
+		rightTypeName  *nodes.TypeName
 		commutatorName string
 		negatorName    string
 		restrictName   string
@@ -218,6 +218,37 @@ func (c *Catalog) lookupOperatorByName(name string, left, right uint32) uint32 {
 		return ops[0].OID
 	}
 	return 0
+}
+
+// removeOperator forgets a user-defined operator, clearing the commutator and
+// negator links other operators hold on it.
+func (c *Catalog) removeOperator(oid uint32) {
+	op := c.operByOID[oid]
+	if op == nil {
+		return
+	}
+	for _, other := range c.operByOID {
+		if other.Com == oid {
+			other.Com = 0
+		}
+		if other.Negate == oid {
+			other.Negate = 0
+		}
+	}
+	delete(c.operByOID, oid)
+	for key, ops := range c.operByKey {
+		n := ops[:0]
+		for _, item := range ops {
+			if item.OID != oid {
+				n = append(n, item)
+			}
+		}
+		if len(n) == 0 {
+			delete(c.operByKey, key)
+			continue
+		}
+		c.operByKey[key] = n
+	}
 }
 
 // defElemQualifiedName extracts a qualified name from a DefElem as a simple string.
