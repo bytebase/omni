@@ -125,21 +125,23 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query,
 // checkViewBodyStar refuses a view body whose star has no table to expand. Every
 // query block MySQL resolves is judged: the blocks of the body itself, of a set
 // operation, of a parenthesis, of a derived table and of a subquery expression,
-// and the body of a CTE some block in its own scope reads. MySQL resolves a CTE
-// only where it is read — `WITH c AS (SELECT *) SELECT 1` is a view it takes,
-// and a name a nearer CTE declares is that one — so the walk keeps each block's
-// scope. In a block with no table, a bare star is 1096 "No tables used" and a
-// qualified one is 1051 "Unknown table 't'", whose table the block reads
-// nowhere. Both answer before the view's own name is looked up, so
-// `CREATE VIEW a AS SELECT *` is 1096 even over an existing table a (1050). A
-// block naming no star is left alone: `CREATE VIEW v AS SELECT 1` and
-// `... SELECT count(*)` are both views MySQL takes.
+// and the body of a CTE the body reaches. MySQL resolves a CTE only where it is
+// read, and only through the declarations its own scope holds — one declared
+// later in the same WITH is not visible, and a nearer one hides an outer one —
+// so the walk resolves each reference against the block's own scope and follows
+// the reads from the body rather than from every CTE. In a block with no table,
+// a bare star is 1096 "No tables used" and a qualified one is 1051 "Unknown
+// table 't'", whose table the block reads nowhere. Both answer before the view's
+// own name is looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an
+// existing table a (1050). A block naming no star is left alone: `CREATE VIEW v
+// AS SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
 func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 	if sel == nil {
 		return nil
 	}
-	body := viewBody{reads: map[*nodes.CommonTableExpr]bool{}}
+	body := viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
 	body.walk(sel, nil, nil)
+	body.reach()
 	for _, b := range body.blocks {
 		if b.owner != nil && !body.reads[b.owner] {
 			continue
@@ -151,10 +153,16 @@ func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 	return nil
 }
 
-// viewBody is a view body's query blocks and the CTEs they read.
+// viewBody is a view body's query blocks and what its CTEs read.
 type viewBody struct {
 	blocks []viewBlock
-	reads  map[*nodes.CommonTableExpr]bool
+	// roots are the CTEs the body itself reads, which is where resolution
+	// starts.
+	roots map[*nodes.CommonTableExpr]bool
+	// edges holds, for a CTE, the CTEs its own body reads.
+	edges map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool
+	// reads is the set of CTEs the body reaches, filled by reach.
+	reads map[*nodes.CommonTableExpr]bool
 }
 
 // viewBlock is one query block, with the CTE whose body holds it: nil for the
@@ -194,15 +202,54 @@ func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, 
 		return true
 	})
 	for _, name := range names {
-		if cte := visibleCte(visible, name); cte != nil {
-			v.reads[cte] = true
+		cte := visibleCte(visible, name)
+		if cte == nil {
+			continue
 		}
+		if owner == nil {
+			if v.roots == nil {
+				v.roots = map[*nodes.CommonTableExpr]bool{}
+			}
+			v.roots[cte] = true
+			continue
+		}
+		if v.edges[owner] == nil {
+			v.edges[owner] = map[*nodes.CommonTableExpr]bool{}
+		}
+		v.edges[owner][cte] = true
 	}
-	for _, cte := range block.CTEs {
-		v.walk(cte.Select, visible, cte)
+	for i, cte := range block.CTEs {
+		// A CTE reads the declarations of the enclosing blocks, the siblings
+		// written before it and itself, not the siblings written after it
+		// (mysql:8.0.46).
+		mine := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs[:i+1]...)
+		v.walk(cte.Select, mine, cte)
 	}
 	for _, child := range children {
 		v.walk(child, visible, owner)
+	}
+}
+
+// reach fills reads with the CTEs the body reads, and the CTEs those read, and
+// so on: a CTE nothing in the body reaches is one MySQL never resolves.
+func (v *viewBody) reach() {
+	v.reads = map[*nodes.CommonTableExpr]bool{}
+	queue := make([]*nodes.CommonTableExpr, 0, len(v.roots))
+	for cte := range v.roots {
+		queue = append(queue, cte)
+	}
+	for len(queue) > 0 {
+		cte := queue[0]
+		queue = queue[1:]
+		if v.reads[cte] {
+			continue
+		}
+		v.reads[cte] = true
+		for next := range v.edges[cte] {
+			if !v.reads[next] {
+				queue = append(queue, next)
+			}
+		}
 	}
 }
 

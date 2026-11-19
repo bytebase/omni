@@ -24,7 +24,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -855,6 +855,21 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "CREATE VIEW whose body expands a star over a quoted dual table",
 			setup: []string{"CREATE TABLE `dual` (x INT)"},
 			stmt:  "CREATE VIEW v AS SELECT * FROM `dual`",
+			code:  0,
+		},
+		{
+			// A CTE read only by another CTE nothing reads is still unreached.
+			name:  "CREATE VIEW whose unreferenced CTE reads another",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c1 AS (SELECT *), c2 AS (SELECT * FROM c1) SELECT 1",
+			code:  0,
+		},
+		{
+			// A CTE does not see a sibling declared after it, so the name reads
+			// the real table c2 and the later CTE stays unreached.
+			name:  "CREATE VIEW whose CTE reads a later sibling's name",
+			setup: []string{oneTable, "CREATE TABLE c2 (x INT)"},
+			stmt:  "CREATE VIEW v AS WITH c1 AS (SELECT * FROM c2), c2 AS (SELECT *) SELECT * FROM c1",
 			code:  0,
 		},
 		{
