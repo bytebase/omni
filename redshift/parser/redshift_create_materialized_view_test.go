@@ -226,3 +226,32 @@ func TestRedshiftCreateMaterializedViewQuotedOptionWords(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectMatViewTableOptions pins the ordinary clauses completion offers
+// after the view's name and after each one it has read.
+func TestCollectMatViewTableOptions(t *testing.T) {
+	for _, tc := range []struct {
+		sql   string
+		want  []string
+		avoid []string
+	}{
+		{"CREATE MATERIALIZED VIEW m ", []string{"BACKUP", "DISTSTYLE", "DISTKEY", "SORTKEY", "AUTO REFRESH"}, nil},
+		{"CREATE MATERIALIZED VIEW m BACKUP YES ", []string{"DISTSTYLE", "AUTO REFRESH"}, []string{"BACKUP"}},
+		{"CREATE MATERIALIZED VIEW m DISTSTYLE KEY DISTKEY (a) SORTKEY (b) ", []string{"AUTO REFRESH"}, []string{"BACKUP", "DISTKEY"}},
+	} {
+		cs := Collect(tc.sql, len(tc.sql))
+		if cs == nil {
+			t.Fatalf("Collect(%q) returned nil", tc.sql)
+		}
+		for _, word := range tc.want {
+			if !cs.HasWord(word) {
+				t.Errorf("Collect(%q): missing %q in %v", tc.sql, word, cs.Words)
+			}
+		}
+		for _, word := range tc.avoid {
+			if cs.HasWord(word) {
+				t.Errorf("Collect(%q): %q offered after its stage: %v", tc.sql, word, cs.Words)
+			}
+		}
+	}
+}

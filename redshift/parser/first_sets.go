@@ -840,6 +840,48 @@ func (p *Parser) isRedshiftNumberStart() bool {
 	return false
 }
 
+// redshiftMatViewTableOptionWords is the FIRST set of the ordinary
+// materialized-view clauses, in the order materializedViewCreateSqlCommand
+// writes them. None of the words is a keyword of this package, so each is
+// matched as the unquoted word, and AUTO stands for AUTO REFRESH's two.
+//
+// DO NOT extend this list without also extending parseRedshiftMatViewTableOptions.
+var redshiftMatViewTableOptionWords = []string{
+	"backup",
+	"diststyle",
+	"distkey",
+	"sortkey",
+	"compound",
+	"interleaved",
+	"auto",
+}
+
+// isRedshiftMatViewTableOptionStart reports whether the current token begins one
+// of the ordinary clauses above, which stage names: 0 before BACKUP, 1 before
+// DISTSTYLE, 2 before DISTKEY, 3 before SORTKEY and 4 before AUTO REFRESH.
+//
+// Validated by TestIsRedshiftMatViewTableOptionStart in first_sets_test.go.
+func (p *Parser) isRedshiftMatViewTableOptionStart(stage int) bool {
+	for _, word := range redshiftMatViewTableOptionWords {
+		if !p.redshiftKeywordIs(word) {
+			continue
+		}
+		switch word {
+		case "backup":
+			return stage <= 0
+		case "diststyle":
+			return stage <= 1
+		case "distkey":
+			return stage <= 2
+		case "sortkey", "compound", "interleaved":
+			return stage <= 3
+		default: // "auto"
+			return stage <= 4
+		}
+	}
+	return false
+}
+
 // isRedshiftIcebergMaterializedViewOptionStart reports whether the current token
 // begins one of the clauses the docs put after USING ICEBERG on a materialized
 // view: LOCATION, PARTITIONED BY or TABLE PROPERTIES. PARTITIONED is no keyword

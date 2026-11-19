@@ -716,3 +716,37 @@ func TestViewQuotedLowercaseLevelColumn(t *testing.T) {
 		t.Fatalf("view definition = %q, want the column, not the pseudocolumn", def)
 	}
 }
+
+// TestMigrationMatViewReplaceKeepsIndexComment pins an index comment on a
+// re-created materialized view's index: the drop takes it, and an unchanged one
+// has no diff entry to write it again.
+func TestMigrationMatViewReplaceKeepsIndexComment(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW base_mv BACKUP NO AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW base_mv BACKUP YES AS SELECT id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []*Catalog{from, to} {
+		rel := c.GetRelation("", "base_mv")
+		idx := &Index{OID: c.oidGen.Next(), Name: "idx_base", RelOID: rel.OID, Columns: []int16{1}}
+		c.indexes[idx.OID] = idx
+		c.indexesByRel[rel.OID] = append(c.indexesByRel[rel.OID], idx)
+		c.comments[commentKey{ObjType: 'i', ObjOID: idx.OID}] = "the index"
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	found := false
+	for _, op := range plan.Ops {
+		if op.Type == OpComment && strings.Contains(op.SQL, "INDEX") && strings.Contains(op.SQL, "the index") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("plan = %v, want the index's comment written again", plan.Ops)
+	}
+}

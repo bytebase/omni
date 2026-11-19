@@ -452,62 +452,95 @@ func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, a
 // These are not CREATE TABLE's attributes: ENCODE, SORTKEY AUTO and a bare
 // DISTKEY are no part of the production, so they are not read here.
 func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.List, error) {
-	if p.redshiftKeywordIs("backup") {
-		p.advance()
-		backup, err := p.parseRedshiftOptionWord()
-		if err != nil {
-			return nil, err
+	// stage records how far the last clause read got, which decides the clauses
+	// still open: BACKUP, DISTSTYLE, DISTKEY, SORTKEY, AUTO REFRESH, in order.
+	stage := -1
+	for {
+		if p.collectMode() || p.cursorAfterCur() {
+			p.addRedshiftMatViewTableOptionCandidates(stage)
+			return options, nil
 		}
-		options = appendToList(options, makeDefElem("backup", &nodes.String{Str: strings.ToLower(backup)}))
+		switch {
+		case stage <= 0 && p.redshiftKeywordIs("backup"):
+			p.advance()
+			backup, err := p.parseRedshiftOptionWord()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("backup", &nodes.String{Str: strings.ToLower(backup)}))
+			stage = 1
+		case stage <= 1 && p.redshiftKeywordIs("diststyle"):
+			p.advance()
+			style, err := p.parseRedshiftOptionWord()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("diststyle", &nodes.String{Str: strings.ToLower(style)}))
+			stage = 2
+		case stage <= 2 && p.redshiftKeywordIs("distkey"):
+			p.advance()
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("distkey", cols))
+			stage = 3
+		case stage <= 3 && (p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") || p.redshiftKeywordIs("sortkey")):
+			sortStyle := ""
+			if p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") {
+				sortStyle = strings.ToLower(p.advance().Str)
+			}
+			if !p.acceptRedshiftKeyword("sortkey") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return nil, err
+			}
+			if sortStyle != "" {
+				options = appendToList(options, makeDefElem("sortstyle", &nodes.String{Str: sortStyle}))
+			}
+			options = appendToList(options, makeDefElem("sortkey", cols))
+			stage = 4
+		case stage <= 4 && p.redshiftKeywordIs("auto"):
+			p.advance()
+			if _, err := p.expect(REFRESH); err != nil {
+				return nil, err
+			}
+			enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("auto_refresh", &nodes.Boolean{Boolval: enabled}))
+			if interval != nil {
+				options = appendToList(options, makeDefElem("auto_refresh_interval", interval))
+			}
+			stage = 5
+		default:
+			return options, nil
+		}
 	}
-	if p.redshiftKeywordIs("diststyle") {
-		p.advance()
-		style, err := p.parseRedshiftOptionWord()
-		if err != nil {
-			return nil, err
-		}
-		options = appendToList(options, makeDefElem("diststyle", &nodes.String{Str: strings.ToLower(style)}))
+}
+
+// addRedshiftMatViewTableOptionCandidates registers the ordinary clauses a
+// cursor after stage may still write. None of their words is a keyword token,
+// so each is a word candidate; AUTO stands for AUTO REFRESH.
+func (p *Parser) addRedshiftMatViewTableOptionCandidates(stage int) {
+	if stage <= 0 {
+		p.addWordCandidate("BACKUP")
 	}
-	if p.redshiftKeywordIs("distkey") {
-		p.advance()
-		cols, err := p.parseParenColumnList()
-		if err != nil {
-			return nil, err
-		}
-		options = appendToList(options, makeDefElem("distkey", cols))
+	if stage <= 1 {
+		p.addWordCandidate("DISTSTYLE")
 	}
-	sortStyle := ""
-	if p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") {
-		sortStyle = strings.ToLower(p.advance().Str)
+	if stage <= 2 {
+		p.addWordCandidate("DISTKEY")
 	}
-	if sortStyle != "" || p.redshiftKeywordIs("sortkey") {
-		if !p.acceptRedshiftKeyword("sortkey") {
-			return nil, p.syntaxErrorAtCur()
-		}
-		cols, err := p.parseParenColumnList()
-		if err != nil {
-			return nil, err
-		}
-		if sortStyle != "" {
-			options = appendToList(options, makeDefElem("sortstyle", &nodes.String{Str: sortStyle}))
-		}
-		options = appendToList(options, makeDefElem("sortkey", cols))
+	if stage <= 3 {
+		p.addWordCandidate("SORTKEY")
 	}
-	if p.redshiftKeywordIs("auto") {
-		p.advance()
-		if _, err := p.expect(REFRESH); err != nil {
-			return nil, err
-		}
-		enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
-		if err != nil {
-			return nil, err
-		}
-		options = appendToList(options, makeDefElem("auto_refresh", &nodes.Boolean{Boolval: enabled}))
-		if interval != nil {
-			options = appendToList(options, makeDefElem("auto_refresh_interval", interval))
-		}
+	if stage <= 4 {
+		p.addWordCandidate("AUTO REFRESH")
 	}
-	return options, nil
 }
 
 // parseRedshiftIcebergMaterializedViewOptions parses the clauses the docs put

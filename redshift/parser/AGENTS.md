@@ -29,6 +29,7 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftRoleSpecStart` | a name, or `CURRENT_USER` / `CURRENT_ROLE` / `SESSION_USER` | the token after a comma | `TestIsRedshiftRoleSpecStart` |
 | `isRedshiftNumberStart` | a sign and an `Iconst` | `isNumericOnlyStart`, less `FCONST` | `TestIsRedshiftNumberStart` |
 | `isRedshiftIcebergMaterializedViewOptionStart` | `LOCATION`, the word `PARTITIONED`, `TABLE` | the token and the unquoted word | `TestIsRedshiftIcebergMaterializedViewOptionStart` |
+| `isRedshiftMatViewTableOptionStart` | `BACKUP`, `DISTSTYLE`, `DISTKEY`, `SORTKEY`, `COMPOUND`, `INTERLEAVED`, the word `AUTO` | the unquoted word and the stage reached | `TestIsRedshiftMatViewTableOptionStart` |
 
 The two-word predicates answer through `cursorAfterCur` in completion mode: the
 cursor sits after the first word, so the peek sees only the end of the input, and

@@ -803,6 +803,20 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 		}
 	case *nodes.DeleteStmt:
 		c.recordDepsFromNode(objType, objOID, v.Relation)
+	default:
+		// Any other node may wrap a subquery — COALESCE, a function call, a
+		// comparison — so its subtree is searched for the relations inside it.
+		nodes.Inspect(v, func(child nodes.Node) bool {
+			switch child := child.(type) {
+			case *nodes.RangeVar:
+				c.recordDepsOnRangeVar(objType, objOID, child)
+				return false
+			case *nodes.SubLink:
+				c.recordDepsFromNode(objType, objOID, child.Subselect)
+				return false
+			}
+			return true
+		})
 	}
 }
 

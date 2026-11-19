@@ -356,42 +356,62 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 			if target == nil {
 				continue
 			}
-			extra = append(extra, buildRelationMetadataOps(to, target)...)
+			extra = append(extra, buildReplacedMetadataOps(to, target)...)
 		}
 		return append(ops, extra...)
 	}
 
 	// Whatever the diff wrote for those relations is this function's, grants,
 	// comments and indexes included. An index op names the index, not the
-	// relation, so the indexes of each dependent are matched by OID.
+	// relation, so the indexes each dependent owns are matched by OID.
+	// The two catalogs allocate OIDs independently, so an index is matched on
+	// the side its op belongs to: a drop by the source's index, a creation by
+	// the target's.
 	owned := make(map[string]bool, len(dependents))
-	ownedIndexes := make(map[uint32]bool)
+	recreated := make(map[string]bool, len(dependents))
+	ownedSourceIndexes := make(map[uint32]bool)
+	ownedTargetIndexes := make(map[uint32]bool)
 	for _, rel := range dependents {
-		owned[rel.Schema.Name+"."+rel.Name] = true
+		key := rel.Schema.Name + "." + rel.Name
+		owned[key] = true
 		for _, idx := range from.IndexesOf(rel.OID) {
-			ownedIndexes[idx.OID] = true
+			ownedSourceIndexes[idx.OID] = true
 		}
-		// An index the target adds is created after the relation this chain
-		// creates, not beside it.
-		if target := to.GetRelation(rel.Schema.Name, rel.Name); target != nil {
-			for _, idx := range to.IndexesOf(target.OID) {
-				ownedIndexes[idx.OID] = true
-			}
+		target := to.GetRelation(rel.Schema.Name, rel.Name)
+		if target == nil || (target.RelKind != 'v' && target.RelKind != 'm') {
+			// The target drops it, or holds a table of that name now: only the
+			// drop of the old view is this chain's.
+			continue
+		}
+		recreated[key] = true
+		for _, idx := range to.IndexesOf(target.OID) {
+			ownedTargetIndexes[idx.OID] = true
 		}
 	}
 	kept := ops[:0]
 	for _, op := range ops {
-		if owned[op.SchemaName+"."+op.ObjectName] {
+		key := op.SchemaName + "." + op.ObjectName
+		if owned[key] {
+			// The old view's own ops, whoever the target holds under that name.
 			switch op.Type {
-			case OpDropView, OpCreateView, OpAlterView, OpGrant, OpRevoke, OpComment:
+			case OpDropView, OpCreateView, OpAlterView, OpRevoke:
 				continue
 			}
 		}
-		if (op.Type == OpCreateIndex || op.Type == OpDropIndex) && ownedIndexes[op.ObjOID] {
+		if recreated[key] {
+			switch op.Type {
+			case OpGrant, OpComment:
+				continue
+			}
+		}
+		if op.Type == OpDropIndex && ownedSourceIndexes[op.ObjOID] {
+			continue
+		}
+		if op.Type == OpCreateIndex && ownedTargetIndexes[op.ObjOID] {
 			continue
 		}
 		// A trigger op names the trigger and holds the relation it belongs to.
-		if owned[op.SchemaName+"."+op.ParentObject] {
+		if recreated[op.SchemaName+"."+op.ParentObject] {
 			switch op.Type {
 			case OpCreateTrigger, OpDropTrigger:
 				continue
@@ -438,7 +458,7 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 		if target == nil {
 			continue
 		}
-		extra = append(extra, buildRelationMetadataOps(to, target)...)
+		extra = append(extra, buildReplacedMetadataOps(to, target)...)
 	}
 
 	return append(kept, extra...)
@@ -505,7 +525,54 @@ func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
 		}
 	}
 
-	return append(ops, buildRelationMetadataOps(to, rel)...)
+	ops = append(ops, buildRelationMetadataOps(to, rel)...)
+	// An index's comments went with the view's indexes.
+	for _, idx := range to.IndexesOf(rel.OID) {
+		ops = append(ops, buildIndexCommentOps(to, rel, idx)...)
+	}
+	return ops
+}
+
+// buildReplacedMetadataOps puts back what a replaced relation's drop took: its
+// grants, its comments and its indexes' comments.
+func buildReplacedMetadataOps(to *Catalog, rel *Relation) []MigrationOp {
+	ops := buildRelationMetadataOps(to, rel)
+	for _, idx := range to.IndexesOf(rel.OID) {
+		ops = append(ops, buildIndexCommentOps(to, rel, idx)...)
+	}
+	return ops
+}
+
+// buildIndexCommentOps puts back the comments an index had, which its
+// re-creation has no diff entry to say.
+func buildIndexCommentOps(c *Catalog, rel *Relation, idx *Index) []MigrationOp {
+	desc := rel.Schema.Name + "." + rel.Name
+	var keys []commentKey
+	for key, text := range c.comments {
+		if key.ObjType != 'i' || key.ObjOID != idx.OID || text == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].SubID < keys[j].SubID })
+	var ops []MigrationOp
+	for _, key := range keys {
+		sql := formatCommentSQL(c, 'i', desc+"."+idx.Name, key.SubID, c.comments[key])
+		if sql == "" {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpComment,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    idx.Name,
+			SQL:           sql,
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'i',
+			Priority:      PriorityMetadata,
+		})
+	}
+	return ops
 }
 
 // buildRelationMetadataOps puts back what a relation's grants and comments were,

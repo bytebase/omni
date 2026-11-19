@@ -556,3 +556,34 @@ func TestIsRedshiftIcebergMaterializedViewOptionStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftMatViewTableOptionStart holds the ordinary materialized-view
+// clauses to their stage: each word starts only the clause its turn has reached.
+func TestIsRedshiftMatViewTableOptionStart(t *testing.T) {
+	for _, tc := range []struct {
+		sql   string
+		stage int
+		want  bool
+	}{
+		{"BACKUP", 0, true},
+		{"BACKUP", 1, false},
+		{"DISTSTYLE", 0, true},
+		{"DISTSTYLE", 1, true},
+		{"DISTSTYLE", 2, false},
+		{"DISTKEY", 2, true},
+		{"DISTKEY", 3, false},
+		{"SORTKEY", 3, true},
+		{"COMPOUND", 3, true},
+		{"INTERLEAVED", 3, true},
+		{"SORTKEY", 4, false},
+		{"AUTO", 4, true},
+		{"AUTO", 5, false},
+		{"ENCODE", 0, false},
+		{`"backup"`, 0, false},
+		{"AS", 0, false},
+	} {
+		if got := newLeadParser(tc.sql).isRedshiftMatViewTableOptionStart(tc.stage); got != tc.want {
+			t.Errorf("isRedshiftMatViewTableOptionStart(%q, %d) = %v, want %v", tc.sql, tc.stage, got, tc.want)
+		}
+	}
+}
