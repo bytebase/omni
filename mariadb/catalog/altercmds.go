@@ -255,6 +255,9 @@ func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *node
 		!alterAddsSystemVersioning(stmt.Commands) {
 		return errNotSystemVersioned(tbl.Name)
 	}
+	if repartition != nil && tbl.TablespaceDiscarded {
+		return errTablespaceDiscarded(tbl.Name)
+	}
 	systemTimeRepartition := repartition != nil && repartition.Type == nodes.PartitionSystemTime
 	if tbl.Partitioning == nil && repartition == nil {
 		return c.alterTableCommands(db, tbl, key, stmt)
@@ -335,30 +338,9 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 
 	// The columns and keys IF NOT EXISTS finds are notes whose definitions are
-	// never read, and which is found is the table the statement began with.
-	skippedColumns := map[*nodes.ColumnDef]bool{}
-	for _, cmd := range stmt.Commands {
-		if cmd == nil || cmd.Type != nodes.ATAddColumn || !cmd.IfNotExists {
-			continue
-		}
-		for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
-			if colDef != nil && tableHasColumn(tbl, colDef.Name) {
-				skippedColumns[colDef] = true
-			}
-		}
-	}
-	skippedKeys := map[*nodes.Constraint]bool{}
-	for _, cmd := range stmt.Commands {
-		cons := cmd.Constraints
-		if cmd.Constraint != nil {
-			cons = append([]*nodes.Constraint{cmd.Constraint}, cons...)
-		}
-		for _, con := range cons {
-			if con != nil && con.IfNotExists && addedConstraintExists(tbl, con, extractColumnNames(con)) {
-				skippedKeys[con] = true
-			}
-		}
-	}
+	// never read: a name the table began with, or one an earlier ADD in the same
+	// statement already installed.
+	skippedColumns, skippedKeys := computeSkippedAlterAdditions(tbl, stmt.Commands)
 
 	// A key part a statement adds WITHOUT OVERLAPS names a period, and MariaDB
 	// judges it before the key's own columns: measured on mariadb:11.8.8,
@@ -376,19 +358,31 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 
-	targetCharset, targetCollation := c.alteredTableCharsetCollation(tbl, stmt.Commands)
+	charsetPlan, err := c.planAlterCharset(tbl, stmt.Commands)
+	if err != nil {
+		return err
+	}
 
 	// The columns the statement adds are read before any of them is built, so a
 	// generated one may not read a generated column the same statement adds after
 	// it. That is a check over the whole statement, and it runs before any command
 	// changes the table.
-	if err := c.validateAddedColumnOrder(tbl, stmt.Commands, skippedColumns, targetCollation); err != nil {
+	if err := c.validateAddedColumnOrder(tbl, stmt.Commands, skippedColumns, charsetPlan); err != nil {
 		return err
 	}
 
-	dropsPK := alterDropsPrimaryKey(stmt.Commands)
-	droppedColumns := alterDroppedColumns(stmt.Commands)
-	declaredChecks := alterDeclaredCheckNames(stmt.Commands)
+	actx := &alterExecCtx{
+		dropsPK:        alterDropsPrimaryKey(stmt.Commands),
+		droppedColumns: alterDroppedColumns(stmt.Commands),
+		declaredChecks: alterDeclaredCheckNames(stmt.Commands),
+		skippedColumns: skippedColumns,
+		skippedKeys:    skippedKeys,
+		checkNames:     map[*nodes.Constraint]string{},
+		charsetPlan:    charsetPlan,
+	}
+	origDBName := db.Name
+	origTableName := tbl.Name
+	addsSystemVersioning := alterAddsSystemVersioning(stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
@@ -404,17 +398,23 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		// the no-clone fast path.
 		if !alterNeedsFinalValidation(tbl, cmd) && !hasIgnoredIndex(tbl) &&
 			cmd.Type != nodes.ATAlterIndexInvisible && !addNeedsRollback(cmd) {
-			return c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, targetCharset, targetCollation)
+			return c.execAlterCmd(db, tbl, cmd, actx)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
 		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
 		// orphaned period columns -> 4125).
 		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, targetCharset, targetCollation); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, actx); err != nil {
 			*tbl = snapshot
 			return err
 		}
-		dropIgnoredSystemTimePeriod(tbl)
+		if charsetPlan.hasConvert {
+			if err := c.applyAlterConvertCharset(tbl, charsetPlan); err != nil {
+				*tbl = snapshot
+				return err
+			}
+		}
+		dropIgnoredSystemTimePeriod(tbl, addsSystemVersioning)
 		if err := validateSystemVersioning(tbl); err != nil {
 			*tbl = snapshot
 			return err
@@ -423,7 +423,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			*tbl = snapshot
 			return err
 		}
-		if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns, skippedKeys); err != nil {
+		if err := validateAlteredColumnExprColumns(tbl, origDBName, origTableName, stmt.Commands, skippedColumns, skippedKeys, actx.checkNames); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -448,14 +448,20 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if skip[cmd] {
 			continue
 		}
-		if err := c.execAlterCmd(db, tbl, cmd, dropsPK, droppedColumns, declaredChecks, targetCharset, targetCollation); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, actx); err != nil {
+			rollback()
+			return err
+		}
+	}
+	if charsetPlan.hasConvert {
+		if err := c.applyAlterConvertCharset(tbl, charsetPlan); err != nil {
 			rollback()
 			return err
 		}
 	}
 	// Validate system-versioning consistency across the atomic ALTER as a whole
 	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
-	dropIgnoredSystemTimePeriod(tbl)
+	dropIgnoredSystemTimePeriod(tbl, addsSystemVersioning)
 	if err := validateSystemVersioning(tbl); err != nil {
 		rollback()
 		return err
@@ -464,7 +470,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		rollback()
 		return err
 	}
-	if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns, skippedKeys); err != nil {
+	if err := validateAlteredColumnExprColumns(tbl, origDBName, origTableName, stmt.Commands, skippedColumns, skippedKeys, actx.checkNames); err != nil {
 		rollback()
 		return err
 	}
@@ -482,22 +488,25 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 }
 
 // dropIgnoredSystemTimePeriod drops a PERIOD FOR SYSTEM_TIME that sits over
-// ordinary columns of a table that is not system-versioned. MariaDB's ALTER
-// accepts one and stores nothing: measured on mariadb:11.8.8,
-// `ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a)` over a plain table a runs and
-// SHOW CREATE TABLE a shows the table as it was, where the same PERIOD written
-// in a CREATE TABLE is 4125. A period over ROW START/ROW END columns stays for
-// validateSystemVersioning to refuse — those columns are already refused up
-// front (4124) on a table that is not versioned.
-func dropIgnoredSystemTimePeriod(tbl *Table) {
-	if tbl.SystemVersioned || tbl.PeriodStartCol == "" {
+// ordinary columns when the statement does not add SYSTEM VERSIONING. MariaDB's
+// ALTER accepts one and stores nothing, whether the table is plain or already
+// implicitly versioned: measured on mariadb:11.8.8,
+// `ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a)` over a plain table and
+// `ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(b, b)` over `WITH SYSTEM VERSIONING`
+// both run and keep the schema as it was, while `ADD PERIOD FOR SYSTEM_TIME(b,
+// b), ADD SYSTEM VERSIONING` answers 4125.
+func dropIgnoredSystemTimePeriod(tbl *Table, addsSystemVersioning bool) {
+	if tbl.PeriodStartCol == "" {
 		return
 	}
-	start, end := tbl.GetColumn(tbl.PeriodStartCol), tbl.GetColumn(tbl.PeriodEndCol)
-	if start != nil && end != nil &&
-		start.Generated != nil && start.Generated.RowBound == "ROW START" &&
-		end.Generated != nil && end.Generated.RowBound == "ROW END" {
+	if addsSystemVersioning && tbl.SystemVersioned {
 		return
+	}
+	for _, col := range tbl.Columns {
+		if col != nil && col.Generated != nil &&
+			(col.Generated.RowBound == "ROW START" || col.Generated.RowBound == "ROW END") {
+			return
+		}
 	}
 	tbl.PeriodStartCol, tbl.PeriodEndCol = "", ""
 }
@@ -545,7 +554,26 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // composite key's columns would leave a half-built key behind; declaredChecks
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, targetCharset, targetCollation string) error {
+type alterExecCtx struct {
+	dropsPK        bool
+	droppedColumns map[string]bool
+	declaredChecks map[string]bool
+	skippedColumns map[*nodes.ColumnDef]bool
+	skippedKeys    map[*nodes.Constraint]bool
+	checkNames     map[*nodes.Constraint]string
+	charsetPlan    alterCharsetPlan
+}
+
+type alterCharsetPlan struct {
+	tableCharset     string
+	tableCollation   string
+	hasTableOpt      bool
+	hasConvert       bool
+	convertCharset   string
+	convertCollation string
+}
+
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	if tbl.TablespaceDiscarded {
 		if err := refuseCopyAlterOnDiscardedCmd(tbl, cmd); err != nil {
 			return err
@@ -553,15 +581,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	}
 	switch cmd.Type {
 	case nodes.ATAddColumn:
-		return c.alterAddColumn(tbl, cmd, targetCharset, targetCollation)
+		return c.alterAddColumn(tbl, cmd, actx)
 	case nodes.ATDropColumn:
-		return c.alterDropColumn(tbl, cmd, dropsPK, droppedColumns)
+		return c.alterDropColumn(tbl, cmd, actx.dropsPK, actx.droppedColumns)
 	case nodes.ATModifyColumn:
-		return c.alterModifyColumn(tbl, cmd, targetCharset, targetCollation)
+		return c.alterModifyColumn(tbl, cmd, actx.charsetPlan)
 	case nodes.ATChangeColumn:
-		return c.alterChangeColumn(tbl, cmd, targetCharset, targetCollation)
+		return c.alterChangeColumn(tbl, cmd, actx.charsetPlan)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
-		return c.alterAddConstraint(tbl, cmd, declaredChecks)
+		return c.alterAddConstraint(tbl, cmd, actx.declaredChecks, actx.skippedKeys, actx.checkNames)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
@@ -573,7 +601,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRenameTable:
 		return c.alterRenameTable(db, tbl, cmd)
 	case nodes.ATTableOption:
-		return c.alterTableOption(tbl, cmd)
+		return c.alterTableOption(tbl, cmd, actx.charsetPlan)
 	case nodes.ATAlterColumnDefault:
 		return c.alterColumnDefault(tbl, cmd)
 	case nodes.ATAlterIndexVisible:
@@ -583,7 +611,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATAlterCheckEnforced:
 		return c.alterCheckEnforced(tbl, cmd)
 	case nodes.ATConvertCharset:
-		return c.alterConvertCharset(tbl, cmd)
+		// Applied across all resulting columns after column mutations finish
+		// (applyAlterConvertCharset), so additions, replacements, and drops in
+		// the same ALTER participate regardless of command order.
+		return nil
 	case nodes.ATAddPartition:
 		return c.alterAddPartition(tbl, cmd)
 	case nodes.ATDropPartition:
@@ -745,7 +776,7 @@ func alterNeedsFinalValidation(tbl *Table, cmd *nodes.AlterTableCmd) bool {
 		return true
 	}
 	switch cmd.Type {
-	case nodes.ATAddIndex, nodes.ATAddConstraint:
+	case nodes.ATAddIndex, nodes.ATAddConstraint, nodes.ATConvertCharset:
 		return true
 	case nodes.ATAddColumn:
 		if len(cmd.Constraints) > 0 {
@@ -849,7 +880,7 @@ func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
 }
 
 // alterAddColumn adds a new column to the table.
-func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, targetCharset, targetCollation string) error {
+func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	// The parenthesized form reads a table element list, so it carries the
 	// constraints written beside the columns:
 	// `ADD COLUMN (a1 INT, PRIMARY KEY (a1))` adds both. The columns come
@@ -857,10 +888,10 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, targetCha
 	// the primary key for exactly that statement.
 	if len(cmd.Columns) > 0 || len(cmd.Constraints) > 0 {
 		for _, colDef := range cmd.Columns {
-			if cmd.IfNotExists && tableHasColumn(tbl, colDef.Name) {
+			if colDef == nil || actx.skippedColumns[colDef] {
 				continue
 			}
-			if err := c.addSingleColumn(tbl, colDef, false, "", targetCharset, targetCollation); err != nil {
+			if err := c.addSingleColumn(tbl, colDef, false, "", actx.charsetPlan); err != nil {
 				return err
 			}
 		}
@@ -871,7 +902,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, targetCha
 			if err := c.alterAddConstraint(tbl, &nodes.AlterTableCmd{
 				Type:       nodes.ATAddConstraint,
 				Constraint: con,
-			}, declared); err != nil {
+			}, declared, actx.skippedKeys, actx.checkNames); err != nil {
 				return err
 			}
 		}
@@ -879,18 +910,11 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, targetCha
 	}
 
 	colDef := cmd.Column
-	if colDef == nil {
-		return nil
-	}
-	// ADD IF NOT EXISTS leaves a column already there as it is, with a note
-	// (1060), and so does it for each column of the paren form. A plain ADD
-	// of the name after it still fails: MariaDB 11.8.8 answers 1060 for
-	// `ADD IF NOT EXISTS c INT, ADD c INT` and a note for the other order.
-	if cmd.IfNotExists && tableHasColumn(tbl, colDef.Name) {
+	if colDef == nil || actx.skippedColumns[colDef] {
 		return nil
 	}
 
-	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After, targetCharset, targetCollation)
+	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After, actx.charsetPlan)
 }
 
 // tableHasColumn reports whether the table has a column of the name.
@@ -900,7 +924,7 @@ func tableHasColumn(tbl *Table, name string) bool {
 }
 
 // addSingleColumn adds one column definition to the table.
-func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after, targetCharset, targetCollation string) error {
+func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string, plan alterCharsetPlan) error {
 	// The name is looked up before the definition is read, as MariaDB does:
 	// measured on mariadb:11.8.8, `ALTER TABLE a ADD a ENUM('s', 's')` over a
 	// table that already has a answers 1060 (the duplicate column), not 1291
@@ -912,16 +936,18 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
-	if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(colDef, targetCollation)); err != nil {
-		return err
+	if !plan.hasConvert {
+		if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(tbl.Database, colDef, plan.tableCharset, plan.tableCollation)); err != nil {
+			return err
+		}
 	}
 	// 4029, after the name is known to be new: the column's own expression may
 	// not read it.
-	if err := validateColumnSelfReference(colDef); err != nil {
+	if err := validateColumnSelfReference(tbl, colDef); err != nil {
 		return err
 	}
 
-	col := buildColumnFromDefWithDefault(tbl, colDef, targetCharset, targetCollation)
+	col := buildColumnFromDefWithDefault(tbl, colDef, plan.tableCharset, plan.tableCollation)
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
@@ -1314,24 +1340,24 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 }
 
 // alterModifyColumn replaces a column definition in-place (same name).
-func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd, targetCharset, targetCollation string) error {
+func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
 	if cmd.Column == nil {
 		return nil
 	}
-	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd, targetCharset, targetCollation)
+	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd, plan)
 }
 
 // alterChangeColumn replaces a column (old name -> new name + new definition).
-func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd, targetCharset, targetCollation string) error {
+func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
 	if cmd.Column == nil {
 		return nil
 	}
-	return c.alterReplaceColumn(tbl, cmd.Name, cmd, targetCharset, targetCollation)
+	return c.alterReplaceColumn(tbl, cmd.Name, cmd, plan)
 }
 
 // alterReplaceColumn is the shared implementation for MODIFY and CHANGE COLUMN.
 // oldName is the existing column to replace; cmd.Column defines the new column.
-func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd, targetCharset, targetCollation string) error {
+func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
 	colDef := cmd.Column
 	// Whether a key covers the column is a question about the column being
 	// replaced, not about the name the replacement carries: a CHANGE renames
@@ -1360,8 +1386,10 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return errDupColumn(colDef.Name)
 		}
 	}
-	if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(colDef, targetCollation)); err != nil {
-		return err
+	if !plan.hasConvert {
+		if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(tbl.Database, colDef, plan.tableCharset, plan.tableCollation)); err != nil {
+			return err
+		}
 	}
 
 	// Check for VIRTUAL<->STORED storage type change (MySQL 8.0 error 3106).
@@ -1375,12 +1403,12 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// column that was generated already: turning a plain column into a generated
 	// one is 1907 first, which the catalog does not model.
 	if oldCol.Generated != nil {
-		if err := validateColumnSelfReference(colDef); err != nil {
+		if err := validateColumnSelfReference(tbl, colDef); err != nil {
 			return err
 		}
 	}
 
-	col := buildColumnFromDefWithDefault(tbl, colDef, targetCharset, targetCollation)
+	col := buildColumnFromDefWithDefault(tbl, colDef, plan.tableCharset, plan.tableCollation)
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
@@ -1638,14 +1666,14 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	return nil
 }
 
-func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
+func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool, skippedKeys map[*nodes.Constraint]bool, checkNames map[*nodes.Constraint]string) error {
 	con := cmd.Constraint
 	if con == nil {
 		return nil
 	}
 
 	cols := extractColumnNames(con)
-	if con.IfNotExists && addedConstraintExists(tbl, con, cols) {
+	if skippedKeys[con] || (con.IfNotExists && addedConstraintExists(tbl, con, cols)) {
 		return nil
 	}
 	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
@@ -1788,23 +1816,26 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			OnDelete:    refActionToString(con.OnDelete),
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
+		// The backing index a foreign key brings with it materializes a
+		// VIRTUAL generated column as any other key does, so the column is
+		// held to the same rule: measured on mariadb:11.8.8,
+		// `ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)`
+		// over `a DOUBLE AS (RAND()) VIRTUAL` answers 1901, and over a column
+		// reading one it names that column. Prefix lengths (1089) and repeated
+		// columns (1060) are judged before parent lookup (1005) too.
+		fkIdxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+			return err
+		}
+		if err := validateNoRepeatedKeyColumns(fkIdxCols); err != nil {
+			return err
+		}
 		// Validate FK before adding (unless foreign_key_checks=0).
 		db := tbl.Database
 		if c.foreignKeyChecks {
 			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
 				return err
 			}
-		}
-		// The backing index a foreign key brings with it materializes a
-		// VIRTUAL generated column as any other key does, so the column is
-		// held to the same rule: measured on mariadb:11.8.8,
-		// `ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES p(a)`
-		// over `a DOUBLE AS (RAND()) VIRTUAL` answers 1901, and over a column
-		// reading one it names that column. Checked before the constraint
-		// goes in, so a refusal leaves the table as it was.
-		fkIdxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
-			return err
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
@@ -1820,6 +1851,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		}
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
 			return err
+		}
+		if checkNames != nil {
+			checkNames[con] = conName
 		}
 		// Column references in con.Expr are checked against the table the whole
 		// atomic ALTER leaves (validateAlteredColumnExprColumns), so `ADD CHECK
@@ -2247,7 +2281,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 }
 
 // alterTableOption applies a table option (ENGINE, CHARSET, etc.).
-func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
 	opt := cmd.Option
 	if opt == nil {
 		return nil
@@ -2260,19 +2294,10 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	switch toLower(opt.Name) {
 	case "engine":
 		tbl.Engine = canonicalEngineName(opt.Value)
-	case "charset", "character set", "default charset", "default character set":
-		tbl.Charset = normalizeCharsetName(opt.Value)
-		// Update collation to the default for this charset.
-		if defColl := c.charsetCollation(tbl.Charset); defColl != "" {
-			tbl.Collation = defColl
-		}
-		tbl.Charset, tbl.Collation = c.resolveCharsetDefault(tbl.Database, tbl.Charset, tbl.Collation, true, false)
-	case "collate", "default collate":
-		tbl.Collation = opt.Value
-		if cs := charsetForCollation(opt.Value); cs != "" {
-			tbl.Charset = normalizeCharsetName(cs)
-		}
-		tbl.Charset, tbl.Collation = c.resolveCharsetDefault(tbl.Database, tbl.Charset, tbl.Collation, false, true)
+	case "charset", "character set", "default charset", "default character set",
+		"collate", "default collate":
+		tbl.Charset = plan.tableCharset
+		tbl.Collation = plan.tableCollation
 	case "comment":
 		tbl.Comment = opt.Value
 	case "auto_increment":
@@ -2334,7 +2359,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// A default expression that reads the column it defaults is 4029, after
 		// the column is known to exist (1054).
 		key := toLower(col.Name)
-		for _, ref := range generatedColumnRefs(cmd.DefaultExpr) {
+		for _, ref := range tableColumnRefs(tbl, cmd.DefaultExpr) {
 			if toLower(ref) == key {
 				return errUninitializedField(col.Name, col.Name)
 			}
@@ -2431,16 +2456,28 @@ func buildColumnFromDefWithDefault(tbl *Table, colDef *nodes.ColumnDef, defaultC
 		if col.DataType == "json" {
 			applyJSONColumn(col)
 		}
-		if isNationalStringType(colDef.TypeName.Name) {
-			col.Charset = "utf8mb3"
-		}
-		if colDef.TypeName.Charset != "" {
-			col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
-		}
-		if colDef.TypeName.Collate != "" {
-			col.Collation = colDef.TypeName.Collate
-			if col.Charset == "" {
-				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
+		if isStringType(col.DataType) {
+			if isNationalStringType(colDef.TypeName.Name) {
+				col.Charset = "utf8mb3"
+			}
+			if colDef.TypeName.Charset != "" {
+				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
+			}
+			if collate := declaredColumnCollate(colDef); collate != "" {
+				if eqFoldStr(collate, "DEFAULT") {
+					cs := col.Charset
+					if cs == "" {
+						cs = defaultCharset
+					}
+					col.Collation = versionCollation(tbl.Database, cs)
+				} else {
+					col.Collation = collate
+					if colDef.TypeName.Charset == "" && !isNationalStringType(colDef.TypeName.Name) {
+						if derived := charsetForCollation(col.Collation); derived != "" {
+							col.Charset = normalizeCharsetName(derived)
+						}
+					}
+				}
 			}
 		}
 		// A string type with CHARACTER SET binary is the binary type: MariaDB
@@ -2512,11 +2549,7 @@ func buildColumnFromDefWithDefault(tbl *Table, colDef *nodes.ColumnDef, defaultC
 		case nodes.ColConstrInvisible:
 			col.Invisible = true
 		case nodes.ColConstrCollate:
-			if cc.Expr != nil {
-				if s, ok := cc.Expr.(*nodes.StringLit); ok {
-					col.Collation = s.Value
-				}
-			}
+			// Handled via declaredColumnCollate above.
 		}
 	}
 
@@ -2632,51 +2665,86 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 }
 
-// alterConvertCharset handles CONVERT TO CHARACTER SET charset [COLLATE collation].
-// This changes the table's default charset/collation AND converts all existing
-// string columns to the new charset/collation.
-func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	charset := normalizeCharsetName(cmd.Name)
-	collation := cmd.NewName
-
-	// If no collation specified, use the default collation for the charset.
-	if collation == "" {
-		if defColl := c.charsetCollation(charset); defColl != "" {
-			collation = defColl
-		}
-	}
-	// CHARACTER SET DEFAULT and COLLATE DEFAULT are resolved before anything is
-	// read: measured on mariadb:11.8.8, `CONVERT TO CHARACTER SET DEFAULT` is
-	// utf8mb4 with utf8mb4_general_ci, and `COLLATE DEFAULT` the charset's own
-	// 11.8 default.
-	charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation, true, cmd.NewName != "")
-	if collation == "" {
-		collation = versionCollation(tbl.Database, charset)
+// applyAlterConvertCharset applies CONVERT TO CHARACTER SET across the table
+// and columns the statement leaves: existing columns not dropped, replaced
+// columns, and newly added columns all convert to plan.convertCharset and
+// plan.convertCollation regardless of command order, while any explicit
+// table-level CHARSET/COLLATE option keeps plan.tableCharset/plan.tableCollation
+// for the table default (measured on mariadb:11.8.8).
+func (c *Catalog) applyAlterConvertCharset(tbl *Table, plan alterCharsetPlan) error {
+	if tbl.TablespaceDiscarded && convertRewritesDiscardedTable(tbl, plan) {
+		return errTablespaceDiscarded(tbl.Name)
 	}
 
-	// Converting existing ENUM or SET columns re-checks their members under the
-	// target collation: measured on mariadb:11.8.8, `ENUM('s','S')` under
-	// utf8mb4_bin converted to utf8mb4 answers 1291.
+	// Converting ENUM or SET columns re-checks their members under the target
+	// collation: measured on mariadb:11.8.8, `ENUM('s','S')` under utf8mb4_bin
+	// converted to utf8mb4 answers 1291, as does an ENUM added with utf8mb4_bin
+	// in the same ALTER.
 	for _, col := range tbl.Columns {
 		if isEnumSetType(col.DataType) {
-			if err := c.validateEnumSetList(col.Name, strings.ToUpper(col.DataType), parseColumnEnumSetValues(col.ColumnType), collation); err != nil {
+			if err := c.validateEnumSetList(col.Name, strings.ToUpper(col.DataType), parseColumnEnumSetValues(col.ColumnType), plan.convertCollation); err != nil {
 				return err
 			}
 		}
 	}
 
-	tbl.Charset = charset
-	tbl.Collation = collation
+	tbl.Charset = plan.tableCharset
+	tbl.Collation = plan.tableCollation
 
-	// Convert all string-type columns to the new charset/collation.
+	toBinary := eqFoldStr(plan.convertCharset, "binary")
 	for _, col := range tbl.Columns {
-		if isStringType(col.DataType) {
-			col.Charset = charset
-			col.Collation = collation
+		if !isStringType(col.DataType) {
+			continue
 		}
+		if toBinary && !isEnumSetType(col.DataType) {
+			convertExistingColumnToBinary(col)
+			continue
+		}
+		col.Charset = plan.convertCharset
+		col.Collation = plan.convertCollation
 	}
 
 	return nil
+}
+
+func convertRewritesDiscardedTable(tbl *Table, plan alterCharsetPlan) bool {
+	if !eqFoldStr(tbl.Charset, plan.convertCharset) || !eqFoldStr(tbl.Collation, plan.convertCollation) {
+		return true
+	}
+	for _, col := range tbl.Columns {
+		if isStringType(col.DataType) && (!eqFoldStr(col.Charset, plan.convertCharset) || !eqFoldStr(col.Collation, plan.convertCollation)) {
+			return true
+		}
+	}
+	return false
+}
+
+func convertExistingColumnToBinary(col *Column) {
+	suffix := ""
+	if open := strings.IndexByte(col.ColumnType, '('); open >= 0 {
+		suffix = col.ColumnType[open:]
+	}
+	switch col.DataType {
+	case "char":
+		col.DataType = "binary"
+		if suffix == "" {
+			suffix = "(1)"
+		}
+		col.ColumnType = "binary" + suffix
+	case "varchar":
+		col.DataType = "varbinary"
+		col.ColumnType = "varbinary" + suffix
+	case "tinytext":
+		col.DataType, col.ColumnType = "tinyblob", "tinyblob"
+	case "text":
+		col.DataType, col.ColumnType = "blob", "blob"
+	case "mediumtext":
+		col.DataType, col.ColumnType = "mediumblob", "mediumblob"
+	case "longtext":
+		col.DataType, col.ColumnType = "longblob", "longblob"
+	}
+	col.Charset = ""
+	col.Collation = ""
 }
 
 // Ensure strings import is used (for toLower references via strings package).
@@ -2855,7 +2923,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // so is a definition's own semantics, as `ADD a INT AS(a), ADD c INT NOT NULL DEFAULT
 // 'x'` answers 1067 for c. The statement's own commands then judge nothing again: what
 // a single ADD answers is checked where it is added (see addSingleColumn).
-func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool, tableCollation string) error {
+func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool, plan alterCharsetPlan) error {
 	type addedColumn struct {
 		def         *nodes.ColumnDef
 		ifNotExists bool
@@ -2899,8 +2967,10 @@ func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableC
 		if err := validateColumnDefSemantics(a.def, indexed); err != nil {
 			return err
 		}
-		if err := c.validateEnumSetValues(a.def, c.effectiveColumnCollation(a.def, tableCollation)); err != nil {
-			return err
+		if !plan.hasConvert {
+			if err := c.validateEnumSetValues(a.def, c.effectiveColumnCollation(tbl.Database, a.def, plan.tableCharset, plan.tableCollation)); err != nil {
+				return err
+			}
 		}
 	}
 	for i, a := range added {
@@ -2908,34 +2978,32 @@ func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableC
 		for _, b := range added[i+1:] {
 			later = append(later, b.def)
 		}
-		if err := validateColumnGeneratedOrder(a.def, later); err != nil {
+		if err := validateColumnGeneratedOrder(tbl, a.def, later); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// defaultCharsetCollation is what a charset written as DEFAULT resolves to on
-// the pin: measured on mariadb:11.8.8, `CREATE TABLE a (b INT) CHARSET DEFAULT`,
-// `ALTER TABLE a CHARSET DEFAULT` and `ALTER TABLE a CONVERT TO CHARACTER SET
-// DEFAULT` all report CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci, whatever the
-// table's charset was, where `COLLATE DEFAULT` keeps the table's charset and
-// takes its 11.8 default (utf8mb4_uca1400_ai_ci for utf8mb4, latin1_swedish_ci
-// for latin1).
-const defaultCharsetCollation = "utf8mb4_general_ci"
-
 // resolveCharsetDefault replaces a charset or collation a statement writes as
 // DEFAULT with the character set and collation MariaDB resolves it to, so no
-// later check sees the word: `CHARSET DEFAULT` is the server's own character set
-// with utf8mb4_general_ci, and `COLLATE DEFAULT` is the collation the table's
-// charset takes on this release.
+// later check sees the word: `CHARSET DEFAULT` resolves to the database's
+// character set (or the server's when none is selected) paired with that
+// character set's compiled-in default collation (utf8mb4_general_ci for
+// utf8mb4, latin1_swedish_ci for latin1, binary for binary, utf16_general_ci
+// for utf16 — measured across databases on mariadb:11.8.8), and `COLLATE
+// DEFAULT` resolves to the collation the table's charset takes on this release
+// (utf8mb4_uca1400_ai_ci for utf8mb4 on 11.8).
 func (c *Catalog) resolveCharsetDefault(db *Database, charset, collation string, charsetExplicit, collationExplicit bool) (string, string) {
 	if charsetExplicit && eqFoldStr(charset, "DEFAULT") {
-		charset = c.defaultCharset
-		if !collationExplicit || eqFoldStr(collation, "DEFAULT") {
-			return charset, defaultCharsetCollation
+		if db != nil && db.Charset != "" {
+			charset = db.Charset
+		} else {
+			charset = c.defaultCharset
 		}
-		return charset, collation
+		if !collationExplicit {
+			return charset, releaseCollation(MariaDB107, charset)
+		}
 	}
 	if collationExplicit && eqFoldStr(collation, "DEFAULT") {
 		return charset, versionCollation(db, charset)
@@ -2943,13 +3011,23 @@ func (c *Catalog) resolveCharsetDefault(db *Database, charset, collation string,
 	return charset, collation
 }
 
-// alteredTableCharsetCollation returns the default charset and collation the
-// statement leaves on tbl, which columns added or retyped in the same ALTER
-// inherit regardless of where in the command list COLLATE or CONVERT TO stands
-// (measured on mariadb:11.8.8: `ALTER TABLE a ADD e ENUM('s','S'), COLLATE
-// utf8mb4_bin` accepts e under utf8mb4_bin).
-func (c *Catalog) alteredTableCharsetCollation(tbl *Table, cmds []*nodes.AlterTableCmd) (charset, collation string) {
-	charset, collation = tbl.Charset, tbl.Collation
+// planAlterCharset resolves the table default charset/collation and any
+// CONVERT TO CHARACTER SET conversion across stmt's commands. Measured on
+// mariadb:11.8.8:
+//   - table-level CHARSET and COLLATE options combine regardless of order
+//     (`COLLATE latin1_bin, CHARACTER SET latin1` leaves latin1_bin, and
+//     mismatched pairs answer 1253);
+//   - CONVERT TO converts every string column the ALTER leaves to its own
+//     charset/collation, while explicit table-level CHARSET/COLLATE options in
+//     the same ALTER still govern the table default.
+func (c *Catalog) planAlterCharset(tbl *Table, cmds []*nodes.AlterTableCmd) (alterCharsetPlan, error) {
+	plan := alterCharsetPlan{
+		tableCharset:   tbl.Charset,
+		tableCollation: tbl.Collation,
+	}
+	var optCharset, optCollation string
+	var optCharsetExplicit, optCollationExplicit bool
+
 	for _, cmd := range cmds {
 		if cmd == nil {
 			continue
@@ -2959,36 +3037,163 @@ func (c *Catalog) alteredTableCharsetCollation(tbl *Table, cmds []*nodes.AlterTa
 			if cmd.Option == nil || cmd.Option.EngineDefined {
 				continue
 			}
-			name := toLower(cmd.Option.Name)
-			switch name {
+			switch toLower(cmd.Option.Name) {
 			case "charset", "character set", "default charset", "default character set":
-				charset = normalizeCharsetName(cmd.Option.Value)
-				if dc := c.charsetCollation(charset); dc != "" {
-					collation = dc
-				}
+				optCharset = normalizeCharsetName(cmd.Option.Value)
+				optCharsetExplicit = true
 			case "collate", "default collate":
 				if cmd.Option.Value != "" {
-					collation = cmd.Option.Value
-					if cs := charsetForCollation(collation); cs != "" {
-						charset = normalizeCharsetName(cs)
-					}
+					optCollation = cmd.Option.Value
+					optCollationExplicit = true
 				}
-			default:
-				continue
 			}
-			charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation,
-				name != "collate" && name != "default collate", name == "collate" || name == "default collate")
 		case nodes.ATConvertCharset:
-			charset = normalizeCharsetName(cmd.Name)
-			if cmd.NewName != "" {
-				collation = cmd.NewName
-			} else if dc := c.charsetCollation(charset); dc != "" {
-				collation = dc
+			convCS := normalizeCharsetName(cmd.Name)
+			convColl := cmd.NewName
+			if convColl == "" && !eqFoldStr(convCS, "DEFAULT") {
+				if dc := c.charsetCollation(convCS); dc != "" {
+					convColl = dc
+				}
 			}
-			charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation, true, cmd.NewName != "")
+			convCS, convColl = c.resolveCharsetDefault(tbl.Database, convCS, convColl, true, cmd.NewName != "")
+			if convColl == "" {
+				convColl = versionCollation(tbl.Database, convCS)
+			}
+			if cmd.NewName != "" && !charsetMatchesCollation(convCS, convColl) {
+				return plan, &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+			}
+			if plan.hasConvert {
+				if !eqFoldStr(plan.convertCharset, convCS) {
+					return plan, &Error{Code: 1302, SQLState: "HY000",
+						Message: fmt.Sprintf("Conflicting declarations: 'CHARACTER SET %s' and 'CHARACTER SET %s'", plan.convertCharset, convCS)}
+				}
+				if cmd.NewName != "" && !eqFoldStr(plan.convertCollation, convColl) {
+					return plan, &Error{Code: 1302, SQLState: "HY000",
+						Message: fmt.Sprintf("Conflicting declarations: 'COLLATE %s' and 'COLLATE %s'", plan.convertCollation, convColl)}
+				}
+			}
+			plan.hasConvert = true
+			plan.convertCharset = convCS
+			plan.convertCollation = convColl
 		}
 	}
-	return charset, collation
+
+	if optCharsetExplicit || optCollationExplicit {
+		plan.hasTableOpt = true
+		cs, coll := tbl.Charset, tbl.Collation
+		if optCharsetExplicit {
+			cs = optCharset
+			if !optCollationExplicit && !eqFoldStr(cs, "DEFAULT") {
+				if dc := c.charsetCollation(cs); dc != "" {
+					coll = dc
+				}
+			}
+		}
+		if optCollationExplicit {
+			coll = optCollation
+			if !optCharsetExplicit && !eqFoldStr(coll, "DEFAULT") {
+				if derived := charsetForCollation(coll); derived != "" {
+					cs = normalizeCharsetName(derived)
+				}
+			}
+		}
+		cs, coll = c.resolveCharsetDefault(tbl.Database, cs, coll, optCharsetExplicit, optCollationExplicit)
+		if optCharsetExplicit && optCollationExplicit && !charsetMatchesCollation(cs, coll) {
+			return plan, &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+		}
+		plan.tableCharset, plan.tableCollation = cs, coll
+	} else if plan.hasConvert {
+		plan.tableCharset, plan.tableCollation = plan.convertCharset, plan.convertCollation
+	}
+	return plan, nil
+}
+
+// computeSkippedAlterAdditions identifies ADD COLUMN IF NOT EXISTS and ADD
+// <key/constraint> IF NOT EXISTS items that MariaDB skips as notes: any name
+// present in tbl before the statement began (even if an earlier command in the
+// same ALTER drops or renames it) or added by an earlier non-skipped ADD in the
+// same statement (measured on mariadb:11.8.8).
+func computeSkippedAlterAdditions(tbl *Table, cmds []*nodes.AlterTableCmd) (map[*nodes.ColumnDef]bool, map[*nodes.Constraint]bool) {
+	skippedColumns := map[*nodes.ColumnDef]bool{}
+	seenCols := make(map[string]bool, len(tbl.Columns))
+	for _, col := range tbl.Columns {
+		seenCols[toLower(col.Name)] = true
+	}
+
+	skippedKeys := map[*nodes.Constraint]bool{}
+	seenIndexes := make(map[string]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		if !idx.Primary {
+			seenIndexes[toLower(idx.Name)] = true
+		}
+	}
+	seenFKs := make(map[string]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		if con.Type == ConForeignKey {
+			seenFKs[toLower(con.Name)] = true
+		}
+	}
+
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		if cmd.Type == nodes.ATAddColumn {
+			for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+				if colDef == nil {
+					continue
+				}
+				colKey := toLower(colDef.Name)
+				if cmd.IfNotExists && seenCols[colKey] {
+					skippedColumns[colDef] = true
+					continue
+				}
+				seenCols[colKey] = true
+				if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
+					seenIndexes[colKey] = true
+				}
+				for _, cc := range colDef.Constraints {
+					if cc != nil && cc.Type == nodes.ColConstrUnique {
+						seenIndexes[colKey] = true
+					}
+				}
+			}
+		}
+		cons := cmd.Constraints
+		if cmd.Constraint != nil {
+			cons = append([]*nodes.Constraint{cmd.Constraint}, cons...)
+		}
+		for _, con := range cons {
+			if con == nil {
+				continue
+			}
+			cols := extractColumnNames(con)
+			switch con.Type {
+			case nodes.ConstrPrimaryKey, nodes.ConstrCheck:
+				if con.IfNotExists && addedConstraintExists(tbl, con, cols) {
+					skippedKeys[con] = true
+				}
+			case nodes.ConstrForeignKey:
+				name := fkName(con)
+				if con.IfNotExists && name != "" && seenFKs[toLower(name)] {
+					skippedKeys[con] = true
+				} else if name != "" {
+					seenFKs[toLower(name)] = true
+				}
+			default:
+				name := con.Name
+				if name == "" && len(cols) > 0 {
+					name = cols[0]
+				}
+				if con.IfNotExists && name != "" && seenIndexes[toLower(name)] {
+					skippedKeys[con] = true
+				} else if name != "" {
+					seenIndexes[toLower(name)] = true
+				}
+			}
+		}
+	}
+	return skippedColumns, skippedKeys
 }
 
 // onlyPartitionMaintenance reports whether every command of an ALTER TABLE is one of

@@ -2908,6 +2908,15 @@ func TestParseCreateTable(t *testing.T) {
 		if col.TypeName == nil || col.TypeName.Collate != "utf8mb4_unicode_ci" {
 			t.Errorf("TypeName.Collate = %v, want utf8mb4_unicode_ci", col.TypeName)
 		}
+
+		stmtDef := parseCreateTable(t, "CREATE TABLE t (name VARCHAR(100) COLLATE DEFAULT)")
+		if stmtDef.Columns[0].TypeName == nil || stmtDef.Columns[0].TypeName.Collate != "DEFAULT" {
+			t.Errorf("TypeName.Collate = %v, want DEFAULT", stmtDef.Columns[0].TypeName)
+		}
+
+		if _, err := Parse("CREATE TABLE t (name VARCHAR(100) COLLATE DEFAULT NOT NULL COLLATE utf8mb4_bin)"); err == nil {
+			t.Errorf("expected conflicting COLLATE error, got nil")
+		}
 	})
 
 	t.Run("column collate on int", func(t *testing.T) {
@@ -8416,6 +8425,8 @@ func TestParseBinlog(t *testing.T) {
 	ParseAndCompare(t, "BINLOG @, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
 	ParseAndCompare(t, "BINLOG @'', @\"\"", "{BINLOG :loc 0 :fragments [\"\" \"\"]}")
 	ParseAndCompare(t, "BINLOG @`a`, @`b`", "{BINLOG :loc 0 :fragments [\"a\" \"b\"]}")
+	ParseAndCompare(t, "BINLOG @`a``b`, @`c``d`", "{BINLOG :loc 0 :fragments [\"a`b\" \"c`d\"]}")
+	ParseAndCompare(t, "BINLOG @````, @a", "{BINLOG :loc 0 :fragments [\"`\" \"a\"]}")
 	ParseAndCompare(t, "BINLOG @``, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
 	for _, sql := range []string{
 		"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b",

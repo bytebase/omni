@@ -90,8 +90,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// A CTAS body is judged with the name already resolved: mariadb:11.8.8
 	// answers 1050 for `CREATE TABLE a SELECT a` over a table a before it
 	// reads the SELECT, and 1054 only when the name is free.
+	var ctasQuery *Query
 	if stmt.Select != nil {
-		if _, err := c.analyzeViewBody(stmt.Select); err != nil {
+		if ctasQuery, err = c.analyzeViewBody(stmt.Select); err != nil {
 			return err
 		}
 	}
@@ -304,16 +305,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// table before mysql_prepare_create_table raises 1291 for a duplicated
 		// ENUM/SET member (`CREATE OR REPLACE TABLE a (e ENUM('s', 'S'))` leaves
 		// a absent on the pinned server; see TestSimulationCausesOracle).
-		if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
+		if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(db, colDef, tbl.Charset, tbl.Collation)); err != nil {
 			return err
 		}
 		// After the table's own columns are known to lack the name: 4029, an
 		// expression reading the column it defines or a generated column defined
 		// after it.
-		if err := validateColumnSelfReference(colDef); err != nil {
+		if err := validateColumnSelfReference(tbl, colDef); err != nil {
 			return err
 		}
-		if err := validateColumnGeneratedOrder(colDef, stmt.Columns[i+1:]); err != nil {
+		if err := validateColumnGeneratedOrder(tbl, colDef, stmt.Columns[i+1:]); err != nil {
 			return err
 		}
 
@@ -343,16 +344,28 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				col.DataType = typeName
 				col.ColumnType = formatColumnType(colDef.TypeName)
 			}
-			if isNationalStringType(colDef.TypeName.Name) {
-				col.Charset = "utf8mb3"
-			}
-			if colDef.TypeName.Charset != "" {
-				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
-			}
-			if colDef.TypeName.Collate != "" {
-				col.Collation = colDef.TypeName.Collate
-				if col.Charset == "" {
-					col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
+			if isStringType(col.DataType) {
+				if isNationalStringType(colDef.TypeName.Name) {
+					col.Charset = "utf8mb3"
+				}
+				if colDef.TypeName.Charset != "" {
+					col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
+				}
+				if collate := declaredColumnCollate(colDef); collate != "" {
+					if eqFoldStr(collate, "DEFAULT") {
+						cs := col.Charset
+						if cs == "" {
+							cs = tbl.Charset
+						}
+						col.Collation = versionCollation(db, cs)
+					} else {
+						col.Collation = collate
+						if colDef.TypeName.Charset == "" && !isNationalStringType(colDef.TypeName.Name) {
+							if derived := charsetForCollation(col.Collation); derived != "" {
+								col.Charset = normalizeCharsetName(derived)
+							}
+						}
+					}
 				}
 			}
 
@@ -526,12 +539,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			case nodes.ColConstrInvisible:
 				col.Invisible = true
 			case nodes.ColConstrCollate:
-				// Collation specified via constraint.
-				if cc.Expr != nil {
-					if s, ok := cc.Expr.(*nodes.StringLit); ok {
-						col.Collation = s.Value
-					}
-				}
+				// Handled via declaredColumnCollate above.
 			}
 		}
 
@@ -672,15 +680,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 	}
 
-	// The DEFAULT and CHECK expressions the columns carry are read against the
-	// finished table, so a check may name a column declared after it: measured on
-	// mariadb:11.8.8, `CREATE TABLE z (b INT CHECK (a > 0), a INT)` runs, where
-	// `CREATE TABLE z (b INT DEFAULT VALUE)` answers 1054.
-	for _, colDef := range stmt.Columns {
-		if err := validateColumnExprColumns(tbl, colDef); err != nil {
-			return err
-		}
+	type pendingCheck struct {
+		name string
+		expr nodes.ExprNode
 	}
+	var pendingChecks []pendingCheck
 
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
@@ -851,9 +855,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			if err := validateCheckExpr(conName, con.Expr); err != nil {
 				return err
 			}
-			if err := validateExprColumns(tbl, con.Expr, "CHECK"); err != nil {
-				return err
-			}
+			pendingChecks = append(pendingChecks, pendingCheck{name: conName, expr: con.Expr})
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
 				Name:        conName,
 				Type:        ConCheck,
@@ -1007,8 +1009,40 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if err := validateIndexColumns(tbl, fk.idxCols, false, false); err != nil {
 			return err
 		}
+		if err := validateNoRepeatedKeyColumns(fk.idxCols); err != nil {
+			return err
+		}
 		if insertFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols, fk.position+made) {
 			made++
+		}
+	}
+
+	// The DEFAULT, GENERATED ALWAYS AS, and CHECK expressions are read against
+	// the finished table after the keys' own column checks (1072, 1089, 1060)
+	// and before foreign-key parent checks (1005): measured on mariadb:11.8.8,
+	// `CREATE TABLE a (d INT DEFAULT missing, KEY k (nosuch))` answers 1072 and
+	// `CREATE TABLE a (b INT DEFAULT missing, FOREIGN KEY (b) REFERENCES p(x))`
+	// answers 1054. For CTAS (`CREATE TABLE a (d INT CHECK (d < b)) AS SELECT 1
+	// AS b`), output columns of the analyzed SELECT count alongside tbl's.
+	if stmt.Select == nil || ctasQuery != nil {
+		var ctasCols map[string]bool
+		if ctasQuery != nil {
+			ctasCols = make(map[string]bool, len(ctasQuery.TargetList))
+			for _, te := range ctasQuery.TargetList {
+				if te != nil && !te.ResJunk && te.ResName != "" {
+					ctasCols[toLower(te.ResName)] = true
+				}
+			}
+		}
+		for _, colDef := range stmt.Columns {
+			if err := validateColumnExprColumns(tbl, db.Name, tableName, ctasCols, colDef); err != nil {
+				return err
+			}
+		}
+		for _, ck := range pendingChecks {
+			if err := validateExprColumns(tbl, db.Name, tableName, ctasCols, ck.expr, "CHECK", ck.name); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1173,10 +1207,19 @@ func validateApplicationTimeFinalState(tbl *Table) error {
 func validateAddedWithoutOverlapsParts(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.Constraint]bool) error {
 	periods := map[string]bool{}
 	if tbl.AppPeriodName != "" {
-		periods[toLower(tbl.AppPeriodName)] = true
+		dropped := false
+		for _, cmd := range cmds {
+			if cmd != nil && cmd.Type == nodes.ATDropPeriod && strings.EqualFold(cmd.PeriodName, tbl.AppPeriodName) {
+				dropped = true
+				break
+			}
+		}
+		if !dropped {
+			periods[toLower(tbl.AppPeriodName)] = true
+		}
 	}
 	for _, cmd := range cmds {
-		if cmd.Type == nodes.ATAddPeriod && cmd.PeriodName != "" && !isSystemTimePeriodName(cmd.PeriodName) {
+		if cmd != nil && cmd.Type == nodes.ATAddPeriod && cmd.PeriodName != "" && !isSystemTimePeriodName(cmd.PeriodName) {
 			periods[toLower(cmd.PeriodName)] = true
 		}
 	}
@@ -2636,13 +2679,18 @@ func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, who
 
 // isKeyPartLengthType reports whether a key part over a column of this type may
 // carry a length. Measured on mariadb:11.8.8: the character and binary string
-// types, and JSON, which MariaDB stores as LONGTEXT, take one; ENUM and SET do
-// not.
+// types, JSON (which MariaDB stores as LONGTEXT), and the geometry types (stored
+// as BLOBs, where a B-tree key requires a prefix length) take one; ENUM and SET
+// do not.
 func isKeyPartLengthType(dataType string) bool {
+	if isSpatialColumnType(dataType) {
+		return true
+	}
 	switch strings.ToLower(dataType) {
 	case "char", "varchar", "binary", "varbinary", "json",
 		"tinytext", "text", "mediumtext", "longtext",
-		"tinyblob", "blob", "mediumblob", "longblob":
+		"tinyblob", "blob", "mediumblob", "longblob",
+		"geomcollection":
 		return true
 	}
 	return false
@@ -2846,7 +2894,7 @@ func (c *Catalog) applyColumnEngineOptions(tbl *Table, col *Column, colDef *node
 		return nil
 	}
 	engine := toLower(tbl.Engine)
-	if engine == "" {
+	if engine == "" || engine == "default" {
 		engine = "innodb"
 	}
 	if _, known := engineTableOptions[engine]; known && !c.ignoresBadTableOptions() {
@@ -2886,12 +2934,7 @@ func setEngineOption(options []string, opt *nodes.IndexOption) []string {
 // validateVectorIndex holds a VECTOR key to what MariaDB 11.8.8 refuses when the
 // statement runs: a column that is no vector (1210), a column that may be NULL (1252),
 // and a second vector index on the table (1235).
-func validateVectorIndex(tbl *Table, idxCols []*IndexColumn) error {
-	for _, idx := range tbl.Indexes {
-		if idx.Vector {
-			return &Error{Code: 1235, SQLState: "42000", Message: "This version of MariaDB doesn't yet support 'multiple VECTOR indexes'"}
-		}
-	}
+func validateVectorColumns(tbl *Table, idxCols []*IndexColumn) error {
 	for _, ic := range idxCols {
 		col := tbl.GetColumn(ic.Name)
 		if col == nil {
@@ -2902,6 +2945,18 @@ func validateVectorIndex(tbl *Table, idxCols []*IndexColumn) error {
 		}
 		if col.Nullable {
 			return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a VECTOR index must be NOT NULL"}
+		}
+	}
+	return nil
+}
+
+func validateVectorIndex(tbl *Table, idxCols []*IndexColumn) error {
+	if err := validateVectorColumns(tbl, idxCols); err != nil {
+		return err
+	}
+	for _, idx := range tbl.Indexes {
+		if idx.Vector {
+			return &Error{Code: 1235, SQLState: "42000", Message: "This version of MariaDB doesn't yet support 'multiple VECTOR indexes'"}
 		}
 	}
 	return nil
@@ -3935,7 +3990,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, srcTbl *T
 			Fulltext:      srcIdx.Fulltext,
 			Spatial:       srcIdx.Spatial,
 			Vector:        srcIdx.Vector,
-			EngineOptions: srcIdx.EngineOptions,
+			EngineOptions: append([]string(nil), srcIdx.EngineOptions...),
 			IndexType:     srcIdx.IndexType,
 			Visible:       srcIdx.Visible,
 			Comment:       srcIdx.Comment,

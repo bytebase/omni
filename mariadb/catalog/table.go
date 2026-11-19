@@ -334,6 +334,7 @@ func cloneTable(src *Table) Table {
 	for i, si := range src.Indexes {
 		idx := *si
 		idx.Table = src // keep pointing to the original table pointer
+		idx.EngineOptions = append([]string(nil), si.EngineOptions...)
 		cols := make([]*IndexColumn, len(si.Columns))
 		for j, sc := range si.Columns {
 			ic := *sc

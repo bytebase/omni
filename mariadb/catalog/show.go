@@ -778,13 +778,22 @@ func showIndexOptions(idx *Index, plainOptions bool) string {
 // every other one, so those two are the bare ones (see validateKeyEngineOptions).
 func vectorEngineOption(opt string) bool {
 	name := opt
-	if i := strings.IndexByte(name, '`'); i == 0 {
-		rest := name[1:]
-		if j := strings.IndexByte(rest, '`'); j >= 0 {
-			name = rest[:j]
-		} else {
-			name = rest
+	if strings.HasPrefix(name, "`") {
+		var b strings.Builder
+		for i := 1; i < len(name); i++ {
+			if name[i] == '`' {
+				if i+1 < len(name) && name[i+1] == '`' {
+					b.WriteByte('`')
+					i++
+					continue
+				}
+				break
+			}
+			b.WriteByte(name[i])
 		}
+		name = b.String()
+	} else if eq := strings.IndexByte(name, '='); eq >= 0 {
+		name = strings.TrimSpace(name[:eq])
 	}
 	switch toLower(name) {
 	case "m", "distance":

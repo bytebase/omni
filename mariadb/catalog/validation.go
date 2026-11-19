@@ -135,13 +135,13 @@ func errUninitializedField(field, uninitialized string) error {
 		Message: fmt.Sprintf("Expression for field `%s` is referring to uninitialized field `%s`", field, uninitialized)}
 }
 
-// columnExprRefs returns the columns a generated or default expression reads. The
-// server reads both the same way here, whichever spelling wrote the default:
-// `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)` all answer 4029.
-func columnExprRefs(colDef *nodes.ColumnDef) []string {
+// columnExprRefs returns the columns of tbl a generated or default expression
+// reads. The server reads both the same way here, whichever spelling wrote the
+// default: `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)` all answer 4029.
+func columnExprRefs(tbl *Table, colDef *nodes.ColumnDef) []string {
 	var refs []string
 	add := func(expr nodes.ExprNode) {
-		refs = append(refs, generatedColumnRefs(expr)...)
+		refs = append(refs, tableColumnRefs(tbl, expr)...)
 	}
 	add(colDef.DefaultValue)
 	if colDef.Generated != nil {
@@ -161,9 +161,9 @@ func columnExprRefs(colDef *nodes.ColumnDef) []string {
 // `ALTER TABLE t ADD a INT DEFAULT a` and `ALTER TABLE t ALTER a SET DEFAULT a`. A
 // column name the table already holds is 1060 first, and a name the table does not
 // hold at all is 1054, so this runs where the column is built.
-func validateColumnSelfReference(colDef *nodes.ColumnDef) error {
+func validateColumnSelfReference(tbl *Table, colDef *nodes.ColumnDef) error {
 	key := toLower(colDef.Name)
-	for _, ref := range columnExprRefs(colDef) {
+	for _, ref := range columnExprRefs(tbl, colDef) {
 		if toLower(ref) == key {
 			return errUninitializedField(colDef.Name, colDef.Name)
 		}
@@ -177,11 +177,11 @@ func validateColumnSelfReference(colDef *nodes.ColumnDef) error {
 // A plain column defined later is initialized by the time the value is computed, so
 // `CREATE TABLE z (a INT AS(b), b INT)` runs, as does `CREATE TABLE z (a INT DEFAULT
 // b, b INT)`: the order is judged for a generated expression only.
-func validateColumnGeneratedOrder(colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
+func validateColumnGeneratedOrder(tbl *Table, colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
 	if colDef.Generated == nil {
 		return nil
 	}
-	for _, ref := range generatedColumnRefs(colDef.Generated.Expr) {
+	for _, ref := range tableColumnRefs(tbl, colDef.Generated.Expr) {
 		for _, other := range later {
 			if other.Generated != nil && toLower(other.Name) == toLower(ref) {
 				return errUninitializedField(colDef.Name, other.Name)
@@ -320,21 +320,66 @@ func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode)
 }
 
 // validateExprColumns refuses an expression that names a column the table does
-// not have: 1054, with the context MariaDB gives it. MariaDB reads a bare word
-// in a CHECK or a DEFAULT expression as a column of the table, so
-// `ALTER TABLE a ADD CHECK(a)` over a table without column a answers "Unknown
-// column 'a' in 'CHECK'", and `ADD a INT DEFAULT VALUE` answers "Unknown column
-// 'VALUE' in 'DEFAULT'"; `DEFAULT (b + 1)` over a column b runs. A qualified
-// name is another matter — the server answers 1901 for one naming no table — and
-// is left alone. Measured on mariadb:11.8.8.
-func validateExprColumns(tbl *Table, expr nodes.ExprNode, context string) error {
+// not have (1054) or qualifies a column with another table or database (1901).
+// MariaDB reads a bare word, or a reference qualified with the statement's own
+// table, as a column of the table (`ALTER TABLE a ADD CHECK(a)` and
+// `CHECK(a.missing)` answer 1054, `DEFAULT (b + 1)` and `CHECK(a.b > 0)` run),
+// and answers 1901 when the qualifier names another table (`CHECK(other.b > 0)`,
+// `DEFAULT (other.b)`, `AS (other.b)`). Measured on mariadb:11.8.8.
+func validateExprColumns(tbl *Table, targetDB, targetTable string, extraCols map[string]bool, expr nodes.ExprNode, context, owner string) error {
 	if expr == nil {
 		return nil
 	}
-	// A sequence's name is a column reference too, as in `DEFAULT
-	// NEXTVAL(s)`, and it names no column of the table: the arguments of
-	// NEXTVAL, LASTVAL and SETVAL are skipped.
+	sequences := sequenceArgColumnRefs(expr)
+	var exprErr error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if exprErr != nil {
+			return false
+		}
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" || sequences[cr] {
+			return true
+		}
+		if cr.Table != "" || cr.Schema != "" {
+			if (cr.Schema == "" || eqFoldStr(cr.Schema, targetDB)) && eqFoldStr(cr.Table, targetTable) {
+				if tbl.GetColumn(cr.Column) == nil && !extraCols[toLower(cr.Column)] {
+					exprErr = errNoSuchColumn(cr.Column, context)
+				}
+				return true
+			}
+			exprErr = &Error{
+				Code:     1901,
+				SQLState: "HY000",
+				Message:  fmt.Sprintf("Function or expression '%s' cannot be used in the %s clause of `%s`", formatQualifiedColumnRef(cr), context, owner),
+			}
+			return false
+		}
+		if tbl.GetColumn(cr.Column) == nil && !extraCols[toLower(cr.Column)] {
+			exprErr = errNoSuchColumn(cr.Column, context)
+		}
+		return true
+	})
+	return exprErr
+}
+
+func formatQualifiedColumnRef(cr *nodes.ColumnRef) string {
+	if cr.Schema != "" {
+		return cr.Schema + "." + cr.Table + "." + cr.Column
+	}
+	if cr.Table != "" {
+		return cr.Table + "." + cr.Column
+	}
+	return cr.Column
+}
+
+// sequenceArgColumnRefs returns the ColumnRef nodes that name sequences in
+// NEXTVAL(s), LASTVAL(s) and SETVAL(s, ...), parenthesized or not, so column
+// checks do not treat a sequence's name as a column of the table.
+func sequenceArgColumnRefs(expr nodes.ExprNode) map[*nodes.ColumnRef]bool {
 	sequences := map[*nodes.ColumnRef]bool{}
+	if expr == nil {
+		return sequences
+	}
 	nodes.Inspect(expr, func(n nodes.Node) bool {
 		fc, ok := n.(*nodes.FuncCallExpr)
 		if !ok || fc.Schema != "" || len(fc.Args) == 0 {
@@ -351,24 +396,7 @@ func validateExprColumns(tbl *Table, expr nodes.ExprNode, context string) error 
 		}
 		return true
 	})
-	missing := ""
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if missing != "" {
-			return false
-		}
-		cr, ok := n.(*nodes.ColumnRef)
-		if !ok || cr.Column == "" || cr.Table != "" || cr.Schema != "" || sequences[cr] {
-			return true
-		}
-		if tbl.GetColumn(cr.Column) == nil {
-			missing = cr.Column
-		}
-		return true
-	})
-	if missing != "" {
-		return errNoSuchColumn(missing, context)
-	}
-	return nil
+	return sequences
 }
 
 // unwrapParenColumnRef returns the column reference a parenthesized argument
@@ -391,14 +419,18 @@ func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
 // `ALTER TABLE a ADD e INT CHECK (c > 0), RENAME COLUMN c TO z` answers 1054
 // for c while `ADD e INT CHECK (z > 0), RENAME COLUMN c TO z` runs (recorded in
 // TestSimulationCausesOracle).
-func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, skippedColumns map[*nodes.ColumnDef]bool, skippedKeys map[*nodes.Constraint]bool) error {
+func validateAlteredColumnExprColumns(tbl *Table, targetDB, targetTable string, cmds []*nodes.AlterTableCmd, skippedColumns map[*nodes.ColumnDef]bool, skippedKeys map[*nodes.Constraint]bool, checkNames map[*nodes.Constraint]string) error {
 	for _, cmd := range cmds {
 		if cmd == nil {
 			continue
 		}
 		switch cmd.Type {
 		case nodes.ATAlterColumnDefault:
-			if err := validateExprColumns(tbl, cmd.DefaultExpr, "DEFAULT"); err != nil {
+			owner := cmd.Name
+			if col := tbl.GetColumn(cmd.Name); col != nil {
+				owner = col.Name
+			}
+			if err := validateExprColumns(tbl, targetDB, targetTable, nil, cmd.DefaultExpr, "DEFAULT", owner); err != nil {
 				return err
 			}
 		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
@@ -408,7 +440,7 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, s
 				if colDef == nil || skippedColumns[colDef] {
 					continue
 				}
-				if err := validateColumnExprColumns(tbl, colDef); err != nil {
+				if err := validateColumnExprColumns(tbl, targetDB, targetTable, nil, colDef); err != nil {
 					return err
 				}
 			}
@@ -417,7 +449,11 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, s
 			if con == nil || con.Type != nodes.ConstrCheck || skippedKeys[con] {
 				continue
 			}
-			if err := validateExprColumns(tbl, con.Expr, "CHECK"); err != nil {
+			owner := checkNames[con]
+			if owner == "" {
+				owner = con.Name
+			}
+			if err := validateExprColumns(tbl, targetDB, targetTable, nil, con.Expr, "CHECK", owner); err != nil {
 				return err
 			}
 		}
@@ -429,26 +465,30 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, s
 // validateExprColumns: the column's own DEFAULT, its GENERATED ALWAYS AS
 // expression, and each CHECK written beside it. A column-level CHECK may name
 // the column it is declared on, which the table holds once the column is in.
-func validateColumnExprColumns(tbl *Table, colDef *nodes.ColumnDef) error {
+func validateColumnExprColumns(tbl *Table, targetDB, targetTable string, extraCols map[string]bool, colDef *nodes.ColumnDef) error {
 	if colDef == nil {
 		return nil
 	}
-	if err := validateExprColumns(tbl, colDef.DefaultValue, "DEFAULT"); err != nil {
+	if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, colDef.DefaultValue, "DEFAULT", colDef.Name); err != nil {
 		return err
 	}
 	if colDef.Generated != nil && colDef.Generated.RowBound == nodes.RowBoundNone {
-		if err := validateExprColumns(tbl, colDef.Generated.Expr, "GENERATED ALWAYS AS"); err != nil {
+		if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, colDef.Generated.Expr, "GENERATED ALWAYS AS", colDef.Name); err != nil {
 			return err
 		}
 	}
 	for _, cc := range colDef.Constraints {
 		switch cc.Type {
 		case nodes.ColConstrDefault:
-			if err := validateExprColumns(tbl, cc.Expr, "DEFAULT"); err != nil {
+			if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, cc.Expr, "DEFAULT", colDef.Name); err != nil {
 				return err
 			}
 		case nodes.ColConstrCheck:
-			if err := validateExprColumns(tbl, cc.Expr, "CHECK"); err != nil {
+			owner := cc.Name
+			if owner == "" {
+				owner = colDef.Name
+			}
+			if err := validateExprColumns(tbl, targetDB, targetTable, extraCols, cc.Expr, "CHECK", owner); err != nil {
 				return err
 			}
 		}
@@ -554,24 +594,76 @@ func parseColumnEnumSetValues(columnType string) []string {
 }
 
 // effectiveColumnCollation is the collation a column definition's ENUM or SET
-// values are compared with: the one it names, the binary one BINARY or CHARACTER
-// SET binary gives it, the default of the CHARACTER SET it names, and otherwise
-// the table's. A named character set drops the table's collation even where they
-// share one: measured on mariadb:11.8.8, `ENUM('s','S') CHARACTER SET utf8mb4`
-// under a table `COLLATE utf8mb4_bin` answers 1291.
-func (c *Catalog) effectiveColumnCollation(colDef *nodes.ColumnDef, tableCollation string) string {
+// values are compared with: the one it names (DEFAULT resolved to the column
+// charset's default), the binary one BINARY or CHARACTER SET binary gives it,
+// the default of the CHARACTER SET it names, and otherwise the table's. A named
+// character set drops the table's collation even where they share one: measured
+// on mariadb:11.8.8, `ENUM('s','S') CHARACTER SET utf8mb4` and `COLLATE
+// DEFAULT` under a table `COLLATE utf8mb4_bin` both answer 1291.
+// declaredColumnCollate returns the collation a column definition writes, on
+// its type (`VARCHAR(10) COLLATE ...`) or among its column attributes
+// (`VARCHAR(10) NOT NULL COLLATE ...`).
+func declaredColumnCollate(colDef *nodes.ColumnDef) string {
+	if colDef == nil {
+		return ""
+	}
+	if colDef.TypeName != nil && colDef.TypeName.Collate != "" {
+		return colDef.TypeName.Collate
+	}
+	collate := ""
+	for _, cc := range colDef.Constraints {
+		if cc == nil || cc.Type != nodes.ColConstrCollate {
+			continue
+		}
+		if cc.Name != "" {
+			collate = cc.Name
+		} else if s, ok := cc.Expr.(*nodes.StringLit); ok && s.Value != "" {
+			collate = s.Value
+		}
+	}
+	return collate
+}
+
+func (c *Catalog) effectiveColumnCollation(db *Database, colDef *nodes.ColumnDef, tableCharset, tableCollation string) string {
 	dt := colDef.TypeName
 	if dt == nil {
 		return tableCollation
 	}
-	if dt.Collate != "" {
-		return dt.Collate
-	}
-	if dt.Binary || eqFoldStr(dt.Charset, "binary") {
-		return "binary"
+	collate := declaredColumnCollate(colDef)
+	colCharset := ""
+	if isNationalStringType(dt.Name) {
+		colCharset = "utf8mb3"
 	}
 	if dt.Charset != "" {
-		if dc := c.charsetCollation(normalizeCharsetName(dt.Charset)); dc != "" {
+		colCharset = normalizeCharsetName(dt.Charset)
+	}
+	if collate != "" && !eqFoldStr(collate, "DEFAULT") && colCharset == "" {
+		colCharset = normalizeCharsetName(charsetForCollation(collate))
+	}
+	if colCharset == "" {
+		colCharset = tableCharset
+	}
+	if collate != "" {
+		if eqFoldStr(collate, "DEFAULT") {
+			if dt.Binary || eqFoldStr(colCharset, "binary") {
+				return "binary"
+			}
+			if db != nil {
+				return versionCollation(db, colCharset)
+			}
+			return c.charsetCollation(colCharset)
+		}
+		return collate
+	}
+	if dt.Binary || eqFoldStr(colCharset, "binary") {
+		return "binary"
+	}
+	if dt.Charset != "" || isNationalStringType(dt.Name) {
+		if db != nil {
+			if dc := versionCollation(db, colCharset); dc != "" {
+				return dc
+			}
+		} else if dc := c.charsetCollation(colCharset); dc != "" {
 			return dc
 		}
 	}
@@ -757,13 +849,42 @@ func nondeterministicFuncName(name string) string {
 }
 
 // generatedColumnRefs returns the columns a generated expression reads, in the
-// order it reads them.
+// order it reads them, skipping sequence names in NEXTVAL/LASTVAL/SETVAL.
 func generatedColumnRefs(expr nodes.ExprNode) []string {
+	sequences := sequenceArgColumnRefs(expr)
 	var out []string
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && !sequences[cr] {
 			out = append(out, cr.Column)
 		}
+		return true
+	})
+	return out
+}
+
+// tableColumnRefs returns the columns of tbl an expression reads, skipping
+// sequence arguments and references qualified with another table or database.
+func tableColumnRefs(tbl *Table, expr nodes.ExprNode) []string {
+	sequences := sequenceArgColumnRefs(expr)
+	dbName, tblName := "", ""
+	if tbl != nil {
+		tblName = tbl.Name
+		if tbl.Database != nil {
+			dbName = tbl.Database.Name
+		}
+	}
+	var out []string
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" || sequences[cr] {
+			return true
+		}
+		if cr.Table != "" || cr.Schema != "" {
+			if tbl == nil || !eqFoldStr(cr.Table, tblName) || (cr.Schema != "" && !eqFoldStr(cr.Schema, dbName)) {
+				return true
+			}
+		}
+		out = append(out, cr.Column)
 		return true
 	})
 	return out

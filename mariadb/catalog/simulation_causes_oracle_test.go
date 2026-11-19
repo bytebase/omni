@@ -32,10 +32,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 	ctx := context.Background()
 	reset := func() {
 		for _, stmt := range []string{
+			"SET sql_mode = DEFAULT",
+			"SET foreign_key_checks = 1",
+			"ALTER DATABASE CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci",
 			"DROP TEMPORARY TABLE IF EXISTS a",
 			"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a",
-			"DROP SEQUENCE IF EXISTS a", "DROP TABLE IF EXISTS p",
-			"DROP TABLE IF EXISTS x", "DROP TABLE IF EXISTS z",
+			"DROP SEQUENCE IF EXISTS a", "DROP SEQUENCE IF EXISTS id",
+			"DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS x", "DROP TABLE IF EXISTS z",
 		} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
@@ -1400,6 +1403,312 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:        "CREATE INDEX idx_d ON a (missing) x = 1",
 			code:        1072,
 			keepsSchema: true,
+		},
+		// CHARSET DEFAULT resolves to the database's character set with its
+		// compiled-in default collation, and column-level COLLATE DEFAULT and
+		// attribute-list COLLATE resolve to the column's effective collation.
+		{
+			name:     "CREATE TABLE CHARSET DEFAULT in a latin1_bin database",
+			setup:    []string{"ALTER DATABASE CHARACTER SET latin1 COLLATE latin1_bin"},
+			stmt:     "CREATE TABLE a (b VARCHAR(10)) CHARSET DEFAULT",
+			code:     0,
+			contains: []string{"CHARSET=latin1 COLLATE=latin1_swedish_ci"},
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT in a binary database",
+			setup:    []string{"ALTER DATABASE CHARACTER SET binary", "CREATE TABLE a (e ENUM('s', 'S') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin)"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:     0,
+			contains: []string{"enum('s','S')", "CHARSET=binary"},
+		},
+		{
+			name:   "column COLLATE DEFAULT on a binary-collated table",
+			stmt:   "CREATE TABLE a (e ENUM('s', 'S') COLLATE DEFAULT) COLLATE utf8mb4_bin",
+			code:   1291,
+			absent: "a",
+		},
+		{
+			name:     "column VARCHAR COLLATE DEFAULT on a binary-collated table",
+			stmt:     "CREATE TABLE a (b VARCHAR(10) COLLATE DEFAULT) COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"COLLATE utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:     "ENUM with attribute-list COLLATE utf8mb4_bin after NOT NULL",
+			stmt:     "CREATE TABLE a (e ENUM('s', 'S') NOT NULL COLLATE utf8mb4_bin)",
+			code:     0,
+			contains: []string{"enum('s','S')", "COLLATE utf8mb4_bin"},
+		},
+		// Table options combine regardless of order, and CONVERT TO applies to
+		// the columns the atomic ALTER leaves rather than pre-statement columns.
+		{
+			name:     "ALTER TABLE COLLATE latin1_bin followed by CHARACTER SET latin1",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(10))"},
+			stmt:     "ALTER TABLE a COLLATE latin1_bin, CHARACTER SET latin1",
+			code:     0,
+			contains: []string{"CHARSET=latin1 COLLATE=latin1_bin"},
+		},
+		{
+			name:     "CONVERT TO utf8mb4 alongside MODIFY replacing duplicated ENUM",
+			setup:    []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, MODIFY e ENUM('s', 't')",
+			code:     0,
+			contains: []string{"enum('s','t')", "COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:  "CONVERT TO utf8mb4 alongside DROP of duplicated ENUM",
+			setup: []string{"CREATE TABLE a (b INT, e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, DROP COLUMN e",
+			code:  0,
+		},
+		{
+			name:        "CONVERT TO utf8mb4 followed by ADD binary-collated duplicated ENUM",
+			setup:       []string{"CREATE TABLE a (b INT) COLLATE utf8mb4_bin"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, ADD e ENUM('s', 'S') COLLATE utf8mb4_bin",
+			code:        1291,
+			keepsSchema: true,
+		},
+		{
+			name:     "ADD ENUM followed by CONVERT TO utf8mb4_bin",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD e ENUM('s', 'S'), CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"enum('s','S')", "COLLATE=utf8mb4_bin"},
+		},
+		{
+			name:     "CONVERT TO utf8mb4 paired with table COLLATE utf8mb4_bin",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(10)) CHARSET latin1"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4, COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"COLLATE utf8mb4_uca1400_ai_ci", "COLLATE=utf8mb4_bin"},
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET binary over VARCHAR and ENUM",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(10), e ENUM('s', 'S') COLLATE utf8mb4_bin)"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET binary",
+			code:     0,
+			contains: []string{"varbinary(10)", "CHARSET=binary"},
+		},
+		// ADD ... IF NOT EXISTS checks pre-statement names (even when dropped or
+		// renamed in the same ALTER) and names added earlier in the statement.
+		{
+			name:  "DROP COLUMN followed by ADD COLUMN IF NOT EXISTS of the same name",
+			setup: []string{"CREATE TABLE a (b INT, c INT)"},
+			stmt:  "ALTER TABLE a DROP COLUMN c, ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:  0,
+			omits: []string{"`c`"},
+		},
+		{
+			name:     "RENAME COLUMN followed by ADD COLUMN IF NOT EXISTS of the old name",
+			setup:    []string{"CREATE TABLE a (b INT, c INT)"},
+			stmt:     "ALTER TABLE a RENAME COLUMN c TO z, ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:     0,
+			contains: []string{"`z`"},
+			omits:    []string{"`c`"},
+		},
+		{
+			name:     "ADD COLUMN followed by ADD COLUMN IF NOT EXISTS of the same name",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD COLUMN c INT, ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
+			code:     0,
+			contains: []string{"`c` int(11)"},
+		},
+		{
+			name:  "DROP KEY followed by ADD KEY IF NOT EXISTS of the same name",
+			setup: []string{"CREATE TABLE a (b INT, KEY k (b))"},
+			stmt:  "ALTER TABLE a DROP KEY k, ADD KEY IF NOT EXISTS k (b) x = 1",
+			code:  0,
+			omits: []string{"KEY `k`"},
+		},
+		{
+			name:     "ADD KEY followed by ADD KEY IF NOT EXISTS of the same name",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD KEY k (b), ADD KEY IF NOT EXISTS k (b) x = 1",
+			code:     0,
+			contains: []string{"KEY `k` (`b`)"},
+		},
+		// Discarded tablespaces refuse partitioning and charset-converting
+		// rewrites (1814), while allowing a no-op same-charset CONVERT TO.
+		{
+			name:        "PARTITION BY HASH on a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a PARTITION BY HASH (b) PARTITIONS 2",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:        "CONVERT TO a different charset on a table whose tablespace was DISCARDed",
+			setup:       []string{"CREATE TABLE a (b VARCHAR(10) PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET latin1",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "CONVERT TO the existing charset on a table whose tablespace was DISCARDed",
+			setup: []string{"CREATE TABLE a (b VARCHAR(10) PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4",
+			code:  0,
+		},
+		// Standalone DROP INDEX and CREATE OR REPLACE INDEX enforce AUTO_INCREMENT
+		// key coverage (1075), and CREATE VECTOR INDEX checks column types (1210)
+		// before duplicate key names (1061) and multiple vector keys (1235).
+		{
+			name:        "DROP INDEX unkeying an AUTO_INCREMENT column",
+			setup:       []string{"CREATE TABLE a (id INT AUTO_INCREMENT, c INT, KEY k (id))"},
+			stmt:        "DROP INDEX k ON a",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE OR REPLACE INDEX unkeying an AUTO_INCREMENT column",
+			setup:       []string{"CREATE TABLE a (id INT AUTO_INCREMENT, c INT, KEY k (id))"},
+			stmt:        "CREATE OR REPLACE INDEX k ON a (c)",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:     "CREATE OR REPLACE INDEX preserving leading AUTO_INCREMENT column",
+			setup:    []string{"CREATE TABLE a (id INT AUTO_INCREMENT, c INT, KEY k (id))"},
+			stmt:     "CREATE OR REPLACE INDEX k ON a (id, c)",
+			code:     0,
+			contains: []string{"KEY `k` (`id`,`c`)"},
+		},
+		{
+			name:        "CREATE VECTOR INDEX of a colliding name over an INT column",
+			setup:       []string{oneTable},
+			stmt:        "CREATE VECTOR INDEX idx_d ON a (b)",
+			code:        1210,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE VECTOR INDEX of a colliding name over a VECTOR column",
+			setup:       []string{"CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX idx_d (v))"},
+			stmt:        "CREATE VECTOR INDEX idx_d ON a (v)",
+			code:        1061,
+			keepsSchema: true,
+		},
+		// Geometry columns take prefix lengths, foreign keys reject repeated
+		// columns (1060), ENGINE='DEFAULT' enforces column options (1911), and
+		// backtick-escaped unknown options on VECTOR keys are commented out.
+		{
+			name:     "KEY with prefix length over a GEOMETRY column",
+			stmt:     "CREATE TABLE a (g GEOMETRY, KEY k (g(5)))",
+			code:     0,
+			contains: []string{"KEY `k` (`g`(5))"},
+		},
+		{
+			name:   "CREATE TABLE FOREIGN KEY naming a column twice",
+			setup:  []string{"CREATE TABLE p (x INT, y INT, KEY (x, y))"},
+			stmt:   "CREATE TABLE a (b INT, FOREIGN KEY (b, b) REFERENCES p(x, y))",
+			code:   1060,
+			absent: "a",
+		},
+		{
+			name:        "ALTER TABLE ADD FOREIGN KEY naming a column twice before parent lookup",
+			setup:       []string{"CREATE TABLE a (b INT)"},
+			stmt:        "ALTER TABLE a ADD FOREIGN KEY (b, b) REFERENCES z(x, y)",
+			code:        1060,
+			keepsSchema: true,
+		},
+		{
+			name:   "column option on an ENGINE='DEFAULT' table",
+			stmt:   "CREATE TABLE a (b INT x = 1) ENGINE='DEFAULT'",
+			code:   1911,
+			absent: "a",
+		},
+		{
+			name:     "VECTOR key option with escaped backtick is commented out",
+			setup:    []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) M=6 `m``x`=1)", "SET sql_mode = DEFAULT"},
+			stmt:     "ALTER TABLE a ADD c INT",
+			code:     0,
+			contains: []string{"VECTOR KEY `i` (`v`) `M`=6 /* `m``x`=1 */"},
+		},
+		// Qualified column references, NEXTVAL over a same-named sequence, key
+		// checks preceding expression checks on CREATE TABLE, ignored ADD PERIOD
+		// FOR SYSTEM_TIME on implicitly versioned tables, and DROP PERIOD before
+		// WITHOUT OVERLAPS.
+		{
+			name:   "CHECK with same-table qualified missing column",
+			stmt:   "CREATE TABLE a (b INT, CHECK (a.missing > 0))",
+			code:   1054,
+			absent: "a",
+		},
+		{
+			name:   "CHECK with cross-table qualified column",
+			stmt:   "CREATE TABLE a (b INT, CHECK (p.b > 0))",
+			code:   1901,
+			absent: "a",
+		},
+		{
+			name:   "DEFAULT with cross-table qualified column",
+			stmt:   "CREATE TABLE a (b INT DEFAULT (p.b))",
+			code:   1901,
+			absent: "a",
+		},
+		{
+			name:     "DEFAULT NEXTVAL over a sequence sharing the column's name",
+			setup:    []string{"CREATE SEQUENCE id"},
+			stmt:     "CREATE TABLE a (id INT DEFAULT NEXTVAL(id))",
+			code:     0,
+			contains: []string{"DEFAULT nextval("},
+		},
+		{
+			name:   "CREATE TABLE key missing column precedes DEFAULT missing column",
+			stmt:   "CREATE TABLE a (d INT DEFAULT missing, KEY k (nosuch))",
+			code:   1072,
+			absent: "a",
+		},
+		{
+			name:   "CREATE TABLE key missing column precedes CHECK missing column",
+			stmt:   "CREATE TABLE a (b INT, CHECK (missing > 0), KEY k (nosuch))",
+			code:   1072,
+			absent: "a",
+		},
+		{
+			name:        "ADD PERIOD FOR SYSTEM_TIME over ordinary columns on an implicitly versioned table",
+			setup:       []string{"CREATE TABLE a (b INT) WITH SYSTEM VERSIONING"},
+			stmt:        "ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(b, b)",
+			code:        0,
+			keepsSchema: true,
+		},
+		{
+			name:        "DROP PERIOD FOR app_time alongside ADD UNIQUE WITHOUT OVERLAPS",
+			setup:       []string{"CREATE TABLE a (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e))"},
+			stmt:        "ALTER TABLE a DROP PERIOD FOR app_time, ADD UNIQUE u (missing, app_time WITHOUT OVERLAPS)",
+			code:        4156,
+			keepsSchema: true,
+		},
+		{
+			name:     "INT column with COLLATE attribute stays plain int",
+			stmt:     "CREATE TABLE a (b INT COLLATE utf8mb4_bin)",
+			code:     0,
+			contains: []string{"`b` int(11) DEFAULT NULL"},
+		},
+		{
+			name:     "JSON column with non-utf8mb4 COLLATE attribute updates column charset",
+			stmt:     "CREATE TABLE a (j JSON COLLATE latin1_swedish_ci)",
+			code:     0,
+			contains: []string{"`j` longtext CHARACTER SET latin1 COLLATE latin1_swedish_ci"},
+		},
+		{
+			name:        "CREATE OR REPLACE INDEX checks AUTO_INCREMENT key before IGNORED implicit PK",
+			setup:       []string{"CREATE TABLE a (id INT AUTO_INCREMENT NOT NULL, c INT NOT NULL, UNIQUE KEY k (id), UNIQUE KEY u (c) IGNORED)"},
+			stmt:        "CREATE OR REPLACE INDEX k ON a (c)",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT COLLATE DEFAULT uses release default collation",
+			setup:    []string{"CREATE TABLE a (s VARCHAR(10)) CHARSET=latin1"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT COLLATE DEFAULT",
+			code:     0,
+			contains: []string{"DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		{
+			name:     "CREATE TABLE CHARSET DEFAULT COLLATE DEFAULT uses release default collation",
+			stmt:     "CREATE TABLE a (s VARCHAR(10)) CHARSET DEFAULT COLLATE DEFAULT",
+			code:     0,
+			contains: []string{"DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci"},
 		},
 	}
 

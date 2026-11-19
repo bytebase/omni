@@ -118,14 +118,15 @@ func validateParseTimeLookups(stmt nodes.Node) error {
 		switch x := n.(type) {
 		case *nodes.ColumnDef:
 			dt := x.TypeName
-			if dt == nil || dt.Charset == "" || dt.Collate == "" || charsetMatchesCollation(dt.Charset, dt.Collate) {
+			collate := declaredColumnCollate(x)
+			if dt == nil || dt.Charset == "" || collate == "" || charsetMatchesCollation(dt.Charset, collate) {
 				return true
 			}
 			charset := normalizeCharsetName(dt.Charset)
 			record(dt.Loc.Start, &Error{
 				Code:     1253,
 				SQLState: sqlState(1253),
-				Message:  fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", strings.ToLower(dt.Collate), charset),
+				Message:  fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", strings.ToLower(collate), charset),
 			})
 		case *nodes.CreateIndexStmt:
 			if x.Fulltext {

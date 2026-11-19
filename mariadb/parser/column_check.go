@@ -123,7 +123,8 @@ func refuseColumnCollationConflict(col *nodes.ColumnDef, name string, pos int) e
 	if prior == "" || strings.EqualFold(prior, name) {
 		return nil
 	}
-	if collationCharset(prior) == "" || collationCharset(name) == "" {
+	if (!strings.EqualFold(prior, "DEFAULT") && collationCharset(prior) == "") ||
+		(!strings.EqualFold(name, "DEFAULT") && collationCharset(name) == "") {
 		return nil
 	}
 	return &ParseError{Message: "Conflicting declarations: 'COLLATE " + prior + "' and 'COLLATE " + name + "'", Position: pos}

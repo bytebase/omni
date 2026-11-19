@@ -60,3 +60,17 @@ func TestDiscardTablespaceFollowedByCopyAlterRollsBack(t *testing.T) {
 		t.Fatalf("failed multi-command ALTER mutated table: discarded=%v engine=%q", tbl.TablespaceDiscarded, tbl.Engine)
 	}
 }
+
+// TestCTASDeclaredColumnExpressions ensures CREATE TABLE ... AS SELECT allows
+// declared column DEFAULT and CHECK expressions to reference columns projected
+// by the SELECT while still rejecting unknown columns with 1054.
+func TestCTASDeclaredColumnExpressions(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE a (d INT CHECK (d < b), e INT DEFAULT (b + 1)) AS SELECT 1 AS b;")
+
+	err := execErr(t, "CREATE TABLE a (d INT DEFAULT missing) AS SELECT 1 AS b")
+	catErr, ok := err.(*Error)
+	if !ok || catErr.Code != 1054 {
+		t.Fatalf("expected 1054 for missing column in CTAS DEFAULT, got %v", err)
+	}
+}

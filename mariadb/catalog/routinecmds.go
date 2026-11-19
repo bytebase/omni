@@ -248,7 +248,7 @@ func formatReturnType(dt *nodes.DataType, db *Database) string {
 	}
 	if isStringRoutineType(name) {
 		charset := dt.Charset
-		if charset == "" && dt.Collate != "" {
+		if charset == "" && dt.Collate != "" && !eqFoldStr(dt.Collate, "DEFAULT") {
 			// A RETURNS clause that names a collation and no charset takes
 			// that collation's charset, not the database's: measured on
 			// mariadb:11.8.8 in a utf8mb4 database,
@@ -280,6 +280,9 @@ func formatReturnType(dt *nodes.DataType, db *Database) string {
 		// `RETURNS VARCHAR(20) COLLATE utf8mb4_general_ci` keeps the one it
 		// names.
 		collation := dt.Collate
+		if eqFoldStr(collation, "DEFAULT") {
+			collation = versionCollation(db, charset)
+		}
 		if collation == "" && dt.Charset == "" {
 			collation = dbCollation
 		}
