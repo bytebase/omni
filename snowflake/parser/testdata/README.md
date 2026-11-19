@@ -24,7 +24,7 @@ generated grammar and rows moved with them.
 
 `undocumented` rows are the near-misses the docs do not derive; docs say what is
 valid, not what Snowflake refuses, so they pass whatever omni says. The new pin
-has 53,144 of them; the converter and parser changes below leave 53,289.
+has 53,144 of them; the converter and parser changes below leave 53,222.
 
 ## The grammar and its fixes
 
@@ -117,31 +117,25 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 31 rows
+## What is left: 35 rows
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
-and parser changes above closed 69; #1459 left 49. This pass closes 18 more:
+and parser changes above closed 69; #1459 left 49. This pass closes 14 more,
+both parser gaps the pages derive:
 
 - **`execute-dbt-project` (11).** The page writes two forms, and the second
   brackets `FROM WORKSPACE` and still lists `IMPORTS`, so
   `EXECUTE DBT PROJECT IMPORTS = (...)` with no project at all is the page's
-  shape. `dbtExecuteWorkspaceProps` now takes `IMPORTS` beside `PROJECT_ROOT`.
+  shape. `dbtExecuteWorkspaceProps` now takes `IMPORTS` beside `PROJECT_ROOT`,
+  and `execImports` holds each of the page's five system functions to the one
+  string argument their own pages give it.
 - **`show-semantic-dimensions`, `-facts`, `-metrics` (3).** The pages' `IN`
   choice takes a `<semantic_view_name>`, a QNAME, before the `ACCOUNT`,
   `DATABASE` and `SCHEMA` scopes. Snowflake does not reserve `SCHEMA`, so
   `IN SCHEMA.a` is a semantic view named `a` in database `SCHEMA`, not the
-  `SCHEMA` scope with a stray `.a`; `parseShowScope` reads a scope keyword
-  followed by `.` as the first part of the name.
-- **The property runs (4).** `create-interactive-warehouse`'s
-  `objectProperties` and `objectParams`, and `create-` and
-  `alter-organization-user`'s `objectProperties`, list their properties one
-  per line, and the converter read that as `( ... )+`: any number of them,
-  so a sampled run could name the same property twice. The page's examples
-  never repeat one and its parameters say nothing about setting one twice, so
-  `docs-fixes.tsv` rewrites each list as the alternatives that start at each
-  property and take the later ones optionally, in the page's order, as the
-  ALTER RESOURCE MONITOR fix already does. No parser change was made to fit
-  the samples.
+  `SCHEMA` scope with a stray `.a`; `parseShowScope` reads the dotted form for
+  those three classes alone, because other pages write only the scope
+  keywords.
 
 The remaining rows are all `reject` in omni and `accept` in the docs, grouped
 by the page whose notation or reading leaves them:
@@ -151,9 +145,11 @@ by the page whose notation or reading leaves them:
 | alter-stage | 19 | `ALTER STAGE [ IF EXISTS ] <name> SET { [ externalStageParams ] [ FILE_FORMAT = ( ... ) ] [ COMMENT = '<string_literal>' ] }`, and the external stage's Amazon S3, Google Cloud Storage and Microsoft Azure `externalStageParams` are all optional too, as the page writes them (the Amazon S3 one after docs-fixes lets an ALTER change the credentials or encryption and keep the URL). Nothing says "at least one", so `ALTER STAGE a SET` is the page's own shape; a page-local fix would invent a required parameter ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-stage)). The `statement` rule holds the same form as `statement/alterStage`. |
 | alter-task-graph | 9 | `SET <property> = <value> [ , <property> = <value> ... ]`, `UNSET <property> [ , ... ]`, `SET TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )` and its UNSET. The page says the properties are "the ones listed in CREATE TASK GRAPH" and lists the defaults only in prose, so its notation derives any name, `SET a = a` and a repeated property alike; omni checks the names, which no grammar there can ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph)). |
 | create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )`: the page's list of supported default properties is prose in its TASK_DEFAULTS parameter, so `a = a` and a repeated one are the notation's, not a stated form ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)). |
+| create-interactive-warehouse | 2 | `objectProperties` and `objectParams` are one `NAME = value` per line, which the converter reads as any number of them, so the run may name the same property twice. The page's examples never repeat one, but its parameters do not say one may not be set twice either. Rewriting the list to forbid a repeat in `docs-fixes.tsv` means fixing the page's order, which stops the docs deriving the unordered combinations omni accepts (`COMMENT` before `MAX_CONCURRENCY_LEVEL`, as `TestParseCreateInteractiveWarehouse` holds), so the row stays until an engine oracle settles it; no parser change was made to fit the sample. |
+| alter-organization-user, create-organization-user | 2 | The same `objectProperties` run, one row for each page: `EMAIL = 's' EMAIL = 's'` is the converter's sample of a repeat ([alter](https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user), [create](https://docs.snowflake.com/en/sql-reference/sql/create-organization-user)). |
 
-The agree count moved from 20,472 to 20,529 and the `undocumented` count from
-53,222 to 53,289; the total moved from 73,743 to 73,849, because the four
-property-list rules now have one alternative per property instead of the two
-a `( ... )+` run had. The pin is the same: `docs-fixes.tsv` changed, the pages
-did not. No alternative row that agreed with the docs stopped agreeing.
+The agree count moved from 20,472 to 20,486 and the total and `undocumented`
+counts stay at 73,743 and 53,222: every closed row was already in the file,
+and the four property-run rows keep the grammar the docs page writes. The pin
+is the same: only the parser and its tests moved. No `expected` cell was edited
+by hand, and no alternative row that agreed with the docs stopped agreeing.

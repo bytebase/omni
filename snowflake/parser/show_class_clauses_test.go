@@ -130,6 +130,9 @@ func TestShowClassClauses(t *testing.T) {
 		"SHOW SHARED CONTENT IN APPLICATION PACKAGE p",
 		// FOR METRIC follows IN <semantic_view_name> only.
 		"SHOW SEMANTIC DIMENSIONS IN SCHEMA s FOR METRIC m",
+		// Only the semantic pages take a QNAME as their IN choice; the
+		// others write the SCHEMA scope and a name.
+		"SHOW AGENTS IN SCHEMA.a",
 		"SHOW SEMANTIC DIMENSIONS FOR METRIC m",
 		// Each clause belongs to its class and scope.
 		"SHOW TABLES IN APPLICATION PACKAGE p FOR VERSION v",

@@ -504,10 +504,11 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 			if err != nil {
 				return err
 			}
-			if _, ok := x.(*ast.FuncCallExpr); !ok {
+			call, ok := x.(*ast.FuncCallExpr)
+			if !ok || !oneStringArg(call) {
 				return &ParseError{
 					Position: e.Loc.Start, End: p.prev.Loc.End,
-					Message: "syntax error: IMPORTS takes a source location or a system function call",
+					Message: "syntax error: IMPORTS takes a source location, or a system function call with one string",
 				}
 			}
 			e.Expr = x
@@ -524,6 +525,16 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 		}
 		return nil
 	})
+}
+
+// oneStringArg reports whether call is the page's system function: it takes
+// exactly one string, as SYSTEM$LOCATE_DBT_ARCHIVE('<query_id>') does.
+func oneStringArg(call *ast.FuncCallExpr) bool {
+	if len(call.Args) != 1 {
+		return false
+	}
+	lit, ok := call.Args[0].(*ast.Literal)
+	return ok && lit.Kind == ast.LitString
 }
 
 // execBundleArgs reads ( { '<arg>' | :<variable> } [ , ... ] ).

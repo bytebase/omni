@@ -1827,13 +1827,12 @@ alterOrganizationUnsetEventRoutingTable
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user
 // fix: UNSET names the objectProperties without their values, as the example UNSET TYPE does
-// fix: objectProperties lists the page's properties in its order; a run of them made the same property repeat, and neither the page's examples nor its parameters set one twice
 alterOrganizationUser
     : 'ALTER' 'ORGANIZATION' 'USER' ('IF' 'EXISTS')? ID 'SET' alterOrganizationUser_objectProperties
     | 'ALTER' 'ORGANIZATION' 'USER' ID 'UNSET' ('EMAIL' | 'DISPLAY_NAME' | 'FIRST_NAME' | 'MIDDLE_NAME' | 'LAST_NAME' | 'TYPE' | 'COMMENT') (',' ('EMAIL' | 'DISPLAY_NAME' | 'FIRST_NAME' | 'MIDDLE_NAME' | 'LAST_NAME' | 'TYPE' | 'COMMENT'))*
     ;
 alterOrganizationUser_objectProperties
-    : ('EMAIL' '=' STRING ('DISPLAY_NAME' '=' STRING)? ('FIRST_NAME' '=' STRING)? ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'DISPLAY_NAME' '=' STRING ('FIRST_NAME' '=' STRING)? ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'FIRST_NAME' '=' STRING ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'MIDDLE_NAME' '=' STRING ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'LAST_NAME' '=' STRING ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'TYPE' '=' ('PERSON' | 'SERVICE') ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    : ('EMAIL' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE') | 'COMMENT' '=' STRING)+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-organization-user-group
@@ -3558,17 +3557,15 @@ createInteractiveTable
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-interactive-warehouse
-// fix: objectProperties lists the page's properties in its order; a run of them made the same property repeat, and neither the page's examples nor its parameters set one twice
-// fix: objectParams lists the page's properties in its order; a run of them made the same property repeat, and neither the page's examples nor its parameters set one twice
 createInteractiveWarehouse
     : 'CREATE' ('OR' 'REPLACE')? 'INTERACTIVE' 'WAREHOUSE' QNAME ('TABLES' '(' QNAME (',' QNAME)* ')')? ('WITH'? createInteractiveWarehouse_objectProperties)? ('WITH'? 'TAG' '(' QNAME '=' STRING (',' QNAME '=' STRING)* ')')? createInteractiveWarehouse_objectParams?
     | 'CREATE' 'INTERACTIVE' 'WAREHOUSE' ('IF' 'NOT' 'EXISTS')? QNAME ('TABLES' '(' QNAME (',' QNAME)* ')')? ('WITH'? createInteractiveWarehouse_objectProperties)? ('WITH'? 'TAG' '(' QNAME '=' STRING (',' QNAME '=' STRING)* ')')? createInteractiveWarehouse_objectParams?
     ;
 createInteractiveWarehouse_objectProperties
-    : ('WAREHOUSE_SIZE' '=' ('XSMALL' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' | 'XXLARGE' | 'XXXLARGE' | 'X4LARGE') ('MAX_CLUSTER_COUNT' '=' NUMBER)? ('MIN_CLUSTER_COUNT' '=' NUMBER)? ('AUTO_SUSPEND' '=' (NUMBER | 'NULL'))? ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE'))? ('RESOURCE_MONITOR' '=' ID)? ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'MAX_CLUSTER_COUNT' '=' NUMBER ('MIN_CLUSTER_COUNT' '=' NUMBER)? ('AUTO_SUSPEND' '=' (NUMBER | 'NULL'))? ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE'))? ('RESOURCE_MONITOR' '=' ID)? ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'MIN_CLUSTER_COUNT' '=' NUMBER ('AUTO_SUSPEND' '=' (NUMBER | 'NULL'))? ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE'))? ('RESOURCE_MONITOR' '=' ID)? ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'AUTO_SUSPEND' '=' (NUMBER | 'NULL') ('AUTO_RESUME' '=' ('TRUE' | 'FALSE'))? ('INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE'))? ('RESOURCE_MONITOR' '=' ID)? ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE') ('INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE'))? ('RESOURCE_MONITOR' '=' ID)? ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE') ('RESOURCE_MONITOR' '=' ID)? ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'RESOURCE_MONITOR' '=' ID ('FALLBACK_WAREHOUSE' '=' ID)? ('COMMENT' '=' STRING)? | 'FALLBACK_WAREHOUSE' '=' ID ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    : ('WAREHOUSE_SIZE' '=' ('XSMALL' | 'SMALL' | 'MEDIUM' | 'LARGE' | 'XLARGE' | 'XXLARGE' | 'XXXLARGE' | 'X4LARGE') | 'MAX_CLUSTER_COUNT' '=' NUMBER | 'MIN_CLUSTER_COUNT' '=' NUMBER | 'AUTO_SUSPEND' '=' (NUMBER | 'NULL') | 'AUTO_RESUME' '=' ('TRUE' | 'FALSE') | 'INITIALLY_SUSPENDED' '=' ('TRUE' | 'FALSE') | 'RESOURCE_MONITOR' '=' ID | 'FALLBACK_WAREHOUSE' '=' ID | 'COMMENT' '=' STRING)+
     ;
 createInteractiveWarehouse_objectParams
-    : ('MAX_CONCURRENCY_LEVEL' '=' NUMBER ('STATEMENT_QUEUED_TIMEOUT_IN_SECONDS' '=' NUMBER)? ('STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER)? | 'STATEMENT_QUEUED_TIMEOUT_IN_SECONDS' '=' NUMBER ('STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER)? | 'STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER)
+    : ('MAX_CONCURRENCY_LEVEL' '=' NUMBER | 'STATEMENT_QUEUED_TIMEOUT_IN_SECONDS' '=' NUMBER | 'STATEMENT_TIMEOUT_IN_SECONDS' '=' NUMBER)+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-join-policy
@@ -3778,12 +3775,11 @@ createOrganizationProfile
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-organization-user
-// fix: objectProperties lists the page's properties in its order; a run of them made the same property repeat, and neither the page's examples nor its parameters set one twice
 createOrganizationUser
     : 'CREATE' 'ORGANIZATION' 'USER' ('IF' 'NOT' 'EXISTS')? ID createOrganizationUser_objectProperties?
     ;
 createOrganizationUser_objectProperties
-    : ('EMAIL' '=' STRING ('LOGIN_NAME' '=' STRING)? ('DISPLAY_NAME' '=' STRING)? ('FIRST_NAME' '=' STRING)? ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'LOGIN_NAME' '=' STRING ('DISPLAY_NAME' '=' STRING)? ('FIRST_NAME' '=' STRING)? ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'DISPLAY_NAME' '=' STRING ('FIRST_NAME' '=' STRING)? ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'FIRST_NAME' '=' STRING ('MIDDLE_NAME' '=' STRING)? ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'MIDDLE_NAME' '=' STRING ('LAST_NAME' '=' STRING)? ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'LAST_NAME' '=' STRING ('TYPE' '=' ('PERSON' | 'SERVICE'))? ('COMMENT' '=' STRING)? | 'TYPE' '=' ('PERSON' | 'SERVICE') ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
+    : ('EMAIL' '=' STRING | 'LOGIN_NAME' '=' STRING | 'DISPLAY_NAME' '=' STRING | 'FIRST_NAME' '=' STRING | 'MIDDLE_NAME' '=' STRING | 'LAST_NAME' '=' STRING | 'TYPE' '=' ('PERSON' | 'SERVICE') | 'COMMENT' '=' STRING)+
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/create-organization-user-group
