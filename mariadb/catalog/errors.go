@@ -654,8 +654,9 @@ func errTablespaceExists(db, table string) error {
 // engine has no tablespaces: 1031, measured on mariadb:11.8.8 for MyISAM, Aria
 // and MEMORY, where InnoDB takes both commands.
 func refuseTablespaceEngine(tbl *Table) error {
+	// ENGINE='DEFAULT' is the server's own engine, InnoDB on the pin.
 	engine := tbl.Engine
-	if engine == "" || eqFoldStr(engine, "InnoDB") {
+	if engine == "" || eqFoldStr(engine, "InnoDB") || eqFoldStr(engine, "DEFAULT") {
 		return nil
 	}
 	return &Error{Code: 1031, SQLState: "HY000",

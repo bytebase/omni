@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
@@ -174,10 +173,15 @@ func autoIncrementKeyed(tbl *Table, name string) bool {
 			}
 		}
 	}
-	if engine := toLower(tbl.Engine); engine == "" || engine == "innodb" {
-		return first
+	// InnoDB and MEMORY want the column first, MyISAM and Aria take it anywhere,
+	// measured on mariadb:11.8.8: `CREATE TABLE t (g INT, id INT AUTO_INCREMENT,
+	// KEY k (g, id))` answers 1075 on InnoDB and MEMORY and runs on MyISAM and
+	// Aria. An engine the catalog does not model keeps the stricter rule.
+	switch engine := toLower(tbl.Engine); engine {
+	case "myisam", "aria":
+		return anywhere
 	}
-	return anywhere
+	return first
 }
 
 // alterTableRun runs the commands of an ALTER TABLE, checking a partitioned
@@ -1500,30 +1504,6 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 	return name != "" && indexNameExists(tbl, name)
 }
 
-// isKeyIdentifierName reports whether a key part's name is one an identifier can
-// spell: a letter, digit, underscore or dollar, in any runes.
-func isKeyIdentifierName(name string) bool {
-	if name == "" {
-		return false
-	}
-	for _, r := range name {
-		if r == utf8.RuneError {
-			return false
-		}
-		if r < 0x80 {
-			switch {
-			case r == '_' || r == '$',
-				r >= '0' && r <= '9',
-				r >= 'a' && r <= 'z',
-				r >= 'A' && r <= 'Z':
-				continue
-			}
-			return false
-		}
-	}
-	return true
-}
-
 // validateAddedKeyColumns refuses a key part that names a column the table
 // does not have: mariadb:11.8.8 answers 1072 for ADD KEY, FULLTEXT, SPATIAL,
 // UNIQUE and FOREIGN KEY alike. A functional part is an expression, and a
@@ -1538,11 +1518,10 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 		if !ok || tbl.GetColumn(ref.Column) != nil {
 			continue
 		}
-		// A part of a definition that did not come from SQL may name something
-		// that is no identifier at all, as LoadMetadata's fallback for a key
-		// expression it could not parse does; it is not a column the statement
-		// failed to find.
-		if !isKeyIdentifierName(ref.Column) {
+		// A part with no position did not come from SQL: LoadMetadata keeps a
+		// key expression it could not parse as a name, so that the index still
+		// installs, and that name is no column the statement failed to find.
+		if ref.Loc.End == 0 {
 			continue
 		}
 		return errKeyColumnDoesNotExist(ref.Column)

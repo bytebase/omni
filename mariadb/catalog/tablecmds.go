@@ -219,8 +219,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// key) fails after the old table is dropped, and so it does here.
 		// MariaDB also rejects a malformed literal default ('not-a-date',
 		// 1067) after the drop; the catalog does not check those.
+		replacedCollation := c.declaredTableCollation(stmt.Options, db)
 		for _, colDef := range stmt.Columns {
-			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt), db.Collation); err != nil {
+			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt), replacedCollation); err != nil {
 				return err
 			}
 		}
@@ -1014,9 +1015,42 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			return err
 		}
 	}
+	// An AUTO_INCREMENT column takes the key its engine needs it in: measured on
+	// mariadb:11.8.8, `CREATE TABLE a (id INT AUTO_INCREMENT, b INT)` answers
+	// 1075 on every engine, `KEY k (g, id)` answers it on InnoDB and MEMORY and
+	// runs on MyISAM and Aria.
+	if err := validateAutoIncrementKeyed(tbl); err != nil {
+		return err
+	}
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+// declaredTableCollation is the collation a CREATE TABLE gives its columns that
+// name none: the table's own COLLATE, or the default of the CHARACTER SET it
+// names, or the database's.
+func (c *Catalog) declaredTableCollation(opts []*nodes.TableOption, db *Database) string {
+	charsetWildcard := ""
+	for _, opt := range opts {
+		if opt.EngineDefined {
+			continue
+		}
+		switch toLower(opt.Name) {
+		case "collate", "default collate":
+			if value := unquoteTableOption(opt.Value); value != "" {
+				return value
+			}
+		case "charset", "character set", "default charset", "default character set":
+			charsetWildcard = normalizeCharsetName(unquoteTableOption(opt.Value))
+		}
+	}
+	if charsetWildcard != "" {
+		if dc := c.charsetCollation(charsetWildcard); dc != "" {
+			return dc
+		}
+	}
+	return db.Collation
 }
 
 // validateDeclaredSystemTimePeriod judges the PERIOD FOR SYSTEM_TIME a CREATE

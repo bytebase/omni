@@ -66,13 +66,16 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	// the table already holds idx_d (1061), and a column that is no column of
 	// the table answers 1072 and a length over an INT column 1089, where a plain
 	// repeated column answers 1061.
-	if err := validateKeyTypeArguments(resolveIndexUsingType(stmt.IndexType, stmt.Options)); err != nil {
-		return err
-	}
 	for _, ic := range idxCols {
 		if ic.Name != "" && !ic.WithoutOverlaps && tbl.GetColumn(ic.Name) == nil {
 			return errKeyColumnDoesNotExist(ic.Name)
 		}
+	}
+	// The key's columns are looked up before its type: measured on
+	// mariadb:11.8.8, `CREATE INDEX k USING RTREE ON t(missing)` answers 1072,
+	// and `ON t(b)` over an INT column 1210.
+	if err := validateKeyTypeArguments(resolveIndexUsingType(stmt.IndexType, stmt.Options)); err != nil {
+		return err
 	}
 	long := false
 	if stmt.Unique && !stmt.Fulltext && !stmt.Spatial && !stmt.Vector {

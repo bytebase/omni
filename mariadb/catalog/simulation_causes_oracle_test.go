@@ -908,6 +908,56 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"enum('s','S')"},
 		},
+		// The auto column's key is the engine's: MEMORY wants it first, as
+		// InnoDB does, where MyISAM and Aria take it anywhere.
+		{
+			name: "CREATE TABLE on MEMORY with the auto column second in its key",
+			stmt: "CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MEMORY",
+			code: 1075,
+		},
+		{
+			name: "CREATE TABLE on MyISAM with the auto column second in its key",
+			stmt: "CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MyISAM",
+			code: 0,
+		},
+		// A key's columns are looked up before its type, on CREATE INDEX too.
+		{
+			name:   "CREATE INDEX USING RTREE over a missing column",
+			setup:  []string{"CREATE TABLE a (b INT, KEY k (b))"},
+			stmt:   "CREATE INDEX i USING RTREE ON a (missing)",
+			code:   1072,
+			absent: "i",
+		},
+		{
+			name:  "CREATE INDEX USING RTREE over an INT column",
+			setup: []string{"CREATE TABLE a (b INT, KEY k (b))"},
+			stmt:  "CREATE INDEX i USING RTREE ON a (b)",
+			code:  1210,
+		},
+		// A quoted name is a column name all the same, and one the table lacks is
+		// 1072.
+		{
+			name:   "CREATE TABLE with a quoted key column the table lacks",
+			stmt:   "CREATE TABLE a (b INT, KEY k (`missing name`))",
+			code:   1072,
+			absent: "a",
+		},
+		// ENGINE='DEFAULT' is the server's own engine for a tablespace.
+		{
+			name:        "IMPORT TABLESPACE over an ENGINE='DEFAULT' table",
+			setup:       []string{"CREATE TABLE a (b INT) ENGINE='DEFAULT'"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1813,
+			keepsSchema: true,
+		},
+		// CREATE OR REPLACE reads its own collation, not the database's.
+		{
+			name:     "CREATE OR REPLACE TABLE with a case-sensitive table collation",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "CREATE OR REPLACE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"enum('s','S')"},
+		},
 		// A column the table already holds is 1060 before the key it would be
 		// is read, where the same statement over a free name is 1068.
 		{
