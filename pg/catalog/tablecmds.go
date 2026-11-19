@@ -1887,6 +1887,10 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 		// If the source index backs a constraint, clone the constraint too.
 		// pg: same logic as cloneIndexesToPartition — PK/UNIQUE constraints
 		// are backed by indexes and must be cloned together.
+		if am := c.accessMethodByName[newIdx.AccessMethod]; am != nil {
+			c.recordDependency('i', newIdx.OID, 0, 'm', am.OID, 0, DepNormal)
+		}
+		c.recordOpClassDependencies('i', newIdx.OID, opClassRefsFrom(newIdx.OpClasses), newIdx.AccessMethod)
 		if idx.ConstraintOID != 0 {
 			srcCon := c.constraints[idx.ConstraintOID]
 			if srcCon != nil {

@@ -40,6 +40,11 @@ func (c *Catalog) schemaHasObjects(s *Schema) bool {
 			return true
 		}
 	}
+	for _, nsOID := range c.operatorSchemas {
+		if nsOID == s.OID {
+			return true
+		}
+	}
 	return false
 }
 

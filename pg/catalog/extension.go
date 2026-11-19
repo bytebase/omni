@@ -570,6 +570,9 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 		if extName == ext.Name {
 			memberOIDs[oid] = true
 			delete(c.extensionMembers, oid)
+			if evt := c.eventTriggers[oid]; evt != nil {
+				c.removeEventTrigger(evt)
+			}
 			if opc := c.opClasses[oid]; opc != nil {
 				if opc.IsDefault {
 					delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
@@ -672,30 +675,72 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 	}
 	oldSchema := c.schemas[oldOID]
 
-	moveRelations := func(rel *Relation) {
-		if oldSchema != nil && rel.Schema == oldSchema {
+	// Only this extension's members move.
+	var members []uint32
+	for oid, extName := range c.extensionMembers {
+		if extName == ext.Name {
+			members = append(members, oid)
+		}
+	}
+	sort.Slice(members, func(i, j int) bool { return members[i] < members[j] })
+
+	// Preflight the target relation namespace before mutating either schema.
+	for _, oid := range members {
+		rel := c.relationByOID[oid]
+		if rel == nil || oldSchema == nil || rel.Schema != oldSchema {
+			continue
+		}
+		if held := newSchema.Relations[rel.Name]; held != nil && held.OID != rel.OID {
+			return errDuplicateTable(rel.Name)
+		}
+		if newSchema.Indexes[rel.Name] != nil || newSchema.Sequences[rel.Name] != nil {
+			return errDuplicateTable(rel.Name)
+		}
+		if newSchema.Relations[rel.Name] == nil {
+			if _, ok := relationNamespaceKind(newSchema, rel.Name); ok {
+				return errDuplicateTable(rel.Name)
+			}
+		}
+	}
+	for _, oid := range members {
+		if idx := c.indexes[oid]; idx != nil && oldSchema != nil && idx.Schema == oldSchema {
+			if held := newSchema.Indexes[idx.Name]; held != nil && held.OID != idx.OID {
+				return errDuplicateObject("index", idx.Name)
+			}
+			if _, ok := relationNamespaceKind(newSchema, idx.Name); ok && newSchema.Indexes[idx.Name] == nil {
+				return errDuplicateTable(idx.Name)
+			}
+		}
+		if seq := c.sequenceByOID[oid]; seq != nil && oldSchema != nil && seq.Schema == oldSchema {
+			if held := newSchema.Sequences[seq.Name]; held != nil && held.OID != seq.OID {
+				return errDuplicateObject("sequence", seq.Name)
+			}
+			if _, ok := relationNamespaceKind(newSchema, seq.Name); ok && newSchema.Sequences[seq.Name] == nil {
+				return errDuplicateTable(seq.Name)
+			}
+		}
+		if bt := c.typeByOID[oid]; bt != nil && bt.Namespace == oldOID {
+			if held := c.typeByName[typeKey{ns: newSchema.OID, name: bt.TypeName}]; held != nil && held.OID != bt.OID {
+				return errDuplicateObject("type", bt.TypeName)
+			}
+		}
+	}
+
+	for _, oid := range members {
+		if rel := c.relationByOID[oid]; rel != nil && oldSchema != nil && rel.Schema == oldSchema {
 			delete(oldSchema.Relations, rel.Name)
 			newSchema.Relations[rel.Name] = rel
 			rel.Schema = newSchema
 		}
-	}
-	for oid := range c.extensionMembers {
-		if rel := c.relationByOID[oid]; rel != nil {
-			moveRelations(rel)
+		if idx := c.indexes[oid]; idx != nil && oldSchema != nil && idx.Schema == oldSchema {
+			delete(oldSchema.Indexes, idx.Name)
+			newSchema.Indexes[idx.Name] = idx
+			idx.Schema = newSchema
 		}
-		if idx := c.indexes[oid]; idx != nil {
-			if oldSchema != nil && idx.Schema == oldSchema {
-				delete(oldSchema.Indexes, idx.Name)
-				newSchema.Indexes[idx.Name] = idx
-				idx.Schema = newSchema
-			}
-		}
-		if seq := c.sequenceByOID[oid]; seq != nil {
-			if oldSchema != nil && seq.Schema == oldSchema {
-				delete(oldSchema.Sequences, seq.Name)
-				newSchema.Sequences[seq.Name] = seq
-				seq.Schema = newSchema
-			}
+		if seq := c.sequenceByOID[oid]; seq != nil && oldSchema != nil && seq.Schema == oldSchema {
+			delete(oldSchema.Sequences, seq.Name)
+			newSchema.Sequences[seq.Name] = seq
+			seq.Schema = newSchema
 		}
 		if bt := c.typeByOID[oid]; bt != nil && bt.Namespace == oldOID {
 			delete(c.typeByName, typeKey{ns: oldOID, name: bt.TypeName})
@@ -704,6 +749,18 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 		}
 		if up := c.userProcs[oid]; up != nil && oldSchema != nil && up.Schema == oldSchema {
 			up.Schema = newSchema
+		}
+		if c.operatorSchemas[oid] == oldOID {
+			c.operatorSchemas[oid] = newSchema.OID
+		}
+		if opc := c.opClasses[oid]; opc != nil && opc.Schema == oldOID {
+			opc.Schema = newSchema.OID
+		}
+		if fam := c.opFamilies[oid]; fam != nil && fam.Schema == oldOID {
+			fam.Schema = newSchema.OID
+		}
+		if evt := c.eventTriggers[oid]; evt != nil {
+			_ = evt
 		}
 	}
 	ext.SchemaOID = newSchema.OID

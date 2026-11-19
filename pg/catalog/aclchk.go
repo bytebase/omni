@@ -32,12 +32,8 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 	// Extract grantees.
 	grantees := c.extractGrantees(stmt.Grantees)
 	// A dump grants to cluster-wide roles it does not create, so a grantee is
-	// recorded as observed rather than required.
-	for _, grantee := range grantees {
-		if grantee != "" {
-			c.roles[grantee] = true
-		}
-	}
+	// recorded as observed rather than required — but only once the statement
+	// has succeeded, as PostgreSQL's rollback would undo an earlier record.
 
 	// Determine object type code.
 	objTypeCode := grantObjTypeCode(nodes.ObjectType(stmt.Objtype))
@@ -49,10 +45,21 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 			return err
 		}
 	}
+	var execErr error
 	if stmt.IsGrant {
-		return c.execGrant(stmt, objTypeCode, privs, grantees, grantor)
+		execErr = c.execGrant(stmt, objTypeCode, privs, grantees, grantor)
+	} else {
+		execErr = c.execRevoke(stmt, objTypeCode, privs, grantees, grantor)
 	}
-	return c.execRevoke(stmt, objTypeCode, privs, grantees, grantor)
+	if execErr != nil {
+		return execErr
+	}
+	for _, grantee := range grantees {
+		if grantee != "" {
+			c.roles[grantee] = true
+		}
+	}
+	return nil
 }
 
 func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string, grantor string) error {

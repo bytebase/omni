@@ -181,6 +181,11 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	if persistence == 0 {
 		persistence = 'p'
 	}
+	if into.AccessMethod != "" {
+		if am := c.accessMethodByName[into.AccessMethod]; am != nil {
+			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
+		}
+	}
 	rel := &Relation{
 		OID:           relOID,
 		Name:          mvName,

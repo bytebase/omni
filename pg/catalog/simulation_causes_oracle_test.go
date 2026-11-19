@@ -1927,6 +1927,103 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatal("DROP SCHEMA CASCADE left the relocated extension")
 		}
 
+		// #171/#172/#173: ALTER EXTENSION SET SCHEMA moves only that
+		// extension's members, keeps their namespaces in step, and refuses a
+		// target that already holds a member's name.
+		RegisterExtensionSQL("test_move_ext", "CREATE TABLE move_member (a int);")
+		defer delete(extensionScripts, "test_move_ext")
+		c41 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA move_a",
+			"CREATE SCHEMA move_b",
+			"CREATE EXTENSION test_move_ext SCHEMA move_a",
+			"CREATE SCHEMA blocker",
+			"CREATE TABLE blocker.move_member (a int)",
+		} {
+			if code := simulationCatalogCode(t, c41, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c41, "ALTER EXTENSION test_move_ext SET SCHEMA blocker"); code != CodeDuplicateTable {
+			t.Fatalf("SET SCHEMA onto a taken name answered %s, want %s", code, CodeDuplicateTable)
+		}
+		if c41.schemaByName["move_a"].Relations["move_member"] == nil {
+			t.Fatal("a refused SET SCHEMA moved the member out of its schema")
+		}
+		if code := simulationCatalogCode(t, c41, "ALTER EXTENSION test_move_ext SET SCHEMA move_b"); code != "0" {
+			t.Fatalf("SET SCHEMA into a free schema answered %s", code)
+		}
+		if c41.schemaByName["move_a"].Relations["move_member"] != nil || c41.schemaByName["move_b"].Relations["move_member"] == nil {
+			t.Fatal("SET SCHEMA did not move the member relation")
+		}
+
+		// #174: DROP EXTENSION removes an event trigger its script created.
+		RegisterExtensionSQL("test_evt_ext", "CREATE FUNCTION evt_ext_fn() RETURNS event_trigger LANGUAGE plpgsql AS 'BEGIN END'; CREATE EVENT TRIGGER evt_ext_trig ON ddl_command_start EXECUTE FUNCTION evt_ext_fn();")
+		defer delete(extensionScripts, "test_evt_ext")
+		c42 := New()
+		for _, stmt := range []string{"CREATE EXTENSION test_evt_ext", "DROP EXTENSION test_evt_ext"} {
+			if code := simulationCatalogCode(t, c42, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if len(c42.eventTriggers) != 0 {
+			t.Fatalf("DROP EXTENSION left %d event triggers", len(c42.eventTriggers))
+		}
+
+		// #175 & #176: CREATE TABLE AS and LIKE-cloned indexes record their
+		// access-method dependencies.
+		RegisterExtensionSQL("test_am_ext2", "CREATE ACCESS METHOD test_am2 TYPE INDEX HANDLER btbuild;")
+		defer delete(extensionScripts, "test_am_ext2")
+		c43 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_am_ext2",
+			"CREATE TABLE am_src (a int)",
+			"CREATE INDEX am_src_idx ON am_src USING test_am2 (a)",
+			"CREATE TABLE am_dst (LIKE am_src INCLUDING INDEXES)",
+			"DROP TABLE am_src",
+		} {
+			if code := simulationCatalogCode(t, c43, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c43, "DROP EXTENSION test_am_ext2"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION with a LIKE-cloned AM index answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		// #177: a failed GRANT does not leave its grantee recorded.
+		c44 := New()
+		if code := simulationCatalogCode(t, c44, "GRANT SELECT ON missing_table TO ghost"); code == "0" {
+			t.Fatal("GRANT on a missing table was accepted")
+		}
+		if c44.roles["ghost"] {
+			t.Fatal("a failed GRANT recorded its grantee")
+		}
+
+		// #178: a schema holding only a user operator is not empty.
+		c45 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA op_s",
+			"CREATE FUNCTION op_s.cmp(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"CREATE OPERATOR op_s.=== (LEFTARG = int, RIGHTARG = int, PROCEDURE = op_s.cmp)",
+		} {
+			if code := simulationCatalogCode(t, c45, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c45, "DROP SCHEMA op_s"); code != CodeSchemaNotEmpty {
+			t.Fatalf("DROP SCHEMA over an operator answered %s, want %s", code, CodeSchemaNotEmpty)
+		}
+		if code := simulationCatalogCode(t, c45, "DROP SCHEMA op_s CASCADE"); code != "0" {
+			t.Fatalf("DROP SCHEMA op_s CASCADE answered %s", code)
+		}
+		if c45.operatorSchemas != nil {
+			for oid, ns := range c45.operatorSchemas {
+				if ns == c45.schemaByName["op_s"].OID {
+					t.Fatalf("CASCADE left operator %d in the dropped schema", oid)
+				}
+			}
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

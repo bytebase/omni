@@ -155,6 +155,15 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			}
 			c.removeFunctionsInSchema(s)
 			c.removeTypesInSchema(s)
+			var opOIDs []uint32
+			for oid, nsOID := range c.operatorSchemas {
+				if nsOID == s.OID {
+					opOIDs = append(opOIDs, oid)
+				}
+			}
+			for _, oid := range opOIDs {
+				c.removeOperator(oid)
+			}
 		}
 
 		c.removeGrantsForObject('n', s.OID)
