@@ -12884,3 +12884,14 @@ func TestSetOperationAndIndexArmRefusals(t *testing.T) {
 	ParseAndCheck(t, "ALTER TABLE t ADD (SPATIAL KEY i (a))")
 	ParseAndCheck(t, "ALTER TABLE t ADD (UNIQUE KEY u (a))")
 }
+
+func TestQuotedLeakOptionIsNoDumpMemory(t *testing.T) {
+	ParseAndCheck(t, "SET OPTION LEAK_MOD = 's'")
+	ParseAndCheck(t, "SET OPTION LEAK_RATE = 1")
+	for _, sql := range []string{
+		"SET OPTION `LEAK_MOD` = 's'",
+		"SET OPTION `LEAK_RATE` = 1",
+	} {
+		ParseExpectError(t, sql)
+	}
+}

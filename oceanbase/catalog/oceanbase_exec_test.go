@@ -388,3 +388,18 @@ func TestOracle_OceanBaseQueryFirst(t *testing.T) {
 		}},
 	})
 }
+
+// TestGroupingSetCollationIsChecked pins that a collation comparison the engine
+// cannot make is refused inside a grouping set too: validateViewSelectCollations
+// reaches every one of its items.
+func TestGroupingSetCollationIsChecked(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE t (a INT)")
+	results, _ := c.Exec("CREATE VIEW v AS SELECT 1 FROM t GROUP BY ROLLUP('a' COLLATE utf8mb4_bin = 'b' COLLATE utf8mb4_general_ci)", &ExecOptions{ContinueOnError: true})
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1267 {
+		t.Fatalf("expected error 1267, got %v", results[0].Error)
+	}
+	if c.GetDatabase("testdb").Views["v"] != nil {
+		t.Fatal("the view was installed despite the collation error")
+	}
+}

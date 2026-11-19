@@ -684,6 +684,16 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.QuantifiedExpr:
 		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.GroupingSet:
+		// A grouping set's items are expressions like any other: each is checked
+		// for a comparison of collations it cannot make, though the set itself
+		// gives the result no character set.
+		for _, item := range e.Items {
+			if _, err := inferViewExprCollation(item, relations); err != nil {
+				return viewCollationInfo{}, err
+			}
+		}
+		return viewCollationInfo{}, nil
 	case *nodes.BinaryExpr:
 		return inferViewBinaryCollation(e, relations)
 	case *nodes.UnaryExpr:

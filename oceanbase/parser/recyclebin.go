@@ -300,6 +300,11 @@ func (p *Parser) atSetOptionLeak() bool {
 		return false
 	}
 	next := p.peekNext()
+	// dump_memory_stmt's arms name the unquoted LEAK_MOD and LEAK_RATE
+	// terminals; a backtick-quoted name selects neither of them.
+	if p.backtickQuotedAt(next.Loc) {
+		return false
+	}
 	return (next.Type == tokIDENT || next.Type >= 700) &&
 		(strings.EqualFold(next.Str, "LEAK_MOD") || strings.EqualFold(next.Str, "LEAK_RATE"))
 }
