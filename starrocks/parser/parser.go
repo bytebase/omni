@@ -1067,6 +1067,12 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int,
 			if errs := p.validateRawQueries(); len(errs) > 0 {
 				p.errors = append(p.errors, errs...)
 				node = nil
+			} else if len(p.rawQueries) > 0 && node != nil && treeTooHigh(node, len(segText)) {
+				// validateRawQueries attaches parsed bodies onto RawQuery and
+				// SubqueryExpr after the initial treeTooHigh check above, so
+				// remeasure the completed statement tree before returning it.
+				p.errors = append(p.errors, *nestedTooDeeply(first.Loc))
+				node = nil
 			}
 		}
 		result = node
