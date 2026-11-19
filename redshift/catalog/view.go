@@ -470,6 +470,8 @@ func (w *viewDepWalker) query(q *Query) {
 		}
 		w.expr(q.JoinTree.Quals)
 	}
+	w.expr(q.StartWithQual)
+	w.expr(q.ConnectByQual)
 	w.expr(q.HavingQual)
 	w.expr(q.LimitCount)
 	w.expr(q.LimitOffset)

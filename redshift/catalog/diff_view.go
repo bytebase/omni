@@ -90,6 +90,16 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		changed = true
 	}
 
+	// Compare the storage a materialized view names: its USING access method and
+	// its option list (BACKUP, DISTSTYLE, DISTKEY, SORTKEY, ENCODE, AUTO REFRESH,
+	// and the Iceberg form's clauses).
+	if from.RelKind == 'm' || to.RelKind == 'm' {
+		if from.MatViewAccessMethod != to.MatViewAccessMethod ||
+			deparseMatViewOptions(from) != deparseMatViewOptions(to) {
+			changed = true
+		}
+	}
+
 	// Column sub-diff (views are relations too).
 	cols := diffColumns(fromCat, toCat, from, to)
 	if len(cols) > 0 {

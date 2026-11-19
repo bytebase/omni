@@ -395,7 +395,14 @@ func (p *Parser) isSeqOptElemStart() bool {
 // Its set is seqOptElemLeadTokens, which pg/parser's TestSeqOptElemLeadTokensMatchPG
 // holds to PostgreSQL.
 func (p *Parser) isSeqOptElemLead() bool {
-	return slices.Contains(seqOptElemLeadTokens, p.cur.Type)
+	return isSeqOptElemLeadToken(p.cur)
+}
+
+// isSeqOptElemLeadToken reports whether tok is one of seqOptElemLeadTokens.
+// It is the form of isSeqOptElemLead a caller uses when the token it asks
+// about is not p.cur, as the one after IDENTITY's '(' is.
+func isSeqOptElemLeadToken(tok Token) bool {
+	return slices.Contains(seqOptElemLeadTokens, tok.Type)
 }
 
 // isFrameDirectionStart reports whether tok is PRECEDING or FOLLOWING, which
@@ -761,4 +768,158 @@ func (p *Parser) isRedshiftCopyColumnStart() bool {
 	default:
 		return false
 	}
+}
+
+// isRedshiftConnectByStart reports whether the tokens begin r_SELECT_synopsis's
+// hierarchical-query clause, whose START WITH is optional and whose CONNECT BY
+// is not:
+//
+//	[ ( START WITH <expr> ) CONNECT BY <expr> ]
+//
+// START is unreserved and CONNECT is no keyword of this package, so both words
+// also name a relation or an alias: only START before WITH and CONNECT before
+// BY begin the clause (SELECT * FROM t START WITH 1 CONNECT BY 1).
+//
+// Validated by TestIsRedshiftConnectByStart in first_sets_test.go.
+func (p *Parser) isRedshiftConnectByStart() bool {
+	if p.cur.Type == START {
+		return p.peekNext().Type == WITH || p.cursorAfterCur()
+	}
+	return p.redshiftKeywordIs("connect") && (p.peekNext().Type == BY || p.cursorAfterCur())
+}
+
+// isRedshiftVacuumTwoWordModeStart reports whether the current token begins one
+// of the two VACUUM modes r_VACUUM_command writes with two words, SORT ONLY and
+// DELETE ONLY. Without ONLY the word is the relation VACUUM acts on, as the
+// docs' optional table name allows (VACUUM SORT).
+//
+// Validated by TestIsRedshiftVacuumTwoWordModeStart in first_sets_test.go.
+func (p *Parser) isRedshiftVacuumTwoWordModeStart() bool {
+	if p.cur.Type != DELETE_P && !p.redshiftKeywordIs("sort") {
+		return false
+	}
+	return p.peekNext().Type == ONLY || p.cursorAfterCur()
+}
+
+// redshiftPartitionTransformTokens is the FIRST set of the partition_transform
+// calls that keep their own name: YEAR, MONTH, DAY, HOUR and TRUNCATE. BUCKET is
+// no keyword of this package, so isRedshiftPartitionTransformCallStart matches
+// it as the word.
+var redshiftPartitionTransformTokens = []int{YEAR_P, MONTH_P, DAY_P, HOUR_P, TRUNCATE}
+
+// isRedshiftPartitionTransformCallStart reports whether the current token begins
+// one of the partition_transform calls above rather than naming the column a
+// bare transform holds. Each of the six is unreserved, so each names a column
+// unless '(' follows it.
+//
+// Grammar reference: materializedViewCreateSqlCommand_partition_transform in
+// RedshiftDocs.g4. Validated by TestIsRedshiftPartitionTransformCallStart in
+// first_sets_test.go.
+func (p *Parser) isRedshiftPartitionTransformCallStart() bool {
+	if p.peekNext().Type != '(' {
+		return false
+	}
+	return slices.Contains(redshiftPartitionTransformTokens, p.cur.Type) || p.redshiftKeywordIs("bucket")
+}
+
+// isRedshiftNumberStart reports whether the current token starts one of the
+// docs' NUMBER values. testdata/tokens.tsv samples NUMBER as an integer, so a
+// float is no NUMBER: AUTO REFRESH YES INTERVAL, BUCKET's bucket count and an
+// identity's seed and step all take a SignedIconst.
+//
+// Validated by TestIsRedshiftNumberStart in first_sets_test.go.
+func (p *Parser) isRedshiftNumberStart() bool {
+	switch p.cur.Type {
+	case ICONST:
+		return true
+	case '+', '-':
+		// A sign with no integer after it is no NUMBER, and
+		// parseNumericOnly would read it as zero.
+		return p.peekNext().Type == ICONST
+	}
+	return false
+}
+
+// redshiftMatViewTableOptionWords is the FIRST set of the ordinary
+// materialized-view clauses, in the order materializedViewCreateSqlCommand
+// writes them. None of the words is a keyword of this package, so each is
+// matched as the unquoted word, and AUTO stands for AUTO REFRESH's two.
+//
+// DO NOT extend this list without also extending parseRedshiftMatViewTableOptions.
+var redshiftMatViewTableOptionWords = []string{
+	"backup",
+	"diststyle",
+	"distkey",
+	"sortkey",
+	"compound",
+	"interleaved",
+	"auto",
+}
+
+// isRedshiftMatViewTableOptionStart reports whether the current token begins one
+// of the ordinary clauses above, which stage names: 0 before BACKUP, 1 before
+// DISTSTYLE, 2 before DISTKEY, 3 before SORTKEY and 4 before AUTO REFRESH.
+//
+// Validated by TestIsRedshiftMatViewTableOptionStart in first_sets_test.go.
+func (p *Parser) isRedshiftMatViewTableOptionStart(stage int) bool {
+	for _, word := range redshiftMatViewTableOptionWords {
+		if !p.redshiftKeywordIs(word) {
+			continue
+		}
+		switch word {
+		case "backup":
+			return stage <= 0
+		case "diststyle":
+			return stage <= 1
+		case "distkey":
+			return stage <= 2
+		case "sortkey", "compound", "interleaved":
+			return stage <= 3
+		default: // "auto"
+			return stage <= 4
+		}
+	}
+	return false
+}
+
+// isRedshiftIcebergMaterializedViewOptionStart reports whether the current token
+// begins one of the clauses the docs put after USING ICEBERG on a materialized
+// view: LOCATION, PARTITIONED BY or TABLE PROPERTIES. PARTITIONED is no keyword
+// of this package, so it is matched as the unquoted word; LOCATION, BY and TABLE
+// are keywords.
+//
+// Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
+// Validated by TestIsRedshiftIcebergMaterializedViewOptionStart in
+// first_sets_test.go.
+func (p *Parser) isRedshiftIcebergMaterializedViewOptionStart() bool {
+	return p.cur.Type == LOCATION || p.redshiftKeywordIs("partitioned") || p.cur.Type == TABLE
+}
+
+// isRedshiftRoleSpecStart reports whether tok begins a RoleSpec, which a
+// role_list repeats after a comma: a NonReservedWord, or one of the three roles
+// PostgreSQL writes as keywords. WITH begins no RoleSpec, so a comma before it
+// ends the list, which is how r_CREATE_GROUP repeats its WITH clause
+// (CREATE GROUP g WITH USER u, WITH USER v).
+//
+// Grammar reference: RoleSpec in postgres/src/backend/parser/gram.y, and
+// createGroup in RedshiftDocs.g4. Validated by TestIsRedshiftRoleSpecStart in
+// first_sets_test.go.
+func isRedshiftRoleSpecStart(tok Token) bool {
+	switch tok.Type {
+	case CURRENT_ROLE, CURRENT_USER, SESSION_USER:
+		return true
+	}
+	// parseRoleSpec's other form is parseNonReservedWord, whose FIRST set is
+	// wider than ColId's: a type or function name keyword such as FULL names a
+	// role too.
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		switch kw.Category {
+		case UnreservedKeyword, ColNameKeyword, TypeFuncNameKeyword:
+			return true
+		}
+	}
+	return false
 }

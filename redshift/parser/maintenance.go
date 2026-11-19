@@ -46,18 +46,16 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 		p.advance()
 		opts = append(opts, makeDefElem("full", nil))
 		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "full"}))
-	} else if p.redshiftWordEqual("sort") {
-		p.advance()
+	} else if p.isRedshiftVacuumTwoWordModeStart() {
+		mode := "delete_only"
+		if p.redshiftWordEqual("sort") {
+			mode = "sort_only"
+		}
+		p.advance() // consume SORT or DELETE
 		if _, err := p.expect(ONLY); err != nil {
 			return nil, err
 		}
-		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "sort_only"}))
-	} else if p.cur.Type == DELETE_P {
-		p.advance()
-		if _, err := p.expect(ONLY); err != nil {
-			return nil, err
-		}
-		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "delete_only"}))
+		opts = append(opts, makeDefElem("mode", &nodes.String{Str: mode}))
 	} else if p.cur.Type == REINDEX {
 		p.advance()
 		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "reindex"}))
@@ -155,9 +153,47 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 	n := &nodes.VacuumStmt{
 		IsVacuumCmd: false,
 	}
+	// r_ANALYZE_COMPRESSION is a statement of its own: [ table [ ( column
+	// [, ...] ) ] ] [ COMPROWS number ], and none of the ANALYZE clauses around
+	// it. Its column list may come with no table, so ANALYZE COMPRESSION (a)
+	// holds a relation with no name, its VaCols set and its Relation nil.
 	if p.cur.Type == COMPRESSION {
 		p.advance()
 		n.Options = appendToList(n.Options, makeDefElem("compression", nil))
+		switch {
+		case p.redshiftKeywordIs("comprows"):
+			// COMPROWS with no table before it: the whole database's tables.
+		case p.cur.Type == '(':
+			listLoc := p.pos()
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return nil, err
+			}
+			n.Rels = &nodes.List{Items: []nodes.Node{&nodes.VacuumRelation{
+				VaCols: cols,
+				Loc:    nodes.Loc{Start: listLoc, End: p.prev.End},
+			}}}
+		case p.isColId():
+			// r_ANALYZE_COMPRESSION names one table, whose columns are the
+			// parenthesized list; PostgreSQL's multi-relation VACUUM list is
+			// not this statement's.
+			rel, err := p.parseVacuumRelation()
+			if err != nil {
+				return nil, err
+			}
+			n.Rels = &nodes.List{Items: []nodes.Node{rel}}
+		}
+		if p.redshiftKeywordIs("comprows") {
+			p.advance()
+			// The docs' recognizer accepts COMPROWS with no number after it, so
+			// a bare COMPROWS parses; there is no count to record then.
+			if p.isRedshiftNumberStart() {
+				rows := p.parseSignedIconst()
+				n.Options = appendToList(n.Options, makeDefElem("comprows", &nodes.Integer{Ival: rows}))
+			}
+		}
+		n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		return n, nil
 	}
 	if p.cur.Type == VERBOSE {
 		p.advance()

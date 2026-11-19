@@ -191,9 +191,20 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :whereClause ")
 		writeNode(sb, n.WhereClause)
 	}
+	if n.GroupAll {
+		sb.WriteString(" :groupAll true")
+	}
 	if n.GroupClause != nil {
 		sb.WriteString(" :groupClause ")
 		writeNode(sb, n.GroupClause)
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :startWith ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.ConnectBy != nil {
+		sb.WriteString(" :connectBy ")
+		writeNode(sb, n.ConnectBy)
 	}
 	if n.HavingClause != nil {
 		sb.WriteString(" :havingClause ")
