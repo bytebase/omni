@@ -6352,6 +6352,10 @@ func TestParseCall(t *testing.T) {
 		"CALL my_proc()",
 		"CALL my_proc",
 		"CALL mydb.my_proc()",
+		// MariaDB calls a packaged routine by three parts, where MySQL takes
+		// two: measured on mariadb:11.8.8, `CALL a.a.a` parses.
+		"CALL mydb.mypkg.my_proc()",
+		"CALL mydb.mypkg.my_proc",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -8376,6 +8380,10 @@ func TestParseImportTable(t *testing.T) {
 func TestParseBinlog(t *testing.T) {
 	ParseAndCompare(t, "BINLOG 'base64str'", "{BINLOG :loc 0 :str \"base64str\"}")
 	ParseAndCompare(t, "BINLOG @a, @'b'", "{BINLOG :loc 0 :fragments [\"a\" \"b\"]}")
+	// MariaDB reads the word after '@' as a hostname, and an '@' the text ends
+	// at leaves it empty: measured on mariadb:11.8.8, `BINLOG @a, @` parses.
+	ParseAndCompare(t, "BINLOG @a, @", "{BINLOG :loc 0 :fragments [\"a\" \"\"]}")
+	ParseAndCompare(t, "BINLOG @, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
 	for _, sql := range []string{"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b"} {
 		ParseExpectError(t, sql)
 	}

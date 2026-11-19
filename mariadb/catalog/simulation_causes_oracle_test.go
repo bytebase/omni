@@ -722,6 +722,137 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:   0,
 			absent: "x",
 		},
+		// SYSTEM_TIME partitioning is a versioned table's (4124), and a
+		// PERIOD FOR SYSTEM_TIME a CREATE TABLE declares needs WITH SYSTEM
+		// VERSIONING (4125), answered before the table's name is looked up. An
+		// ALTER that adds a period over ordinary columns runs and stores nothing.
+		{
+			name:        "PARTITION BY SYSTEM_TIME of a table that is not versioned",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a PARTITION BY SYSTEM_TIME",
+			code:        4124,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE TABLE with a period and no versioning",
+			setup:       []string{oneTable},
+			stmt:        "CREATE TABLE a(PERIOD FOR SYSTEM_TIME(a, a))",
+			code:        4125,
+			keepsSchema: true,
+		},
+		{
+			name:        "ADD PERIOD FOR SYSTEM_TIME over ordinary columns",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a)",
+			code:        0,
+			keepsSchema: true,
+		},
+		// A CHECK or DEFAULT expression names columns of the table (1054).
+		{
+			name:  "ADD CHECK over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CHECK(a)",
+			code:  1054,
+		},
+		{
+			name:  "ADD CONSTRAINT CHECK over a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CONSTRAINT IF NOT EXISTS a CHECK(a)",
+			code:  1054,
+		},
+		{
+			name:  "ADD a column whose DEFAULT names no column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a INT DEFAULT VALUE",
+			code:  1054,
+		},
+		// A key names a column once (1060), takes a length over a string column
+		// only (1089), and takes no engine-defined option (1911); USING RTREE is
+		// an R-tree only through SPATIAL (1210).
+		{
+			name:  "ADD KEY naming a column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c, c)",
+			code:  1060,
+		},
+		{
+			name:  "ADD KEY with a length over an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c(1))",
+			code:  1089,
+		},
+		{
+			name:  "ADD KEY USING RTREE over an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY USING RTREE(c)",
+			code:  1210,
+		},
+		{
+			// The key's own type is judged before its name: the table holds an
+			// index called a, and the column is no geometry.
+			name:  "CREATE SPATIAL INDEX of a name the table has over an INT column",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY a (c))"},
+			stmt:  "CREATE SPATIAL INDEX a ON a(b)",
+			code:  1210,
+		},
+		{
+			name:  "CREATE FULLTEXT INDEX of a name the table has over an INT column",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, KEY a (c))"},
+			stmt:  "CREATE FULLTEXT INDEX a ON a(b)",
+			code:  1283,
+		},
+		{
+			name:  "ADD KEY with an engine-defined option",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c) x = 1",
+			code:  1911,
+		},
+		// AUTO_INCREMENT takes the first part of a key (1075), an ENUM lists a
+		// value once (1291), a WITHOUT OVERLAPS part names a period (4156), and
+		// IMPORT TABLESPACE needs a DISCARDed tablespace (1813).
+		{
+			name:        "ADD an AUTO_INCREMENT column no key leads with",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD a INT AUTO_INCREMENT",
+			code:        1075,
+			keepsSchema: true,
+		},
+		{
+			name:  "ADD an ENUM column listing a value twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a ENUM('s', 's')",
+			code:  1291,
+		},
+		{
+			name:  "ADD UNIQUE over a period the table does not have",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD UNIQUE(c, c WITHOUT OVERLAPS)",
+			code:  4156,
+		},
+		{
+			name:        "IMPORT TABLESPACE over a table whose tablespace was not DISCARDed",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1813,
+			keepsSchema: true,
+		},
+		// ALTER ... RENAME KEY of a key the table does not have is 1176, which the
+		// new name does not change.
+		{
+			name:        "RENAME KEY of a key the table does not have",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a RENAME KEY nosuch TO idx_d",
+			code:        1176,
+			keepsSchema: true,
+		},
+		// A column the table already holds is 1060 before the key it would be
+		// is read, where the same statement over a free name is 1068.
+		{
+			name:  "ADD an existing column SERIAL KEY KEY",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, a INT, KEY idx_d (b))"},
+			stmt:  "ALTER TABLE a ADD a SERIAL KEY KEY",
+			code:  1060,
+		},
 	}
 
 	for _, tc := range cases {

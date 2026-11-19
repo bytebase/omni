@@ -25,15 +25,13 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return err
 	}
 
-	// Check for duplicate key name.
-	if indexNameExists(tbl, stmt.IndexName) {
-		if stmt.IfNotExists {
-			return nil
-		}
-		if stmt.OrReplace {
-			return c.replaceIndex(tbl, stmt)
-		}
-		return errDupKeyName(stmt.IndexName)
+	// A name the table holds is a note under IF NOT EXISTS, which MariaDB reads
+	// before the key: `CREATE INDEX IF NOT EXISTS k (nosuch)` over a table that
+	// has k runs. Otherwise the name waits for the key's own errors below (1061,
+	// or another one).
+	nameExists := indexNameExists(tbl, stmt.IndexName)
+	if nameExists && stmt.IfNotExists {
+		return nil
 	}
 
 	// Build index columns from AST columns.
@@ -62,6 +60,20 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return err
 		}
 	}
+	// The key's own validity is judged before a name it collides with:
+	// measured on mariadb:11.8.8, `CREATE SPATIAL INDEX idx_d ON a (b)` over an
+	// INT b answers 1210 and `CREATE FULLTEXT INDEX idx_d ON a (b)` 1283 where
+	// the table already holds idx_d (1061), and a column that is no column of
+	// the table answers 1072 and a length over an INT column 1089, where a plain
+	// repeated column answers 1061.
+	if err := validateKeyTypeArguments(resolveIndexUsingType(stmt.IndexType, stmt.Options)); err != nil {
+		return err
+	}
+	for _, ic := range idxCols {
+		if ic.Name != "" && !ic.WithoutOverlaps && tbl.GetColumn(ic.Name) == nil {
+			return errKeyColumnDoesNotExist(ic.Name)
+		}
+	}
 	long := false
 	if stmt.Unique && !stmt.Fulltext && !stmt.Spatial && !stmt.Vector {
 		var err error
@@ -69,6 +81,16 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return err
 		}
 	} else if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+		return err
+	}
+
+	if nameExists {
+		if stmt.OrReplace {
+			return c.replaceIndex(tbl, stmt)
+		}
+		return errDupKeyName(stmt.IndexName)
+	}
+	if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
 		return err
 	}
 
@@ -149,6 +171,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			Columns:   cols,
 			IndexName: stmt.IndexName,
 		})
+	}
+	if err := c.validateKeyEngineOptions(tbl); err != nil {
+		*tbl = snapshot
+		return err
 	}
 
 	return nil

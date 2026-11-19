@@ -640,6 +640,41 @@ func errUnknownOption(name string) error {
 	return &Error{Code: 1911, SQLState: "HY000", Message: fmt.Sprintf("Unknown option '%s'", name)}
 }
 
+// errTablespaceExists is 1813, ALTER TABLE ... IMPORT TABLESPACE over a table
+// whose tablespace was not DISCARDed first, which is every table the server
+// created itself: measured on mariadb:11.8.8, `ALTER TABLE a IMPORT TABLESPACE`
+// answers "Tablespace for table 'db/a' exists. Please DISCARD the tablespace
+// before IMPORT".
+func errTablespaceExists(db, table string) error {
+	return &Error{Code: 1813, SQLState: "HY000",
+		Message: fmt.Sprintf("Tablespace for table '%s/%s' exists. Please DISCARD the tablespace before IMPORT", db, table)}
+}
+
+// errDupColumnInKey is 1060 for a key naming a column twice: measured on
+// mariadb:11.8.8, `ALTER TABLE a ADD KEY(b, b)` answers "Duplicate column name
+// 'b'", as CREATE TABLE with the same key does.
+func errDupColumnInKey(name string) error {
+	return &Error{Code: ErrDupColumn, SQLState: sqlState(ErrDupColumn),
+		Message: fmt.Sprintf("Duplicate column name '%s'", name)}
+}
+
+// errKeyPartNotString is 1089 for a key part with a length over a column that
+// takes none: measured on mariadb:11.8.8, `ADD KEY(b(1))` over an INT column b
+// answers it, as the same key part in CREATE TABLE and CREATE INDEX does.
+func errKeyPartNotString() error {
+	return &Error{Code: 1089, SQLState: "HY000",
+		Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+}
+
+// errDupEnumValue is 1291: an ENUM or SET column listing a value twice.
+// MariaDB compares the values case-insensitively and names the first spelling.
+// Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))` answers
+// "Column 'e' has duplicated value 's' in ENUM".
+func errDupEnumValue(column, value, kind string) error {
+	return &Error{Code: 1291, SQLState: "HY000",
+		Message: fmt.Sprintf("Column '%s' has duplicated value '%s' in %s", column, value, kind)}
+}
+
 // errSequenceInvalidTableStructure is 4086: SEQUENCE=1 on a table whose columns
 // are not a sequence's. Measured on mariadb:11.8.8.
 func errSequenceInvalidTableStructure(db, table string) error {

@@ -51,6 +51,9 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
+	if err := validateEnumSetValues(colDef); err != nil {
+		return err
+	}
 	typeName := normalizedColumnDataType(colDef.TypeName)
 	switch typeName {
 	case "datetime", "timestamp", "time":
@@ -317,6 +320,115 @@ func validatePrimaryKeyColumns(tbl *Table, cols []string) error {
 // Measured on mariadb:11.8.8.
 func validateColumnCheckReferences(colName, conName string, expr nodes.ExprNode) error {
 	return validateCheckExpr(conName, expr)
+}
+
+// validateExprColumns refuses an expression that names a column the table does
+// not have: 1054, with the context MariaDB gives it. MariaDB reads a bare word
+// in a CHECK or a DEFAULT expression as a column of the table, so
+// `ALTER TABLE a ADD CHECK(a)` over a table without column a answers "Unknown
+// column 'a' in 'CHECK'", and `ADD a INT DEFAULT VALUE` answers "Unknown column
+// 'VALUE' in 'DEFAULT'"; `DEFAULT (b + 1)` over a column b runs. A qualified
+// name is another matter — the server answers 1901 for one naming no table — and
+// is left alone. Measured on mariadb:11.8.8.
+func validateExprColumns(tbl *Table, expr nodes.ExprNode, context string) error {
+	if expr == nil {
+		return nil
+	}
+	// A sequence's name is a column reference too, as in `DEFAULT
+	// NEXTVAL(s)`, and it names no column of the table: the arguments of
+	// NEXTVAL, LASTVAL and SETVAL are skipped.
+	sequences := map[*nodes.ColumnRef]bool{}
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		fc, ok := n.(*nodes.FuncCallExpr)
+		if !ok || len(fc.Args) == 0 {
+			return true
+		}
+		switch strings.ToUpper(fc.Name) {
+		case "NEXTVAL", "LASTVAL", "SETVAL":
+			if cr, ok := fc.Args[0].(*nodes.ColumnRef); ok {
+				sequences[cr] = true
+			}
+			if cr, ok := unwrapParenColumnRef(fc.Args[0]); ok {
+				sequences[cr] = true
+			}
+		}
+		return true
+	})
+	missing := ""
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if missing != "" {
+			return false
+		}
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" || cr.Table != "" || cr.Schema != "" || sequences[cr] {
+			return true
+		}
+		if tbl.GetColumn(cr.Column) == nil {
+			missing = cr.Column
+		}
+		return true
+	})
+	if missing != "" {
+		return errNoSuchColumn(missing, context)
+	}
+	return nil
+}
+
+// unwrapParenColumnRef returns the column reference a parenthesized argument
+// holds, as `NEXTVAL((s))` writes it.
+func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
+	if p, ok := expr.(*nodes.ParenExpr); ok {
+		return unwrapParenColumnRef(p.Expr)
+	}
+	cr, ok := expr.(*nodes.ColumnRef)
+	return cr, ok
+}
+
+// validateColumnExprColumns holds the expressions a column definition carries to
+// validateExprColumns: the column's own DEFAULT, and each CHECK written beside
+// it. A column-level CHECK may name the column it is declared on, which the
+// table holds once the column is in.
+func validateColumnExprColumns(tbl *Table, colDef *nodes.ColumnDef) error {
+	if colDef == nil {
+		return nil
+	}
+	if err := validateExprColumns(tbl, colDef.DefaultValue, "DEFAULT"); err != nil {
+		return err
+	}
+	for _, cc := range colDef.Constraints {
+		switch cc.Type {
+		case nodes.ColConstrDefault:
+			if err := validateExprColumns(tbl, cc.Expr, "DEFAULT"); err != nil {
+				return err
+			}
+		case nodes.ColConstrCheck:
+			if err := validateExprColumns(tbl, cc.Expr, "CHECK"); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateEnumSetValues refuses an ENUM or SET column that lists one value
+// twice: 1291, which MariaDB compares case-insensitively and answers with the
+// first spelling. Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))`
+// and `SET ('a','A')` answer it, for a column a CREATE TABLE declares and one an
+// ALTER adds.
+func validateEnumSetValues(colDef *nodes.ColumnDef) error {
+	kind := strings.ToUpper(colDef.TypeName.Name)
+	if kind != "ENUM" && kind != "SET" {
+		return nil
+	}
+	seen := make(map[string]bool, len(colDef.TypeName.EnumValues))
+	for _, value := range colDef.TypeName.EnumValues {
+		key := strings.ToLower(value)
+		if seen[key] {
+			return errDupEnumValue(colDef.Name, value, kind)
+		}
+		seen[key] = true
+	}
+	return nil
 }
 
 func hasColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {

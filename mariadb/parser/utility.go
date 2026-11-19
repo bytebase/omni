@@ -803,6 +803,18 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
 	}
+	// MariaDB reads a packaged routine's name whole, `[db.]package.routine`:
+	// measured on mariadb:11.8.8, `CALL a.a.a` parses. MySQL takes the two
+	// parts only, so this is MariaDB's own alternative.
+	if p.cur.Type == '.' {
+		p.advance() // consume '.'
+		routine, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Package = name.Name
+		stmt.Name = &nodes.TableRef{Loc: nodes.Loc{Start: name.Loc.Start, End: p.prev.End}, Schema: name.Schema, Name: routine}
+	}
 
 	// Optional argument list in parentheses
 	if p.cur.Type == '(' {
@@ -2008,6 +2020,16 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 			if _, err := p.expect(','); err != nil {
 				return nil, err
 			}
+		}
+		// MariaDB reads the word after '@' as a hostname, `ident_or_text`, and an
+		// '@' whose text ends there leaves it empty: measured on mariadb:11.8.8,
+		// `BINLOG @a, @` parses where `BINLOG @a, @@` and `BINLOG @a, 1` do not,
+		// which is what its near-misses `BINLOG@a,@`, `BINLOG@,@a` and
+		// `BINLOG@a,@;` write.
+		if p.cur.Type == tokIDENT && p.cur.Str == "@" && !p.atQuotedUserVar() {
+			p.advance()
+			stmt.Fragments = append(stmt.Fragments, "")
+			continue
 		}
 		if !p.atUserVar() {
 			return nil, p.syntaxErrorAtCur()

@@ -2424,6 +2424,10 @@ type CallStmt struct {
 	Loc  Loc
 	Name *TableRef
 	Args []ExprNode
+	// Package is the package a routine of one is called by, as in MariaDB's
+	// `CALL db.package.routine`: the second part of a three-part name, and ""
+	// for a routine called by `[db.]routine`.
+	Package string
 }
 
 func (s *CallStmt) nodeTag()  {}
