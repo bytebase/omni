@@ -279,7 +279,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,501 rows, 1,167 of them where omni stops first and 3,932
+different byte: 5,453 rows, 1,116 of them where omni stops first and 3,477
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -302,7 +302,7 @@ statements are the corpora's, whose cells move only with the corpus.
 | `ALTER TABLE a MODIFY PARTITIONSET ...` | 163 | `PARTITIONSET` (21): `ORA-02577`, before the clause is read |
 | `CREATE MATERIALIZED VIEW a PARTITION RANGE(a) ...` | 9 | the word where `BY` belongs (37): a materialized view's properties enter the clause on `PARTITION` |
 
-This change moved 280 more, and closed 2 rows omni accepted where Oracle
+#1475 moved 280 more, and closed 2 rows omni accepted where Oracle
 refuses (`... ORGANIZATION EXTERNAL(TYPE a) AS QUERY`). Both are readings
 the grammar had not made: Oracle reads two words, or the table's column
 list, before it refuses. One row Oracle accepts, `CREATE TABLE a
@@ -314,7 +314,16 @@ Oracle's byte 13 rather than 43, so it stays in "Rows only Oracle accepts".
 | `... PARTITION BY CONSISTENT HASH (...) ...` | 217 | the token after `HASH`: Oracle reads `CONSISTENT HASH` and answers `ORA-14151` there outside a sharded database, before the columns. omni refused at `CONSISTENT` without reading them. 209 rows name `HASH`; 8 are near-misses that drop it |
 | `CREATE TABLE a ORGANIZATION EXTERNAL (...)` | 63 | the table's name (13): Oracle reads the access driver type, then answers `ORA-00906` because the table has no column list, before the rest of the clause. A clause that does not start with `TYPE` is refused inside it, at its own token |
 
-The remaining rows are spread thin: 4,208 name no family below. These are the
+This change moved 48 more. It is a clause the page derives and omni did not
+read, so Oracle's byte is where the clause it read ends and the token that
+cannot follow it stands. No verdict moved: every one of the 48 was a
+rejection on both sides, at another byte.
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE TABLE a(SUPPLEMENTAL LOG ...)` | 48 | the ')' of a column list that holds no column, or the token inside or after the clause that is not the one it takes: a supplemental_logging_props clause is one of relational_properties (`CREATE-TABLE.bnf` lines 58-65 and 183), so Oracle reads it and then wants a column, as it refuses a list of constraints alone at its ')' (`ORA-03079`). `CREATE TABLE a OF a(SUPPLEMENTAL LOG GROUP a(a))` is the control: an object table's `object_properties` took the clause all along and Oracle accepts it |
+
+The remaining rows are spread thin: 3,033 name no family below. These are the
 largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
@@ -327,6 +336,13 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
 | `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): a near-miss puts a `)` where a `(` belongs, and the delimiter scan answers for it before the statement parsers run |
 | `CREATE TABLE a ORGANIZATION EXTERNAL ...` behind a `)` | 2 | the clause is read and refused at the table's name, but the statement carries a stray `)` the scan answers first: `... EXTERNAL TYPE a)` and `... EXTERNAL(TYPE a LOCATION 's'))` |
+| `ALTER DIMENSION ...` | 39 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 72 `ALTER DIMENSION` rows here, 30 more carry `reject@0` (a clause word Oracle has no form for) and 3 sit behind the scan's `)` and end-of-input answers |
+| `ALTER SESSION SET` / `ALTER SYSTEM SET <parameter>` | 73 | the parameter's name (17, 18): Oracle answers `ORA-02248` or `ORA-02065` at a name that is no parameter, as in `ALTER SYSTEM SET a = 1 SCOPE MEMORY`, and names the setting after one it applied too (`ALTER SESSION SET EDITION = a zzz` at `zzz`, 30). A parameter the server has is refused after its name instead (`ALTER SESSION SET optimizer_mode ALL_ROWS` at `ALL_ROWS`), and omni keeps no list of them, so reporting the name would trade these rows for ones that agree today: the syntactic answer, at the token after the name, stands |
+| `... PARTITION BY RANGE(a)` on a `CREATE CLUSTER` | 323 | the clause's `(` (45): `ORA-14179`, because a cluster is partitioned only when it is a hash cluster. This is the check "Rows only omni accepts" measures (146 rows there), not a reading, and the near-misses that carry it stay |
+| `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | `ENABLE` (34): `ORA-02432`, the table defines no primary key. A check of the parsed statement, so the clause after it is not read |
+| `... FROM ANALYTIC VIEW (...)` | 103 | the first token inside the parens (28), in every form the page derives: an inline analytic view's `sub_av_clause` starts with `ANALYTIC` there, and Oracle refuses it. Whether the form takes a clause or a name is not settled by the answers recorded, so the reading waits on a recording |
+| `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 48 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
+| `CREATE TABLE a XMLTYPE ...` | 73 | 15 for some texts and the token after the XMLType column for others: Oracle refuses the clause where it stands for a table with no column list, but reads `XMLTYPE a` before refusing when more follows it, so no single reading of the page orders them |
 
 The scan's stray `)` answer is still not deferred. Asked with these readings
 in place, returning the parsers' answer for a `)` the scan refuses moves 732
