@@ -1923,13 +1923,13 @@ func (p *Parser) parseGraphExistsBraced(start int) (ast.Node, error) {
 func (p *Parser) parseGraphCallOp(optional bool) (ast.Node, error) {
 	callTok := p.advance() // CALL
 	op := &ast.GraphCallOp{Optional: optional, Loc: callTok.Loc}
-	// The identifier-list spelling has no PER: `CALL ( id, … ) { … }`.
+	// The identifier-list spelling has no PER keyword and is not a partitioning
+	// call: `CALL ( id, … ) { … }`.
 	if p.cur.Type == int('(') {
 		ids, end, err := p.parseGraphIdentifierList()
 		if err != nil {
 			return nil, err
 		}
-		op.HasPer = true
 		op.Per = ids
 		op.Loc.End = end
 		if p.cur.Type != int('{') {

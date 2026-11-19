@@ -4835,10 +4835,12 @@ type GraphYieldItem struct {
 //	           CALL ( id, … )      <braced_graph_subquery>
 //
 // Exactly one of Call (a named table-valued function) and Subquery (an inline
-// braced graph subquery) is set. HasPer records whether the PER clause was
-// present (the grammar's is_partitioning flag) and Per holds its identifiers —
-// possibly none, as in `CALL PER() a()`. Yield is the named call's output list
-// (nil if absent).
+// braced graph subquery) is set. Per holds the partition identifier list, which
+// either the PER clause or the leading `( id, … )` of the inline-subquery form
+// spells — possibly empty, as in `CALL PER() a()` or `CALL() { … }` — and HasPer
+// records whether the PER keyword introduced it (the grammar's is_partitioning
+// flag: the parenthesized-identifier-list form is not partitioned). Yield is the
+// named call's output list (nil if absent).
 type GraphCallOp struct {
 	Optional bool
 	HasPer   bool

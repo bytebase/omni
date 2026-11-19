@@ -1138,8 +1138,8 @@ func TestGraphCallOp(t *testing.T) {
 	if !ok {
 		t.Fatal("operator is not *ast.GraphCallOp")
 	}
-	if c.Subquery == nil || !c.HasPer || len(c.Per) != 0 {
-		t.Errorf("identifier-list call = %v / Per %v, want a subquery call with an empty list", c.Subquery, c.Per)
+	if c.Subquery == nil || c.HasPer || len(c.Per) != 0 {
+		t.Errorf("identifier-list call = %v / Per %v (HasPer %v), want a subquery call with an empty, non-PER list", c.Subquery, c.Per, c.HasPer)
 	}
 }
 
