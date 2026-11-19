@@ -319,7 +319,7 @@ func (p *Parser) parseInsertKeyPartition() ([]*ast.Property, error) {
 			return nil, err
 		}
 		start := p.cur.Loc.Start
-		if _, err := p.parseExpr(); err != nil {
+		if err := p.parseAlterLiteralExpression(); err != nil {
 			return nil, err
 		}
 		end := p.prev.Loc.End
