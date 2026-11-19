@@ -163,7 +163,7 @@ missing `DATAFILE` the truncated text leaves.
 
 ## Rows only omni accepts, measured
 
-The other direction: the 696 rows whose cells were `accept` where the pinned
+The other direction: the 796 rows whose cells were `accept` where the pinned
 Oracle says `reject`. Each was measured the same way, at judge revision 3,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
