@@ -447,6 +447,9 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 }
 
 // foldEnumValue folds one value the way a case-insensitive collation reads it.
+// Case is all it folds: a collation's weights also make `a` and `á` one value
+// under an accent-insensitive one, which needs the collation's table and is not
+// modeled here.
 // Turkish is its own case mapping: "I" and "i" are different letters there, the
 // pairs being I with ı (dotless) and İ with i (dotted). Measured on
 // mariadb:11.8.8 under utf8mb4_turkish_ci: `ENUM('I','i')` runs, `('i','İ')` and

@@ -117,12 +117,27 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 func refuseCopyAlterOnDiscarded(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	for _, cmd := range cmds {
 		switch cmd.Type {
+		case nodes.ATForce, nodes.ATOrderBy:
+			return errTablespaceDiscarded(tbl.Name)
 		case nodes.ATTableOption:
 			if cmd.Option == nil {
 				continue
 			}
 			switch toLower(cmd.Option.Name) {
 			case "engine", "row_format":
+				return errTablespaceDiscarded(tbl.Name)
+			}
+		case nodes.ATAddIndex, nodes.ATAddConstraint:
+			// A UNIQUE, PRIMARY, FOREIGN, FULLTEXT or CHECK key rebuilds the
+			// table where an ordinary or SPATIAL one does not: measured on
+			// mariadb:11.8.8 over a discarded table, `ADD INDEX i (b)` and
+			// `ADD SPATIAL KEY s (g)` run and the other five answer 1814.
+			if cmd.Constraint == nil {
+				continue
+			}
+			switch cmd.Constraint.Type {
+			case nodes.ConstrPrimaryKey, nodes.ConstrUnique, nodes.ConstrForeignKey,
+				nodes.ConstrCheck, nodes.ConstrFulltextIndex:
 				return errTablespaceDiscarded(tbl.Name)
 			}
 		case nodes.ATModifyColumn, nodes.ATChangeColumn:
@@ -347,7 +362,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// The statement may add the period after the key — `ADD UNIQUE uk (id,
 	// app_time WITHOUT OVERLAPS), ADD PERIOD FOR app_time(s,e)` runs — so the
 	// periods it adds count too.
-	if err := validateAddedWithoutOverlapsParts(tbl, stmt.Commands); err != nil {
+	if err := validateAddedWithoutOverlapsParts(tbl, stmt.Commands, skippedKeys); err != nil {
 		return err
 	}
 

@@ -1150,7 +1150,7 @@ func validateApplicationTimeFinalState(tbl *Table) error {
 // OVERLAPS)` over a table with no period a answers 4156 before it looks at the
 // key's columns, and `ADD UNIQUE uk (id, app_time WITHOUT OVERLAPS), ADD PERIOD
 // FOR app_time(s,e)` runs.
-func validateAddedWithoutOverlapsParts(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+func validateAddedWithoutOverlapsParts(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.Constraint]bool) error {
 	periods := map[string]bool{}
 	if tbl.AppPeriodName != "" {
 		periods[toLower(tbl.AppPeriodName)] = true
@@ -1161,7 +1161,8 @@ func validateAddedWithoutOverlapsParts(tbl *Table, cmds []*nodes.AlterTableCmd) 
 		}
 	}
 	check := func(con *nodes.Constraint) error {
-		if con == nil {
+		// A key IF NOT EXISTS finds is a note whose definition is never read.
+		if con == nil || skipped[con] {
 			return nil
 		}
 		for _, ic := range con.IndexColumns {

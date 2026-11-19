@@ -91,6 +91,12 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 			return errTruncateSystemVersioned(ref.Name)
 		}
 		tbl.AutoIncrement = 0
+		// TRUNCATE gives the table a tablespace of its own again, after an
+		// 1814 warning where DISCARD TABLESPACE took it away: measured on
+		// mariadb:11.8.8, `DISCARD TABLESPACE`, `TRUNCATE TABLE a` and
+		// `IMPORT TABLESPACE` answers 1813 (the tablespace is there again), not
+		// 1030.
+		tbl.TablespaceDiscarded = false
 	}
 	return nil
 }

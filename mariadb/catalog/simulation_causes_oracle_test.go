@@ -1049,6 +1049,44 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD KEY IF NOT EXISTS j (d) x = 1",
 			code:  1911,
 		},
+		// Every copy ALTER is 1814 on a discarded tablespace: FORCE, ORDER BY, and
+		// the keys that rebuild the table.
+		{
+			name:        "FORCE of a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a FORCE",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:        "ADD CHECK to a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a ADD CHECK (b > 0)",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "ADD INDEX to a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD INDEX i (d)",
+			code:  0,
+		},
+		// TRUNCATE gives the tablespace back, so the import that follows reports
+		// it exists again.
+		{
+			name:  "IMPORT TABLESPACE after TRUNCATE of a discarded table",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE", "TRUNCATE TABLE a"},
+			stmt:  "ALTER TABLE a IMPORT TABLESPACE",
+			code:  1813,
+		},
+		// A key IF NOT EXISTS finds is a note, and its WITHOUT OVERLAPS part is
+		// not read.
+		{
+			name:  "ADD UNIQUE KEY IF NOT EXISTS of a name the table holds, over a missing period",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD UNIQUE KEY IF NOT EXISTS idx_d (d, missing_period WITHOUT OVERLAPS)",
+			code:  0,
+		},
 		// A column the table already holds is 1060 before the key it would be
 		// is read, where the same statement over a free name is 1068.
 		{
