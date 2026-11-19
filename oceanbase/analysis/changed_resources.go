@@ -42,6 +42,10 @@ type StatementChanges struct {
 func ExtractChangedResources(node ast.Node, database, text string) StatementChanges {
 	var changes StatementChanges
 	addTable := func(db, table string, affectsData bool) {
+		// tableRef answers nothing for a table this database does not hold.
+		if table == "" {
+			return
+		}
 		changes.Resources = append(changes.Resources, ChangedResource{Database: db, Table: table, AffectsData: affectsData})
 	}
 	// addObjectDatabase records a database-only write target for a non-table object DDL
@@ -129,9 +133,11 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		}
 
 	case *ast.InsertStmt:
+		// INSERT OVERWRITE replaces the target's contents, so it affects data
+		// where a plain insert only adds to it.
 		if n.Table != nil {
 			db, table := tableRef(n.Table, database)
-			addTable(db, table, false)
+			addTable(db, table, n.Overwrite)
 		}
 		if len(n.Values) > 0 {
 			changes.InsertCount += len(n.Values)
@@ -208,9 +214,15 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 }
 
 // tableRef extracts database and table name from an omni TableRef.
+// tableRef returns the database and table a reference names. A table of another
+// catalog, or one a database link reads, names no resource of this database:
+// both come back empty, and the callers add nothing for them.
 func tableRef(ref *ast.TableRef, defaultDB string) (string, string) {
 	if ref == nil {
 		return defaultDB, ""
+	}
+	if ref.Catalog != "" || ref.Dblink != "" {
+		return "", ""
 	}
 	db := ref.Schema
 	if db == "" {

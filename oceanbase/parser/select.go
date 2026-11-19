@@ -2321,6 +2321,22 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 			Expr: expr,
 		}
 
+		// sort_key_for_group_by's rollup, cube, grouping-sets and '()' arms carry
+		// no direction: only the expression arm does.
+		if _, isSet := expr.(*nodes.GroupingSet); isSet {
+			if p.cur.Type == kwASC || p.cur.Type == kwDESC {
+				return nil, p.syntaxErrorAtCur()
+			}
+			item.Direction = nodes.OrderDirectionDefault
+			item.Loc.End = p.prev.End
+			items = append(items, item)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+			continue
+		}
+
 		if _, ok := p.match(kwDESC); ok {
 			item.Direction = nodes.OrderDirectionDesc
 			item.Desc = true
