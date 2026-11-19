@@ -764,8 +764,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// Patterns after table name:
 		//   1. WITH (...) AS SELECT ...        (WITH is table options, not CTE)
 		//   2. (col_list) WITH (...) AS SELECT ...
-		//   3. (col_list) AS SELECT ...
-		//   4. AS SELECT ...                   (no WITH, no columns)
+		//   3. AS SELECT ...                   (no WITH, no columns)
+		// A column list and the WITH options go together, so the CTAS parser
+		// refuses a column list with no WITH; see isCTAS.
 		if p.isCTAS(tableName) {
 			// Restore and re-parse as CTAS
 			p.lexer.pos = savedLexerPos
