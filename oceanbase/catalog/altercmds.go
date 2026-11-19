@@ -65,6 +65,19 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
 		return err
 	}
+	// A sibling command may have dropped or renamed the column the partitioning
+	// names, as DROP COLUMN a beside PARTITION BY HASH(a) does: judge the table
+	// the statement leaves before installing the partitioning.
+	if repartition != nil {
+		if err := checkPartitionStructure(tbl, repartition, true); err != nil {
+			undoAlter(db, key, tbl, snapshot, logs, known)
+			return err
+		}
+		if err := checkRepartitionPrimaryKeyPrefix(tbl, repartition); err != nil {
+			undoAlter(db, key, tbl, snapshot, logs, known)
+			return err
+		}
+	}
 	if err := validateAlteredUniqueKeys(tbl, before, stmt.Commands, repartition); err != nil {
 		undoAlter(db, key, tbl, snapshot, logs, known)
 		return err

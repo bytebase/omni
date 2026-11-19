@@ -26,3 +26,24 @@ func TestAlterRepartitionRefusedBeforeStoring(t *testing.T) {
 		t.Fatalf("ALTER LIST without a partition list: error %v, want 1492", err)
 	}
 }
+
+// TestAlterRepartitionJudgesTheTableItLeaves: a sibling command may drop the
+// column the partitioning names. The engine refuses the whole statement at parse
+// time, so there is no stored layout to compare; the catalog still must not leave
+// a partitioning that names a column the statement dropped.
+func TestAlterRepartitionJudgesTheTableItLeaves(t *testing.T) {
+	c := New()
+	mustExec(t, c, "CREATE DATABASE d; USE d; CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))")
+	err := execError(t, c, "ALTER TABLE a DROP COLUMN a, PARTITION BY HASH(a)")
+	var refusal *Error
+	if !errors.As(err, &refusal) || refusal.Code != 1054 {
+		t.Fatalf("ALTER with a dropped partition key: error %v, want 1054", err)
+	}
+	tbl := c.GetDatabase("d").GetTable("a")
+	if tbl.GetColumn("a") == nil {
+		t.Fatalf("the failed ALTER kept the column dropped: %+v", tbl.Columns)
+	}
+	if tbl.Partitioning != nil {
+		t.Fatalf("the catalog installed a partitioning naming a dropped column: %+v", tbl.Partitioning)
+	}
+}
