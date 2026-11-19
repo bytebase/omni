@@ -1572,3 +1572,29 @@ func TestReplaceFieldsExtensionPath(t *testing.T) {
 		}
 	}
 }
+
+func TestGraphExpressionLoc(t *testing.T) {
+	// The graph expression nodes are in nodeLoc, so an enclosing node's range is
+	// real rather than NoLoc.
+	file, errs := parseForTest("SELECT NOT EXISTS { RETURN 1 } AS x, a IS SOURCE b FROM t")
+	if len(errs) != 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	var unary *ast.UnaryExpr
+	var predicate *ast.GraphPredicate
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.UnaryExpr:
+			unary = v
+		case *ast.GraphPredicate:
+			predicate = v
+		}
+		return true
+	})
+	if unary == nil || !unary.Loc.IsValid() || unary.Loc.End <= unary.Loc.Start {
+		t.Errorf("NOT EXISTS { … } UnaryExpr Loc = %v, want the operand's range", unary)
+	}
+	if predicate == nil || !predicate.Loc.IsValid() || predicate.Loc.End <= predicate.Loc.Start {
+		t.Errorf("graph predicate Loc = %v, want its own range", predicate)
+	}
+}

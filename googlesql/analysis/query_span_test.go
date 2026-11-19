@@ -551,6 +551,8 @@ func TestGetQuerySpan_GraphVariablesAreNotColumns(t *testing.T) {
 		{"SELECT EXISTS { LET a = b RETURN a } FROM t", []string{"a", "b"}},
 		{"SELECT ARRAY { FOR x IN y RETURN x } FROM t", []string{"x", "y"}},
 		{"SELECT a FROM t WHERE EXISTS { MATCH (n) RETURN n }", []string{"n"}},
+		// A table argument's filter inside a graph CALL is still the graph's scope.
+		{"SELECT EXISTS { MATCH (n) CALL f(TABLE secret WHERE n.id > 0) RETURN 1 } FROM t", []string{"n"}},
 	}
 	for _, tc := range cases {
 		span, err := GetQuerySpan(tc.sql, DialectBigQuery)
@@ -607,9 +609,11 @@ func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
 		{"SELECT EXISTS { TABLESAMPLE BERNOULLI(1 ROWS PARTITION BY (SELECT id FROM secret)) RETURN 1 }", []string{"secret"}, 1},
 		{"SELECT EXISTS { MATCH ({a: (SELECT id FROM secret)}) RETURN 1 }", []string{"secret"}, 1},
 		// A graph CALL's TVF table argument names a table the call reads, in both
-		// the positional and the named shape.
+		// the positional and the named shape, and a filter on it still follows its
+		// own subqueries.
 		{"SELECT EXISTS { CALL f(TABLE secret) RETURN 1 }", []string{"secret"}, 1},
 		{"SELECT EXISTS { CALL f(t => TABLE secret) RETURN 1 }", []string{"secret"}, 1},
+		{"SELECT EXISTS { CALL f(TABLE secret WHERE (SELECT 1 FROM other) > 0) RETURN 1 }", []string{"other", "secret"}, 1},
 		// A standalone graph predicate's operands are ordinary relational
 		// columns: neither names a table here.
 		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},

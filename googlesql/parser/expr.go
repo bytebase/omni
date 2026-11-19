@@ -2993,6 +2993,14 @@ func nodeLoc(n ast.Node) ast.Loc {
 		return v.Loc
 	case *ast.InExpr:
 		return v.Loc
+	case *ast.GraphSubqueryExpr:
+		return v.Loc
+	case *ast.GraphExistsExpr:
+		return v.Loc
+	case *ast.GraphCallOp:
+		return v.Loc
+	case *ast.GraphPredicate:
+		return v.Loc
 	case *ast.BetweenExpr:
 		return v.Loc
 	case *ast.LikeExpr:

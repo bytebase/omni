@@ -2341,6 +2341,53 @@ func (ew *exprWalk) walkGraph(node ast.Node) {
 	inner.walkGraphNode(node)
 }
 
+// walkGraphCallArgs records what a graph CALL's TVF arguments name — a table
+// (`CALL f(TABLE t)`, positional or named) and the arguments' nested subqueries
+// — and walks their expressions with this boundary walker, so a table argument's
+// filter or pivot expression cannot leak a graph-local name into the enclosing
+// statement's columns. A pipe CALL has no such boundary and uses
+// spanWalker.recordCallTableArgs instead.
+func (ew *exprWalk) walkGraphCallArgs(fc *ast.FuncCall) {
+	if fc == nil {
+		return
+	}
+	for _, arg := range fc.Args {
+		switch a := arg.(type) {
+		case *ast.CallArg:
+			if a.Kind == ast.CallArgTable {
+				ew.w.recordTable(a.Path, "")
+			}
+			ew.walk(a)
+		case *ast.TableClause:
+			ew.walkGraphTableClause(a)
+		case *ast.NamedArg:
+			if tc, ok := a.Value.(*ast.TableClause); ok {
+				ew.walkGraphTableClause(tc)
+			}
+			ew.walk(a)
+		default:
+			ew.walk(arg)
+		}
+	}
+}
+
+// walkGraphTableClause records a table_clause's table (or its nested TVF's
+// arguments) and walks its expressions — the WHERE filter among them — with this
+// boundary walker.
+func (ew *exprWalk) walkGraphTableClause(tc *ast.TableClause) {
+	if tc == nil {
+		return
+	}
+	if tc.Table != nil {
+		if tc.Table.Func != nil {
+			ew.walkGraphCallArgs(tc.Table.Func)
+		} else {
+			ew.w.recordTable(tc.Table.Path, "")
+		}
+	}
+	ew.walk(tc.Where)
+}
+
 // walkGraphNodes is the parser-gql counterpart of the expression walk: it
 // reaches every expression a graph operator or pattern holds, so a subquery
 // inside one records the tables it reads.
@@ -2366,8 +2413,9 @@ func (ew *exprWalk) walkGraphNode(node ast.Node) {
 		if n.Call != nil {
 			// A TVF argument names a table the call reads (`CALL f(TABLE t)`), which
 			// the expression walk cannot see: the argument is a table clause, not an
-			// expression. Record it the way a pipe CALL does.
-			ew.w.recordCallTableArgs(n.Call)
+			// expression. It is recorded here, with this boundary walker, so a filter
+			// that names a graph-local variable adds no outer column.
+			ew.walkGraphCallArgs(n.Call)
 			ew.walk(n.Call)
 		}
 		if n.Subquery != nil {
