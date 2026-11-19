@@ -74,3 +74,23 @@ func TestCTASDeclaredColumnExpressions(t *testing.T) {
 		t.Fatalf("expected 1054 for missing column in CTAS DEFAULT, got %v", err)
 	}
 }
+
+func TestAlterRenameCrossDBSelfRefAndSequence(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE db1; CREATE DATABASE db2; USE db1; CREATE SEQUENCE s1; CREATE TABLE a (x INT);")
+
+	results, err := c.Exec("ALTER TABLE a RENAME TO db2.b, ADD c INT AS (db1.a.c)", nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	catErr, ok := results[0].Error.(*Error)
+	if !ok || catErr.Code != 4029 {
+		t.Fatalf("expected 4029 for cross-db rename self-ref, got %v", results[0].Error)
+	}
+
+	execAlterClauses(t, c, "ALTER TABLE a RENAME TO db2.b, ADD c INT DEFAULT NEXTVAL(s1);")
+	got := c.ShowCreateTable("db2", "b")
+	if want := "nextval(`db1`.`s1`)"; !strings.Contains(got, want) {
+		t.Fatalf("expected %s in SHOW CREATE TABLE db2.b, got:\n%s", want, got)
+	}
+}

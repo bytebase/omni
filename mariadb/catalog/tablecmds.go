@@ -311,10 +311,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// After the table's own columns are known to lack the name: 4029, an
 		// expression reading the column it defines or a generated column defined
 		// after it.
-		if err := validateColumnSelfReference(tbl, colDef); err != nil {
+		if err := validateColumnSelfReference(db.Name, tableName, colDef); err != nil {
 			return err
 		}
-		if err := validateColumnGeneratedOrder(tbl, colDef, stmt.Columns[i+1:]); err != nil {
+		if err := validateColumnGeneratedOrder(db.Name, tableName, colDef, stmt.Columns[i+1:]); err != nil {
 			return err
 		}
 

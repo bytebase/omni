@@ -196,6 +196,10 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		*tbl = snapshot
 		return err
 	}
+	if tbl.TablespaceDiscarded && eqFoldStr(stmt.Algorithm, "COPY") {
+		*tbl = snapshot
+		return errTablespaceDiscarded(tbl.Name)
+	}
 
 	return nil
 }

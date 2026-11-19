@@ -135,13 +135,14 @@ func errUninitializedField(field, uninitialized string) error {
 		Message: fmt.Sprintf("Expression for field `%s` is referring to uninitialized field `%s`", field, uninitialized)}
 }
 
-// columnExprRefs returns the columns of tbl a generated or default expression
-// reads. The server reads both the same way here, whichever spelling wrote the
-// default: `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)` all answer 4029.
-func columnExprRefs(tbl *Table, colDef *nodes.ColumnDef) []string {
+// columnExprRefs returns the columns of targetDB.targetTable a generated or
+// default expression reads. The server reads both the same way here, whichever
+// spelling wrote the default: `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)`
+// all answer 4029.
+func columnExprRefs(targetDB, targetTable string, colDef *nodes.ColumnDef) []string {
 	var refs []string
 	add := func(expr nodes.ExprNode) {
-		refs = append(refs, tableColumnRefs(tbl, expr)...)
+		refs = append(refs, tableColumnRefs(targetDB, targetTable, expr)...)
 	}
 	add(colDef.DefaultValue)
 	if colDef.Generated != nil {
@@ -161,9 +162,9 @@ func columnExprRefs(tbl *Table, colDef *nodes.ColumnDef) []string {
 // `ALTER TABLE t ADD a INT DEFAULT a` and `ALTER TABLE t ALTER a SET DEFAULT a`. A
 // column name the table already holds is 1060 first, and a name the table does not
 // hold at all is 1054, so this runs where the column is built.
-func validateColumnSelfReference(tbl *Table, colDef *nodes.ColumnDef) error {
+func validateColumnSelfReference(targetDB, targetTable string, colDef *nodes.ColumnDef) error {
 	key := toLower(colDef.Name)
-	for _, ref := range columnExprRefs(tbl, colDef) {
+	for _, ref := range columnExprRefs(targetDB, targetTable, colDef) {
 		if toLower(ref) == key {
 			return errUninitializedField(colDef.Name, colDef.Name)
 		}
@@ -177,11 +178,11 @@ func validateColumnSelfReference(tbl *Table, colDef *nodes.ColumnDef) error {
 // A plain column defined later is initialized by the time the value is computed, so
 // `CREATE TABLE z (a INT AS(b), b INT)` runs, as does `CREATE TABLE z (a INT DEFAULT
 // b, b INT)`: the order is judged for a generated expression only.
-func validateColumnGeneratedOrder(tbl *Table, colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
+func validateColumnGeneratedOrder(targetDB, targetTable string, colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
 	if colDef.Generated == nil {
 		return nil
 	}
-	for _, ref := range tableColumnRefs(tbl, colDef.Generated.Expr) {
+	for _, ref := range tableColumnRefs(targetDB, targetTable, colDef.Generated.Expr) {
 		for _, other := range later {
 			if other.Generated != nil && toLower(other.Name) == toLower(ref) {
 				return errUninitializedField(colDef.Name, other.Name)
@@ -862,17 +863,11 @@ func generatedColumnRefs(expr nodes.ExprNode) []string {
 	return out
 }
 
-// tableColumnRefs returns the columns of tbl an expression reads, skipping
-// sequence arguments and references qualified with another table or database.
-func tableColumnRefs(tbl *Table, expr nodes.ExprNode) []string {
+// tableColumnRefs returns the columns of targetDB.targetTable an expression
+// reads, skipping sequence arguments and references qualified with another
+// table or database.
+func tableColumnRefs(targetDB, targetTable string, expr nodes.ExprNode) []string {
 	sequences := sequenceArgColumnRefs(expr)
-	dbName, tblName := "", ""
-	if tbl != nil {
-		tblName = tbl.Name
-		if tbl.Database != nil {
-			dbName = tbl.Database.Name
-		}
-	}
 	var out []string
 	nodes.Inspect(expr, func(n nodes.Node) bool {
 		cr, ok := n.(*nodes.ColumnRef)
@@ -880,7 +875,7 @@ func tableColumnRefs(tbl *Table, expr nodes.ExprNode) []string {
 			return true
 		}
 		if cr.Table != "" || cr.Schema != "" {
-			if tbl == nil || !eqFoldStr(cr.Table, tblName) || (cr.Schema != "" && !eqFoldStr(cr.Schema, dbName)) {
+			if targetTable == "" || !eqFoldStr(cr.Table, targetTable) || (cr.Schema != "" && !eqFoldStr(cr.Schema, targetDB)) {
 				return true
 			}
 		}

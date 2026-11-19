@@ -363,15 +363,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 
+	origDBName := db.Name
+	origTableName := tbl.Name
 	// The columns the statement adds are read before any of them is built, so a
 	// generated one may not read a generated column the same statement adds after
 	// it. That is a check over the whole statement, and it runs before any command
 	// changes the table.
-	if err := c.validateAddedColumnOrder(tbl, stmt.Commands, skippedColumns, charsetPlan); err != nil {
+	if err := c.validateAddedColumnOrder(tbl, origDBName, origTableName, stmt.Commands, skippedColumns, charsetPlan); err != nil {
 		return err
 	}
 
 	actx := &alterExecCtx{
+		origDBName:     origDBName,
+		origTableName:  origTableName,
 		dropsPK:        alterDropsPrimaryKey(stmt.Commands),
 		droppedColumns: alterDroppedColumns(stmt.Commands),
 		declaredChecks: alterDeclaredCheckNames(stmt.Commands),
@@ -380,8 +384,6 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		checkNames:     map[*nodes.Constraint]string{},
 		charsetPlan:    charsetPlan,
 	}
-	origDBName := db.Name
-	origTableName := tbl.Name
 	addsSystemVersioning := alterAddsSystemVersioning(stmt.Commands)
 
 	if len(stmt.Commands) == 1 {
@@ -555,6 +557,8 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
 type alterExecCtx struct {
+	origDBName     string
+	origTableName  string
 	dropsPK        bool
 	droppedColumns map[string]bool
 	declaredChecks map[string]bool
@@ -585,9 +589,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATDropColumn:
 		return c.alterDropColumn(tbl, cmd, actx.dropsPK, actx.droppedColumns)
 	case nodes.ATModifyColumn:
-		return c.alterModifyColumn(tbl, cmd, actx.charsetPlan)
+		return c.alterModifyColumn(tbl, cmd, actx)
 	case nodes.ATChangeColumn:
-		return c.alterChangeColumn(tbl, cmd, actx.charsetPlan)
+		return c.alterChangeColumn(tbl, cmd, actx)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
 		return c.alterAddConstraint(tbl, cmd, actx.declaredChecks, actx.skippedKeys, actx.checkNames)
 	case nodes.ATDropIndex:
@@ -603,7 +607,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATTableOption:
 		return c.alterTableOption(tbl, cmd, actx.charsetPlan)
 	case nodes.ATAlterColumnDefault:
-		return c.alterColumnDefault(tbl, cmd)
+		return c.alterColumnDefault(tbl, cmd, actx)
 	case nodes.ATAlterIndexVisible:
 		return c.alterIndexVisibility(tbl, cmd, true)
 	case nodes.ATAlterIndexInvisible:
@@ -891,7 +895,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, actx *alt
 			if colDef == nil || actx.skippedColumns[colDef] {
 				continue
 			}
-			if err := c.addSingleColumn(tbl, colDef, false, "", actx.charsetPlan); err != nil {
+			if err := c.addSingleColumn(tbl, colDef, false, "", actx); err != nil {
 				return err
 			}
 		}
@@ -914,7 +918,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd, actx *alt
 		return nil
 	}
 
-	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After, actx.charsetPlan)
+	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After, actx)
 }
 
 // tableHasColumn reports whether the table has a column of the name.
@@ -924,7 +928,8 @@ func tableHasColumn(tbl *Table, name string) bool {
 }
 
 // addSingleColumn adds one column definition to the table.
-func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string, plan alterCharsetPlan) error {
+func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string, actx *alterExecCtx) error {
+	plan := actx.charsetPlan
 	// The name is looked up before the definition is read, as MariaDB does:
 	// measured on mariadb:11.8.8, `ALTER TABLE a ADD a ENUM('s', 's')` over a
 	// table that already has a answers 1060 (the duplicate column), not 1291
@@ -943,11 +948,11 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 	// 4029, after the name is known to be new: the column's own expression may
 	// not read it.
-	if err := validateColumnSelfReference(tbl, colDef); err != nil {
+	if err := validateColumnSelfReference(actx.origDBName, actx.origTableName, colDef); err != nil {
 		return err
 	}
 
-	col := buildColumnFromDefWithDefault(tbl, colDef, plan.tableCharset, plan.tableCollation)
+	col := buildColumnFromDefInDB(tbl, actx.origDBName, colDef, plan.tableCharset, plan.tableCollation)
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
@@ -1340,24 +1345,25 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 }
 
 // alterModifyColumn replaces a column definition in-place (same name).
-func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
+func (c *Catalog) alterModifyColumn(tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	if cmd.Column == nil {
 		return nil
 	}
-	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd, plan)
+	return c.alterReplaceColumn(tbl, cmd.Column.Name, cmd, actx)
 }
 
 // alterChangeColumn replaces a column (old name -> new name + new definition).
-func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
+func (c *Catalog) alterChangeColumn(tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	if cmd.Column == nil {
 		return nil
 	}
-	return c.alterReplaceColumn(tbl, cmd.Name, cmd, plan)
+	return c.alterReplaceColumn(tbl, cmd.Name, cmd, actx)
 }
 
 // alterReplaceColumn is the shared implementation for MODIFY and CHANGE COLUMN.
 // oldName is the existing column to replace; cmd.Column defines the new column.
-func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd, plan alterCharsetPlan) error {
+func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
+	plan := actx.charsetPlan
 	colDef := cmd.Column
 	// Whether a key covers the column is a question about the column being
 	// replaced, not about the name the replacement carries: a CHANGE renames
@@ -1399,16 +1405,16 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
 		}
 	}
-	// A generated column whose replacement expression reads it is 4029, for the
-	// column that was generated already: turning a plain column into a generated
-	// one is 1907 first, which the catalog does not model.
-	if oldCol.Generated != nil {
-		if err := validateColumnSelfReference(tbl, colDef); err != nil {
+	// A replacement expression that reads the column itself is 4029 unless the
+	// command turns a plain column into a generated one (which is 1907 first on
+	// MariaDB, not modeled here).
+	if oldCol.Generated != nil || colDef.Generated == nil {
+		if err := validateColumnSelfReference(actx.origDBName, actx.origTableName, colDef); err != nil {
 			return err
 		}
 	}
 
-	col := buildColumnFromDefWithDefault(tbl, colDef, plan.tableCharset, plan.tableCollation)
+	col := buildColumnFromDefInDB(tbl, actx.origDBName, colDef, plan.tableCharset, plan.tableCollation)
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
@@ -2347,7 +2353,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd, plan al
 }
 
 // alterColumnDefault sets or drops the default on an existing column.
-func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd, actx *alterExecCtx) error {
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
@@ -2359,7 +2365,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// A default expression that reads the column it defaults is 4029, after
 		// the column is known to exist (1054).
 		key := toLower(col.Name)
-		for _, ref := range tableColumnRefs(tbl, cmd.DefaultExpr) {
+		for _, ref := range tableColumnRefs(actx.origDBName, actx.origTableName, cmd.DefaultExpr) {
 			if toLower(ref) == key {
 				return errUninitializedField(col.Name, col.Name)
 			}
@@ -2367,7 +2373,11 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
-		setColumnDefaultFromExpr(col, qualifySequenceCalls(cmd.DefaultExpr, tbl))
+		seqDB := actx.origDBName
+		if seqDB == "" && tbl.Database != nil {
+			seqDB = tbl.Database.Name
+		}
+		setColumnDefaultFromExpr(col, qualifySequenceCallsInDB(cmd.DefaultExpr, seqDB))
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil
@@ -2430,6 +2440,17 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 }
 
 func buildColumnFromDefWithDefault(tbl *Table, colDef *nodes.ColumnDef, defaultCharset, defaultCollation string) *Column {
+	dbName := ""
+	if tbl != nil && tbl.Database != nil {
+		dbName = tbl.Database.Name
+	}
+	return buildColumnFromDefInDB(tbl, dbName, colDef, defaultCharset, defaultCollation)
+}
+
+func buildColumnFromDefInDB(tbl *Table, seqDBName string, colDef *nodes.ColumnDef, defaultCharset, defaultCollation string) *Column {
+	if seqDBName == "" && tbl != nil && tbl.Database != nil {
+		seqDBName = tbl.Database.Name
+	}
 	col := &Column{
 		Name:     colDef.Name,
 		Nullable: true,
@@ -2516,7 +2537,7 @@ func buildColumnFromDefWithDefault(tbl *Table, colDef *nodes.ColumnDef, defaultC
 		col.Comment = colDef.Comment
 	}
 	if colDef.DefaultValue != nil {
-		setColumnDefaultFromExpr(col, qualifySequenceCalls(colDef.DefaultValue, tbl))
+		setColumnDefaultFromExpr(col, qualifySequenceCallsInDB(colDef.DefaultValue, seqDBName))
 	}
 	if colDef.OnUpdate != nil {
 		setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
@@ -2541,7 +2562,7 @@ func buildColumnFromDefWithDefault(tbl *Table, colDef *nodes.ColumnDef, defaultC
 			col.Nullable = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
-				setColumnDefaultFromExpr(col, qualifySequenceCalls(cc.Expr, tbl))
+				setColumnDefaultFromExpr(col, qualifySequenceCallsInDB(cc.Expr, seqDBName))
 			}
 		case nodes.ColConstrAutoIncrement:
 			col.AutoIncrement = true
@@ -2923,7 +2944,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // so is a definition's own semantics, as `ADD a INT AS(a), ADD c INT NOT NULL DEFAULT
 // 'x'` answers 1067 for c. The statement's own commands then judge nothing again: what
 // a single ADD answers is checked where it is added (see addSingleColumn).
-func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool, plan alterCharsetPlan) error {
+func (c *Catalog) validateAddedColumnOrder(tbl *Table, origDBName, origTableName string, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool, plan alterCharsetPlan) error {
 	type addedColumn struct {
 		def         *nodes.ColumnDef
 		ifNotExists bool
@@ -2978,7 +2999,7 @@ func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableC
 		for _, b := range added[i+1:] {
 			later = append(later, b.def)
 		}
-		if err := validateColumnGeneratedOrder(tbl, a.def, later); err != nil {
+		if err := validateColumnGeneratedOrder(origDBName, origTableName, a.def, later); err != nil {
 			return err
 		}
 	}
