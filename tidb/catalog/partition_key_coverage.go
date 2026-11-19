@@ -257,13 +257,17 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if pc == nil || pc.Type == nodes.PartitionSystemTime {
 		return nil
 	}
+	// The clause is applied, not only judged: v8.5.5 repartitions the table and
+	// SHOW CREATE TABLE prints the new scheme, so `ALTER TABLE a PARTITION BY
+	// KEY()` reads back as `PARTITION BY KEY (b) PARTITIONS 1` (read on
+	// v8.5.5). The partitions an INTERVAL clause generates are built before the
+	// coverage check, which they do not change.
+	pi := buildPartitionInfo(pc)
 	if err := validatePartitionExpr(tbl, pc); err != nil {
 		return err
 	}
 	if pc.Interval != nil {
-		// The partitions are not applied, as no repartition is here, but the statement
-		// answers for them.
-		if err := applyPartitionInterval(tbl, pc, buildPartitionInfo(pc)); err != nil {
+		if err := applyPartitionInterval(tbl, pc, pi); err != nil {
 			return err
 		}
 	}
@@ -280,14 +284,19 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if err != nil {
 		return err
 	}
-	if err := checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, partitionKeyColumns(tbl, pc)); err != nil {
+	keyColumns := partitionKeyColumns(tbl, pc)
+	if err := checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, keyColumns); err != nil {
 		// The statement is refused whole, so the settings go back.
 		undo()
 		return err
 	}
-	if tbl.Partitioning != nil {
-		tbl.Partitioning.keyColumns = nil
+	// KEY () partitions by the primary key, and the ALTER path stores the
+	// columns it stands for, where CREATE TABLE keeps the empty list.
+	if pi.Type == "KEY" && len(pi.Columns) == 0 {
+		pi.Columns = effectivePrimaryKeyColumns(tbl)
 	}
+	pi.keyColumns = keyColumns
+	tbl.Partitioning = pi
 	return nil
 }
 

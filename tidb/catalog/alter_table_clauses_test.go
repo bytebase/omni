@@ -254,9 +254,7 @@ func TestAlterTableGlobalLocalIndexOption(t *testing.T) {
 // action that errored here would make every statement carrying it fail.
 func TestAlterTableNoEffectClauses(t *testing.T) {
 	for _, sql := range []string{
-		"ALTER TABLE t CACHE",
 		"ALTER TABLE t NOCACHE",
-		"ALTER TABLE t CACHE, NOCACHE",
 		"ALTER TABLE t READ ONLY",
 		"ALTER TABLE t READ WRITE",
 		"ALTER TABLE t COMPACT",
@@ -280,6 +278,22 @@ func TestAlterTableNoEffectClauses(t *testing.T) {
 				t.Errorf("%q changed the table:\nbefore:\n%s\nafter:\n%s", sql, before, after)
 			}
 		})
+	}
+}
+
+// TestAlterTableCache: CACHE is not a no-effect clause. SHOW CREATE TABLE
+// writes the attribute back as `/* CACHED ON */` (read on v8.5.5, 2026-11-19),
+// so a table that carries it is not the same schema as one that does not, and
+// NOCACHE takes it away again.
+func TestAlterTableCache(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "ALTER TABLE t CACHE;")
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "/* CACHED ON */") {
+		t.Errorf("ALTER TABLE t CACHE wrote no marker:\n%s", ddl)
+	}
+	execAll(t, c, "ALTER TABLE t NOCACHE;")
+	if ddl := c.ShowCreateTable("d", "t"); strings.Contains(ddl, "CACHED") {
+		t.Errorf("ALTER TABLE t NOCACHE left the marker:\n%s", ddl)
 	}
 }
 

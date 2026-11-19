@@ -373,6 +373,14 @@ func errFKCannotUseVirtualColumn(constraint, col string) error {
 		Message: fmt.Sprintf("Foreign key '%s' uses virtual column '%s' which is not supported.", constraint, col)}
 }
 
+// errAlterStoredGeneratedColumn is TiDB 3106 for ALTER TABLE ADD COLUMN of a
+// STORED generated column: the ALTER path stores generated columns VIRTUAL only
+// (read on v8.5.5, 2026-11-19). CREATE TABLE takes a STORED one.
+func errAlterStoredGeneratedColumn() error {
+	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
+		Message: "'Adding generated stored column through ALTER TABLE' is not supported for generated columns."}
+}
+
 // errVirtualGeneratedColumnPrimaryKey is TiDB 3106 for a VIRTUAL generated
 // column named as a primary key (inline or in a table-level PRIMARY KEY). A
 // STORED generated column may be a primary key.
@@ -557,6 +565,224 @@ func columnDefaultExpr(colDef *nodes.ColumnDef) nodes.ExprNode {
 		}
 	}
 	return expr
+}
+
+// checkAlterColumnCharsets resolves the charset and collation each
+// ADD/MODIFY/CHANGE column definition names, which TiDB does while it prepares
+// the statement: `ALTER TABLE nope ADD x TINYTEXT UNICODE` answers 1115 (the
+// keyword's charset is ucs2, which TiDB does not have) rather than the table's
+// 1146, and a duplicate column does not hide it either (read on v8.5.5).
+func checkAlterColumnCharsets(cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		default:
+			continue
+		}
+		colDefs := cmd.Columns
+		if cmd.Column != nil {
+			colDefs = append(append([]*nodes.ColumnDef{}, colDefs...), cmd.Column)
+		}
+		for _, colDef := range colDefs {
+			if colDef == nil || colDef.TypeName == nil {
+				continue
+			}
+			if _, _, err := resolveCharsetCollation(colDef.TypeName.Charset, colDef.TypeName.Collate); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// checkAlterColumnDefinition holds an ADD/MODIFY/CHANGE column to the per-column
+// rules a CREATE TABLE's column is held to, which the ALTER path used to skip.
+// TiDB v8.5.5 answers the same code either way (measured 2026-11-19): 1294 for
+// an ON UPDATE CURRENT_TIMESTAMP a column of another type cannot carry, 3770
+// for a DEFAULT whose function is not allowed, 1291 for a duplicated ENUM or
+// SET member, and 1054 for a generated-column expression that names a column
+// the table does not have.
+func checkAlterColumnDefinition(tbl *Table, colDef *nodes.ColumnDef, col *Column) error {
+	if colDef.Generated != nil {
+		// TiDB v8.5.5 stores a generated column VIRTUAL only: adding a STORED
+		// one is 3106, ahead of the expression's own resolution (read on
+		// 2026-11-19). CREATE TABLE takes one, so this is the ALTER rule.
+		if colDef.Generated.Stored {
+			return errAlterStoredGeneratedColumn()
+		}
+	}
+	if err := checkDecimalBounds(colDef.Name, colDef.TypeName); err != nil {
+		return err
+	}
+	if err := checkTemporalFspBounds(colDef.Name, colDef.TypeName); err != nil {
+		return err
+	}
+	if err := checkTemporalDefaultFsp(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+		return err
+	}
+	if err := checkTemporalBareDefault(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+		return err
+	}
+	if err := checkTemporalOnUpdate(colDef.Name, colDef.TypeName, colDef.OnUpdate); err != nil {
+		return err
+	}
+	if err := checkDefaultExprFunction(col.Name, columnDefaultExpr(colDef)); err != nil {
+		return err
+	}
+	if err := checkBareDefaultFunction(col.Name, columnDefaultExpr(colDef)); err != nil {
+		return err
+	}
+	if err := checkEnumSetDuplicates(col.Name, colDef.TypeName); err != nil {
+		return err
+	}
+	if colDef.Generated != nil {
+		if err := checkGeneratedColumnFunctions(col.Name, colDef.Generated.Expr); err != nil {
+			return err
+		}
+		if err := checkGeneratedColumnRefs(tbl, colDef.Generated.Expr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkBareDefaultFunction rejects a bare (non-parenthesized) DEFAULT whose
+// top-level call is a function TiDB v8.5.5 does not allow as a default, which it
+// answers 3770 for: `ADD e TINYINT DEFAULT ident()` is 3770 (read on v8.5.5).
+// The NOW() family is the temporal default checkTemporalBareDefault and
+// checkNowDefaultColumnType judge (1067), and the functions
+// allowedDefaultExprFuncs lists are taken, so only a call outside both is
+// refused; a function that list names but the bare form does not take (TiDB
+// answers 3770 for a bare DATE_FORMAT) stays over-accepted.
+func checkBareDefaultFunction(colName string, expr nodes.ExprNode) error {
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil
+	}
+	name := strings.ToLower(fn.Name)
+	if nowFamilyDefaultFuncs[name] || allowedDefaultExprFuncs[name] {
+		return nil
+	}
+	return errDefaultFunctionNotAllowed(colName, fn.Name)
+}
+
+// checkEnumSetDuplicates rejects a duplicated member in an ENUM or SET type,
+// which TiDB v8.5.5 answers 1291 for and names the member (read on v8.5.5).
+func checkEnumSetDuplicates(colName string, dt *nodes.DataType) error {
+	if dt == nil || len(dt.EnumValues) == 0 {
+		return nil
+	}
+	kind := "ENUM"
+	if strings.EqualFold(dt.Name, "set") {
+		kind = "SET"
+	}
+	seen := make(map[string]bool, len(dt.EnumValues))
+	for _, v := range dt.EnumValues {
+		if seen[v] {
+			return errDupEnumValue(colName, v, kind)
+		}
+		seen[v] = true
+	}
+	return nil
+}
+
+// checkGeneratedColumnRefs resolves the columns a generated-column expression
+// reads against the table, which TiDB v8.5.5 answers 1054 for: `ALTER TABLE a ADD
+// e INT AS (missing)` is "Unknown column 'missing' in 'generated column
+// function'" (read on v8.5.5). The column being added is not visible to its own
+// expression either, and is refused the same way.
+func checkGeneratedColumnRefs(tbl *Table, expr nodes.ExprNode) error {
+	if expr == nil {
+		return nil
+	}
+	var missing string
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if missing != "" {
+			return false
+		}
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+			if tbl.GetColumn(ref.Column) == nil {
+				missing = ref.Column
+				return false
+			}
+		}
+		return true
+	})
+	if missing != "" {
+		return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+			Message: fmt.Sprintf("Unknown column '%s' in 'generated column function'", missing)}
+	}
+	return nil
+}
+
+// checkSetDefaultColumnRef rejects a column reference inside the expression of
+// ALTER TABLE ... ALTER COLUMN c SET DEFAULT (expr), which TiDB v8.5.5 answers
+// 1054 for on every column but a DATETIME or TIMESTAMP one -- those take the
+// reference, measured on v8.5.5.
+func checkSetDefaultColumnRef(tbl *Table, col *Column, expr nodes.ExprNode) error {
+	if expr == nil || col == nil {
+		return nil
+	}
+	switch strings.ToLower(col.DataType) {
+	case "datetime", "timestamp":
+		return nil
+	}
+	var missing string
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if missing != "" {
+			return false
+		}
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+			missing = ref.Column
+			return false
+		}
+		return true
+	})
+	if missing == "" {
+		return nil
+	}
+	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+		Message: fmt.Sprintf("Unknown column '%s' in 'expression'", missing)}
+}
+
+// checkColumnSequenceDefault resolves the sequence a column definition's DEFAULT
+// NEXT VALUE FOR names, which TiDB v8.5.5 does while it prepares the ALTER:
+// a table of the name that is not a sequence answers 1347, and nothing of the
+// name 1146 (both read on v8.5.5, ahead of the duplicate-column check).
+func checkColumnSequenceDefault(tbl *Table, colDef *nodes.ColumnDef) error {
+	expr := columnDefaultExpr(colDef)
+	if expr == nil {
+		return nil
+	}
+	var ref *nodes.ColumnRef
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if fn, ok := n.(*nodes.FuncCallExpr); ok && strings.EqualFold(fn.Name, "nextval") && len(fn.Args) == 1 {
+			if arg, ok := fn.Args[0].(*nodes.ColumnRef); ok {
+				ref = arg
+				return false
+			}
+		}
+		return true
+	})
+	if ref == nil || tbl.Database == nil {
+		return nil
+	}
+	db := tbl.Database
+	if ref.Table != "" && !strings.EqualFold(ref.Table, db.Name) {
+		// A sequence in another schema is not one this catalog can resolve, so
+		// the statement keeps whatever the catalog recorded.
+		return nil
+	}
+	if db.Sequences[toLower(ref.Column)] != nil {
+		return nil
+	}
+	if db.GetTable(ref.Column) != nil {
+		return errWrongObjectKind(db.Name, ref.Column, "SEQUENCE")
+	}
+	return errNoSuchTable(db.Name, ref.Column)
 }
 
 // errIncorrectAutoIncrementDefinition is TiDB 1075 for a table that declares
