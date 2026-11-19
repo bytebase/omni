@@ -8396,7 +8396,13 @@ func TestParseBinlog(t *testing.T) {
 	// at leaves it empty: measured on mariadb:11.8.8, `BINLOG @a, @` parses.
 	ParseAndCompare(t, "BINLOG @a, @", "{BINLOG :loc 0 :fragments [\"a\" \"\"]}")
 	ParseAndCompare(t, "BINLOG @, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
-	for _, sql := range []string{"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b"} {
+	ParseAndCompare(t, "BINLOG @'', @\"\"", "{BINLOG :loc 0 :fragments [\"\" \"\"]}")
+	ParseAndCompare(t, "BINLOG @`a`, @`b`", "{BINLOG :loc 0 :fragments [\"a\" \"b\"]}")
+	ParseAndCompare(t, "BINLOG @``, @a", "{BINLOG :loc 0 :fragments [\"\" \"a\"]}")
+	for _, sql := range []string{
+		"BINLOG", "BINLOG @a", "BINLOG @a, @@b", "BINLOG @@a, @b",
+		"BINLOG `@`, `@`", "BINLOG `@a`, `@b`", "BINLOG @ 'a', @b", "BINLOG @ a, @ b",
+	} {
 		ParseExpectError(t, sql)
 	}
 }

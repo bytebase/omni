@@ -13,6 +13,8 @@ func TestEnumDuplicateValueMessage(t *testing.T) {
 	for _, tc := range []struct{ ddl, want string }{
 		{"CREATE TABLE t (e ENUM('s', 'S'))", "Column 'e' has duplicated value 's' in ENUM"},
 		{"CREATE TABLE t (e SET('a', 'b', 'A'))", "Column 'e' has duplicated value 'a' in SET"},
+		{"CREATE TABLE t (e ENUM('a ', 'a'))", "Column 'e' has duplicated value 'a' in ENUM"},
+		{"CREATE TABLE t (e ENUM('S ', 's'))", "Column 'e' has duplicated value 'S' in ENUM"},
 	} {
 		err := execErr(t, tc.ddl)
 		catErr, ok := err.(*Error)
@@ -22,5 +24,13 @@ func TestEnumDuplicateValueMessage(t *testing.T) {
 		if !strings.Contains(catErr.Message, tc.want) {
 			t.Errorf("%s: Message = %q, want %q", tc.ddl, catErr.Message, tc.want)
 		}
+	}
+
+	// Outside strict sql_mode, 1291 is a note and the table is created: measured
+	// on mariadb:11.8.8 under `SET sql_mode = ''` and `'ANSI'`.
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; SET sql_mode = ''; CREATE TABLE t (e ENUM('s', 's'));")
+	if c.GetDatabase("d").GetTable("t") == nil {
+		t.Fatal("non-strict sql_mode rejected ENUM('s', 's')")
 	}
 }

@@ -47,12 +47,9 @@ func validateExpressionSemantics(node nodes.Node) error {
 // lowercased names of the columns a key outside the definition covers, which
 // decides whether a VIRTUAL generated column's value is materialized; it may
 // be nil.
-func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool, collation string) error {
+func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
-	}
-	if err := validateEnumSetValues(colDef, collation); err != nil {
-		return err
 	}
 	typeName := normalizedColumnDataType(colDef.TypeName)
 	switch typeName {
@@ -340,7 +337,7 @@ func validateExprColumns(tbl *Table, expr nodes.ExprNode, context string) error 
 	sequences := map[*nodes.ColumnRef]bool{}
 	nodes.Inspect(expr, func(n nodes.Node) bool {
 		fc, ok := n.(*nodes.FuncCallExpr)
-		if !ok || len(fc.Args) == 0 {
+		if !ok || fc.Schema != "" || len(fc.Args) == 0 {
 			return true
 		}
 		switch strings.ToUpper(fc.Name) {
@@ -395,6 +392,11 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, s
 			continue
 		}
 		switch cmd.Type {
+		case nodes.ATAlterColumnDefault:
+			if err := validateExprColumns(tbl, cmd.DefaultExpr, "DEFAULT"); err != nil {
+				return err
+			}
+			continue
 		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
 		default:
 			continue
@@ -414,15 +416,20 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, s
 }
 
 // validateColumnExprColumns holds the expressions a column definition carries to
-// validateExprColumns: the column's own DEFAULT, and each CHECK written beside
-// it. A column-level CHECK may name the column it is declared on, which the
-// table holds once the column is in.
+// validateExprColumns: the column's own DEFAULT, its GENERATED ALWAYS AS
+// expression, and each CHECK written beside it. A column-level CHECK may name
+// the column it is declared on, which the table holds once the column is in.
 func validateColumnExprColumns(tbl *Table, colDef *nodes.ColumnDef) error {
 	if colDef == nil {
 		return nil
 	}
 	if err := validateExprColumns(tbl, colDef.DefaultValue, "DEFAULT"); err != nil {
 		return err
+	}
+	if colDef.Generated != nil && colDef.Generated.RowBound == nodes.RowBoundNone {
+		if err := validateExprColumns(tbl, colDef.Generated.Expr, "GENERATED ALWAYS AS"); err != nil {
+			return err
+		}
 	}
 	for _, cc := range colDef.Constraints {
 		switch cc.Type {
@@ -440,13 +447,25 @@ func validateColumnExprColumns(tbl *Table, colDef *nodes.ColumnDef) error {
 }
 
 // validateEnumSetValues refuses an ENUM or SET column that lists one value
-// twice: 1291, which MariaDB compares case-insensitively and answers with the
-// first spelling. Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))`
-// and `SET ('a','A')` answer it, for a column a CREATE TABLE declares and one an
-// ALTER adds.
-func validateEnumSetValues(colDef *nodes.ColumnDef, collation string) error {
+// twice under strict sql_mode: 1291, which MariaDB compares with the column's
+// collation and answers with the first trimmed spelling. Outside strict mode
+// (`SET sql_mode = ”` or `'ANSI'`) MariaDB keeps the definition with a 1291
+// note. Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))` and
+// `SET ('a','A')` answer 1291 under DEFAULT, TRADITIONAL and
+// STRICT_TRANS_TABLES, and `ENUM('a ','a')` names `'a'`.
+func (c *Catalog) validateEnumSetValues(colDef *nodes.ColumnDef, collation string) error {
+	if colDef == nil || colDef.TypeName == nil {
+		return nil
+	}
 	kind := strings.ToUpper(colDef.TypeName.Name)
 	if kind != "ENUM" && kind != "SET" {
+		return nil
+	}
+	return c.validateEnumSetList(colDef.Name, kind, colDef.TypeName.EnumValues, collation)
+}
+
+func (c *Catalog) validateEnumSetList(colName, kind string, values []string, collation string) error {
+	if !c.isStrictSQLMode() {
 		return nil
 	}
 	// MariaDB compares the values with the column's collation, so a
@@ -455,23 +474,73 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, collation string) error {
 	// table's `COLLATE utf8mb4_bin` are all accepted, where the default
 	// utf8mb4_uca1400_ai_ci answers 1291.
 	fold := !collationCaseSensitive(collation)
-	seen := make(map[string]string, len(colDef.TypeName.EnumValues))
-	for _, value := range colDef.TypeName.EnumValues {
+	seen := make(map[string]string, len(values))
+	for _, value := range values {
 		// A trailing space is the collation's: MariaDB stores `ENUM('a ','b ')`
 		// as enum('a','b') and answers 1291 for `('a','a ')`, whatever the
-		// collation. Measured on mariadb:11.8.8, a tab being kept.
-		key := strings.TrimRight(value, " ")
+		// collation, naming the trimmed value ('a'). Measured on mariadb:11.8.8,
+		// a tab being kept.
+		trimmed := strings.TrimRight(value, " ")
+		key := trimmed
 		if fold {
 			key = foldEnumValue(key, collation)
 		}
 		if first, ok := seen[key]; ok {
 			// The message names the first spelling: `ENUM('s','S')` over a
 			// case-insensitive collation reports "duplicated value 's'".
-			return errDupEnumValue(colDef.Name, first, kind)
+			return errDupEnumValue(colName, first, kind)
 		}
-		seen[key] = value
+		seen[key] = trimmed
 	}
 	return nil
+}
+
+// isStrictSQLMode reports whether session sql_mode promotes warnings such as
+// 1291 to errors: STRICT_TRANS_TABLES (part of DEFAULT on MariaDB 11.8.8),
+// STRICT_ALL_TABLES, or TRADITIONAL.
+func (c *Catalog) isStrictSQLMode() bool {
+	for _, mode := range strings.Split(strings.ToUpper(c.session.SQLMode), ",") {
+		switch strings.TrimSpace(mode) {
+		case "DEFAULT", "TRADITIONAL", "STRICT_TRANS_TABLES", "STRICT_ALL_TABLES":
+			return true
+		}
+	}
+	return false
+}
+
+// parseColumnEnumSetValues reads the member list back from a stored ColumnType
+// (`enum('a','b”c')`), where escapeEnumValue doubled single quotes.
+func parseColumnEnumSetValues(columnType string) []string {
+	open := strings.IndexByte(columnType, '(')
+	close := strings.LastIndexByte(columnType, ')')
+	if open < 0 || close <= open {
+		return nil
+	}
+	s := columnType[open+1 : close]
+	var values []string
+	for i := 0; i < len(s); {
+		if s[i] != '\'' {
+			i++
+			continue
+		}
+		i++ // skip opening '\''
+		var b strings.Builder
+		for i < len(s) {
+			if s[i] == '\'' {
+				if i+1 < len(s) && s[i+1] == '\'' {
+					b.WriteByte('\'')
+					i += 2
+					continue
+				}
+				i++ // skip closing '\''
+				break
+			}
+			b.WriteByte(s[i])
+			i++
+		}
+		values = append(values, b.String())
+	}
+	return values
 }
 
 // effectiveColumnCollation is the collation a column definition's ENUM or SET

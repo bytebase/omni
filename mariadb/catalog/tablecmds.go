@@ -219,9 +219,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// key) fails after the old table is dropped, and so it does here.
 		// MariaDB also rejects a malformed literal default ('not-a-date',
 		// 1067) after the drop; the catalog does not check those.
-		replacedCollation := c.declaredTableCollation(stmt.Options, db)
 		for _, colDef := range stmt.Columns {
-			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt), c.effectiveColumnCollation(colDef, replacedCollation)); err != nil {
+			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt)); err != nil {
 				return err
 			}
 		}
@@ -286,12 +285,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// column can be checked against the indexes that will cover it.
 	indexedCols := tableLevelIndexedColumns(stmt)
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef, indexedCols, c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
+		if err := validateColumnDefSemantics(colDef, indexedCols); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
 		if _, exists := tbl.colByName[colKey]; exists {
 			return errDupColumn(colDef.Name)
+		}
+		if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
+			return err
 		}
 		// After the table's own columns are known to lack the name: 4029, an
 		// expression reading the column it defines or a generated column defined
@@ -674,10 +676,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
 			return err
 		}
-		// A type the server answers 1210 for is refused before the key is built.
-		if err := validateKeyTypeArguments(resolveConstraintIndexType(con)); err != nil {
-			return err
-		}
 		// A FULLTEXT key's parser is looked up before its columns, as the ALTER
 		// path's is: measured on mariadb:11.8.8,
 		// `CREATE TABLE t (a TEXT, FULLTEXT KEY f (missing) WITH PARSER
@@ -687,10 +685,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				return err
 			}
 		}
+		// A WITHOUT OVERLAPS part's period is looked up before the key's columns
+		// and type: measured on mariadb:11.8.8, `UNIQUE (missing, missing WITHOUT
+		// OVERLAPS)` answers 4156, not 1072.
+		if err := validateDeclaredWithoutOverlapsParts(tbl.AppPeriodName, con.IndexColumns); err != nil {
+			return err
+		}
 		// A key part naming no column of the table is 1072, before the repeated
-		// name a key like `PRIMARY KEY (missing, missing)` carries is 1060:
-		// measured on mariadb:11.8.8.
+		// name a key like `PRIMARY KEY (missing, missing)` carries is 1060 and
+		// before USING RTREE's 1210: measured on mariadb:11.8.8.
 		if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
+			return err
+		}
+		// A type the server answers 1210 for is refused before the key is built.
+		if err := validateKeyTypeArguments(resolveConstraintIndexType(con)); err != nil {
 			return err
 		}
 
@@ -1042,30 +1050,24 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	return nil
 }
 
-// declaredTableCollation is the collation a CREATE TABLE gives its columns that
-// name none: the table's own COLLATE, or the default of the CHARACTER SET it
-// names, or the database's.
-func (c *Catalog) declaredTableCollation(opts []*nodes.TableOption, db *Database) string {
-	charsetWildcard := ""
-	for _, opt := range opts {
-		if opt.EngineDefined {
+// validateDeclaredWithoutOverlapsParts holds every WITHOUT OVERLAPS key part to
+// the table's application-time period: 4156, checked before the key's columns,
+// type, or colliding name on CREATE TABLE and CREATE INDEX alike (measured on
+// mariadb:11.8.8).
+func validateDeclaredWithoutOverlapsParts(appPeriod string, cols []*nodes.IndexColumn) error {
+	for _, ic := range cols {
+		if ic == nil || !ic.WithoutOverlaps {
 			continue
 		}
-		switch toLower(opt.Name) {
-		case "collate", "default collate":
-			if value := unquoteTableOption(opt.Value); value != "" {
-				return value
-			}
-		case "charset", "character set", "default charset", "default character set":
-			charsetWildcard = normalizeCharsetName(unquoteTableOption(opt.Value))
+		name, ok := unwrapParenColumnRef(ic.Expr)
+		if !ok {
+			continue
+		}
+		if appPeriod == "" || !strings.EqualFold(name.Column, appPeriod) {
+			return errPeriodNotFound(name.Column)
 		}
 	}
-	if charsetWildcard != "" {
-		if dc := c.charsetCollation(charsetWildcard); dc != "" {
-			return dc
-		}
-	}
-	return db.Collation
+	return nil
 }
 
 // validateDeclaredSystemTimePeriod judges the PERIOD FOR SYSTEM_TIME a CREATE

@@ -1172,6 +1172,105 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD KEY(a, a)",
 			code:  1060,
 		},
+		// Parenthesized ADD (KEY ...) runs the same engine-option check as ADD KEY.
+		{
+			name:        "parenthesized ADD KEY with an engine-defined option",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD (KEY k (c) x = 1)",
+			code:        1911,
+			keepsSchema: true,
+		},
+		// ALTER COLUMN ... SET DEFAULT and GENERATED ALWAYS AS read their
+		// columns against the table the statement leaves (1054).
+		{
+			name:        "ALTER COLUMN SET DEFAULT over a missing column",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ALTER COLUMN c SET DEFAULT missing",
+			code:        1054,
+			keepsSchema: true,
+		},
+		{
+			name:     "ALTER COLUMN SET DEFAULT naming a column added after it",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ALTER COLUMN c SET DEFAULT e, ADD COLUMN e INT",
+			code:     0,
+			contains: []string{"DEFAULT `e`"},
+		},
+		{
+			name:   "CREATE TABLE generated column over a missing column",
+			stmt:   "CREATE TABLE a (b INT, g INT AS (missing))",
+			code:   1054,
+			absent: "a",
+		},
+		{
+			name:        "ALTER TABLE ADD generated column over a missing column",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD g INT AS (missing)",
+			code:        1054,
+			keepsSchema: true,
+		},
+		// Skipped ADD COLUMN IF NOT EXISTS clauses neither read generated
+		// columns added later nor count as generated columns themselves.
+		{
+			name:  "skipped ADD COLUMN IF NOT EXISTS generated forward ref",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN IF NOT EXISTS c INT AS (e), ADD e INT AS (1)",
+			code:  0,
+		},
+		{
+			name:  "generated column reading an existing column beside a skipped generated IF NOT EXISTS",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT AS (c), ADD COLUMN IF NOT EXISTS c INT AS (1)",
+			code:  0,
+		},
+		// ENUM collation in ALTER follows the table collation the statement
+		// leaves, CONVERT TO re-checks existing ENUM values, MODIFY resolves the
+		// column name before 1291, and CREATE OR REPLACE drops the old table
+		// before 1291.
+		{
+			name:     "ADD ENUM followed by table COLLATE utf8mb4_bin",
+			setup:    []string{"CREATE TABLE a (b INT)"},
+			stmt:     "ALTER TABLE a ADD e ENUM('s', 'S'), COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"enum('s','S')"},
+			omits:    []string{"CHARACTER SET utf8mb4 COLLATE"},
+		},
+		{
+			name:        "CONVERT TO case-insensitive charset on a binary-collated ENUM",
+			setup:       []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4",
+			code:        1291,
+			keepsSchema: true,
+		},
+		{
+			name:        "MODIFY a missing column to a duplicated ENUM",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a MODIFY missing ENUM('s', 's')",
+			code:        1054,
+			keepsSchema: true,
+		},
+		{
+			name:   "CREATE OR REPLACE TABLE with a duplicated ENUM drops the old table",
+			setup:  []string{"CREATE TABLE a (b INT)"},
+			stmt:   "CREATE OR REPLACE TABLE a (e ENUM('s', 's'))",
+			code:   1291,
+			absent: "a",
+		},
+		// WITHOUT OVERLAPS resolves its period before missing key columns on
+		// CREATE INDEX and CREATE TABLE alike.
+		{
+			name:        "CREATE UNIQUE INDEX over a missing column and a missing period",
+			setup:       []string{oneTable},
+			stmt:        "CREATE UNIQUE INDEX u ON a (missing, missing WITHOUT OVERLAPS)",
+			code:        4156,
+			keepsSchema: true,
+		},
+		{
+			name:   "CREATE TABLE UNIQUE over a missing column and a missing period",
+			stmt:   "CREATE TABLE a (b INT, UNIQUE (missing, missing WITHOUT OVERLAPS))",
+			code:   4156,
+			absent: "a",
+		},
 	}
 
 	for _, tc := range cases {

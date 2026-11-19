@@ -60,6 +60,12 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			return err
 		}
 	}
+	// A WITHOUT OVERLAPS part's period is looked up before the key's columns,
+	// type, and colliding name: measured on mariadb:11.8.8, `CREATE UNIQUE
+	// INDEX u ON a (missing, missing WITHOUT OVERLAPS)` answers 4156.
+	if err := validateDeclaredWithoutOverlapsParts(tbl.AppPeriodName, stmt.Columns); err != nil {
+		return err
+	}
 	// The key's own validity is judged before a name it collides with:
 	// measured on mariadb:11.8.8, `CREATE SPATIAL INDEX idx_d ON a (b)` over an
 	// INT b answers 1210 and `CREATE FULLTEXT INDEX idx_d ON a (b)` 1283 where
