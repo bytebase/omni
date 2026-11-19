@@ -3,6 +3,8 @@ package catalog
 import (
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
 // TestViewGroupByAllDeparse pins Redshift's GROUP BY ALL through the catalog:
@@ -250,10 +252,10 @@ func TestViewLevelPseudocolumn(t *testing.T) {
 	}
 }
 
-// TestMigrationMatViewReplaceKeepsIndexesAndWarns pins the plan for a
+// TestMigrationMatViewReplaceKeepsIndexesAndDependents pins the plan for a
 // materialized view the catalog replaces: its indexes are created again after
-// the new view, and a dependent view is named in a warning because the drop
-// waits on it.
+// the new view, and a view that reads it is dropped first and created again
+// after it.
 func TestMigrationMatViewReplaceKeepsIndexesAndWarns(t *testing.T) {
 	from, err := LoadSQL(`CREATE TABLE t (id int);
 CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
@@ -280,13 +282,69 @@ CREATE VIEW v_dep AS SELECT id FROM mv;`)
 	if createIdx != 1 {
 		t.Fatalf("CREATE INDEX idx_mv_id appears %d times, want once after the re-created view", createIdx)
 	}
-	warned := false
-	for _, w := range plan.Warnings() {
-		if strings.Contains(w.Warning, "dependent") && strings.Contains(w.Warning, "v_dep") {
-			warned = true
+	// The dependent view is dropped before the view it reads and created again
+	// after it, so the drop the plan emits can run.
+	var dropDep, dropMV, createMV, createDep = -1, -1, -1, -1
+	for i, op := range plan.Ops {
+		switch {
+		case op.Type == OpDropView && strings.Contains(op.SQL, "DROP VIEW") && strings.Contains(op.SQL, `"v_dep"`):
+			dropDep = i
+		case op.Type == OpDropView && strings.Contains(op.SQL, "DROP MATERIALIZED VIEW"):
+			dropMV = i
+		case op.Type == OpCreateView && strings.Contains(op.SQL, "CREATE MATERIALIZED VIEW"):
+			createMV = i
+		case op.Type == OpCreateView && strings.Contains(op.SQL, "CREATE VIEW") && strings.Contains(op.SQL, `"v_dep"`):
+			createDep = i
 		}
 	}
-	if !warned {
-		t.Fatalf("warnings = %#v, want one naming v_dep", plan.Warnings())
+	if dropDep < 0 || dropMV < 0 || createMV < 0 || createDep < 0 {
+		t.Fatalf("plan = %v, want drops and creates of both views", plan.Ops)
 	}
+	if !(dropDep < dropMV && dropMV < createMV && createMV < createDep) {
+		t.Fatalf("order = drop v_dep %d, drop mv %d, create mv %d, create v_dep %d, want them in that order", dropDep, dropMV, createMV, createDep)
+	}
+}
+
+// TestCloneKeepsMatViewOptionsApart pins the deep copy of a materialized view's
+// storage: changing the clone's option leaves the source's alone, so a Diff of
+// the two sees the change.
+func TestCloneKeepsMatViewOptionsApart(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+	}
+	clone := c.Clone()
+	clonedRel := clone.GetRelation("", "mv")
+	if clonedRel == nil || clonedRel.MatViewOptions == nil {
+		t.Fatal("the clone holds no materialized view options")
+	}
+	backup := optionNamed(clonedRel.MatViewOptions, "backup")
+	if backup == nil {
+		t.Fatalf("options = %#v, want a backup", clonedRel.MatViewOptions)
+	}
+	backup.Arg.(*nodes.String).Str = "yes"
+
+	source := optionNamed(c.GetRelation("", "mv").MatViewOptions, "backup")
+	if source.Arg.(*nodes.String).Str != "no" {
+		t.Fatalf("the source's backup followed the clone's")
+	}
+	if deparseMatViewOptions(clonedRel) == deparseMatViewOptions(c.GetRelation("", "mv")) {
+		t.Fatalf("the two catalogs' storage deparses the same after the clone changed")
+	}
+}
+
+// optionNamed returns the DefElem a materialized view's options hold under name.
+func optionNamed(options *nodes.List, name string) *nodes.DefElem {
+	if options == nil {
+		return nil
+	}
+	for _, item := range options.Items {
+		if elem, ok := item.(*nodes.DefElem); ok && elem.Defname == name {
+			return elem
+		}
+	}
+	return nil
 }

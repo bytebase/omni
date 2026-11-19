@@ -256,32 +256,32 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 }
 
 // buildModifyMatViewOps creates DROP + CREATE ops for a modified matview.
-// Materialized views don't support CREATE OR REPLACE, so a dependent view
-// blocks the drop until it is dropped or redefined, and the plan says so.
+// Materialized views don't support CREATE OR REPLACE, so the drop takes the
+// views that depend on it: they are dropped first and created again from the
+// definitions they had.
 func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
-	var warnings []MigrationOp
-	if from != nil {
-		dependents := findDependentViews(from, entry.SchemaName, entry.Name)
-		if len(dependents) > 0 {
-			names := make([]string, len(dependents))
-			for i, d := range dependents {
-				names[i] = migrationQualifiedName(d.schema, d.name)
-			}
-			sort.Strings(names)
-			warnings = append(warnings, MigrationOp{
-				Type:          OpAlterView,
-				SchemaName:    entry.SchemaName,
-				ObjectName:    entry.Name,
-				SQL:           "", // no SQL — warning only
-				Warning:       fmt.Sprintf("materialized view %s has dependent views that block its re-creation: %s", migrationQualifiedName(entry.SchemaName, entry.Name), strings.Join(names, ", ")),
-				Transactional: true,
-				Phase:         PhaseMain,
-				ObjType:       'r',
-				ObjOID:        entry.To.OID,
-				Priority:      PriorityView,
-			})
+	var ops []MigrationOp
+
+	// Deepest dependents first, so each is dropped before the view it reads.
+	dependents := dependentViewsInDropOrder(from, entry.SchemaName, entry.Name)
+	for _, dep := range dependents {
+		op := MigrationOp{
+			Type:          OpDropView,
+			SchemaName:    dep.schema,
+			ObjectName:    dep.name,
+			SQL:           fmt.Sprintf("DROP VIEW %s", migrationQualifiedName(dep.schema, dep.name)),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			Priority:      PriorityView,
 		}
+		// The plan's dependency sort orders the drops by these OIDs.
+		if rel := from.GetRelation(dep.schema, dep.name); rel != nil {
+			op.ObjOID = rel.OID
+		}
+		ops = append(ops, op)
 	}
+
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
 
@@ -319,7 +319,68 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 		Priority:      PriorityView,
 	}
 
-	return append(warnings, dropOp, createOp)
+	ops = append(ops, dropOp, createOp)
+
+	// The dependents read the view again, shallowest first.
+	for i := len(dependents) - 1; i >= 0; i-- {
+		ops = append(ops, buildRecreateViewOp(from, dependents[i]))
+	}
+	return ops
+}
+
+// buildRecreateViewOp creates a CREATE VIEW op for a view that a materialized
+// view's re-creation dropped, from the definition it had.
+func buildRecreateViewOp(from *Catalog, ref viewRef) MigrationOp {
+	op := MigrationOp{
+		Type:          OpCreateView,
+		SchemaName:    ref.schema,
+		ObjectName:    ref.name,
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		Priority:      PriorityView,
+	}
+	rel := from.GetRelation(ref.schema, ref.name)
+	if rel != nil {
+		op.ObjOID = rel.OID
+	}
+	def, _ := from.GetViewDefinition(ref.schema, ref.name)
+	var b strings.Builder
+	b.WriteString("CREATE VIEW ")
+	b.WriteString(migrationQualifiedName(ref.schema, ref.name))
+	b.WriteString(" AS ")
+	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
+	if rel != nil {
+		switch rel.CheckOption {
+		case 'l':
+			b.WriteString("\n WITH LOCAL CHECK OPTION")
+		case 'c':
+			b.WriteString("\n WITH CASCADED CHECK OPTION")
+		}
+	}
+	op.SQL = b.String()
+	return op
+}
+
+// dependentViewsInDropOrder returns the views that depend on a relation,
+// transitively and each once, deepest first: a view that depends on another
+// comes before it.
+func dependentViewsInDropOrder(c *Catalog, schemaName, relName string) []viewRef {
+	seen := make(map[viewRef]bool)
+	var ordered []viewRef
+	var visit func(schema, name string)
+	visit = func(schema, name string) {
+		for _, dep := range findDependentViews(c, schema, name) {
+			if seen[dep] {
+				continue
+			}
+			seen[dep] = true
+			visit(dep.schema, dep.name)
+			ordered = append(ordered, dep)
+		}
+	}
+	visit(schemaName, relName)
+	return ordered
 }
 
 // viewRef identifies a view by schema and name.
