@@ -235,18 +235,22 @@ func (c *Catalog) MoveAllTablespaces(stmt *nodes.AlterTableMoveAllStmt) error {
 		switch nodes.ObjectType(stmt.ObjType) {
 		case nodes.OBJECT_TABLE:
 			for _, rel := range schema.Relations {
-				if (rel.RelKind == 'r' || rel.RelKind == 'p') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
+				if rel.Persistence != 't' && (rel.RelKind == 'r' || rel.RelKind == 'p') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
 					rel.Tablespace = target
 				}
 			}
 		case nodes.OBJECT_MATVIEW:
 			for _, rel := range schema.Relations {
-				if rel.RelKind == 'm' && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
+				if rel.Persistence != 't' && rel.RelKind == 'm' && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
 					rel.Tablespace = target
 				}
 			}
 		case nodes.OBJECT_INDEX:
 			for _, idx := range schema.Indexes {
+				rel := c.relationByOID[idx.RelOID]
+				if rel == nil || rel.Persistence == 't' {
+					continue
+				}
 				if tablespaceMatches(idx.Tablespace, stmt.OrigTablespacename) && ownerMatches(idx.OwnerName, owners) {
 					idx.Tablespace = target
 				}

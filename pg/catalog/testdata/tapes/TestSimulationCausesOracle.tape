@@ -698,3 +698,12 @@
 < error
 | 42939 unacceptable tablespace name "pg_fast"
 | detail: The prefix "pg_" is reserved for system tablespaces.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE INDEX i ON a USING heap(b) TABLESPACE a
+< error
+| 42704 tablespace "a" does not exist

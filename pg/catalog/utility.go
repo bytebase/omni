@@ -323,6 +323,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 //
 // pg: src/backend/utils/misc/guc.c — ExecSetVariableStmt
 func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
+	if s.Kind == nodes.VAR_RESET_ALL {
+		c.defaultTablespace = ""
+	}
 	switch s.Name {
 	case "search_path":
 		return c.processSetSearchPath(s)

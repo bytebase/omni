@@ -51,6 +51,11 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		return errWrongObjectType(rv.Relname, "a table or materialized view")
 	}
 
+	effectiveTablespace := c.effectiveTablespace(stmt.TableSpace)
+	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+		return err
+	}
+
 	// Resolve access method. Default to "btree" if empty.
 	// pg: src/backend/commands/indexcmds.c — DefineIndex (amcanunique check)
 	accessMethod := stmt.AccessMethod
@@ -278,11 +283,6 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		}
 		return errDuplicateObject("index", name)
 	}
-	effectiveTablespace := c.effectiveTablespace(stmt.TableSpace)
-	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
-		return err
-	}
-
 	idx := &Index{
 		OID:              c.oidGen.Next(),
 		Name:             name,

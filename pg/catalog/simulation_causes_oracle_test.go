@@ -122,6 +122,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE OPERATOR CLASS using a table access method", "missing", "CREATE OPERATOR CLASS c FOR TYPE int USING heap AS STORAGE int", CodeObjectNotInPrerequisiteState},
 		{"ALTER OPERATOR FAMILY using a table access method", "missing", "ALTER OPERATOR FAMILY f USING heap ADD OPERATOR 1 < (int, int)", CodeObjectNotInPrerequisiteState},
 		{"CREATE TABLESPACE with a reserved name", "missing", "CREATE TABLESPACE pg_fast LOCATION '/tmp'", CodeReservedName},
+		{"CREATE INDEX with a missing tablespace and a table access method", "table", "CREATE INDEX i ON a USING heap(b) TABLESPACE a", CodeUndefinedObject},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -318,6 +319,92 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if c.schemaByName["public"].Sequences["a_id_seq"] != nil {
 			t.Fatal("a failed CREATE TABLE left a_id_seq behind")
+		}
+	})
+
+	// A later failing subcommand restores the tablespace of the relation.
+	t.Run("a failed ALTER TABLE restores the tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE a (b int)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "ALTER TABLE a SET TABLESPACE ts, CLUSTER ON missing_idx"); code != CodeUndefinedObject {
+			t.Fatalf("catalog answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.Tablespace != "" {
+			t.Fatal("a failed ALTER TABLE kept the new tablespace")
+		}
+	})
+
+	// A cloned LIKE index keeps the source's custom tablespace.
+	t.Run("LIKE INCLUDING INDEXES keeps the source tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE old LOCATION '/tmp/old'",
+			"CREATE TABLESPACE new LOCATION '/tmp/new'",
+			"SET default_tablespace = old",
+			"CREATE TABLE src (b int)",
+			"CREATE INDEX src_b_idx ON src(b)",
+			"SET default_tablespace = new",
+			"CREATE TABLE dst (LIKE src INCLUDING INDEXES)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		dst := c.schemaByName["public"].Relations["dst"]
+		if dst == nil {
+			t.Fatal("dst was not created")
+		}
+		for _, idx := range c.indexesByRel[dst.OID] {
+			if idx.Tablespace != "old" {
+				t.Fatalf("cloned index %s has tablespace %q, want old", idx.Name, idx.Tablespace)
+			}
+		}
+	})
+
+	// RESET ALL clears default_tablespace.
+	t.Run("RESET ALL clears default_tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"SET default_tablespace = ts",
+			"RESET ALL",
+			"CREATE TABLE a (b int)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.Tablespace != "" {
+			t.Fatal("RESET ALL left default_tablespace in place")
+		}
+	})
+
+	// Bulk moves leave temporary relations alone.
+	t.Run("a bulk move leaves temporary relations alone", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLESPACE ts2 LOCATION '/tmp/ts2'",
+			"CREATE TEMP TABLE a (b int) TABLESPACE ts",
+			"ALTER TABLE ALL IN TABLESPACE ts SET TABLESPACE ts2",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		rel := c.GetRelation("pg_temp", "a")
+		if rel == nil {
+			rel = c.GetRelation("", "a")
+		}
+		if rel == nil || rel.Tablespace != "ts" {
+			t.Fatal("a bulk move changed a temporary relation's tablespace")
 		}
 	})
 

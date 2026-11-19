@@ -1775,12 +1775,16 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			copy(dstIndOption, idx.IndOption)
 		}
 
+		cloneTablespace := idx.Tablespace
+		if cloneTablespace == "" {
+			cloneTablespace = normalizeTablespace(c.effectiveTablespace(""))
+		}
 		newIdx := &Index{
 			OID:              c.oidGen.Next(),
 			Name:             idxName,
 			Schema:           schema,
 			RelOID:           dst.OID,
-			Tablespace:       normalizeTablespace(c.effectiveTablespace("")),
+			Tablespace:       cloneTablespace,
 			OwnerName:        dst.OwnerName,
 			Columns:          dstAttnums,
 			IsUnique:         idx.IsUnique,

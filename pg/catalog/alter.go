@@ -233,9 +233,32 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		}
 	}
 
+	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. The one
+	// mutation this catalog cannot rebuild from another field is a stored
+	// tablespace, so it is restored if a later subcommand fails.
+	relTablespaces := map[*Relation]string{}
+	idxTablespaces := map[*Index]string{}
+	for _, s := range c.schemas {
+		for _, r := range s.Relations {
+			relTablespaces[r] = r.Tablespace
+		}
+		for _, idx := range s.Indexes {
+			idxTablespaces[idx] = idx.Tablespace
+		}
+	}
+	restoreTablespaces := func() {
+		for r, ts := range relTablespaces {
+			r.Tablespace = ts
+		}
+		for idx, ts := range idxTablespaces {
+			idx.Tablespace = ts
+		}
+	}
+
 	// Execute in pass order.
 	for _, p := range pending {
 		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
+			restoreTablespaces()
 			return err
 		}
 		if recurse && shouldRecurse(nodes.AlterTableType(p.cmd.Subtype)) {
@@ -245,6 +268,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 					continue
 				}
 				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, recurse, true); err != nil {
+					restoreTablespaces()
 					return err
 				}
 			}
