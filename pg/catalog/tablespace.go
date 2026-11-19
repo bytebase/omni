@@ -193,7 +193,7 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 	if !ok {
 		return nil
 	}
-	_, oprName := qualifiedName(owa.Objname)
+	schemaName, oprName := qualifiedName(owa.Objname)
 	var left, right uint32
 	if owa.Objargs != nil {
 		var oids []uint32
@@ -215,8 +215,27 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 		}
 	}
 	var found *BuiltinOperator
+	visible := func(op *BuiltinOperator) bool {
+		if op.OID < FirstNormalObjectId {
+			return false
+		}
+		if schemaName != "" {
+			ns := c.schemaByName[schemaName]
+			return ns != nil && c.operatorSchemas[op.OID] == ns.OID
+		}
+		nsOID, ok := c.operatorSchemas[op.OID]
+		if !ok {
+			return false
+		}
+		for _, visible := range c.searchPathWithCatalog() {
+			if visible == nsOID {
+				return true
+			}
+		}
+		return false
+	}
 	for _, op := range c.operByKey[operKey{name: oprName, left: left, right: right}] {
-		if op.OID >= FirstNormalObjectId {
+		if visible(op) {
 			found = op
 			break
 		}
@@ -386,8 +405,25 @@ func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
 	schemaName, funcName := qualifiedName(owa.Objname)
 	var schema *Schema
 	if schemaName == "" {
+		// PostgreSQL matches the full signature first and then reports the
+		// first visible schema that holds it, so follow that order here.
+		argOIDs, argErr := c.routineArgOIDs(owa)
+		if argErr != nil {
+			return argErr
+		}
 		for _, nsOID := range c.searchPathWithCatalog() {
-			if ns := c.schemas[nsOID]; ns != nil && len(c.findUserProcsByName(ns, funcName)) > 0 {
+			ns := c.schemas[nsOID]
+			if ns == nil {
+				continue
+			}
+			if argOIDs == nil {
+				if len(c.findUserProcsByName(ns, funcName)) > 0 {
+					schema = ns
+					break
+				}
+				continue
+			}
+			if c.findExactProc(ns, funcName, argOIDs) != nil {
 				schema = ns
 				break
 			}
@@ -468,6 +504,36 @@ func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
 	}
 	up.OwnerName = owner
 	return nil
+}
+
+// routineArgOIDs resolves an ObjectWithArgs' argument types, or nil when the
+// statement named no signature.
+func (c *Catalog) routineArgOIDs(owa *nodes.ObjectWithArgs) ([]uint32, error) {
+	if owa == nil || owa.ArgsUnspecified {
+		return nil, nil
+	}
+	if owa.Objargs == nil {
+		return []uint32{}, nil
+	}
+	argOIDs := make([]uint32, 0, len(owa.Objargs.Items))
+	for _, item := range owa.Objargs.Items {
+		var tn *nodes.TypeName
+		switch n := item.(type) {
+		case *nodes.TypeName:
+			tn = n
+		case *nodes.FunctionParameter:
+			tn = n.ArgType
+		}
+		if tn == nil {
+			continue
+		}
+		oid, _, err := c.resolveTypeName(tn)
+		if err != nil {
+			return nil, err
+		}
+		argOIDs = append(argOIDs, oid)
+	}
+	return argOIDs, nil
 }
 
 func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds *nodes.List) error {
@@ -959,6 +1025,10 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			return pol != nil && ownedRelOIDs[pol.RelOID]
 		case 'E':
 			return ownedEventTriggerOIDs[objOID]
+		case 'O':
+			return inOwnedExt(objOID) || c.operatorOwners[objOID] != "" && owners[c.operatorOwners[objOID]]
+		case 'm':
+			return inOwnedExt(objOID)
 		}
 		return false
 	}

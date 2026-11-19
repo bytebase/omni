@@ -35,13 +35,20 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 	// Determine object type code.
 	objTypeCode := grantObjTypeCode(nodes.ObjectType(stmt.Objtype))
 
-	if stmt.IsGrant {
-		return c.execGrant(stmt, objTypeCode, privs, grantees)
+	grantor := c.currentOwner()
+	if stmt.Grantor != nil {
+		grantor = c.ownerRoleName(stmt.Grantor)
+		if err := c.checkRole(grantor); err != nil {
+			return err
+		}
 	}
-	return c.execRevoke(stmt, objTypeCode, privs, grantees)
+	if stmt.IsGrant {
+		return c.execGrant(stmt, objTypeCode, privs, grantees, grantor)
+	}
+	return c.execRevoke(stmt, objTypeCode, privs, grantees, grantor)
 }
 
-func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string) error {
+func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string, grantor string) error {
 	// PG forbids WITH GRANT OPTION to PUBLIC.
 	// pg: src/backend/catalog/aclchk.c — aclcheck (line 208-211)
 	if stmt.GrantOption {
@@ -77,7 +84,7 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 					ObjType:   objTypeCode,
 					ObjOID:    objOID,
 					Grantee:   grantee,
-					Grantor:   c.currentOwner(),
+					Grantor:   grantor,
 					Privilege: priv.name,
 					Columns:   priv.columns,
 					WithGrant: stmt.GrantOption,
@@ -88,7 +95,7 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 	return nil
 }
 
-func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string) error {
+func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string, grantor string) error {
 	// Resolve each object and remove matching grants.
 	if stmt.Objects == nil {
 		return nil
@@ -98,16 +105,16 @@ func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []gr
 		if err != nil {
 			return err
 		}
-		c.revokeGrants(objTypeCode, objOID, grantees, privs)
+		c.revokeGrants(objTypeCode, objOID, grantees, privs, grantor)
 	}
 	return nil
 }
 
 // revokeGrants removes matching grants from the catalog.
-func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []string, privs []grantPriv) {
+func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []string, privs []grantPriv, grantor string) {
 	n := 0
 	for _, g := range c.grants {
-		if g.ObjType == objType && g.ObjOID == objOID && matchGrantee(g.Grantee, grantees) && matchPriv(g.Privilege, privs) {
+		if g.ObjType == objType && g.ObjOID == objOID && g.Grantor == grantor && matchGrantee(g.Grantee, grantees) && matchPriv(g.Privilege, privs) {
 			continue // remove
 		}
 		c.grants[n] = g

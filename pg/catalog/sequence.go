@@ -541,7 +541,7 @@ func (c *Catalog) setSequenceOwner(seq *Sequence, schema *Schema, ownedBy string
 
 	// Validate sequence and table have the same owner and are in the same schema.
 	// pg: src/backend/commands/sequence.c — process_owned_by
-	if !c.snapshot && seq.OwnerName != "" && rel.OwnerName != "" && seq.OwnerName != rel.OwnerName {
+	if seq.OwnerName != "" && rel.OwnerName != "" && seq.OwnerName != rel.OwnerName {
 		return &Error{Code: CodeObjectNotInPrerequisiteState,
 			Message: "sequence must have same owner as table it is linked to"}
 	}

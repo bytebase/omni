@@ -65,8 +65,11 @@ type ConstraintDef struct {
 	CheckExpr      string     // CHECK only
 	RawCheckExpr   nodes.Node // raw AST node for CHECK expression (for analysis)
 	ExclOps        []string   // EXCLUDE only: operator names per column
-	AccessMethod   string     // EXCLUDE only: access method (default "gist")
-	IndexSpace     string     // PK/UNIQUE/EXCLUDE: tablespace for the backing index
+	// ExclOpClasses holds, per EXCLUDE column, the operator class the statement
+	// named, dotted when qualified, or "" for the default.
+	ExclOpClasses []string
+	AccessMethod  string // EXCLUDE only: access method (default "gist")
+	IndexSpace    string // PK/UNIQUE/EXCLUDE: tablespace for the backing index
 }
 
 // --- TRIGGER ---

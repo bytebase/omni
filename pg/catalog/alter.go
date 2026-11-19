@@ -394,6 +394,8 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 		return nil
 	}
 
+	// Validate every subcommand before any of them runs, so a later failure
+	// leaves the index as PostgreSQL's statement rollback would.
 	for _, item := range stmt.Cmds.Items {
 		atc, ok := item.(*nodes.AlterTableCmd)
 		if !ok {
@@ -404,6 +406,26 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 			if err := c.checkRelationTablespace(atc.Name); err != nil {
 				return err
 			}
+		case nodes.AT_AttachPartition:
+			pc, ok := atc.Def.(*nodes.PartitionCmd)
+			if !ok {
+				return fmt.Errorf("AT_AttachPartition: expected PartitionCmd")
+			}
+			if err := c.checkAttachIndexPartition(parentIdx, pc); err != nil {
+				return err
+			}
+		}
+	}
+
+	savedTablespace := parentIdx.Tablespace
+	savedParent := parentIdx.ParentIndexOID
+	for _, item := range stmt.Cmds.Items {
+		atc, ok := item.(*nodes.AlterTableCmd)
+		if !ok {
+			continue
+		}
+		switch nodes.AlterTableType(atc.Subtype) {
+		case nodes.AT_SetTableSpace:
 			parentIdx.Tablespace = normalizeTablespace(atc.Name)
 		case nodes.AT_AttachPartition:
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
@@ -411,6 +433,8 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 				return fmt.Errorf("AT_AttachPartition: expected PartitionCmd")
 			}
 			if err := c.atExecAttachIndexPartition(parentIdx, pc); err != nil {
+				parentIdx.Tablespace = savedTablespace
+				parentIdx.ParentIndexOID = savedParent
 				return err
 			}
 		}
@@ -418,31 +442,45 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 	return nil
 }
 
-func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.PartitionCmd) error {
+func (c *Catalog) checkAttachIndexPartition(parentIdx *Index, pc *nodes.PartitionCmd) error {
+	_, _, err := c.resolveAttachIndexPartition(parentIdx, pc)
+	return err
+}
+
+// resolveAttachIndexPartition resolves the child index an ATTACH PARTITION
+// names and validates that it belongs to a partition of the parent's table.
+func (c *Catalog) resolveAttachIndexPartition(parentIdx *Index, pc *nodes.PartitionCmd) (*Index, *Relation, error) {
 	if pc == nil || pc.Name == nil {
-		return errInvalidParameterValue("ATTACH PARTITION requires an index name")
+		return nil, nil, errInvalidParameterValue("ATTACH PARTITION requires an index name")
 	}
 	parentRel := c.findRelByOID(parentIdx.RelOID)
 	if parentRel == nil || parentRel.RelKind != 'p' {
-		return errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partitioned table", parentIdx.Name))
+		return nil, nil, errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partitioned table", parentIdx.Name))
 	}
 
 	childSchema, err := c.resolveTargetSchema(pc.Name.Schemaname)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	childIdx, err := c.findNamedIndex(childSchema, pc.Name.Relname)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	childRel := c.findRelByOID(childIdx.RelOID)
 	if childRel == nil {
-		return errUndefinedTable(pc.Name.Relname)
+		return nil, nil, errUndefinedTable(pc.Name.Relname)
 	}
 	if childRel.PartitionOf != parentRel.OID {
-		return errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partition of %q", childIdx.Name, parentRel.Name))
+		return nil, nil, errInvalidObjectDefinition(fmt.Sprintf("index %q is not on a partition of %q", childIdx.Name, parentRel.Name))
 	}
+	return childIdx, childRel, nil
+}
 
+func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.PartitionCmd) error {
+	childIdx, _, err := c.resolveAttachIndexPartition(parentIdx, pc)
+	if err != nil {
+		return err
+	}
 	c.recordDependency('i', childIdx.OID, 0, 'i', parentIdx.OID, 0, DepInternal)
 	childIdx.ParentIndexOID = parentIdx.OID
 	return nil

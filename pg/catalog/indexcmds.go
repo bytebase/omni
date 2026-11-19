@@ -343,6 +343,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		c.recordDependencyOnSingleRelExpr('i', idx.OID, analyzedWhere, rel.OID, DepNormal, DepAuto)
 	}
 	c.recordOpClassDependencies('i', idx.OID, opClassRefs, accessMethod)
+	if am := c.accessMethodByName[accessMethod]; am != nil {
+		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
 
 	return nil
 }
@@ -367,6 +370,9 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 	}
 
 	c.registerIndex(schema, idx)
+	if am := c.accessMethodByName[idx.AccessMethod]; am != nil {
+		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
 	// pg: index_create() — whole-relation dep + per-column deps
 	c.recordDependency('i', idx.OID, 0, 'r', rel.OID, 0, DepAuto)
 	for _, attnum := range attnums {
@@ -434,20 +440,26 @@ func (c *Catalog) resolveOpClassOID(ref opClassRef, amOID uint32) uint32 {
 	} else {
 		// An unqualified name resolves in the first schema on the search path
 		// that holds it, as GetIndexOpClass does through OpclassnameGetOpcid.
+		// Without a known column type (an expression element), a name match in
+		// that schema is enough: it is the visible class.
 		for _, nsOID := range c.searchPathWithCatalog() {
-			var found uint32
+			schemaBest, schemaType := uint32(0), uint32(0)
 			for oid, opc := range c.opClasses {
-				if opc.Schema != nsOID {
+				if opc.Schema != nsOID || opc.Name != ref.name || opc.AMOID != amOID {
 					continue
 				}
-				before := byType
-				consider(oid, opc)
-				if byType != before && (found == 0 || byType < found) {
-					found = byType
+				if schemaBest == 0 || oid < schemaBest {
+					schemaBest = oid
+				}
+				if ref.typeOID != 0 && opc.TypeOID == ref.typeOID && (schemaType == 0 || oid < schemaType) {
+					schemaType = oid
 				}
 			}
-			if found != 0 {
-				return found
+			if schemaType != 0 {
+				return schemaType
+			}
+			if schemaBest != 0 {
+				return schemaBest
 			}
 		}
 	}

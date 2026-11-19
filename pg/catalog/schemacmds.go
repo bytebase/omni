@@ -118,19 +118,11 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			return errSchemaNotEmpty(schemaName)
 		}
 
-		// CASCADE: drop all contained objects.
+		// CASCADE: drop all contained objects. Extensions go first, through the
+		// extension CASCADE path, so their dependents elsewhere (an index on
+		// their operator class, a table using their type) are found before the
+		// generic removal erases the member and its dependency edges.
 		if cascade {
-			for name, rel := range s.Relations {
-				c.removeRelation(s, name, rel)
-			}
-			for name, idx := range s.Indexes {
-				c.removeIndex(s, name, idx)
-			}
-			for _, seq := range s.Sequences {
-				c.removeSequence(s, seq)
-			}
-			c.removeFunctionsInSchema(s)
-			c.removeTypesInSchema(s)
 			var exts []*Extension
 			for _, ext := range c.extensions {
 				if ext.SchemaOID == s.OID {
@@ -138,14 +130,29 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 				}
 			}
 			for _, ext := range exts {
-				// Route the extension through the CASCADE path so objects that
-				// depend on its operator classes and casts go with it.
 				_ = c.removeExtensionObjects(&nodes.DropStmt{
 					RemoveType: int(nodes.OBJECT_EXTENSION),
 					Objects:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: ext.Name}}},
 					Behavior:   int(nodes.DROP_CASCADE),
 				})
 			}
+			for name, rel := range s.Relations {
+				if c.relationByOID[rel.OID] != nil {
+					c.removeRelation(s, name, rel)
+				}
+			}
+			for name, idx := range s.Indexes {
+				if s.Indexes[name] == idx {
+					c.removeIndex(s, name, idx)
+				}
+			}
+			for _, seq := range s.Sequences {
+				if c.sequenceByOID[seq.OID] != nil {
+					c.removeSequence(s, seq)
+				}
+			}
+			c.removeFunctionsInSchema(s)
+			c.removeTypesInSchema(s)
 		}
 
 		c.removeGrantsForObject('n', s.OID)

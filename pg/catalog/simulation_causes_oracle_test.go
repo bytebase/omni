@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -1674,6 +1675,137 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if code := simulationCatalogCode(t, c27, "DROP ROLE alice"); code != "0" {
 			t.Fatalf("DROP ROLE alice after DROP OWNED answered %s, want 0", code)
+		}
+
+		// #149: an exclusion constraint's backing index depends on the operator
+		// class its elements name.
+		c28 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION pg_trgm",
+			"CREATE TABLE excl_t (txt text)",
+			"ALTER TABLE excl_t ADD CONSTRAINT excl_trgm EXCLUDE USING gist (txt gist_trgm_ops WITH %)",
+		} {
+			if code := simulationCatalogCode(t, c28, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c28, "DROP EXTENSION pg_trgm"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION over an exclusion index answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c28, "DROP EXTENSION pg_trgm CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION pg_trgm CASCADE over an exclusion index answered %s", code)
+		}
+		if len(c28.schemaByName["public"].Indexes) != 0 {
+			t.Fatal("CASCADE left the exclusion constraint's backing index")
+		}
+
+		// #152: a failed ALTER INDEX subcommand rolls back an earlier SET
+		// TABLESPACE in the same statement.
+		c31 := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE alt_ts LOCATION '/tmp/alt_ts'",
+			"CREATE TABLE alt_p (a int) PARTITION BY RANGE (a)",
+			"CREATE INDEX alt_p_idx ON alt_p (a)",
+		} {
+			if code := simulationCatalogCode(t, c31, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		// The parser accepts ATTACH PARTITION only as a whole statement, so the
+		// two-subcommand form is built here to exercise the catalog's rollback.
+		stmt := &nodes.AlterTableStmt{
+			Relation: &nodes.RangeVar{Relname: "alt_p_idx"},
+			ObjType:  int(nodes.OBJECT_INDEX),
+			Cmds: &nodes.List{Items: []nodes.Node{
+				&nodes.AlterTableCmd{Subtype: int(nodes.AT_SetTableSpace), Name: "alt_ts"},
+				&nodes.AlterTableCmd{Subtype: int(nodes.AT_AttachPartition), Def: &nodes.PartitionCmd{
+					Name: &nodes.RangeVar{Relname: "missing_idx"},
+				}},
+			}},
+		}
+		if err := c31.ProcessUtility(stmt); err == nil {
+			t.Fatal("ALTER INDEX with a missing partition index was accepted")
+		}
+		if idx := c31.schemaByName["public"].Indexes["alt_p_idx"]; idx == nil || idx.Tablespace != "" {
+			t.Fatal("a failed ALTER INDEX kept the new tablespace")
+		}
+
+		// #154 & #158: GRANTED BY records the named grantor, and REVOKE removes
+		// only that grantor's grant.
+		c33 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE grantor_a",
+			"CREATE ROLE grantor_b",
+			"CREATE ROLE grantee_c",
+			"CREATE TABLE g_t (id int)",
+		} {
+			if code := simulationCatalogCode(t, c33, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c33, "GRANT SELECT ON g_t TO grantee_c GRANTED BY grantor_a"); code != "0" {
+			t.Fatalf("GRANT ... GRANTED BY answered %s", code)
+		}
+		if code := simulationCatalogCode(t, c33, "DROP ROLE grantor_a"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE grantor_a answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c33, "REVOKE SELECT ON g_t FROM grantee_c GRANTED BY grantor_b"); code != "0" {
+			t.Fatalf("REVOKE by another grantor answered %s", code)
+		}
+		if len(c33.grants) != 1 {
+			t.Fatalf("REVOKE by another grantor left %d grants, want 1", len(c33.grants))
+		}
+		if code := simulationCatalogCode(t, c33, "REVOKE SELECT ON g_t FROM grantee_c GRANTED BY grantor_a"); code != "0" {
+			t.Fatalf("REVOKE by the grantor answered %s", code)
+		}
+		if len(c33.grants) != 0 {
+			t.Fatal("REVOKE by the grantor left its grant")
+		}
+
+		// #157: a loaded catalog still checks sequence/table owner agreement
+		// when both owners are known.
+		c34 := New()
+		_, err = c34.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Schemas: []*metadata.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadata.TableMetadata{{
+					Name:    "loaded_t",
+					Owner:   "loaded_alice",
+					Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}},
+				}},
+			}},
+		}, LoadMetadataOptions{Full: true})
+		if err != nil {
+			t.Fatalf("LoadMetadata: %v", err)
+		}
+		for _, stmt := range []string{"CREATE ROLE loaded_bob", "CREATE SEQUENCE loaded_seq"} {
+			if code := simulationCatalogCode(t, c34, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c34, "ALTER SEQUENCE loaded_seq OWNER TO loaded_bob"); code != "0" {
+			t.Fatalf("ALTER SEQUENCE OWNER TO loaded_bob answered %s", code)
+		}
+		if code := simulationCatalogCode(t, c34, "ALTER SEQUENCE loaded_seq OWNED BY loaded_t.id"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("OWNED BY across owners answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
+		}
+
+		// #160: an external operator implemented by an extension function keeps
+		// the extension in use.
+		c35 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION pg_trgm",
+			"CREATE OPERATOR ==== (LEFTARG = text, RIGHTARG = text, PROCEDURE = similarity_op)",
+		} {
+			if code := simulationCatalogCode(t, c35, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c35, "DROP EXTENSION pg_trgm"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION over an operator dependent answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c35, "DROP EXTENSION pg_trgm CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION pg_trgm CASCADE answered %s", code)
 		}
 
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous

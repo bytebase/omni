@@ -111,6 +111,9 @@ type Catalog struct {
 	typeOwners map[uint32]string
 	// operatorOwners maps a user-defined operator OID to its owner role.
 	operatorOwners map[uint32]string
+	// operatorSchemas maps a user-defined operator OID to the namespace it
+	// was created in, so a qualified ALTER OPERATOR finds the right one.
+	operatorSchemas map[uint32]uint32
 	// extensionCasts records the casts an extension script created, which
 	// carry no object OID of their own to fall in extensionMembers.
 	extensionCasts map[castKey]string
@@ -202,6 +205,7 @@ func New() *Catalog {
 		databaseOwners:     make(map[string]string),
 		typeOwners:         make(map[uint32]string),
 		operatorOwners:     make(map[uint32]string),
+		operatorSchemas:    make(map[uint32]uint32),
 		extensionCasts:     make(map[castKey]string),
 		roles:              map[string]bool{"postgres": true},
 		accessMethods:      make(map[uint32]*AccessMethod),

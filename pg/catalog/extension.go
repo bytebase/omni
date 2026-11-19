@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"maps"
+	"sort"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 	pgparser "github.com/bytebase/omni/pg/parser"
@@ -267,6 +268,59 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			}
 		}
 	}
+	// Access methods and operators the extension created can have external
+	// users: a table or index built ON a member access method, or a user
+	// operator implemented by a member function.
+	var extAccessMethodOIDs, extFunctionOIDs []uint32
+	for oid, extName := range c.extensionMembers {
+		if !dropExtNames[extName] {
+			continue
+		}
+		if c.accessMethods[oid] != nil {
+			extAccessMethodOIDs = append(extAccessMethodOIDs, oid)
+		}
+		if c.userProcs[oid] != nil {
+			extFunctionOIDs = append(extFunctionOIDs, oid)
+		}
+	}
+	sort.Slice(extAccessMethodOIDs, func(i, j int) bool { return extAccessMethodOIDs[i] < extAccessMethodOIDs[j] })
+	sort.Slice(extFunctionOIDs, func(i, j int) bool { return extFunctionOIDs[i] < extFunctionOIDs[j] })
+	var amRelOIDs, amIdxOIDs []uint32
+	var amIdx []*Index
+	amRelSeen := map[uint32]bool{}
+	amIdxSeen := map[uint32]bool{}
+	var opDepOIDs []uint32
+	opDepSeen := map[uint32]bool{}
+	for _, amOID := range extAccessMethodOIDs {
+		for _, dep := range c.findNormalDependents('m', amOID) {
+			switch dep.ObjType {
+			case 'r':
+				if !amRelSeen[dep.ObjOID] {
+					amRelSeen[dep.ObjOID] = true
+					amRelOIDs = append(amRelOIDs, dep.ObjOID)
+				}
+			case 'i':
+				if idx := c.indexes[dep.ObjOID]; idx != nil && !amIdxSeen[idx.OID] {
+					amIdxSeen[idx.OID] = true
+					amIdxOIDs = append(amIdxOIDs, idx.OID)
+					amIdx = append(amIdx, idx)
+				}
+			}
+		}
+	}
+	for _, fnOID := range extFunctionOIDs {
+		for _, dep := range c.findNormalDependents('f', fnOID) {
+			if dep.ObjType != 'O' || opDepSeen[dep.ObjOID] || inExtDrop(dep.ObjOID) {
+				continue
+			}
+			opDepSeen[dep.ObjOID] = true
+			opDepOIDs = append(opDepOIDs, dep.ObjOID)
+		}
+	}
+	sort.Slice(amRelOIDs, func(i, j int) bool { return amRelOIDs[i] < amRelOIDs[j] })
+	sort.Slice(amIdxOIDs, func(i, j int) bool { return amIdxOIDs[i] < amIdxOIDs[j] })
+	sort.Slice(opDepOIDs, func(i, j int) bool { return opDepOIDs[i] < opDepOIDs[j] })
+
 	inDropSet := func(objType byte, objOID uint32) bool {
 		if inExtDrop(objOID) {
 			return true
@@ -288,6 +342,10 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			return c.triggers[objOID] != nil && relOIDs[c.triggers[objOID].RelOID]
 		case 'p':
 			return c.policies[objOID] != nil && relOIDs[c.policies[objOID].RelOID]
+		case 'm':
+			return inExtDrop(objOID)
+		case 'O':
+			return inExtDrop(objOID)
 		}
 		return false
 	}
@@ -327,6 +385,21 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 				if !inDropSet(dep.ObjType, dep.ObjOID) {
 					return errDependentObjects("extension", extLabel)
 				}
+			}
+		}
+		for _, relOID := range amRelOIDs {
+			if !relOIDs[relOID] {
+				return errDependentObjects("extension", extLabel)
+			}
+		}
+		for _, idxOID := range amIdxOIDs {
+			if !idxOIDs[idxOID] {
+				return errDependentObjects("extension", extLabel)
+			}
+		}
+		for _, opOID := range opDepOIDs {
+			if !inDropSet('O', opOID) {
+				return errDependentObjects("extension", extLabel)
 			}
 		}
 		for _, bt := range types {
@@ -387,6 +460,21 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	for _, x := range idxs {
 		if x.schema.Indexes[x.idx.Name] == x.idx {
 			c.removeIndex(x.schema, x.idx.Name, x.idx)
+		}
+	}
+	if cascade {
+		for _, relOID := range amRelOIDs {
+			if rel := c.relationByOID[relOID]; rel != nil {
+				c.cascadeDropRelation(rel)
+			}
+		}
+		for _, idx := range amIdx {
+			if c.indexes[idx.OID] == idx {
+				c.removeIndex(idx.Schema, idx.Name, idx)
+			}
+		}
+		for _, opOID := range opDepOIDs {
+			c.removeOperator(opOID)
 		}
 	}
 	for _, idx := range cascadeIdxs {

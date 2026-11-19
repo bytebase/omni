@@ -652,6 +652,11 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Register relation.
 	schema.Relations[relName] = rel
 	c.relationByOID[relOID] = rel
+	if stmt.AccessMethod != "" {
+		if am := c.accessMethodByName[stmt.AccessMethod]; am != nil {
+			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
+		}
+	}
 
 	// Record inheritance entries and dependencies now that the child exists.
 	if len(parentOIDs) > 0 {

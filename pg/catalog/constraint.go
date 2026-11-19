@@ -648,6 +648,25 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 	c.registerIndex(schema, idx)
 	c.recordDependency('i', idx.OID, 0, 'r', rel.OID, 0, DepAuto)
+	if len(def.ExclOpClasses) > 0 {
+		refs := make([]opClassRef, 0, len(def.ExclOpClasses))
+		for i, name := range def.ExclOpClasses {
+			ref := opClassRef{}
+			if name != "" {
+				ref.schema, ref.name = "", name
+				if j := strings.LastIndexByte(name, '.'); j >= 0 {
+					ref.schema, ref.name = name[:j], name[j+1:]
+				}
+			}
+			if i < len(attnums) {
+				if ci := indexOfAttNum(rel, attnums[i]); ci >= 0 {
+					ref.typeOID = rel.Columns[ci].TypeOID
+				}
+			}
+			refs = append(refs, ref)
+		}
+		c.recordOpClassDependencies('i', idx.OID, refs, idx.AccessMethod)
+	}
 
 	con := &Constraint{
 		OID:        conOID,
@@ -1027,4 +1046,14 @@ func generateConstraintName(tableName string, columns []string, ctype Constraint
 	default:
 		return tableName + "_con"
 	}
+}
+
+// indexOfAttNum returns the column index in rel whose AttNum is attnum, or -1.
+func indexOfAttNum(rel *Relation, attnum int16) int {
+	for i, col := range rel.Columns {
+		if col.AttNum == attnum {
+			return i
+		}
+	}
+	return -1
 }

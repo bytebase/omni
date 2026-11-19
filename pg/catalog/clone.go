@@ -427,6 +427,10 @@ func (c *Catalog) Clone() *Catalog {
 	for oid, owner := range c.operatorOwners {
 		clone.operatorOwners[oid] = owner
 	}
+	clone.operatorSchemas = make(map[uint32]uint32, len(c.operatorSchemas))
+	for oid, ns := range c.operatorSchemas {
+		clone.operatorSchemas[oid] = ns
+	}
 	clone.extensionCasts = make(map[castKey]string, len(c.extensionCasts))
 	for key, ext := range c.extensionCasts {
 		clone.extensionCasts[key] = ext

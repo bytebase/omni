@@ -11,7 +11,7 @@ import (
 //
 // pg: src/backend/commands/operatorcmds.c — DefineOperator
 func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
-	_, oprName := qualifiedName(stmt.Defnames)
+	schemaName, oprName := qualifiedName(stmt.Defnames)
 	if oprName == "" {
 		return errInvalidParameterValue("no operator name specified")
 	}
@@ -161,6 +161,14 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 	}
 	c.operByOID[op.OID] = op
 	c.operatorOwners[op.OID] = c.currentOwner()
+	if ns, err := c.resolveTargetSchema(schemaName); err == nil {
+		c.operatorSchemas[op.OID] = ns.OID
+	}
+	for _, fnOID := range []uint32{funcOID, restrictOID, joinOID} {
+		if fnOID != 0 {
+			c.recordDependency('O', op.OID, 0, 'f', fnOID, 0, DepNormal)
+		}
+	}
 	key := operKey{name: oprName, left: typeId1, right: typeId2}
 	c.operByKey[key] = append(c.operByKey[key], op)
 
