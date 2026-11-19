@@ -170,8 +170,12 @@ question a row asks is whether Oracle's refusal is the grammar's: the page
 `bnf/` quotes under it is the grammar omni must read, so a statement the page
 derives stays accepted even where this server refuses it, and is recorded
 here instead of closed. Fifteen rows are text the page refuses too, and are
-closed; the other 781 are a name Oracle looks up, a check of the parsed
-statement, or the server's own setup, and stay rows.
+closed, and so are the thirty-two `PARTITIONSET` rows: the page's clause is
+only reachable in a composite-sharded database, which `OracleDocs.g4` records
+where the converter could drop the rule (its `fix:` notes on
+`alter_table_partitioning_clauses`' neighbours) and this server is not. The
+other 749 are a name Oracle looks up, a check of the parsed statement, or the
+server's own setup, and stay rows.
 
 ### Closed
 
@@ -191,6 +195,7 @@ holds the form beside it, which Oracle takes, to the parser.
 | `CREATE MATERIALIZED VIEW a INMEMORY(a) ...` | 2 | `ORA-00922` at 56, 77 | a materialized view's `inmemory_column_clause` is `( column [, ...] ) { INMEMORY \| NO INMEMORY }`, the keyword after the columns; a table's is the other way round and stays |
 | `SELECT 1 "a""b" FROM dual` | 1 | `ORA-25716` at 9 | a quoted identifier holds no `"`, doubled or not (`"a b"` still parses) |
 | `SELECT 1 FROM dual WHERE 1 ~= 2` | 1 | `ORA-00911` at 27 | SQL has no `~=`; PL/SQL does, and `BEGIN IF 1 ~= 2 THEN NULL; END IF; END;` still parses |
+| `ALTER TABLE a MODIFY PARTITIONSET ...` | 32 | `ORA-02577` at `PARTITIONSET` (21) | a partitionset belongs to a composite-sharded table, so the word is refused before the clause is read; no form of it parses on this server, so these have no control beside them |
 
 ### Measured
 
@@ -207,7 +212,6 @@ from the grammar; the controls are named where a reader would ask.
 | `CREATE TABLE a ENABLE ... USING INDEX ...` | 59 | `ORA-02432` at 34: the table `a` defines no primary key; with one the clause parses (`ENABLE PRIMARY KEY USING INDEX zz` answers `ORA-01418`) |
 | `ALTER TYPE a ...` | 48 | `ORA-04043` at 0: the type `a` is not there. With a type, `ADD ATTRIBUTE`, `ADD ATTRIBUTE (...)`, `ADD MAP MEMBER FUNCTION ... RETURN NUMBER`, `ADD MEMBER PROCEDURE` and `INSTANTIABLE` parse |
 | a column, property, attribute or key named twice | 41 | `ORA-00957` at the second name |
-| `... PARTITIONSET ...` | 32 | `ORA-02577` at 21: no composite sharding on this server |
 | `ALTER SYSTEM SET a = 1 ...` | 25 | `ORA-02065` at 17: `a` is no initialization parameter, and `OPTIMIZER_MODE = a` parses |
 | `SHARING = { METADATA \| DATA \| NONE }` | 21 | `ORA-65021` at the clause: not an application root |
 | property graph: an element table, property or key named twice | 21 | `ORA-42404` at 41-58 |
@@ -272,6 +276,50 @@ own code (`ORA-00600` at `PTI, prspo_set_up`), which the judge reads as a
 rejection with no position. Nothing says where it stopped, so neither row is
 closed.
 
+## Rows both refuse, at another byte
+
+A row here is a statement omni and the pinned Oracle both refuse, at a
+different byte: 5,781 rows, 1,384 of them where omni stops first and 3,995
+where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
+is where its own parser stopped, which may be a name it looked up, a check of
+the parsed statement, or its own code failing, so a row is read from the
+outside in: Oracle first means omni took a token Oracle does not, and omni
+first means it stopped at something Oracle reads past, or reported a rewrite
+point instead of the offending token.
+
+Four hundred and two rows carry no byte at all (`reject` alone), a stored unit
+compiled with errors or a statement the engine never answered, so there is
+nothing to match. Four hundred and fifty-eight carry `reject@0`: Oracle's
+answer at the start of the statement, which is "no such form" or a name it
+looks up before it reads the rest.
+
+This change moved 567 rows to Oracle's byte. No `suite:` row is among them:
+those statements are the corpora's, whose cells move only with the corpus.
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| a statement whose text ends inside a group: the delimiter scan's end-of-input byte is reported only where the statement parsers read through to that group, so a statement they stop before reports its own first error | 395 | the token the parsers stop at, which Oracle refuses too |
+| `ALTER TABLE a MODIFY PARTITIONSET ...` | 163 | `PARTITIONSET` (21): `ORA-02577`, before the clause is read |
+| `CREATE MATERIALIZED VIEW a PARTITION RANGE(a) ...` | 9 | the word where `BY` belongs (37): a materialized view's properties enter the clause on `PARTITION` |
+
+The remaining rows are spread thin: 4,289 name no family below. These are the
+largest, and a row may be one of several, so the counts are not disjoint.
+
+| Family | Rows | Why the byte stays |
+| --- | --- | --- |
+| `DELETE ... MATCH_RECOGNIZE (...)` | 252 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
+| `... PARTITION BY CONSISTENT HASH (...) ...` | 289 | the `(` after `HASH`: omni reads no consistent-hash partitioning in these clauses and refuses at `CONSISTENT`, which is a reading, not a position |
+| rows whose cell is `reject@0` | 458 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
+| rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
+| `CREATE PLUGGABLE DATABASE a USING 's' ...` | 78 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
+| `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
+| `CREATE TABLE a ORGANIZATION EXTERNAL (...)` | 62 | `ORGANIZATION` (13): Oracle needs the column list first, and omni reads the clause and refuses later |
+| `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): the delimiter scan answers for the `)` before the statement parsers run |
+
+What is left of those is near-misses whose own token is Oracle's answer
+(`ALTER MATERIALIZED VIEW a TRUNCATE a`, `ALTER SESSION SET a = 1`, a LOB
+storage option, an external table's directory): each needs a reading omni does
+not have, which is an accept gap rather than a position.
 
 ## Tapes
 

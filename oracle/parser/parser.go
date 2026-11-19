@@ -191,6 +191,12 @@ type Parser struct {
 	// PL/SQL alone take the choices of a qualified expression.
 	plsqlCode bool
 
+	// engineCrash is where a statement parser refused a word because the
+	// engine fails in its own code on the form there (a pattern match in a
+	// DML FROM clause), so its byte is the engine's, not the grammar's. See
+	// ParseRange, which keeps the delimiter scan's answer there.
+	engineCrash int
+
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 }
 
@@ -304,15 +310,12 @@ func Parse(sql string) (*nodes.List, error) {
 // is an offset into source, so a caller that split a script can parse each
 // segment with absolute positions without copying or padding the text.
 func ParseRange(source string, start, end int) (*nodes.List, error) {
-	undecided, err := validateBalancedDelimiters(source, start, end)
-	if err != nil {
-		return nil, err
-	}
-
+	undecided, open, scanErr := validateBalancedDelimiters(source, start, end)
 	p := &Parser{
 		lexer:        NewLexerRange(source, start, end),
 		source:       source,
 		ccDelimiters: undecided,
+		engineCrash:  -1,
 	}
 	p.lexer.cc = &ccRecord{}
 	p.lexer.ccDecisions = &[]ccDecision{}
@@ -320,7 +323,35 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	p.lexer.literalLimit = 32767
 	p.lexer.numberLimit = true
 	p.advance()
+	list, err := p.parseScript(start, end)
+	if err == nil {
+		// What the parsers read over a parenthesis the delimiter scan finds
+		// unbalanced, the scan refuses.
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		return list, nil
+	}
+	if scanErr == nil {
+		return nil, err
+	}
+	// The scan's error answers for every statement whose parsers stopped
+	// inside the group it finds open, and for one that stops at a ')' it
+	// refuses: there the parsers reached the end of the text, where Oracle
+	// wants more input and reports the end, or the ')' itself. A statement
+	// whose parsers stopped before that group stopped at a token the grammar
+	// cannot take, which is its first error and the token Oracle reports, so
+	// that error is the answer. p.engineCrash names a refusal whose byte is
+	// the engine's and not the grammar's (see Parser.engineCrash).
+	var pe *ParseError
+	if !errors.As(err, &pe) || open >= 0 && pe.Position <= open && pe.Position != p.engineCrash {
+		return nil, err
+	}
+	return nil, scanErr
+}
 
+// parseScript parses the statements of the parser's source from start to end.
+func (p *Parser) parseScript(start, end int) (*nodes.List, error) {
 	var stmts []nodes.Node
 	needSeparator := false
 	// textStart is where the text of the next statement begins.
@@ -663,12 +694,15 @@ func (p *Parser) restore(s parseSnapshot) {
 // selection each statement parses with, which may be another: it reports
 // undecided, and parseStmtSelections checks each statement
 // (checkSelectionDelimiters).
-func validateBalancedDelimiters(sql string, start, end int) (undecided bool, err error) {
+//
+// It also returns the byte of the outermost parenthesis still open where it
+// reports an unterminated group, and -1 otherwise (see ParseRange).
+func validateBalancedDelimiters(sql string, start, end int) (undecided bool, open int, err error) {
 	var decided []ccDecision
 	lexer := NewLexerRange(sql, start, end)
 	lexer.ccDecisions = &decided
-	err = scanDelimiters(lexer, sql, end, func() bool { return len(decided) == 0 })
-	return len(decided) > 0 || lexer.Err != nil, err
+	open, err = scanDelimiters(lexer, sql, end, func() bool { return len(decided) == 0 })
+	return len(decided) > 0 || lexer.Err != nil, open, err
 }
 
 // checkSelectionDelimiters checks that the parentheses of the statement at
@@ -676,7 +710,8 @@ func validateBalancedDelimiters(sql string, start, end int) (undecided bool, err
 func checkSelectionDelimiters(sql string, start, end int, choices *ccChoices) error {
 	lexer := NewLexerRange(sql, start, end)
 	lexer.ccChoices = choices
-	return scanDelimiters(lexer, sql, end, func() bool { return true })
+	_, err := scanDelimiters(lexer, sql, end, func() bool { return true })
+	return err
 }
 
 // extraCloseShape records the statement shape that Oracle still parses
@@ -757,9 +792,12 @@ func (s *extraCloseShape) allowsExtraClose() bool {
 
 // scanDelimiters checks the parentheses of the tokens lexer returns up to
 // end, reporting an imbalance only while settled says the selection the
-// lexer reads is the one to check.
-func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) error {
+// lexer reads is the one to check. It returns the byte of the outermost
+// parenthesis still open where it reports an unterminated group, and -1
+// where it reports anything else.
+func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (open int, err error) {
 	depth := 0
+	openAt := make([]int, 0, 8)
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
 	var shape extraCloseShape
@@ -777,11 +815,11 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 			}
 		}
 		if lexer.Err != nil {
-			return nil
+			return -1, nil
 		}
 		if javaHead.observe(tok) {
 			// The rest of the range is Java or JavaScript source, not SQL.
-			return nil
+			return -1, nil
 		}
 		if (prev3.Type == kwIS || prev3.Type == kwAS) &&
 			prev2.Type == tokIDENT && prev2.Str == "MLE" && prev1.Type == tokIDENT && prev1.Str == "LANGUAGE" {
@@ -798,7 +836,7 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 				if depth == -1 && settled() && shape.allowsExtraClose() {
 					depth = 0
 				} else if settled() {
-					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+					return -1, &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
 				}
 			}
 			javaHead = embeddedSourceHead{}
@@ -809,20 +847,26 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 		case tokEOF:
 			if extraClose != nil {
 				if depth == -1 && !afterExtra && settled() && shape.allowsExtraClose() {
-					return nil
+					return -1, nil
 				}
 				if settled() {
-					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+					return -1, &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
 				}
 			}
 			if depth > 0 && settled() {
-				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
+				return openAt[0], &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
-			return nil
+			return -1, nil
 		case '(':
 			depth++
+			openAt = append(openAt, tok.Loc)
 		case ')':
 			depth--
+			if depth >= 0 {
+				openAt = openAt[:depth]
+			} else {
+				openAt = openAt[:0]
+			}
 			if depth < 0 {
 				// Only a closing parenthesis that ends the statement may be
 				// read as Oracle does; one in the middle is the error it
@@ -834,7 +878,7 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 				}
 				if settled() {
 					text := ")"
-					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
+					return -1, &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
 				}
 			}
 		}
