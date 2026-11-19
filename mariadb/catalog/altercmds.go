@@ -119,6 +119,13 @@ func refuseCopyAlterOnDiscarded(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 		switch cmd.Type {
 		case nodes.ATForce, nodes.ATOrderBy:
 			return errTablespaceDiscarded(tbl.Name)
+		case nodes.ATAlgorithm:
+			// ALGORITHM=COPY asks for the copy by name, where INPLACE and DEFAULT
+			// leave the choice to the server: measured on mariadb:11.8.8 over a
+			// discarded table, COPY is 1814 and the other two run.
+			if eqFoldStr(cmd.Name, "COPY") {
+				return errTablespaceDiscarded(tbl.Name)
+			}
 		case nodes.ATTableOption:
 			if cmd.Option == nil {
 				continue
@@ -375,7 +382,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// generated one may not read a generated column the same statement adds after
 	// it. That is a check over the whole statement, and it runs before any command
 	// changes the table.
-	if err := validateAddedColumnOrder(tbl, stmt.Commands); err != nil {
+	if err := c.validateAddedColumnOrder(tbl, stmt.Commands); err != nil {
 		return err
 	}
 
@@ -416,6 +423,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			*tbl = snapshot
 			return err
 		}
+		if err := validateAlteredColumnExprColumns(tbl, stmt.Commands); err != nil {
+			*tbl = snapshot
+			return err
+		}
 		if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands, skippedKeys); err != nil {
 			*tbl = snapshot
 			return err
@@ -450,6 +461,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 	if err := validateApplicationTimeFinalState(tbl); err != nil {
+		rollback()
+		return err
+	}
+	if err := validateAlteredColumnExprColumns(tbl, stmt.Commands); err != nil {
 		rollback()
 		return err
 	}
@@ -885,7 +900,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
 	}
-	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl), tbl.Collation); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl), c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
 		return err
 	}
 	// 4029, after the name is known to be new: the column's own expression may
@@ -910,13 +925,6 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 		}
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
-		return err
-	}
-	// The DEFAULT and CHECK expressions the column carries name columns of the
-	// table, and the column itself is one of them once it is in: measured on
-	// mariadb:11.8.8, `ALTER TABLE a ADD e INT CHECK(e)` runs, where
-	// `ADD e INT DEFAULT zzz` answers 1054.
-	if err := validateColumnExprColumns(tbl, colDef); err != nil {
 		return err
 	}
 	// SERIAL implies a unique key, as it does on the CREATE TABLE path.
@@ -1324,7 +1332,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if indexed[toLower(oldName)] {
 		indexed[toLower(colDef.Name)] = true
 	}
-	if err := validateColumnDefSemantics(colDef, indexed, tbl.Collation); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexed, c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
 		return err
 	}
 	oldKey := toLower(oldName)
@@ -1657,6 +1665,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+			return err
+		}
+		// The key's parts are held to their types before a repeated name is 1060:
+		// measured on mariadb:11.8.8, `PRIMARY KEY (a(1), a)` over an INT column
+		// answers 1089 and `PRIMARY KEY (a)` over a TEXT one 1170.
+		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
 		if err := validateNoRepeatedKeyColumns(idxCols); err != nil {
@@ -2801,7 +2815,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // so is a definition's own semantics, as `ADD a INT AS(a), ADD c INT NOT NULL DEFAULT
 // 'x'` answers 1067 for c. The statement's own commands then judge nothing again: what
 // a single ADD answers is checked where it is added (see addSingleColumn).
-func validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	type addedColumn struct {
 		def         *nodes.ColumnDef
 		ifNotExists bool
@@ -2838,7 +2852,7 @@ func validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	}
 	indexed := indexedColumnsOf(tbl)
 	for _, a := range added {
-		if err := validateColumnDefSemantics(a.def, indexed, tbl.Collation); err != nil {
+		if err := validateColumnDefSemantics(a.def, indexed, c.effectiveColumnCollation(a.def, tbl.Collation)); err != nil {
 			return err
 		}
 	}
@@ -3282,7 +3296,13 @@ func generatedExprReferencesColumn(expr, colName string) bool {
 // (read on 2026-11-04). Any column constraint counts, rather than the three
 // that fail today, so a validation added later cannot reopen this.
 func addNeedsRollback(cmd *nodes.AlterTableCmd) bool {
-	if cmd == nil || cmd.Type != nodes.ATAddColumn {
+	if cmd == nil {
+		return false
+	}
+	if cmd.Type == nodes.ATModifyColumn || cmd.Type == nodes.ATChangeColumn {
+		return cmd.Column != nil && columnNeedsRollback(cmd.Column)
+	}
+	if cmd.Type != nodes.ATAddColumn {
 		return false
 	}
 	if len(cmd.Columns)+len(cmd.Constraints) > 1 {

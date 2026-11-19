@@ -47,11 +47,11 @@ func validateExpressionSemantics(node nodes.Node) error {
 // lowercased names of the columns a key outside the definition covers, which
 // decides whether a VIRTUAL generated column's value is materialized; it may
 // be nil.
-func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool, tableCollation string) error {
+func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool, collation string) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
-	if err := validateEnumSetValues(colDef, tableCollation); err != nil {
+	if err := validateEnumSetValues(colDef, collation); err != nil {
 		return err
 	}
 	typeName := normalizedColumnDataType(colDef.TypeName)
@@ -384,6 +384,33 @@ func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
 	return cr, ok
 }
 
+// validateAlteredColumnExprColumns holds the DEFAULT and CHECK expressions the
+// columns an ALTER adds, modifies or changes carry to the table the statement
+// leaves: measured on mariadb:11.8.8,
+// `ALTER TABLE t ADD a INT CHECK (a > b), ADD b INT CHECK (b < a)` runs over a
+// table with neither column, where a name no column of the result has is 1054.
+func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		default:
+			continue
+		}
+		for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+			if colDef == nil {
+				continue
+			}
+			if err := validateColumnExprColumns(tbl, colDef); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // validateColumnExprColumns holds the expressions a column definition carries to
 // validateExprColumns: the column's own DEFAULT, and each CHECK written beside
 // it. A column-level CHECK may name the column it is declared on, which the
@@ -415,7 +442,7 @@ func validateColumnExprColumns(tbl *Table, colDef *nodes.ColumnDef) error {
 // first spelling. Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))`
 // and `SET ('a','A')` answer it, for a column a CREATE TABLE declares and one an
 // ALTER adds.
-func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error {
+func validateEnumSetValues(colDef *nodes.ColumnDef, collation string) error {
 	kind := strings.ToUpper(colDef.TypeName.Name)
 	if kind != "ENUM" && kind != "SET" {
 		return nil
@@ -425,7 +452,6 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 	// mariadb:11.8.8, `ENUM('s','S') COLLATE utf8mb4_bin`, `BINARY` and a
 	// table's `COLLATE utf8mb4_bin` are all accepted, where the default
 	// utf8mb4_uca1400_ai_ci answers 1291.
-	collation := enumCollation(colDef, tableCollation)
 	fold := !collationCaseSensitive(collation)
 	seen := make(map[string]string, len(colDef.TypeName.EnumValues))
 	for _, value := range colDef.TypeName.EnumValues {
@@ -446,6 +472,31 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 	return nil
 }
 
+// effectiveColumnCollation is the collation a column definition's ENUM or SET
+// values are compared with: the one it names, the binary one BINARY or CHARACTER
+// SET binary gives it, the default of the CHARACTER SET it names, and otherwise
+// the table's. A named character set drops the table's collation even where they
+// share one: measured on mariadb:11.8.8, `ENUM('s','S') CHARACTER SET utf8mb4`
+// under a table `COLLATE utf8mb4_bin` answers 1291.
+func (c *Catalog) effectiveColumnCollation(colDef *nodes.ColumnDef, tableCollation string) string {
+	dt := colDef.TypeName
+	if dt == nil {
+		return tableCollation
+	}
+	if dt.Collate != "" {
+		return dt.Collate
+	}
+	if dt.Binary || eqFoldStr(dt.Charset, "binary") {
+		return "binary"
+	}
+	if dt.Charset != "" {
+		if dc := c.charsetCollation(normalizeCharsetName(dt.Charset)); dc != "" {
+			return dc
+		}
+	}
+	return tableCollation
+}
+
 // foldEnumValue folds one value the way a case-insensitive collation reads it.
 // Case is all it folds: a collation's weights also make `a` and `á` one value
 // under an accent-insensitive one, which needs the collation's table and is not
@@ -460,20 +511,6 @@ func foldEnumValue(value, collation string) string {
 		value = strings.ReplaceAll(value, "İ", "i")
 	}
 	return strings.ToLower(value)
-}
-
-// enumCollation is the collation an ENUM or SET column's values are compared
-// with: the one it names, the binary one it takes from BINARY or CHARACTER SET
-// binary, and otherwise the table's.
-func enumCollation(colDef *nodes.ColumnDef, tableCollation string) string {
-	dt := colDef.TypeName
-	if dt.Collate != "" {
-		return dt.Collate
-	}
-	if dt.Binary || eqFoldStr(dt.Charset, "binary") {
-		return "binary"
-	}
-	return tableCollation
 }
 
 // collationCaseSensitive reports whether a collation tells two spellings apart

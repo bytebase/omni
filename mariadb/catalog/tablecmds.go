@@ -221,7 +221,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// 1067) after the drop; the catalog does not check those.
 		replacedCollation := c.declaredTableCollation(stmt.Options, db)
 		for _, colDef := range stmt.Columns {
-			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt), replacedCollation); err != nil {
+			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt), c.effectiveColumnCollation(colDef, replacedCollation)); err != nil {
 				return err
 			}
 		}
@@ -286,7 +286,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// column can be checked against the indexes that will cover it.
 	indexedCols := tableLevelIndexedColumns(stmt)
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef, indexedCols, tbl.Collation); err != nil {
+		if err := validateColumnDefSemantics(colDef, indexedCols, c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
@@ -700,6 +700,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				return errMultiplePriKey()
 			}
 			if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
+				return err
+			}
+			// The key's parts are held to their types before a repeated name is
+			// 1060: measured on mariadb:11.8.8, `PRIMARY KEY (a(1), a)` over an INT
+			// column answers 1089 and `PRIMARY KEY (a)` over a TEXT one 1170.
+			if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
 				return err
 			}
 			if err := validateNoRepeatedKeyColumns(buildIndexColumns(con)); err != nil {

@@ -1087,6 +1087,47 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD UNIQUE KEY IF NOT EXISTS idx_d (d, missing_period WITHOUT OVERLAPS)",
 			code:  0,
 		},
+		// ALGORITHM=COPY asks for the copy by name.
+		{
+			name:        "ALGORITHM=COPY on a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a ALGORITHM=COPY, ADD e INT",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "ALGORITHM=INPLACE on a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ALGORITHM=INPLACE, ADD e INT",
+			code:  0,
+		},
+		// A column's own CHARACTER SET gives it that set's default collation, not
+		// the table's.
+		{
+			name: "ENUM under a CHARACTER SET whose default collation folds case",
+			stmt: "CREATE TABLE a (e ENUM('s', 'S') CHARACTER SET latin1) COLLATE utf8mb4_bin",
+			code: 1291,
+		},
+		// A primary key's parts are held to their types before a repeated name.
+		{
+			name:   "primary key of a length over an INT column, repeated",
+			stmt:   "CREATE TABLE a (b INT, PRIMARY KEY (b(1), b))",
+			code:   1089,
+			absent: "a",
+		},
+		{
+			name:   "primary key over a TEXT column",
+			stmt:   "CREATE TABLE a (b TEXT, PRIMARY KEY (b))",
+			code:   1170,
+			absent: "a",
+		},
+		// A CHECK may name a column the same statement adds after it.
+		{
+			name:  "two added columns whose CHECKs read each other",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT CHECK (e > f), ADD f INT CHECK (f < e)",
+			code:  0,
+		},
 		// A column the table already holds is 1060 before the key it would be
 		// is read, where the same statement over a free name is 1068.
 		{
