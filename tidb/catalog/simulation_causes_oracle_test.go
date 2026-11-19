@@ -629,6 +629,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 			sameSchema: true,
 		},
 		{
+			// A partitioned table cannot be cached at all.
+			name:  "ALTER TABLE CACHE on a partitioned table",
+			setup: []string{partitioned},
+			stmt:  "ALTER TABLE a CACHE",
+			code:  8242,
+		},
+		{
 			name:       "ALTER TABLE PARTITION BY KEY with no column",
 			setup:      []string{oneTable},
 			stmt:       "ALTER TABLE a PARTITION BY KEY()",

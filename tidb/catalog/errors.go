@@ -169,6 +169,10 @@ const (
 	// ErrPartitionFieldNotFound is 1488, a partition clause naming a column the
 	// table does not have (measured on v8.5.5, 2026-11-19).
 	ErrPartitionFieldNotFound = 1488
+	// ErrCacheTableUnsupported is 8242, a cached table an operation cannot
+	// touch: every DDL statement but NOCACHE, and CACHE itself on a
+	// partitioned table (measured on v8.5.5, 2026-11-19).
+	ErrCacheTableUnsupported = 8242
 )
 
 var sqlStateMap = map[int]string{
@@ -237,6 +241,7 @@ var sqlStateMap = map[int]string{
 	ErrAutoRandom:                          "HY000",
 	ErrFKKeyRefMismatch:                    "42000",
 	ErrPartitionFieldNotFound:              "HY000",
+	ErrCacheTableUnsupported:               "HY000",
 }
 
 func sqlState(code int) string {

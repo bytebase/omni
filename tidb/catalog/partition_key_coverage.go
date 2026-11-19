@@ -313,6 +313,7 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if pi.Type == "KEY" && len(pi.Columns) == 0 {
 		pi.Columns = primaryKeyColumns(tbl)
 		if len(pi.Columns) == 0 {
+			undo()
 			return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),
 				Message: "expression should not be an empty string"}
 		}

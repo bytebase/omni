@@ -2191,6 +2191,31 @@
 | DROP TABLE IF EXISTS `dual`
 < ok 0 0
 > exec
+| CREATE TABLE a (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10))
+< ok 0 0
+> exec
+| ALTER TABLE a CACHE
+< error
+| 8242 HY000 'partition mode' is unsupported on cache tables.
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec

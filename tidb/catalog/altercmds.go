@@ -208,7 +208,13 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATCache:
 		// CACHE changes no column or key, but SHOW CREATE TABLE writes the
 		// attribute back as `/* CACHED ON */`, so it is part of the schema the
-		// catalog stores (read on v8.5.5).
+		// catalog stores (read on v8.5.5). A partitioned table cannot be cached
+		// at all: v8.5.5 answers 8242 "'partition mode' is unsupported on cache
+		// tables".
+		if tbl.Partitioning != nil {
+			return &Error{Code: ErrCacheTableUnsupported, SQLState: sqlState(ErrCacheTableUnsupported),
+				Message: "'partition mode' is unsupported on cache tables."}
+		}
 		tbl.Cached = true
 		return nil
 	case nodes.ATNoCache:
@@ -315,6 +321,11 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
+	}
+	// TiDB adds no STORED generated column, and the duplicate-column check
+	// comes first (both read on v8.5.5).
+	if colDef.Generated != nil && colDef.Generated.Stored {
+		return errAlterStoredGeneratedColumn()
 	}
 
 	col, err := buildColumnFromDef(tbl, colDef)

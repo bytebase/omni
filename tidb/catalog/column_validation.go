@@ -606,13 +606,13 @@ func checkAlterColumnCharsets(cmds []*nodes.AlterTableCmd) error {
 // SET member, and 1054 for a generated-column expression that names a column
 // the table does not have.
 func checkAlterColumnDefinition(tbl *Table, colDef *nodes.ColumnDef, col *Column) error {
-	if colDef.Generated != nil {
-		// TiDB v8.5.5 stores a generated column VIRTUAL only: adding a STORED
-		// one is 3106, ahead of the expression's own resolution (read on
-		// 2026-11-19). CREATE TABLE takes one, so this is the ALTER rule.
-		if colDef.Generated.Stored {
-			return errAlterStoredGeneratedColumn()
-		}
+	if colDef.Generated != nil && colDef.Generated.Stored {
+		// TiDB v8.5.5 takes a STORED generated column at CREATE TABLE and not
+		// through ALTER: an ADD is 3106 "'Adding generated stored column
+		// through ALTER TABLE'", a MODIFY or CHANGE of one 3106 as well, and
+		// both come ahead of the expression's own resolution (read on
+		// 2026-11-19). addSingleColumn answers the ADD's own message first.
+		return errUnsupportedGeneratedStorageChange(col.Name, tbl.Name)
 	}
 	if err := checkDecimalBounds(colDef.Name, colDef.TypeName); err != nil {
 		return err

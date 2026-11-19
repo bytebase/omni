@@ -634,15 +634,6 @@ func (g *generator) alterTableOptions(from, to *Table) {
 	if from.Comment != to.Comment {
 		set("COMMENT='"+outputFormat(to.Comment)+"'", "")
 	}
-	// CACHE is part of the definition SHOW CREATE TABLE writes, so a table that
-	// carries it is a different schema from one that does not.
-	if from.Cached != to.Cached {
-		if to.Cached {
-			set("CACHE", "")
-		} else {
-			set("NOCACHE", "")
-		}
-	}
 	if from.ShardRowIDBits != to.ShardRowIDBits {
 		set(fmt.Sprintf("SHARD_ROW_ID_BITS=%d", to.ShardRowIDBits), "")
 	}
