@@ -600,18 +600,19 @@ func (p *Parser) parseGraphSampleOp() (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // ROWS | PERCENT
-	// partition_by_clause_prefix_no_hint?  — PARTITION BY expr (, expr)* inside
-	// the sample size. The expressions are parse-only here (the sample-size
-	// partition is a rarely-used tail); consume them for parity.
+	// partition_by_clause_prefix_no_hint? — PARTITION BY expr (, expr)* inside the
+	// sample size. The expressions are kept: a scalar subquery in one is a read.
 	if p.cur.Type == kwPARTITION {
 		p.advance() // PARTITION
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
 		for {
-			if _, err := p.parseExpr(); err != nil {
+			expr, err := p.parseExpr()
+			if err != nil {
 				return nil, err
 			}
+			op.PartitionBy = append(op.PartitionBy, expr)
 			if p.cur.Type != int(',') {
 				break
 			}
@@ -2119,12 +2120,15 @@ func (p *Parser) parseGraphIsPredicate(left ast.Node, not bool) (ast.Node, bool,
 		if err != nil {
 			return nil, true, err
 		}
+		// The predicate ends at the label expression's last consumed token, which is
+		// the closing ')' of a parenthesized label: the label node itself stays
+		// transparent (its Loc excludes the parentheses, as the grammar says).
 		return &ast.GraphPredicate{
 			Kind:  ast.GraphIsLabeled,
 			Not:   not,
 			Left:  left,
 			Right: label,
-			Loc:   ast.Loc{Start: nodeLoc(left).Start, End: label.Loc.End},
+			Loc:   ast.Loc{Start: nodeLoc(left).Start, End: p.prev.Loc.End},
 		}, true, nil
 	default:
 		return nil, false, nil

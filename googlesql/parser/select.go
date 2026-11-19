@@ -413,7 +413,14 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 // following clause keyword or end-of-statement), used to detect an empty list
 // and to allow a trailing comma.
 func (p *Parser) atSelectListEnd() bool {
-	switch p.cur.Type {
+	return selectListEndToken(p.cur.Type)
+}
+
+// selectListEndToken reports whether a token of this type ends a select list: a
+// following clause keyword or end-of-statement. It is the token-level form of
+// atSelectListEnd, for the places that decide on a LOOKAHEAD token.
+func selectListEndToken(tokenType int) bool {
+	switch tokenType {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwWINDOW,
 		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT,
 		tokPipe, int(')'), int(';'), tokEOF:
@@ -514,19 +521,22 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 
 // atClauseWordImplicitAlias reports whether the cursor is a word that may be
 // either a bare alias or the next clause's keyword, and is the alias because no
-// expression follows it. QUALIFY is the one such word: the pinned grammar lists
-// KW_QUALIFY_NONRESERVED in common_keyword_as_identifier, so `SELECT NULL
-// QUALIFY` derives as a column named NULL aliased QUALIFY, while
-// `SELECT NULL QUALIFY x > 0` keeps its clause.
+// QUALIFY expression follows it. QUALIFY is the one such word: the pinned
+// grammar lists KW_QUALIFY_NONRESERVED in common_keyword_as_identifier, so
+// `SELECT NULL QUALIFY` derives as a column named NULL aliased QUALIFY, and
+// `SELECT 1 QUALIFY FROM t` as an alias before its FROM, while
+// `SELECT NULL QUALIFY x > 0` keeps its clause. The clause reading needs an
+// expression after QUALIFY, so anything that ends the select list — the next
+// clause's keyword included — makes the word the alias.
 func (p *Parser) atClauseWordImplicitAlias() bool {
 	if p.cur.Type != kwQUALIFY {
 		return false
 	}
 	switch p.peekNext().Type {
-	case tokEOF, int(')'), int(','), int(';'):
+	case int(','):
 		return true
 	}
-	return false
+	return selectListEndToken(p.peekNext().Type)
 }
 
 // pathDotStarAhead reports whether the current position begins a path-qualified

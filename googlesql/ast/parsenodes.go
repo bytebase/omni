@@ -4565,6 +4565,7 @@ type GraphSampleOp struct {
 	Method      string
 	Size        Node
 	Unit        string // "ROWS" | "PERCENT"
+	PartitionBy []Node // sample_size's PARTITION BY expressions; nil if absent
 	WithWeight  bool
 	WeightAlias string
 	Repeatable  Node // REPEATABLE(n); nil if absent

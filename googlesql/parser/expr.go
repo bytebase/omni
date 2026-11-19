@@ -2210,15 +2210,38 @@ func (p *Parser) parseReplaceFieldsPath() (string, error) {
 	if p.cur.Type != int('(') {
 		return p.parseGeneralizedPath()
 	}
-	p.advance() // (
-	path, err := p.parsePathExpr()
-	if err != nil {
-		return "", err
+	var b strings.Builder
+	for {
+		// A component is a parenthesized path expression or a bare identifier.
+		if p.cur.Type == int('(') {
+			p.advance() // (
+			path, err := p.parsePathExpr()
+			if err != nil {
+				return "", err
+			}
+			if _, err := p.expect(int(')')); err != nil {
+				return "", err
+			}
+			b.WriteString("(")
+			b.WriteString(path.String())
+			b.WriteString(")")
+		} else {
+			tok, err := p.expectIdentifier()
+			if err != nil {
+				return "", err
+			}
+			name, err := p.identifierText(tok)
+			if err != nil {
+				return "", err
+			}
+			b.WriteString(name)
+		}
+		// generalized_extension_path recurses: `.name` or `.( path )`.
+		if p.cur.Type != int('.') {
+			return b.String(), nil
+		}
+		p.advance() // .
 	}
-	if _, err := p.expect(int(')')); err != nil {
-		return "", err
-	}
-	return "(" + path.String() + ")", nil
 }
 
 // parseWithExpr parses the inline `WITH(name AS expr, …, body)` expression
@@ -2806,7 +2829,11 @@ func (p *Parser) parseArrayTypeFromKeyword(arrTok Token) (*DataType, error) {
 // expectIdentifier consumes the current token if it can be an identifier
 // (token identifier or non-reserved keyword), else returns a syntax error.
 func (p *Parser) expectIdentifier() (Token, error) {
-	if isIdentifierStart(p.cur.Type) {
+	// A word the pinned grammar takes as a name counts here too (ALIAS, a CTE
+	// name, a LET variable), and the callers that must not read a clause keyword
+	// as one — the select list's QUALIFY, a statement's leading MATCH_RECOGNIZE —
+	// disambiguate before they ask for an identifier.
+	if isIdentifierStart(p.cur.Type) || p.atTmNonReservedWord() {
 		return p.advance(), nil
 	}
 	return Token{}, p.syntaxErrorAtCur()

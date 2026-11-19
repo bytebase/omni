@@ -2271,17 +2271,10 @@ func (ew *exprWalk) walk(node ast.Node) {
 		// A bare '*' (COUNT(*)) carries no column reference.
 
 	// --- Graph subqueries and graph expressions (parser-gql) ---
-	case *ast.GraphSubqueryExpr:
-		ew.walkGraphBlocks(e.Blocks)
-	case *ast.GraphExistsExpr:
-		ew.walk(e.Pattern)
-		ew.walkList(e.Ops)
-	case *ast.GraphCallOp:
-		ew.walk(e.Call)
-		ew.walk(e.Subquery)
+	case *ast.GraphSubqueryExpr, *ast.GraphExistsExpr, *ast.GraphCallOp:
+		ew.walkGraph(node)
 	case *ast.GraphPredicate:
-		ew.walk(e.Left)
-		ew.walk(e.Right)
+		ew.walkGraph(node)
 
 	// --- Leaves: literals, parameters, system vars, typed literals ---
 	default:
@@ -2326,20 +2319,20 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	ew.w.visitBody(query)
 }
 
-// walkGraphBlocks walks the expressions inside a graph subquery's operation
-// blocks (graph_operation_block: the blocks, their linear operators, their
-// RETURN/WITH/GROUP BY/ORDER BY/PAGE items, and the patterns' inline predicates
-// and property values).
+// walkGraph walks a graph subquery's or graph expression's internals as a
+// subquery boundary: the graph's own names — element variables, path and LET
+// variables, RETURN items — are not relational columns, so a fresh walk with no
+// column callbacks is used instead of the caller's. Nested SQL subqueries are
+// still followed, so a scalar subquery inside a graph expression records the
+// tables it reads.
 //
 // A graph subquery's ROWS come from graph element patterns over a graph, not
-// from table paths, so — like a bare GQL statement (TestGetQuerySpan_GQLEmptySpan)
-// — the patterns and the graph name contribute no access table. Its expressions
-// can still name a table through a nested scalar subquery, so they are walked
-// rather than dropped.
-func (ew *exprWalk) walkGraphBlocks(blocks []ast.Node) {
-	for _, block := range blocks {
-		ew.walk(block)
-	}
+// from table paths, so — like a bare GQL statement
+// (TestGetQuerySpan_GQLEmptySpan) — the patterns and the graph name contribute
+// no access table.
+func (ew *exprWalk) walkGraph(node ast.Node) {
+	inner := &exprWalk{w: ew.w, followSub: true}
+	inner.walkGraphNode(node)
 }
 
 // walkGraphNodes is the parser-gql counterpart of the expression walk: it
@@ -2356,6 +2349,23 @@ func (ew *exprWalk) walkGraphNodes(nodes []ast.Node) {
 // expressions), so each one that holds an expression is listed here.
 func (ew *exprWalk) walkGraphNode(node ast.Node) {
 	switch n := node.(type) {
+	case *ast.GraphSubqueryExpr:
+		ew.walkGraphNodes(n.Blocks)
+	case *ast.GraphExistsExpr:
+		if n.Pattern != nil {
+			ew.walk(n.Pattern)
+		}
+		ew.walkGraphNodes(n.Ops)
+	case *ast.GraphCallOp:
+		if n.Call != nil {
+			ew.walk(n.Call)
+		}
+		if n.Subquery != nil {
+			ew.walk(n.Subquery)
+		}
+	case *ast.GraphPredicate:
+		ew.walk(n.Left)
+		ew.walk(n.Right)
 	case *ast.GraphLinearQuery:
 		ew.walkGraphNodes(n.Operators)
 		if n.Return != nil {
@@ -2409,10 +2419,21 @@ func (ew *exprWalk) walkGraphNode(node ast.Node) {
 		if n.GroupBy != nil {
 			ew.walk(n.GroupBy)
 		}
+	case *ast.GroupByClause:
+		// A graph RETURN/WITH `GROUP BY` (and a grouping set's items): the
+		// expressions are predicates, so a subquery inside one is a read.
+		for _, item := range n.Items {
+			if item == nil {
+				continue
+			}
+			ew.walk(item.Expr)
+			ew.walkList(item.Items)
+		}
 	case *ast.GraphForOp:
 		ew.walk(n.Expr)
 	case *ast.GraphSampleOp:
 		ew.walk(n.Size)
+		ew.walkList(n.PartitionBy)
 		ew.walk(n.Repeatable)
 	case *ast.GraphReturnOp:
 		ew.walkGraphReturnItems(n.Items)

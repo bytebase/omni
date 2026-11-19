@@ -627,6 +627,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *GraphSampleOp:
 		Walk(v, n.Size)
+		walkNodes(v, n.PartitionBy)
 		Walk(v, n.Repeatable)
 	case *GraphSetOp:
 		walkNodes(v, n.Ops)

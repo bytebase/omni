@@ -1424,3 +1424,68 @@ func TestGraphCallOpAndPrefixStrictness(t *testing.T) {
 		}
 	}
 }
+
+func TestGraphKeywordWordsAsIdentifiers(t *testing.T) {
+	// The pinned grammar's non-reserved words are identifiers wherever an
+	// identifier is required, not only in an expression path.
+	for _, sql := range []string{
+		"SELECT 1 AS QUALIFY",
+		"WITH QUALIFY AS (SELECT 1) SELECT 1",
+		"SELECT 1 AS SHORTEST, 2 AS NOTHING, 3 AS MATCH_RECOGNIZE",
+		"SELECT * FROM t AS QUALIFY",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+	// A QUALIFY with no expression after it is the alias even when a clause
+	// keyword follows it.
+	for _, sql := range []string{
+		"SELECT 1 QUALIFY FROM t",
+		"SELECT 1 QUALIFY WHERE TRUE",
+		"SELECT 1 QUALIFY",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+	// The clause reading survives.
+	if _, errs := parseForTest("SELECT a FROM t QUALIFY ROW_NUMBER() OVER () = 1"); len(errs) != 0 {
+		t.Errorf("QUALIFY clause: unexpected errors: %v", errs)
+	}
+}
+
+func TestGraphLabelPredicateLoc(t *testing.T) {
+	// The predicate's range ends at its last token: a parenthesized label's `)`.
+	sql := "SELECT a IS LABELED (Person)"
+	n := onlyItemExpr(t, sql)
+	p, ok := n.(*ast.GraphPredicate)
+	if !ok {
+		t.Fatalf("expression is %T, want *ast.GraphPredicate", n)
+	}
+	want := sql[len("SELECT "):]
+	if got := sql[p.Loc.Start:p.Loc.End]; got != want {
+		t.Errorf("predicate text = %q, want %q", got, want)
+	}
+}
+
+func TestGraphSamplePartitionByIsKept(t *testing.T) {
+	e, ok := onlyItemExpr(t, "SELECT EXISTS { TABLESAMPLE BERNOULLI(1 ROWS PARTITION BY 1, 2) RETURN 1 }").(*ast.GraphSubqueryExpr)
+	if !ok {
+		t.Fatal("expression is not *ast.GraphSubqueryExpr")
+	}
+	lq, ok := e.Blocks[0].(*ast.GraphLinearQuery)
+	if !ok {
+		t.Fatalf("Blocks[0] is %T, want *ast.GraphLinearQuery", e.Blocks[0])
+	}
+	sample, ok := lq.Operators[0].(*ast.GraphSampleOp)
+	if !ok {
+		t.Fatalf("operator is %T, want *ast.GraphSampleOp", lq.Operators[0])
+	}
+	if len(sample.PartitionBy) != 2 {
+		t.Errorf("PartitionBy = %d expressions, want 2", len(sample.PartitionBy))
+	}
+	if sample.Unit != "ROWS" || sample.Method != "BERNOULLI" {
+		t.Errorf("method/unit = %q/%q, want BERNOULLI/ROWS", sample.Method, sample.Unit)
+	}
+}
