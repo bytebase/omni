@@ -1114,6 +1114,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parseInlineExternalTable(start)
 	}
 
+	// ANALYTIC VIEW ( sub_av_clause ) [ alias ]
+	if p.isInlineAnalyticViewAhead() {
+		return p.parseInlineAnalyticViewRef(start)
+	}
+
 	// CONTAINERS(table) or SHARDS(table)
 	if p.isIdentLikeStr("CONTAINERS") && p.peekNext().Type == '(' {
 		ref, err := p.parseContainersOrShards(start, false)
@@ -2230,6 +2235,34 @@ func (p *Parser) parseCTE() (*nodes.CTE, error) {
 	cte := &nodes.CTE{
 		Name: name,
 		Loc:  nodes.Loc{Start: start},
+	}
+
+	// subav_factoring_clause: a derived analytic view,
+	// subav_name ANALYTIC VIEW AS ( sub_av_clause ), instead of a query.
+	// It takes no column list and no SEARCH or CYCLE.
+	if p.isKeywordStr("ANALYTIC") {
+		p.advance() // consume ANALYTIC
+		if p.cur.Type != kwVIEW {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume VIEW
+		if p.cur.Type != kwAS {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume AS
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume (
+		var err error
+		if cte.SubAV, err = p.parseSubAVClause(); err != nil {
+			return nil, err
+		}
+		if err := p.anExpect(')'); err != nil {
+			return nil, err
+		}
+		cte.Loc.End = p.prev.End
+		return cte, nil
 	}
 
 	// Optional column list, each name once (ORA-32049 at its ')').

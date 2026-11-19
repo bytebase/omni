@@ -1004,6 +1004,7 @@ type CTE struct {
 	Name    string           // CTE name
 	Columns *List            // optional column list (list of *String)
 	Query   StmtNode         // the CTE query
+	SubAV   *SubAVClause     // subav_factoring_clause: ANALYTIC VIEW AS ( sub_av_clause ); Query is nil
 	Search  *CTESearchClause // SEARCH clause
 	Cycle   *CTECycleClause  // CYCLE clause
 	Loc     Loc
@@ -1386,6 +1387,41 @@ type InlineExternalTable struct {
 
 func (n *InlineExternalTable) nodeTag()   {}
 func (n *InlineExternalTable) tableExpr() {}
+
+// ---------------------------------------------------------------------------
+// Derived (inline) analytic view
+// ---------------------------------------------------------------------------
+
+// SubAVClause represents a derived analytic view's sub_av_clause: it stands
+// in an inline analytic view and in a WITH subav_factoring_clause, both on
+// SELECT.bnf.
+//
+//	sub_av_clause:
+//	    USING [ schema. ] base_av_name
+//	    [ hierarchies_clause ] [ filter_clauses ] [ add_meas_clause ]
+//
+// https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/SELECT.html
+// (sub_av_clause::=), whose diagrams and examples agree with the pinned
+// Oracle: the clause starts at USING, and ANALYTIC VIEW opens the inline
+// view and the WITH element, not this clause.
+type SubAVClause struct {
+	Using   *ObjectName // USING [ schema. ] base_av_name
+	Options *List       // hierarchies_clause, filter_clauses, add_meas_clause (*DDLOption)
+	Loc     Loc
+}
+
+func (n *SubAVClause) nodeTag() {}
+
+// InlineAnalyticView represents ANALYTIC VIEW ( sub_av_clause )
+// [ inline_av_alias ] in a FROM clause.
+type InlineAnalyticView struct {
+	Clause *SubAVClause // the sub_av_clause in parentheses
+	Alias  *Alias       // optional inline_av_alias
+	Loc    Loc
+}
+
+func (n *InlineAnalyticView) nodeTag()   {}
+func (n *InlineAnalyticView) tableExpr() {}
 
 // GroupingSetsClause represents a GROUPING SETS clause in GROUP BY.
 //
