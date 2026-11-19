@@ -24,6 +24,10 @@ const (
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
 	ErrNonUniqueTable                    = 1066
+	ErrKeyDoesNotExist                   = 1176
+	ErrIncorrectUsage                    = 1221
+	ErrInvalidEncryption                 = 3184
+	ErrStartTransactionInAlter           = 3979
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
@@ -66,6 +70,7 @@ const (
 	ErrInvalidYearColumnLength           = 1818
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
+	ErrCheckNotBoolean                   = 3812
 	ErrCheckConstraintDupName            = 3822
 
 	// ErrNoTablesUsed is 1096, which mysql:8.0.46 answers for a SELECT whose
@@ -91,6 +96,10 @@ var sqlStateMap = map[int]string{
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
 	ErrNonUniqueTable:                    "42000",
+	ErrKeyDoesNotExist:                   "42000",
+	ErrIncorrectUsage:                    "HY000",
+	ErrInvalidEncryption:                 "HY000",
+	ErrStartTransactionInAlter:           "HY000",
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
@@ -129,6 +138,7 @@ var sqlStateMap = map[int]string{
 	ErrInvalidYearColumnLength:           "HY000",
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
+	ErrCheckNotBoolean:                   "HY000",
 	ErrCheckConstraintDupName:            "HY000",
 	ErrTableMustHaveColumns:              "HY000",
 	ErrSpatialColumnNotGeometrical:       "42000",
@@ -299,6 +309,50 @@ func errWrongObject(db, name, kind string) error {
 func errNonUniqueTable(name string) error {
 	return &Error{Code: ErrNonUniqueTable, SQLState: sqlState(ErrNonUniqueTable),
 		Message: fmt.Sprintf("Not unique table/alias: '%s'", name)}
+}
+
+// errKeyDoesNotExist is 1176, an ALTER INDEX, RENAME KEY or DROP KEY naming a
+// key the table does not hold. mysql:8.0.46 words it "Key '%s' doesn't exist in
+// table '%s'"; 1061 is a name collision instead.
+func errKeyDoesNotExist(name, table string) error {
+	return &Error{Code: ErrKeyDoesNotExist, SQLState: sqlState(ErrKeyDoesNotExist),
+		Message: fmt.Sprintf("Key '%s' doesn't exist in table '%s'", name, table)}
+}
+
+// errIncorrectSRIDUsage is 1221 for a SRID clause on a column whose type is not
+// a geometry, answered while the statement is prepared.
+func errIncorrectSRIDUsage() error {
+	return &Error{Code: ErrIncorrectUsage, SQLState: sqlState(ErrIncorrectUsage),
+		Message: "Incorrect usage of SRID and non-geometry column"}
+}
+
+// errIncorrectValidationUsage is 1221 for WITH VALIDATION or WITHOUT VALIDATION
+// outside EXCHANGE PARTITION, answered while the statement is prepared.
+func errIncorrectValidationUsage() error {
+	return &Error{Code: ErrIncorrectUsage, SQLState: sqlState(ErrIncorrectUsage),
+		Message: "Incorrect usage of ALTER and WITH VALIDATION"}
+}
+
+// errInvalidEncryptionOption is 3184, an ENCRYPTION value other than 'Y' or
+// 'N' on ALTER TABLE.
+func errInvalidEncryptionOption() error {
+	return &Error{Code: ErrInvalidEncryption, SQLState: sqlState(ErrInvalidEncryption),
+		Message: "Invalid encryption option."}
+}
+
+// errStartTransactionInAlter is 3979, START TRANSACTION as an ALTER TABLE
+// option; MySQL answers it before the table it names is looked up.
+func errStartTransactionInAlter() error {
+	return &Error{Code: ErrStartTransactionInAlter, SQLState: sqlState(ErrStartTransactionInAlter),
+		Message: "START TRANSACTION clause cannot be used with ALTER TABLE command."}
+}
+
+// errCheckNotBoolean is 3812 for a CHECK expression whose top level is not a
+// boolean: mysql:8.0.46 refuses a bare column, literal, arithmetic or CAST and
+// names the constraint the statement would create.
+func errCheckNotBoolean(name string) error {
+	return &Error{Code: ErrCheckNotBoolean, SQLState: sqlState(ErrCheckNotBoolean),
+		Message: fmt.Sprintf("An expression of non-boolean type specified to a check constraint '%s'.", name)}
 }
 
 // errUnknownStorageEngine is 1286, an ENGINE option naming an engine the pinned

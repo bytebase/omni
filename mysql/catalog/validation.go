@@ -223,6 +223,30 @@ func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
 	return nil
 }
 
+// validateGeneratedColumnSelfReference refuses a generated column whose own
+// expression names the column being added: MySQL 8.0.46 answers 3107, "Generated
+// column can refer only to generated columns defined prior to it", even though
+// the name is not yet a column. It runs after the duplicate-column check, which
+// answers 1060 first when the table already holds the name.
+func validateGeneratedColumnSelfReference(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.Generated == nil || colDef.Generated.Expr == nil {
+		return nil
+	}
+	self := false
+	nodes.Inspect(colDef.Generated.Expr, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" && strings.EqualFold(cr.Column, colDef.Name) {
+			self = true
+			return false
+		}
+		return true
+	})
+	if self {
+		return &Error{Code: 3107, SQLState: "HY000",
+			Message: "Generated column can refer only to generated columns defined prior to it."}
+	}
+	return nil
+}
+
 func errPrimaryKeyOnGeneratedColumn(colName string) error {
 	return &Error{Code: 3106, SQLState: "HY000", Message: "Defining a virtual generated column as primary key is not supported"}
 }
@@ -669,6 +693,9 @@ func validateBareNowDefault(colDef *nodes.ColumnDef) error {
 }
 
 func validateCheckExpr(name string, expr nodes.ExprNode) error {
+	if !checkExprIsBoolean(expr) {
+		return errCheckNotBoolean(name)
+	}
 	var invalid bool
 	exprSQL := strings.ToLower(nodeToSQL(expr))
 	if strings.Contains(exprSQL, "select ") || strings.Contains(exprSQL, "(select") {
@@ -697,6 +724,45 @@ func validateCheckExpr(name string, expr nodes.ExprNode) error {
 		return errCheckConstraintNotAllowed(name)
 	}
 	return nil
+}
+
+// checkExprIsBoolean reports whether a CHECK expression's top level is one
+// MySQL takes. The server refuses a bare column, literal, arithmetic, bit
+// operation, unary other than NOT, or CAST with 3812 while it prepares the
+// statement, even when the column does not exist; it takes a comparison, a
+// logical operator, IS/IN/BETWEEN/LIKE/REGEXP, EXISTS, and the boolean builtins
+// below. An expression this does not recognize is left to the other checks, so
+// a form the catalog does not model is not refused by this one.
+func checkExprIsBoolean(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return checkExprIsBoolean(e.Expr)
+	case *nodes.BinaryExpr:
+		switch e.Op {
+		case nodes.BinOpEq, nodes.BinOpNe, nodes.BinOpLt, nodes.BinOpGt, nodes.BinOpLe, nodes.BinOpGe,
+			nodes.BinOpAnd, nodes.BinOpOr, nodes.BinOpXor, nodes.BinOpRegexp, nodes.BinOpLikeEscape,
+			nodes.BinOpNullSafeEq, nodes.BinOpSoundsLike:
+			return true
+		}
+		return false
+	case *nodes.UnaryExpr:
+		return e.Op == nodes.UnaryNot
+	case *nodes.IsExpr, *nodes.InExpr, *nodes.BetweenExpr, *nodes.LikeExpr, *nodes.ExistsExpr,
+		*nodes.MemberOfExpr, *nodes.MatchExpr:
+		return true
+	case *nodes.BoolLit:
+		return true
+	case *nodes.ColumnRef, *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.NullLit,
+		*nodes.BitLit, *nodes.CastExpr, *nodes.ConvertExpr, *nodes.CollateExpr,
+		*nodes.WeightStringExpr, *nodes.IntervalExpr:
+		return false
+	case *nodes.FuncCallExpr:
+		switch strings.ToLower(e.Name) {
+		case "json_valid", "isnull", "strcmp":
+			return true
+		}
+	}
+	return true
 }
 
 func isNondeterministicFunc(name string) bool {

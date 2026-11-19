@@ -36,6 +36,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	key := toLower(tableName)
 	tbl := db.Tables[key]
 	if tbl == nil {
+		// ANALYZE, CHECK, OPTIMIZE and REPAIR PARTITION do not open the table
+		// when it is the statement's only action: mysql:8.0.46 takes each on a
+		// table that is not there, naming ALL or a partition alike.
+		if alterIsPartitionMaintenanceOnly(stmt.Commands) {
+			return nil
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 	// PERFORMANCE_SCHEMA holds the performance schema's own tables: on a table
@@ -372,6 +378,25 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 	return nil
 }
 
+// alterIsPartitionMaintenanceOnly reports whether every command is one of the
+// partition-maintenance actions MySQL runs without opening the table.
+func alterIsPartitionMaintenanceOnly(commands []*nodes.AlterTableCmd) bool {
+	if len(commands) == 0 {
+		return false
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			return false
+		}
+		switch cmd.Type {
+		case nodes.ATAnalyzePartition, nodes.ATCheckPartition, nodes.ATOptimizePartition, nodes.ATRepairPartition:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // alterExchangeSelf refuses an EXCHANGE PARTITION that names the table being
 // altered as the table to swap with: 1066 "Not unique table/alias", answered
 // before either table is looked up (measured on mysql:8.0.46). A name in another
@@ -423,11 +448,28 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 			if err := validateColumnDisplayWidth(colDef); err != nil {
 				return err
 			}
+			// A SRID clause belongs to a geometry column, and MySQL judges it
+			// while preparing the statement: `ALTER TABLE missing ADD a INT
+			// SRID 1` is 1221, not 1146, and a duplicate column follows it.
+			if colDef.TypeName != nil && colDef.TypeName.HasSRID && !isGeometryColumnType(colDef.TypeName.Name) {
+				return errIncorrectSRIDUsage()
+			}
 			// A bare NOW()-family DEFAULT the column's type cannot hold is
 			// 1067 here, with the other prepare-time answers.
 			if err := validateBareNowDefault(colDef); err != nil {
 				return err
 			}
+		}
+		// START TRANSACTION is not an ALTER TABLE option the server takes; it
+		// answers 3979 while preparing the statement, before the table lookup.
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && strings.EqualFold(cmd.Option.Name, "START TRANSACTION") {
+			return errStartTransactionInAlter()
+		}
+		// WITH VALIDATION and WITHOUT VALIDATION belong to EXCHANGE PARTITION.
+		// A bare one is 1221 while the statement is prepared, before the table
+		// it names is looked up: `ALTER TABLE missing WITH VALIDATION` is 1221.
+		if cmd.Type == nodes.ATWithValidation || cmd.Type == nodes.ATWithoutValidation {
+			return errIncorrectValidationUsage()
 		}
 		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
 			if err := validateStorageEngine(cmd.Option.Value, c.noEngineSubstitution()); err != nil {
@@ -643,9 +685,26 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err := validateColumnDefSemantics(colDef); err != nil {
 		return err
 	}
+	// A column-level CHECK's expression is judged while the statement is
+	// prepared, so a non-boolean one is 3812 before the duplicate-column check:
+	// mysql:8.0.46 answers 3812 for `ADD a INT CHECK(a)` even when a already
+	// exists (1060 would follow).
+	for _, cc := range colDef.Constraints {
+		if cc.Type != nodes.ColConstrCheck || cc.Expr == nil || checkExprIsBoolean(cc.Expr) {
+			continue
+		}
+		conName := cc.Name
+		if conName == "" {
+			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+		}
+		return errCheckNotBoolean(conName)
+	}
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
+	}
+	if err := validateGeneratedColumnSelfReference(colDef); err != nil {
+		return err
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
@@ -956,6 +1015,21 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	return nil
 }
 
+// duplicateKeyColumnName names the second spelling of a column a key lists
+// twice, or "". MySQL answers 1060 "Duplicate column name" for it after the key's
+// columns exist (1072 first) and after a prefix's own check (1089 first).
+func duplicateKeyColumnName(con *nodes.Constraint) string {
+	seen := make(map[string]bool, len(con.IndexColumns)+len(con.Columns))
+	for _, name := range extractColumnNames(con) {
+		key := toLower(name)
+		if seen[key] {
+			return name
+		}
+		seen[key] = true
+	}
+	return ""
+}
+
 // alterAddConstraint adds a constraint or index to the table.
 func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
 	con := cmd.Constraint
@@ -1029,6 +1103,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
+		}
 		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -1058,6 +1135,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		}
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
+		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
 		}
 		refDBName := ""
 		refTable := ""
@@ -1125,6 +1205,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
 		if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 			return err
+		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
 		}
 		keyIdx := &Index{
 			Name:      idxName,
@@ -1332,11 +1415,7 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 	}
 
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // alterRenameTable moves a table to a new name.
@@ -1407,6 +1486,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "compression":
 		tbl.Compression = opt.Value
 	case "encryption":
+		if !strings.EqualFold(opt.Value, "Y") && !strings.EqualFold(opt.Value, "N") {
+			return errInvalidEncryptionOption()
+		}
 		tbl.Encryption = opt.Value
 	case "stats_persistent":
 		tbl.StatsPersistent = opt.Value
@@ -1478,11 +1560,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.

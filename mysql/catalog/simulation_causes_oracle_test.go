@@ -1390,6 +1390,125 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"ENGINE=MyISAM"},
 		},
+		// A CHECK expression whose top level is not boolean is 3812 while the
+		// statement is prepared, before the column it names is resolved (a bare
+		// unknown column is this, not 1054) and before a duplicate column.
+		{
+			name:  "ADD CHECK over a bare column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CHECK(zzz)",
+			code:  3812,
+		},
+		{
+			name:  "ADD a column whose CHECK is the column itself",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT CHECK(zzz)",
+			code:  3812,
+		},
+		{
+			name:  "ADD CHECK over a comparison",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CHECK(b > 0)",
+			code:  0,
+		},
+		// A generated column whose expression names the column being added is
+		// 3107 after the duplicate-column check, not 1054.
+		{
+			name:  "ADD a generated column that names itself",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT AS(zzz)",
+			code:  3107,
+		},
+		{
+			name:  "ADD a generated column over a base column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT AS(b + 1)",
+			code:  0,
+		},
+		// ALTER INDEX and RENAME KEY over a key the table does not hold answer
+		// 1176, not the 1061 a duplicate name answers.
+		{
+			name:  "ALTER INDEX over a key the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER INDEX zzz VISIBLE",
+			code:  1176,
+		},
+		{
+			name:  "RENAME KEY over a key the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a RENAME KEY zzz TO yyy",
+			code:  1176,
+		},
+		// A SRID clause belongs to a geometry column, and a bare WITH VALIDATION
+		// belongs to EXCHANGE PARTITION. Both are 1221 while the statement is
+		// prepared, ahead of the table lookup.
+		{
+			name:  "ADD a non-geometry column with SRID",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT SRID 1",
+			code:  1221,
+		},
+		{
+			name:  "ALTER TABLE WITH VALIDATION",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a WITH VALIDATION",
+			code:  1221,
+		},
+		{
+			name:  "ALTER TABLE WITHOUT VALIDATION",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a WITHOUT VALIDATION",
+			code:  1221,
+		},
+		// CREATE TABLE ... LIKE naming its own source is 1066 before either
+		// table is looked up: over the table itself, and over one that is not
+		// there.
+		{
+			name:  "CREATE TABLE LIKE itself over the table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a LIKE a",
+			code:  1066,
+		},
+		{
+			name: "CREATE TABLE LIKE itself",
+			stmt: "CREATE TABLE a LIKE a",
+			code: 1066,
+		},
+		// A key that lists the same column twice is 1060, after the columns
+		// exist and after a prefix's own check.
+		{
+			name:  "ADD KEY over the same column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(b, b)",
+			code:  1060,
+		},
+		{
+			name:  "ADD FOREIGN KEY over the same column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(c, c) REFERENCES a(b)",
+			code:  1060,
+		},
+		// ANALYZE, CHECK, OPTIMIZE and REPAIR PARTITION do not open the table
+		// when each is the statement's only action.
+		{
+			name: "OPTIMIZE PARTITION over a table that is not there",
+			stmt: "ALTER TABLE a OPTIMIZE PARTITION ALL",
+			code: 0,
+		},
+		// START TRANSACTION is not an ALTER TABLE option, and an ENCRYPTION
+		// value other than Y or N is 3184.
+		{
+			name:  "ALTER TABLE START TRANSACTION",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a START TRANSACTION",
+			code:  3979,
+		},
+		{
+			name:  "ALTER TABLE ENCRYPTION over a value it does not take",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENCRYPTION 's'",
+			code:  3184,
+		},
 	}
 
 	for _, tc := range cases {
