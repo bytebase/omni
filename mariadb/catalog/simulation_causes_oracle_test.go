@@ -32,6 +32,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	ctx := context.Background()
 	reset := func() {
 		for _, stmt := range []string{
+			"DROP TEMPORARY TABLE IF EXISTS a",
 			"DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a",
 			"DROP SEQUENCE IF EXISTS a", "DROP TABLE IF EXISTS p",
 			"DROP TABLE IF EXISTS x", "DROP TABLE IF EXISTS z",
@@ -1270,6 +1271,44 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:   "CREATE TABLE a (b INT, UNIQUE (missing, missing WITHOUT OVERLAPS))",
 			code:   4156,
 			absent: "a",
+		},
+		// Table-level CHECK constraints resolve their columns against the table
+		// the atomic ALTER leaves, and DISCARD/IMPORT TABLESPACE refuse
+		// temporary InnoDB tables (3007) and partitioned InnoDB tables (1031).
+		{
+			name:     "table CHECK added before the column it reads",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD CHECK (e > 0), ADD e INT",
+			code:     0,
+			contains: []string{"CHECK (`e` > 0)"},
+		},
+		{
+			name:        "DISCARD TABLESPACE on an InnoDB temporary table",
+			setup:       []string{"CREATE TEMPORARY TABLE a (b INT)"},
+			stmt:        "ALTER TABLE a DISCARD TABLESPACE",
+			code:        3007,
+			keepsSchema: true,
+		},
+		{
+			name:        "IMPORT TABLESPACE on an InnoDB temporary table",
+			setup:       []string{"CREATE TEMPORARY TABLE a (b INT)"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        3007,
+			keepsSchema: true,
+		},
+		{
+			name:        "DISCARD TABLESPACE on a MyISAM temporary table",
+			setup:       []string{"CREATE TEMPORARY TABLE a (b INT) ENGINE=MyISAM"},
+			stmt:        "ALTER TABLE a DISCARD TABLESPACE",
+			code:        1031,
+			keepsSchema: true,
+		},
+		{
+			name:        "DISCARD TABLESPACE on a partitioned InnoDB table",
+			setup:       []string{"CREATE TABLE a (b INT) PARTITION BY HASH (b) PARTITIONS 2"},
+			stmt:        "ALTER TABLE a DISCARD TABLESPACE",
+			code:        1031,
+			keepsSchema: true,
 		},
 	}
 

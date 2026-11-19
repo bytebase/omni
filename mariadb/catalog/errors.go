@@ -650,13 +650,23 @@ func errTablespaceExists(db, table string) error {
 		Message: fmt.Sprintf("Tablespace for table '%s/%s' exists. Please DISCARD the tablespace before IMPORT", db, table)}
 }
 
-// refuseTablespaceEngine refuses DISCARD and IMPORT TABLESPACE on a table whose
-// engine has no tablespaces: 1031, measured on mariadb:11.8.8 for MyISAM, Aria
-// and MEMORY, where InnoDB takes both commands.
+// refuseTablespaceEngine refuses DISCARD and IMPORT TABLESPACE on a table that
+// has no InnoDB file-per-table tablespace: 1031 for MyISAM, Aria, MEMORY and
+// partitioned InnoDB tables, and 3007 for an InnoDB temporary table (after the
+// engine check, so a MyISAM temporary table still answers 1031). Measured on
+// mariadb:11.8.8.
 func refuseTablespaceEngine(tbl *Table) error {
 	// ENGINE='DEFAULT' is the server's own engine, InnoDB on the pin.
 	engine := tbl.Engine
 	if engine == "" || eqFoldStr(engine, "InnoDB") || eqFoldStr(engine, "DEFAULT") {
+		if tbl.Partitioning != nil {
+			return &Error{Code: 1031, SQLState: "HY000",
+				Message: fmt.Sprintf("Storage engine InnoDB of the table `%s`.`%s` doesn't have this option", tbl.Database.Name, tbl.Name)}
+		}
+		if tbl.Temporary {
+			return &Error{Code: 3007, SQLState: "HY000",
+				Message: "Cannot DISCARD/IMPORT tablespace associated with temporary table"}
+		}
 		return nil
 	}
 	return &Error{Code: 1031, SQLState: "HY000",

@@ -381,12 +381,13 @@ func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
 	return cr, ok
 }
 
-// validateAlteredColumnExprColumns holds the DEFAULT and CHECK expressions the
-// columns an ALTER adds, modifies or changes carry to the table the statement
-// leaves: measured on mariadb:11.8.8,
-// `ALTER TABLE t ADD a INT CHECK (a > b), ADD b INT CHECK (b < a)` runs over a
-// table with neither column, where a name no column of the result has is 1054.
-func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool) error {
+// validateAlteredColumnExprColumns holds the DEFAULT, GENERATED ALWAYS AS, and
+// CHECK expressions an ALTER adds, modifies or changes to the table the
+// statement leaves: measured on mariadb:11.8.8,
+// `ALTER TABLE t ADD a INT CHECK (a > b), ADD b INT CHECK (b < a)` and
+// `ALTER TABLE t ADD CHECK (b > 0), ADD b INT` run over a table with neither
+// column, where a name no column of the result has is 1054.
+func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, skippedColumns map[*nodes.ColumnDef]bool, skippedKeys map[*nodes.Constraint]bool) error {
 	for _, cmd := range cmds {
 		if cmd == nil {
 			continue
@@ -396,18 +397,23 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, s
 			if err := validateExprColumns(tbl, cmd.DefaultExpr, "DEFAULT"); err != nil {
 				return err
 			}
-			continue
 		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
-		default:
-			continue
+			for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+				// A column IF NOT EXISTS finds is a note whose definition is never
+				// read.
+				if colDef == nil || skippedColumns[colDef] {
+					continue
+				}
+				if err := validateColumnExprColumns(tbl, colDef); err != nil {
+					return err
+				}
+			}
 		}
-		for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
-			// A column IF NOT EXISTS finds is a note whose definition is never
-			// read.
-			if colDef == nil || skipped[colDef] {
+		for _, con := range append([]*nodes.Constraint{cmd.Constraint}, cmd.Constraints...) {
+			if con == nil || con.Type != nodes.ConstrCheck || skippedKeys[con] {
 				continue
 			}
-			if err := validateColumnExprColumns(tbl, colDef); err != nil {
+			if err := validateExprColumns(tbl, con.Expr, "CHECK"); err != nil {
 				return err
 			}
 		}

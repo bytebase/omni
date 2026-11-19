@@ -2,6 +2,9 @@
 
 == TestSimulationCausesOracle default#1
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -27,6 +30,9 @@
 < error
 | 1347 HY000 'omni_testsimulationcausesoracle.a' is not of type 'VIEW'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -48,6 +54,9 @@
 | ALTER VIEW a AS SELECT a
 < error
 | 1146 42S02 Table 'omni_testsimulationcausesoracle.a' doesn't exist
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -74,6 +83,9 @@
 < error
 | 4092 42S02 Unknown VIEW: 'omni_testsimulationcausesoracle.a'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -95,6 +107,9 @@
 | DROP VIEW a
 < error
 | 4092 42S02 Unknown VIEW: 'omni_testsimulationcausesoracle.a'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -121,6 +136,9 @@
 < error
 | 1347 HY000 'omni_testsimulationcausesoracle.a' is not of type 'VIEW'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -145,6 +163,9 @@
 | ALTER TABLE a ADD KEY(a)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -171,6 +192,9 @@
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -195,6 +219,9 @@
 | ALTER TABLE a ADD SPATIAL(a)
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -221,6 +248,9 @@
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -245,6 +275,9 @@
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 < error
 | 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -271,6 +304,9 @@
 < error
 | 1072 42000 Key column 'missing' doesn't exist in table
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -295,6 +331,9 @@
 | ALTER TABLE a ADD PRIMARY KEY(missing)
 < error
 | 1072 42000 Key column 'missing' doesn't exist in table
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -321,6 +360,9 @@
 < error
 | 1128 HY000 Function 'a' is not defined
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -345,6 +387,9 @@
 | ALTER TABLE a REMOVE PARTITIONING
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -371,6 +416,9 @@
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -395,6 +443,9 @@
 | ALTER TABLE a REBUILD PARTITION ALL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -421,6 +472,9 @@
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -445,6 +499,9 @@
 | ALTER TABLE a ANALYZE PARTITION ALL
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -471,6 +528,9 @@
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -496,6 +556,9 @@
 < error
 | 1505 HY000 Partition management on a not partitioned table is not possible
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -518,6 +581,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a REMOVE PARTITIONING
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -545,6 +611,9 @@
 < error
 | 1283 HY000 Column 'a' cannot be part of FULLTEXT index
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -569,6 +638,9 @@
 | ALTER TABLE a ADD FULLTEXT KEY(c)
 < error
 | 1283 HY000 Column 'c' cannot be part of FULLTEXT index
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -595,6 +667,9 @@
 < error
 | 1283 HY000 Column 'c' cannot be part of FULLTEXT index
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -617,6 +692,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD FULLTEXT(c)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -644,6 +722,9 @@
 < error
 | 1005 HY000 Can't create table `omni_testsimulationcausesoracle`.`a` (errno: 150 "Foreign key constraint is incorrectly formed")
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -668,6 +749,9 @@
 | ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 < error
 | 1005 HY000 Can't create table `omni_testsimulationcausesoracle`.`a` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -715,6 +799,9 @@
 |   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`q`) REFERENCES `z` (`q`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -758,6 +845,9 @@
 |   CONSTRAINT `a_ibfk_1` FOREIGN KEY (`q`) REFERENCES `a` (`b`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -785,6 +875,9 @@
 | ALTER TABLE a ADD q INT REFERENCES z(q, q)
 < error
 | 1239 42000 Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -814,6 +907,9 @@
 < error
 | 1061 42000 Duplicate key name 'k'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -839,6 +935,9 @@
 < error
 | 1128 HY000 Function 'p' is not defined
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -860,6 +959,9 @@
 | CREATE TABLE x (a INT, FULLTEXT KEY x (a) WITH PARSER p)
 < error
 | 1128 HY000 Function 'p' is not defined
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -886,6 +988,9 @@
 < error
 | 1286 42000 Unknown storage engine 'zzz'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -908,6 +1013,9 @@
 < error
 | 1286 42000 Unknown storage engine 'zzz'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -929,6 +1037,9 @@
 | CREATE TABLE x (a INT) ENGINE zzz
 < error
 | 1286 42000 Unknown storage engine 'zzz'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -955,6 +1066,9 @@
 < error
 | 1286 42000 Unknown storage engine 'zzz'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -977,6 +1091,9 @@
 < error
 | 1286 42000 Unknown storage engine 'zzz'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -998,6 +1115,9 @@
 | ALTER TABLE x ENGINE zzz
 < error
 | 1286 42000 Unknown storage engine 'zzz'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1024,6 +1144,9 @@
 < error
 | 1286 42000 Unknown storage engine 'zzz'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1045,6 +1168,9 @@
 | CREATE VIEW a AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1070,6 +1196,9 @@
 | CREATE VIEW a AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1096,6 +1225,9 @@
 < error
 | 1050 42S01 Table 'a' already exists
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1117,6 +1249,9 @@
 | CREATE VIEW a AS SELECT ABS(a)
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1140,6 +1275,9 @@
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1161,6 +1299,9 @@
 | CREATE VIEW a AS SELECT a HAVING 1
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1184,6 +1325,9 @@
 < error
 | 1054 42S22 Unknown column 'a' in 'WHERE'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1203,6 +1347,9 @@
 < ok 0 0
 > exec
 | CREATE VIEW a AS SELECT (SELECT 1 AS x HAVING x)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -1226,6 +1373,9 @@
 | CREATE TABLE a SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'SELECT'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1252,6 +1402,9 @@
 < error
 | 1050 42S01 Table 'a' already exists
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1276,6 +1429,9 @@
 | ALTER TABLE a ADD SPATIAL(g)
 < error
 | 1210 HY000 Incorrect arguments to SPATIAL INDEX
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1302,6 +1458,9 @@
 < error
 | 1210 HY000 Incorrect arguments to SPATIAL INDEX
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1327,6 +1486,9 @@
 < error
 | 1252 42000 All parts of a SPATIAL index must be NOT NULL
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1349,6 +1511,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD SPATIAL(g)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -1391,6 +1556,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1430,6 +1598,9 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1473,6 +1644,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1513,6 +1687,9 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1555,6 +1732,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1594,6 +1774,9 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci MAX_ROWS=4294967295
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1635,6 +1818,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci MAX_ROWS=2
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1674,6 +1860,9 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci MIN_ROWS=3
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1715,6 +1904,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci MAX_ROWS=1
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1755,6 +1947,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci MAX_ROWS=1
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1794,6 +1989,9 @@
 |   UNIQUE KEY `c` (`c`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1832,6 +2030,9 @@
 |   PRIMARY KEY (`b`),
 |   UNIQUE KEY `y` (`y`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1873,6 +2074,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci MIN_ROWS=1
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1892,6 +2096,9 @@
 < ok 0 0
 > exec
 | CREATE TABLE x (a INT) ENGINE=Aria
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -1916,6 +2123,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ENGINE=MyISAM
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -1943,6 +2153,9 @@
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -1967,6 +2180,9 @@
 | ALTER TABLE a ADD a INT AS(a) STORED
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -1993,6 +2209,9 @@
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2017,6 +2236,9 @@
 | ALTER TABLE a ADD a INT DEFAULT(a)
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2043,6 +2265,9 @@
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2065,6 +2290,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD d INT AS(c)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -2092,6 +2320,9 @@
 < error
 | 4029 01000 Expression for field `c` is referring to uninitialized field `c`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2117,6 +2348,9 @@
 < error
 | 4029 01000 Expression for field `c` is referring to uninitialized field `c`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2138,6 +2372,9 @@
 | CREATE TABLE x (a INT AS(a))
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2161,6 +2398,9 @@
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `a`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2183,6 +2423,9 @@
 < error
 | 4029 01000 Expression for field `a` is referring to uninitialized field `b`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2202,6 +2445,9 @@
 < ok 0 0
 > exec
 | CREATE TABLE x (a INT AS(b), b INT)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -2229,6 +2475,9 @@
 < error
 | 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2253,6 +2502,9 @@
 | ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz
 < error
 | 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2279,6 +2531,9 @@
 < error
 | 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2303,6 +2558,9 @@
 | ALTER TABLE a ADD a CHAR BYTE COLLATE utf8mb4_bin
 < error
 | 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'binary'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2329,6 +2587,9 @@
 < error
 | 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'utf8mb3'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2350,6 +2611,9 @@
 | ALTER TABLE x ADD a CHAR ASCII COLLATE utf8mb4_bin
 < error
 | 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2373,6 +2637,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD a CHAR CHARACTER SET ascii COLLATE ascii_general_ci
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -2399,6 +2666,9 @@
 | CREATE TABLE a (x CHAR ASCII COLLATE utf8mb4_bin)
 < error
 | 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2430,6 +2700,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2454,6 +2727,9 @@
 | ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz
 < error
 | 1128 HY000 Function 'a' is not defined
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2480,6 +2756,9 @@
 < error
 | 1478 HY000 Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2505,6 +2784,9 @@
 < error
 | 1478 HY000 Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2527,6 +2809,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ROW_FORMAT FIXED ENGINE=MyISAM
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -2553,6 +2838,9 @@
 | ALTER TABLE a ROW_FORMAT PAGE
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2575,6 +2863,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ROW_FORMAT FIXED
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -2627,6 +2918,9 @@
 |   PRIMARY KEY (`k`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2652,6 +2946,9 @@
 < error
 | 4029 01000 Expression for field `q` is referring to uninitialized field `r`
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2674,6 +2971,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE x ADD q INT AS(r), ADD r INT
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -2732,6 +3032,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2760,6 +3063,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2790,6 +3096,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2819,6 +3128,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2847,6 +3159,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -2904,6 +3219,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -2960,6 +3278,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3015,6 +3336,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3039,6 +3363,9 @@
 | ALTER TABLE a ADD CHECK(a)
 < error
 | 1054 42S22 Unknown column 'a' in 'CHECK'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3065,6 +3392,9 @@
 < error
 | 1054 42S22 Unknown column 'a' in 'CHECK'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3089,6 +3419,9 @@
 | ALTER TABLE a ADD a INT DEFAULT VALUE
 < error
 | 1054 42S22 Unknown column 'VALUE' in 'DEFAULT'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3115,6 +3448,9 @@
 < error
 | 1060 42S21 Duplicate column name 'c'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3139,6 +3475,9 @@
 | ALTER TABLE a ADD KEY(c(1))
 < error
 | 1089 HY000 Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3165,6 +3504,9 @@
 < error
 | 1210 HY000 Incorrect arguments to RTREE INDEX
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3189,6 +3531,9 @@
 | CREATE SPATIAL INDEX a ON a(b)
 < error
 | 1210 HY000 Incorrect arguments to SPATIAL INDEX
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3215,6 +3560,9 @@
 < error
 | 1283 HY000 Column 'b' cannot be part of FULLTEXT index
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3239,6 +3587,9 @@
 | ALTER TABLE a ADD KEY(c) x = 1
 < error
 | 1911 HY000 Unknown option 'x'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3296,6 +3647,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3321,6 +3675,9 @@
 < error
 | 1291 HY000 Column 'a' has duplicated value 's' in ENUM
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3345,6 +3702,9 @@
 | ALTER TABLE a ADD UNIQUE(c, c WITHOUT OVERLAPS)
 < error
 | 4156 HY000 Period `c` is not found in table
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3401,6 +3761,9 @@
 |   PRIMARY KEY (`b`),
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3461,6 +3824,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3514,6 +3880,9 @@
 |   PRIMARY KEY (`b`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3562,6 +3931,9 @@
 |   `b` int(11) DEFAULT NULL
 | ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3584,6 +3956,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD c INT
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -3642,6 +4017,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3664,6 +4042,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD SYSTEM VERSIONING PARTITION BY SYSTEM_TIME
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -3696,6 +4077,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3725,6 +4109,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3759,6 +4146,9 @@
 |   `e` enum('s','S') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3781,6 +4171,9 @@
 < error
 | 1075 42000 Incorrect table definition; there can be only one auto column and it must be defined as a key
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3800,6 +4193,9 @@
 < ok 0 0
 > exec
 | CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -3835,6 +4231,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3859,6 +4258,9 @@
 | CREATE INDEX i USING RTREE ON a (b)
 < error
 | 1210 HY000 Incorrect arguments to RTREE INDEX
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3889,6 +4291,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -3938,6 +4343,9 @@
 |   `b` int(11) DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3974,6 +4382,9 @@
 |   `e` enum('s','S') DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -3995,6 +4406,9 @@
 | CREATE TABLE a (e ENUM('a', 'a '))
 < error
 | 1291 HY000 Column 'e' has duplicated value 'a' in ENUM
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4028,6 +4442,9 @@
 | CREATE TABLE `a` (
 |   `e` enum('a','b') DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4088,6 +4505,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4115,6 +4535,9 @@
 | ALTER TABLE a ADD e INT
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4137,6 +4560,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD KEY IF NOT EXISTS idx_d (d) x = 1
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4187,6 +4613,9 @@
 |   `b` int(11) DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4206,6 +4635,9 @@
 < ok 0 0
 > exec
 | CREATE TABLE a (e ENUM('I', 'i') COLLATE utf8mb4_turkish_ci)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4229,6 +4661,9 @@
 | CREATE TABLE a (e ENUM('i', 'İ') COLLATE utf8mb4_turkish_ci)
 < error
 | 1291 HY000 Column 'e' has duplicated value 'i' in ENUM
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4260,6 +4695,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4289,6 +4727,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4320,6 +4761,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4344,6 +4788,9 @@
 | ALTER TABLE a ADD KEY IF NOT EXISTS j (d) x = 1
 < error
 | 1911 HY000 Unknown option 'x'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4404,6 +4851,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4429,6 +4879,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD INDEX i (d)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4462,6 +4915,9 @@
 < error
 | 1813 HY000 Tablespace for table 'omni_testsimulationcausesoracle/a' exists. Please DISCARD the tablespace before IMPORT
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4484,6 +4940,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD UNIQUE KEY IF NOT EXISTS idx_d (d, missing_period WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4545,6 +5004,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4572,6 +5034,9 @@
 | ALTER TABLE a ALGORITHM=INPLACE, ADD e INT
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4593,6 +5058,9 @@
 | CREATE TABLE a (e ENUM('s', 'S') CHARACTER SET latin1) COLLATE utf8mb4_bin
 < error
 | 1291 HY000 Column 'e' has duplicated value 's' in ENUM
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4624,6 +5092,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4654,6 +5125,9 @@
 < row
 : int64 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4676,6 +5150,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD e INT CHECK (e > f), ADD f INT CHECK (f < e)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4705,6 +5182,9 @@
 | ALTER TABLE a ADD e INT CHECK (e > 0)
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4730,6 +5210,9 @@
 < ok 0 0
 > exec
 | CREATE INDEX i ON a (c)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4759,6 +5242,9 @@
 | CREATE UNIQUE INDEX u ON a (c)
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4783,6 +5269,9 @@
 | ALTER TABLE a ADD COLUMN IF NOT EXISTS c ENUM('x', 'x'), ADD e INT AS (1)
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4805,6 +5294,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD COLUMN IF NOT EXISTS c INT DEFAULT missing
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -4832,6 +5324,9 @@
 < error
 | 1060 42S21 Duplicate column name 'a'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4857,6 +5352,9 @@
 < error
 | 1176 42000 Key 'zzz' doesn't exist in table 'a'
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4881,6 +5379,9 @@
 | ALTER TABLE a ADD KEY(a, a)
 < error
 | 1060 42S21 Duplicate column name 'a'
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -4938,6 +5439,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -4994,6 +5498,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -5035,6 +5542,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -5064,6 +5574,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -5121,6 +5634,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -5145,6 +5661,9 @@
 | ALTER TABLE a ADD COLUMN IF NOT EXISTS c INT AS (e), ADD e INT AS (1)
 < ok 0 0
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -5167,6 +5686,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE a ADD e INT AS (c), ADD COLUMN IF NOT EXISTS c INT AS (1)
+< ok 0 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
@@ -5205,6 +5727,9 @@
 |   `b` int(11) DEFAULT NULL,
 |   `e` enum('s','S') DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -5253,6 +5778,9 @@
 | CREATE TABLE `a` (
 |   `e` enum('s','S') DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -5310,6 +5838,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -5342,6 +5873,9 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
@@ -5399,6 +5933,9 @@
 |   KEY `idx_d` (`d`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS a
 < ok 0 0
 > exec
@@ -5428,6 +5965,262 @@
 < column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CHECK (e > 0), ADD e INT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   `e` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`),
+|   CONSTRAINT `CONSTRAINT_1` CHECK (`e` > 0)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a (b INT)
+< ok 0 0
+> exec
+| ALTER TABLE a DISCARD TABLESPACE
+< error
+| 3007 HY000 Cannot DISCARD/IMPORT tablespace associated with temporary table
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query ^
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a (b INT)
+< ok 0 0
+> exec
+| ALTER TABLE a IMPORT TABLESPACE
+< error
+| 3007 HY000 Cannot DISCARD/IMPORT tablespace associated with temporary table
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query ^
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TEMPORARY TABLE a (b INT) ENGINE=MyISAM
+< ok 0 0
+> exec
+| ALTER TABLE a DISCARD TABLESPACE
+< error
+| 1031 HY000 Storage engine MyISAM of the table `omni_testsimulationcausesoracle`.`a` doesn't have this option
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query ^
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TEMPORARY TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT) PARTITION BY HASH (b) PARTITIONS 2
+< ok 0 0
+> exec
+| ALTER TABLE a DISCARD TABLESPACE
+< error
+| 1031 HY000 Storage engine InnoDB of the table `omni_testsimulationcausesoracle`.`a` doesn't have this option
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`b`)
+| PARTITIONS 2
+> query ^
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+|  PARTITION BY HASH (`b`)
+| PARTITIONS 2
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
 > exec
 | DROP VIEW IF EXISTS a
 < ok 0 0

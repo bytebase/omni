@@ -423,7 +423,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			*tbl = snapshot
 			return err
 		}
-		if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns); err != nil {
+		if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns, skippedKeys); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -464,7 +464,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		rollback()
 		return err
 	}
-	if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns); err != nil {
+	if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns, skippedKeys); err != nil {
 		rollback()
 		return err
 	}
@@ -1821,12 +1821,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		if err := validateCheckExpr(conName, con.Expr); err != nil {
 			return err
 		}
-		// The check names columns of the table: measured on mariadb:11.8.8,
-		// `ALTER TABLE a ADD CHECK(a)` over a table without column a answers
-		// 1054 "Unknown column 'a' in 'CHECK'".
-		if err := validateExprColumns(tbl, con.Expr, "CHECK"); err != nil {
-			return err
-		}
+		// Column references in con.Expr are checked against the table the whole
+		// atomic ALTER leaves (validateAlteredColumnExprColumns), so `ADD CHECK
+		// (e > 0), ADD e INT` runs.
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:        conName,
 			Type:        ConCheck,
