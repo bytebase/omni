@@ -115,8 +115,11 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 				continue
 			}
 			if low := strings.ToLower(de.Defname); low == "function" || low == "procedure" {
-				if l, ok := de.Arg.(*nodes.List); ok {
-					funcSchema, _ = qualifiedName(l)
+				switch v := de.Arg.(type) {
+				case *nodes.List:
+					funcSchema, _ = qualifiedName(v)
+				case *nodes.TypeName:
+					funcSchema, _ = typeNameParts(v)
 				}
 			}
 		}
@@ -281,31 +284,7 @@ func (c *Catalog) findOperatorFuncInSchema(schemaName, name string, leftType, ri
 			}
 		}
 	}
-	return c.findOperatorFunc(name, leftType, rightType), nil
-}
-
-// findOperatorFunc finds a function suitable for an operator implementation.
-// It looks for a function with the given name that accepts the operator's arg types.
-//
-// (pgddl helper)
-func (c *Catalog) findOperatorFunc(name string, leftType, rightType uint32) uint32 {
-	procs := c.procByName[name]
-	if leftType == 0 {
-		// Unary (prefix) operator: 1 arg matching rightType.
-		for _, p := range procs {
-			if p.NArgs == 1 && p.ArgTypes[0] == rightType {
-				return p.OID
-			}
-		}
-	} else {
-		// Binary operator: 2 args matching leftType, rightType.
-		for _, p := range procs {
-			if p.NArgs == 2 && p.ArgTypes[0] == leftType && p.ArgTypes[1] == rightType {
-				return p.OID
-			}
-		}
-	}
-	return 0
+	return 0, nil
 }
 
 // lookupOperatorByName finds an existing operator by name and arg types.

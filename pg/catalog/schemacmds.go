@@ -127,6 +127,9 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 		if s.OID == PGCatalogNamespace || s.OID == PGToastNamespace {
 			return errInvalidParameterValue("cannot drop schema " + schemaName)
 		}
+		if c.isExtensionMember(s.OID) {
+			return errDependentObjects("extension", c.extensionMembers[s.OID])
+		}
 
 		if !seen[s.OID] {
 			seen[s.OID] = true
@@ -148,94 +151,113 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 		// their operator class, a table using their type) are found before the
 		// generic removal erases the member and its dependency edges.
 		if cascade {
-			var exts []*Extension
-			for _, ext := range c.extensions {
-				if ext.SchemaOID == s.OID {
-					exts = append(exts, ext)
-				}
-			}
-			sort.Slice(exts, func(i, j int) bool { return exts[i].OID < exts[j].OID })
-			for _, ext := range exts {
-				_ = c.removeExtensionObjects(&nodes.DropStmt{
-					RemoveType: int(nodes.OBJECT_EXTENSION),
-					Objects:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: ext.Name}}},
-					Behavior:   int(nodes.DROP_CASCADE),
-				})
-			}
-			var rels []*Relation
-			for _, rel := range s.Relations {
-				rels = append(rels, rel)
-			}
-			sort.Slice(rels, func(i, j int) bool { return rels[i].OID < rels[j].OID })
-			for _, rel := range rels {
-				if c.relationByOID[rel.OID] != nil {
-					c.cascadeDropRelation(rel)
-				}
-			}
-			var idxs []*Index
-			for _, idx := range s.Indexes {
-				idxs = append(idxs, idx)
-			}
-			sort.Slice(idxs, func(i, j int) bool { return idxs[i].OID < idxs[j].OID })
-			for _, idx := range idxs {
-				if c.indexes[idx.OID] == idx {
-					c.dropDependentObject('i', idx.OID)
-				}
-			}
-			var seqs []*Sequence
-			for _, seq := range s.Sequences {
-				seqs = append(seqs, seq)
-			}
-			sort.Slice(seqs, func(i, j int) bool { return seqs[i].OID < seqs[j].OID })
-			for _, seq := range seqs {
-				if c.sequenceByOID[seq.OID] != nil {
-					c.dropDependents('s', seq.OID)
-					if c.sequenceByOID[seq.OID] != nil {
-						c.removeSequence(s, seq)
-					}
-				}
-			}
-			c.removeFunctionsInSchema(s)
-			c.removeTypesInSchema(s)
-			var opOIDs []uint32
-			for oid, nsOID := range c.operatorSchemas {
-				if nsOID == s.OID {
-					opOIDs = append(opOIDs, oid)
-				}
-			}
-			sort.Slice(opOIDs, func(i, j int) bool { return opOIDs[i] < opOIDs[j] })
-			for _, oid := range opOIDs {
-				c.dropDependents('O', oid)
-				c.removeOperator(oid)
-			}
-			opcOIDs := make([]uint32, 0, len(c.opClasses))
-			for oid, opc := range c.opClasses {
-				if opc.Schema == s.OID {
-					opcOIDs = append(opcOIDs, oid)
-				}
-			}
-			sort.Slice(opcOIDs, func(i, j int) bool { return opcOIDs[i] < opcOIDs[j] })
-			for _, oid := range opcOIDs {
-				c.cascadeDropOpClass(oid)
-			}
-			famOIDs := make([]uint32, 0, len(c.opFamilies))
-			for oid, fam := range c.opFamilies {
-				if fam.Schema == s.OID {
-					famOIDs = append(famOIDs, oid)
-				}
-			}
-			sort.Slice(famOIDs, func(i, j int) bool { return famOIDs[i] < famOIDs[j] })
-			for _, oid := range famOIDs {
-				c.cascadeDropOpFamily(oid)
-			}
+			c.cascadeDropSchemaContents(s)
 		}
-
-		c.removeGrantsForObject('n', s.OID)
-		c.removeComments('n', s.OID)
-		c.removeDepsOf('n', s.OID)
-		c.removeDepsOn('n', s.OID)
-		delete(c.schemas, s.OID)
-		delete(c.schemaByName, s.Name)
+		c.deleteSchemaRecord(s)
 	}
 	return nil
+}
+
+func (c *Catalog) cascadeDropSchemaContents(s *Schema) {
+	if s == nil || c.schemas[s.OID] == nil {
+		return
+	}
+	var exts []*Extension
+	for _, ext := range c.extensions {
+		if ext.SchemaOID == s.OID {
+			exts = append(exts, ext)
+		}
+	}
+	sort.Slice(exts, func(i, j int) bool { return exts[i].OID < exts[j].OID })
+	for _, ext := range exts {
+		_ = c.removeExtensionObjects(&nodes.DropStmt{
+			RemoveType: int(nodes.OBJECT_EXTENSION),
+			Objects:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: ext.Name}}},
+			Behavior:   int(nodes.DROP_CASCADE),
+		})
+	}
+	if c.schemas[s.OID] == nil {
+		return
+	}
+	var rels []*Relation
+	for _, rel := range s.Relations {
+		rels = append(rels, rel)
+	}
+	sort.Slice(rels, func(i, j int) bool { return rels[i].OID < rels[j].OID })
+	for _, rel := range rels {
+		if c.relationByOID[rel.OID] != nil {
+			c.cascadeDropRelation(rel)
+		}
+	}
+	var idxs []*Index
+	for _, idx := range s.Indexes {
+		idxs = append(idxs, idx)
+	}
+	sort.Slice(idxs, func(i, j int) bool { return idxs[i].OID < idxs[j].OID })
+	for _, idx := range idxs {
+		if c.indexes[idx.OID] == idx {
+			c.dropDependentObject('i', idx.OID)
+		}
+	}
+	var seqs []*Sequence
+	for _, seq := range s.Sequences {
+		seqs = append(seqs, seq)
+	}
+	sort.Slice(seqs, func(i, j int) bool { return seqs[i].OID < seqs[j].OID })
+	for _, seq := range seqs {
+		if c.sequenceByOID[seq.OID] != nil {
+			c.dropDependents('s', seq.OID)
+			if c.sequenceByOID[seq.OID] != nil {
+				c.removeSequence(s, seq)
+			}
+		}
+	}
+	c.removeFunctionsInSchema(s)
+	c.removeTypesInSchema(s)
+	var opOIDs []uint32
+	for oid, nsOID := range c.operatorSchemas {
+		if nsOID == s.OID {
+			opOIDs = append(opOIDs, oid)
+		}
+	}
+	sort.Slice(opOIDs, func(i, j int) bool { return opOIDs[i] < opOIDs[j] })
+	for _, oid := range opOIDs {
+		c.dropDependents('O', oid)
+		c.removeOperator(oid)
+	}
+	opcOIDs := make([]uint32, 0, len(c.opClasses))
+	for oid, opc := range c.opClasses {
+		if opc.Schema == s.OID {
+			opcOIDs = append(opcOIDs, oid)
+		}
+	}
+	sort.Slice(opcOIDs, func(i, j int) bool { return opcOIDs[i] < opcOIDs[j] })
+	for _, oid := range opcOIDs {
+		c.cascadeDropOpClass(oid)
+	}
+	famOIDs := make([]uint32, 0, len(c.opFamilies))
+	for oid, fam := range c.opFamilies {
+		if fam.Schema == s.OID {
+			famOIDs = append(famOIDs, oid)
+		}
+	}
+	sort.Slice(famOIDs, func(i, j int) bool { return famOIDs[i] < famOIDs[j] })
+	for _, oid := range famOIDs {
+		c.cascadeDropOpFamily(oid)
+	}
+}
+
+func (c *Catalog) deleteSchemaRecord(s *Schema) {
+	if s == nil {
+		return
+	}
+	delete(c.extensionMembers, s.OID)
+	c.removeGrantsForObject('n', s.OID)
+	c.removeComments('n', s.OID)
+	c.removeDepsOf('n', s.OID)
+	c.removeDepsOn('n', s.OID)
+	delete(c.schemas, s.OID)
+	if c.schemaByName[s.Name] == s {
+		delete(c.schemaByName, s.Name)
+	}
 }

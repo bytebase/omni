@@ -209,7 +209,13 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	seqOIDs := map[uint32]bool{}
 	var cascadeIdxs []*Index
 	dropIdxOIDs := map[uint32]bool{}
+	var extSchemas []*Schema
+	extSchemaOIDs := map[uint32]bool{}
 	for _, s := range c.schemas {
+		if inExtDrop(s.OID) && s.OID != PGCatalogNamespace && s.OID != PGToastNamespace {
+			extSchemas = append(extSchemas, s)
+			extSchemaOIDs[s.OID] = true
+		}
 		for _, rel := range s.Relations {
 			if inExtDrop(rel.OID) {
 				rels = append(rels, memberRel{schema: s, rel: rel})
@@ -414,9 +420,12 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			return inExtDrop(objOID)
 		case 'O':
 			return inExtDrop(objOID)
+		case 'n':
+			return extSchemaOIDs[objOID]
 		}
 		return false
 	}
+	sort.Slice(extSchemas, func(i, j int) bool { return extSchemas[i].OID < extSchemas[j].OID })
 
 	if !cascade {
 		extLabel := exts[0].Name
@@ -492,11 +501,58 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			if !dropExtNames[extName] {
 				continue
 			}
-			for _, refClass := range []byte{'o', 'q', 'Q', 'O'} {
+			for _, refClass := range []byte{'o', 'q', 'Q', 'O', 'n'} {
 				for _, dep := range c.findNormalDependents(refClass, oid) {
 					if !inDropSet(dep.ObjType, dep.ObjOID) {
 						return errDependentObjects("extension", extLabel)
 					}
+				}
+			}
+		}
+		for _, s := range extSchemas {
+			for _, rel := range s.Relations {
+				if !inDropSet('r', rel.OID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for _, idx := range s.Indexes {
+				if !inDropSet('i', idx.OID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for _, seq := range s.Sequences {
+				if !inDropSet('s', seq.OID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for _, bt := range c.typeByOID {
+				if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'c' && !inDropSet('t', bt.OID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for _, up := range c.userProcs {
+				if up.Schema.OID == s.OID && !inDropSet('f', up.OID) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for _, ext2 := range c.extensions {
+				if ext2.SchemaOID == s.OID && !dropExtNames[ext2.Name] {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for oid, nsOID := range c.operatorSchemas {
+				if nsOID == s.OID && !inDropSet('O', oid) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for oid, opc := range c.opClasses {
+				if opc.Schema == s.OID && !inDropSet('q', oid) {
+					return errDependentObjects("extension", extLabel)
+				}
+			}
+			for oid, fam := range c.opFamilies {
+				if fam.Schema == s.OID && !inDropSet('Q', oid) {
+					return errDependentObjects("extension", extLabel)
 				}
 			}
 		}
@@ -625,6 +681,11 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			c.deleteUserType(bt)
 		}
 	}
+	if cascade {
+		for _, s := range extSchemas {
+			c.cascadeDropSchemaContents(s)
+		}
+	}
 	for _, ext := range exts {
 		c.removeExtensionMetadata(ext)
 	}
@@ -677,6 +738,9 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 			}
 			if c.accessMethods[oid] != nil && oid >= FirstNormalObjectId {
 				c.removeAccessMethod(oid)
+			}
+			if s := c.schemas[oid]; s != nil && oid != PGCatalogNamespace && oid != PGToastNamespace {
+				c.deleteSchemaRecord(s)
 			}
 		}
 	}

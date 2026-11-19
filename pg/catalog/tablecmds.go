@@ -509,7 +509,12 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 	tableAccessMethod := stmt.AccessMethod
-	if tableAccessMethod == "" && (relkind == 'r' || relkind == 'p' || relkind == 'm') {
+	if tableAccessMethod == "" && isPartition && len(parentOIDs) > 0 {
+		if parent := c.relationByOID[parentOIDs[0]]; parent != nil && parent.AccessMethod != "" {
+			tableAccessMethod = parent.AccessMethod
+		}
+	}
+	if tableAccessMethod == "" && (relkind == 'r' || relkind == 'm') {
 		tableAccessMethod = c.defaultTableAccessMethod
 	}
 	if err := c.checkTableAccessMethod(tableAccessMethod); err != nil {
@@ -618,19 +623,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		storedTablespace = ""
 	}
 	rel := &Relation{
-		OID:        relOID,
-		Name:       relName,
-		Schema:     schema,
-		RelKind:    relkind,
-		Columns:    columns,
-		colByName:  colByName,
-		RowTypeOID: rowTypeOID,
-		ArrayOID:   arrayOID,
-		InhParents: parentOIDs,
-		InhCount:   len(parentOIDs),
-		OfTypeOID:  ofTypeOID,
-		Tablespace: storedTablespace,
-		OwnerName:  c.currentOwner(),
+		OID:          relOID,
+		Name:         relName,
+		Schema:       schema,
+		RelKind:      relkind,
+		Columns:      columns,
+		colByName:    colByName,
+		RowTypeOID:   rowTypeOID,
+		ArrayOID:     arrayOID,
+		InhParents:   parentOIDs,
+		InhCount:     len(parentOIDs),
+		OfTypeOID:    ofTypeOID,
+		Tablespace:   storedTablespace,
+		AccessMethod: tableAccessMethod,
+		OwnerName:    c.currentOwner(),
 	}
 
 	// Parse persistence from RangeVar.

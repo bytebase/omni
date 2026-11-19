@@ -3137,6 +3137,75 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if code := simulationCatalogCode(t, c95, "GRANT EXECUTE ON FUNCTION pg_catalog.abs(integer) TO PUBLIC"); code != "0" {
 			t.Fatalf("GRANT EXECUTE ON FUNCTION pg_catalog.abs(integer): %s", code)
 		}
+
+		// Extension-created schemas are pinned while the extension exists, honor
+		// RESTRICT when non-member objects reside in them, and are removed on DROP EXTENSION.
+		RegisterExtensionSQL("test_schema_ext", "CREATE SCHEMA ext_aux_ns; CREATE TABLE ext_aux_ns.ext_t (a int);")
+		defer delete(extensionScripts, "test_schema_ext")
+		c96 := New()
+		if code := simulationCatalogCode(t, c96, "CREATE EXTENSION test_schema_ext"); code != "0" {
+			t.Fatalf("CREATE EXTENSION test_schema_ext: %s", code)
+		}
+		if code := simulationCatalogCode(t, c96, "DROP SCHEMA ext_aux_ns CASCADE"); code != CodeDependentObjects {
+			t.Fatalf("DROP SCHEMA on extension-owned schema answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c96, "CREATE TABLE ext_aux_ns.usr_t (a int)"); code != "0" {
+			t.Fatalf("CREATE TABLE ext_aux_ns.usr_t: %s", code)
+		}
+		if code := simulationCatalogCode(t, c96, "DROP EXTENSION test_schema_ext RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION RESTRICT with user table in ext schema answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c96, "DROP EXTENSION test_schema_ext CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION CASCADE with user table in ext schema: %s", code)
+		}
+		if c96.schemaByName["ext_aux_ns"] != nil {
+			t.Fatal("DROP EXTENSION CASCADE left extension-created schema alive")
+		}
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_schema_ext",
+			"DROP EXTENSION test_schema_ext",
+		} {
+			if code := simulationCatalogCode(t, c96, stmt); code != "0" {
+				t.Fatalf("reinstall/drop test_schema_ext %s: %s", stmt, code)
+			}
+		}
+		if c96.schemaByName["ext_aux_ns"] != nil {
+			t.Fatal("DROP EXTENSION left extension-created schema alive")
+		}
+
+		// CREATE OPERATOR only resolves unqualified implementation functions on search_path.
+		c97 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA hidden_op_ns",
+			"CREATE FUNCTION hidden_op_ns.hid_add(int, int) RETURNS int LANGUAGE sql AS 'SELECT $1 + $2'",
+		} {
+			if code := simulationCatalogCode(t, c97, stmt); code != "0" {
+				t.Fatalf("hidden operator fn setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c97, "CREATE OPERATOR public.## (LEFTARG = int, RIGHTARG = int, FUNCTION = hid_add)"); code != CodeUndefinedFunction {
+			t.Fatalf("CREATE OPERATOR with hidden function answered %s, want %s", code, CodeUndefinedFunction)
+		}
+
+		// Partitions inherit their parent's explicit table access method when USING is omitted.
+		RegisterExtensionSQL("test_part_tam_ext", "CREATE ACCESS METHOD part_tam TYPE TABLE HANDLER heap_tableam_handler;")
+		defer delete(extensionScripts, "test_part_tam_ext")
+		c98 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_part_tam_ext",
+			"CREATE TABLE p_tam (a int) PARTITION BY LIST (a) USING part_tam",
+			"RESET default_table_access_method",
+			"CREATE TABLE c_tam PARTITION OF p_tam FOR VALUES IN (1)",
+			"ALTER TABLE p_tam DETACH PARTITION c_tam",
+			"DROP TABLE p_tam",
+		} {
+			if code := simulationCatalogCode(t, c98, stmt); code != "0" {
+				t.Fatalf("partition table AM setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c98, "DROP EXTENSION test_part_tam_ext RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION RESTRICT with detached partition using inherited AM answered %s, want %s", code, CodeDependentObjects)
+		}
 	})
 
 	for _, tc := range cases {

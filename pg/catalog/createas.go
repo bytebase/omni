@@ -197,6 +197,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		RelKind:       relkind,
 		Persistence:   persistence,
 		Tablespace:    normalizeTablespace(effectiveTablespace),
+		AccessMethod:  ctasAccessMethod,
 		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,

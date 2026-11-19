@@ -89,6 +89,9 @@ type Relation struct {
 	// Tablespace is the tablespace the relation was created in, or "" for
 	// the database default. It is not part of the schema a sync reads.
 	Tablespace string
+	// AccessMethod is the table access method (pg_class.relam), or "" when
+	// unset (e.g. default heap or partitioned table without explicit USING).
+	AccessMethod string
 	// OwnerName is the role that owns the relation, for ALTER ... OWNED BY.
 	OwnerName string
 

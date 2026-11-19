@@ -906,6 +906,16 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		extName := c.extensionMembers[oid]
 		return extName != "" && ownedExtNames[extName]
 	}
+	for _, schema := range c.schemas {
+		if schema.OID == PGCatalogNamespace || schema.OID == PGToastNamespace || ownedSchemaOIDs[schema.OID] {
+			continue
+		}
+		if inOwnedExt(schema.OID) {
+			ownedSchemas = append(ownedSchemas, schema)
+			ownedSchemaOIDs[schema.OID] = true
+		}
+	}
+	sort.Slice(ownedSchemas, func(i, j int) bool { return ownedSchemas[i].OID < ownedSchemas[j].OID })
 	// opclassIndexes holds the indexes that use an operator class of an owned
 	// extension: a RESTRICT drop reports them, CASCADE takes them with it.
 	var opclassIndexes []ownerIndexExt
@@ -1254,6 +1264,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	}
 	for _, evt := range ownedEventTriggers {
 		if err := checkExtPin(evt.OID); err != nil {
+			return err
+		}
+	}
+	for _, s := range ownedSchemas {
+		if err := checkExtPin(s.OID); err != nil {
 			return err
 		}
 	}
