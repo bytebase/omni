@@ -892,7 +892,9 @@ func (p *Parser) parseUnnest() (Relation, error) {
 		Exprs: exprs,
 		Loc:   ast.Loc{Start: unnestTok.Loc.Start, End: closeTok.Loc.End},
 	}
-	if p.cur.Kind == kwWITH {
+	// WITH ORDINALITY: the two words are one block, taken only when both
+	// follow, so `UNNEST(x) WITH` stops at the WITH, as Trino stops there.
+	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwORDINALITY {
 		p.advance() // consume WITH
 		ordTok, err := p.expect(kwORDINALITY)
 		if err != nil {

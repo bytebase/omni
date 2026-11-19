@@ -8,6 +8,13 @@ import (
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	// A NOW()-family DEFAULT the column's type cannot hold is 1067 while TiDB
+	// prepares the statement, before it resolves the database and before it
+	// looks the table up: `ALTER TABLE nodb.a ADD x INT DEFAULT NOW()` is 1067
+	// rather than 1049 or 1146 (measured on v8.5.5).
+	if err := checkAlterNowDefaults(stmt.Commands); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -1112,6 +1119,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return err
 		}
 		if err := checkExistingColumnDefault(tbl, col, cmd.DefaultExpr); err != nil {
+			return err
+		}
+		if err := checkExistingColumnNowDefault(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
 		col.Default = &s

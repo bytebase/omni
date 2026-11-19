@@ -3,4 +3,4 @@
 # SHA-256 as snowflake/parser/cmd/docsgrammar reads them, and the date they
 # were read, which is the pin's source tag.
 # columns: role, image, digest, source tag
-default	https://docs.snowflake.com/en/sql-reference/sql-all	sha256:334be655f4130196272f45c96ed77fd2bc1399b40ce5c958c53bea02f6ad9177	2026-11-13
+default	https://docs.snowflake.com/en/sql-reference/sql-all	sha256:9c6ceb51048d241b559f5412c9e28a6f7b3abe96d417c0bc248c0d60a34ac529	2026-11-18

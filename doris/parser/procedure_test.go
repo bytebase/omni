@@ -117,6 +117,67 @@ func TestDropProcedure_IfExists(t *testing.T) {
 	}
 }
 
+// DROP (PROCEDURE | PROC) (DorisParser.g4:44): PROC is the rule's other
+// spelling (compat.tsv's statement(PROCEDURE|PROC)/PROC row).
+func TestDropProcedure_ProcSpelling(t *testing.T) {
+	stmt := parseDropProcedureStmt(t, "DROP PROC my_proc")
+	if stmt.Name.String() != "my_proc" {
+		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_proc")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ALTER PROCEDURE
+// ---------------------------------------------------------------------------
+
+func parseAlterProcedureStmt(t *testing.T, sql string) *ast.AlterProcedureStmt {
+	t.Helper()
+	file, errs := parseForTest(sql)
+	if len(errs) != 0 {
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
+	}
+	stmt, ok := file.Stmts[0].(*ast.AlterProcedureStmt)
+	if !ok {
+		t.Fatalf("expected *ast.AlterProcedureStmt, got %T", file.Stmts[0])
+	}
+	return stmt
+}
+
+// ALTER PROCEDURE reads everything after the name as free text
+// (DorisParser.g4:43), which is what the engine takes: it parses ALTER
+// PROCEDURE a() and ALTER PROCEDURE a(a zzz) (compat.tsv's statement(.)* rows)
+// and refuses a name without parentheses.
+func TestAlterProcedure(t *testing.T) {
+	tests := []struct {
+		sql     string
+		name    string
+		rawText string
+	}{
+		{"ALTER PROCEDURE a()", "a", "()"},
+		{"ALTER PROCEDURE a(zzz)", "a", "(zzz)"},
+		{"ALTER PROCEDURE a(a zzz)", "a", "(a zzz)"},
+		{"ALTER PROCEDURE a() zzz", "a", "() zzz"},
+		{"ALTER PROCEDURE a(x;y)", "a", "(x;y)"},
+		{"ALTER PROC db.a()", "db.a", "()"},
+		{"ALTER PROCEDURE a(x)y", "a", "(x)y"},
+		{"ALTER PROCEDURE a() /*+ h */", "a", "() /*+ h */"},
+	}
+	for _, tc := range tests {
+		stmt := parseAlterProcedureStmt(t, tc.sql)
+		if stmt.Name.String() != tc.name {
+			t.Errorf("Parse(%q): Name = %q, want %q", tc.sql, stmt.Name.String(), tc.name)
+		}
+		if stmt.RawText != tc.rawText {
+			t.Errorf("Parse(%q): RawText = %q, want %q", tc.sql, stmt.RawText, tc.rawText)
+		}
+	}
+	for _, sql := range []string{"ALTER PROCEDURE a", "ALTER PROCEDURE a(", "ALTER PROCEDURE ()"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // CREATE PROCEDURE
 // ---------------------------------------------------------------------------
@@ -128,9 +189,6 @@ func TestCreateProcedure_Basic(t *testing.T) {
 	}
 	if stmt.OrReplace {
 		t.Error("OrReplace should be false")
-	}
-	if stmt.IfNotExists {
-		t.Error("IfNotExists should be false")
 	}
 	if len(stmt.Parameters) != 0 {
 		t.Errorf("Parameters: got %d, want 0", len(stmt.Parameters))
@@ -208,13 +266,116 @@ END`
 	}
 }
 
-func TestCreateProcedure_IfNotExists(t *testing.T) {
-	stmt := parseCreateProcedureStmt(t, "CREATE PROCEDURE IF NOT EXISTS my_proc() BEGIN SELECT 1; END")
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
+// PROC is the rule's other spelling of PROCEDURE (DorisParser.g4:43), in all
+// three verbs.
+func TestCreateProcedure_ProcSpelling(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROC a()",
+		"CREATE OR REPLACE PROC a()",
+		"REPLACE PROC a()",
+	} {
+		stmt := parseCreateProcedureStmt(t, sql)
+		if stmt.Name.String() != "a" {
+			t.Errorf("Parse(%q): Name = %q, want a", sql, stmt.Name.String())
+		}
 	}
-	if stmt.Name.String() != "my_proc" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_proc")
+}
+
+// The grammar's trailing `.*?` takes what follows a body as well, so a
+// procedure with text after END is still a statement — as REPLACE PROCEDURE
+// a() BEGIN END zzz is for the engine.
+// END IF and END LOOP close their own statement, not the BEGIN...END block
+// (isControlFlowEndFollower), so the body keeps the whole text.
+func TestCreateProcedure_ControlFlowBody(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE p() BEGIN IF a THEN SET b = 1; END IF; END",
+		"CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; END",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END; SELECT 3; END",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN BEGIN SELECT 1; END; END CASE; END",
+	} {
+		stmt := parseCreateProcedureStmt(t, sql)
+		if !strings.HasPrefix(stmt.Body, "BEGIN") || !strings.HasSuffix(stmt.Body, "END") {
+			t.Errorf("Parse(%q): Body = %q, want the whole block", sql, stmt.Body)
+		}
+	}
+}
+
+func TestCreateProcedure_TextAfterBody(t *testing.T) {
+	stmt := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a() BEGIN SELECT 1; END zzz")
+	if !strings.Contains(stmt.Body, "SELECT 1") {
+		t.Errorf("Body = %q, want it to contain SELECT 1", stmt.Body)
+	}
+	if stmt.RawText != "zzz" {
+		t.Errorf("RawText = %q, want zzz", stmt.RawText)
+	}
+
+	// A comment or hint after the body is text too: the lexer skips it, so
+	// the tail runs to the statement's boundary rather than its last token.
+	commented := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a() BEGIN SELECT 1; END /* tail */")
+	if commented.RawText != "/* tail */" {
+		t.Errorf("RawText = %q, want /* tail */", commented.RawText)
+	}
+}
+
+// The rule has no IF NOT EXISTS — the name follows PROCEDURE
+// (DorisParser.g4:43) — so the form this parser used to take is a syntax
+// error, as it is for the engine.
+func TestCreateProcedure_IfNotExistsRejected(t *testing.T) {
+	if _, err := Parse("CREATE PROCEDURE IF NOT EXISTS my_proc() BEGIN SELECT 1; END"); err == nil {
+		t.Error("Parse(CREATE PROCEDURE IF NOT EXISTS ...) succeeded, want a syntax error")
+	}
+}
+
+// The grammar reads the parameter list and the text after it freely
+// (DorisParser.g4:43 LEFT_PAREN .*? RIGHT_PAREN .*?), so Doris takes a
+// procedure with no body (compat.tsv's statement(OR_REPLACE)?/%empty row) and
+// one whose parentheses hold text that is no parameter list. Both keep that
+// text in RawText.
+func TestCreateProcedure_FreeText(t *testing.T) {
+	tests := []struct {
+		sql     string
+		rawText string
+	}{
+		{"CREATE PROCEDURE a()", "()"},
+		{"CREATE PROCEDURE a(zzz)", "(zzz)"},
+		{"CREATE PROCEDURE a(a zzz)", "(a zzz)"},
+		{"CREATE PROCEDURE a() zzz", "() zzz"},
+	}
+	for _, tc := range tests {
+		stmt := parseCreateProcedureStmt(t, tc.sql)
+		if stmt.RawText != tc.rawText {
+			t.Errorf("Parse(%q): RawText = %q, want %q", tc.sql, stmt.RawText, tc.rawText)
+		}
+		if stmt.Body != "" || len(stmt.Parameters) != 0 {
+			t.Errorf("Parse(%q): Body = %q Parameters = %d, want neither", tc.sql, stmt.Body, len(stmt.Parameters))
+		}
+	}
+}
+
+// REPLACE PROCEDURE is the grammar's third verb (DorisParser.g4:43), and
+// compat.tsv's statement(ALTER|CREATE_(OR_REPLACE)?|REPLACE)/REPLACE row says
+// the engine takes it.
+func TestCreateProcedure_Replace(t *testing.T) {
+	stmt := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a()")
+	if !stmt.Replace {
+		t.Error("Replace should be true")
+	}
+	if stmt.OrReplace {
+		t.Error("OrReplace should be false")
+	}
+	if stmt.Name.String() != "a" {
+		t.Errorf("Name = %q, want a", stmt.Name.String())
+	}
+}
+
+// The name and its parentheses are not free: the engine refuses
+// CREATE PROCEDURE a (compat.tsv's SHOW_CREATE_PROCEDURE...!drop-1 row).
+func TestCreateProcedure_NeedsParentheses(t *testing.T) {
+	for _, sql := range []string{"CREATE PROCEDURE a", "CREATE PROCEDURE a("} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 
@@ -234,6 +395,10 @@ func TestProcedureNodeTags(t *testing.T) {
 	dp := &ast.DropProcedureStmt{}
 	if dp.Tag() != ast.T_DropProcedureStmt {
 		t.Errorf("DropProcedureStmt.Tag() = %v, want T_DropProcedureStmt", dp.Tag())
+	}
+	ap := &ast.AlterProcedureStmt{}
+	if ap.Tag() != ast.T_AlterProcedureStmt {
+		t.Errorf("AlterProcedureStmt.Tag() = %v, want T_AlterProcedureStmt", ap.Tag())
 	}
 	pp := &ast.ProcedureParam{}
 	if pp.Tag() != ast.T_ProcedureParam {

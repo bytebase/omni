@@ -177,19 +177,12 @@ func (p *Parser) parseBeginEndBlock() (ast.Node, error) {
 		if _, err := p.expect(kwTHEN); err != nil {
 			return nil, err
 		}
-		// The handler statement_list is REQUIRED (the grammar has statement_list,
-		// not statement_list?); it is terminated by END.
+		// The handler is a statement_list, which the grammar gives an empty
+		// alternative (googlesql.tm:12749 / GoogleSQL.g4:4949), so
+		// `EXCEPTION WHEN ERROR THEN END` is a valid, empty handler.
 		handler, err := p.parseStatementList(kwEND)
 		if err != nil {
 			return nil, err
-		}
-		if len(handler) == 0 {
-			// statement_list is non-empty (.g4: unterminated_non_empty_statement_list
-			// ';'), so `EXCEPTION WHEN ERROR THEN END` with no handler statement is a
-			// syntax error. The Spanner emulator's BeginStmt recognizer is shallow
-			// here (divergence #161 — it accepts any interior token run at parse and
-			// rejects BeginStmt only at the resolver), so the .g4 governs.
-			return nil, p.syntaxErrorAtCur()
 		}
 		block.HasException = true
 		block.Exception = handler

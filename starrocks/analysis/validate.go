@@ -48,8 +48,22 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 // readsRows reports whether a statement returns a result set without being a
 // read-only query: ADMIN SHOW inspects the cluster and answers with rows.
 func readsRows(node ast.Node) bool {
-	admin, ok := node.(*ast.AdminStmt)
-	return ok && strings.EqualFold(admin.Verb, "SHOW")
+	switch n := node.(type) {
+	case *ast.AdminStmt:
+		return strings.EqualFold(n.Verb, "SHOW")
+	case *ast.SubmitTaskStmt:
+		// SUBMIT TASK answers with the task name and its status (SUBMITTED,
+		// REJECTED or FAILED), so the driver reads rows rather than Exec'ing.
+		return true
+	case *ast.DataCacheSelectStmt:
+		// CACHE SELECT returns the cache warm-up metrics.
+		return true
+	case *ast.ExplainStmt:
+		// EXPLAIN ANALYZE runs and profiles its statement. Over DML the
+		// statement is not read-only, but the profile is still a result set.
+		return n.Type == "ANALYZE"
+	}
+	return false
 }
 
 // parseStatements parses every non-empty statement of text, which a trailing
@@ -158,6 +172,11 @@ func isReadOnlyAST(node ast.Node) bool {
 		// DESC STORAGE VOLUME answers with the volume's settings, like DESC
 		// over a table.
 		return n.Name != ""
+	case *ast.OptimizerTraceStmt:
+		// TRACE only plans the query it wraps; it never runs it. Even an
+		// INTO OUTFILE body writes nothing under TRACE, so the wrapper stays
+		// read-only and row-returning.
+		return n.Query != nil
 	case *ast.ExplainStmt:
 		// EXPLAIN requires an inner query; the inner query must itself be a
 		// shape EXPLAIN is meaningful for (SELECT family or DML). This blocks
@@ -186,11 +205,9 @@ func isReadOnlyAST(node ast.Node) bool {
 // StarRocks only supports EXPLAIN on query and DML statements. Queries are
 // classified by isReadOnlyQuery, the one export gate.
 func isExplainableInner(node ast.Node) bool {
-	if isReadOnlyQuery(node) {
-		return true
-	}
 	switch node.(type) {
-	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect,
+		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
 		*ast.TruncateTableStmt:
 		return true
 	}
@@ -210,13 +227,12 @@ func isReadOnlyQuery(node ast.Node) bool {
 	case *ast.SelectStmt:
 		return n.Into == nil
 	case *ast.SetOpStmt:
-		// The parser attaches INTO to an arm rather than the set operation.
-		return !setOpWritesOutfile(n)
+		return n.Into == nil && !setOpWritesOutfile(n)
 	case *ast.ParenSelect:
 		// (SELECT ...) / ((SELECT ...)) — classify by the wrapped query so the
 		// gate still applies inside the parens. ParenSelect only ever wraps a
 		// SELECT, SetOpStmt or another ParenSelect, so no DML hides here.
-		return isReadOnlyQuery(n.Sel)
+		return n.Into == nil && isReadOnlyQuery(n.Sel)
 	}
 	return false
 }
@@ -228,11 +244,11 @@ func setOpWritesOutfile(node ast.Node) bool {
 	case *ast.SelectStmt:
 		return n.Into != nil
 	case *ast.SetOpStmt:
-		return setOpWritesOutfile(n.Left) || setOpWritesOutfile(n.Right)
+		return n.Into != nil || setOpWritesOutfile(n.Left) || setOpWritesOutfile(n.Right)
 	case *ast.ParenSelect:
 		// A parenthesized arm — SELECT 1 UNION (SELECT ... INTO OUTFILE ...) —
 		// must not slip the export gate.
-		return setOpWritesOutfile(n.Sel)
+		return n.Into != nil || setOpWritesOutfile(n.Sel)
 	default:
 		return false
 	}

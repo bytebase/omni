@@ -81,6 +81,21 @@ func (n *ExplainStmt) Tag() NodeTag { return T_ExplainStmt }
 
 var _ Node = (*ExplainStmt)(nil)
 
+// OptimizerTraceStmt represents optimizerTrace (StarRocks.g4:2584):
+//
+//	TRACE (ALL | LOGS | TIMES | VALUES | REASON) identifier? query
+type OptimizerTraceStmt struct {
+	Mode       string // ALL, LOGS, TIMES, VALUES or REASON
+	Identifier string // optional trace identifier; empty if absent
+	Query      Node   // the traced query
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *OptimizerTraceStmt) Tag() NodeTag { return T_OptimizerTraceStmt }
+
+var _ Node = (*OptimizerTraceStmt)(nil)
+
 // ---------------------------------------------------------------------------
 // USE
 // ---------------------------------------------------------------------------

@@ -19,11 +19,12 @@ package ast
 //
 //	ON SCHEDULE { EVERY interval [STARTS timestamp] [ENDS timestamp] | AT timestamp }
 type JobSchedule struct {
-	Every  string // EVERY interval text (e.g. "1 HOUR"), empty when AT is used
-	At     string // AT timestamp string literal value, empty when EVERY is used
-	Starts string // optional STARTS timestamp string literal value
-	Ends   string // optional ENDS timestamp string literal value
-	Loc    Loc
+	Every              string // EVERY interval text (e.g. "1 HOUR"), empty when AT is used
+	At                 string // AT timestamp string literal value, empty when EVERY is used
+	AtCurrentTimestamp bool   // AT CURRENT_TIMESTAMP rather than a string literal
+	Starts             string // optional STARTS timestamp string literal value
+	Ends               string // optional ENDS timestamp string literal value
+	Loc                Loc
 }
 
 // Tag implements Node.
@@ -144,9 +145,12 @@ var _ Node = (*ResumeJobStmt)(nil)
 //
 //	CANCEL TASK FOR job_name task_id
 type CancelTaskStmt struct {
-	For    *ObjectName // FOR job_name
-	TaskID int64       // task id
-	Loc    Loc
+	For     *ObjectName // FOR job_name
+	TaskID  int64       // task id
+	Like    string      // optional wildWhere LIKE
+	HasLike bool        // the LIKE clause was stated, even with an empty pattern
+	Where   Node        // optional wildWhere WHERE
+	Loc     Loc
 }
 
 // Tag implements Node.

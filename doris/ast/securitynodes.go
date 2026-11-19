@@ -23,6 +23,7 @@ type CreateRowPolicyStmt struct {
 	Type        string      // "RESTRICTIVE" or "PERMISSIVE"; empty = default
 	On          *ObjectName // ON table_name
 	To          string      // TO user_or_role
+	ToRole      bool        // the TO name is a role
 	Using       string      // USING (expr) — stored as raw text
 	Loc         Loc
 }
@@ -36,9 +37,13 @@ var _ Node = (*CreateRowPolicyStmt)(nil)
 //
 //	DROP ROW POLICY name ON table_name
 type DropRowPolicyStmt struct {
-	Name string
-	On   *ObjectName
-	Loc  Loc
+	Name     string
+	IfExists bool
+	On       *ObjectName
+	For      string // optional FOR user or role name
+	ForHost  string // FOR user's host, if one was stated
+	ForRole  bool   // the FOR name is a role
+	Loc      Loc
 }
 
 // Tag implements Node.

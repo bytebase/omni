@@ -422,6 +422,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// GQL graph query: GRAPH <name> <gql ops> (gql_statement). Owned by the
 		// parser-gql node (graph_query.go).
 		return p.parseGQLStmt()
+	case kwTABLE:
+		// `TABLE t` is a query (query_primary's table_clause_reserved), a read
+		// equivalent to `SELECT * FROM t`; it takes the query's trailing
+		// ORDER BY / LIMIT / pipe suffix like any other query.
+		return p.parseQueryStatement()
 	case int('('):
 		// Parenthesized query at top level, e.g. (SELECT 1) UNION ALL (SELECT 2).
 		return p.parseQueryStatement()
@@ -455,7 +460,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwRENAME:
 		return p.parseRenameStmt()
 	case kwUNDROP:
-		return p.unsupported("UNDROP")
+		// UNDROP SCHEMA [IF NOT EXISTS] <path> [FOR SYSTEM_TIME AS OF expr]
+		// [OPTIONS(…)] (undrop_statement). The grammar's action allows only
+		// SCHEMA; every other kind is a syntax error, as in ZetaSQL. The
+		// AS OF expression and the OPTIONS values may embed subqueries, so wrap
+		// for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseUndropStmt)
 	case kwTRUNCATE:
 		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
 		return p.parseStmtWithSubqueries(p.parseTruncateStmt)
@@ -522,7 +532,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwDESC:
 		return p.parseMaybePipeSuffixStmt(p.parseDescribeStmt)
 	case kwSHOW:
-		return p.unsupported("SHOW")
+		// SHOW show_target [FROM path] [LIKE 'str'] (show_statement), one of the
+		// statements that may carry a pipe suffix
+		// (sql_statement_body_maybe_pipe_suffix). Owned by the parser-utility
+		// node (utility.go).
+		return p.parseMaybePipeSuffixStmt(p.parseShowStmt)
 	case kwANALYZE:
 		return p.parseAnalyzeStmt()
 	case kwASSERT:
@@ -542,9 +556,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// pipe suffix like CALL.
 		return p.parseMaybePipeSuffixStmt(p.parseExecuteImmediateStmt)
 	case kwIMPORT:
-		return p.unsupported("IMPORT")
+		// IMPORT MODULE|PROTO <path|string> [AS|INTO alias] [OPTIONS(…)]
+		// (import_statement, parser-utility). The OPTIONS values are full
+		// expressions that may embed subqueries, so wrap for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseImportStmt)
 	case kwMODULE:
-		return p.unsupported("MODULE")
+		// MODULE <path> [OPTIONS(…)] (module_statement, parser-utility). Same
+		// OPTIONS subquery filling.
+		return p.parseStmtWithSubqueries(p.parseModuleStmt)
 	case kwEXPORT:
 		// EXPORT DATA (AS query) | EXPORT MODEL | EXPORT … METADATA (parser-utility,
 		// still a stub). DATA/MODEL carry expressions (the AS query; OPTIONS values)

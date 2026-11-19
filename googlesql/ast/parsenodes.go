@@ -666,7 +666,10 @@ type InExpr struct {
 	Values   []Node // parenthesized expression list (>= 1); nil for the other forms
 	Unnest   Node   // UNNEST(...) RHS; nil otherwise
 	Subquery Node   // parenthesized-query RHS (SubqueryExpr); nil otherwise
-	Loc      Loc
+	// GraphSubquery is a braced graph subquery RHS (graph_expression's
+	// `expr [NOT] IN braced_graph_subquery`); nil otherwise.
+	GraphSubquery *GraphSubqueryExpr
+	Loc           Loc
 }
 
 // Tag implements Node.
@@ -1177,8 +1180,9 @@ var (
 //	[WITH [RECURSIVE] cte, …] <body> [ORDER BY …] [LIMIT n [OFFSET m]] [FOR UPDATE]
 //
 // With is the optional leading WITH clause (nil if absent). Body is the query
-// body — a *SelectStmt, a *SetOperation, or a nested *QueryStmt (a parenthesized
-// `( query )` query_primary). OrderBy / Limit / Offset are the trailing
+// body — a *SelectStmt, a *SetOperation, a *TableClause (the `TABLE t` query
+// primary), or a nested *QueryStmt (a parenthesized `( query )` query_primary).
+// OrderBy / Limit / Offset are the trailing
 // query-level modifiers (nil/absent when not present). ForUpdate records a
 // trailing `FOR UPDATE` (Spanner row-locking; parses in the union grammar).
 type QueryStmt struct {
@@ -3803,6 +3807,69 @@ type DescribeStmt struct {
 // Tag implements Node.
 func (n *DescribeStmt) Tag() NodeTag { return T_DescribeStmt }
 
+// ShowStmt is a SHOW statement (grammar: show_statement):
+//
+//	SHOW show_target [FROM path_expression] [LIKE string_literal]
+//
+// Target is the show_target: an identifier (normalized, backticks removed), or
+// the two-word "MATERIALIZED VIEWS". From is the optional `FROM <path>`
+// qualifier; nil if absent. Like is the optional LIKE string literal (*Literal);
+// nil if absent.
+type ShowStmt struct {
+	Target string    // show_target text (e.g. "TABLES" or "MATERIALIZED VIEWS")
+	From   *PathExpr // FROM path_expression; nil if absent
+	Like   Node      // LIKE string_literal; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ShowStmt) Tag() NodeTag { return T_ShowStmt }
+
+// ImportKind is the `import_type` of an IMPORT statement: MODULE or PROTO.
+type ImportKind int
+
+const (
+	// ImportModule is `IMPORT MODULE` (the ZetaSQL module system).
+	ImportModule ImportKind = iota + 1
+	// ImportProto is `IMPORT PROTO`.
+	ImportProto
+)
+
+// ImportStmt is an IMPORT statement (grammar: import_statement):
+//
+//	IMPORT import_type path_expression_or_string [AS|INTO identifier] [OPTIONS(...)]
+//
+// Kind is MODULE or PROTO. Name is the imported module's path (*PathExpr) or,
+// where the grammar takes a string literal, a *Literal. Alias is the optional
+// alias name ("" if absent) and AliasKeyword records which word introduced it
+// ("AS" or "INTO", "" if absent). Options is the optional OPTIONS(...) list.
+type ImportStmt struct {
+	Kind         ImportKind
+	Name         Node            // *PathExpr | *Literal (string_literal)
+	Alias        string          // alias identifier; "" if absent
+	AliasKeyword string          // "AS" | "INTO" | ""
+	Options      []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *ImportStmt) Tag() NodeTag { return T_ImportStmt }
+
+// ModuleStmt is a MODULE statement (grammar: module_statement):
+//
+//	MODULE path_expression [OPTIONS(...)]
+//
+// A module declares the path it defines; Options is the optional OPTIONS(...)
+// list.
+type ModuleStmt struct {
+	Name    *PathExpr       // module path
+	Options []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ModuleStmt) Tag() NodeTag { return T_ModuleStmt }
+
 // RenameStmt is a RENAME statement (grammar: rename_statement):
 //
 //	RENAME <object-kind> <path> TO <path>
@@ -3818,6 +3885,28 @@ type RenameStmt struct {
 
 // Tag implements Node.
 func (n *RenameStmt) Tag() NodeTag { return T_RenameStmt }
+
+// UndropStmt is an UNDROP statement (grammar: undrop_statement):
+//
+//	UNDROP schema_object_kind opt_if_not_exists path_expression
+//	  at_system_time? opt_options_list
+//
+// The grammar's action allows only the SCHEMA kind ("UNDROP <kind> is not
+// supported" otherwise), so ObjectKind is always "SCHEMA" here; it is kept so
+// the statement round-trips. IfNotExists records `IF NOT EXISTS`. Name is the
+// restored schema's path. ForSystemTime is the optional `FOR SYSTEM_TIME AS OF
+// expr`; nil if absent. Options is the optional OPTIONS(...) list.
+type UndropStmt struct {
+	ObjectKind    string          // the schema_object_kind spelling (SCHEMA)
+	IfNotExists   bool            // IF NOT EXISTS was present
+	Name          *PathExpr       // the restored object's path
+	ForSystemTime Node            // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Options       []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *UndropStmt) Tag() NodeTag { return T_UndropStmt }
 
 // CallArgKind discriminates the non-expression shapes of a CALL argument
 // (tvf_argument). A plain expression / named argument is carried directly as the
@@ -3899,13 +3988,14 @@ var (
 //	    aux_load_data_from_files_options_list opt_external_table_with_clauses?
 //	clone_data_statement:   CLONE DATA INTO maybe_dashed_path_expression FROM clone_data_source_list
 //
-// All four are BigQuery-ONLY at the GoogleSQL union level (oracle.md): the
-// Spanner emulator hard-syntax-rejects them, so the union parser accepts them on
-// the authority of the legacy .g4 + the BigQuery truth1 corpus (OTHER-001 EXPORT
-// DATA, OTHER-003 LOAD DATA). bytebase does not consume these today (P1 parity),
-// but the parser must accept-and-model them so Diagnose reports them as valid
-// rather than a false syntax error, and GetQuerySpan can reach the embedded
-// query of EXPORT DATA / the table targets of LOAD/CLONE.
+// All four are BigQuery-only at the GoogleSQL union level (oracle.md), and the
+// Spanner emulator gives no syntax verdict on them: it answers "Statement not
+// supported: …Stmt" from statement dispatch, before it parses a body (it accepts
+// `LOAD DATA INTO FROM FILES()` too). The union parser accepts them on the
+// authority of the grammar + the BigQuery truth1 corpus (OTHER-001 EXPORT DATA,
+// OTHER-003 LOAD DATA), so Diagnose reports them as valid rather than a false
+// syntax error, and GetQuerySpan can reach the embedded query of EXPORT DATA /
+// the table targets of LOAD/CLONE.
 
 // ExportDataStmt is `EXPORT DATA [WITH CONNECTION conn] [OPTIONS(...)] AS query`
 // (export_data_statement). The query is required (export_data_statement =
@@ -3933,6 +4023,26 @@ type ExportModelStmt struct {
 
 // Tag implements Node.
 func (n *ExportModelStmt) Tag() NodeTag { return T_ExportModelStmt }
+
+// ExportMetadataStmt is `EXPORT TABLE METADATA FROM <path>` (grammar:
+// export_metadata_statement):
+//
+//	EXPORT (TABLE | TABLE FUNCTION) METADATA FROM maybe_dashed_path_expression
+//	  [WITH CONNECTION conn] [OPTIONS(...)]
+//
+// The `TABLE FUNCTION` form is a grammar action error and never reaches this
+// node. Path is the exported table; HasConnection / ConnectionName and Options
+// are the same optional clauses ExportDataStmt carries.
+type ExportMetadataStmt struct {
+	Path           *PathExpr       // the exported table (maybe_dashed_path_expression)
+	HasConnection  bool            // a WITH CONNECTION clause was present
+	ConnectionName string          // connection path text, or "DEFAULT"; "" if absent
+	Options        []*OptionsEntry // OPTIONS(...); nil if absent
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *ExportMetadataStmt) Tag() NodeTag { return T_ExportMetadataStmt }
 
 // LoadDataStmt is a `LOAD DATA { INTO | OVERWRITE } …` statement
 // (aux_load_data_statement). It loads external files (FROM FILES (options)) into
@@ -3994,6 +4104,7 @@ func (n *CloneDataSource) Tag() NodeTag { return T_CloneDataSource }
 var (
 	_ Node = (*ExportDataStmt)(nil)
 	_ Node = (*ExportModelStmt)(nil)
+	_ Node = (*ExportMetadataStmt)(nil)
 	_ Node = (*LoadDataStmt)(nil)
 	_ Node = (*CloneDataStmt)(nil)
 	_ Node = (*CloneDataSource)(nil)
@@ -4307,7 +4418,11 @@ func (n *GraphSetOp) Tag() NodeTag { return T_GraphSetOp }
 type GraphSetOpMeta struct {
 	Op         string // "UNION" | "EXCEPT" | "INTERSECT"
 	Quantifier string // "ALL" | "DISTINCT"
-	Loc        Loc
+	// OuterMode is the optional corresponding-outer propagation mode before the
+	// operator (opt_corresponding_outer_mode): "FULL" | "OUTER" | "LEFT" |
+	// "INNER", or "" when absent.
+	OuterMode string
+	Loc       Loc
 }
 
 // GraphLinearQuery is a graph_linear_query_operation:
@@ -4454,6 +4569,7 @@ type GraphSampleOp struct {
 	Method      string
 	Size        Node
 	Unit        string // "ROWS" | "PERCENT"
+	PartitionBy []Node // sample_size's PARTITION BY expressions; nil if absent
 	WithWeight  bool
 	WeightAlias string
 	Repeatable  Node // REPEATABLE(n); nil if absent
@@ -4638,6 +4754,143 @@ type GraphLabelExpr struct {
 // Tag implements Node.
 func (n *GraphLabelExpr) Tag() NodeTag { return T_GraphLabelExpr }
 
+// GraphSubqueryModifier says which keyword introduced a braced graph subquery
+// (graph_expression's operands and expression_subquery_with_keyword).
+type GraphSubqueryModifier int
+
+const (
+	// GraphSubqueryBare is a braced_graph_subquery behind IN (or CALL, whose
+	// operator node carries it): `{ <graph_operation_block> }`.
+	GraphSubqueryBare GraphSubqueryModifier = iota
+	// GraphSubqueryArray is `ARRAY { <graph_operation_block> }`.
+	GraphSubqueryArray
+	// GraphSubqueryValue is `VALUE [hint] { <graph_operation_block> }`.
+	GraphSubqueryValue
+	// GraphSubqueryExists is `EXISTS [hint] { <graph_operation_block> }` (the
+	// exists_graph_subquery alternative that wraps a whole graph query).
+	GraphSubqueryExists
+)
+
+// GraphSubqueryExpr is a braced graph subquery used as an expression
+// (braced_graph_subquery):
+//
+//	[hint] { [GRAPH <path>] <graph_operation_block> }
+//
+// The operation block is the same `block (NEXT block)*` list a GRAPH statement
+// carries, and every block ends with a RETURN, so the subquery yields rows.
+// Graph is the optional `GRAPH <path>` prefix naming the graph (nil when the
+// subquery leaves it implicit). Modifier records the keyword that introduced
+// the brace (ARRAY / VALUE / EXISTS), or GraphSubqueryBare for IN and CALL.
+type GraphSubqueryExpr struct {
+	Modifier GraphSubqueryModifier
+	Graph    *PathExpr // `GRAPH <path>`; nil if absent
+	Blocks   []Node    // *GraphLinearQuery | *GraphSetOp; >= 1
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GraphSubqueryExpr) Tag() NodeTag { return T_GraphSubqueryExpr }
+
+// GraphExistsKind discriminates the two EXISTS forms that do not hold a whole
+// graph query.
+//
+//	graph_exists_pattern:    EXISTS [hint] { [GRAPH <path>] <graph_pattern> }
+//	graph_exists_linear_ops: EXISTS [hint] { [GRAPH <path>] <graph_linear_operator_list> }
+//
+// Both operands after the brace are incomplete queries: a bare pattern, and a
+// run of linear operators with no RETURN. The third EXISTS form — one that
+// wraps a complete graph query — is a *GraphSubqueryExpr with
+// GraphSubqueryExists.
+type GraphExistsKind int
+
+const (
+	// GraphExistsPattern is exists_graph_pattern_subquery.
+	GraphExistsPattern GraphExistsKind = iota
+	// GraphExistsLinearOps is exists_linear_ops_subquery.
+	GraphExistsLinearOps
+)
+
+// GraphExistsExpr is an EXISTS over a graph pattern or a linear-operator run
+// (exists_graph_pattern_subquery / exists_linear_ops_subquery). Kind selects
+// which of Pattern and Ops is set; Graph is the optional `GRAPH <path>` prefix.
+type GraphExistsExpr struct {
+	Kind    GraphExistsKind
+	Graph   *PathExpr     // `GRAPH <path>`; nil if absent
+	Pattern *GraphPattern // Kind == GraphExistsPattern; nil otherwise
+	Ops     []Node        // Kind == GraphExistsLinearOps; >= 1
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *GraphExistsExpr) Tag() NodeTag { return T_GraphExistsExpr }
+
+// GraphYieldItem is one entry of an opt_yield_clause (yield_item):
+// `identifier [AS alias]`. It carries no child node, so it is a plain value
+// type like GraphSetOpMeta.
+type GraphYieldItem struct {
+	Name  string
+	Alias string // "" if absent
+	Loc   Loc
+}
+
+// GraphCallOp is a graph_call_operator / graph_call_operator_core:
+//
+//	[OPTIONAL] CALL [PER ( id, … )] <tvf> [YIELD <items>]
+//	[OPTIONAL] CALL [PER ( id, … )] <braced_graph_subquery>
+//	           CALL ( id, … )      <braced_graph_subquery>
+//
+// Exactly one of Call (a named table-valued function) and Subquery (an inline
+// braced graph subquery) is set. Per holds the partition identifier list, which
+// either the PER clause or the leading `( id, … )` of the inline-subquery form
+// spells — possibly empty, as in `CALL PER() a()` or `CALL() { … }` — and HasPer
+// records whether the PER keyword introduced it (the grammar's is_partitioning
+// flag: the parenthesized-identifier-list form is not partitioned). Yield is the
+// named call's output list (nil if absent).
+type GraphCallOp struct {
+	Optional bool
+	HasPer   bool
+	Per      []string // PER ( … ) identifiers; nil when empty or absent
+	Call     *FuncCall
+	Yield    []*GraphYieldItem // nil if absent
+	Subquery *GraphSubqueryExpr
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GraphCallOp) Tag() NodeTag { return T_GraphCallOp }
+
+// GraphPredicateKind enumerates the three graph predicates of graph_expression.
+type GraphPredicateKind int
+
+const (
+	// GraphIsSource is `<expr> IS [NOT] SOURCE [OF] <expr>`
+	// (edge_source_endpoint_operator).
+	GraphIsSource GraphPredicateKind = iota
+	// GraphIsDestination is `<expr> IS [NOT] DESTINATION [OF] <expr>`
+	// (edge_dest_endpoint_operator).
+	GraphIsDestination
+	// GraphIsLabeled is `<expr> IS [NOT] LABELED <label_expression>`
+	// (is_labeled_operator).
+	GraphIsLabeled
+)
+
+// GraphPredicate is a graph_expression that compares one expression with
+// another through a graph operator. The grammar gives it the comparison
+// family's precedence (EDGE_ENDPOINT_PRECEDENCE sits beside `=` and `IS`), so it
+// is non-associative with the other comparisons. Right is the endpoint
+// expression for GraphIsSource / GraphIsDestination and the *GraphLabelExpr for
+// GraphIsLabeled.
+type GraphPredicate struct {
+	Kind  GraphPredicateKind
+	Not   bool
+	Left  Node
+	Right Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphPredicate) Tag() NodeTag { return T_GraphPredicate }
+
 // GraphPropertySpec is a graph_property_specification (`{ id : expr, … }`).
 // Properties has >= 1 entry.
 type GraphPropertySpec struct {
@@ -4663,12 +4916,12 @@ func (n *GraphPropertyNameValue) Tag() NodeTag { return T_GraphPropertyNameValue
 // (create_property_graph_statement):
 //
 //	CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] <path>
-//	  [OPTIONS(…)] NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )]
+//	  NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )] [OPTIONS(…)]
 //
 // OrReplace / IfNotExists flag the prefixes. Name is the graph name. Options is
-// the optional OPTIONS list. NodeTables is the required NODE TABLES element
-// list (>= 1). EdgeTables is the optional EDGE TABLES element list (nil if
-// absent).
+// the optional OPTIONS list, which follows the graph content (googlesql.tm:2666).
+// NodeTables is the required NODE TABLES element list (>= 1). EdgeTables is the
+// optional EDGE TABLES element list (nil if absent).
 type CreatePropertyGraphStmt struct {
 	OrReplace   bool
 	IfNotExists bool

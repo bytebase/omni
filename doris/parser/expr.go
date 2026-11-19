@@ -416,8 +416,9 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 				Loc:  ast.Loc{Start: keyLoc.Start, End: name.Loc.End},
 			}, nil
 		}
-		// Bare KEY — return as literal
-		return &ast.Literal{Kind: ast.LitKeyword, Value: "KEY", Loc: keyLoc}, nil
+		// encryptKey names a key: KEY (db.)? name (DorisParser.g4:1611).
+		// A bare KEY is not an expression.
+		return nil, p.syntaxErrorAtCur()
 
 	case tokInt:
 		tok := p.advance()
@@ -487,8 +488,20 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		return p.parseParenExprOrSubquery()
 
 	case int('{'):
-		// Untyped map constructor: { k: v, ... }.
-		return p.finishMapLiteral(p.cur.Loc.Start)
+		// Untyped map constructor: { k: v, ... }. The braces are also
+		// nonReserved identifiers (DorisParser.g4:1990), so `SELECT {` is the
+		// column { and the engine accepts it; try the constructor and fall
+		// back to the identifier when the braces do not close one.
+		cp := p.save()
+		lit, err := p.finishMapLiteral(p.cur.Loc.Start)
+		if err == nil {
+			return lit, nil
+		}
+		if pe, ok := err.(*ParseError); ok && pe.Message == "statement is nested too deeply" {
+			return nil, err
+		}
+		p.restore(cp)
+		return p.parseIdentExpr()
 
 	case int('['):
 		// Untyped array constructor: [ e, ... ].
@@ -602,12 +615,7 @@ func isFunctionNameKeyword(kind TokenKind) bool {
 // isExprIdentToken reports whether the current token is usable as an identifier
 // in expression context: tokIdent, tokQuotedIdent, or a non-reserved keyword.
 func (p *Parser) isExprIdentToken() bool {
-	switch p.cur.Kind {
-	case tokIdent, tokQuotedIdent:
-		return true
-	default:
-		return p.cur.Kind >= 700 && !IsReserved(p.cur.Kind)
-	}
+	return isIdentifierToken(p.cur.Kind)
 }
 
 // ---------------------------------------------------------------------------
@@ -844,6 +852,20 @@ func (p *Parser) parseWindowFrame() (*ast.WindowFrame, error) {
 	return frame, nil
 }
 
+// isWindowFrameOffset reports whether expr is a window frame offset the
+// engine accepts: a number, an INTERVAL, or a sign applied to either.
+func isWindowFrameOffset(expr ast.Node) bool {
+	switch n := expr.(type) {
+	case *ast.Literal:
+		return n.Kind == ast.LitInt || n.Kind == ast.LitFloat
+	case *ast.IntervalExpr:
+		return true
+	case *ast.UnaryExpr:
+		return (n.Op == ast.UnaryPlus || n.Op == ast.UnaryMinus) && isWindowFrameOffset(n.Expr)
+	}
+	return false
+}
+
 // parseWindowFrameBound parses one window frame bound:
 //
 //	UNBOUNDED PRECEDING | UNBOUNDED FOLLOWING | CURRENT ROW
@@ -875,6 +897,12 @@ func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return "", nil, err
+		}
+		// The engine takes a numeric or INTERVAL offset here, not an
+		// arbitrary expression: ROWS CURRENT_DATE PRECEDING and
+		// ROWS UNCOMMITTED PRECEDING are refused.
+		if !isWindowFrameOffset(expr) {
+			return "", nil, &ParseError{Position: ast.NodeLoc(expr).Start, End: ast.NodeLoc(expr).End, Message: "expected window frame offset"}
 		}
 		switch p.cur.Kind {
 		case kwPRECEDING:
@@ -1377,6 +1405,40 @@ func (p *Parser) finishMapLiteral(start int) (ast.Node, error) {
 		return &ast.MapLiteral{Loc: ast.Loc{Start: start, End: closeTok.Loc.End}}, nil
 	}
 
+	// A leading comma is the grammar's optional first pair left empty:
+	// {, NULL : NULL} is a map (DorisParser.g4:1675).
+	if p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		lit := &ast.MapLiteral{}
+		key, err := p.parseCollectionConstant()
+		if err != nil {
+			return nil, err
+		}
+		entry, err := p.finishMapEntry(key)
+		if err != nil {
+			return nil, err
+		}
+		lit.Entries = append(lit.Entries, entry)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			key, err := p.parseCollectionConstant()
+			if err != nil {
+				return nil, err
+			}
+			entry, err = p.finishMapEntry(key)
+			if err != nil {
+				return nil, err
+			}
+			lit.Entries = append(lit.Entries, entry)
+		}
+		closeTok, err := p.expect(int('}'))
+		if err != nil {
+			return nil, err
+		}
+		lit.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+		return lit, nil
+	}
+
 	// The first constant decides the form: a following ':' makes this a map
 	// ({k: v, ...}), anything else a struct ({c1, c2, ...}).
 	first, err := p.parseCollectionConstant()
@@ -1475,19 +1537,25 @@ func (p *Parser) finishArrayLiteral(start int) (ast.Node, error) {
 	if _, err := p.expect(int('[')); err != nil {
 		return nil, err
 	}
-	if p.cur.Kind != int(']') {
-		el, err := p.parseCollectionConstant()
-		if err != nil {
-			return nil, err
-		}
-		lit.Elements = append(lit.Elements, el)
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			el, err = p.parseCollectionConstant()
+	// The first element is optional in the grammar (DorisParser.g4:1674), so
+	// [, NULL, 1] is an array whose first slot is empty and whose remaining
+	// items are NULL and 1.
+	leadingComma := false
+	if p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		leadingComma = true
+	}
+	if p.cur.Kind != int(']') || leadingComma {
+		for {
+			el, err := p.parseCollectionConstant()
 			if err != nil {
 				return nil, err
 			}
 			lit.Elements = append(lit.Elements, el)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
 		}
 	}
 	closeTok, err := p.expect(int(']'))
@@ -1629,23 +1697,29 @@ func (p *Parser) parseVariableRef(system bool) (ast.Node, error) {
 		}, nil
 	}
 
-	first, ok := p.identOrKeywordToken()
-	if !ok {
+	// The name is an identifier, which is a non-reserved keyword where the
+	// grammar says so. A reserved word (GRANT, say) is not a variable name,
+	// so @@GRANT.a is refused.
+	if !isIdentifierToken(p.cur.Kind) {
 		return nil, p.syntaxErrorAtCur()
 	}
+	first := p.advance()
 	v := &ast.VariableRef{
 		System: system,
 		Name:   first.Str,
 		Loc:    ast.Loc{Start: atTok.Loc.Start, End: first.Loc.End},
 	}
-	// @@session.x / @@global.x — the scope qualifier only exists for system
-	// variables.
-	if system && p.cur.Kind == int('.') {
+	// @@session.x / @@global.x / @@local.x — the scope qualifier only exists
+	// for system variables, and only GLOBAL, LOCAL and SESSION name it
+	// (DorisParser.g4:1594, DorisLegacyParser.g4:1999). Any other dot is the
+	// ordinary field access @@name.field.
+	if system && p.cur.Kind == int('.') &&
+		(first.Kind == kwGLOBAL || first.Kind == kwLOCAL || first.Kind == kwSESSION) {
 		p.advance() // consume '.'
-		second, ok := p.identOrKeywordToken()
-		if !ok {
+		if !isIdentifierToken(p.cur.Kind) {
 			return nil, p.syntaxErrorAtCur()
 		}
+		second := p.advance()
 		v.Scope = strings.ToUpper(v.Name)
 		v.Name = second.Str
 		v.Loc.End = second.Loc.End
@@ -1741,18 +1815,15 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 	}, nil
 }
 
-// parseIntervalUnit parses and returns the interval unit keyword as a string.
+// parseIntervalUnit parses and returns the interval unit as a string: exactly
+// the tokens of unitIdentifier (DorisParser.g4:1697). An identifier is not a
+// unit, and the engine refuses one: INTERVAL 1 a is a syntax error at a.
 func (p *Parser) parseIntervalUnit() (string, error) {
 	switch p.cur.Kind {
 	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND:
 		tok := p.advance()
 		return strings.ToUpper(tok.Str), nil
 	default:
-		// Allow any identifier-like token as a unit for forward compatibility
-		if p.cur.Kind == tokIdent {
-			tok := p.advance()
-			return strings.ToUpper(tok.Str), nil
-		}
 		return "", &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: fmt.Sprintf("expected interval unit, got %q", p.cur.Str),
@@ -1804,6 +1875,12 @@ func (p *Parser) parseBetweenExpr(left ast.Node, notFlag bool) (ast.Node, error)
 		p.advance() // consume NOT
 	}
 	p.advance() // consume BETWEEN
+
+	// The low bound is a predicate or non_pred_expr, not a NOT expression:
+	// the engine refuses BETWEEN NOT 1 AND 1.
+	if p.cur.Kind == kwNOT {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Parse low bound at bpPred+1 to avoid re-consuming AND as an
 	// infix binary operator.
@@ -1895,15 +1972,19 @@ func (p *Parser) parseLikeExpr(left ast.Node, notFlag bool) (ast.Node, error) {
 		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(pattern).End},
 	}
 
-	// Optional ESCAPE clause
+	// Optional ESCAPE clause. With nothing to escape, ESCAPE is the SELECT
+	// item's alias: SELECT a LIKE b ESCAPE is an accept, so leave the word
+	// for the alias reader when an expression cannot follow it.
 	if p.cur.Kind == kwESCAPE {
+		cp := p.save()
 		p.advance() // consume ESCAPE
 		esc, err := p.parseExprPrec(bpPred + 1)
 		if err != nil {
-			return nil, err
+			p.restore(cp)
+		} else {
+			le.Escape = esc
+			le.Loc.End = ast.NodeLoc(esc).End
 		}
-		le.Escape = esc
-		le.Loc.End = ast.NodeLoc(esc).End
 	}
 
 	return le, nil

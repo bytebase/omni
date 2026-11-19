@@ -125,25 +125,24 @@ func TestExplainPlan(t *testing.T) {
 	}
 }
 
-func TestExplainShape(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN SHAPE SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "SHAPE" {
-		t.Errorf("Type = %q, want SHAPE", n.Type)
-	}
-}
-
-func TestExplainMemo(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN MEMO SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "MEMO" {
-		t.Errorf("Type = %q, want MEMO", n.Type)
+// The grammar derives a planType after EXPLAIN (DorisParser.g4:1073), and the
+// pinned engine refuses every one of them: EXPLAIN SHAPE SELECT 1 is a syntax
+// error (compat.tsv's planType/SHAPE and planType/MEMO rows), its legacy plan
+// types being gone, so neither does this parser.
+func TestExplainPlanTypeRejected(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN SHAPE SELECT 1",
+		"EXPLAIN MEMO SELECT 1",
+		"EXPLAIN PARSED SELECT 1",
+		"EXPLAIN ANALYZED SELECT 1",
+		"EXPLAIN REWRITTEN SELECT 1",
+		"EXPLAIN OPTIMIZED SELECT 1",
+		"EXPLAIN PHYSICAL SELECT 1",
+		"DESCRIBE OPTIMIZED VERBOSE SELECT 1",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 
@@ -574,7 +573,7 @@ func TestDescribeExplainOptions(t *testing.T) {
 	}{
 		{"DESCRIBE TREE SELECT 1", "TREE"},
 		{"DESCRIBE PROCESS SELECT 1", "PROCESS"},
-		{"DESCRIBE OPTIMIZED VERBOSE SELECT 1", "OPTIMIZED VERBOSE"},
+		{"DESCRIBE VERBOSE SELECT 1", "VERBOSE"},
 		{"EXPLAIN PLAN PROCESS SELECT 1", "PLAN PROCESS"},
 	}
 	for _, tc := range tests {
@@ -611,5 +610,19 @@ func TestDescribePartitionAndAll(t *testing.T) {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
 		}
+	}
+}
+
+func TestDescribeBareAll(t *testing.T) {
+	file, errs := parseForTest("DESCRIBE test_table ALL")
+	if len(errs) != 0 {
+		t.Fatalf("DESCRIBE test_table ALL errors: %v", errs)
+	}
+	n, ok := file.Stmts[0].(*ast.DescribeStmt)
+	if !ok {
+		t.Fatalf("Stmts[0] = %T, want *ast.DescribeStmt", file.Stmts[0])
+	}
+	if !n.All || n.AllVerbose {
+		t.Errorf("DESCRIBE ALL = (%v, %v), want (true, false)", n.All, n.AllVerbose)
 	}
 }

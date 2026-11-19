@@ -10,6 +10,12 @@ import (
 	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
+// defaultAutoSplitSize is the split size OceanBase gives automatic range
+// partitioning when the statement names none. The pinned server reads
+// ALTER TABLE a PARTITION BY RANGE() back as `partition by range() size
+// ('2048MB')` (TestSimulationCausesOracle).
+const defaultAutoSplitSize = "2048MB"
+
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// Resolve database.
 	dbName := ""
@@ -36,7 +42,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
-		if err := checkPartitionNames(tbl, repartition); err != nil {
+		if err := checkPartitionStructure(tbl, repartition, true); err != nil {
+			return err
+		}
+		if err := checkRepartitionPrimaryKeyPrefix(tbl, repartition); err != nil {
 			return err
 		}
 	}
@@ -56,14 +65,32 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
 		return err
 	}
+	// A sibling command may have dropped or renamed the column the partitioning
+	// names, as DROP COLUMN a beside PARTITION BY HASH(a) does: judge the table
+	// the statement leaves before installing the partitioning.
+	if repartition != nil {
+		if err := checkPartitionStructure(tbl, repartition, true); err != nil {
+			undoAlter(db, key, tbl, snapshot, logs, known)
+			return err
+		}
+		if err := checkRepartitionPrimaryKeyPrefix(tbl, repartition); err != nil {
+			undoAlter(db, key, tbl, snapshot, logs, known)
+			return err
+		}
+	}
 	if err := validateAlteredUniqueKeys(tbl, before, stmt.Commands, repartition); err != nil {
 		undoAlter(db, key, tbl, snapshot, logs, known)
 		return err
 	}
-	if repartition != nil && tbl.Partitioning != nil {
-		// The catalog does not apply a repartition, so the partitioning it keeps no
-		// longer says which columns a unique key needs.
-		tbl.Partitioning.keyColumns = nil
+	if repartition != nil {
+		tbl.Partitioning = buildPartitionInfo(tbl, repartition)
+		// A RANGE partitioning with no partition list is automatic: 4.3.5.6 takes
+		// ALTER TABLE a PARTITION BY RANGE() and RANGE(b), and reads both back with
+		// `size ('2048MB')`, the server's default split size
+		// (TestSimulationCausesOracle).
+		if pi := tbl.Partitioning; (pi.Type == "RANGE" || pi.Type == "RANGE COLUMNS") && len(pi.Partitions) == 0 && pi.SplitSize == "" && pi.AutoSize == "" {
+			pi.SplitSize = defaultAutoSplitSize
+		}
 	}
 	return nil
 }
@@ -344,6 +371,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, cmd *node
 	if err := insertColumn(tbl, col, cmd.First, cmd.After, cmd.Before); err != nil {
 		return err
 	}
+	if isSerialColumn(colDef) {
+		ensureSerialUniqueKey(tbl, colDef.Name)
+	}
 
 	// Process column-level constraints that produce indexes/constraints.
 	for _, cc := range colDef.Constraints {
@@ -596,6 +626,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
 	}
+	if isSerialColumn(colDef) {
+		ensureSerialUniqueKey(tbl, colDef.Name)
+	}
 
 	// Handle repositioning.
 	if cmd.First || cmd.After != "" || cmd.Before != "" {
@@ -705,6 +738,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			Visible:   true,
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
+		dropStoringKeyColumns(uqIdx)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
@@ -801,6 +835,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
 		// added by ALTER lost its comment, visibility, block size and scope.
 		applyIndexOptions(keyIdx, con.IndexOptions)
+		dropStoringKeyColumns(keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -1040,6 +1075,38 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	return nil
 }
 
+// checkCharsetName reads a table's CHARACTER SET name as OceanBase does: a name
+// SHOW CHARACTER SET does not list is 1115 "Unknown character set". The list is
+// defaultCollationForCharset, which TestDefaultCollationsMatchOceanBase holds to
+// the pinned server's SHOW CHARACTER SET.
+func checkCharsetName(charset string) error {
+	if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
+		return &Error{Code: 1115, SQLState: "42000", Message: fmt.Sprintf("Unknown character set: '%s'", charset)}
+	}
+	return nil
+}
+
+// checkCollationName reads a table's COLLATE name as OceanBase does: a name
+// SHOW COLLATION does not list is 1273 "Unknown collation". oceanBaseCollations
+// is that list, and TestCollationsMatchOceanBase holds it to the pin.
+func checkCollationName(collation string) error {
+	if _, ok := oceanBaseCollations[strings.ToLower(normalizeCollationName(collation))]; !ok {
+		return &Error{Code: 1273, SQLState: "HY000", Message: fmt.Sprintf("Unknown collation: '%s'", collation)}
+	}
+	return nil
+}
+
+// checkCharsetCollationPair refuses a COLLATE that belongs to another character
+// set: OceanBase answers 1253 "COLLATION ... is not valid for CHARACTER SET".
+func checkCharsetCollationPair(charset, collation string) error {
+	declared := strings.ToLower(normalizeCollationName(collation))
+	want, ok := oceanBaseCollations[declared]
+	if ok && !strings.EqualFold(normalizeCharsetName(charset), want) {
+		return &Error{Code: 1253, SQLState: "42000", Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", collation, charset)}
+	}
+	return nil
+}
+
 // alterTableOption applies a table option (ENGINE, CHARSET, etc.).
 func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	opt := cmd.Option
@@ -1057,12 +1124,19 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "engine":
 		tbl.Engine = opt.Value
 	case "charset", "character set", "default charset", "default character set":
-		tbl.Charset = normalizeCharsetName(opt.Value)
+		charset := normalizeCharsetName(opt.Value)
+		if err := checkCharsetName(charset); err != nil {
+			return err
+		}
+		tbl.Charset = charset
 		// Update collation to the default for this charset.
 		if defColl, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
 			tbl.Collation = defColl
 		}
 	case "collate", "default collate":
+		if err := checkCollationName(opt.Value); err != nil {
+			return err
+		}
 		tbl.Collation = normalizeCollationName(opt.Value)
 	case "comment":
 		tbl.Comment = opt.Value
@@ -1195,6 +1269,41 @@ func rebuildColIndex(tbl *Table) {
 }
 
 // buildColumnFromDef builds a catalog Column from an AST ColumnDef.
+// isSerialColumn reports whether the definition's type is SERIAL, which stands
+// for BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE.
+func isSerialColumn(colDef *nodes.ColumnDef) bool {
+	return colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
+}
+
+// ensureSerialUniqueKey adds the unique key SERIAL implies when the column has
+// none, as CREATE TABLE and ALTER TABLE ... ADD do. A MODIFY or CHANGE that
+// replaces a column with SERIAL keeps its key if it already has one.
+func ensureSerialUniqueKey(tbl *Table, name string) {
+	for _, idx := range tbl.Indexes {
+		if !idx.Unique || idx.Primary || len(idx.Columns) != 1 {
+			continue
+		}
+		if col := idx.Columns[0].Name; col != "" && toLower(col) == toLower(name) {
+			return
+		}
+	}
+	idxName := allocIndexName(tbl, name)
+	tbl.Indexes = append(tbl.Indexes, &Index{
+		Name:    idxName,
+		Table:   tbl,
+		Columns: []*IndexColumn{{Name: name}},
+		Unique:  true,
+		Visible: true,
+	})
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name:      idxName,
+		Type:      ConUniqueKey,
+		Table:     tbl,
+		Columns:   []string{name},
+		IndexName: idxName,
+	})
+}
+
 func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	col := &Column{
 		Name:     colDef.Name,
@@ -1204,8 +1313,17 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	// Type info.
 	if colDef.TypeName != nil {
 		col.typeNode = colDef.TypeName
-		col.DataType = normalizedColumnDataType(colDef.TypeName)
-		col.ColumnType = formatColumnType(colDef.TypeName)
+		if strings.EqualFold(colDef.TypeName.Name, "serial") {
+			// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE, as in CREATE
+			// TABLE; the unique key is added with the column (addSingleColumn).
+			col.DataType = "bigint"
+			col.ColumnType = "bigint(20) unsigned"
+			col.AutoIncrement = true
+			col.Nullable = false
+		} else {
+			col.DataType = normalizedColumnDataType(colDef.TypeName)
+			col.ColumnType = formatColumnType(colDef.TypeName)
+		}
 		if isNationalStringType(colDef.TypeName.Name) {
 			// As in CREATE TABLE: the national character set, named as CHARACTER SET is.
 			col.Charset = "utf8mb4"
@@ -1305,6 +1423,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			}
 		}
 	}
+	// SERIAL stays NOT NULL even when its definition writes NULL.
+	if isSerialColumn(colDef) {
+		col.Nullable = false
+	}
 
 	return col
 }
@@ -1396,6 +1518,18 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	charset := cmd.Name
 	collation := cmd.NewName
+
+	if err := checkCharsetName(normalizeCharsetName(charset)); err != nil {
+		return err
+	}
+	if collation != "" {
+		if err := checkCollationName(collation); err != nil {
+			return err
+		}
+		if err := checkCharsetCollationPair(charset, collation); err != nil {
+			return err
+		}
+	}
 
 	// If no collation specified, use the default collation for the charset.
 	if collation == "" {
@@ -1759,6 +1893,47 @@ func reorganizeNeedsPrimaryKeyPrefix(tbl *Table) error {
 		}
 	}
 	matches := len(key) > 0 && len(key) <= len(pk.Columns)
+	for i := 0; matches && i < len(key); i++ {
+		matches = toLower(pk.Columns[i].Name) == toLower(key[i])
+	}
+	if !matches {
+		return &Error{Code: 1235, SQLState: "0A000", Message: "mismatching between primary key prefix and partition key is not supported"}
+	}
+	return nil
+}
+
+// checkRepartitionPrimaryKeyPrefix refuses the RANGE and LIST repartitions OceanBase
+// will not take because the partitioning key is not a prefix of the primary key:
+// 4.3.5.6 answers 1235 "mismatching between primary key prefix and partition key is
+// not supported" for ALTER TABLE a PARTITION BY RANGE(a) when a is not the first
+// column of the key. It is checked before a unique key's coverage (1503), which is
+// what the same statement would otherwise answer. HASH and KEY partitioning name no
+// such rule: HASH(a) over a non-key column is 1503 on the same server.
+func checkRepartitionPrimaryKeyPrefix(tbl *Table, pc *nodes.PartitionClause) error {
+	// A list written with the repartition is judged by its unique keys (1503), not
+	// by this rule: the same RANGE(a) answers 1235 without a list and 1503 with one.
+	if (pc.Type != nodes.PartitionRange && pc.Type != nodes.PartitionList) || len(pc.Partitions) > 0 {
+		return nil
+	}
+	var key []string
+	if len(pc.Columns) > 0 {
+		key = pc.Columns
+	} else if column, ok := partitionKeyColumn(nodeToSQL(pc.Expr)); ok {
+		key = []string{column}
+	}
+	if len(key) == 0 {
+		return nil
+	}
+	var pk *Index
+	for _, idx := range tbl.Indexes {
+		if idx.Primary {
+			pk = idx
+		}
+	}
+	if pk == nil {
+		return nil
+	}
+	matches := len(key) <= len(pk.Columns)
 	for i := 0; matches && i < len(key); i++ {
 		matches = toLower(pk.Columns[i].Name) == toLower(key[i])
 	}

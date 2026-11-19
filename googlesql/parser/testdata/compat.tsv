@@ -396,7 +396,7 @@ reject	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement!dr
 reject	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement!drop-5	DEFINE TABLE a(
 reject	accept	engine	sql_statement_body_no_pipe_suffix/define_table_statement!insert	DEFINE TABLE a() zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/define_table_statement!swap	DEFINER TABLE a()
-reject	accept	engine	sql_statement_body_no_pipe_suffix/export_metadata_statement	EXPORT TABLE METADATA FROM a
+accept	accept	engine	sql_statement_body_no_pipe_suffix/export_metadata_statement	EXPORT TABLE METADATA FROM a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/export_metadata_statement!drop-1	TABLE METADATA FROM a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/export_metadata_statement!drop-2	EXPORT METADATA FROM a
 reject	reject	engine	sql_statement_body_no_pipe_suffix/export_metadata_statement!drop-3	EXPORT TABLE FROM a
@@ -446,12 +446,12 @@ reject	reject	engine	sql_statement_body_no_pipe_suffix/drop_statement!drop-2	DRO
 reject	reject	engine	sql_statement_body_no_pipe_suffix/drop_statement!drop-3	DROP TABLE
 reject	reject	engine	sql_statement_body_no_pipe_suffix/drop_statement!insert	DROP TABLE a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/drop_statement!swap	DYNAMIC TABLE a
-reject	accept	engine	sql_statement_body_no_pipe_suffix/import_statement	IMPORT MODULE a
+accept	accept	engine	sql_statement_body_no_pipe_suffix/import_statement	IMPORT MODULE a
 reject	accept	engine	sql_statement_body_no_pipe_suffix/import_statement!drop-2	IMPORT a
 reject	accept	engine	sql_statement_body_no_pipe_suffix/import_statement!drop-3	IMPORT MODULE
 reject	accept	engine	sql_statement_body_no_pipe_suffix/import_statement!insert	IMPORT MODULE a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/import_statement!swap	IN MODULE a
-reject	accept	engine	sql_statement_body_no_pipe_suffix/module_statement	MODULE a
+accept	accept	engine	sql_statement_body_no_pipe_suffix/module_statement	MODULE a
 reject	accept	engine	sql_statement_body_no_pipe_suffix/module_statement!drop-2	MODULE
 reject	accept	engine	sql_statement_body_no_pipe_suffix/module_statement!insert	MODULE a zzz
 reject	reject	engine	sql_statement_body_no_pipe_suffix/module_statement!swap	NAME a
@@ -489,7 +489,7 @@ reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement	RUN 'a'
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement!drop-1	'a'
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement!insert	RUN 'a' zzz
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/run_statement!swap	SAFE_CAST 'a'
-reject	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement	SHOW a
+accept	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement	SHOW a
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement!drop-2	SHOW
 reject	accept	engine	sql_statement_body_maybe_pipe_suffix/show_statement!insert	SHOW a zzz
 reject	reject	engine	sql_statement_body_maybe_pipe_suffix/show_statement!swap	SIMPLE a
@@ -1378,14 +1378,14 @@ reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_
 reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string!drop-2	CREATE FUNCTION a() OPTIONS() AS
 reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string!insert	CREATE FUNCTION a() OPTIONS() AS 'a' zzz
 reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string!swap	CREATE FUNCTION a() OPTIONS() ASC 'a'
-reject	accept	engine	path_expression_or_string/path_expression	IMPORT MODULE a
-reject	accept	engine	path_expression_or_string/string_literal	IMPORT MODULE 'a'
+accept	accept	engine	path_expression_or_string/path_expression	IMPORT MODULE a
+accept	accept	engine	path_expression_or_string/string_literal	IMPORT MODULE 'a'
 reject	accept	engine	path_expression_or_string/string_literal!insert	IMPORT MODULE 'a' zzz
-reject	accept	engine	path_expression_or_default/path_expression	TABLE a(CONNECTION a)
-reject	accept	engine	path_expression_or_default/path_expression!drop-1	TABLE a(CONNECTION)
+accept	accept	engine	path_expression_or_default/path_expression	TABLE a(CONNECTION a)
+accept	accept	engine	path_expression_or_default/path_expression!drop-1	TABLE a(CONNECTION)
 reject	reject	engine	path_expression_or_default/path_expression!truncate	TABLE a(CONNECTION
 reject	reject	engine	path_expression_or_default/path_expression!insert	TABLE a(CONNECTION a zzz)
-reject	accept	engine	path_expression_or_default/DEFAULT	TABLE a(CONNECTION DEFAULT)
+accept	accept	engine	path_expression_or_default/DEFAULT	TABLE a(CONNECTION DEFAULT)
 reject	reject	engine	path_expression_or_default/DEFAULT!insert	TABLE a(CONNECTION DEFAULT zzz)
 reject	reject	engine	path_expression_or_default/DEFAULT!swap	TABLE a(CONNECTION DEFINE)
 accept	reject	engine	sql_function_body/(_expression_)	CREATE FUNCTION a() AS(NULL)
@@ -1507,80 +1507,80 @@ reject	reject	engine	create_index_statement(as_alias)?/as_alias!truncate	CREATE 
 reject	reject	engine	create_index_statement(as_alias)?/as_alias!insert	CREATE INDEX a ON a a zzz(NULL)
 accept	reject	engine	create_index_statement(create_index_statement_suffix)?/%empty	CREATE INDEX a ON a(NULL)
 accept	reject	engine	create_index_statement(create_index_statement_suffix)?/create_index_statement_suffix	CREATE INDEX a ON a(NULL) PARTITION BY NULL
-reject	accept	engine	braced_graph_subquery/{_graph_operation_block_}	SELECT ARRAY { RETURN NULL }
+accept	accept	engine	braced_graph_subquery/{_graph_operation_block_}	SELECT ARRAY { RETURN NULL }
 reject	reject	engine	braced_graph_subquery/{_graph_operation_block_}!drop-1	SELECT ARRAY RETURN NULL }
 reject	reject	engine	braced_graph_subquery/{_graph_operation_block_}!drop-2	SELECT ARRAY { NULL }
 reject	reject	engine	braced_graph_subquery/{_graph_operation_block_}!drop-3	SELECT ARRAY { RETURN }
 reject	reject	engine	braced_graph_subquery/{_graph_operation_block_}!drop-4	SELECT ARRAY { RETURN NULL
-reject	accept	engine	braced_graph_subquery/{_graph_operation_block_}!insert	SELECT ARRAY { RETURN NULL } zzz
+accept	accept	engine	braced_graph_subquery/{_graph_operation_block_}!insert	SELECT ARRAY { RETURN NULL } zzz
 reject	reject	engine	braced_graph_subquery/{_graph_operation_block_}!swap	SELECT ARRAY { RETURNS NULL }
-reject	accept	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}	SELECT ARRAY { GRAPH a RETURN NULL }
+accept	accept	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}	SELECT ARRAY { GRAPH a RETURN NULL }
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!drop-1	SELECT ARRAY GRAPH a RETURN NULL }
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!drop-2	SELECT ARRAY { a RETURN NULL }
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!drop-3	SELECT ARRAY { GRAPH RETURN NULL }
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!drop-4	SELECT ARRAY { GRAPH a NULL }
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!drop-5	SELECT ARRAY { GRAPH a RETURN }
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!drop-6	SELECT ARRAY { GRAPH a RETURN NULL
-reject	accept	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!insert	SELECT ARRAY { GRAPH a RETURN NULL } zzz
+accept	accept	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!insert	SELECT ARRAY { GRAPH a RETURN NULL } zzz
 reject	reject	engine	braced_graph_subquery/{_GRAPH_path_expression_graph_operation_block_}!swap	SELECT ARRAY { GRAPH_TABLE a RETURN NULL }
-reject	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}	SELECT EXISTS { - }
+accept	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}	SELECT EXISTS { - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!drop-1	SELECT { - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!drop-2	SELECT EXISTS - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!drop-3	SELECT EXISTS { }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!drop-4	SELECT EXISTS { -
-reject	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!insert	SELECT EXISTS { - } zzz
+accept	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!insert	SELECT EXISTS { - } zzz
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_graph_pattern_}!swap	SELECT EXPLAIN { - }
-reject	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}	SELECT EXISTS { GRAPH a - }
+accept	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}	SELECT EXISTS { GRAPH a - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!drop-1	SELECT { GRAPH a - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!drop-2	SELECT EXISTS GRAPH a - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!drop-3	SELECT EXISTS { a - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!drop-4	SELECT EXISTS { GRAPH - }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!drop-5	SELECT EXISTS { GRAPH a }
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!drop-6	SELECT EXISTS { GRAPH a -
-reject	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!insert	SELECT EXISTS { GRAPH a - } zzz
+accept	accept	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!insert	SELECT EXISTS { GRAPH a - } zzz
 reject	reject	engine	exists_graph_pattern_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_pattern_}!swap	SELECT EXPLAIN { GRAPH a - }
-reject	accept	engine	exists_graph_pattern_subquery(hint)?/%empty	SELECT EXISTS { - }
+accept	accept	engine	exists_graph_pattern_subquery(hint)?/%empty	SELECT EXISTS { - }
 reject	reject	engine	exists_graph_pattern_subquery(hint)?/%empty!insert	SELECT EXISTS zzz { - }
-reject	accept	engine	exists_graph_pattern_subquery(hint)?/hint	SELECT EXISTS@1 { - }
+accept	accept	engine	exists_graph_pattern_subquery(hint)?/hint	SELECT EXISTS@1 { - }
 reject	reject	engine	exists_graph_pattern_subquery(hint)?/hint!drop-1	SELECT EXISTS 1 { - }
 reject	reject	engine	exists_graph_pattern_subquery(hint)?/hint!drop-2	SELECT EXISTS@{ - }
 reject	reject	engine	exists_graph_pattern_subquery(hint)?/hint!truncate	SELECT EXISTS@
 reject	reject	engine	exists_graph_pattern_subquery(hint)?/hint!insert	SELECT EXISTS@1 zzz { - }
-reject	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}	SELECT EXISTS { MATCH - }
+accept	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}	SELECT EXISTS { MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!drop-1	SELECT { MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!drop-2	SELECT EXISTS MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!drop-4	SELECT EXISTS { MATCH }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!drop-5	SELECT EXISTS { MATCH -
-reject	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!insert	SELECT EXISTS { MATCH - } zzz
+accept	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!insert	SELECT EXISTS { MATCH - } zzz
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_graph_linear_operator_list_}!swap	SELECT EXPLAIN { MATCH - }
-reject	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b	SELECT EXISTS { GRAPH a MATCH - }
+accept	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b	SELECT EXISTS { GRAPH a MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-1	SELECT { GRAPH a MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-2	SELECT EXISTS GRAPH a MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-3	SELECT EXISTS { a MATCH - }
-reject	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-4	SELECT EXISTS { GRAPH MATCH - }
+accept	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-4	SELECT EXISTS { GRAPH MATCH - }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-6	SELECT EXISTS { GRAPH a MATCH }
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!drop-7	SELECT EXISTS { GRAPH a MATCH -
-reject	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!insert	SELECT EXISTS { GRAPH a MATCH - } zzz
+accept	accept	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!insert	SELECT EXISTS { GRAPH a MATCH - } zzz
 reject	reject	engine	exists_linear_ops_subquery/EXISTS_(hint)?_{_GRAPH_path_expression_graph_linear_ope~afe6662b!swap	SELECT EXPLAIN { GRAPH a MATCH - }
-reject	accept	engine	exists_linear_ops_subquery(hint)?/%empty	SELECT EXISTS { MATCH - }
+accept	accept	engine	exists_linear_ops_subquery(hint)?/%empty	SELECT EXISTS { MATCH - }
 reject	reject	engine	exists_linear_ops_subquery(hint)?/%empty!insert	SELECT EXISTS zzz { MATCH - }
-reject	accept	engine	exists_linear_ops_subquery(hint)?/hint	SELECT EXISTS@1 { MATCH - }
+accept	accept	engine	exists_linear_ops_subquery(hint)?/hint	SELECT EXISTS@1 { MATCH - }
 reject	reject	engine	exists_linear_ops_subquery(hint)?/hint!drop-1	SELECT EXISTS 1 { MATCH - }
 reject	reject	engine	exists_linear_ops_subquery(hint)?/hint!drop-2	SELECT EXISTS@{ MATCH - }
 reject	reject	engine	exists_linear_ops_subquery(hint)?/hint!insert	SELECT EXISTS@1 zzz { MATCH - }
-reject	accept	engine	exists_graph_subquery/exists_graph_pattern_subquery	SELECT EXISTS { - }
-reject	accept	engine	exists_graph_subquery/exists_linear_ops_subquery	SELECT EXISTS { MATCH - }
-reject	accept	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery	SELECT EXISTS { RETURN NULL }
+accept	accept	engine	exists_graph_subquery/exists_graph_pattern_subquery	SELECT EXISTS { - }
+accept	accept	engine	exists_graph_subquery/exists_linear_ops_subquery	SELECT EXISTS { MATCH - }
+accept	accept	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery	SELECT EXISTS { RETURN NULL }
 reject	reject	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!drop-1	SELECT { RETURN NULL }
 reject	reject	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!drop-2	SELECT EXISTS RETURN NULL }
 reject	reject	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!drop-3	SELECT EXISTS { NULL }
 reject	reject	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!drop-4	SELECT EXISTS { RETURN }
 reject	reject	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!drop-5	SELECT EXISTS { RETURN NULL
-reject	accept	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!insert	SELECT EXISTS { RETURN NULL } zzz
+accept	accept	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!insert	SELECT EXISTS { RETURN NULL } zzz
 reject	reject	engine	exists_graph_subquery/EXISTS_(hint)?_braced_graph_subquery!swap	SELECT EXPLAIN { RETURN NULL }
-reject	accept	engine	exists_graph_subquery(hint)?/%empty	SELECT EXISTS { RETURN NULL }
+accept	accept	engine	exists_graph_subquery(hint)?/%empty	SELECT EXISTS { RETURN NULL }
 reject	reject	engine	exists_graph_subquery(hint)?/%empty!insert	SELECT EXISTS zzz { RETURN NULL }
-reject	accept	engine	exists_graph_subquery(hint)?/hint	SELECT EXISTS@1 { RETURN NULL }
+accept	accept	engine	exists_graph_subquery(hint)?/hint	SELECT EXISTS@1 { RETURN NULL }
 reject	reject	engine	exists_graph_subquery(hint)?/hint!drop-1	SELECT EXISTS 1 { RETURN NULL }
 reject	reject	engine	exists_graph_subquery(hint)?/hint!drop-2	SELECT EXISTS@{ RETURN NULL }
 reject	reject	engine	exists_graph_subquery(hint)?/hint!insert	SELECT EXISTS@1 zzz { RETURN NULL }
@@ -2593,7 +2593,7 @@ reject	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause
 accept	accept	engine	export_data_no_query/EXPORT_DATA_opt_with_connection_clause_opt_options_list!swap	|> EXTEND DATA
 accept	accept	engine	export_data_statement/export_data_no_query_as_query	EXPORT DATA AS SELECT NULL
 accept	accept	engine	export_model_statement/EXPORT_MODEL_path_expression_opt_with_connection_clause~a5df845a	EXPORT MODEL a
-reject	accept	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866	EXPORT TABLE METADATA FROM a
+accept	accept	engine	export_metadata_statement/EXPORT_table_or_table_function_METADATA_FROM_maybe_dash~e0255866	EXPORT TABLE METADATA FROM a
 accept	reject	engine	grant_statement/GRANT_privileges_ON_identifier_path_expression_TO_grantee_list	GRANT ALL ON a a TO 'a'
 reject	reject	engine	grant_statement/GRANT_privileges_ON_identifier_path_expression_TO_grantee_list!drop-1	ALL ON a a TO 'a'
 reject	reject	engine	grant_statement/GRANT_privileges_ON_identifier_path_expression_TO_grantee_list!drop-2	GRANT ON a a TO 'a'
@@ -2652,8 +2652,8 @@ accept	reject	engine	privilege_name/SELECT	GRANT SELECT ON a TO 'a'
 reject	reject	engine	privilege_name/SELECT!insert	GRANT SELECT zzz ON a TO 'a'
 accept	reject	engine	privilege_name/SELECT!swap	GRANT SEQUENCE ON a TO 'a'
 accept	reject	engine	rename_statement/RENAME_identifier_path_expression_TO_path_expression	RENAME a a TO a
-reject	accept	engine	import_statement/IMPORT_import_type_path_expression_or_string_opt_as_or_~fc34f521	IMPORT MODULE a
-reject	accept	engine	module_statement/MODULE_path_expression_opt_options_list	MODULE a
+accept	accept	engine	import_statement/IMPORT_import_type_path_expression_or_string_opt_as_or_~fc34f521	IMPORT MODULE a
+accept	accept	engine	module_statement/MODULE_path_expression_opt_options_list	MODULE a
 accept	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a	CREATE INDEX a ON a(NULL)
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a!truncate	CREATE INDEX a ON a(
 reject	reject	engine	column_ordering_and_options_expr/expression_opt_collate_clause_opt_asc_or_desc_opt_null_~e00fe61a!insert	CREATE INDEX a ON a(NULL zzz)
@@ -2766,26 +2766,26 @@ reject	reject	engine	possibly_empty_grantee_list/(_grantee_list_)!drop-1	ALTER P
 reject	reject	engine	possibly_empty_grantee_list/(_grantee_list_)!drop-3	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD('a'
 reject	reject	engine	possibly_empty_grantee_list/(_grantee_list_)!insert	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD('a') zzz
 reject	reject	engine	possibly_empty_grantee_list/(_)	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD()
-reject	accept	engine	show_statement/SHOW_show_target_(from_path_expression)?_(like_string_literal)?	SHOW a
-reject	accept	engine	show_statement(from_path_expression)?/%empty	SHOW a
-reject	accept	engine	show_statement(from_path_expression)?/from_path_expression	SHOW a FROM a
+accept	accept	engine	show_statement/SHOW_show_target_(from_path_expression)?_(like_string_literal)?	SHOW a
+accept	accept	engine	show_statement(from_path_expression)?/%empty	SHOW a
+accept	accept	engine	show_statement(from_path_expression)?/from_path_expression	SHOW a FROM a
 reject	accept	engine	show_statement(from_path_expression)?/from_path_expression!drop-1	SHOW a a
 reject	accept	engine	show_statement(from_path_expression)?/from_path_expression!drop-2	SHOW a FROM
 reject	accept	engine	show_statement(from_path_expression)?/from_path_expression!insert	SHOW a FROM a zzz
 reject	accept	engine	show_statement(from_path_expression)?/from_path_expression!swap	SHOW a FULL a
-reject	accept	engine	show_statement(like_string_literal)?/%empty	SHOW a
-reject	accept	engine	show_statement(like_string_literal)?/like_string_literal	SHOW a LIKE 'a'
+accept	accept	engine	show_statement(like_string_literal)?/%empty	SHOW a
+accept	accept	engine	show_statement(like_string_literal)?/like_string_literal	SHOW a LIKE 'a'
 reject	accept	engine	show_statement(like_string_literal)?/like_string_literal!drop-1	SHOW a 'a'
 reject	accept	engine	show_statement(like_string_literal)?/like_string_literal!drop-2	SHOW a LIKE
 reject	accept	engine	show_statement(like_string_literal)?/like_string_literal!insert	SHOW a LIKE 'a' zzz
 reject	accept	engine	show_statement(like_string_literal)?/like_string_literal!swap	SHOW a LIMIT 'a'
-reject	accept	engine	show_target/MATERIALIZED_VIEWS	SHOW MATERIALIZED VIEWS
-reject	accept	engine	show_target/MATERIALIZED_VIEWS!drop-1	SHOW VIEWS
-reject	accept	engine	show_target/MATERIALIZED_VIEWS!drop-2	SHOW MATERIALIZED
+accept	accept	engine	show_target/MATERIALIZED_VIEWS	SHOW MATERIALIZED VIEWS
+accept	accept	engine	show_target/MATERIALIZED_VIEWS!drop-1	SHOW VIEWS
+accept	accept	engine	show_target/MATERIALIZED_VIEWS!drop-2	SHOW MATERIALIZED
 reject	accept	engine	show_target/MATERIALIZED_VIEWS!insert	SHOW MATERIALIZED VIEWS zzz
 reject	accept	engine	show_target/MATERIALIZED_VIEWS!swap	SHOW MAX VIEWS
-reject	accept	engine	show_target/identifier	SHOW a
-reject	accept	engine	like_string_literal/LIKE_string_literal	SHOW a LIKE 'a'
+accept	accept	engine	show_target/identifier	SHOW a
+accept	accept	engine	like_string_literal/LIKE_string_literal	SHOW a LIKE 'a'
 accept	reject	engine	like_path_expression/LIKE_maybe_dashed_path_expression	CREATE TABLE a LIKE a
 reject	reject	engine	like_path_expression/LIKE_maybe_dashed_path_expression!drop-1	CREATE TABLE a a
 reject	reject	engine	like_path_expression/LIKE_maybe_dashed_path_expression!drop-2	CREATE TABLE a LIKE
@@ -2934,7 +2934,7 @@ accept	accept	engine	query/query_pipe_and_pipe_operator!insert	SELECT NULL |> AG
 reject	reject	engine	query/query_pipe_and_pipe_operator!swap	SEQUENCE NULL |> AGGREGATE
 accept	accept	engine	query_after_as/query	EXPORT DATA AS SELECT NULL
 reject	accept	engine	query_after_as/query!swap	EXPORT DATA AS SEQUENCE NULL
-reject	accept	engine	query_after_as/gql_query	EXPORT DATA AS GRAPH a RETURN NULL
+accept	accept	engine	query_after_as/gql_query	EXPORT DATA AS GRAPH a RETURN NULL
 reject	accept	engine	query_after_as/gql_query!drop-1	EXPORT DATA AS a RETURN NULL
 reject	accept	engine	query_after_as/gql_query!drop-2	EXPORT DATA AS GRAPH RETURN NULL
 reject	accept	engine	query_after_as/gql_query!drop-3	EXPORT DATA AS GRAPH a NULL
@@ -3597,7 +3597,7 @@ reject	reject	engine	set_operation_metadata(hint)?/hint!truncate	SELECT NULL UNI
 reject	reject	engine	set_operation_metadata(hint)?/hint!insert	SELECT NULL UNION@1 zzz ALL FROM
 reject	reject	engine	query_set_operation/query_set_operation_prefix	SELECT NULL UNION ALL FROM
 accept	accept	engine	query_primary/select	SELECT NULL
-reject	accept	engine	query_primary/table_clause_reserved	TABLE a
+accept	accept	engine	query_primary/table_clause_reserved	TABLE a
 reject	reject	engine	query_primary/table_clause_reserved!drop-2	TABLE
 reject	reject	engine	query_primary/table_clause_reserved!insert	TABLE a zzz
 reject	reject	engine	query_primary/table_clause_reserved!swap	TABLES a
@@ -3844,25 +3844,25 @@ reject	reject	engine	as_alias(AS)?/AS	FROM a AS a
 reject	reject	engine	as_alias(AS)?/AS!insert	FROM a AS zzz a
 reject	reject	engine	as_alias(AS)?/AS!swap	FROM a ASC a
 accept	reject	engine	as_alias_with_required_as/AS_identifier	(SELECT NULL) AS a
-reject	accept	engine	opt_as_or_into_alias/AS_identifier	IMPORT MODULE a AS a
+accept	accept	engine	opt_as_or_into_alias/AS_identifier	IMPORT MODULE a AS a
 reject	accept	engine	opt_as_or_into_alias/AS_identifier!drop-1	IMPORT MODULE a a
 reject	accept	engine	opt_as_or_into_alias/AS_identifier!drop-2	IMPORT MODULE a AS
 reject	accept	engine	opt_as_or_into_alias/AS_identifier!insert	IMPORT MODULE a AS a zzz
 reject	accept	engine	opt_as_or_into_alias/AS_identifier!swap	IMPORT MODULE a ASC a
-reject	accept	engine	opt_as_or_into_alias/INTO_identifier	IMPORT MODULE a INTO a
+accept	accept	engine	opt_as_or_into_alias/INTO_identifier	IMPORT MODULE a INTO a
 reject	accept	engine	opt_as_or_into_alias/INTO_identifier!drop-2	IMPORT MODULE a INTO
 reject	accept	engine	opt_as_or_into_alias/INTO_identifier!insert	IMPORT MODULE a INTO a zzz
 reject	accept	engine	opt_as_or_into_alias/INTO_identifier!swap	IMPORT MODULE a INVOKER a
-reject	accept	engine	opt_as_or_into_alias/%empty	IMPORT MODULE a
+accept	accept	engine	opt_as_or_into_alias/%empty	IMPORT MODULE a
 accept	accept	engine	opt_natural/NATURAL	|> NATURAL JOIN a
 reject	accept	engine	opt_natural/NATURAL!insert	|> NATURAL zzz JOIN a
 reject	accept	engine	opt_natural/NATURAL!swap	|> NEW JOIN a
 accept	accept	engine	opt_natural/%empty	|> JOIN a
 reject	accept	engine	opt_natural/%empty!insert	|> zzz JOIN a
-reject	accept	engine	opt_int_literal_or_parameter/int_literal_or_parameter	SELECT EXISTS { - { 1, } }
+accept	accept	engine	opt_int_literal_or_parameter/int_literal_or_parameter	SELECT EXISTS { - { 1, } }
 reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter!truncate	SELECT EXISTS { - {
 reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter!insert	SELECT EXISTS { - { 1 zzz, } }
-reject	accept	engine	opt_int_literal_or_parameter/%empty	SELECT EXISTS { - {, } }
+accept	accept	engine	opt_int_literal_or_parameter/%empty	SELECT EXISTS { - {, } }
 reject	reject	engine	opt_int_literal_or_parameter/%empty!insert	SELECT EXISTS { - { zzz, } }
 accept	accept	engine	int_literal_or_parameter/integer_literal	DELETE a ASSERT_ROWS_MODIFIED 1
 reject	reject	engine	int_literal_or_parameter/integer_literal!drop-1	DELETE a ASSERT_ROWS_MODIFIED
@@ -3930,7 +3930,7 @@ reject	accept	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repe
 reject	accept	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!insert	|> TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a zzz
 reject	accept	engine	opt_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!swap	|> TABLESAMPLE a(1 ROWS) WRITE WEIGHT AS a
 accept	accept	engine	opt_sample_clause_suffix/%empty	|> TABLESAMPLE a(1 ROWS)
-reject	accept	engine	opt_graph_sample_clause_suffix/repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE(1) }
+accept	accept	engine	opt_graph_sample_clause_suffix/repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE(1) }
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!drop-1	SELECT EXISTS { TABLESAMPLE a(1 ROWS)(1) }
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!drop-2	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE 1) }
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!drop-3	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE() }
@@ -3938,13 +3938,13 @@ reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!drop-4	SEL
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!truncate	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE(1
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPEATABLE(1) zzz }
 reject	reject	engine	opt_graph_sample_clause_suffix/repeatable_clause!swap	SELECT EXISTS { TABLESAMPLE a(1 ROWS) REPLACE(1) }
-reject	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT }
+accept	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!drop-1	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WEIGHT }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!drop-2	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!truncate	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT zzz }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_opt_repeatable_clause!swap	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WRITE WEIGHT }
-reject	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a }
+accept	accept	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-1	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WEIGHT AS a }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-2	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH AS a }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!drop-3	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT a }
@@ -3952,10 +3952,10 @@ reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_op
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!truncate	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WITH WEIGHT AS a zzz }
 reject	reject	engine	opt_graph_sample_clause_suffix/WITH_WEIGHT_AS_identifier_opt_repeatable_clause!swap	SELECT EXISTS { TABLESAMPLE a(1 ROWS) WRITE WEIGHT AS a }
-reject	accept	engine	opt_graph_sample_clause_suffix/%empty	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
+accept	accept	engine	opt_graph_sample_clause_suffix/%empty	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
 reject	reject	engine	opt_graph_sample_clause_suffix/%empty!insert	SELECT EXISTS { TABLESAMPLE a(1 ROWS) zzz }
 accept	accept	engine	sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_sample_clause_suffix	|> TABLESAMPLE a(1 ROWS)
-reject	accept	engine	graph_sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_graph_sample~f6b5c5b9	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
+accept	accept	engine	graph_sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_graph_sample~f6b5c5b9	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
 reject	reject	engine	graph_sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_graph_sample~f6b5c5b9!drop-1	SELECT EXISTS { a(1 ROWS) }
 reject	reject	engine	graph_sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_graph_sample~f6b5c5b9!drop-2	SELECT EXISTS { TABLESAMPLE(1 ROWS) }
 reject	reject	engine	graph_sample_clause/TABLESAMPLE_identifier_(_sample_size_)_opt_graph_sample~f6b5c5b9!drop-3	SELECT EXISTS { TABLESAMPLE a 1 ROWS) }
@@ -4169,9 +4169,9 @@ reject	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!drop-2	
 reject	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!drop-3	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1) DEFINE a AS NULL)
 reject	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!truncate	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1
 accept	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1 } zzz) DEFINE a AS NULL)
-reject	accept	engine	plus_or_star_quantifier/*	SELECT EXISTS { - * }
+accept	accept	engine	plus_or_star_quantifier/*	SELECT EXISTS { - * }
 reject	reject	engine	plus_or_star_quantifier/*!insert	SELECT EXISTS { - * zzz }
-reject	accept	engine	plus_or_star_quantifier/+	SELECT EXISTS { - + }
+accept	accept	engine	plus_or_star_quantifier/+	SELECT EXISTS { - + }
 reject	reject	engine	plus_or_star_quantifier/+!insert	SELECT EXISTS { - + zzz }
 accept	accept	engine	potentially_reluctant_quantifier/?	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a ?) DEFINE a AS NULL)
 accept	accept	engine	potentially_reluctant_quantifier/plus_or_star_quantifier	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a *) DEFINE a AS NULL)
@@ -4197,22 +4197,22 @@ reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_c
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	FROM(SELECT NULL) QUALIFY
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	FROM(SELECT NULL) QUALIFY NULL zzz
 reject	reject	engine	table_subquery(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	FROM(SELECT NULL) RAISE NULL
-reject	accept	engine	table_clause_no_keyword/path_expression_opt_where_clause	TABLE a
-reject	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause	TABLE a()
+accept	accept	engine	table_clause_no_keyword/path_expression_opt_where_clause	TABLE a
+accept	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause	TABLE a()
 reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!drop-1	TABLE()
 reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!drop-2	TABLE a)
 reject	reject	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!drop-3	TABLE a(
-reject	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!insert	TABLE a() zzz
-reject	accept	engine	table_clause_no_keyword(as_alias)?/%empty	TABLE a()
-reject	accept	engine	table_clause_no_keyword(as_alias)?/as_alias	TABLE a() a
+accept	accept	engine	table_clause_no_keyword/tvf_(as_alias)?_(pivot_or_unpivot_clause)?_opt_where_clause!insert	TABLE a() zzz
+accept	accept	engine	table_clause_no_keyword(as_alias)?/%empty	TABLE a()
+accept	accept	engine	table_clause_no_keyword(as_alias)?/as_alias	TABLE a() a
 reject	reject	engine	table_clause_no_keyword(as_alias)?/as_alias!insert	TABLE a() a zzz
-reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/%empty	TABLE a()
+accept	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/%empty	TABLE a()
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause	TABLE a() QUALIFY NULL
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-1	TABLE a() NULL
 reject	accept	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!drop-2	TABLE a() QUALIFY
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!insert	TABLE a() QUALIFY NULL zzz
 reject	reject	engine	table_clause_no_keyword(pivot_or_unpivot_clause)?/pivot_or_unpivot_clause!swap	TABLE a() RAISE NULL
-reject	accept	engine	table_clause_reserved/KW_TABLE_FOR_TABLE_CLAUSE_table_clause_no_keyword	TABLE a
+accept	accept	engine	table_clause_reserved/KW_TABLE_FOR_TABLE_CLAUSE_table_clause_no_keyword	TABLE a
 accept	accept	engine	table_clause_unreserved/TABLE_table_clause_no_keyword	INSERT a TABLE a
 reject	reject	engine	table_clause_unreserved/TABLE_table_clause_no_keyword!drop-1	INSERT a a
 reject	reject	engine	table_clause_unreserved/TABLE_table_clause_no_keyword!drop-2	INSERT a TABLE
@@ -4221,75 +4221,75 @@ reject	reject	engine	table_clause_unreserved/TABLE_table_clause_no_keyword!swap	
 accept	accept	engine	table_clause/table_clause_reserved	|> UNION ALL TABLE a
 reject	accept	engine	table_clause/table_clause_reserved!swap	|> UNION ALL TABLES a
 accept	accept	engine	table_clause/table_clause_unreserved	|> UNION ALL TABLE a
-reject	accept	engine	model_clause/MODEL_path_expression	TABLE a(MODEL a)
-reject	accept	engine	model_clause/MODEL_path_expression!drop-1	TABLE a(a)
-reject	accept	engine	model_clause/MODEL_path_expression!drop-2	TABLE a(MODEL)
+accept	accept	engine	model_clause/MODEL_path_expression	TABLE a(MODEL a)
+accept	accept	engine	model_clause/MODEL_path_expression!drop-1	TABLE a(a)
+accept	accept	engine	model_clause/MODEL_path_expression!drop-2	TABLE a(MODEL)
 reject	reject	engine	model_clause/MODEL_path_expression!truncate	TABLE a(MODEL
 reject	reject	engine	model_clause/MODEL_path_expression!insert	TABLE a(MODEL a zzz)
 reject	reject	engine	model_clause/MODEL_path_expression!swap	TABLE a(MODULE a)
-reject	accept	engine	connection_clause/CONNECTION_path_expression_or_default	TABLE a(CONNECTION a)
+accept	accept	engine	connection_clause/CONNECTION_path_expression_or_default	TABLE a(CONNECTION a)
 reject	reject	engine	connection_clause/CONNECTION_path_expression_or_default!swap	TABLE a(CONSTANT a)
-reject	accept	engine	descriptor_column/identifier	TABLE a(DESCRIPTOR(a))
+accept	accept	engine	descriptor_column/identifier	TABLE a(DESCRIPTOR(a))
 reject	reject	engine	descriptor_column/identifier!drop-1	TABLE a(DESCRIPTOR())
 reject	reject	engine	descriptor_column/identifier!truncate	TABLE a(DESCRIPTOR(
 reject	reject	engine	descriptor_column/identifier!insert	TABLE a(DESCRIPTOR(a zzz))
-reject	accept	engine	descriptor_column_list/descriptor_column	TABLE a(DESCRIPTOR(a))
-reject	accept	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column	TABLE a(DESCRIPTOR(a, a))
+accept	accept	engine	descriptor_column_list/descriptor_column	TABLE a(DESCRIPTOR(a))
+accept	accept	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column	TABLE a(DESCRIPTOR(a, a))
 reject	reject	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column!drop-1	TABLE a(DESCRIPTOR(, a))
 reject	reject	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column!drop-2	TABLE a(DESCRIPTOR(a a))
 reject	reject	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column!drop-3	TABLE a(DESCRIPTOR(a,))
 reject	reject	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column!truncate	TABLE a(DESCRIPTOR(a,
 reject	reject	engine	descriptor_column_list/descriptor_column_list_,_descriptor_column!insert	TABLE a(DESCRIPTOR(a, a zzz))
-reject	accept	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)	TABLE a(DESCRIPTOR(a))
-reject	accept	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!drop-1	TABLE a((a))
+accept	accept	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)	TABLE a(DESCRIPTOR(a))
+accept	accept	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!drop-1	TABLE a((a))
 reject	reject	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!drop-2	TABLE a(DESCRIPTOR a))
 reject	reject	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!drop-4	TABLE a(DESCRIPTOR(a)
 reject	reject	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!truncate	TABLE a(DESCRIPTOR(a
 reject	reject	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!insert	TABLE a(DESCRIPTOR(a) zzz)
-reject	accept	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!swap	TABLE a(DESTINATION(a))
-reject	accept	engine	input_table_argument/INPUT_TABLE	TABLE a(INPUT TABLE)
-reject	accept	engine	input_table_argument/INPUT_TABLE!drop-1	TABLE a(TABLE)
-reject	accept	engine	input_table_argument/INPUT_TABLE!drop-2	TABLE a(INPUT)
+accept	accept	engine	descriptor_argument/DESCRIPTOR_(_descriptor_column_list_)!swap	TABLE a(DESTINATION(a))
+accept	accept	engine	input_table_argument/INPUT_TABLE	TABLE a(INPUT TABLE)
+accept	accept	engine	input_table_argument/INPUT_TABLE!drop-1	TABLE a(TABLE)
+accept	accept	engine	input_table_argument/INPUT_TABLE!drop-2	TABLE a(INPUT)
 reject	reject	engine	input_table_argument/INPUT_TABLE!truncate	TABLE a(INPUT
 reject	reject	engine	input_table_argument/INPUT_TABLE!insert	TABLE a(INPUT TABLE zzz)
 reject	reject	engine	input_table_argument/INPUT_TABLE!swap	TABLE a(INSERT TABLE)
-reject	accept	engine	named_non_expr_argument/identifier_=>_table_clause	TABLE a(a => TABLE a)
+accept	accept	engine	named_non_expr_argument/identifier_=>_table_clause	TABLE a(a => TABLE a)
 reject	reject	engine	named_non_expr_argument/identifier_=>_table_clause!drop-1	TABLE a(=> TABLE a)
 reject	reject	engine	named_non_expr_argument/identifier_=>_table_clause!drop-2	TABLE a(a TABLE a)
-reject	accept	engine	named_non_expr_argument/identifier_=>_table_clause!drop-3	TABLE a(a => a)
-reject	accept	engine	named_non_expr_argument/identifier_=>_table_clause!drop-4	TABLE a(a => TABLE)
+accept	accept	engine	named_non_expr_argument/identifier_=>_table_clause!drop-3	TABLE a(a => a)
+accept	accept	engine	named_non_expr_argument/identifier_=>_table_clause!drop-4	TABLE a(a => TABLE)
 reject	reject	engine	named_non_expr_argument/identifier_=>_table_clause!truncate	TABLE a(a => TABLE
 reject	reject	engine	named_non_expr_argument/identifier_=>_table_clause!insert	TABLE a(a => TABLE a zzz)
 reject	reject	engine	named_non_expr_argument/identifier_=>_table_clause!swap	TABLE a(a => TABLES a)
-reject	accept	engine	tvf_argument/expression	TABLE a(NULL)
+accept	accept	engine	tvf_argument/expression	TABLE a(NULL)
 reject	reject	engine	tvf_argument/expression!insert	TABLE a(NULL zzz)
 reject	reject	engine	tvf_argument/expression!swap	TABLE a(NULLS)
-reject	accept	engine	tvf_argument/descriptor_argument	TABLE a(DESCRIPTOR(a))
-reject	accept	engine	tvf_argument/table_clause	TABLE a(TABLE a)
+accept	accept	engine	tvf_argument/descriptor_argument	TABLE a(DESCRIPTOR(a))
+accept	accept	engine	tvf_argument/table_clause	TABLE a(TABLE a)
 reject	reject	engine	tvf_argument/table_clause!truncate	TABLE a(TABLE
 reject	reject	engine	tvf_argument/table_clause!insert	TABLE a(TABLE a zzz)
 reject	reject	engine	tvf_argument/table_clause!swap	TABLE a(TABLES a)
-reject	accept	engine	tvf_argument/model_clause	TABLE a(MODEL a)
-reject	accept	engine	tvf_argument/connection_clause	TABLE a(CONNECTION a)
-reject	accept	engine	tvf_argument/named_argument	TABLE a(a => NULL)
+accept	accept	engine	tvf_argument/model_clause	TABLE a(MODEL a)
+accept	accept	engine	tvf_argument/connection_clause	TABLE a(CONNECTION a)
+accept	accept	engine	tvf_argument/named_argument	TABLE a(a => NULL)
 reject	reject	engine	tvf_argument/named_argument!drop-1	TABLE a(=> NULL)
 reject	reject	engine	tvf_argument/named_argument!drop-2	TABLE a(a NULL)
 reject	reject	engine	tvf_argument/named_argument!drop-3	TABLE a(a =>)
 reject	reject	engine	tvf_argument/named_argument!truncate	TABLE a(a =>
 reject	reject	engine	tvf_argument/named_argument!insert	TABLE a(a => NULL zzz)
 reject	reject	engine	tvf_argument/named_argument!swap	TABLE a(a => NULLS)
-reject	accept	engine	tvf_argument/named_non_expr_argument	TABLE a(a => TABLE a)
-reject	accept	engine	tvf_argument/input_table_argument	TABLE a(INPUT TABLE)
+accept	accept	engine	tvf_argument/named_non_expr_argument	TABLE a(a => TABLE a)
+accept	accept	engine	tvf_argument/input_table_argument	TABLE a(INPUT TABLE)
 reject	reject	engine	tvf_argument/(_model_clause_)	TABLE a((MODEL a))
 reject	reject	engine	tvf_argument/(_model_clause_)!drop-1	TABLE a(MODEL a))
-reject	accept	engine	tvf_argument/(_model_clause_)!drop-3	TABLE a((MODEL))
+accept	accept	engine	tvf_argument/(_model_clause_)!drop-3	TABLE a((MODEL))
 reject	reject	engine	tvf_argument/(_model_clause_)!drop-4	TABLE a((MODEL a)
 reject	reject	engine	tvf_argument/(_model_clause_)!truncate	TABLE a((MODEL a
 reject	reject	engine	tvf_argument/(_model_clause_)!insert	TABLE a((MODEL a) zzz)
 reject	reject	engine	tvf_argument/(_model_clause_)!swap	TABLE a((MODULE a))
 reject	reject	engine	tvf_argument/(_connection_clause_)	TABLE a((CONNECTION a))
 reject	reject	engine	tvf_argument/(_connection_clause_)!drop-1	TABLE a(CONNECTION a))
-reject	accept	engine	tvf_argument/(_connection_clause_)!drop-3	TABLE a((CONNECTION))
+accept	accept	engine	tvf_argument/(_connection_clause_)!drop-3	TABLE a((CONNECTION))
 reject	reject	engine	tvf_argument/(_connection_clause_)!drop-4	TABLE a((CONNECTION a)
 reject	reject	engine	tvf_argument/(_connection_clause_)!truncate	TABLE a((CONNECTION a
 reject	reject	engine	tvf_argument/(_connection_clause_)!insert	TABLE a((CONNECTION a) zzz)
@@ -4305,31 +4305,31 @@ reject	reject	engine	tvf_argument/(_named_argument_)!insert	TABLE a((a => NULL) 
 reject	reject	engine	tvf_argument/(_named_argument_)!swap	TABLE a((a => NULLS))
 reject	reject	engine	tvf_argument/SELECT	TABLE a(SELECT)
 reject	reject	engine	tvf_argument/SELECT!insert	TABLE a(SELECT zzz)
-reject	accept	engine	tvf_argument/SELECT!swap	TABLE a(SEQUENCE)
+accept	accept	engine	tvf_argument/SELECT!swap	TABLE a(SEQUENCE)
 reject	reject	engine	tvf_argument/WITH	TABLE a(WITH)
 reject	reject	engine	tvf_argument/WITH!insert	TABLE a(WITH zzz)
-reject	accept	engine	tvf_argument/WITH!swap	TABLE a(WRITE)
-reject	accept	engine	tvf/(path_expression|IF)_(_((tvf_argument)_(,_(tvf_argument~7c5c9151	TABLE a()
-reject	accept	engine	tvf(path_expression|IF)/path_expression	TABLE a()
+accept	accept	engine	tvf_argument/WITH!swap	TABLE a(WRITE)
+accept	accept	engine	tvf/(path_expression|IF)_(_((tvf_argument)_(,_(tvf_argument~7c5c9151	TABLE a()
+accept	accept	engine	tvf(path_expression|IF)/path_expression	TABLE a()
 reject	reject	engine	tvf(path_expression|IF)/path_expression!insert	TABLE a zzz()
-reject	accept	engine	tvf(path_expression|IF)/IF	TABLE IF()
+accept	accept	engine	tvf(path_expression|IF)/IF	TABLE IF()
 reject	reject	engine	tvf(path_expression|IF)/IF!insert	TABLE IF zzz()
 reject	reject	engine	tvf(path_expression|IF)/IF!swap	TABLE IGNORE()
-reject	accept	engine	tvf((tvf_argument)_(,_(tvf_argument))*)?/%empty	TABLE a()
-reject	accept	engine	tvf((tvf_argument)_(,_(tvf_argument))*)?/%empty!insert	TABLE a(zzz)
-reject	accept	engine	tvf((tvf_argument)_(,_(tvf_argument))*)?/tvf_argument_(,_(tvf_argument))*	TABLE a(NULL)
-reject	accept	engine	tvf(,_(tvf_argument))*/%empty	TABLE a(NULL)
-reject	accept	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*	TABLE a(NULL, NULL)
+accept	accept	engine	tvf((tvf_argument)_(,_(tvf_argument))*)?/%empty	TABLE a()
+accept	accept	engine	tvf((tvf_argument)_(,_(tvf_argument))*)?/%empty!insert	TABLE a(zzz)
+accept	accept	engine	tvf((tvf_argument)_(,_(tvf_argument))*)?/tvf_argument_(,_(tvf_argument))*	TABLE a(NULL)
+accept	accept	engine	tvf(,_(tvf_argument))*/%empty	TABLE a(NULL)
+accept	accept	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*	TABLE a(NULL, NULL)
 reject	reject	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*!drop-1	TABLE a(NULL NULL)
 reject	reject	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*!drop-2	TABLE a(NULL,)
 reject	reject	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*!truncate	TABLE a(NULL,
 reject	reject	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*!insert	TABLE a(NULL, NULL zzz)
 reject	reject	engine	tvf(,_(tvf_argument))*/,_tvf_argument_(,_(tvf_argument))*!swap	TABLE a(NULL, NULLS)
-reject	accept	engine	tvf(hint)?/%empty	TABLE a()
-reject	accept	engine	tvf(hint)?/hint	TABLE a()@1
+accept	accept	engine	tvf(hint)?/%empty	TABLE a()
+accept	accept	engine	tvf(hint)?/hint	TABLE a()@1
 reject	reject	engine	tvf(hint)?/hint!drop-1	TABLE a() 1
 reject	reject	engine	tvf(hint)?/hint!drop-2	TABLE a()@
-reject	accept	engine	tvf(hint)?/hint!insert	TABLE a()@1 zzz
+accept	accept	engine	tvf(hint)?/hint!insert	TABLE a()@1 zzz
 reject	reject	engine	table_path_expression_base/unnest_expression	FROM UNNEST(SELECT
 reject	reject	engine	table_path_expression_base/unnest_expression!drop-1	FROM(SELECT
 reject	reject	engine	table_path_expression_base/unnest_expression!drop-2	FROM UNNEST SELECT
@@ -4521,24 +4521,24 @@ accept	accept	engine	graph_return_operator(graph_limit_clause)?/graph_limit_clau
 reject	reject	engine	graph_return_operator(graph_limit_clause)?/graph_limit_clause!drop-2	GRAPH a RETURN NULL LIMIT
 reject	reject	engine	graph_return_operator(graph_limit_clause)?/graph_limit_clause!insert	GRAPH a RETURN NULL LIMIT 1 zzz
 reject	reject	engine	graph_return_operator(graph_limit_clause)?/graph_limit_clause!swap	GRAPH a RETURN NULL LOAD 1
-reject	accept	engine	opt_graph_asc_or_desc/opt_asc_or_desc	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	opt_graph_asc_or_desc/opt_asc_or_desc	SELECT EXISTS { ORDER BY NULL }
 reject	reject	engine	opt_graph_asc_or_desc/opt_asc_or_desc!insert	SELECT EXISTS { ORDER BY NULL zzz }
-reject	accept	engine	opt_graph_asc_or_desc/ASCENDING	SELECT EXISTS { ORDER BY NULL ASCENDING }
+accept	accept	engine	opt_graph_asc_or_desc/ASCENDING	SELECT EXISTS { ORDER BY NULL ASCENDING }
 reject	reject	engine	opt_graph_asc_or_desc/ASCENDING!truncate	SELECT EXISTS { ORDER BY NULL
 reject	reject	engine	opt_graph_asc_or_desc/ASCENDING!insert	SELECT EXISTS { ORDER BY NULL ASCENDING zzz }
 reject	reject	engine	opt_graph_asc_or_desc/ASCENDING!swap	SELECT EXISTS { ORDER BY NULL ASSERT }
-reject	accept	engine	opt_graph_asc_or_desc/DESCENDING	SELECT EXISTS { ORDER BY NULL DESCENDING }
+accept	accept	engine	opt_graph_asc_or_desc/DESCENDING	SELECT EXISTS { ORDER BY NULL DESCENDING }
 reject	reject	engine	opt_graph_asc_or_desc/DESCENDING!insert	SELECT EXISTS { ORDER BY NULL DESCENDING zzz }
 reject	reject	engine	opt_graph_asc_or_desc/DESCENDING!swap	SELECT EXISTS { ORDER BY NULL DESCRIBE }
-reject	accept	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083	SELECT EXISTS { ORDER BY NULL }
 reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083!drop-1	SELECT EXISTS { ORDER BY }
 reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083!truncate	SELECT EXISTS { ORDER BY
 reject	reject	engine	graph_ordering_expression/expression_opt_collate_clause_opt_graph_asc_or_desc_opt~43dfe083!swap	SELECT EXISTS { ORDER BY NULLS }
-reject	accept	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression	SELECT EXISTS { ORDER BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression!drop-1	SELECT EXISTS { BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression!drop-2	SELECT EXISTS { ORDER NULL }
 reject	reject	engine	graph_order_by_clause_prefix/ORDER_(hint)?_BY_graph_ordering_expression!swap	SELECT EXISTS { OUT BY NULL }
-reject	accept	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression	SELECT EXISTS { ORDER BY NULL, NULL }
+accept	accept	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression	SELECT EXISTS { ORDER BY NULL, NULL }
 reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression!drop-1	SELECT EXISTS { BY NULL, NULL }
 reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression!drop-2	SELECT EXISTS { ORDER NULL, NULL }
 reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression!drop-3	SELECT EXISTS { ORDER BY, NULL }
@@ -4547,14 +4547,14 @@ reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,
 reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression!truncate	SELECT EXISTS { ORDER BY NULL,
 reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression!insert	SELECT EXISTS { ORDER BY NULL, NULL zzz }
 reject	reject	engine	graph_order_by_clause_prefix/graph_order_by_clause_prefix_,_graph_ordering_expression!swap	SELECT EXISTS { OUT BY NULL, NULL }
-reject	accept	engine	graph_order_by_clause_prefix(hint)?/%empty	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	graph_order_by_clause_prefix(hint)?/%empty	SELECT EXISTS { ORDER BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix(hint)?/%empty!insert	SELECT EXISTS { ORDER zzz BY NULL }
-reject	accept	engine	graph_order_by_clause_prefix(hint)?/hint	SELECT EXISTS { ORDER@1 BY NULL }
+accept	accept	engine	graph_order_by_clause_prefix(hint)?/hint	SELECT EXISTS { ORDER@1 BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix(hint)?/hint!drop-1	SELECT EXISTS { ORDER 1 BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix(hint)?/hint!drop-2	SELECT EXISTS { ORDER@BY NULL }
 reject	reject	engine	graph_order_by_clause_prefix(hint)?/hint!truncate	SELECT EXISTS { ORDER@
 reject	reject	engine	graph_order_by_clause_prefix(hint)?/hint!insert	SELECT EXISTS { ORDER@1 zzz BY NULL }
-reject	accept	engine	graph_order_by_clause/graph_order_by_clause_prefix	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	graph_order_by_clause/graph_order_by_clause_prefix	SELECT EXISTS { ORDER BY NULL }
 accept	accept	engine	opt_graph_order_by_clause/graph_order_by_clause	GRAPH a RETURN NULL ORDER BY NULL
 reject	reject	engine	opt_graph_order_by_clause/graph_order_by_clause!drop-1	GRAPH a RETURN NULL BY NULL
 reject	reject	engine	opt_graph_order_by_clause/graph_order_by_clause!drop-2	GRAPH a RETURN NULL ORDER NULL
@@ -4562,49 +4562,49 @@ reject	reject	engine	opt_graph_order_by_clause/graph_order_by_clause!drop-3	GRAP
 reject	reject	engine	opt_graph_order_by_clause/graph_order_by_clause!insert	GRAPH a RETURN NULL ORDER BY NULL zzz
 reject	reject	engine	opt_graph_order_by_clause/graph_order_by_clause!swap	GRAPH a RETURN NULL OUT BY NULL
 accept	accept	engine	opt_graph_order_by_clause/%empty	GRAPH a RETURN NULL
-reject	accept	engine	graph_order_by_operator/graph_order_by_clause	SELECT EXISTS { ORDER BY NULL }
-reject	accept	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter	SELECT EXISTS { LIMIT 1 }
+accept	accept	engine	graph_order_by_operator/graph_order_by_clause	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter	SELECT EXISTS { LIMIT 1 }
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!drop-1	SELECT EXISTS { 1 }
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!drop-2	SELECT EXISTS { LIMIT }
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!truncate	SELECT EXISTS { LIMIT
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!insert	SELECT EXISTS { LIMIT 1 zzz }
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!swap	SELECT EXISTS { LOAD 1 }
-reject	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter	SELECT EXISTS { OFFSET 1 }
+accept	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter	SELECT EXISTS { OFFSET 1 }
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!drop-2	SELECT EXISTS { OFFSET }
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!truncate	SELECT EXISTS { OFFSET
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!insert	SELECT EXISTS { OFFSET 1 zzz }
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!swap	SELECT EXISTS { ON 1 }
-reject	accept	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET	SELECT EXISTS { OFFSET 1 }
+accept	accept	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET	SELECT EXISTS { OFFSET 1 }
 reject	reject	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET!truncate	SELECT EXISTS {
 reject	reject	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET!insert	SELECT EXISTS { OFFSET zzz 1 }
-reject	accept	engine	graph_offset_clause(OFFSET|SKIP)/SKIP	SELECT EXISTS { SKIP 1 }
+accept	accept	engine	graph_offset_clause(OFFSET|SKIP)/SKIP	SELECT EXISTS { SKIP 1 }
 reject	reject	engine	graph_offset_clause(OFFSET|SKIP)/SKIP!insert	SELECT EXISTS { SKIP zzz 1 }
 reject	reject	engine	graph_offset_clause(OFFSET|SKIP)/SKIP!swap	SELECT EXISTS { SNAPSHOT 1 }
-reject	accept	engine	graph_match_operator/MATCH_(hint)?_graph_pattern	SELECT EXISTS { MATCH - }
+accept	accept	engine	graph_match_operator/MATCH_(hint)?_graph_pattern	SELECT EXISTS { MATCH - }
 reject	reject	engine	graph_match_operator/MATCH_(hint)?_graph_pattern!truncate	SELECT EXISTS { MATCH
 reject	reject	engine	graph_match_operator/MATCH_(hint)?_graph_pattern!insert	SELECT EXISTS { MATCH - zzz }
 reject	reject	engine	graph_match_operator/MATCH_(hint)?_graph_pattern!swap	SELECT EXISTS { MATCHED - }
-reject	accept	engine	graph_match_operator(hint)?/%empty	SELECT EXISTS { MATCH - }
+accept	accept	engine	graph_match_operator(hint)?/%empty	SELECT EXISTS { MATCH - }
 reject	reject	engine	graph_match_operator(hint)?/%empty!insert	SELECT EXISTS { MATCH zzz - }
-reject	accept	engine	graph_match_operator(hint)?/hint	SELECT EXISTS { MATCH@1 - }
+accept	accept	engine	graph_match_operator(hint)?/hint	SELECT EXISTS { MATCH@1 - }
 reject	reject	engine	graph_match_operator(hint)?/hint!drop-1	SELECT EXISTS { MATCH 1 - }
 reject	reject	engine	graph_match_operator(hint)?/hint!drop-2	SELECT EXISTS { MATCH@- }
 reject	reject	engine	graph_match_operator(hint)?/hint!truncate	SELECT EXISTS { MATCH@
 reject	reject	engine	graph_match_operator(hint)?/hint!insert	SELECT EXISTS { MATCH@1 zzz - }
-reject	accept	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern	SELECT EXISTS { OPTIONAL MATCH - }
+accept	accept	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern	SELECT EXISTS { OPTIONAL MATCH - }
 reject	reject	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern!drop-2	SELECT EXISTS { OPTIONAL - }
 reject	reject	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern!drop-3	SELECT EXISTS { OPTIONAL MATCH }
 reject	reject	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern!truncate	SELECT EXISTS { OPTIONAL MATCH
 reject	reject	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern!insert	SELECT EXISTS { OPTIONAL MATCH - zzz }
 reject	reject	engine	graph_optional_match_operator/OPTIONAL_MATCH_(hint)?_graph_pattern!swap	SELECT EXISTS { OPTIONS MATCH - }
-reject	accept	engine	graph_optional_match_operator(hint)?/%empty	SELECT EXISTS { OPTIONAL MATCH - }
+accept	accept	engine	graph_optional_match_operator(hint)?/%empty	SELECT EXISTS { OPTIONAL MATCH - }
 reject	reject	engine	graph_optional_match_operator(hint)?/%empty!insert	SELECT EXISTS { OPTIONAL MATCH zzz - }
-reject	accept	engine	graph_optional_match_operator(hint)?/hint	SELECT EXISTS { OPTIONAL MATCH@1 - }
+accept	accept	engine	graph_optional_match_operator(hint)?/hint	SELECT EXISTS { OPTIONAL MATCH@1 - }
 reject	reject	engine	graph_optional_match_operator(hint)?/hint!drop-1	SELECT EXISTS { OPTIONAL MATCH 1 - }
 reject	reject	engine	graph_optional_match_operator(hint)?/hint!drop-2	SELECT EXISTS { OPTIONAL MATCH@- }
 reject	reject	engine	graph_optional_match_operator(hint)?/hint!truncate	SELECT EXISTS { OPTIONAL MATCH@
 reject	reject	engine	graph_optional_match_operator(hint)?/hint!insert	SELECT EXISTS { OPTIONAL MATCH@1 zzz - }
-reject	accept	engine	graph_let_operator/LET_graph_let_variable_definition_list	SELECT EXISTS { LET a = NULL }
+accept	accept	engine	graph_let_operator/LET_graph_let_variable_definition_list	SELECT EXISTS { LET a = NULL }
 reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!drop-1	SELECT EXISTS { a = NULL }
 reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!drop-2	SELECT EXISTS { LET = NULL }
 reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!drop-3	SELECT EXISTS { LET a NULL }
@@ -4612,9 +4612,9 @@ reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!d
 reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!truncate	SELECT EXISTS { LET a =
 reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!insert	SELECT EXISTS { LET a = NULL zzz }
 reject	reject	engine	graph_let_operator/LET_graph_let_variable_definition_list!swap	SELECT EXISTS { LEVEL a = NULL }
-reject	accept	engine	graph_let_variable_definition_list/graph_let_variable_definition	SELECT EXISTS { LET a = NULL }
+accept	accept	engine	graph_let_variable_definition_list/graph_let_variable_definition	SELECT EXISTS { LET a = NULL }
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition!swap	SELECT EXISTS { LET a = NULLS }
-reject	accept	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007	SELECT EXISTS { LET a = NULL, a = NULL }
+accept	accept	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007	SELECT EXISTS { LET a = NULL, a = NULL }
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007!drop-1	SELECT EXISTS { LET = NULL, a = NULL }
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007!drop-2	SELECT EXISTS { LET a NULL, a = NULL }
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007!drop-3	SELECT EXISTS { LET a =, a = NULL }
@@ -4625,31 +4625,31 @@ reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_defin
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007!truncate	SELECT EXISTS { LET a = NULL, a =
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007!insert	SELECT EXISTS { LET a = NULL, a = NULL zzz }
 reject	reject	engine	graph_let_variable_definition_list/graph_let_variable_definition_list_,_graph_let_variable~14dd7007!swap	SELECT EXISTS { LET a = NULLS, a = NULL }
-reject	accept	engine	graph_let_variable_definition/identifier_=_expression	SELECT EXISTS { LET a = NULL }
-reject	accept	engine	graph_filter_operator/FILTER_where_clause	SELECT EXISTS { FILTER WHERE NULL }
+accept	accept	engine	graph_let_variable_definition/identifier_=_expression	SELECT EXISTS { LET a = NULL }
+accept	accept	engine	graph_filter_operator/FILTER_where_clause	SELECT EXISTS { FILTER WHERE NULL }
 reject	reject	engine	graph_filter_operator/FILTER_where_clause!drop-1	SELECT EXISTS { WHERE NULL }
 reject	reject	engine	graph_filter_operator/FILTER_where_clause!drop-3	SELECT EXISTS { FILTER WHERE }
 reject	reject	engine	graph_filter_operator/FILTER_where_clause!truncate	SELECT EXISTS { FILTER WHERE
 reject	reject	engine	graph_filter_operator/FILTER_where_clause!insert	SELECT EXISTS { FILTER WHERE NULL zzz }
 reject	reject	engine	graph_filter_operator/FILTER_where_clause!swap	SELECT EXISTS { FIRST WHERE NULL }
-reject	accept	engine	graph_filter_operator/FILTER_expression	SELECT EXISTS { FILTER NULL }
+accept	accept	engine	graph_filter_operator/FILTER_expression	SELECT EXISTS { FILTER NULL }
 reject	reject	engine	graph_filter_operator/FILTER_expression!drop-2	SELECT EXISTS { FILTER }
 reject	reject	engine	graph_filter_operator/FILTER_expression!truncate	SELECT EXISTS { FILTER
 reject	reject	engine	graph_filter_operator/FILTER_expression!insert	SELECT EXISTS { FILTER NULL zzz }
 reject	reject	engine	graph_filter_operator/FILTER_expression!swap	SELECT EXISTS { FIRST NULL }
-reject	accept	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91	SELECT EXISTS { WITH NULL }
+accept	accept	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91	SELECT EXISTS { WITH NULL }
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!drop-2	SELECT EXISTS { WITH }
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!truncate	SELECT EXISTS { WITH
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!insert	SELECT EXISTS { WITH NULL zzz }
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!swap	SELECT EXISTS { WRITE NULL }
-reject	accept	engine	graph_with_operator(hint)?/%empty	SELECT EXISTS { WITH NULL }
+accept	accept	engine	graph_with_operator(hint)?/%empty	SELECT EXISTS { WITH NULL }
 reject	reject	engine	graph_with_operator(hint)?/%empty!insert	SELECT EXISTS { WITH zzz NULL }
-reject	accept	engine	graph_with_operator(hint)?/hint	SELECT EXISTS { WITH@1 NULL }
+accept	accept	engine	graph_with_operator(hint)?/hint	SELECT EXISTS { WITH@1 NULL }
 reject	reject	engine	graph_with_operator(hint)?/hint!drop-1	SELECT EXISTS { WITH 1 NULL }
-reject	accept	engine	graph_with_operator(hint)?/hint!drop-2	SELECT EXISTS { WITH@NULL }
+accept	accept	engine	graph_with_operator(hint)?/hint!drop-2	SELECT EXISTS { WITH@NULL }
 reject	reject	engine	graph_with_operator(hint)?/hint!truncate	SELECT EXISTS { WITH@
 reject	reject	engine	graph_with_operator(hint)?/hint!insert	SELECT EXISTS { WITH@1 zzz NULL }
-reject	accept	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7	SELECT EXISTS { FOR a IN NULL }
+accept	accept	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7	SELECT EXISTS { FOR a IN NULL }
 reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7!drop-1	SELECT EXISTS { a IN NULL }
 reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7!drop-2	SELECT EXISTS { FOR IN NULL }
 reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7!drop-3	SELECT EXISTS { FOR a NULL }
@@ -4657,22 +4657,22 @@ reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offse
 reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7!truncate	SELECT EXISTS { FOR a IN
 reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7!insert	SELECT EXISTS { FOR a IN NULL zzz }
 reject	reject	engine	graph_for_operator/FOR_identifier_IN_expression_(with_offset_as_alias_with~845f0ce7!swap	SELECT EXISTS { FOREIGN a IN NULL }
-reject	accept	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/%empty	SELECT EXISTS { FOR a IN NULL }
-reject	accept	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?	SELECT EXISTS { FOR a IN NULL WITH OFFSET }
+accept	accept	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/%empty	SELECT EXISTS { FOR a IN NULL }
+accept	accept	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?	SELECT EXISTS { FOR a IN NULL WITH OFFSET }
 reject	reject	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?!drop-1	SELECT EXISTS { FOR a IN NULL OFFSET }
 reject	reject	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?!drop-2	SELECT EXISTS { FOR a IN NULL WITH }
 reject	reject	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?!truncate	SELECT EXISTS { FOR a IN NULL WITH
 reject	reject	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?!insert	SELECT EXISTS { FOR a IN NULL WITH OFFSET zzz }
 reject	reject	engine	graph_for_operator(with_offset_as_alias_with_required_as?)?/with_offset_(as_alias_with_required_as)?!swap	SELECT EXISTS { FOR a IN NULL WRITE OFFSET }
-reject	accept	engine	graph_for_operator(as_alias_with_required_as)?/%empty	SELECT EXISTS { FOR a IN NULL WITH OFFSET }
-reject	accept	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as	SELECT EXISTS { FOR a IN NULL WITH OFFSET AS a }
+accept	accept	engine	graph_for_operator(as_alias_with_required_as)?/%empty	SELECT EXISTS { FOR a IN NULL WITH OFFSET }
+accept	accept	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as	SELECT EXISTS { FOR a IN NULL WITH OFFSET AS a }
 reject	reject	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as!drop-1	SELECT EXISTS { FOR a IN NULL WITH OFFSET a }
 reject	reject	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as!drop-2	SELECT EXISTS { FOR a IN NULL WITH OFFSET AS }
 reject	reject	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as!truncate	SELECT EXISTS { FOR a IN NULL WITH OFFSET AS
 reject	reject	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as!insert	SELECT EXISTS { FOR a IN NULL WITH OFFSET AS a zzz }
 reject	reject	engine	graph_for_operator(as_alias_with_required_as)?/as_alias_with_required_as!swap	SELECT EXISTS { FOR a IN NULL WITH OFFSET ASC a }
-reject	accept	engine	graph_sample_operator/graph_sample_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
-reject	accept	engine	graph_call_operator/graph_call_operator_core	SELECT EXISTS { CALL a() }
+accept	accept	engine	graph_sample_operator/graph_sample_clause	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
+accept	accept	engine	graph_call_operator/graph_call_operator_core	SELECT EXISTS { CALL a() }
 reject	reject	engine	graph_call_operator/graph_call_operator_core!drop-1	SELECT EXISTS { a() }
 reject	reject	engine	graph_call_operator/graph_call_operator_core!drop-2	SELECT EXISTS { CALL() }
 reject	reject	engine	graph_call_operator/graph_call_operator_core!drop-3	SELECT EXISTS { CALL a) }
@@ -4680,7 +4680,7 @@ reject	reject	engine	graph_call_operator/graph_call_operator_core!drop-4	SELECT 
 reject	reject	engine	graph_call_operator/graph_call_operator_core!truncate	SELECT EXISTS { CALL a(
 reject	reject	engine	graph_call_operator/graph_call_operator_core!insert	SELECT EXISTS { CALL a() zzz }
 reject	reject	engine	graph_call_operator/graph_call_operator_core!swap	SELECT EXISTS { CASCADE a() }
-reject	accept	engine	graph_call_operator/OPTIONAL_graph_call_operator_core	SELECT EXISTS { OPTIONAL CALL a() }
+accept	accept	engine	graph_call_operator/OPTIONAL_graph_call_operator_core	SELECT EXISTS { OPTIONAL CALL a() }
 reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!drop-2	SELECT EXISTS { OPTIONAL a() }
 reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!drop-3	SELECT EXISTS { OPTIONAL CALL() }
 reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!drop-4	SELECT EXISTS { OPTIONAL CALL a) }
@@ -4688,8 +4688,8 @@ reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!drop-
 reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!truncate	SELECT EXISTS { OPTIONAL CALL a(
 reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!insert	SELECT EXISTS { OPTIONAL CALL a() zzz }
 reject	reject	engine	graph_call_operator/OPTIONAL_graph_call_operator_core!swap	SELECT EXISTS { OPTIONS CALL a() }
-reject	accept	engine	graph_call_operator_core/CALL_opt_per_clause_tvf_opt_yield_clause	SELECT EXISTS { CALL a() }
-reject	accept	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery	SELECT EXISTS { CALL { RETURN NULL } }
+accept	accept	engine	graph_call_operator_core/CALL_opt_per_clause_tvf_opt_yield_clause	SELECT EXISTS { CALL a() }
+accept	accept	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery	SELECT EXISTS { CALL { RETURN NULL } }
 reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery!drop-1	SELECT EXISTS { { RETURN NULL } }
 reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery!drop-2	SELECT EXISTS { CALL RETURN NULL } }
 reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery!drop-3	SELECT EXISTS { CALL { NULL } }
@@ -4698,7 +4698,7 @@ reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_s
 reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery!truncate	SELECT EXISTS { CALL { RETURN NULL
 reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery!insert	SELECT EXISTS { CALL { RETURN NULL } zzz }
 reject	reject	engine	graph_call_operator_core/CALL_opt_per_clause_braced_graph_subquery!swap	SELECT EXISTS { CASCADE { RETURN NULL } }
-reject	accept	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery	SELECT EXISTS { CALL() { RETURN NULL } }
+accept	accept	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery	SELECT EXISTS { CALL() { RETURN NULL } }
 reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery!drop-1	SELECT EXISTS {() { RETURN NULL } }
 reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery!drop-2	SELECT EXISTS { CALL) { RETURN NULL } }
 reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery!drop-3	SELECT EXISTS { CALL({ RETURN NULL } }
@@ -4709,59 +4709,59 @@ reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list
 reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery!truncate	SELECT EXISTS { CALL() { RETURN NULL
 reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery!insert	SELECT EXISTS { CALL() { RETURN NULL } zzz }
 reject	reject	engine	graph_call_operator_core/CALL_parenthesized_identifier_list_braced_graph_subquery!swap	SELECT EXISTS { CASCADE() { RETURN NULL } }
-reject	accept	engine	parenthesized_identifier_list/(_identifier_list_)	SELECT EXISTS { CALL PER(a) a() }
+accept	accept	engine	parenthesized_identifier_list/(_identifier_list_)	SELECT EXISTS { CALL PER(a) a() }
 reject	reject	engine	parenthesized_identifier_list/(_identifier_list_)!drop-1	SELECT EXISTS { CALL PER a) a() }
 reject	reject	engine	parenthesized_identifier_list/(_identifier_list_)!drop-3	SELECT EXISTS { CALL PER(a a() }
 reject	reject	engine	parenthesized_identifier_list/(_identifier_list_)!truncate	SELECT EXISTS { CALL PER(a
 reject	reject	engine	parenthesized_identifier_list/(_identifier_list_)!insert	SELECT EXISTS { CALL PER(a) zzz a() }
-reject	accept	engine	parenthesized_identifier_list/(_)	SELECT EXISTS { CALL PER() a() }
+accept	accept	engine	parenthesized_identifier_list/(_)	SELECT EXISTS { CALL PER() a() }
 reject	reject	engine	parenthesized_identifier_list/(_)!drop-1	SELECT EXISTS { CALL PER) a() }
 reject	reject	engine	parenthesized_identifier_list/(_)!drop-2	SELECT EXISTS { CALL PER(a() }
 reject	reject	engine	parenthesized_identifier_list/(_)!truncate	SELECT EXISTS { CALL PER(
 reject	reject	engine	parenthesized_identifier_list/(_)!insert	SELECT EXISTS { CALL PER() zzz a() }
-reject	accept	engine	opt_per_clause/PER_parenthesized_identifier_list	SELECT EXISTS { CALL PER() a() }
+accept	accept	engine	opt_per_clause/PER_parenthesized_identifier_list	SELECT EXISTS { CALL PER() a() }
 reject	reject	engine	opt_per_clause/PER_parenthesized_identifier_list!drop-1	SELECT EXISTS { CALL() a() }
 reject	reject	engine	opt_per_clause/PER_parenthesized_identifier_list!swap	SELECT EXISTS { CALL PERCENT() a() }
-reject	accept	engine	opt_per_clause/%empty	SELECT EXISTS { CALL a() }
+accept	accept	engine	opt_per_clause/%empty	SELECT EXISTS { CALL a() }
 reject	reject	engine	opt_per_clause/%empty!insert	SELECT EXISTS { CALL zzz a() }
-reject	accept	engine	opt_yield_clause/YIELD_yield_item_list	SELECT EXISTS { CALL a() YIELD a }
+accept	accept	engine	opt_yield_clause/YIELD_yield_item_list	SELECT EXISTS { CALL a() YIELD a }
 reject	reject	engine	opt_yield_clause/YIELD_yield_item_list!drop-1	SELECT EXISTS { CALL a() a }
 reject	reject	engine	opt_yield_clause/YIELD_yield_item_list!drop-2	SELECT EXISTS { CALL a() YIELD }
 reject	reject	engine	opt_yield_clause/YIELD_yield_item_list!truncate	SELECT EXISTS { CALL a() YIELD
 reject	reject	engine	opt_yield_clause/YIELD_yield_item_list!insert	SELECT EXISTS { CALL a() YIELD a zzz }
 reject	reject	engine	opt_yield_clause/YIELD_yield_item_list!swap	SELECT EXISTS { CALL a() ZONE a }
-reject	accept	engine	opt_yield_clause/%empty	SELECT EXISTS { CALL a() }
-reject	accept	engine	yield_item_list/yield_item	SELECT EXISTS { CALL a() YIELD a }
-reject	accept	engine	yield_item_list/yield_item_list_,_yield_item	SELECT EXISTS { CALL a() YIELD a, a }
+accept	accept	engine	opt_yield_clause/%empty	SELECT EXISTS { CALL a() }
+accept	accept	engine	yield_item_list/yield_item	SELECT EXISTS { CALL a() YIELD a }
+accept	accept	engine	yield_item_list/yield_item_list_,_yield_item	SELECT EXISTS { CALL a() YIELD a, a }
 reject	reject	engine	yield_item_list/yield_item_list_,_yield_item!drop-1	SELECT EXISTS { CALL a() YIELD, a }
 reject	reject	engine	yield_item_list/yield_item_list_,_yield_item!drop-2	SELECT EXISTS { CALL a() YIELD a a }
 reject	reject	engine	yield_item_list/yield_item_list_,_yield_item!drop-3	SELECT EXISTS { CALL a() YIELD a, }
 reject	reject	engine	yield_item_list/yield_item_list_,_yield_item!truncate	SELECT EXISTS { CALL a() YIELD a,
 reject	reject	engine	yield_item_list/yield_item_list_,_yield_item!insert	SELECT EXISTS { CALL a() YIELD a, a zzz }
-reject	accept	engine	yield_item/identifier_(as_alias_with_required_as)?	SELECT EXISTS { CALL a() YIELD a }
-reject	accept	engine	yield_item(as_alias_with_required_as)?/%empty	SELECT EXISTS { CALL a() YIELD a }
-reject	accept	engine	yield_item(as_alias_with_required_as)?/as_alias_with_required_as	SELECT EXISTS { CALL a() YIELD a AS a }
+accept	accept	engine	yield_item/identifier_(as_alias_with_required_as)?	SELECT EXISTS { CALL a() YIELD a }
+accept	accept	engine	yield_item(as_alias_with_required_as)?/%empty	SELECT EXISTS { CALL a() YIELD a }
+accept	accept	engine	yield_item(as_alias_with_required_as)?/as_alias_with_required_as	SELECT EXISTS { CALL a() YIELD a AS a }
 reject	reject	engine	yield_item(as_alias_with_required_as)?/as_alias_with_required_as!drop-2	SELECT EXISTS { CALL a() YIELD a AS }
 reject	reject	engine	yield_item(as_alias_with_required_as)?/as_alias_with_required_as!truncate	SELECT EXISTS { CALL a() YIELD a AS
 reject	reject	engine	yield_item(as_alias_with_required_as)?/as_alias_with_required_as!insert	SELECT EXISTS { CALL a() YIELD a AS a zzz }
 reject	reject	engine	yield_item(as_alias_with_required_as)?/as_alias_with_required_as!swap	SELECT EXISTS { CALL a() YIELD a ASC a }
-reject	accept	engine	graph_linear_op/graph_match_operator	SELECT EXISTS { MATCH - }
-reject	accept	engine	graph_linear_op/graph_optional_match_operator	SELECT EXISTS { OPTIONAL MATCH - }
-reject	accept	engine	graph_linear_op/graph_let_operator	SELECT EXISTS { LET a = NULL }
-reject	accept	engine	graph_linear_op/graph_filter_operator	SELECT EXISTS { FILTER NULL }
-reject	accept	engine	graph_linear_op/graph_order_by_operator	SELECT EXISTS { ORDER BY NULL }
-reject	accept	engine	graph_linear_op/graph_offset_clause	SELECT EXISTS { OFFSET 1 }
-reject	accept	engine	graph_linear_op/graph_limit_clause	SELECT EXISTS { LIMIT 1 }
-reject	accept	engine	graph_linear_op/graph_with_operator	SELECT EXISTS { WITH NULL }
-reject	accept	engine	graph_linear_op/graph_for_operator	SELECT EXISTS { FOR a IN NULL }
-reject	accept	engine	graph_linear_op/graph_sample_operator	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
-reject	accept	engine	graph_linear_op/graph_call_operator	SELECT EXISTS { CALL a() }
-reject	accept	engine	graph_linear_operator_list/(graph_linear_op)+	SELECT EXISTS { MATCH - }
-reject	accept	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op	SELECT EXISTS { MATCH - }
-reject	accept	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+	SELECT EXISTS { MATCH - MATCH - }
+accept	accept	engine	graph_linear_op/graph_match_operator	SELECT EXISTS { MATCH - }
+accept	accept	engine	graph_linear_op/graph_optional_match_operator	SELECT EXISTS { OPTIONAL MATCH - }
+accept	accept	engine	graph_linear_op/graph_let_operator	SELECT EXISTS { LET a = NULL }
+accept	accept	engine	graph_linear_op/graph_filter_operator	SELECT EXISTS { FILTER NULL }
+accept	accept	engine	graph_linear_op/graph_order_by_operator	SELECT EXISTS { ORDER BY NULL }
+accept	accept	engine	graph_linear_op/graph_offset_clause	SELECT EXISTS { OFFSET 1 }
+accept	accept	engine	graph_linear_op/graph_limit_clause	SELECT EXISTS { LIMIT 1 }
+accept	accept	engine	graph_linear_op/graph_with_operator	SELECT EXISTS { WITH NULL }
+accept	accept	engine	graph_linear_op/graph_for_operator	SELECT EXISTS { FOR a IN NULL }
+accept	accept	engine	graph_linear_op/graph_sample_operator	SELECT EXISTS { TABLESAMPLE a(1 ROWS) }
+accept	accept	engine	graph_linear_op/graph_call_operator	SELECT EXISTS { CALL a() }
+accept	accept	engine	graph_linear_operator_list/(graph_linear_op)+	SELECT EXISTS { MATCH - }
+accept	accept	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op	SELECT EXISTS { MATCH - }
+accept	accept	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+	SELECT EXISTS { MATCH - MATCH - }
 reject	reject	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!drop-1	SELECT EXISTS { - MATCH - }
 reject	reject	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!drop-2	SELECT EXISTS { MATCH MATCH - }
-reject	accept	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!drop-3	SELECT EXISTS { MATCH - - }
+accept	accept	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!drop-3	SELECT EXISTS { MATCH - - }
 reject	reject	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!drop-4	SELECT EXISTS { MATCH - MATCH }
 reject	reject	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!truncate	SELECT EXISTS { MATCH - MATCH
 reject	reject	engine	graph_linear_operator_list(graph_linear_op)+/graph_linear_op_(graph_linear_op)+!insert	SELECT EXISTS { MATCH - MATCH - zzz }
@@ -4811,159 +4811,159 @@ reject	reject	engine	graph_operation_block/graph_operation_block_NEXT_graph_comp
 reject	reject	engine	graph_operation_block/graph_operation_block_NEXT_graph_composite_query_block!drop-5	GRAPH a RETURN NULL NEXT RETURN
 reject	reject	engine	graph_operation_block/graph_operation_block_NEXT_graph_composite_query_block!insert	GRAPH a RETURN NULL NEXT RETURN NULL zzz
 reject	reject	engine	graph_operation_block/graph_operation_block_NEXT_graph_composite_query_block!swap	GRAPH a RETURNS NULL NEXT RETURN NULL
-reject	accept	engine	graph_pattern/graph_path_pattern_list_opt_where_clause	SELECT EXISTS { - }
+accept	accept	engine	graph_pattern/graph_path_pattern_list_opt_where_clause	SELECT EXISTS { - }
 reject	reject	engine	graph_pattern/graph_path_pattern_list_opt_where_clause!insert	SELECT EXISTS { - zzz }
-reject	accept	engine	graph_path_pattern_list/graph_path_pattern	SELECT EXISTS { - }
-reject	accept	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern	SELECT EXISTS { -, - }
+accept	accept	engine	graph_path_pattern_list/graph_path_pattern	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern	SELECT EXISTS { -, - }
 reject	reject	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern!drop-1	SELECT EXISTS {, - }
 reject	reject	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern!drop-3	SELECT EXISTS { -, }
 reject	reject	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern!truncate	SELECT EXISTS { -,
 reject	reject	engine	graph_path_pattern_list/graph_path_pattern_list_,_(hint)?_graph_path_pattern!insert	SELECT EXISTS { -, - zzz }
-reject	accept	engine	graph_path_pattern_list(hint)?/%empty	SELECT EXISTS { -, - }
+accept	accept	engine	graph_path_pattern_list(hint)?/%empty	SELECT EXISTS { -, - }
 reject	reject	engine	graph_path_pattern_list(hint)?/%empty!insert	SELECT EXISTS { -, zzz - }
-reject	accept	engine	graph_path_pattern_list(hint)?/hint	SELECT EXISTS { -,@1 - }
+accept	accept	engine	graph_path_pattern_list(hint)?/hint	SELECT EXISTS { -,@1 - }
 reject	reject	engine	graph_path_pattern_list(hint)?/hint!drop-1	SELECT EXISTS { -, 1 - }
 reject	reject	engine	graph_path_pattern_list(hint)?/hint!drop-2	SELECT EXISTS { -,@- }
 reject	reject	engine	graph_path_pattern_list(hint)?/hint!truncate	SELECT EXISTS { -,@
 reject	reject	engine	graph_path_pattern_list(hint)?/hint!insert	SELECT EXISTS { -,@1 zzz - }
-reject	accept	engine	graph_search_prefix/ANY	SELECT EXISTS { ANY - }
+accept	accept	engine	graph_search_prefix/ANY	SELECT EXISTS { ANY - }
 reject	reject	engine	graph_search_prefix/ANY!insert	SELECT EXISTS { ANY zzz - }
 reject	reject	engine	graph_search_prefix/ANY!swap	SELECT EXISTS { APPROX - }
-reject	accept	engine	graph_search_prefix/ANY_SHORTEST	SELECT EXISTS { ANY SHORTEST - }
+accept	accept	engine	graph_search_prefix/ANY_SHORTEST	SELECT EXISTS { ANY SHORTEST - }
 reject	reject	engine	graph_search_prefix/ANY_SHORTEST!drop-1	SELECT EXISTS { SHORTEST - }
 reject	reject	engine	graph_search_prefix/ANY_SHORTEST!truncate	SELECT EXISTS { ANY
 reject	reject	engine	graph_search_prefix/ANY_SHORTEST!insert	SELECT EXISTS { ANY SHORTEST zzz - }
 reject	reject	engine	graph_search_prefix/ANY_SHORTEST!swap	SELECT EXISTS { APPROX SHORTEST - }
-reject	accept	engine	graph_search_prefix/ANY_CHEAPEST	SELECT EXISTS { ANY CHEAPEST - }
+accept	accept	engine	graph_search_prefix/ANY_CHEAPEST	SELECT EXISTS { ANY CHEAPEST - }
 reject	reject	engine	graph_search_prefix/ANY_CHEAPEST!drop-1	SELECT EXISTS { CHEAPEST - }
 reject	reject	engine	graph_search_prefix/ANY_CHEAPEST!insert	SELECT EXISTS { ANY CHEAPEST zzz - }
 reject	reject	engine	graph_search_prefix/ANY_CHEAPEST!swap	SELECT EXISTS { APPROX CHEAPEST - }
-reject	accept	engine	graph_search_prefix/ANY_int_literal_or_parameter	SELECT EXISTS { ANY 1 - }
+accept	accept	engine	graph_search_prefix/ANY_int_literal_or_parameter	SELECT EXISTS { ANY 1 - }
 reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter!drop-1	SELECT EXISTS { 1 - }
 reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter!insert	SELECT EXISTS { ANY 1 zzz - }
 reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter!swap	SELECT EXISTS { APPROX 1 - }
-reject	accept	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter	SELECT EXISTS { SHORTEST 1 - }
+accept	accept	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter	SELECT EXISTS { SHORTEST 1 - }
 reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter!truncate	SELECT EXISTS { SHORTEST
 reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter!insert	SELECT EXISTS { SHORTEST 1 zzz - }
 reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter!swap	SELECT EXISTS { SHOW 1 - }
-reject	accept	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter	SELECT EXISTS { CHEAPEST 1 - }
+accept	accept	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter	SELECT EXISTS { CHEAPEST 1 - }
 reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter!truncate	SELECT EXISTS { CHEAPEST
 reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter!insert	SELECT EXISTS { CHEAPEST 1 zzz - }
 reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter!swap	SELECT EXISTS { CHECK 1 - }
-reject	accept	engine	graph_search_prefix/ALL	SELECT EXISTS { ALL - }
+accept	accept	engine	graph_search_prefix/ALL	SELECT EXISTS { ALL - }
 reject	reject	engine	graph_search_prefix/ALL!insert	SELECT EXISTS { ALL zzz - }
 reject	reject	engine	graph_search_prefix/ALL!swap	SELECT EXISTS { ALTER - }
-reject	accept	engine	graph_search_prefix/ALL_SHORTEST	SELECT EXISTS { ALL SHORTEST - }
+accept	accept	engine	graph_search_prefix/ALL_SHORTEST	SELECT EXISTS { ALL SHORTEST - }
 reject	reject	engine	graph_search_prefix/ALL_SHORTEST!truncate	SELECT EXISTS { ALL
 reject	reject	engine	graph_search_prefix/ALL_SHORTEST!insert	SELECT EXISTS { ALL SHORTEST zzz - }
 reject	reject	engine	graph_search_prefix/ALL_SHORTEST!swap	SELECT EXISTS { ALTER SHORTEST - }
-reject	accept	engine	graph_search_prefix/ALL_CHEAPEST	SELECT EXISTS { ALL CHEAPEST - }
+accept	accept	engine	graph_search_prefix/ALL_CHEAPEST	SELECT EXISTS { ALL CHEAPEST - }
 reject	reject	engine	graph_search_prefix/ALL_CHEAPEST!insert	SELECT EXISTS { ALL CHEAPEST zzz - }
 reject	reject	engine	graph_search_prefix/ALL_CHEAPEST!swap	SELECT EXISTS { ALTER CHEAPEST - }
-reject	accept	engine	graph_path_mode/WALK	SELECT EXISTS { WALK - }
+accept	accept	engine	graph_path_mode/WALK	SELECT EXISTS { WALK - }
 reject	reject	engine	graph_path_mode/WALK!insert	SELECT EXISTS { WALK zzz - }
 reject	reject	engine	graph_path_mode/WALK!swap	SELECT EXISTS { WEIGHT - }
-reject	accept	engine	graph_path_mode/TRAIL	SELECT EXISTS { TRAIL - }
+accept	accept	engine	graph_path_mode/TRAIL	SELECT EXISTS { TRAIL - }
 reject	reject	engine	graph_path_mode/TRAIL!insert	SELECT EXISTS { TRAIL zzz - }
 reject	reject	engine	graph_path_mode/TRAIL!swap	SELECT EXISTS { TRANSACTION - }
-reject	accept	engine	graph_path_mode/SIMPLE	SELECT EXISTS { SIMPLE - }
+accept	accept	engine	graph_path_mode/SIMPLE	SELECT EXISTS { SIMPLE - }
 reject	reject	engine	graph_path_mode/SIMPLE!insert	SELECT EXISTS { SIMPLE zzz - }
 reject	reject	engine	graph_path_mode/SIMPLE!swap	SELECT EXISTS { SKIP - }
-reject	accept	engine	graph_path_mode/ACYCLIC	SELECT EXISTS { ACYCLIC - }
+accept	accept	engine	graph_path_mode/ACYCLIC	SELECT EXISTS { ACYCLIC - }
 reject	reject	engine	graph_path_mode/ACYCLIC!insert	SELECT EXISTS { ACYCLIC zzz - }
 reject	reject	engine	graph_path_mode/ACYCLIC!swap	SELECT EXISTS { ADD - }
-reject	accept	engine	graph_path_pattern/(graph_identifier_=)?_(graph_search_prefix)?_(graph_pat~3d1bd128	SELECT EXISTS { - }
-reject	accept	engine	graph_path_pattern(graph_identifier_=)?/%empty	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern/(graph_identifier_=)?_(graph_search_prefix)?_(graph_pat~3d1bd128	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern(graph_identifier_=)?/%empty	SELECT EXISTS { - }
 reject	reject	engine	graph_path_pattern(graph_identifier_=)?/%empty!insert	SELECT EXISTS { zzz - }
-reject	accept	engine	graph_path_pattern(graph_identifier_=)?/graph_identifier_=	SELECT EXISTS { a = - }
+accept	accept	engine	graph_path_pattern(graph_identifier_=)?/graph_identifier_=	SELECT EXISTS { a = - }
 reject	reject	engine	graph_path_pattern(graph_identifier_=)?/graph_identifier_=!drop-1	SELECT EXISTS { = - }
 reject	reject	engine	graph_path_pattern(graph_identifier_=)?/graph_identifier_=!truncate	SELECT EXISTS { a
 reject	reject	engine	graph_path_pattern(graph_identifier_=)?/graph_identifier_=!insert	SELECT EXISTS { a = zzz - }
-reject	accept	engine	graph_path_pattern(graph_search_prefix)?/%empty	SELECT EXISTS { - }
-reject	accept	engine	graph_path_pattern(graph_search_prefix)?/graph_search_prefix	SELECT EXISTS { ANY - }
-reject	accept	engine	graph_path_pattern(graph_path_mode)?/%empty	SELECT EXISTS { - }
-reject	accept	engine	graph_path_pattern(graph_path_mode)?/graph_path_mode	SELECT EXISTS { WALK - }
-reject	accept	engine	graph_path_pattern(PATH|PATHS)?/%empty	SELECT EXISTS { - }
-reject	accept	engine	graph_path_pattern(PATH|PATHS)?/PATH	SELECT EXISTS { PATH - }
+accept	accept	engine	graph_path_pattern(graph_search_prefix)?/%empty	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern(graph_search_prefix)?/graph_search_prefix	SELECT EXISTS { ANY - }
+accept	accept	engine	graph_path_pattern(graph_path_mode)?/%empty	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern(graph_path_mode)?/graph_path_mode	SELECT EXISTS { WALK - }
+accept	accept	engine	graph_path_pattern(PATH|PATHS)?/%empty	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern(PATH|PATHS)?/PATH	SELECT EXISTS { PATH - }
 reject	reject	engine	graph_path_pattern(PATH|PATHS)?/PATH!insert	SELECT EXISTS { PATH zzz - }
-reject	accept	engine	graph_path_pattern(PATH|PATHS)?/PATHS	SELECT EXISTS { PATHS - }
+accept	accept	engine	graph_path_pattern(PATH|PATHS)?/PATHS	SELECT EXISTS { PATHS - }
 reject	reject	engine	graph_path_pattern(PATH|PATHS)?/PATHS!insert	SELECT EXISTS { PATHS zzz - }
 reject	reject	engine	graph_path_pattern(PATH|PATHS)?/PATHS!swap	SELECT EXISTS { PATTERN - }
-reject	accept	engine	graph_path_pattern_expr/graph_path_factor	SELECT EXISTS { - }
-reject	accept	engine	graph_path_pattern_expr/graph_path_pattern_expr_(hint)?_graph_path_factor	SELECT EXISTS { - - }
+accept	accept	engine	graph_path_pattern_expr/graph_path_factor	SELECT EXISTS { - }
+accept	accept	engine	graph_path_pattern_expr/graph_path_pattern_expr_(hint)?_graph_path_factor	SELECT EXISTS { - - }
 reject	reject	engine	graph_path_pattern_expr/graph_path_pattern_expr_(hint)?_graph_path_factor!insert	SELECT EXISTS { - - zzz }
-reject	accept	engine	graph_path_pattern_expr(hint)?/%empty	SELECT EXISTS { - - }
+accept	accept	engine	graph_path_pattern_expr(hint)?/%empty	SELECT EXISTS { - - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/%empty!insert	SELECT EXISTS { - zzz - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint	SELECT EXISTS { -@1 - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!drop-1	SELECT EXISTS { - 1 - }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!drop-2	SELECT EXISTS { -@- }
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!truncate	SELECT EXISTS { -@
 reject	reject	engine	graph_path_pattern_expr(hint)?/hint!insert	SELECT EXISTS { -@1 zzz - }
-reject	accept	engine	graph_path_factor/graph_path_primary	SELECT EXISTS { - }
-reject	accept	engine	graph_path_factor/graph_quantified_path_primary	SELECT EXISTS { - * }
+accept	accept	engine	graph_path_factor/graph_path_primary	SELECT EXISTS { - }
+accept	accept	engine	graph_path_factor/graph_quantified_path_primary	SELECT EXISTS { - * }
 reject	reject	engine	graph_path_factor/graph_quantified_path_primary!drop-1	SELECT EXISTS { * }
-reject	accept	engine	graph_path_primary/graph_element_pattern	SELECT EXISTS { - }
-reject	accept	engine	graph_path_primary/graph_parenthesized_path_pattern	SELECT EXISTS {(-) }
+accept	accept	engine	graph_path_primary/graph_element_pattern	SELECT EXISTS { - }
+accept	accept	engine	graph_path_primary/graph_parenthesized_path_pattern	SELECT EXISTS {(-) }
 reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!drop-1	SELECT EXISTS { -) }
 reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!drop-3	SELECT EXISTS {(- }
 reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!truncate	SELECT EXISTS {(-
 reject	reject	engine	graph_path_primary/graph_parenthesized_path_pattern!insert	SELECT EXISTS {(-) zzz }
-reject	accept	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)	SELECT EXISTS {(-) }
-reject	accept	engine	graph_parenthesized_path_pattern(hint)?/%empty	SELECT EXISTS {(-) }
+accept	accept	engine	graph_parenthesized_path_pattern/(_(hint)?_graph_path_pattern_opt_where_clause_)	SELECT EXISTS {(-) }
+accept	accept	engine	graph_parenthesized_path_pattern(hint)?/%empty	SELECT EXISTS {(-) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/%empty!insert	SELECT EXISTS {(zzz -) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint	SELECT EXISTS {(@1 -) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!drop-1	SELECT EXISTS {(1 -) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!drop-2	SELECT EXISTS {(@-) }
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!truncate	SELECT EXISTS {(@
 reject	reject	engine	graph_parenthesized_path_pattern(hint)?/hint!insert	SELECT EXISTS {(@1 zzz -) }
-reject	accept	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}	SELECT EXISTS { - {, } }
+accept	accept	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}	SELECT EXISTS { - {, } }
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!drop-1	SELECT EXISTS { -, } }
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!drop-2	SELECT EXISTS { - { } }
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!drop-3	SELECT EXISTS { - {, }
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!truncate	SELECT EXISTS { - {,
 reject	reject	engine	graph_quantifier/{_opt_int_literal_or_parameter_,_opt_int_literal_or_parameter_}!insert	SELECT EXISTS { - {, } zzz }
-reject	accept	engine	graph_quantifier/{_int_literal_or_parameter_}	SELECT EXISTS { - { 1 } }
+accept	accept	engine	graph_quantifier/{_int_literal_or_parameter_}	SELECT EXISTS { - { 1 } }
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!drop-1	SELECT EXISTS { - 1 } }
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!drop-3	SELECT EXISTS { - { 1 }
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!truncate	SELECT EXISTS { - { 1
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!insert	SELECT EXISTS { - { 1 } zzz }
-reject	accept	engine	graph_quantifier/plus_or_star_quantifier	SELECT EXISTS { - * }
-reject	accept	engine	graph_quantified_path_primary/graph_path_primary_graph_quantifier	SELECT EXISTS { - * }
-reject	accept	engine	graph_element_pattern/graph_node_pattern	SELECT EXISTS {() }
+accept	accept	engine	graph_quantifier/plus_or_star_quantifier	SELECT EXISTS { - * }
+accept	accept	engine	graph_quantified_path_primary/graph_path_primary_graph_quantifier	SELECT EXISTS { - * }
+accept	accept	engine	graph_element_pattern/graph_node_pattern	SELECT EXISTS {() }
 reject	reject	engine	graph_element_pattern/graph_node_pattern!drop-1	SELECT EXISTS {) }
 reject	reject	engine	graph_element_pattern/graph_node_pattern!drop-2	SELECT EXISTS {(}
 reject	reject	engine	graph_element_pattern/graph_node_pattern!truncate	SELECT EXISTS {(
 reject	reject	engine	graph_element_pattern/graph_node_pattern!insert	SELECT EXISTS {() zzz }
-reject	accept	engine	graph_element_pattern/graph_edge_pattern	SELECT EXISTS { - }
-reject	accept	engine	graph_identifier/token_identifier	SELECT EXISTS { a = - }
+accept	accept	engine	graph_element_pattern/graph_edge_pattern	SELECT EXISTS { - }
+accept	accept	engine	graph_identifier/token_identifier	SELECT EXISTS { a = - }
 reject	reject	engine	graph_identifier/token_identifier!insert	SELECT EXISTS { a zzz = - }
-reject	accept	engine	graph_identifier/common_keyword_as_identifier	SELECT EXISTS { ABORT = - }
+accept	accept	engine	graph_identifier/common_keyword_as_identifier	SELECT EXISTS { ABORT = - }
 reject	reject	engine	graph_identifier/common_keyword_as_identifier!insert	SELECT EXISTS { ABORT zzz = - }
-reject	accept	engine	graph_identifier/common_keyword_as_identifier!swap	SELECT EXISTS { ACCESS = - }
-reject	accept	engine	opt_graph_element_identifier/graph_identifier	SELECT EXISTS {(a) }
+accept	accept	engine	graph_identifier/common_keyword_as_identifier!swap	SELECT EXISTS { ACCESS = - }
+accept	accept	engine	opt_graph_element_identifier/graph_identifier	SELECT EXISTS {(a) }
 reject	reject	engine	opt_graph_element_identifier/graph_identifier!insert	SELECT EXISTS {(a zzz) }
-reject	accept	engine	opt_graph_element_identifier/%empty	SELECT EXISTS {() }
-reject	accept	engine	opt_graph_element_identifier/%empty!insert	SELECT EXISTS {(zzz) }
+accept	accept	engine	opt_graph_element_identifier/%empty	SELECT EXISTS {() }
+accept	accept	engine	opt_graph_element_identifier/%empty!insert	SELECT EXISTS {(zzz) }
 reject	reject	engine	opt_graph_cost/COST_expression	SELECT EXISTS {(COST NULL) }
 reject	reject	engine	opt_graph_cost/COST_expression!drop-1	SELECT EXISTS {(NULL) }
-reject	accept	engine	opt_graph_cost/COST_expression!drop-2	SELECT EXISTS {(COST) }
+accept	accept	engine	opt_graph_cost/COST_expression!drop-2	SELECT EXISTS {(COST) }
 reject	reject	engine	opt_graph_cost/COST_expression!truncate	SELECT EXISTS {(COST
 reject	reject	engine	opt_graph_cost/COST_expression!insert	SELECT EXISTS {(COST NULL zzz) }
 reject	reject	engine	opt_graph_cost/COST_expression!swap	SELECT EXISTS {(CREATE NULL) }
-reject	accept	engine	opt_graph_cost/%empty	SELECT EXISTS {() }
-reject	accept	engine	graph_element_pattern_filler/(hint)?_opt_graph_element_identifier_(is_label_expressi~50940022	SELECT EXISTS {() }
-reject	accept	engine	graph_element_pattern_filler(hint)?/%empty	SELECT EXISTS {() }
-reject	accept	engine	graph_element_pattern_filler(hint)?/hint	SELECT EXISTS {(@1) }
+accept	accept	engine	opt_graph_cost/%empty	SELECT EXISTS {() }
+accept	accept	engine	graph_element_pattern_filler/(hint)?_opt_graph_element_identifier_(is_label_expressi~50940022	SELECT EXISTS {() }
+accept	accept	engine	graph_element_pattern_filler(hint)?/%empty	SELECT EXISTS {() }
+accept	accept	engine	graph_element_pattern_filler(hint)?/hint	SELECT EXISTS {(@1) }
 reject	reject	engine	graph_element_pattern_filler(hint)?/hint!drop-1	SELECT EXISTS {(1) }
 reject	reject	engine	graph_element_pattern_filler(hint)?/hint!drop-2	SELECT EXISTS {(@) }
-reject	accept	engine	graph_element_pattern_filler(hint)?/hint!insert	SELECT EXISTS {(@1 zzz) }
-reject	accept	engine	graph_element_pattern_filler(is_label_expression)?/%empty	SELECT EXISTS {() }
-reject	accept	engine	graph_element_pattern_filler(is_label_expression)?/is_label_expression	SELECT EXISTS {(IS a) }
+accept	accept	engine	graph_element_pattern_filler(hint)?/hint!insert	SELECT EXISTS {(@1 zzz) }
+accept	accept	engine	graph_element_pattern_filler(is_label_expression)?/%empty	SELECT EXISTS {() }
+accept	accept	engine	graph_element_pattern_filler(is_label_expression)?/is_label_expression	SELECT EXISTS {(IS a) }
 reject	reject	engine	graph_element_pattern_filler(is_label_expression)?/is_label_expression!drop-2	SELECT EXISTS {(IS) }
 reject	reject	engine	graph_element_pattern_filler(is_label_expression)?/is_label_expression!truncate	SELECT EXISTS {(IS
 reject	reject	engine	graph_element_pattern_filler(is_label_expression)?/is_label_expression!insert	SELECT EXISTS {(IS a zzz) }
 reject	reject	engine	graph_element_pattern_filler(is_label_expression)?/is_label_expression!swap	SELECT EXISTS {(ISOLATION a) }
-reject	accept	engine	graph_property_specification/graph_property_specification_prefix_}	SELECT EXISTS {({ a : NULL }) }
+accept	accept	engine	graph_property_specification/graph_property_specification_prefix_}	SELECT EXISTS {({ a : NULL }) }
 reject	reject	engine	graph_property_specification/graph_property_specification_prefix_}!drop-1	SELECT EXISTS {(a : NULL }) }
 reject	reject	engine	graph_property_specification/graph_property_specification_prefix_}!drop-2	SELECT EXISTS {({ : NULL }) }
 reject	reject	engine	graph_property_specification/graph_property_specification_prefix_}!drop-3	SELECT EXISTS {({ a NULL }) }
@@ -4972,12 +4972,12 @@ reject	reject	engine	graph_property_specification/graph_property_specification_p
 reject	reject	engine	graph_property_specification/graph_property_specification_prefix_}!truncate	SELECT EXISTS {({ a : NULL
 reject	reject	engine	graph_property_specification/graph_property_specification_prefix_}!insert	SELECT EXISTS {({ a : NULL } zzz) }
 reject	reject	engine	graph_property_specification/graph_property_specification_prefix_}!swap	SELECT EXISTS {({ a : NULLS }) }
-reject	accept	engine	opt_graph_property_specification/graph_property_specification	SELECT EXISTS {({ a : NULL }) }
-reject	accept	engine	opt_graph_property_specification/%empty	SELECT EXISTS {() }
-reject	accept	engine	graph_property_specification_prefix/{_graph_property_name_and_value	SELECT EXISTS {({ a : NULL }) }
+accept	accept	engine	opt_graph_property_specification/graph_property_specification	SELECT EXISTS {({ a : NULL }) }
+accept	accept	engine	opt_graph_property_specification/%empty	SELECT EXISTS {() }
+accept	accept	engine	graph_property_specification_prefix/{_graph_property_name_and_value	SELECT EXISTS {({ a : NULL }) }
 reject	reject	engine	graph_property_specification_prefix/{_graph_property_name_and_value!truncate	SELECT EXISTS {({ a :
 reject	reject	engine	graph_property_specification_prefix/{_graph_property_name_and_value!insert	SELECT EXISTS {({ a : NULL zzz }) }
-reject	accept	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691	SELECT EXISTS {({ a : NULL, a : NULL }) }
+accept	accept	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691	SELECT EXISTS {({ a : NULL, a : NULL }) }
 reject	reject	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691!drop-1	SELECT EXISTS {(a : NULL, a : NULL }) }
 reject	reject	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691!drop-2	SELECT EXISTS {({ : NULL, a : NULL }) }
 reject	reject	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691!drop-3	SELECT EXISTS {({ a NULL, a : NULL }) }
@@ -4989,8 +4989,8 @@ reject	reject	engine	graph_property_specification_prefix/graph_property_specific
 reject	reject	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691!truncate	SELECT EXISTS {({ a : NULL, a :
 reject	reject	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691!insert	SELECT EXISTS {({ a : NULL, a : NULL zzz }) }
 reject	reject	engine	graph_property_specification_prefix/graph_property_specification_prefix_,_graph_property_na~3910d691!swap	SELECT EXISTS {({ a : NULLS, a : NULL }) }
-reject	accept	engine	graph_property_name_and_value/identifier_COLON_expression	SELECT EXISTS {({ a : NULL }) }
-reject	accept	engine	graph_node_pattern/(_graph_element_pattern_filler_)	SELECT EXISTS {() }
+accept	accept	engine	graph_property_name_and_value/identifier_COLON_expression	SELECT EXISTS {({ a : NULL }) }
+accept	accept	engine	graph_node_pattern/(_graph_element_pattern_filler_)	SELECT EXISTS {() }
 reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_-	SELECT EXISTS { - [ ] - }
 reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_-!drop-1	SELECT EXISTS { [ ] - }
 reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_-!drop-2	SELECT EXISTS { - ] - }
@@ -5010,112 +5010,112 @@ reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_->!dr
 reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_->!drop-2	SELECT EXISTS { - ] -> }
 reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_->!drop-3	SELECT EXISTS { - [ -> }
 reject	reject	engine	graph_edge_pattern/-_[_graph_element_pattern_filler_]_->!insert	SELECT EXISTS { - [ ] -> zzz }
-reject	accept	engine	graph_edge_pattern/-	SELECT EXISTS { - }
+accept	accept	engine	graph_edge_pattern/-	SELECT EXISTS { - }
 reject	reject	engine	graph_edge_pattern/<_-	SELECT EXISTS { < - }
 reject	reject	engine	graph_edge_pattern/<_-!drop-2	SELECT EXISTS { < }
 reject	reject	engine	graph_edge_pattern/<_-!truncate	SELECT EXISTS { <
 reject	reject	engine	graph_edge_pattern/<_-!insert	SELECT EXISTS { < - zzz }
-reject	accept	engine	graph_edge_pattern/->	SELECT EXISTS { -> }
+accept	accept	engine	graph_edge_pattern/->	SELECT EXISTS { -> }
 reject	reject	engine	graph_edge_pattern/->!insert	SELECT EXISTS { -> zzz }
-reject	accept	engine	is_label_expression/(IS|COLON)_label_expression	SELECT EXISTS {(IS a) }
-reject	accept	engine	is_label_expression(IS|COLON)/IS	SELECT EXISTS {(IS a) }
+accept	accept	engine	is_label_expression/(IS|COLON)_label_expression	SELECT EXISTS {(IS a) }
+accept	accept	engine	is_label_expression(IS|COLON)/IS	SELECT EXISTS {(IS a) }
 reject	reject	engine	is_label_expression(IS|COLON)/IS!insert	SELECT EXISTS {(IS zzz a) }
-reject	accept	engine	is_label_expression(IS|COLON)/COLON	SELECT EXISTS {(: a) }
+accept	accept	engine	is_label_expression(IS|COLON)/COLON	SELECT EXISTS {(: a) }
 reject	reject	engine	is_label_expression(IS|COLON)/COLON!insert	SELECT EXISTS {(: zzz a) }
-reject	accept	engine	label_expression/label_primary	SELECT NULL IS LABELED a
+accept	accept	engine	label_expression/label_primary	SELECT NULL IS LABELED a
 reject	reject	engine	label_expression/label_primary!drop-1	SELECT NULL IS LABELED
-reject	accept	engine	label_expression/label_primary!insert	SELECT NULL IS LABELED a zzz
-reject	accept	engine	label_expression/label_expression_&_label_expression	SELECT NULL IS LABELED a & a
+accept	accept	engine	label_expression/label_primary!insert	SELECT NULL IS LABELED a zzz
+accept	accept	engine	label_expression/label_expression_&_label_expression	SELECT NULL IS LABELED a & a
 reject	reject	engine	label_expression/label_expression_&_label_expression!drop-1	SELECT NULL IS LABELED & a
-reject	accept	engine	label_expression/label_expression_&_label_expression!drop-2	SELECT NULL IS LABELED a a
+accept	accept	engine	label_expression/label_expression_&_label_expression!drop-2	SELECT NULL IS LABELED a a
 reject	reject	engine	label_expression/label_expression_&_label_expression!drop-3	SELECT NULL IS LABELED a &
-reject	accept	engine	label_expression/label_expression_&_label_expression!insert	SELECT NULL IS LABELED a & a zzz
-reject	accept	engine	label_expression/label_expression_|_label_expression	SELECT NULL IS LABELED a | a
+accept	accept	engine	label_expression/label_expression_&_label_expression!insert	SELECT NULL IS LABELED a & a zzz
+accept	accept	engine	label_expression/label_expression_|_label_expression	SELECT NULL IS LABELED a | a
 reject	reject	engine	label_expression/label_expression_|_label_expression!drop-1	SELECT NULL IS LABELED | a
 reject	reject	engine	label_expression/label_expression_|_label_expression!drop-3	SELECT NULL IS LABELED a |
-reject	accept	engine	label_expression/label_expression_|_label_expression!insert	SELECT NULL IS LABELED a | a zzz
-reject	accept	engine	label_expression/!_label_expression	SELECT NULL IS LABELED ! a
+accept	accept	engine	label_expression/label_expression_|_label_expression!insert	SELECT NULL IS LABELED a | a zzz
+accept	accept	engine	label_expression/!_label_expression	SELECT NULL IS LABELED ! a
 reject	reject	engine	label_expression/!_label_expression!drop-2	SELECT NULL IS LABELED !
-reject	accept	engine	label_expression/!_label_expression!insert	SELECT NULL IS LABELED ! a zzz
-reject	accept	engine	label_primary/identifier	SELECT NULL IS LABELED a
-reject	accept	engine	label_primary/%	SELECT NULL IS LABELED %
-reject	accept	engine	label_primary/%!insert	SELECT NULL IS LABELED % zzz
-reject	accept	engine	label_primary/parenthesized_label_expression	SELECT NULL IS LABELED(a)
+accept	accept	engine	label_expression/!_label_expression!insert	SELECT NULL IS LABELED ! a zzz
+accept	accept	engine	label_primary/identifier	SELECT NULL IS LABELED a
+accept	accept	engine	label_primary/%	SELECT NULL IS LABELED %
+accept	accept	engine	label_primary/%!insert	SELECT NULL IS LABELED % zzz
+accept	accept	engine	label_primary/parenthesized_label_expression	SELECT NULL IS LABELED(a)
 reject	reject	engine	label_primary/parenthesized_label_expression!drop-1	SELECT NULL IS LABELED a)
 reject	reject	engine	label_primary/parenthesized_label_expression!drop-2	SELECT NULL IS LABELED()
 reject	reject	engine	label_primary/parenthesized_label_expression!drop-3	SELECT NULL IS LABELED(a
-reject	accept	engine	label_primary/parenthesized_label_expression!insert	SELECT NULL IS LABELED(a) zzz
-reject	accept	engine	parenthesized_label_expression/(_label_expression_)	SELECT NULL IS LABELED(a)
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5	SELECT NULL IS SOURCE NULL
+accept	accept	engine	label_primary/parenthesized_label_expression!insert	SELECT NULL IS LABELED(a) zzz
+accept	accept	engine	parenthesized_label_expression/(_label_expression_)	SELECT NULL IS LABELED(a)
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5	SELECT NULL IS SOURCE NULL
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5!drop-1	SELECT IS SOURCE NULL
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5!drop-2	SELECT NULL SOURCE NULL
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5!drop-4	SELECT NULL IS SOURCE
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5!insert	SELECT NULL IS SOURCE NULL zzz
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5!insert	SELECT NULL IS SOURCE NULL zzz
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_source_endpoint_op~53c406b5!swap	SELECT NULLS IS SOURCE NULL
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95	SELECT NULL IS DESTINATION NULL
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95	SELECT NULL IS DESTINATION NULL
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95!drop-1	SELECT IS DESTINATION NULL
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95!drop-2	SELECT NULL DESTINATION NULL
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95!drop-4	SELECT NULL IS DESTINATION
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95!insert	SELECT NULL IS DESTINATION NULL zzz
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95!insert	SELECT NULL IS DESTINATION NULL zzz
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_edge_dest_endpoint_oper~50633e95!swap	SELECT NULLS IS DESTINATION NULL
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_is_labeled_operator_lab~4d7272b9	SELECT NULL IS LABELED a
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_is_labeled_operator_lab~4d7272b9	SELECT NULL IS LABELED a
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_is_labeled_operator_lab~4d7272b9!drop-1	SELECT IS LABELED a
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_is_labeled_operator_lab~4d7272b9!drop-2	SELECT NULL LABELED a
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_is_labeled_operator_lab~4d7272b9!drop-3	SELECT NULL IS a
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_is_labeled_operator_lab~4d7272b9!swap	SELECT NULLS IS LABELED a
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824	SELECT NULL IN { RETURN NULL }
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824	SELECT NULL IN { RETURN NULL }
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!drop-1	SELECT IN { RETURN NULL }
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!drop-2	SELECT NULL { RETURN NULL }
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!drop-3	SELECT NULL IN RETURN NULL }
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!drop-4	SELECT NULL IN { NULL }
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!drop-5	SELECT NULL IN { RETURN }
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!drop-6	SELECT NULL IN { RETURN NULL
-reject	accept	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!insert	SELECT NULL IN { RETURN NULL } zzz
+accept	accept	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!insert	SELECT NULL IN { RETURN NULL } zzz
 reject	reject	engine	graph_expression/expression_higher_prec_than_and_in_operator_braced_grap~0f6bc824!swap	SELECT NULLS IN { RETURN NULL }
-reject	accept	engine	edge_source_endpoint_operator/IS_SOURCE	SELECT NULL IS SOURCE NULL
+accept	accept	engine	edge_source_endpoint_operator/IS_SOURCE	SELECT NULL IS SOURCE NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE!truncate	SELECT NULL IS
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE!insert	SELECT NULL IS SOURCE zzz NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE!swap	SELECT NULL ISOLATION SOURCE NULL
-reject	accept	engine	edge_source_endpoint_operator/IS_SOURCE_OF	SELECT NULL IS SOURCE OF NULL
+accept	accept	engine	edge_source_endpoint_operator/IS_SOURCE_OF	SELECT NULL IS SOURCE OF NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE_OF!drop-1	SELECT NULL SOURCE OF NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE_OF!drop-2	SELECT NULL IS OF NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE_OF!insert	SELECT NULL IS SOURCE OF zzz NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_SOURCE_OF!swap	SELECT NULL ISOLATION SOURCE OF NULL
-reject	accept	engine	edge_source_endpoint_operator/IS_NOT_SOURCE	SELECT NULL IS NOT SOURCE NULL
+accept	accept	engine	edge_source_endpoint_operator/IS_NOT_SOURCE	SELECT NULL IS NOT SOURCE NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE!drop-1	SELECT NULL NOT SOURCE NULL
 accept	accept	engine	edge_source_endpoint_operator/IS_NOT_SOURCE!drop-3	SELECT NULL IS NOT NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE!truncate	SELECT NULL IS NOT
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE!insert	SELECT NULL IS NOT SOURCE zzz NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE!swap	SELECT NULL ISOLATION NOT SOURCE NULL
-reject	accept	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF	SELECT NULL IS NOT SOURCE OF NULL
+accept	accept	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF	SELECT NULL IS NOT SOURCE OF NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF!drop-1	SELECT NULL NOT SOURCE OF NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF!drop-3	SELECT NULL IS NOT OF NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF!truncate	SELECT NULL IS NOT SOURCE
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF!insert	SELECT NULL IS NOT SOURCE OF zzz NULL
 reject	reject	engine	edge_source_endpoint_operator/IS_NOT_SOURCE_OF!swap	SELECT NULL ISOLATION NOT SOURCE OF NULL
-reject	accept	engine	edge_dest_endpoint_operator/IS_DESTINATION	SELECT NULL IS DESTINATION NULL
+accept	accept	engine	edge_dest_endpoint_operator/IS_DESTINATION	SELECT NULL IS DESTINATION NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_DESTINATION!insert	SELECT NULL IS DESTINATION zzz NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_DESTINATION!swap	SELECT NULL ISOLATION DESTINATION NULL
-reject	accept	engine	edge_dest_endpoint_operator/IS_DESTINATION_OF	SELECT NULL IS DESTINATION OF NULL
+accept	accept	engine	edge_dest_endpoint_operator/IS_DESTINATION_OF	SELECT NULL IS DESTINATION OF NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_DESTINATION_OF!drop-1	SELECT NULL DESTINATION OF NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_DESTINATION_OF!insert	SELECT NULL IS DESTINATION OF zzz NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_DESTINATION_OF!swap	SELECT NULL ISOLATION DESTINATION OF NULL
-reject	accept	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION	SELECT NULL IS NOT DESTINATION NULL
+accept	accept	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION	SELECT NULL IS NOT DESTINATION NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION!drop-1	SELECT NULL NOT DESTINATION NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION!insert	SELECT NULL IS NOT DESTINATION zzz NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION!swap	SELECT NULL ISOLATION NOT DESTINATION NULL
-reject	accept	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION_OF	SELECT NULL IS NOT DESTINATION OF NULL
+accept	accept	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION_OF	SELECT NULL IS NOT DESTINATION OF NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION_OF!drop-1	SELECT NULL NOT DESTINATION OF NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION_OF!truncate	SELECT NULL IS NOT DESTINATION
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION_OF!insert	SELECT NULL IS NOT DESTINATION OF zzz NULL
 reject	reject	engine	edge_dest_endpoint_operator/IS_NOT_DESTINATION_OF!swap	SELECT NULL ISOLATION NOT DESTINATION OF NULL
-reject	accept	engine	is_labeled_operator/IS_LABELED	SELECT NULL IS LABELED a
-reject	accept	engine	is_labeled_operator/IS_LABELED!insert	SELECT NULL IS LABELED zzz a
+accept	accept	engine	is_labeled_operator/IS_LABELED	SELECT NULL IS LABELED a
+accept	accept	engine	is_labeled_operator/IS_LABELED!insert	SELECT NULL IS LABELED zzz a
 reject	reject	engine	is_labeled_operator/IS_LABELED!swap	SELECT NULL ISOLATION LABELED a
-reject	accept	engine	is_labeled_operator/IS_NOT_LABELED	SELECT NULL IS NOT LABELED a
+accept	accept	engine	is_labeled_operator/IS_NOT_LABELED	SELECT NULL IS NOT LABELED a
 reject	reject	engine	is_labeled_operator/IS_NOT_LABELED!drop-1	SELECT NULL NOT LABELED a
 reject	reject	engine	is_labeled_operator/IS_NOT_LABELED!drop-3	SELECT NULL IS NOT a
-reject	accept	engine	is_labeled_operator/IS_NOT_LABELED!insert	SELECT NULL IS NOT LABELED zzz a
+accept	accept	engine	is_labeled_operator/IS_NOT_LABELED!insert	SELECT NULL IS NOT LABELED zzz a
 reject	reject	engine	is_labeled_operator/IS_NOT_LABELED!swap	SELECT NULL ISOLATION NOT LABELED a
 reject	reject	engine	at_system_time/FOR_(SYSTEM_TIME|SYSTEM_TIME)_AS_OF_expression	FROM a FOR SYSTEM_TIME AS OF NULL
 reject	reject	engine	at_system_time(SYSTEM_TIME|SYSTEM_TIME)/SYSTEM_TIME	FROM a FOR SYSTEM TIME AS OF NULL
@@ -5321,13 +5321,13 @@ reject	reject	engine	opt_clauses_following_group_by(window_clause)?/window_claus
 reject	reject	engine	opt_clauses_following_group_by(window_clause)?/window_clause!swap	SELECT NULL WITH a AS a
 accept	accept	engine	opt_clauses_following_group_by(qualify_clause_reserved)?/%empty	SELECT NULL
 accept	reject	engine	opt_clauses_following_group_by(qualify_clause_reserved)?/qualify_clause_reserved	SELECT NULL QUALIFY NULL
-reject	accept	engine	opt_clauses_following_group_by(qualify_clause_reserved)?/qualify_clause_reserved!drop-2	SELECT NULL QUALIFY
+accept	accept	engine	opt_clauses_following_group_by(qualify_clause_reserved)?/qualify_clause_reserved!drop-2	SELECT NULL QUALIFY
 reject	reject	engine	opt_clauses_following_group_by(qualify_clause_reserved)?/qualify_clause_reserved!insert	SELECT NULL QUALIFY NULL zzz
 reject	reject	engine	opt_clauses_following_group_by(qualify_clause_reserved)?/qualify_clause_reserved!swap	SELECT NULL RAISE NULL
 accept	accept	engine	where_clause/WHERE_expression	|> WHERE NULL
-reject	accept	engine	opt_where_clause/(where_clause)?	TABLE a
-reject	accept	engine	opt_where_clause(where_clause)?/%empty	TABLE a
-reject	accept	engine	opt_where_clause(where_clause)?/where_clause	TABLE a WHERE NULL
+accept	accept	engine	opt_where_clause/(where_clause)?	TABLE a
+accept	accept	engine	opt_where_clause(where_clause)?/%empty	TABLE a
+accept	accept	engine	opt_where_clause(where_clause)?/where_clause	TABLE a WHERE NULL
 reject	reject	engine	opt_where_clause(where_clause)?/where_clause!drop-1	TABLE a NULL
 reject	reject	engine	opt_where_clause(where_clause)?/where_clause!drop-2	TABLE a WHERE
 reject	reject	engine	opt_where_clause(where_clause)?/where_clause!insert	TABLE a WHERE NULL zzz
@@ -5964,11 +5964,11 @@ accept	accept	engine	shift_operator/<<	SELECT NULL << NULL
 reject	reject	engine	shift_operator/<<!insert	SELECT NULL << zzz NULL
 accept	accept	engine	shift_operator/>>	SELECT NULL >> NULL
 reject	reject	engine	shift_operator/>>!insert	SELECT NULL >> zzz NULL
-reject	accept	engine	import_type/MODULE	IMPORT MODULE a
+accept	accept	engine	import_type/MODULE	IMPORT MODULE a
 reject	accept	engine	import_type/MODULE!truncate	IMPORT
 reject	accept	engine	import_type/MODULE!insert	IMPORT MODULE zzz a
 reject	accept	engine	import_type/MODULE!swap	IMPORT NAME a
-reject	accept	engine	import_type/PROTO	IMPORT PROTO a
+accept	accept	engine	import_type/PROTO	IMPORT PROTO a
 reject	accept	engine	import_type/PROTO!insert	IMPORT PROTO zzz a
 reject	accept	engine	import_type/PROTO!swap	IMPORT PUBLIC a
 reject	reject	engine	any_some_all/ANY	SELECT NULL LIKE ANY UNNEST(SELECT
@@ -6230,7 +6230,7 @@ reject	reject	engine	unparenthesized_expression_higher_prec_than_and/struct_cons
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/struct_constructor!drop-3	SELECT STRUCT(
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/struct_constructor!insert	SELECT STRUCT() zzz
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/struct_constructor!swap	SELECT SYSTEM()
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_subquery_with_keyword	SELECT EXISTS { - }
+accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_subquery_with_keyword	SELECT EXISTS { - }
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_[_expression_]	SELECT NULL [ NULL ]
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_[_expression_]!drop-2	SELECT NULL NULL ]
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/expression_higher_prec_than_and_[_expression_]!drop-3	SELECT NULL [ ]
@@ -6369,15 +6369,15 @@ accept	accept	engine	unparenthesized_expression_higher_prec_than_and/unary_opera
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/unary_operator_expression_higher_prec_than_and!drop-2	SELECT +
 accept	accept	engine	unparenthesized_expression_higher_prec_than_and/unary_operator_expression_higher_prec_than_and!insert	SELECT + NULL zzz
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and/unary_operator_expression_higher_prec_than_and!swap	SELECT + NULLS
-reject	accept	engine	unparenthesized_expression_higher_prec_than_and/graph_expression	SELECT NULL IS SOURCE NULL
+accept	accept	engine	unparenthesized_expression_higher_prec_than_and/graph_expression	SELECT NULL IS SOURCE NULL
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/%empty	SELECT NULL IN UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint	SELECT NULL IN@1 UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!drop-1	SELECT NULL IN 1 UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!drop-2	SELECT NULL IN@UNNEST(SELECT
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!truncate	SELECT NULL IN@
 reject	reject	engine	unparenthesized_expression_higher_prec_than_and(hint)?/hint!insert	SELECT NULL IN@1 zzz UNNEST(SELECT
-reject	accept	engine	path_expression/identifier	TABLE a
-reject	accept	engine	path_expression/path_expression_._identifier	TABLE a.a
+accept	accept	engine	path_expression/identifier	TABLE a
+accept	accept	engine	path_expression/path_expression_._identifier	TABLE a.a
 reject	reject	engine	path_expression/path_expression_._identifier!drop-1	TABLE.a
 reject	reject	engine	path_expression/path_expression_._identifier!drop-2	TABLE a a
 reject	reject	engine	path_expression/path_expression_._identifier!drop-3	TABLE a.
@@ -6943,7 +6943,7 @@ accept	accept	engine	replace_fields_arg/expression_AS_generalized_path_expressio
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_path_expression!truncate	SELECT REPLACE_FIELDS(NULL, NULL AS
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_path_expression!insert	SELECT REPLACE_FIELDS(NULL, NULL AS a zzz)
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_path_expression!swap	SELECT REPLACE_FIELDS(NULL, NULLS AS a)
-reject	accept	engine	replace_fields_arg/expression_AS_generalized_extension_path	SELECT REPLACE_FIELDS(NULL, NULL AS(a))
+accept	accept	engine	replace_fields_arg/expression_AS_generalized_extension_path	SELECT REPLACE_FIELDS(NULL, NULL AS(a))
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_extension_path!drop-1	SELECT REPLACE_FIELDS(NULL, AS(a))
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_extension_path!drop-2	SELECT REPLACE_FIELDS(NULL, NULL(a))
 reject	reject	engine	replace_fields_arg/expression_AS_generalized_extension_path!drop-3	SELECT REPLACE_FIELDS(NULL, NULL AS a))
@@ -7325,15 +7325,15 @@ reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesiz
 reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!drop-5	SELECT EXISTS(SELECT NULL
 accept	accept	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!insert	SELECT EXISTS(SELECT NULL) zzz
 reject	reject	engine	expression_subquery_with_keyword/EXISTS_(hint)?_parenthesized_query!swap	SELECT EXPLAIN(SELECT NULL)
-reject	accept	engine	expression_subquery_with_keyword/ARRAY_braced_graph_subquery	SELECT ARRAY { RETURN NULL }
+accept	accept	engine	expression_subquery_with_keyword/ARRAY_braced_graph_subquery	SELECT ARRAY { RETURN NULL }
 reject	reject	engine	expression_subquery_with_keyword/ARRAY_braced_graph_subquery!swap	SELECT AS { RETURN NULL }
-reject	accept	engine	expression_subquery_with_keyword/exists_graph_subquery	SELECT EXISTS { - }
-reject	accept	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery	SELECT VALUE { RETURN NULL }
+accept	accept	engine	expression_subquery_with_keyword/exists_graph_subquery	SELECT EXISTS { - }
+accept	accept	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery	SELECT VALUE { RETURN NULL }
 reject	reject	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!drop-2	SELECT VALUE RETURN NULL }
 reject	reject	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!drop-3	SELECT VALUE { NULL }
 reject	reject	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!drop-4	SELECT VALUE { RETURN }
 reject	reject	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!drop-5	SELECT VALUE { RETURN NULL
-reject	accept	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!insert	SELECT VALUE { RETURN NULL } zzz
+accept	accept	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!insert	SELECT VALUE { RETURN NULL } zzz
 reject	reject	engine	expression_subquery_with_keyword/VALUE_(hint)?_braced_graph_subquery!swap	SELECT VALUES { RETURN NULL }
 accept	accept	engine	expression_subquery_with_keyword(hint)?/%empty	SELECT EXISTS(SELECT NULL)
 reject	reject	engine	expression_subquery_with_keyword(hint)?/%empty!insert	SELECT EXISTS zzz(SELECT NULL)
@@ -7620,8 +7620,8 @@ accept	accept	engine	common_keyword_as_identifier/MAP	SELECT MAP
 accept	accept	engine	common_keyword_as_identifier/MAP!insert	SELECT MAP zzz
 accept	accept	engine	common_keyword_as_identifier/MATCH	SELECT MATCH
 accept	accept	engine	common_keyword_as_identifier/MATCH!insert	SELECT MATCH zzz
-reject	accept	engine	common_keyword_as_identifier/MATCH_RECOGNIZE	SELECT MATCH_RECOGNIZE
-reject	accept	engine	common_keyword_as_identifier/MATCH_RECOGNIZE!insert	SELECT MATCH_RECOGNIZE zzz
+accept	accept	engine	common_keyword_as_identifier/MATCH_RECOGNIZE	SELECT MATCH_RECOGNIZE
+accept	accept	engine	common_keyword_as_identifier/MATCH_RECOGNIZE!insert	SELECT MATCH_RECOGNIZE zzz
 accept	accept	engine	common_keyword_as_identifier/MATCHED	SELECT MATCHED
 accept	accept	engine	common_keyword_as_identifier/MATCHED!insert	SELECT MATCHED zzz
 accept	accept	engine	common_keyword_as_identifier/MATERIALIZED	SELECT MATERIALIZED
@@ -7653,8 +7653,8 @@ accept	accept	engine	common_keyword_as_identifier/NEXT!insert	SELECT NEXT zzz
 reject	reject	engine	common_keyword_as_identifier/NEXT!swap	SELECT NO
 accept	accept	engine	common_keyword_as_identifier/NODE	SELECT NODE
 accept	accept	engine	common_keyword_as_identifier/NODE!insert	SELECT NODE zzz
-reject	accept	engine	common_keyword_as_identifier/NOTHING	SELECT NOTHING
-reject	accept	engine	common_keyword_as_identifier/NOTHING!insert	SELECT NOTHING zzz
+accept	accept	engine	common_keyword_as_identifier/NOTHING	SELECT NOTHING
+accept	accept	engine	common_keyword_as_identifier/NOTHING!insert	SELECT NOTHING zzz
 accept	accept	engine	common_keyword_as_identifier/NUMERIC	SELECT NUMERIC
 accept	accept	engine	common_keyword_as_identifier/NUMERIC!insert	SELECT NUMERIC zzz
 reject	reject	engine	common_keyword_as_identifier/NUMERIC!swap	SELECT OF
@@ -7712,8 +7712,8 @@ accept	accept	engine	common_keyword_as_identifier/PROPERTY!insert	SELECT PROPERT
 reject	reject	engine	common_keyword_as_identifier/PROPERTY!swap	SELECT PROTO
 accept	accept	engine	common_keyword_as_identifier/PUBLIC	SELECT PUBLIC
 accept	accept	engine	common_keyword_as_identifier/PUBLIC!insert	SELECT PUBLIC zzz
-reject	accept	engine	common_keyword_as_identifier/QUALIFY	SELECT QUALIFY
-reject	accept	engine	common_keyword_as_identifier/QUALIFY!insert	SELECT QUALIFY zzz
+accept	accept	engine	common_keyword_as_identifier/QUALIFY	SELECT QUALIFY
+accept	accept	engine	common_keyword_as_identifier/QUALIFY!insert	SELECT QUALIFY zzz
 accept	accept	engine	common_keyword_as_identifier/RAISE	SELECT RAISE
 accept	accept	engine	common_keyword_as_identifier/RAISE!insert	SELECT RAISE zzz
 reject	reject	engine	common_keyword_as_identifier/RAISE!swap	SELECT RANGE
@@ -7736,8 +7736,8 @@ accept	accept	engine	common_keyword_as_identifier/REPEATABLE	SELECT REPEATABLE
 accept	accept	engine	common_keyword_as_identifier/REPEATABLE!insert	SELECT REPEATABLE zzz
 accept	accept	engine	common_keyword_as_identifier/REPLACE	SELECT REPLACE
 accept	accept	engine	common_keyword_as_identifier/REPLACE!insert	SELECT REPLACE zzz
-reject	accept	engine	common_keyword_as_identifier/REPLACE_FIELDS	SELECT REPLACE_FIELDS
-reject	accept	engine	common_keyword_as_identifier/REPLACE_FIELDS!insert	SELECT REPLACE_FIELDS zzz
+accept	accept	engine	common_keyword_as_identifier/REPLACE_FIELDS	SELECT REPLACE_FIELDS
+accept	accept	engine	common_keyword_as_identifier/REPLACE_FIELDS!insert	SELECT REPLACE_FIELDS zzz
 accept	accept	engine	common_keyword_as_identifier/REPLICA	SELECT REPLICA
 accept	accept	engine	common_keyword_as_identifier/REPLICA!insert	SELECT REPLICA zzz
 accept	accept	engine	common_keyword_as_identifier/REPORT	SELECT REPORT
@@ -7762,8 +7762,8 @@ accept	accept	engine	common_keyword_as_identifier/ROW!insert	SELECT ROW zzz
 reject	reject	engine	common_keyword_as_identifier/ROW!swap	SELECT ROWS
 accept	accept	engine	common_keyword_as_identifier/RUN	SELECT RUN
 accept	accept	engine	common_keyword_as_identifier/RUN!insert	SELECT RUN zzz
-reject	accept	engine	common_keyword_as_identifier/SAFE_CAST	SELECT SAFE_CAST
-reject	accept	engine	common_keyword_as_identifier/SAFE_CAST!insert	SELECT SAFE_CAST zzz
+accept	accept	engine	common_keyword_as_identifier/SAFE_CAST	SELECT SAFE_CAST
+accept	accept	engine	common_keyword_as_identifier/SAFE_CAST!insert	SELECT SAFE_CAST zzz
 accept	accept	engine	common_keyword_as_identifier/SCHEMA	SELECT SCHEMA
 accept	accept	engine	common_keyword_as_identifier/SCHEMA!insert	SELECT SCHEMA zzz
 accept	accept	engine	common_keyword_as_identifier/SEARCH	SELECT SEARCH
@@ -7776,8 +7776,8 @@ accept	accept	engine	common_keyword_as_identifier/SEQUENCE!insert	SELECT SEQUENC
 reject	reject	engine	common_keyword_as_identifier/SEQUENCE!swap	SELECT SET
 accept	accept	engine	common_keyword_as_identifier/SETS	SELECT SETS
 accept	accept	engine	common_keyword_as_identifier/SETS!insert	SELECT SETS zzz
-reject	accept	engine	common_keyword_as_identifier/SHORTEST	SELECT SHORTEST
-reject	accept	engine	common_keyword_as_identifier/SHORTEST!insert	SELECT SHORTEST zzz
+accept	accept	engine	common_keyword_as_identifier/SHORTEST	SELECT SHORTEST
+accept	accept	engine	common_keyword_as_identifier/SHORTEST!insert	SELECT SHORTEST zzz
 accept	accept	engine	common_keyword_as_identifier/SHOW	SELECT SHOW
 accept	accept	engine	common_keyword_as_identifier/SHOW!insert	SELECT SHOW zzz
 accept	accept	engine	common_keyword_as_identifier/SKIP	SELECT SKIP
@@ -7962,9 +7962,9 @@ reject	reject	engine	options_list(,_(options_entry))*/,_options_entry_(,_(option
 reject	reject	engine	options_list(,_(options_entry))*/,_options_entry_(,_(options_entry))*!insert	ANALYZE OPTIONS(a = PROTO, a = PROTO zzz)
 accept	reject	engine	options_list(,_(options_entry))*/,_options_entry_(,_(options_entry))*!swap	ANALYZE OPTIONS(a = PROTO, a = PUBLIC)
 accept	reject	engine	options_/OPTIONS_options_list	ANALYZE OPTIONS()
-reject	accept	engine	opt_options_list/(options_)?	MODULE a
-reject	accept	engine	opt_options_list(options_)?/%empty	MODULE a
-reject	accept	engine	opt_options_list(options_)?/options_	MODULE a OPTIONS()
+accept	accept	engine	opt_options_list/(options_)?	MODULE a
+accept	accept	engine	opt_options_list(options_)?/%empty	MODULE a
+accept	accept	engine	opt_options_list(options_)?/options_	MODULE a OPTIONS()
 reject	accept	engine	opt_options_list(options_)?/options_!drop-1	MODULE a()
 reject	accept	engine	opt_options_list(options_)?/options_!drop-2	MODULE a OPTIONS)
 reject	accept	engine	opt_options_list(options_)?/options_!drop-3	MODULE a OPTIONS(
@@ -8718,7 +8718,7 @@ reject	reject	engine	case_statement(else_clause)?/else_clause!insert	CASE WHEN N
 reject	reject	engine	case_statement(else_clause)?/else_clause!swap	CASE WHEN NULL THEN ELSEIF END CASE
 accept	accept	engine	begin_end_block/BEGIN_statement_list_(exception_handler)?_END	BEGIN END
 accept	accept	engine	begin_end_block(exception_handler)?/%empty	BEGIN END
-reject	accept	engine	begin_end_block(exception_handler)?/exception_handler	BEGIN EXCEPTION WHEN ERROR THEN END
+accept	accept	engine	begin_end_block(exception_handler)?/exception_handler	BEGIN EXCEPTION WHEN ERROR THEN END
 reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!drop-1	BEGIN WHEN ERROR THEN END
 reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!drop-2	BEGIN EXCEPTION ERROR THEN END
 reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!drop-3	BEGIN EXCEPTION WHEN THEN END
@@ -8726,7 +8726,7 @@ reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!drop-
 reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!truncate	BEGIN EXCEPTION WHEN ERROR
 reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!insert	BEGIN EXCEPTION WHEN ERROR THEN zzz END
 reject	accept	engine	begin_end_block(exception_handler)?/exception_handler!swap	BEGIN EXCLUDE WHEN ERROR THEN END
-reject	accept	engine	exception_handler/EXCEPTION_WHEN_ERROR_THEN_statement_list	BEGIN EXCEPTION WHEN ERROR THEN END
+accept	accept	engine	exception_handler/EXCEPTION_WHEN_ERROR_THEN_statement_list	BEGIN EXCEPTION WHEN ERROR THEN END
 accept	reject	engine	default_expression/DEFAULT_expression	DECLARE a a DEFAULT NULL
 reject	reject	engine	default_expression/DEFAULT_expression!drop-1	DECLARE a a NULL
 reject	reject	engine	default_expression/DEFAULT_expression!drop-2	DECLARE a a DEFAULT
@@ -9393,7 +9393,7 @@ accept	accept	engine	suite:graph-query	GRAPH g MATCH (a) RETURN a INTERSECT DIST
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (Person, Account)
 accept	accept	engine	suite:graph-query	CREATE OR REPLACE PROPERTY GRAPH g NODE TABLES (T)
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)
-accept	reject	engine	suite:graph-query	CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T)
+reject	reject	engine	suite:graph-query	CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T)
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (Person KEY (id), Account KEY (id)) EDGE TABLES (Owns KEY (person_id, account_id) SOURCE KEY (person_id) REFERENCES Person (id) DESTINATION KEY (account_id) REFERENCES Account (id))
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (T PROPERTIES ARE ALL COLUMNS EXCEPT (secret))
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (T LABEL L NO PROPERTIES)

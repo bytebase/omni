@@ -78,6 +78,10 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 	case p.isKeywordStr("HASH"):
 		clause.Type = nodes.PARTITION_HASH
 	case p.cur.Type == kwREFERENCE:
+		// The constraint is looked up against the table before Oracle asks
+		// for a missing column list (ORA-14655), so a table with none is the
+		// engine's to check, as enable_disable_clause's is.
+		p.createTableEngineCheck = true
 		return p.parseCreateTableReferencePartitioning(clause, hasColumns)
 	case p.isKeywordStr("SYSTEM"):
 		return p.parseCreateTableSystemPartitioning(clause)
@@ -107,6 +111,14 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 				return nil, err
 			}
 			clause.Interval = interval
+			// An interval takes STORE IN, which a range without one does
+			// not (ORA-00922 at STORE), and a log's does not either
+			// (ORA-12044 at STORE).
+			if p.isKeywordStr("STORE") && !p.createTablePartitionsOfLog {
+				if err := p.parseCreateTableStoreIn(); err != nil {
+					return nil, err
+				}
+			}
 		}
 	case nodes.PARTITION_LIST:
 		if p.cur.Type == kwAUTOMATIC {
@@ -213,6 +225,11 @@ func (p *Parser) parseCreateTableStoreIn() error {
 			break
 		}
 		p.advance() // consume ','
+		// Oracle takes a trailing comma before the closing parenthesis
+		// (STORE IN (a,)).
+		if p.cur.Type == ')' {
+			break
+		}
 	}
 	return p.expectCreateTableToken(')')
 }
@@ -842,14 +859,25 @@ func (p *Parser) parseCreateTableReferencePartitioning(clause *nodes.PartitionCl
 	if err := p.expectCreateTableToken('('); err != nil {
 		return nil, err
 	}
-	if !hasColumns {
-		return nil, p.syntaxErrorAtCur()
-	}
+	// The constraint is a foreign key of the table's column list, which
+	// Oracle looks up after the parse: PARTITION BY REFERENCE (a) on a
+	// table without a column list answers ORA-14655 at the name, as it does
+	// on one whose constraint is not there. Anything after the name is
+	// refused at the name there (ORA-00922, the byte the row of the bare
+	// form reads as the missing constraint's).
+	nameTok := p.cur
 	if err := p.parseCreateTableName(); err != nil {
 		return nil, err
 	}
 	if err := p.expectCreateTableToken(')'); err != nil {
 		return nil, err
+	}
+	if !hasColumns {
+		if !p.isStatementEnd() {
+			return nil, p.syntaxErrorAtTok(nameTok)
+		}
+		clause.Loc.End = p.prev.End
+		return clause, nil
 	}
 	if p.cur.Type == '(' {
 		if err := p.parseCreateTableDescribedPartitions(clause); err != nil {
@@ -896,6 +924,12 @@ func (p *Parser) parseCreateTableDescribedPartitions(clause *nodes.PartitionClau
 		p.advance() // consume PARTITION
 		def := &nodes.PartitionDef{Values: &nodes.List{}, Loc: nodes.Loc{Start: start}}
 		if p.isCreateTableNameStart() && !p.isCreateTableHashPartitionAttributeStart() {
+			def.Name = p.cur.Str
+			p.advance()
+		} else if (p.cur.Type == kwPARTITION || p.cur.Type == kwREAD || p.atWord("INNER") ||
+			p.atWord("ONLY") || p.atWord("NOCOPY")) && (p.peekNext().Type == ')' || p.peekNext().Type == ',') {
+			// Oracle reads one of these words as the partition's name when
+			// nothing follows it (compat.tsv's PARTITION INNER and kin rows).
 			def.Name = p.cur.Str
 			p.advance()
 		}

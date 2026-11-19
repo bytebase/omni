@@ -1951,3 +1951,14 @@ func (p *Parser) parseSelectRowPatternQuantifier(parts *[]string) error {
 func (p *Parser) isSelectPatternBound() bool {
 	return p.cur.Type == tokICONST || p.cur.Type == tokFCONST && !strings.ContainsAny(p.cur.Str, ".fFdD")
 }
+
+// naturalJoinAhead reports whether NATURAL starts a natural join here: the
+// words Oracle takes after it, JOIN, INNER, LEFT, RIGHT or FULL. A NATURAL
+// no join word follows is a table's alias (from t NATURAL).
+func (p *Parser) naturalJoinAhead() bool {
+	switch p.peekNext().Type {
+	case kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL:
+		return true
+	}
+	return false
+}

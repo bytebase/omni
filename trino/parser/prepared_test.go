@@ -169,7 +169,8 @@ func TestNestedPreparesStayLinear(t *testing.T) {
 		{"invalid body", prepares(n) + "SELECT 1 1", strings.Repeat(prepareInvalid, n) + "syntax error at or near 1"},
 		{"invalid subquery body", prepares(n) + "SELECT (SELECT 1 1)", strings.Repeat(prepareInvalid, n) + "syntax error at or near 1"},
 		{"EXPLAIN between", strings.Repeat("PREPARE p FROM EXPLAIN ", n/2) + "SELECT 1 1", strings.Repeat(prepareInvalid, n/2) + "syntax error at or near 1"},
-		{"stub body", prepares(n) + "CREATE FOO", ""},
+		{"stub body", prepares(n) + "DESCRIBE INPUT a", ""},
+		{"object keyword body", prepares(n) + "CREATE FOO", strings.Repeat(prepareInvalid, n) + "syntax error at or near FOO"},
 		// The bodies are trimmed of the space the lexer rejects: the
 		// statement fails with the lex errors alone.
 		{"trailing no-break space", prepares(n) + "SELECT 1  ", "unrecognized character"},

@@ -89,6 +89,18 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 		{"quantified-comparison subquery", "SELECT * FROM t WHERE x = ANY (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
 		{"quantified-comparison all subquery", "SELECT * FROM t WHERE x > ALL (SELECT id FROM u)", DialectSpanner, []string{"t", "u"}},
 		{"set op", "SELECT a FROM t UNION ALL SELECT a FROM u", DialectBigQuery, []string{"t", "u"}},
+		// The `TABLE t` query primary (table_clause_reserved) names its table, and a
+		// set operation over TABLE primaries names every arm's.
+		{"table clause", "TABLE t", DialectBigQuery, []string{"t"}},
+		{"table clause qualified", "TABLE ds.t", DialectBigQuery, []string{"ds.t"}},
+		{"table clause set op", "TABLE a UNION ALL TABLE b", DialectBigQuery, []string{"a", "b"}},
+		// A TABLE primary inside a parenthesized query or a FROM subquery.
+		{"parenthesized table clause", "SELECT * FROM (TABLE t)", DialectBigQuery, []string{"t"}},
+		{"table clause in an expression subquery", "SELECT (TABLE t)", DialectBigQuery, []string{"t"}},
+		// EXPORT TABLE METADATA reads the metadata of the table it names.
+		{"export table metadata", "EXPORT TABLE METADATA FROM ds.t", DialectBigQuery, []string{"ds.t"}},
+		// An OPTIONS value's subquery is filled, so the table it reads is recorded.
+		{"export table metadata options subquery", "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1 FROM secret))", DialectBigQuery, []string{"ds.t", "secret"}},
 		{"dedup same table", "SELECT * FROM t WHERE a IN (SELECT a FROM t)", DialectBigQuery, []string{"t"}},
 		// Spanner schema.table bucketing (named schema under one DB).
 		{"qualified table spanner", "SELECT a FROM myschema.t", DialectSpanner, []string{"myschema.t"}},
@@ -103,6 +115,50 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 			got := tableNames(span)
 			if !eqStrings(got, tc.wantTables) {
 				t.Errorf("GetQuerySpan(%q) tables = %v, want %v", tc.sql, got, tc.wantTables)
+			}
+		})
+	}
+}
+
+// TestGetQuerySpan_TableClauseTVFFailsClosed pins the one TABLE clause shape whose
+// projection cannot be resolved: a table-valued function's output columns are
+// unknowable without a signature, so the span fails closed rather than reporting
+// no columns at all (which a masking consumer would read as nothing to mask).
+func TestGetQuerySpan_TableClauseTVFFailsClosed(t *testing.T) {
+	for _, sql := range []string{"TABLE f()", "TABLE f(TABLE u)", "TABLE f(a => 1)"} {
+		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			t.Errorf("GetQuerySpan(%q): want a fail-closed error, got none", sql)
+		}
+	}
+	// The same clause as a pipe set operation's operand still records its table
+	// argument (it resolves no projection there either, and fails closed is the
+	// surrounding statement's business).
+	if got := ClassifySQL("TABLE f(TABLE u)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL = %v, want Select", got)
+	}
+}
+
+// TestGetQuerySpan_CallTableArguments records the tables a CALL's tvf_argument
+// list names: positionally (`TABLE t`) and as a named table_clause argument
+// (`arg => TABLE t`).
+func TestGetQuerySpan_CallTableArguments(t *testing.T) {
+	for _, c := range []struct {
+		sql  string
+		want []string
+	}{
+		{"CALL p(TABLE u)", []string{"u"}},
+		{"CALL p(a => TABLE u)", []string{"u"}},
+		{"CALL p(1, TABLE u, b => TABLE v)", []string{"u", "v"}},
+		{"CALL p(a => INPUT TABLE)", nil},
+		{"CALL p(INPUT TABLE)", nil},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
+			}
+			if got := tableNames(span); !eqStrings(got, c.want) {
+				t.Errorf("tables = %v, want %v", got, c.want)
 			}
 		})
 	}
@@ -450,6 +506,139 @@ func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_GraphPredicateOperandsAreColumns pins the counterpart: a
+// graph predicate used in an ordinary relational expression is a comparison of
+// two columns, so both operands resolve — as a select item's sources and as a
+// WHERE predicate's columns.
+func TestGetQuerySpan_GraphPredicateOperandsAreColumns(t *testing.T) {
+	span, err := GetQuerySpan("SELECT a IS SOURCE b FROM t", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	cols := []string{}
+	for _, r := range span.Results {
+		for _, src := range r.SourceColumns {
+			cols = append(cols, src.Column)
+		}
+	}
+	sort.Strings(cols)
+	if !eqStrings(cols, []string{"a", "b"}) {
+		t.Errorf("select-item sources = %v, want [a b]", cols)
+	}
+
+	span, err = GetQuerySpan("SELECT 1 FROM t WHERE a IS LABELED !x AND a IS DESTINATION OF b", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if got := predicateColumnNames(span); !eqStrings(got, []string{"a", "b"}) {
+		t.Errorf("PredicateColumns = %v, want [a b]", got)
+	}
+}
+
+// TestGetQuerySpan_GraphVariablesAreNotColumns pins the other half of a graph
+// subquery's span: its element, path, LET and FOR variables, and its RETURN
+// items, are graph-local names rather than relational columns, so none of them
+// leaks into the SELECT's source columns or predicate columns. A
+// column-collecting pass reports `t.n` for `SELECT EXISTS { MATCH (n) RETURN n }
+// FROM t` if the graph tree is walked with the caller's callbacks.
+func TestGetQuerySpan_GraphVariablesAreNotColumns(t *testing.T) {
+	cases := []struct {
+		sql       string
+		graphOnly []string // names the graph invents; none may surface as a column
+	}{
+		{"SELECT EXISTS { MATCH (n) RETURN n } FROM t", []string{"n"}},
+		{"SELECT EXISTS { MATCH (n:Person) WHERE n.id = 1 RETURN n } FROM t", []string{"n"}},
+		{"SELECT EXISTS { LET a = b RETURN a } FROM t", []string{"a", "b"}},
+		{"SELECT ARRAY { FOR x IN y RETURN x } FROM t", []string{"x", "y"}},
+		{"SELECT a FROM t WHERE EXISTS { MATCH (n) RETURN n }", []string{"n"}},
+		// A table argument's filter inside a graph CALL is still the graph's scope.
+		{"SELECT EXISTS { MATCH (n) CALL f(TABLE secret WHERE n.id > 0) RETURN 1 } FROM t", []string{"n"}},
+	}
+	for _, tc := range cases {
+		span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
+		}
+		for _, r := range span.Results {
+			for _, src := range r.SourceColumns {
+				for _, name := range tc.graphOnly {
+					if src.Column == name {
+						t.Errorf("GetQuerySpan(%q) result %q has source column %v, which is a graph-local name", tc.sql, r.Name, src)
+					}
+				}
+			}
+		}
+		for _, name := range predicateColumnNames(span) {
+			for _, graphName := range tc.graphOnly {
+				if name == graphName {
+					t.Errorf("GetQuerySpan(%q) PredicateColumns has %q, which is a graph-local name", tc.sql, name)
+				}
+			}
+		}
+	}
+}
+
+// TestGetQuerySpan_GraphSubqueryExpression pins what a graph subquery used as an
+// expression does to the span of an ordinary SELECT. The graph subquery is a leaf
+// for lineage, like a bare GQL statement (see TestGetQuerySpan_GQLEmptySpan):
+// the legacy accessTableListener walks table_path_expression positions only, and
+// a graph element pattern references labels, not tables — so a MATCH's patterns
+// and the graph's own name contribute no AccessTables. Everything else about the
+// SELECT still resolves: its FROM table is an access and its select list is the
+// projection.
+func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
+	cases := []struct {
+		sql     string
+		tables  []string
+		results int
+	}{
+		{"SELECT a, EXISTS { MATCH (n) RETURN n } FROM t", []string{"t"}, 2},
+		{"SELECT ARRAY { RETURN NULL }", nil, 1},
+		{"SELECT VALUE { RETURN NULL }", nil, 1},
+		{"SELECT NULL IN { RETURN NULL }", nil, 1},
+		{"SELECT a, EXISTS { MATCH (n:Person) WHERE n.id = 1 RETURN n } FROM t", []string{"t"}, 2},
+		// A scalar subquery inside a graph operator or pattern is still a read: the
+		// graph tree's expressions are walked even though its patterns name labels.
+		{"SELECT EXISTS { LET a = (SELECT MAX(x) FROM secret) RETURN a }", []string{"secret"}, 1},
+		{"SELECT EXISTS { MATCH (n) WHERE n.id IN (SELECT id FROM secret) RETURN n }", []string{"secret"}, 1},
+		// The IN form's graph subquery is walked like the others.
+		{"SELECT 1 IN { LET x = (SELECT id FROM secret) RETURN x }", []string{"secret"}, 1},
+		// So are a graph GROUP BY item, a TABLESAMPLE PARTITION BY expression and a
+		// property value.
+		{"SELECT EXISTS { RETURN 1 GROUP BY (SELECT id FROM secret) }", []string{"secret"}, 1},
+		{"SELECT EXISTS { TABLESAMPLE BERNOULLI(1 ROWS PARTITION BY (SELECT id FROM secret)) RETURN 1 }", []string{"secret"}, 1},
+		{"SELECT EXISTS { MATCH ({a: (SELECT id FROM secret)}) RETURN 1 }", []string{"secret"}, 1},
+		// A graph CALL's TVF table argument names a table the call reads, in both
+		// the positional and the named shape, and a filter on it still follows its
+		// own subqueries.
+		{"SELECT EXISTS { CALL f(TABLE secret) RETURN 1 }", []string{"secret"}, 1},
+		{"SELECT EXISTS { CALL f(t => TABLE secret) RETURN 1 }", []string{"secret"}, 1},
+		{"SELECT EXISTS { CALL f(TABLE secret WHERE (SELECT 1 FROM other) > 0) RETURN 1 }", []string{"other", "secret"}, 1},
+		// A table argument's PIVOT expression is walked too.
+		{"SELECT EXISTS { CALL f(TABLE g() PIVOT((SELECT id FROM secret) FOR x IN (1))) RETURN 1 }", []string{"secret"}, 1},
+		// A standalone graph predicate's operands are ordinary relational
+		// columns: neither names a table here.
+		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},
+	}
+	for _, tc := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			span, err := GetQuerySpan(tc.sql, dialect)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q, %v) error: %v", tc.sql, dialect, err)
+			}
+			if span.Type != Select {
+				t.Errorf("GetQuerySpan(%q, %v) Type = %v, want Select", tc.sql, dialect, span.Type)
+			}
+			if got := tableNames(span); !eqStrings(got, tc.tables) {
+				t.Errorf("GetQuerySpan(%q, %v) AccessTables = %v, want %v", tc.sql, dialect, got, tc.tables)
+			}
+			if len(span.Results) != tc.results {
+				t.Errorf("GetQuerySpan(%q, %v) Results = %v, want %d columns", tc.sql, dialect, resultNames(span), tc.results)
+			}
+		}
+	}
+}
+
 // TestGetQuerySpan_GQLEmptySpan pins the parser-gql query-span DISPOSITION
 // (finding F9): a GQL graph query (`GRAPH … MATCH … RETURN …`) yields an EMPTY
 // span — Type=Unknown, no AccessTables, no Results, no PredicateColumns. This is
@@ -664,4 +853,78 @@ func containsString(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// TestGetQuerySpan_TableClauseProjection holds the `TABLE t` query primary to
+// the explicit query it means: `SELECT * FROM t`. The clause's output carries
+// the same columns and lineage — including a CTE's resolved columns, which a
+// span that discarded the relation would lose.
+func TestGetQuerySpan_TableClauseProjection(t *testing.T) {
+	for _, c := range []struct{ clause, explicit string }{
+		{"TABLE t", "SELECT * FROM t"},
+		{"TABLE ds.t", "SELECT * FROM ds.t"},
+		{"TABLE t WHERE a > 1", "SELECT * FROM t WHERE a > 1"},
+		{"TABLE a UNION ALL TABLE b", "SELECT * FROM a UNION ALL SELECT * FROM b"},
+		{"WITH c AS (SELECT secret FROM t) TABLE c", "WITH c AS (SELECT secret FROM t) SELECT * FROM c"},
+	} {
+		t.Run(c.clause, func(t *testing.T) {
+			got, err := GetQuerySpan(c.clause, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.clause, err)
+			}
+			want, err := GetQuerySpan(c.explicit, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.explicit, err)
+			}
+			if !eqStrings(resultNames(got), resultNames(want)) {
+				t.Errorf("results = %v, want %v (as %q)", resultNames(got), resultNames(want), c.explicit)
+			}
+			for i := range got.Results {
+				if i >= len(want.Results) {
+					break
+				}
+				g, w := got.Results[i].SourceColumns, want.Results[i].SourceColumns
+				if len(g) != len(w) {
+					t.Errorf("result %d sources = %v, want %v", i, g, w)
+					continue
+				}
+				for j := range g {
+					if g[j] != w[j] {
+						t.Errorf("result %d source %d = %+v, want %+v", i, j, g[j], w[j])
+					}
+				}
+			}
+			if !eqStrings(tableNames(got), tableNames(want)) {
+				t.Errorf("tables = %v, want %v", tableNames(got), tableNames(want))
+			}
+			if !eqStrings(predicateColumnNames(got), predicateColumnNames(want)) {
+				t.Errorf("predicate columns = %v, want %v", predicateColumnNames(got), predicateColumnNames(want))
+			}
+		})
+	}
+}
+
+// TestGetQuerySpan_OptionSubqueries holds the statements whose OPTIONS (or AS OF)
+// expression the parser fills: a subquery there reads a table, so the span
+// records it even though the statement itself names no table.
+func TestGetQuerySpan_OptionSubqueries(t *testing.T) {
+	for _, c := range []struct {
+		sql string
+		raw []string
+	}{
+		{"IMPORT MODULE m OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"MODULE m OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"UNDROP SCHEMA s OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"UNDROP SCHEMA s FOR SYSTEM_TIME AS OF (SELECT MAX(t) FROM a)", []string{"a"}},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
+			}
+			if got := tableNames(span); !eqStrings(got, c.raw) {
+				t.Errorf("tables = %v, want %v", got, c.raw)
+			}
+		})
+	}
 }

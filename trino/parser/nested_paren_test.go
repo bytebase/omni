@@ -126,8 +126,8 @@ func TestRawBodyChainsStayLinear(t *testing.T) {
 // TestRawBodyChainsStayLinear and TestNestedPreparesStayLinear): every
 // error, in the order parsing each body's text again reported them. A body's
 // lex errors follow the errors of the bodies inside it; white space trimmed
-// from a body is the enclosing text's; a PREPARE body's errors are reported
-// as at their offset in the trimmed body.
+// from a body is the enclosing text's; a PREPARE body's error is reported at
+// the token it failed on, in the enclosing text, as Trino reports it.
 func TestInPlaceBodyErrors(t *testing.T) {
 	for _, tc := range []struct {
 		sql  string
@@ -162,16 +162,16 @@ func TestInPlaceBodyErrors(t *testing.T) {
 			{Position: 98, End: 156, Message: "subquery must contain exactly one query"},
 		}},
 		{"PREPARE q FROM PREPARE q FROM PREPARE q FROM TABLE s.t \"q\u0085", []ParseError{
-			{Position: 15, End: 22, Message: strings.Repeat(prepareInvalid, 3) + "syntax error at or near INVALID"},
+			{Position: 55, End: 57, Message: strings.Repeat(prepareInvalid, 3) + "syntax error at or near INVALID"},
 			{Position: 55, End: 59, Message: "unterminated quoted identifier"},
 		}},
 		{"PREPARE p FROM  PREPARE q FROM SELECT 1 1", []ParseError{
-			{Position: 15, End: 16, Message: strings.Repeat(prepareInvalid, 2) + "syntax error at or near 1"},
+			{Position: 41, End: 42, Message: strings.Repeat(prepareInvalid, 2) + "syntax error at or near 1"},
 			{Position: 15, End: 16, Message: "unrecognized character"},
 			{Position: 16, End: 17, Message: "unrecognized character"},
 		}},
 		{"PREPARE p FROM SELECT 'ab  ", []ParseError{
-			{Position: 15, End: 21, Message: prepareInvalid + "expected expression, found INVALID"},
+			{Position: 22, End: 25, Message: prepareInvalid + "expected expression, found INVALID"},
 			{Position: 22, End: 28, Message: "unterminated string literal"},
 		}},
 		{"PREPARE p FROM  /* c */ ", []ParseError{

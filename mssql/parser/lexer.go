@@ -23,6 +23,7 @@ const (
 	tokSYSVARIABLE              // @@system_variable
 	tokMONEY                    // money constant ($12.50, £10, €7)
 	tokPSEUDOCOL                // $-prefixed pseudo-column ($action, $IDENTITY, $PARTITION, ...)
+	tokILLEGAL                  // text T-SQL's lexer refuses, which no production takes
 
 	// Multi-character operators
 	tokNOTEQUAL   // <> or !=
@@ -1410,8 +1411,18 @@ func (l *Lexer) nextTokenInner() Token {
 		l.start = l.pos
 		ch = l.input[l.pos]
 
-		// Line comment: --
+		// Line comment: -- ... One that opens with ( * is no comment: SQL
+		// Server reads --(* as no comment at all (SELECT 1 --(* a *) is Msg
+		// 102 near '--(*', and --(* alone likewise), while --( *, --((*,
+		// --a(* and -- (* are comments, and a comment that opens otherwise
+		// may hold --(* later (SELECT 1 --x --(* a *) parses). ScriptDOM's
+		// lexer refuses the same four characters, so they are tokILLEGAL,
+		// which no production takes.
 		if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+			if strings.HasPrefix(l.input[l.pos:], "--(*") {
+				l.pos += 4
+				return Token{Type: tokILLEGAL, Str: "--(*", Loc: l.start}
+			}
 			l.skipLineComment()
 			continue
 		}

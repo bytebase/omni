@@ -137,6 +137,10 @@ const (
 	// ErrIncorrectTableDefinition is 1075 for a table that declares more than
 	// one AUTO_INCREMENT column (measured on TiDB v8.5.5, 2026-11-10).
 	ErrIncorrectTableDefinition = 1075
+
+	// ErrTableMustHaveColumns is 1113, which TiDB answers for a CREATE TABLE
+	// that lists no column at all (measured on v8.5.5, 2026-11-19).
+	ErrTableMustHaveColumns = 1113
 )
 
 var sqlStateMap = map[int]string{
@@ -197,6 +201,7 @@ var sqlStateMap = map[int]string{
 	ErrFunctionalIndexFunctionIsNotAllowed: "HY000",
 	ErrKeyColumnDoesNotExist:               "42000",
 	ErrIncorrectTableDefinition:            "42000",
+	ErrTableMustHaveColumns:                "42000",
 }
 
 func sqlState(code int) string {
@@ -244,6 +249,25 @@ func errNoDatabaseSelected() error {
 func errDupTable(name string) error {
 	return &Error{Code: ErrDupTable, SQLState: sqlState(ErrDupTable),
 		Message: fmt.Sprintf("Table '%s' already exists", name)}
+}
+
+// errTableMustHaveColumns is TiDB 1113 for a CREATE TABLE whose element list
+// holds no column. TiDB reads the definition while it prepares the statement,
+// so it answers this before it looks the name up: `CREATE TABLE a`, on a
+// database that already holds a table a, is 1113 rather than 1050 (read on
+// v8.5.5).
+func errTableMustHaveColumns() error {
+	return &Error{Code: ErrTableMustHaveColumns, SQLState: sqlState(ErrTableMustHaveColumns),
+		Message: "A table must have at least 1 column"}
+}
+
+// errStarNamesNoTable is TiDB 1051 for a view body's star that has no table to
+// expand: table is the qualifier the star wrote, empty for a bare `*`. TiDB
+// resolves the body before it looks the view's own name up, so
+// `CREATE VIEW a AS SELECT *` answers this even when a table a exists.
+func errStarNamesNoTable(table string) error {
+	return &Error{Code: ErrUnknownTable, SQLState: sqlState(ErrUnknownTable),
+		Message: fmt.Sprintf("Unknown table '%s'", table)}
 }
 
 // errDupTableQualified reports a CREATE collision the way TiDB v8.5.5 does,

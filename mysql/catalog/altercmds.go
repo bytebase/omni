@@ -165,8 +165,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 	leaves := alterFinalColumns(tbl, stmt.Commands)
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
-		// Single command carrying one table element: no rollback needed.
-		return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
+		if !alterCanHideColumn(stmt.Commands[0]) {
+			// Single command carrying one table element: no rollback needed.
+			return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
+		}
+		snapshot := cloneTable(tbl)
+		if err := c.execAlterCmd(db, tbl, stmt.Commands[0], leaves); err != nil {
+			return err
+		}
+		if !tableHasVisibleColumn(tbl) {
+			undoAlter(db, key, tbl, snapshot)
+			return errTableMustHaveColumns()
+		}
+		return nil
 	}
 
 	// Multi-command ALTER: MySQL treats this as atomic.
@@ -184,6 +195,12 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	// A table must keep a visible column, judged over the table the statement
+	// leaves (mysql:8.0.46).
+	if !tableHasVisibleColumn(tbl) {
+		undoAlter(db, origKey, tbl, snapshot)
+		return errTableMustHaveColumns()
+	}
 	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -191,6 +208,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// alterCanHideColumn reports whether a command can leave the table with a column
+// fewer visible ones.
+func alterCanHideColumn(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch cmd.Type {
+	case nodes.ATAlterColumnInvisible, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		return true
+	}
+	return false
 }
 
 // checkKeysOnFinalTable re-checks the keys a statement added once every command
@@ -300,6 +330,11 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 		}
 		for _, colDef := range alterColumnDefs(cmd) {
 			if err := validateColumnDisplayWidth(colDef); err != nil {
+				return err
+			}
+			// A bare NOW()-family DEFAULT the column's type cannot hold is
+			// 1067 here, with the other prepare-time answers.
+			if err := validateBareNowDefault(colDef); err != nil {
 				return err
 			}
 		}
@@ -514,11 +549,30 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
+	}
+	// SERIAL implies a unique key, as it does on the CREATE TABLE path.
+	if isSerial {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 
 	// Process column-level constraints that produce indexes/constraints.
@@ -765,6 +819,27 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
+	}
+
+	// SERIAL implies a unique key here too: a replacement keeps the keys the
+	// old definition had and adds the new one's, so MODIFY of a SERIAL column
+	// leaves two unique keys. Measured on mysql:8.0.46.
+	if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 
 	// Handle repositioning.
@@ -1278,7 +1353,10 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	return nil
 }
 
-// alterColumnVisibility toggles the INVISIBLE flag on a column.
+// alterColumnVisibility toggles the INVISIBLE flag on a column. Whether the
+// statement leaves a visible column is judged over the whole ALTER, once every
+// command has run: `ALTER COLUMN a SET INVISIBLE, ADD COLUMN b INT` is a table
+// MySQL takes (mysql:8.0.46).
 func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, invisible bool) error {
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
@@ -1346,6 +1424,18 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
+		// CREATE TABLE path; addSingleColumn and alterReplaceColumn both add
+		// its unique key. An explicit NULL
+		// modifier stays: mysql:8.0.46 stores `ADD a SERIAL NULL` as a
+		// nullable auto_increment column (IS_NULLABLE YES), unlike
+		// `INT NULL AUTO_INCREMENT`.
+		if strings.EqualFold(colDef.TypeName.Name, "serial") {
+			col.DataType = "bigint"
+			col.ColumnType = "bigint unsigned"
+			col.AutoIncrement = true
+			col.Nullable = false
+		}
 		if isNationalStringType(colDef.TypeName.Name) {
 			col.Charset = "utf8mb3"
 		}
@@ -1359,6 +1449,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 			}
+		}
+		// A string type with CHARACTER SET binary is the binary type: MySQL
+		// stores `ADD a CHAR BYTE` and `ADD a CHAR COLLATE BINARY` as
+		// `a` binary(1), measured on mysql:8.0.46.
+		if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			col = convertToBinaryType(col, colDef.TypeName)
 		}
 	}
 

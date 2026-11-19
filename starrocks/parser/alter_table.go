@@ -397,7 +397,7 @@ func (p *Parser) parsePartitionItemNoKeyword() (*ast.PartitionItem, error) {
 
 		case kwIN:
 			p.advance() // consume IN
-			inVals, endLoc, err := p.parseInPartitionValues()
+			inVals, endLoc, _, err := p.parseInPartitionValues()
 			if err != nil {
 				return nil, err
 			}

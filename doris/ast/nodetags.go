@@ -33,6 +33,12 @@ const (
 	// T_DropIndexStmt is the tag for *DropIndexStmt.
 	T_DropIndexStmt
 
+	// T_CreateInvertedIndexStmt is the tag for *CreateInvertedIndexStmt.
+	T_CreateInvertedIndexStmt
+
+	// T_DropInvertedIndexStmt is the tag for *DropInvertedIndexStmt.
+	T_DropInvertedIndexStmt
+
 	// T_BuildIndexStmt is the tag for *BuildIndexStmt.
 	T_BuildIndexStmt
 
@@ -504,6 +510,9 @@ const (
 	// T_BeginStmt is the tag for *BeginStmt.
 	T_BeginStmt
 
+	// T_StartTransactionStmt is the tag for *StartTransactionStmt.
+	T_StartTransactionStmt
+
 	// T_CommitStmt is the tag for *CommitStmt.
 	T_CommitStmt
 
@@ -642,6 +651,9 @@ const (
 	// T_CreateProcedureStmt is the tag for *CreateProcedureStmt.
 	T_CreateProcedureStmt
 
+	// T_AlterProcedureStmt is the tag for *AlterProcedureStmt.
+	T_AlterProcedureStmt
+
 	// T_CallProcedureStmt is the tag for *CallProcedureStmt.
 	T_CallProcedureStmt
 
@@ -656,6 +668,21 @@ const (
 
 	// T_DereferenceExpr is the tag for *DereferenceExpr (expr.field).
 	T_DereferenceExpr
+
+	// T_RefreshStmt is the tag for *RefreshStmt.
+	T_RefreshStmt
+
+	// T_AlterComputeGroupStmt is the tag for *AlterComputeGroupStmt.
+	T_AlterComputeGroupStmt
+
+	// T_AlterColocateGroupStmt is the tag for *AlterColocateGroupStmt.
+	T_AlterColocateGroupStmt
+
+	// T_DropCatalogRecycleBinStmt is the tag for *DropCatalogRecycleBinStmt.
+	T_DropCatalogRecycleBinStmt
+
+	// T_ReplayStmt is the tag for *ReplayStmt.
+	T_ReplayStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -673,6 +700,10 @@ func (t NodeTag) String() string {
 		return "CreateIndexStmt"
 	case T_DropIndexStmt:
 		return "DropIndexStmt"
+	case T_CreateInvertedIndexStmt:
+		return "CreateInvertedIndexStmt"
+	case T_DropInvertedIndexStmt:
+		return "DropInvertedIndexStmt"
 	case T_BuildIndexStmt:
 		return "BuildIndexStmt"
 	case T_CreateDatabaseStmt:
@@ -699,6 +730,16 @@ func (t NodeTag) String() string {
 		return "MatchExpr"
 	case T_DereferenceExpr:
 		return "DereferenceExpr"
+	case T_RefreshStmt:
+		return "RefreshStmt"
+	case T_AlterComputeGroupStmt:
+		return "AlterComputeGroupStmt"
+	case T_AlterColocateGroupStmt:
+		return "AlterColocateGroupStmt"
+	case T_DropCatalogRecycleBinStmt:
+		return "DropCatalogRecycleBinStmt"
+	case T_ReplayStmt:
+		return "ReplayStmt"
 	case T_IsExpr:
 		return "IsExpr"
 	case T_BetweenExpr:
@@ -965,6 +1006,8 @@ func (t NodeTag) String() string {
 		return "RevokeStmt"
 	case T_BeginStmt:
 		return "BeginStmt"
+	case T_StartTransactionStmt:
+		return "StartTransactionStmt"
 	case T_CommitStmt:
 		return "CommitStmt"
 	case T_RollbackStmt:
@@ -1053,6 +1096,8 @@ func (t NodeTag) String() string {
 		return "ProcedureParam"
 	case T_CreateProcedureStmt:
 		return "CreateProcedureStmt"
+	case T_AlterProcedureStmt:
+		return "AlterProcedureStmt"
 	case T_CallProcedureStmt:
 		return "CallProcedureStmt"
 	case T_DropProcedureStmt:

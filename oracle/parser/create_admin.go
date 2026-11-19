@@ -88,10 +88,13 @@ func (p *Parser) parseCreateSchemaStmt(start int) (*nodes.CreateSchemaStmt, erro
 		Loc:   nodes.Loc{Start: start},
 	}
 
-	// AUTHORIZATION schema_name
-	if p.isIdentLikeStr("AUTHORIZATION") {
-		p.advance() // consume AUTHORIZATION
+	// AUTHORIZATION schema_name. Oracle's reader requires the word: CREATE
+	// SCHEMA a CREATE TABLE a (a NUMBER) answers ORA-02420, a missing schema
+	// authorization clause, at the a.
+	if !p.isIdentLikeStr("AUTHORIZATION") {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume AUTHORIZATION
 	if p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.isIdentLike() {
 		stmt.SchemaName = p.cur.Str
 		p.advance()
@@ -310,10 +313,13 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 		}
 		var parseErr198 error
 		stmt.Name, parseErr198 = p.parseObjectName()
-		if parseErr198 !=
-			// CASCADE
-			nil {
+		if parseErr198 != nil {
 			return nil, parseErr198
+		}
+		// A user is required: DROP USER answers ORA-01935, a missing or
+		// invalid user name, at the end.
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		if p.cur.Type == kwCASCADE {
@@ -479,7 +485,7 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 				if err := p.expectWords("POINT"); err != nil {
 					return nil, err
 				}
-				return p.parseDropSimpleStmt(nodes.OBJECT_RESTORE_POINT, start)
+				return p.parseDropRestorePointStmt(start)
 			case "LOGICAL":
 				p.advance() // consume LOGICAL
 				if err := p.expectWords("PARTITION", "TRACKING"); err != nil {
@@ -948,8 +954,10 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 		p.advance()
 	}
 
-	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | NEIGHBOR PARTITIONS }:
-	// Oracle takes INMEMORY GRAPH without NEIGHBOR.
+	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | [ NEIGHBOR ] PARTITIONS }:
+	// Oracle takes INMEMORY GRAPH without NEIGHBOR, and PARTITIONS without it
+	// too (measured on the pinned server, where the page shows NEIGHBOR
+	// PARTITIONS alone).
 	if err := p.ixWord("ORGANIZATION"); err != nil {
 		return nil, err
 	}
@@ -968,6 +976,9 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 		if err := p.ixWord("PARTITIONS"); err != nil {
 			return nil, err
 		}
+		stmt.Organization = "NEIGHBOR_PARTITIONS"
+	case p.isKeywordStr("PARTITIONS"):
+		p.advance()
 		stmt.Organization = "NEIGHBOR_PARTITIONS"
 	default:
 		return nil, p.syntaxErrorAtCur()

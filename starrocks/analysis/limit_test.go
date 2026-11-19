@@ -298,6 +298,22 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 
 // The grammar puts INTO OUTFILE inside the query relation, before LIMIT, so a
 // set operation's cap goes before the export clause rather than after it.
+func TestRewriteResultLimitWithGroupedOutfile(t *testing.T) {
+	const statement = "WITH c AS (SELECT 1) (SELECT 1) INTO OUTFILE 's3://bucket/export/'"
+	const want = "WITH c AS (SELECT 1) (SELECT 1) LIMIT 10 INTO OUTFILE 's3://bucket/export/'"
+	if got := RewriteResultLimit(statement, 10); got != want {
+		t.Errorf("RewriteResultLimit = %q, want %q", got, want)
+	}
+}
+
+func TestRewriteResultLimitWithSetOpOutfile(t *testing.T) {
+	const statement = "WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2 INTO OUTFILE 's3://bucket/export/'"
+	const want = "WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2 LIMIT 10 INTO OUTFILE 's3://bucket/export/'"
+	if got := RewriteResultLimit(statement, 10); got != want {
+		t.Errorf("RewriteResultLimit = %q, want %q", got, want)
+	}
+}
+
 func TestRewriteResultLimitSetOpOutfile(t *testing.T) {
 	const statement = "SELECT 1 UNION SELECT 2 INTO OUTFILE 's3://bucket/export/'"
 	const want = "SELECT 1 UNION SELECT 2 LIMIT 10 INTO OUTFILE 's3://bucket/export/'"

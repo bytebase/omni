@@ -39,7 +39,7 @@ func TestResolveQuerySpanClassification(t *testing.T) {
 		// EXPLAIN defers to the statement it plans.
 		{"EXPLAIN SELECT * FROM users", QueryTypeSelect},
 		{"EXPLAIN INSERT INTO users (id) VALUES (1)", QueryTypeDML},
-		{"EXPLAIN DROP TABLE users", QueryTypeDDL},
+		{"EXPLAIN DELETE FROM users WHERE id = 1", QueryTypeDML},
 		// USE is Unknown so a permission check denies it rather than
 		// permitting it under the DDL grant.
 		{"USE db1", QueryTypeUnknown},
@@ -113,6 +113,11 @@ func TestResolveQuerySpanTables(t *testing.T) {
 			name:      "EXPLAIN VERBOSE exposes tables",
 			statement: "EXPLAIN VERBOSE SELECT id FROM t1 JOIN t2 ON t1.id = t2.id",
 			want:      []string{"testdb.t1", "testdb.t2"},
+		},
+		{
+			name:      "a submitted statement runs in the task database",
+			statement: "SUBMIT TASK other.job AS INSERT INTO dst SELECT * FROM src",
+			want:      []string{"other.src"},
 		},
 		{
 			name:      "subquery in WHERE",
@@ -366,6 +371,20 @@ func TestResolveQuerySpanFailsClosedOnLexError(t *testing.T) {
 		if span.Type != QueryTypeUnknown || len(span.SourceColumns) != 0 {
 			t.Errorf("ResolveQuerySpan(%q) = %+v, want an empty span", script, span)
 		}
+	}
+}
+
+// EXPLAIN answers with plan rows, not the planned query's projection.
+func TestResolveQuerySpanExplainHasNoResults(t *testing.T) {
+	span, err := ResolveQuerySpan("EXPLAIN SELECT secret AS exposed FROM t", ResolveOptions{DefaultDatabase: "db"})
+	if err != nil {
+		t.Fatalf("ResolveQuerySpan: %v", err)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("Results = %+v, want none", span.Results)
+	}
+	if len(span.SourceColumns) != 1 {
+		t.Errorf("SourceColumns = %+v, want db.t", span.SourceColumns)
 	}
 }
 

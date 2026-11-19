@@ -603,7 +603,13 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Object type: TABLE, INDEX, or CLUSTER
+	// Object type: TABLE, INDEX, or CLUSTER, which Oracle does not require.
+	// It reads ANALYZE's first word as the object's name when no keyword
+	// stands there, and answers ORA-01490, an invalid ANALYZE command, at
+	// the word its action starts with: ANALYZE a VALIDATE STRUCTURE at
+	// VALIDATE, and ANALYZE TABLES a VALIDATE STRUCTURE at the a its name
+	// leaves over.
+	named := true
 	switch p.cur.Type {
 	case kwTABLE:
 		stmt.ObjectType = nodes.OBJECT_TABLE
@@ -616,6 +622,7 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 		p.advance()
 	default:
 		stmt.ObjectType = nodes.OBJECT_TABLE
+		named = false
 	}
 	var parseErr1159 error
 
@@ -651,7 +658,11 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 		p.advance() // consume )
 	}
 
-	// Action clause
+	// Action clause. Without an object type Oracle names no action: the
+	// error is at the first word of it.
+	if !named {
+		return nil, p.syntaxErrorAtCur()
+	}
 	switch {
 	case p.isIdentLike() && p.cur.Str == "COMPUTE":
 		// COMPUTE STATISTICS
@@ -928,9 +939,12 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 		stmt.Tables = append(stmt.Tables, t)
 	}
 
-	// TO
+	// TO, or TOPLEVEL before SCN, TIMESTAMP or RESTORE POINT, which
+	// Oracle reads the same (compat.tsv's FLASHBACK TABLE a TOPLEVEL rows).
 	if p.cur.Type != kwTO {
-		return nil, p.syntaxErrorAtCur()
+		if !(p.atWord("TOPLEVEL") && (p.atNextWord("SCN") || p.atNextWord("TIMESTAMP") || p.atNextWord("RESTORE"))) {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	p.advance()
 
@@ -1157,10 +1171,13 @@ func (p *Parser) parseFlashbackDatabaseStmt() (nodes.StmtNode, error) {
 //	PURGE { TABLE [ schema. ] table
 //	      | INDEX [ schema. ] index
 //	      | TABLESPACE tablespace [ USER user ]
-//	      | TABLESPACE SET tablespace_set [ USER user ]
 //	      | RECYCLEBIN
 //	      | DBA_RECYCLEBIN
 //	      } ;
+//
+// USER names the schema whose objects in the tablespace are purged. Oracle
+// 23ai takes no TABLESPACE SET here, which the page lists: PURGE TABLESPACE
+// SET a answers ORA-00922 at a, where SET is the tablespace's name.
 func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume PURGE
@@ -1206,15 +1223,34 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 		if stmt.Name == nil || stmt.Name.Name == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
-	default:
-
-		if p.isIdentLike() {
-			ident := p.cur.Str
-			p.advance()
-			stmt.Name = &nodes.ObjectName{
-				Name: ident,
-				Loc:  nodes.Loc{Start: start, End: p.prev.End},
+		if p.cur.Type == kwUSER {
+			p.advance() // consume USER
+			// A user is an identifier: Oracle answers ORA-38304 for an
+			// unquoted reserved word (USER TABLE) and takes a quoted one.
+			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+				return nil, err
 			}
+			user, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if user == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.User = user
+		}
+	default:
+		// RECYCLEBIN or DBA_RECYCLEBIN, the only alternatives that name no
+		// object: Oracle's reader takes no other word there, and answers
+		// PURGE a with ORA-38302, an invalid PURGE option, at the a.
+		ident := p.cur.Str
+		if !p.isIdentLike() || !strings.EqualFold(ident, "RECYCLEBIN") && !strings.EqualFold(ident, "DBA_RECYCLEBIN") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		stmt.Name = &nodes.ObjectName{
+			Name: ident,
+			Loc:  nodes.Loc{Start: start, End: p.prev.End},
 		}
 	}
 	if stmt.Name == nil || stmt.Name.Name == "" {

@@ -192,6 +192,97 @@ func TestExplainRejectsDorisModifiers(t *testing.T) {
 	}
 }
 
+// TestExplainModifiersWithDesc: explainDesc (StarRocks.g4:2580) shares DESC
+// and DESCRIBE with descTableStatement, so both verbs take the same plan
+// modifiers EXPLAIN does.
+func TestExplainModifiersWithDesc(t *testing.T) {
+	for _, verb := range []string{"DESC", "DESCRIBE"} {
+		for _, modifier := range []string{"", "ANALYZE", "VERBOSE", "LOGICAL", "COSTS", "SCHEDULER"} {
+			sql := verb + " " + modifier + " SELECT 1 FROM t"
+			file, errs := parseForTest(sql)
+			if len(errs) != 0 {
+				t.Errorf("%s: unexpected errors: %v", sql, errs)
+				continue
+			}
+			n, ok := file.Stmts[0].(*ast.ExplainStmt)
+			if !ok {
+				t.Errorf("%s: got %T, want *ast.ExplainStmt", sql, file.Stmts[0])
+				continue
+			}
+			if n.Type != modifier {
+				t.Errorf("%s: Type = %q, want %q", sql, n.Type, modifier)
+			}
+		}
+	}
+}
+
+// StarRocks refuses ANALYZE over UPDATE and DELETE, while the plan-only
+// levels stay readable over them.
+func TestExplainAnalyzeRejectsUpdateAndDelete(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN ANALYZE UPDATE t SET c = 1",
+		"DESC ANALYZE DELETE FROM t",
+		"DESCRIBE ANALYZE UPDATE t SET c = 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+	for _, sql := range []string{
+		"EXPLAIN VERBOSE UPDATE t SET c = 1",
+		"DESC ANALYZE SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%q: unexpected errors: %v", sql, errs)
+		}
+	}
+}
+
+// explainDesc prefixes queryStatement, INSERT, UPDATE and DELETE only.
+func TestExplainRejectsNonQueryStatements(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN DROP TABLE t",
+		"EXPLAIN CACHE SELECT a FROM t",
+		"EXPLAIN SUBMIT TASK AS INSERT INTO t SELECT 1",
+		"EXPLAIN DROP TASK t",
+		"EXPLAIN ALTER LOAD FOR t",
+		"EXPLAIN UPDATE t SET a = 1 INTO OUTFILE 'x'",
+		"DESC DELETE FROM t INTO OUTFILE 'x'",
+		"EXPLAIN SELECT 1 INTO OUTFILE 'a' INTO OUTFILE 'b'",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
+// TestDescPlansDML: insertStatement, updateStatement and deleteStatement each
+// take explainDesc? (StarRocks.g4:1183,1201,1205).
+func TestDescPlansDML(t *testing.T) {
+	for _, sql := range []string{
+		"DESC INSERT a SELECT CURRENT_USER",
+		"DESCRIBE INSERT a SELECT CURRENT_USER",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected: insertStatement requires INTO or OVERWRITE", sql)
+		}
+	}
+	for _, sql := range []string{
+		"DESC INSERT INTO a SELECT CURRENT_USER",
+		"DESCRIBE UPDATE a SET a = CURRENT_USER",
+		"DESC DELETE FROM a",
+	} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Errorf("%s: unexpected errors: %v", sql, errs)
+			continue
+		}
+		if _, ok := file.Stmts[0].(*ast.ExplainStmt); !ok {
+			t.Errorf("%s: got %T, want *ast.ExplainStmt", sql, file.Stmts[0])
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // USE
 // ---------------------------------------------------------------------------

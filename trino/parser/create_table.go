@@ -85,6 +85,26 @@ func (p *Parser) createObjectKeyword() TokenKind {
 	return p.cur.Kind
 }
 
+// createObjectToken returns the token where a CREATE statement's object keyword
+// belongs: the token after CREATE, or after the optional `OR REPLACE` prefix.
+// Where that prefix is itself broken (`CREATE OR TABLE`) the token it returns is
+// the one that breaks it, the object slot Trino's parser stops at. It consumes
+// nothing.
+func (p *Parser) createObjectToken() Token {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // consume CREATE
+	if p.cur.Kind != kwOR {
+		return p.cur
+	}
+	p.advance() // consume OR
+	if p.cur.Kind != kwREPLACE {
+		return p.cur
+	}
+	p.advance() // consume REPLACE
+	return p.cur
+}
+
 // ---------------------------------------------------------------------------
 // Property list (shared across the DDL node)
 // ---------------------------------------------------------------------------
@@ -435,10 +455,12 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	// A list that was purely bare identifiers (no types) is only valid as CTAS
-	// aliases, which require AS — without AS it is an incomplete column
-	// definition (each column needs a type). Reject to match Trino.
+	// aliases, which require AS. Without one, the AS is what the statement is
+	// missing, and that is where the rejection belongs: Trino reports
+	// `CREATE TABLE t (a)` at the end of the statement ("Expecting: 'AS',
+	// 'COMMENT', 'WITH'").
 	if aliasOnly {
-		return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "expected column type in CREATE TABLE column definition"}
+		return nil, p.syntaxErrorAtCur()
 	}
 	for _, elem := range elements {
 		if elem.Column != nil && elem.Column.Type == nil {
@@ -465,9 +487,10 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 // any '(' was present.
 func (p *Parser) finishCreateTableAs(startOffset int, orReplace, ifNotExists bool, name *ast.QualifiedName, columnAliases []*ast.Identifier, aliasOnly, hadParen bool, comment *string, properties []*Property) (ast.Node, error) {
 	// If a paren list was present it must be alias-shaped (bare identifiers);
-	// a column-definition-shaped list (`a bigint`) before AS is a syntax error.
+	// a column-definition-shaped list (`a bigint`) before AS is a syntax error at
+	// the AS, where Trino reports it ("Expecting: 'COMMENT', 'WITH', <EOF>").
 	if hadParen && !aliasOnly {
-		return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "CREATE TABLE AS column list must be plain column aliases"}
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume AS
 

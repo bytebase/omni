@@ -110,11 +110,28 @@ func (p *Parser) parseExplainStmt() (ast.Node, error) {
 	explainTok := p.advance() // consume EXPLAIN
 	s := &ExplainStmt{Loc: ast.Loc{Start: explainTok.Loc.Start, End: explainTok.Loc.End}}
 
-	if _, ok := p.match(kwANALYZE); ok {
-		s.Analyze = true
+	if p.cur.Kind == kwANALYZE {
+		// Both readings are in the grammar — `EXPLAIN ('(' … ')')? statement` and
+		// `EXPLAIN ANALYZE VERBOSE? statement` — and Trino's prediction takes the
+		// second only when what follows ANALYZE parses as a statement: `EXPLAIN
+		// ANALYZE zzz` is EXPLAIN of the ANALYZE statement `ANALYZE zzz` (ANALYZE
+		// takes a qualifiedName), so the token after it is where Trino stops. So
+		// ANALYZE is consumed speculatively and kept only when a statement follows
+		// it past its first token.
+		cp := p.checkpoint()
+		p.advance() // consume ANALYZE
+		verbose := false
 		if _, ok := p.match(kwVERBOSE); ok {
-			s.Verbose = true
+			verbose = true
 		}
+		bodyStart := p.cur.Loc.Start
+		body, err := p.parseStmt()
+		if err == nil || errorPosition(err) != bodyStart {
+			s.Analyze = true
+			s.Verbose = verbose
+			return finishExplainStmt(s, p, body, err)
+		}
+		p.restore(cp)
 	} else if p.cur.Kind == int('(') {
 		// EXPLAIN ( option (, option)* ) — at least one option required.
 		if err := p.parseExplainOptions(s); err != nil {
@@ -123,14 +140,18 @@ func (p *Parser) parseExplainStmt() (ast.Node, error) {
 	}
 
 	stmt, err := p.parseStmt()
-	// Even when the inner statement errors — most importantly when it is a
-	// still-stubbed "not yet supported" form (SELECT/INSERT/CREATE before
-	// parser-select / dml / ddl land) — return the ExplainStmt node alongside
-	// the error. parseSingle records the error AND keeps the node, so Diagnose
-	// reports the inner gap while downstream consumers still see an EXPLAIN node
-	// (and the result is classifiable as pending-inner rather than a hard
-	// rejection of EXPLAIN's own grammar). Once the inner node lands the error
-	// disappears and the same EXPLAIN parse becomes clean.
+	return finishExplainStmt(s, p, stmt, err)
+}
+
+// finishExplainStmt records the explained statement stmt, and its error, in s
+// and returns the node. Even when the inner statement errors — most
+// importantly when it is a "not yet supported" stub — the ExplainStmt node
+// comes back alongside the error: parseSingle records the error AND keeps the
+// node, so Diagnose reports the inner gap while downstream consumers still see
+// an EXPLAIN node (and the result is classifiable as pending-inner rather than
+// a hard rejection of EXPLAIN's own grammar). Once the inner node lands the
+// error disappears and the same EXPLAIN parse becomes clean.
+func finishExplainStmt(s *ExplainStmt, p *Parser, stmt ast.Node, err error) (ast.Node, error) {
 	s.Statement = stmt
 	if sp, ok := stmt.(interface{ Span() ast.Loc }); ok && stmt != nil {
 		s.Loc.End = sp.Span().End

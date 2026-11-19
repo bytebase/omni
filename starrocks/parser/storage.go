@@ -268,15 +268,17 @@ func (p *Parser) parseCreateFile(startLoc ast.Loc) (ast.Node, error) {
 		endLoc = dbLoc
 	}
 
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+	// properties is required (StarRocks.g4 createFileStatement).
+	if p.cur.Kind != kwPROPERTIES {
+		return nil, p.syntaxErrorAtCur()
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
+	if len(props) > 0 {
+		endLoc = ast.NodeLoc(props[len(props)-1])
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
@@ -310,15 +312,17 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 		endLoc = dbLoc
 	}
 
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+	// properties is required (StarRocks.g4 dropFileStatement).
+	if p.cur.Kind != kwPROPERTIES {
+		return nil, p.syntaxErrorAtCur()
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
+	if len(props) > 0 {
+		endLoc = ast.NodeLoc(props[len(props)-1])
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)

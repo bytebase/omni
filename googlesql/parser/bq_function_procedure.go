@@ -570,12 +570,14 @@ func (p *Parser) parseConnectionClause() (string, error) {
 	if _, err := p.expect(kwCONNECTION); err != nil {
 		return "", err
 	}
-	// connection_clause: DEFAULT | path_expression.
+	// connection_clause: DEFAULT | path_expression. A dotted path_expression, not
+	// maybe_dashed_path_expression: a dashed project name must be backtick-quoted
+	// (`my-project.us.c`) like any other identifier.
 	if p.cur.Type == kwDEFAULT {
 		p.advance()
 		return "DEFAULT", nil
 	}
-	path, err := p.parseTablePath()
+	path, err := p.parsePathExpr()
 	if err != nil {
 		return "", err
 	}

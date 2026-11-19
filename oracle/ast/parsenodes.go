@@ -1054,9 +1054,10 @@ func (n *SelectStmt) stmtNode() {}
 
 // ResTarget represents a target in the select list.
 type ResTarget struct {
-	Name string   // column alias (AS name)
-	Expr ExprNode // expression
-	Loc  Loc
+	Name      string   // column alias (AS name)
+	AliasBind bool     // the alias was a bind variable
+	Expr      ExprNode // expression
+	Loc       Loc
 }
 
 func (n *ResTarget) nodeTag() {}
@@ -1640,6 +1641,7 @@ type ColumnDef struct {
 	DropIdentity            bool            // DROP IDENTITY (ALTER TABLE MODIFY)
 	Constraints             *List           // column constraints (list of *ColumnConstraint)
 	Collation               string          // COLLATE
+	Annotations             *List           // column annotations, one *DDLOption each
 	Loc                     Loc             // start location
 }
 
@@ -1765,16 +1767,18 @@ func (n *AlterTableCmd) nodeTag() {}
 // DropStmt represents a DROP statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/DROP-TABLE.html
 type DropStmt struct {
-	ObjectType   ObjectType // what to drop
-	Names        *List      // object names (list of *ObjectName)
-	IfExists     bool       // IF EXISTS
-	Cascade      bool       // CASCADE CONSTRAINTS
-	Purge        bool       // PURGE (for tables)
-	Online       bool       // ONLINE (for DROP INDEX)
-	Force        bool       // FORCE (for DROP INDEX/INDEXTYPE/OPERATOR)
-	Validate     bool       // VALIDATE (for DROP TYPE)
-	Invalidation string     // "DEFERRED" or "IMMEDIATE" (for DROP INDEX)
-	Loc          Loc        // start location
+	ObjectType    ObjectType // what to drop
+	Names         *List      // object names (list of *ObjectName)
+	IfExists      bool       // IF EXISTS
+	Cascade       bool       // CASCADE CONSTRAINTS
+	Purge         bool       // PURGE (for tables)
+	Online        bool       // ONLINE (for DROP INDEX)
+	Force         bool       // FORCE (for DROP INDEX/INDEXTYPE/OPERATOR)
+	Validate      bool       // VALIDATE (for DROP TYPE)
+	Invalidation  string     // "DEFERRED" or "IMMEDIATE" (for DROP INDEX)
+	PreserveTable bool       // PRESERVE TABLE (for DROP MATERIALIZED VIEW)
+	ForPDB        string     // FOR PLUGGABLE DATABASE pdb_name (for DROP RESTORE POINT)
+	Loc           Loc        // start location
 }
 
 func (n *DropStmt) nodeTag()  {}
@@ -1955,6 +1959,8 @@ type CreateSynonymStmt struct {
 	IfNotExists bool        // IF NOT EXISTS
 	Name        *ObjectName // synonym name
 	Target      *ObjectName // target object
+	Edition     string      // EDITIONABLE or NONEDITIONABLE
+	Sharing     string      // SHARING = { METADATA | NONE }
 	Loc         Loc         // start location
 }
 
@@ -2863,6 +2869,7 @@ func (n *FlashbackDatabaseStmt) stmtNode() {}
 type PurgeStmt struct {
 	ObjectType ObjectType  // TABLE, INDEX, RECYCLEBIN, DBA_RECYCLEBIN
 	Name       *ObjectName // object name
+	User       string      // USER user: the schema whose objects in the tablespace are purged
 	Loc        Loc         // start location
 }
 
@@ -3317,7 +3324,16 @@ type AlterMaterializedViewStmt struct {
 	DeallocateKeep   string // KEEP size
 
 	// EVALUATE USING EDITION
-	EditionName string // edition name
+	EditionName      string // edition name
+	ConsiderFresh    bool   // CONSIDER FRESH after the edition
+	FreshMode        string // FRESH or CONSISTENT FRESH after the edition
+	EvaluationSuffix string // tolerated word after the edition
+
+	// ANNOTATIONS operations
+	Annotations *List // annotations_clause operations, one *DDLOption each
+
+	// MODIFY column
+	Modify *AlterTableCmd // the parsed MODIFY command
 
 	// MODIFY SCOPE FOR
 	ScopeColumn string      // ref column name
@@ -4380,17 +4396,21 @@ func (n *AlterTypeStmt) stmtNode() {}
 //	    [ storage_table_clause ]
 //	    [ array_DML_clause ]
 type CreateIndextypeStmt struct {
-	OrReplace    bool           // OR REPLACE
-	IfNotExists  bool           // IF NOT EXISTS
-	Name         *ObjectName    // indextype name
-	Sharing      string         // METADATA or NONE
-	Operators    []*IndextypeOp // FOR operator_list
-	UsingType    *ObjectName    // USING implementation_type
-	WithLocal    bool           // WITH LOCAL PARTITION
-	WithRange    bool           // WITH LOCAL RANGE PARTITION
-	StorageTable string         // "SYSTEM" or "USER"
-	ArrayDML     bool           // WITH ARRAY DML
-	Loc          Loc
+	OrReplace       bool                // OR REPLACE
+	IfNotExists     bool                // IF NOT EXISTS
+	Name            *ObjectName         // indextype name
+	Sharing         string              // METADATA or NONE
+	Operators       []*IndextypeOp      // FOR operator_list
+	UsingType       *ObjectName         // USING implementation_type
+	WithLocal       bool                // WITH LOCAL PARTITION
+	WithRange       bool                // WITH LOCAL RANGE PARTITION
+	WithoutLocal    bool                // WITHOUT LOCAL PARTITION
+	WithoutRange    bool                // WITHOUT LOCAL RANGE PARTITION
+	StorageTable    string              // "SYSTEM" or "USER"
+	ArrayDML        bool                // WITH ARRAY DML
+	ArrayDMLTypes   []*ArrayDMLTypePair // ARRAY DML type pairs
+	WithoutArrayDML bool                // WITHOUT ARRAY DML
+	Loc             Loc
 }
 
 func (n *CreateIndextypeStmt) nodeTag()  {}
@@ -4406,6 +4426,15 @@ type IndextypeOp struct {
 }
 
 func (n *IndextypeOp) nodeTag() {}
+
+// ArrayDMLTypePair is one ( type , varray_type ) pair of an ARRAY DML clause.
+type ArrayDMLTypePair struct {
+	Type       *ObjectName // array type
+	VarrayType *ObjectName // varray type
+	Loc        Loc
+}
+
+func (n *ArrayDMLTypePair) nodeTag() {}
 
 // ---------------------------------------------------------------------------
 // ALTER INDEXTYPE statement
@@ -4424,15 +4453,18 @@ func (n *IndextypeOp) nodeTag() {}
 //	    [ WITH LOCAL PARTITION ]
 //	    [ storage_table_clause ]
 type AlterIndextypeStmt struct {
-	IfExists      bool              // IF EXISTS
-	Name          *ObjectName       // indextype name
-	Action        string            // "ADD_DROP" or "COMPILE"
-	Modifications []*IndextypeModOp // ADD/DROP operators
-	UsingType     *ObjectName       // USING implementation_type
-	ArrayDML      bool              // WITH ARRAY DML
-	WithLocal     bool              // WITH LOCAL PARTITION
-	StorageTable  string            // "SYSTEM" or "USER"
-	Loc           Loc
+	IfExists        bool                // IF EXISTS
+	Name            *ObjectName         // indextype name
+	Action          string              // "ADD_DROP" or "COMPILE"
+	Modifications   []*IndextypeModOp   // ADD/DROP operators
+	UsingType       *ObjectName         // USING implementation_type
+	ArrayDML        bool                // WITH ARRAY DML
+	ArrayDMLTypes   []*ArrayDMLTypePair // ARRAY DML type pairs
+	WithoutArrayDML bool                // WITHOUT ARRAY DML
+	WithLocal       bool                // WITH LOCAL PARTITION
+	WithoutLocal    bool                // WITHOUT LOCAL PARTITION
+	StorageTable    string              // "SYSTEM" or "USER"
+	Loc             Loc
 }
 
 func (n *AlterIndextypeStmt) nodeTag()  {}

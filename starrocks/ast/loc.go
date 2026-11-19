@@ -158,11 +158,15 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DeleteStmt:
 		return v.Loc
+	case *DataCacheSelectStmt:
+		return v.Loc
 	case *TruncateTableStmt:
 		return v.Loc
 	case *LoadDataDesc:
 		return v.Loc
 	case *LoadDataStmt:
+		return v.Loc
+	case *AlterLoadStmt:
 		return v.Loc
 	case *ExportStmt:
 		return v.Loc
@@ -296,6 +300,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ExplainStmt:
 		return v.Loc
+	case *OptimizerTraceStmt:
+		return v.Loc
 	case *UseStmt:
 		return v.Loc
 	case *SetStmt:
@@ -355,6 +361,12 @@ func NodeLoc(n Node) Loc {
 	case *ShowJobStmt:
 		return v.Loc
 	case *ShowJobTaskStmt:
+		return v.Loc
+	case *TaskSchedule:
+		return v.Loc
+	case *SubmitTaskStmt:
+		return v.Loc
+	case *DropTaskStmt:
 		return v.Loc
 	case *ShowConstraintsStmt:
 		return v.Loc

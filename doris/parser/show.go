@@ -249,6 +249,26 @@ func (p *Parser) parseShowCreate(stmt *ast.ShowStmt) (ast.Node, error) {
 		}
 		typeWord = "CREATE MATERIALIZED VIEW"
 		materializedView = true
+	case kwREPOSITORY:
+		// SHOW CREATE REPOSITORY FOR name (DorisLegacyParser.g4:883).
+		p.advance() // consume REPOSITORY
+		if _, err := p.expect(kwFOR); err != nil {
+			return nil, err
+		}
+		typeWord = "CREATE REPOSITORY"
+	case kwPROCEDURE:
+		// SHOW CREATE PROCEDURE name (DorisParser.g4:47), a statement of its
+		// own and not handed to the CUP parser. The name is required, so SHOW
+		// CREATE PROCEDURE is a syntax error.
+		p.advance() // consume PROCEDURE
+		target, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Type = "CREATE PROCEDURE"
+		stmt.Target = target
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
 	case kwFUNCTION, kwGLOBAL, kwSESSION, kwLOCAL:
 		// SHOW CREATE [GLOBAL | SESSION | LOCAL] FUNCTION name(args) [(FROM | IN) db]
 		return p.parseShowCreateFunction(stmt)
@@ -668,17 +688,26 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 	}
 
 	stmt := &ast.DescribeStmt{Loc: startLoc}
+	if err := p.parseDescribeTarget(stmt); err != nil {
+		return nil, err
+	}
+	return stmt, nil
+}
 
+// parseDescribeTarget reads what DESCRIBE/DESC or EXPLAIN names: a function
+// reference, a table with its optional partition list and ALL suffix, or a
+// bare table. The calling keyword is already consumed.
+func (p *Parser) parseDescribeTarget(stmt *ast.DescribeStmt) error {
 	// DESCRIBE FUNCTION a() — table_valued_function_ref
 	// (DorisLegacyParser.g4:2240), which DorisParser.g4:948 derives too. It is
 	// a describe_stmt alternative of its own: FULL scopes to the table-name
 	// alternative, so it is read after this.
 	if p.cur.Kind == kwFUNCTION {
 		if err := p.parseDescribeFunction(stmt); err != nil {
-			return nil, err
+			return err
 		}
 		stmt.Loc.End = p.prev.Loc.End
-		return stmt, nil
+		return nil
 	}
 
 	// Optional FULL modifier.
@@ -691,7 +720,7 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 	if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
 		target, err := p.parseMultipartIdentifier()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		stmt.Target = target
 	}
@@ -705,7 +734,7 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 		case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
 			parts, temporary, err := p.parseDescribePartition()
 			if err != nil {
-				return nil, err
+				return err
 			}
 			stmt.Partition, stmt.TempPartition = parts, temporary
 		}
@@ -715,6 +744,7 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 	// list rather than a tail on it (describe_stmt, DorisLegacyParser.g4:1629;
 	// DorisParser.g4:950-951 describes the table or ALL, not both).
 	if stmt.Partition == nil && !stmt.TempPartition && p.cur.Kind == kwALL {
+		stmt.All = true
 		p.advance() // consume ALL
 		if p.cur.Kind == kwVERBOSE {
 			p.advance() // consume VERBOSE
@@ -723,7 +753,7 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
-	return stmt, nil
+	return nil
 }
 
 // parseDescribeFunction reads the rest of
@@ -746,7 +776,9 @@ func (p *Parser) parseDescribeFunction(stmt *ast.DescribeStmt) error {
 		return err
 	}
 	if p.cur.Kind != int(')') { // the argument list is optional
-		if stmt.Args, err = p.parsePropertyItems(p.parsePropertyItem); err != nil {
+		// opt_key_value_map_in_paren is the string pair only
+		// (DorisLegacyParser.g4:2240), not the grammar's wider propertyItem.
+		if stmt.Args, err = p.parsePropertyItems(p.parseStringProperty); err != nil {
 			return err
 		}
 	} else {
@@ -863,14 +895,28 @@ func (p *Parser) describeExplains() bool {
 	return false
 }
 
+// isExplainStatementStart reports whether kind starts a statement that
+// EXPLAIN plans, rather than a name EXPLAIN describes. INSERT, UPDATE, DELETE
+// and the other DDL/DML words are nonReserved, so isIdentifierToken alone
+// cannot tell them apart from a table name.
+func isExplainStatementStart(kind TokenKind) bool {
+	switch kind {
+	case kwSELECT, kwWITH, kwVALUES, kwINSERT, kwUPDATE, kwDELETE, kwMERGE,
+		kwCREATE, kwALTER, kwDROP, kwTRUNCATE, kwCOPY, kwLOAD, kwEXPORT,
+		kwREPLACE, kwCALL, kwSET, kwUSE, kwSHOW, kwDESCRIBE, kwDESC, kwEXPLAIN,
+		int('('):
+		return true
+	}
+	return false
+}
+
 // ---------------------------------------------------------------------------
 // EXPLAIN
 // ---------------------------------------------------------------------------
 
 // parseExplain parses EXPLAIN statements.
 //
-//	EXPLAIN [VERBOSE|GRAPH|PARSED|ANALYZED|REWRITTEN|PLAN|PHYSICAL|
-//	         MEMO|SHAPE|DUMP|OPTIMIZED|PLAN PROCESS] query
+//	EXPLAIN [VERBOSE|GRAPH|TREE|PLAN|DUMP] [PROCESS] query
 //
 // On entry, EXPLAIN has NOT yet been consumed.
 func (p *Parser) parseExplain() (ast.Node, error) {
@@ -884,35 +930,18 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 // parseExplainBody reads the modifiers and the explained statement of an
 // explain command — EXPLAIN, DESCRIBE or DESC alike (DorisParser.g4:1061
 // explain, :1067 explainCommand).
+//
+// The grammar also derives a planType before the level (DorisParser.g4:1073):
+// PARSED, ANALYZED, REWRITTEN, LOGICAL, OPTIMIZED, PHYSICAL, SHAPE, MEMO,
+// DISTRIBUTED and ALL. The pinned server refuses every one of them —
+// EXPLAIN PARSED SELECT CURRENT_DATE and its siblings are syntax errors
+// (compat.tsv's planType/* rows), the legacy planner's plan types being gone —
+// so none is read: the word after EXPLAIN is a level or the planned statement.
 func (p *Parser) parseExplainBody(stmt *ast.ExplainStmt) (ast.Node, error) {
 	// explain : explainCommand planType? level=(VERBOSE|TREE|GRAPH|PLAN|DUMP)?
-	// PROCESS? (DorisParser.g4:1061), so the options are read in that order
-	// and Type keeps the ones stated, space-separated — the same sequence
-	// describeExplains looks ahead through.
+	// PROCESS? (DorisParser.g4:1061), so Type keeps the levels stated,
+	// space-separated — the same sequence describeExplains looks ahead through.
 	var options []string
-	switch p.cur.Kind {
-	case kwPARSED:
-		options = append(options, "PARSED")
-		p.advance()
-	case kwANALYZED:
-		options = append(options, "ANALYZED")
-		p.advance()
-	case kwREWRITTEN:
-		options = append(options, "REWRITTEN")
-		p.advance()
-	case kwOPTIMIZED:
-		options = append(options, "OPTIMIZED")
-		p.advance()
-	case kwPHYSICAL:
-		options = append(options, "PHYSICAL")
-		p.advance()
-	case kwSHAPE:
-		options = append(options, "SHAPE")
-		p.advance()
-	case kwMEMO:
-		options = append(options, "MEMO")
-		p.advance()
-	}
 	switch p.cur.Kind {
 	case kwVERBOSE, kwTREE, kwGRAPH, kwDUMP:
 		options = append(options, strings.ToUpper(p.advance().Str))
@@ -931,6 +960,23 @@ func (p *Parser) parseExplainBody(stmt *ast.ExplainStmt) (ast.Node, error) {
 		p.advance()
 	}
 	stmt.Type = strings.Join(options, " ")
+
+	// EXPLAIN a, EXPLAIN a ALL and EXPLAIN FUNCTION a() are the grammar's
+	// unsupportedDescribeStatement forms (DorisParser.g4:948-951), not query
+	// plans. A statement keyword starts the explained query instead.
+	if p.cur.Kind == kwFUNCTION || (isIdentifierToken(p.cur.Kind) && !isExplainStatementStart(p.cur.Kind)) {
+		describe := &ast.DescribeStmt{Loc: p.cur.Loc}
+		if err := p.parseDescribeTarget(describe); err != nil {
+			return nil, err
+		}
+		// The engine takes EXPLAIN FUNCTION a() but refuses an argument list.
+		if describe.Function && len(describe.Args) > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Query = describe
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
 
 	// Doris states the INSERT head: INSERT (INTO | OVERWRITE TABLE)
 	// (DorisParser.g4:139, DorisLegacyParser.g4:1777 insert_stmt). parseInsert
