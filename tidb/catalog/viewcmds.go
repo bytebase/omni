@@ -26,7 +26,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// is 1051 for the star even when a table a exists (1050). A synced view's
 	// body is the engine's already, so it is not judged here.
 	if checkBody {
-		if err := checkViewBodyStar(stmt.Select); err != nil {
+		if err := checkViewBodyStar(stmt.Select, source); err != nil {
 			return err
 		}
 	}
@@ -120,7 +120,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // the name collision alone would be 1050 (read on v8.5.5). A FROM-less block
 // that names no star is left alone: `CREATE VIEW v AS SELECT count(*)` and
 // `... SELECT 1` are both views TiDB takes.
-func checkViewBodyStar(sel *nodes.SelectStmt) error {
+func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 	if sel == nil {
 		return nil
 	}
@@ -130,7 +130,7 @@ func checkViewBodyStar(sel *nodes.SelectStmt) error {
 			return false
 		}
 		if block, ok := n.(*nodes.SelectStmt); ok {
-			refusal = viewBlockStar(block)
+			refusal = viewBlockStar(block, source)
 		}
 		return refusal == nil
 	})
@@ -138,8 +138,8 @@ func checkViewBodyStar(sel *nodes.SelectStmt) error {
 }
 
 // viewBlockStar reports the star of one query block that reads no table.
-func viewBlockStar(sel *nodes.SelectStmt) error {
-	if !readsOnlyNoTable(sel) {
+func viewBlockStar(sel *nodes.SelectStmt, source string) error {
+	if !readsOnlyNoTable(sel, source) {
 		return nil
 	}
 	for _, field := range sel.TargetList {
@@ -163,15 +163,32 @@ func viewBlockStar(sel *nodes.SelectStmt) error {
 // DUAL. TiDB keeps DUAL as a table reference but expands a star over it from
 // nothing, so `CREATE VIEW v AS SELECT * FROM DUAL` is the same 1051 as a block
 // with no FROM while `SELECT 1 FROM DUAL` is taken (read on v8.5.5).
-func readsOnlyNoTable(sel *nodes.SelectStmt) bool {
+func readsOnlyNoTable(sel *nodes.SelectStmt, source string) bool {
 	if len(sel.From) > 1 {
 		return false
 	}
 	if len(sel.From) == 0 {
 		return true
 	}
-	ref, ok := sel.From[0].(*nodes.TableRef)
-	return ok && ref.Schema == "" && strings.EqualFold(ref.Name, "dual")
+	return isDualRef(sel.From[0], source)
+}
+
+// isDualRef reports whether a FROM entry is the dummy DUAL. The parser reads the
+// DUAL keyword and the quoted table name into the same TableRef, so the text the
+// reference starts at decides: a backtick opens a quoted identifier, which names
+// a real table (v8.5.5 takes the view over a table named dual written that way
+// and answers 1051 for the bare keyword). Without the statement's text (a synced
+// definition) the reference is read as that table, which can only over-accept.
+func isDualRef(expr nodes.TableExpr, source string) bool {
+	ref, ok := expr.(*nodes.TableRef)
+	if !ok || ref.Schema != "" || !strings.EqualFold(ref.Name, "dual") {
+		return false
+	}
+	start := ref.Loc.Start
+	if start < 0 || start >= len(source) {
+		return false
+	}
+	return source[start] != '`'
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter

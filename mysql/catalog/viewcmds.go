@@ -24,7 +24,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// of the body has, even when the name already belongs to a table (1050) or
 	// a view. A synced view's body is the engine's already, so it is not judged
 	// here.
-	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select)
+	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select, source)
 	if checkBody && bodyErr != nil {
 		return bodyErr
 	}
@@ -104,11 +104,11 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // engine here — it cannot resolve a select alias a HAVING or ORDER BY reads, for
 // one — so every other failure leaves a view without AnalyzedQuery rather than
 // refusing a view the engine accepts.
-func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
+func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
 	if sel == nil {
 		return nil, nil
 	}
-	if err := checkViewBodyStar(sel); err != nil {
+	if err := checkViewBodyStar(sel, source); err != nil {
 		return nil, err
 	}
 	q, err := c.AnalyzeSelectStmt(sel)
@@ -123,54 +123,102 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 }
 
 // checkViewBodyStar refuses a view body whose star has no table to expand. Every
-// query block MySQL resolves is judged: the ones a set operation, a parenthesis,
-// a derived table, a subquery expression and a CTE body reach. MySQL resolves a
-// CTE only where the body reads it — `WITH c AS (SELECT *) SELECT 1` is a view it
-// takes — so a CTE the body never names is left alone. In a block with no FROM, a
-// bare star is 1096 "No tables used" and a qualified one is 1051 "Unknown table
-// 't'", whose table the block reads nowhere. Both answer before the view's own
-// name is looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an existing
-// table a (1050). A FROM-less block naming no star is left alone: `CREATE VIEW v
-// AS SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
-func checkViewBodyStar(sel *nodes.SelectStmt) error {
+// query block MySQL resolves is judged: the blocks of the body itself, of a set
+// operation, of a parenthesis, of a derived table and of a subquery expression,
+// and the body of a CTE some block in its own scope reads. MySQL resolves a CTE
+// only where it is read — `WITH c AS (SELECT *) SELECT 1` is a view it takes,
+// and a name a nearer CTE declares is that one — so the walk keeps each block's
+// scope. In a block with no table, a bare star is 1096 "No tables used" and a
+// qualified one is 1051 "Unknown table 't'", whose table the block reads
+// nowhere. Both answer before the view's own name is looked up, so
+// `CREATE VIEW a AS SELECT *` is 1096 even over an existing table a (1050). A
+// block naming no star is left alone: `CREATE VIEW v AS SELECT 1` and
+// `... SELECT count(*)` are both views MySQL takes.
+func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 	if sel == nil {
 		return nil
 	}
-	named := bodyTableNames(sel)
-	var refusal error
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if refusal != nil {
-			return false
+	body := viewBody{reads: map[*nodes.CommonTableExpr]bool{}}
+	body.walk(sel, nil, nil)
+	for _, b := range body.blocks {
+		if b.owner != nil && !body.reads[b.owner] {
+			continue
 		}
-		switch e := n.(type) {
-		case *nodes.CommonTableExpr:
-			return e.Name != "" && named[toLower(e.Name)]
-		case *nodes.SelectStmt:
-			refusal = viewBlockStar(e)
+		if err := viewBlockStar(b.block, source); err != nil {
+			return err
 		}
-		return refusal == nil
-	})
-	return refusal
+	}
+	return nil
 }
 
-// bodyTableNames is every unqualified name the body reads in a FROM clause, at
-// any depth, which is the set of CTEs MySQL resolves: `FROM other.c` names the
-// table c of another schema, not the CTE c, so a qualified reference does not
-// make a CTE one the body reads.
-func bodyTableNames(sel *nodes.SelectStmt) map[string]bool {
-	names := make(map[string]bool)
-	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if ref, ok := n.(*nodes.TableRef); ok && ref.Name != "" && ref.Schema == "" {
-			names[toLower(ref.Name)] = true
+// viewBody is a view body's query blocks and the CTEs they read.
+type viewBody struct {
+	blocks []viewBlock
+	reads  map[*nodes.CommonTableExpr]bool
+}
+
+// viewBlock is one query block, with the CTE whose body holds it: nil for the
+// blocks of the view body itself.
+type viewBlock struct {
+	block *nodes.SelectStmt
+	owner *nodes.CommonTableExpr
+}
+
+// walk records block and the CTEs it reads, then the blocks nested in it. ctes
+// are the declarations visible from the enclosing blocks, outermost first.
+func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, owner *nodes.CommonTableExpr) {
+	if block == nil {
+		return
+	}
+	visible := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs...)
+	v.blocks = append(v.blocks, viewBlock{block: block, owner: owner})
+	var children []*nodes.SelectStmt
+	var names []string
+	nodes.Inspect(block, func(n nodes.Node) bool {
+		switch e := n.(type) {
+		case *nodes.SelectStmt:
+			if e == block {
+				return true
+			}
+			// A nested block reads through its own scope: walked below.
+			children = append(children, e)
+			return false
+		case *nodes.CommonTableExpr:
+			// Walked below, with the CTE as the body's owner.
+			return false
+		case *nodes.TableRef:
+			if e.Schema == "" && e.Name != "" {
+				names = append(names, e.Name)
+			}
 		}
 		return true
 	})
-	return names
+	for _, name := range names {
+		if cte := visibleCte(visible, name); cte != nil {
+			v.reads[cte] = true
+		}
+	}
+	for _, cte := range block.CTEs {
+		v.walk(cte.Select, visible, cte)
+	}
+	for _, child := range children {
+		v.walk(child, visible, owner)
+	}
+}
+
+// visibleCte is the CTE a name reads: the innermost declaration of it wins.
+func visibleCte(ctes []*nodes.CommonTableExpr, name string) *nodes.CommonTableExpr {
+	for i := len(ctes) - 1; i >= 0; i-- {
+		if strings.EqualFold(ctes[i].Name, name) {
+			return ctes[i]
+		}
+	}
+	return nil
 }
 
 // viewBlockStar reports the star of one query block that reads no table.
-func viewBlockStar(sel *nodes.SelectStmt) error {
-	if !readsOnlyNoTable(sel) {
+func viewBlockStar(sel *nodes.SelectStmt, source string) error {
+	if !readsOnlyNoTable(sel, source) {
 		return nil
 	}
 	for _, item := range sel.TargetList {
@@ -191,19 +239,36 @@ func viewBlockStar(sel *nodes.SelectStmt) error {
 }
 
 // readsOnlyNoTable reports whether the block reads no relation at all, or only
-// DUAL. MySQL keeps DUAL as a table reference but expands a star over it from
-// nothing, so `CREATE VIEW v AS SELECT * FROM DUAL` is 1096 like a block with no
-// FROM while `CREATE VIEW v AS SELECT 1 FROM DUAL` is a view it takes (read on
-// mysql:8.0.46).
-func readsOnlyNoTable(sel *nodes.SelectStmt) bool {
+// the dummy DUAL. MySQL expands a star over DUAL from nothing, so
+// `CREATE VIEW v AS SELECT * FROM DUAL` is 1096 like a block with no FROM while
+// `CREATE VIEW v AS SELECT 1 FROM DUAL` is a view it takes (read on
+// mysql:8.0.46). A table really named dual is written quoted and is not the
+// dummy: the same server takes the view over a backtick-quoted dual table.
+func readsOnlyNoTable(sel *nodes.SelectStmt, source string) bool {
 	if len(sel.From) > 1 {
 		return false
 	}
 	if len(sel.From) == 0 {
 		return true
 	}
-	ref, ok := sel.From[0].(*nodes.TableRef)
-	return ok && ref.Schema == "" && strings.EqualFold(ref.Name, "dual")
+	return isDualRef(sel.From[0], source)
+}
+
+// isDualRef reports whether a FROM entry is the dummy DUAL. The parser reads the
+// DUAL keyword and the quoted table name into the same TableRef, so the text the
+// reference starts at decides: a backtick opens a quoted identifier, which names
+// a real table. Without the statement's text (a synced definition) the reference
+// is read as that table, which can only over-accept.
+func isDualRef(expr nodes.TableExpr, source string) bool {
+	ref, ok := expr.(*nodes.TableRef)
+	if !ok || ref.Schema != "" || !strings.EqualFold(ref.Name, "dual") {
+		return false
+	}
+	start := ref.Loc.Start
+	if start < 0 || start >= len(source) {
+		return false
+	}
+	return source[start] != '`'
 }
 
 // viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that
@@ -344,7 +409,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 
 	// The body is analyzed for semantic IR (used by lineage, SDL diff) and for
 	// the one failure MySQL's ALTER VIEW reports too.
-	analyzedQuery, err := c.analyzeViewBody(stmt.Select)
+	analyzedQuery, err := c.analyzeViewBody(stmt.Select, source)
 	if err != nil {
 		return err
 	}

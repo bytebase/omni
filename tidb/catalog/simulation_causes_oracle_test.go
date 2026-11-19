@@ -21,7 +21,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	// A table named a is what most cases leave, and DROP VIEW fails on it, so
 	// the reset drops tables; the view cases make v, which no table shares.
 	reset := func(tb testing.TB) {
-		for _, stmt := range []string{"DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v"} {
+		for _, stmt := range []string{"DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "DROP TABLE IF EXISTS `dual`"} {
 			if _, err := conn.db.ExecContext(ctx, stmt); err != nil {
 				tb.Errorf("%s: %v", stmt, err)
 			}
@@ -217,6 +217,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "CREATE VIEW whose body expands a star over DUAL",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT * FROM DUAL",
+			code:  1051,
+		},
+		{
+			// A table really named dual is written quoted, which is not the
+			// dummy keyword TiDB expands from nothing.
+			name:  "CREATE VIEW whose body expands a star over a quoted dual table",
+			setup: []string{"CREATE TABLE `dual` (x INT)"},
+			stmt:  "CREATE VIEW v AS SELECT * FROM `dual`",
+			code:  0,
+		},
+		{
+			// TiDB resolves every CTE, read or not, and a nearer declaration
+			// does not stop it resolving the outer one.
+			name:  "CREATE VIEW whose nested CTE shadows an unreferenced one",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM (WITH c AS (SELECT 1 AS x) SELECT x FROM c) d",
 			code:  1051,
 		},
 		{

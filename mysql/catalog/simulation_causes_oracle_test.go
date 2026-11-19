@@ -24,7 +24,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -848,6 +848,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT * FROM DUAL",
 			code:  1096,
+		},
+		{
+			// A table really named dual is written quoted, which is not the
+			// dummy keyword MySQL expands from nothing.
+			name:  "CREATE VIEW whose body expands a star over a quoted dual table",
+			setup: []string{"CREATE TABLE `dual` (x INT)"},
+			stmt:  "CREATE VIEW v AS SELECT * FROM `dual`",
+			code:  0,
+		},
+		{
+			// The inner block's CTE shadows the outer one, so the outer CTE is
+			// never read and MySQL never resolves it.
+			name:  "CREATE VIEW whose nested CTE shadows an unreferenced one",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM (WITH c AS (SELECT 1 AS x) SELECT x FROM c) d",
+			code:  0,
 		},
 		{
 			name:  "CREATE VIEW whose body reads only DUAL for a column",
