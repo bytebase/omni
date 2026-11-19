@@ -326,8 +326,8 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 }
 
 // isPredicateNode reports whether n is a Predicate in StarRocks's tree: one
-// comparison, IN, BETWEEN, LIKE, REGEXP or IS predicate, a compound AND or OR,
-// or a NOT. A resource group's classifier is one (`Cannot cast
+// comparison, IN, BETWEEN, LIKE, REGEXP, IS or EXISTS predicate, a compound AND
+// or OR, or a NOT. A resource group's classifier is one (`Cannot cast
 // com.starrocks.analysis.IntLiteral to com.starrocks.analysis.Predicate` for
 // `TO(1)`, and `TO(user = 'x')` and `TO(1 = 1)` are accepted), and so is the
 // WHERE of SHOW ANALYZE, SHOW STATS META, SHOW HISTOGRAM META and SHOW
@@ -342,7 +342,8 @@ func isPredicateNode(n ast.Node) bool {
 			return true
 		}
 		return false
-	case *ast.InExpr, *ast.BetweenExpr, *ast.LikeExpr, *ast.RegexpExpr, *ast.IsExpr:
+	case *ast.InExpr, *ast.BetweenExpr, *ast.LikeExpr, *ast.RegexpExpr,
+		*ast.IsExpr, *ast.ExistsExpr:
 		return true
 	case *ast.UnaryExpr:
 		return v.Op == ast.UnaryNot

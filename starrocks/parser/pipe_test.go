@@ -419,6 +419,7 @@ func TestShowFiltersTakeCompoundPredicates(t *testing.T) {
 		`SHOW STATS META WHERE NOT a = 1`,
 		`SHOW ANALYZE WHERE a = 1 OR b = 2`,
 		`SHOW HISTOGRAM META WHERE a = 1`,
+		`SHOW STATS META WHERE EXISTS (SELECT 1)`,
 	} {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("parseForTest(%q): %v", sql, errs)
