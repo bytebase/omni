@@ -1353,11 +1353,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1478,
 		},
 		{
-			// An empty COMPRESSION is the one value InnoDB takes: it is the
-			// option written with no value, not a value the engine refuses.
+			// An empty COMPRESSION is a value InnoDB takes: it is the option
+			// written with no value, not a value the engine refuses.
 			name:  "an empty COMPRESSION on InnoDB",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a COMPRESSION=''",
+			code:  0,
+		},
+		{
+			// ZLIB, LZ4 and NONE are InnoDB's page compression and its off
+			// switch, so the option is refused on the value and not on the name.
+			name:  "COMPRESSION ZLIB on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION='ZLIB'",
+			code:  0,
+		},
+		{
+			name:  "COMPRESSION none on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION='none'",
 			code:  0,
 		},
 		{

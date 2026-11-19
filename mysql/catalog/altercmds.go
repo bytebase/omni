@@ -114,10 +114,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 // refusedRowOption names the option the statement writes that the engine it
 // leaves does not take: InnoDB answers 1478, "Table storage engine 'InnoDB' does
 // not support the create option 'ROW_TYPE'" for ROW_FORMAT FIXED and "... does
-// not support the create option 'COMPRESSION'" for any COMPRESSION value
-// (mysql:8.0.46). The engine is the one the statement leaves, so `ROW_FORMAT
-// FIXED ENGINE=MyISAM` runs, and a statement writing both is refused for
-// COMPRESSION whichever order it writes them in.
+// not support the create option 'COMPRESSION'" for a COMPRESSION value it does
+// not take (mysql:8.0.46). The engine is the one the statement leaves, so
+// `ROW_FORMAT FIXED ENGINE=MyISAM` runs, and a statement writing both is refused
+// for COMPRESSION whichever order it writes them in.
 func refusedRowOption(tbl *Table, commands []*nodes.AlterTableCmd) string {
 	engine, rowFormat, compression := tbl.Engine, "", ""
 	for _, cmd := range commands {
@@ -136,13 +136,25 @@ func refusedRowOption(tbl *Table, commands []*nodes.AlterTableCmd) string {
 	if !engineRefusesRowOptions(engine) {
 		return ""
 	}
-	if compression != "" {
+	if compression != "" && !innodbCompressionValue(compression) {
 		return "COMPRESSION"
 	}
 	if strings.EqualFold(strings.TrimSpace(rowFormat), "FIXED") {
 		return "ROW_TYPE"
 	}
 	return ""
+}
+
+// innodbCompressionValue reports whether a COMPRESSION value is one InnoDB
+// takes. It takes ZLIB, LZ4 and NONE in any case, which are page compression and
+// its off switch, and the empty string, which is the option written with no
+// value; `COMPRESSION='y'`, `='n'` and `='s'` are all 1478 (mysql:8.0.46).
+func innodbCompressionValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "zlib", "lz4", "none":
+		return true
+	}
+	return false
 }
 
 // engineRefusesRowOptions reports whether the engine refuses the two options
