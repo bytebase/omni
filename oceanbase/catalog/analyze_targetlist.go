@@ -127,11 +127,17 @@ func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) 
 		if scope.isCoalesced(e.name, col.Name) {
 			continue
 		}
+		var expr AnalyzedExpr = &VarExprQ{
+			RangeIdx: e.rteIdx,
+			AttNum:   i + 1,
+		}
+		// A FULL join's merged key is COALESCE(left, right): either side may be
+		// the null one.
+		if right, ok := scope.fullJoinKey(e.name, col.Name); ok {
+			expr = &CoalesceExprQ{Args: []AnalyzedExpr{expr, right}}
+		}
 		te := &TargetEntryQ{
-			Expr: &VarExprQ{
-				RangeIdx: e.rteIdx,
-				AttNum:   i + 1,
-			},
+			Expr:         expr,
 			ResNo:        *resNo,
 			ResName:      col.Name,
 			ResOrigDB:    rte.DBName,

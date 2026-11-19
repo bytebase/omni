@@ -294,6 +294,19 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 		markCoalescedColumns(right, q, scope, usingCols)
 	}
 
+	// A FULL join merges its key into one column either side may fill, so the
+	// star expansion of the surviving left column is COALESCE(left, right).
+	if joinType == JoinFull && len(usingCols) > 0 {
+		if leftRef, ok := left.(*RangeTableRefQ); ok {
+			leftName := q.RangeTable[leftRef.RTIndex].ERef
+			for _, col := range usingCols {
+				if rightVar, ok := joinKeyVar(q, right, col); ok {
+					scope.addFullJoinKey(leftName, col, rightVar)
+				}
+			}
+		}
+	}
+
 	// Create the RTEJoin entry.
 	rteJoin := &RangeTableEntryQ{
 		Kind:      RTEJoin,
@@ -315,6 +328,26 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	}
 
 	return joinExpr, colNames, nil
+}
+
+// joinKeyVar returns the variable a join's input contributes for the named
+// column, searching a nested join's inputs by name.
+func joinKeyVar(q *Query, node JoinNode, column string) (*VarExprQ, bool) {
+	switch n := node.(type) {
+	case *RangeTableRefQ:
+		rte := q.RangeTable[n.RTIndex]
+		for i, name := range rte.ColNames {
+			if strings.EqualFold(name, column) {
+				return &VarExprQ{RangeIdx: n.RTIndex, AttNum: i + 1}, true
+			}
+		}
+	case *JoinExprNodeQ:
+		if v, ok := joinKeyVar(q, n.Left, column); ok {
+			return v, true
+		}
+		return joinKeyVar(q, n.Right, column)
+	}
+	return nil, false
 }
 
 // collectJoinNodeColNames returns the column names contributed by a JoinNode.

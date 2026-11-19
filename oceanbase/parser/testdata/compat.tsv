@@ -12825,7 +12825,7 @@ accept	accept	engine	tenant/USER_VARIABLE	CREATE DATABASE LINK a CONNECT TO 's' 
 reject	reject	engine	tenant/USER_VARIABLE!truncate	CREATE DATABASE LINK a CONNECT TO 's'
 reject	reject	engine	tenant/USER_VARIABLE!insert	CREATE DATABASE LINK a CONNECT TO 's' @v zzz DATABASE a IDENTIFIED BY 's' SERVER 's'
 accept	accept	engine	opt_cluster/CLUSTER_STRING_VALUE	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's' CLUSTER 's'
-reject	accept	engine	opt_cluster/CLUSTER_STRING_VALUE!drop-1	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's' 's'
+accept	accept	engine	opt_cluster/CLUSTER_STRING_VALUE!drop-1	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's' 's'
 reject	reject	engine	opt_cluster/CLUSTER_STRING_VALUE!drop-2	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's' CLUSTER
 reject	reject	engine	opt_cluster/CLUSTER_STRING_VALUE!insert	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's' CLUSTER 's' zzz
 reject	reject	engine	opt_cluster/CLUSTER_STRING_VALUE!swap	CREATE DATABASE LINK a CONNECT TO 's' @v DATABASE a IDENTIFIED BY 's' SERVER 's' CLUSTER_ID 's'

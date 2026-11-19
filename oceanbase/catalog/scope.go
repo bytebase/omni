@@ -24,6 +24,11 @@ type analyzerScope struct {
 	// relations whose columns are not known locally.
 	unknownColumns map[string]int
 
+	// fullJoinKeys maps `<entry>.<column>` to the right side's variable for a
+	// FULL join's merged key: the star expansion of that column is
+	// COALESCE(left, right), since either side may be null.
+	fullJoinKeys map[string]*VarExprQ
+
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
 	markedJoins map[*JoinExprNodeQ]map[string]bool
@@ -105,6 +110,22 @@ func newScopeWithParent(parent *analyzerScope) *analyzerScope {
 		base:   scope.New(),
 		parent: parent,
 	}
+}
+
+// addFullJoinKey records that a FULL join merges the named column of a scope
+// entry with right's variable.
+func (s *analyzerScope) addFullJoinKey(entryName, column string, right *VarExprQ) {
+	if s.fullJoinKeys == nil {
+		s.fullJoinKeys = map[string]*VarExprQ{}
+	}
+	s.fullJoinKeys[strings.ToLower(entryName)+"."+strings.ToLower(column)] = right
+}
+
+// fullJoinKey returns the right side of a FULL join's merged column, if the
+// scope holds one for that entry and column.
+func (s *analyzerScope) fullJoinKey(entryName, column string) (*VarExprQ, bool) {
+	right, ok := s.fullJoinKeys[strings.ToLower(entryName)+"."+strings.ToLower(column)]
+	return right, ok
 }
 
 // markCoalesced marks a column from a table as coalesced (hidden during star expansion).

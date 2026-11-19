@@ -246,14 +246,18 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 	stmt.Server = p.cur.Str
 	p.advance()
 
-	// opt_cluster: CLUSTER 'name'.
+	// opt_cluster: CLUSTER 'name', and the bare string the pinned server
+	// accepts in its place (compat.tsv, opt_cluster/CLUSTER_STRING_VALUE!drop-1).
+	hadClusterWord := false
 	if p.isBareWord("CLUSTER") {
 		p.advance()
-		if p.cur.Type != tokSCONST {
-			return nil, p.syntaxErrorAtCur()
-		}
+		hadClusterWord = true
+	}
+	if p.cur.Type == tokSCONST {
 		stmt.Cluster = p.cur.Str
 		p.advance()
+	} else if hadClusterWord {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
