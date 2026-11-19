@@ -454,7 +454,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 //	MODIFY VARRAY varray_item ( modify_LOB_parameters )
 //	MODIFY OPAQUE TYPE column STORE ( type [, type ]... ) UNPACKED
 //	MODIFY table_partitioning_clauses [ filter_condition ] [ ONLINE ] [ update_index_clauses ]
-//	MODIFY PARTITIONSET partitionset ...
+//
+// A partitionset form (MODIFY PARTITIONSET ...) is refused at PARTITIONSET,
+// as the switch below says.
 func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	start := p.pos()
 	p.advance() // consume MODIFY
@@ -462,7 +464,15 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	switch {
 	case p.cur.Type == kwCONSTRAINT, p.cur.Type == kwCONSTRAINTS, p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE:
 		return p.parseAlterTableModifyConstraint(start)
-	case p.cur.Type == kwPARTITION, p.atWord("PARTITIONSET") && p.peekNext().Type == kwBY:
+	case p.atWord("PARTITIONSET"):
+		// modify_to_partitioned's partitionset_clauses and
+		// alter_table_partitionset both start with PARTITIONSET, and a
+		// partitionset belongs to a composite-sharded table: Oracle 23ai
+		// refuses the word itself (ORA-02577 at PARTITIONSET) before it reads
+		// the clause, as it refuses consistent_hash_partitions at CONSISTENT
+		// (ORA-14151), so the refusal is Oracle's here whatever follows.
+		return nil, p.syntaxErrorAtCur()
+	case p.cur.Type == kwPARTITION:
 		// modify_to_partitioned
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_MODIFY_TO_PARTITIONED, Options: &nodes.List{}}
 		if err := p.parseATTablePartitioning(cmd.Options); err != nil {
@@ -473,33 +483,6 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
 		return withAlterTableOptions(cmd, cmd.Options), nil
-	case p.atWord("PARTITIONSET"):
-		// alter_table_partitionset: MODIFY PARTITIONSET partitionset
-		// { ADD | MODIFY } PARTITIONSET partition_spec. Partitionsets
-		// belong to sharded tables (ORA-02577 elsewhere).
-		p.advance()
-		name, err := p.parseATNameString()
-		if err != nil {
-			return nil, err
-		}
-		if p.cur.Type != kwADD && p.cur.Type != kwMODIFY {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		if err := p.atExpectWord("PARTITIONSET"); err != nil {
-			return nil, err
-		}
-		if err := p.parseATName(); err != nil {
-			return nil, err
-		}
-		if err := p.parseATClauses(atcTablePartitionDescription, nil); err != nil {
-			return nil, err
-		}
-		return &nodes.AlterTableCmd{
-			Action:     nodes.AT_MODIFY_PARTITIONSET,
-			ColumnName: name,
-			Loc:        nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
 	case p.cur.Type == kwNESTED:
 		// MODIFY NESTED TABLE collection_item RETURN AS { LOCATOR | VALUE }
 		p.advance()
