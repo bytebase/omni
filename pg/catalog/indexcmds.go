@@ -52,7 +52,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	}
 
 	effectiveTablespace := c.effectiveIndexTablespace(stmt.TableSpace, rel)
-	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
 		return err
 	}
 

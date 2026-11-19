@@ -973,6 +973,7 @@ func (c *Catalog) removeFunction(procOID uint32, name string) {
 		delete(c.procByName, name)
 	}
 
+	c.removeGrantsForObject('f', procOID)
 	c.removeComments('f', procOID)
 	c.removeDepsOf('f', procOID)
 	c.removeDepsOn('f', procOID)

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -32,16 +33,28 @@ func (c *Catalog) effectiveTablespace(name string) string {
 	return ""
 }
 
-// effectiveIndexTablespace is effectiveTablespace for an index: with no
-// clause and no session default, an index takes its table's tablespace.
+// effectiveIndexTablespace returns the tablespace an index lands in: its own
+// TABLESPACE clause when given, "" on a temporary relation, else the session's
+// effective default_tablespace (which falls back to the database default, not
+// the table's tablespace).
 func (c *Catalog) effectiveIndexTablespace(name string, rel *Relation) string {
 	if name != "" {
 		return name
 	}
 	if rel != nil && rel.Persistence == 't' {
-		return rel.Tablespace
+		return ""
 	}
 	return c.effectiveTablespace("")
+}
+
+// checkIndexTablespace validates an index's target tablespace, including
+// PostgreSQL's prohibition on naming pg_default for partitioned indexes.
+func (c *Catalog) checkIndexTablespace(name string, rel *Relation) error {
+	if rel != nil && rel.RelKind == 'p' && name == "pg_default" {
+		return &Error{Code: CodeFeatureNotSupported,
+			Message: "cannot specify default tablespace for partitioned relations"}
+	}
+	return c.checkRelationTablespace(name)
 }
 
 // normalizeTablespace stores the default tablespace as "", the way a
@@ -151,6 +164,23 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 	return nil
 }
 
+// ExecAlterOwnerStmt dispatches ALTER ... OWNER TO for object classes whose
+// ownership is tracked in the catalog.
+func (c *Catalog) ExecAlterOwnerStmt(stmt *nodes.AlterOwnerStmt) error {
+	switch nodes.ObjectType(stmt.ObjectType) {
+	case nodes.OBJECT_TABLESPACE:
+		return c.AlterTablespaceOwner(stmt)
+	case nodes.OBJECT_SCHEMA:
+		return c.alterSchemaOwner(stmt)
+	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
+		return c.alterTypeOwner(stmt)
+	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
+		return c.alterRoutineOwner(stmt)
+	default:
+		return nil
+	}
+}
+
 // AlterTablespaceOwner changes the owner recorded for a tablespace.
 func (c *Catalog) AlterTablespaceOwner(stmt *nodes.AlterOwnerStmt) error {
 	name := extractSimpleObjectName(stmt.Object)
@@ -166,6 +196,202 @@ func (c *Catalog) AlterTablespaceOwner(stmt *nodes.AlterOwnerStmt) error {
 	}
 	c.tablespaceOwners[name] = owner
 	return nil
+}
+
+func (c *Catalog) alterSchemaOwner(stmt *nodes.AlterOwnerStmt) error {
+	name := extractSimpleObjectName(stmt.Object)
+	s := c.schemaByName[name]
+	if s == nil {
+		return errUndefinedSchema(name)
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	s.Owner = owner
+	return nil
+}
+
+func (c *Catalog) alterTypeOwner(stmt *nodes.AlterOwnerStmt) error {
+	schemaName, typeName := extractObjectName(stmt.Object)
+	schema, err := c.resolveTargetSchema(schemaName)
+	if err != nil {
+		return err
+	}
+	bt := c.typeByName[typeKey{ns: schema.OID, name: typeName}]
+	if bt == nil {
+		return errUndefinedType(typeName)
+	}
+	if nodes.ObjectType(stmt.ObjectType) == nodes.OBJECT_DOMAIN && bt.Type != 'd' {
+		return errWrongObjectType(typeName, "a domain")
+	}
+	if bt.Type == 'c' && bt.RelID != 0 {
+		rel := c.relationByOID[bt.RelID]
+		if rel != nil && rel.RelKind != 'c' {
+			return errWrongObjectType(typeName, "a composite type")
+		}
+		if stmt.Newowner == nil {
+			return nil
+		}
+		owner := c.ownerRoleName(stmt.Newowner)
+		if err := c.checkRole(owner); err != nil {
+			return err
+		}
+		if rel != nil {
+			rel.OwnerName = owner
+		}
+		return nil
+	}
+	if bt.Category == 'A' && bt.Elem != 0 {
+		return errWrongObjectType(typeName, "a non-array type")
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		c.typeOwners[oid] = owner
+	}
+	return nil
+}
+
+func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
+	owa, ok := stmt.Object.(*nodes.ObjectWithArgs)
+	if !ok {
+		return nil
+	}
+	objType := nodes.ObjectType(stmt.ObjectType)
+	kindStr := "function"
+	if objType == nodes.OBJECT_PROCEDURE {
+		kindStr = "procedure"
+	} else if objType == nodes.OBJECT_ROUTINE {
+		kindStr = "routine"
+	}
+	schemaName, funcName := qualifiedName(owa.Objname)
+	schema, err := c.resolveTargetSchema(schemaName)
+	if err != nil {
+		return err
+	}
+	var bp *BuiltinProc
+	if !owa.ArgsUnspecified {
+		var argOIDs []uint32
+		if owa.Objargs != nil {
+			argOIDs = make([]uint32, 0, len(owa.Objargs.Items))
+			for _, item := range owa.Objargs.Items {
+				var tn *nodes.TypeName
+				switch n := item.(type) {
+				case *nodes.TypeName:
+					tn = n
+				case *nodes.FunctionParameter:
+					tn = n.ArgType
+				}
+				if tn == nil {
+					continue
+				}
+				oid, _, err := c.resolveTypeName(tn)
+				if err != nil {
+					return err
+				}
+				argOIDs = append(argOIDs, oid)
+			}
+		}
+		bp = c.findExactProc(schema, funcName, argOIDs)
+	} else {
+		candidates := c.findUserProcsByName(schema, funcName)
+		if len(candidates) > 1 {
+			return errAmbiguousFunction(funcName)
+		}
+		if len(candidates) == 1 {
+			bp = c.procByOID[candidates[0].OID]
+		}
+	}
+	if bp == nil {
+		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+	}
+	up := c.userProcs[bp.OID]
+	if up == nil {
+		return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%s %q is not user-defined", kindStr, funcName)}
+	}
+	switch objType {
+	case nodes.OBJECT_PROCEDURE:
+		if bp.Kind != 'p' {
+			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a procedure", funcName)}
+		}
+	case nodes.OBJECT_FUNCTION:
+		if bp.Kind == 'p' {
+			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a function", funcName)}
+		}
+		if bp.Kind == PROKIND_AGGREGATE {
+			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is an aggregate function", funcName)}
+		}
+	case nodes.OBJECT_AGGREGATE:
+		if bp.Kind != PROKIND_AGGREGATE {
+			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not an aggregate", funcName)}
+		}
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	up.OwnerName = owner
+	return nil
+}
+
+func (c *Catalog) execAlterSequenceTableCmds(seq *Sequence, relName string, cmds *nodes.List) error {
+	if cmds == nil {
+		return nil
+	}
+	var newOwner string
+	hasOwner := false
+	for _, item := range cmds.Items {
+		atc, ok := item.(*nodes.AlterTableCmd)
+		if !ok {
+			continue
+		}
+		switch nodes.AlterTableType(atc.Subtype) {
+		case nodes.AT_SetTableSpace:
+			if err := c.checkRelationTablespace(atc.Name); err != nil {
+				return err
+			}
+			return errWrongObjectType(relName, "a table, materialized view, or index")
+		case nodes.AT_ChangeOwner:
+			if atc.Newowner == nil {
+				continue
+			}
+			owner := c.ownerRoleName(atc.Newowner)
+			if err := c.checkRole(owner); err != nil {
+				return err
+			}
+			newOwner = owner
+			hasOwner = true
+		}
+	}
+	if hasOwner {
+		seq.OwnerName = newOwner
+	}
+	return nil
+}
+
+func allAlterCmdsChangeOwner(cmds *nodes.List) bool {
+	if cmds == nil || len(cmds.Items) == 0 {
+		return false
+	}
+	for _, item := range cmds.Items {
+		atc, ok := item.(*nodes.AlterTableCmd)
+		if !ok || nodes.AlterTableType(atc.Subtype) != nodes.AT_ChangeOwner {
+			return false
+		}
+	}
+	return true
 }
 
 // RenameTablespace renames a tablespace and every object stored in it.
@@ -270,9 +496,13 @@ func (c *Catalog) DefineRole(stmt *nodes.CreateRoleStmt) error {
 	return nil
 }
 
-// roleInUse reports a relation or index the current schemas hold for a role.
+// roleInUse reports whether any catalog object or ACL/policy entry references
+// the named role.
 func (c *Catalog) roleInUse(name string) bool {
 	for _, schema := range c.schemas {
+		if schema.Owner == name {
+			return true
+		}
 		for _, rel := range schema.Relations {
 			if rel.OwnerName == name {
 				return true
@@ -304,6 +534,13 @@ func (c *Catalog) roleInUse(name string) bool {
 			return true
 		}
 	}
+	for _, p := range c.policies {
+		for _, r := range p.Roles {
+			if r != "" && r != "public" && r == name {
+				return true
+			}
+		}
+	}
 	for _, owner := range c.tablespaceOwners {
 		if owner == name {
 			return true
@@ -312,7 +549,8 @@ func (c *Catalog) roleInUse(name string) bool {
 	return false
 }
 
-// DropOwned drops the relations and indexes a DROP OWNED BY names.
+// DropOwned drops the objects owned by the named roles and revokes their
+// privileges, validating the complete deletion set before mutating the catalog.
 func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	if stmt.Roles == nil {
 		return nil
@@ -321,6 +559,21 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	if err != nil {
 		return err
 	}
+	cascade := stmt.Behavior == nodes.DROP_CASCADE
+
+	var ownedSchemas []*Schema
+	ownedSchemaOIDs := map[uint32]bool{}
+	for _, schema := range c.schemas {
+		if schema.OID == PGCatalogNamespace || schema.OID == PGToastNamespace || schema.Name == "public" {
+			continue
+		}
+		if schema.Owner != "" && owners[schema.Owner] {
+			ownedSchemas = append(ownedSchemas, schema)
+			ownedSchemaOIDs[schema.OID] = true
+		}
+	}
+	sort.Slice(ownedSchemas, func(i, j int) bool { return ownedSchemas[i].OID < ownedSchemas[j].OID })
+
 	type ownedRel struct {
 		schema *Schema
 		rel    *Relation
@@ -329,107 +582,348 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	ownedRelOIDs := map[uint32]bool{}
 	for _, schema := range c.schemas {
 		for _, rel := range schema.Relations {
-			if owners[rel.OwnerName] {
+			if owners[rel.OwnerName] || (cascade && ownedSchemaOIDs[schema.OID]) {
 				rels = append(rels, ownedRel{schema: schema, rel: rel})
 				ownedRelOIDs[rel.OID] = true
 			}
 		}
 	}
-	for _, x := range rels {
-		for _, dep := range c.relationDependents(x.rel.OID, 0) {
-			if !dep.Normal {
-				continue
-			}
-			if dep.ObjType == 'r' && ownedRelOIDs[dep.ObjOID] {
-				continue
-			}
-			if stmt.Behavior != nodes.DROP_CASCADE {
-				kind := "table"
-				if x.rel.RelKind == 'v' {
-					kind = "view"
-				} else if x.rel.RelKind == 'm' {
-					kind = "materialized view"
+	sort.Slice(rels, func(i, j int) bool { return rels[i].rel.OID < rels[j].rel.OID })
+
+	// Auto/internal relation dependents (such as partitions of an owned
+	// partitioned table) are dropped automatically with their parent.
+	for changed := true; changed; {
+		changed = false
+		for _, d := range c.deps {
+			if d.ObjType == 'r' && d.RefType == 'r' && (d.DepType == DepAuto || d.DepType == DepInternal) &&
+				ownedRelOIDs[d.RefOID] && !ownedRelOIDs[d.ObjOID] {
+				if child := c.relationByOID[d.ObjOID]; child != nil {
+					ownedRelOIDs[child.OID] = true
+					rels = append(rels, ownedRel{schema: child.Schema, rel: child})
+					changed = true
 				}
-				return errDependentObjects(kind, x.rel.Name)
 			}
 		}
 	}
-	for _, x := range rels {
-		if hasNormalDependent(c.relationDependents(x.rel.OID, 0)) {
-			c.dropDependents('r', x.rel.OID)
-		}
-		c.removeRelation(x.schema, x.rel.Name, x.rel)
+	sort.Slice(rels, func(i, j int) bool { return rels[i].rel.OID < rels[j].rel.OID })
+
+	type ownedIdx struct {
+		schema *Schema
+		idx    *Index
 	}
+	var indexes []ownedIdx
+	ownedIdxOIDs := map[uint32]bool{}
+	type ownedSeq struct {
+		schema *Schema
+		seq    *Sequence
+	}
+	var seqs []ownedSeq
+	ownedSeqOIDs := map[uint32]bool{}
 	for _, schema := range c.schemas {
-		var indexes []*Index
 		for _, idx := range schema.Indexes {
-			if owners[idx.OwnerName] {
-				indexes = append(indexes, idx)
+			if ownedRelOIDs[idx.RelOID] {
+				ownedIdxOIDs[idx.OID] = true
+				continue
+			}
+			if owners[idx.OwnerName] || (cascade && ownedSchemaOIDs[schema.OID]) {
+				indexes = append(indexes, ownedIdx{schema: schema, idx: idx})
+				ownedIdxOIDs[idx.OID] = true
 			}
 		}
-		for _, idx := range indexes {
-			c.removeIndex(schema, idx.Name, idx)
-		}
-		var seqs []*Sequence
 		for _, seq := range schema.Sequences {
-			if owners[seq.OwnerName] {
-				seqs = append(seqs, seq)
+			if ownedRelOIDs[seq.OwnerRelOID] {
+				ownedSeqOIDs[seq.OID] = true
+				continue
+			}
+			if owners[seq.OwnerName] || (cascade && ownedSchemaOIDs[schema.OID]) {
+				seqs = append(seqs, ownedSeq{schema: schema, seq: seq})
+				ownedSeqOIDs[seq.OID] = true
 			}
 		}
-		for _, seq := range seqs {
-			c.removeSequence(schema, seq)
-		}
 	}
+	sort.Slice(indexes, func(i, j int) bool { return indexes[i].idx.OID < indexes[j].idx.OID })
+	sort.Slice(seqs, func(i, j int) bool { return seqs[i].seq.OID < seqs[j].seq.OID })
+
 	var procs []*UserProc
+	ownedProcOIDs := map[uint32]bool{}
 	for _, proc := range c.userProcs {
-		if owners[proc.OwnerName] {
+		if owners[proc.OwnerName] || (cascade && proc.Schema != nil && ownedSchemaOIDs[proc.Schema.OID]) {
 			procs = append(procs, proc)
+			ownedProcOIDs[proc.OID] = true
 		}
 	}
-	for _, proc := range procs {
-		if deps := c.findNormalDependents('f', proc.OID); len(deps) > 0 {
-			if stmt.Behavior != nodes.DROP_CASCADE {
-				return errDependentObjects("function", proc.Name)
-			}
-			c.dropDependents('f', proc.OID)
-		}
-		c.removeFunction(proc.OID, proc.Name)
-	}
-	var typeObjects []nodes.Node
-	var ownedTypes []uint32
+	sort.Slice(procs, func(i, j int) bool { return procs[i].OID < procs[j].OID })
+
+	var types []*BuiltinType
+	seenPrimaryType := map[uint32]bool{}
+	ownedTypeOIDs := map[uint32]bool{}
+	var staleTypeOwnerOIDs []uint32
 	for oid, owner := range c.typeOwners {
 		if !owners[owner] {
 			continue
 		}
 		bt := c.typeByOID[oid]
 		if bt == nil {
-			delete(c.typeOwners, oid)
+			staleTypeOwnerOIDs = append(staleTypeOwnerOIDs, oid)
 			continue
 		}
-		ownedTypes = append(ownedTypes, oid)
-		if bt.Type == 'b' {
-			continue // the array goes with its element type
-		}
-		schema := c.schemas[bt.Namespace]
-		if schema == nil {
+		ownedTypeOIDs[oid] = true
+		if bt.Category == 'A' && bt.Elem != 0 || bt.Type == 'm' || (bt.Type == 'c' && bt.RelID != 0) {
 			continue
 		}
-		typeObjects = append(typeObjects, &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{
-			&nodes.String{Str: schema.Name}, &nodes.String{Str: bt.TypeName},
-		}}})
-	}
-	if len(typeObjects) > 0 {
-		if err := c.removeTypeObjects(&nodes.DropStmt{
-			RemoveType: int(nodes.OBJECT_TYPE),
-			Objects:    &nodes.List{Items: typeObjects},
-			Behavior:   int(stmt.Behavior),
-		}); err != nil {
-			return err
+		if !seenPrimaryType[bt.OID] {
+			seenPrimaryType[bt.OID] = true
+			types = append(types, bt)
+			for _, famOID := range c.typeFamilyOIDs(bt) {
+				ownedTypeOIDs[famOID] = true
+			}
 		}
 	}
-	for _, oid := range ownedTypes {
+	if cascade {
+		for _, bt := range c.typeByOID {
+			if !ownedSchemaOIDs[bt.Namespace] || bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'm' || bt.Type == 'c' {
+				continue
+			}
+			if !seenPrimaryType[bt.OID] {
+				seenPrimaryType[bt.OID] = true
+				types = append(types, bt)
+				for _, famOID := range c.typeFamilyOIDs(bt) {
+					ownedTypeOIDs[famOID] = true
+				}
+			}
+		}
+	}
+	sort.Slice(types, func(i, j int) bool { return types[i].OID < types[j].OID })
+
+	for _, x := range rels {
+		if x.rel.RowTypeOID != 0 {
+			ownedTypeOIDs[x.rel.RowTypeOID] = true
+		}
+		if x.rel.ArrayOID != 0 {
+			ownedTypeOIDs[x.rel.ArrayOID] = true
+		}
+	}
+	ownedDomainConOIDs := map[uint32]bool{}
+	for oid := range ownedTypeOIDs {
+		if dt := c.domainTypes[oid]; dt != nil {
+			for _, dc := range dt.Constraints {
+				ownedDomainConOIDs[dc.OID] = true
+			}
+		}
+	}
+
+	inDropSet := func(objType byte, objOID uint32) bool {
+		switch objType {
+		case 'r':
+			return ownedRelOIDs[objOID]
+		case 'i':
+			if ownedIdxOIDs[objOID] {
+				return true
+			}
+			idx := c.indexes[objOID]
+			return idx != nil && ownedRelOIDs[idx.RelOID]
+		case 's':
+			if ownedSeqOIDs[objOID] {
+				return true
+			}
+			seq := c.sequenceByOID[objOID]
+			return seq != nil && ownedRelOIDs[seq.OwnerRelOID]
+		case 'f':
+			return ownedProcOIDs[objOID]
+		case 't':
+			return ownedTypeOIDs[objOID]
+		case 'c':
+			if ownedDomainConOIDs[objOID] {
+				return true
+			}
+			con := c.constraints[objOID]
+			return con != nil && ownedRelOIDs[con.RelOID]
+		case 'g':
+			trig := c.triggers[objOID]
+			return trig != nil && ownedRelOIDs[trig.RelOID]
+		case 'p':
+			pol := c.policies[objOID]
+			return pol != nil && ownedRelOIDs[pol.RelOID]
+		}
+		return false
+	}
+
+	// Preflight all external dependencies before mutating any catalog state.
+	if !cascade {
+		for _, s := range ownedSchemas {
+			for _, rel := range s.Relations {
+				if !ownedRelOIDs[rel.OID] {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for _, idx := range s.Indexes {
+				if !inDropSet('i', idx.OID) {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for _, seq := range s.Sequences {
+				if !inDropSet('s', seq.OID) {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for _, up := range c.userProcs {
+				if up.Schema != nil && up.Schema.OID == s.OID && !ownedProcOIDs[up.OID] {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for _, bt := range c.typeByOID {
+				if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'm' && bt.Type != 'c' && !ownedTypeOIDs[bt.OID] {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+		}
+		for _, x := range rels {
+			for _, dep := range c.relationDependents(x.rel.OID, 0) {
+				if !dep.Normal || inDropSet(dep.ObjType, dep.ObjOID) {
+					continue
+				}
+				return errDependentObjects(dropRelKindLabel(x.rel.RelKind), x.rel.Name)
+			}
+			if x.rel.RelKind == 'c' && x.rel.RowTypeOID != 0 {
+				if bt := c.typeByOID[x.rel.RowTypeOID]; bt != nil {
+					for _, depRelOID := range c.typeRelationDependents(bt) {
+						if !ownedRelOIDs[depRelOID] {
+							return errDependentObjects("type", x.rel.Name)
+						}
+					}
+					for _, dep := range c.typeNormalDependents(bt) {
+						if !inDropSet(dep.ObjType, dep.ObjOID) {
+							return errDependentObjects("type", x.rel.Name)
+						}
+					}
+				}
+			}
+		}
+		for _, x := range indexes {
+			if x.idx.ConstraintOID != 0 && !inDropSet('c', x.idx.ConstraintOID) {
+				return &Error{
+					Code:    CodeDependentObjects,
+					Message: fmt.Sprintf("cannot drop index %q because constraint requires it", x.idx.Name),
+				}
+			}
+		}
+		for _, x := range seqs {
+			for _, dep := range c.findNormalDependents('s', x.seq.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("sequence", x.seq.Name)
+				}
+			}
+		}
+		for _, proc := range procs {
+			for _, dep := range c.findNormalDependents('f', proc.OID) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					kind := "function"
+					if proc.Kind == 'p' {
+						kind = "procedure"
+					}
+					return errDependentObjects(kind, proc.Name)
+				}
+			}
+		}
+		for _, bt := range types {
+			for _, depRelOID := range c.typeRelationDependents(bt) {
+				if !ownedRelOIDs[depRelOID] {
+					return errDependentObjects("type", bt.TypeName)
+				}
+			}
+			for _, dep := range c.typeNormalDependents(bt) {
+				if !inDropSet(dep.ObjType, dep.ObjOID) {
+					return errDependentObjects("type", bt.TypeName)
+				}
+			}
+		}
+	}
+
+	// Execute the drop set now that all checks passed.
+	for _, x := range rels {
+		if c.relationByOID[x.rel.OID] == nil {
+			continue
+		}
+		if hasNormalDependent(c.relationDependents(x.rel.OID, 0)) {
+			c.dropDependents('r', x.rel.OID)
+		}
+		if x.rel.RelKind == 'c' && x.rel.RowTypeOID != 0 {
+			if bt := c.typeByOID[x.rel.RowTypeOID]; bt != nil {
+				for _, depRelOID := range c.typeRelationDependents(bt) {
+					if depRel := c.relationByOID[depRelOID]; depRel != nil && depRel.OID != x.rel.OID {
+						c.dropDependents('r', depRel.OID)
+						c.removeRelation(depRel.Schema, depRel.Name, depRel)
+					}
+				}
+				c.dropTypeDependents(bt)
+			}
+		}
+		if c.relationByOID[x.rel.OID] != nil {
+			c.removeRelation(x.schema, x.rel.Name, x.rel)
+		}
+	}
+	for _, x := range indexes {
+		if x.schema.Indexes[x.idx.Name] == x.idx {
+			c.removeIndex(x.schema, x.idx.Name, x.idx)
+		}
+	}
+	for _, x := range seqs {
+		if c.sequenceByOID[x.seq.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('s', x.seq.OID)) > 0 {
+			c.dropDependents('s', x.seq.OID)
+		}
+		if c.sequenceByOID[x.seq.OID] != nil {
+			c.removeSequence(x.schema, x.seq)
+		}
+	}
+	for _, proc := range procs {
+		if c.userProcs[proc.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('f', proc.OID)) > 0 {
+			c.dropDependents('f', proc.OID)
+		}
+		if c.userProcs[proc.OID] != nil {
+			c.removeFunction(proc.OID, proc.Name)
+		}
+	}
+	for _, bt := range types {
+		if c.typeByOID[bt.OID] == nil {
+			continue
+		}
+		if cascade {
+			for _, depRelOID := range c.typeRelationDependents(bt) {
+				if depRel := c.relationByOID[depRelOID]; depRel != nil {
+					c.dropDependents('r', depRel.OID)
+					c.removeRelation(depRel.Schema, depRel.Name, depRel)
+				}
+			}
+			c.dropTypeDependents(bt)
+		}
+		if c.typeByOID[bt.OID] != nil {
+			c.deleteUserType(bt)
+		}
+	}
+	for _, oid := range staleTypeOwnerOIDs {
 		delete(c.typeOwners, oid)
 	}
+	for oid, owner := range c.typeOwners {
+		if owners[owner] && c.typeByOID[oid] == nil {
+			delete(c.typeOwners, oid)
+		}
+	}
+	for _, s := range ownedSchemas {
+		if c.schemas[s.OID] == nil {
+			continue
+		}
+		c.removeGrantsForObject('n', s.OID)
+		c.removeComments('n', s.OID)
+		delete(c.schemas, s.OID)
+		delete(c.schemaByName, s.Name)
+	}
+
 	kept := c.grants[:0]
 	for _, g := range c.grants {
 		if !owners[g.Grantee] {
@@ -437,7 +931,55 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 	c.grants = kept
+
+	var policiesToRemove []*Policy
+	for _, p := range c.policies {
+		var remaining []string
+		removedAny := false
+		for _, r := range p.Roles {
+			if r != "" && r != "public" && owners[r] {
+				removedAny = true
+				continue
+			}
+			remaining = append(remaining, r)
+		}
+		if !removedAny {
+			continue
+		}
+		if len(remaining) == 0 {
+			policiesToRemove = append(policiesToRemove, p)
+		} else {
+			p.Roles = remaining
+		}
+	}
+	for _, p := range policiesToRemove {
+		delete(c.policies, p.OID)
+		c.removeDepsOf('p', p.OID)
+		c.removeComments('p', p.OID)
+		plist := c.policiesByRel[p.RelOID]
+		for i, item := range plist {
+			if item.OID == p.OID {
+				c.policiesByRel[p.RelOID] = append(plist[:i], plist[i+1:]...)
+				break
+			}
+		}
+	}
 	return nil
+}
+
+func dropRelKindLabel(relkind byte) string {
+	switch relkind {
+	case 'v':
+		return "view"
+	case 'm':
+		return "materialized view"
+	case 'c':
+		return "type"
+	case 'f':
+		return "foreign table"
+	default:
+		return "table"
+	}
 }
 
 // ReassignOwned moves the objects a REASSIGN OWNED BY names to another role.
@@ -454,6 +996,9 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 		return err
 	}
 	for _, schema := range c.schemas {
+		if schema.Owner != "" && owners[schema.Owner] {
+			schema.Owner = newOwner
+		}
 		for _, rel := range schema.Relations {
 			if owners[rel.OwnerName] {
 				rel.OwnerName = newOwner
@@ -509,18 +1054,24 @@ func (c *Catalog) checkedRoleSet(roles *nodes.List) (map[string]bool, error) {
 	return owners, nil
 }
 
-// RenameRole renames a role and every object it owns.
+// RenameRole renames a role and every object, grant, or policy referencing it.
+//
+// pg: src/backend/commands/user.c — RenameRole
 func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
-	if strings.HasPrefix(oldName, "pg_") || strings.HasPrefix(stmt.Newname, "pg_") {
-		return &Error{Code: CodeReservedName,
-			Message: fmt.Sprintf("unacceptable role name %q", stmt.Newname)}
-	}
-	if oldName == c.currentOwner() || oldName == c.sessionUser {
-		return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be renamed"}
-	}
 	if err := c.checkRole(oldName); err != nil {
 		return err
+	}
+	if oldName == c.currentOwner() || oldName == c.currentSessionUser() {
+		return &Error{Code: CodeFeatureNotSupported, Message: "current user cannot be renamed"}
+	}
+	if strings.HasPrefix(oldName, "pg_") {
+		return &Error{Code: CodeReservedName,
+			Message: fmt.Sprintf("role name %q is reserved", oldName)}
+	}
+	if strings.HasPrefix(stmt.Newname, "pg_") {
+		return &Error{Code: CodeReservedName,
+			Message: fmt.Sprintf("role name %q is reserved", stmt.Newname)}
 	}
 	if c.roles[stmt.Newname] {
 		return errDuplicateObject("role", stmt.Newname)
@@ -528,6 +1079,9 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	delete(c.roles, oldName)
 	c.roles[stmt.Newname] = true
 	for _, schema := range c.schemas {
+		if schema.Owner == oldName {
+			schema.Owner = stmt.Newname
+		}
 		for _, rel := range schema.Relations {
 			if rel.OwnerName == oldName {
 				rel.OwnerName = stmt.Newname
@@ -564,6 +1118,13 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 			c.grants[i].Grantee = stmt.Newname
 		}
 	}
+	for _, p := range c.policies {
+		for i, r := range p.Roles {
+			if r == oldName {
+				p.Roles[i] = stmt.Newname
+			}
+		}
+	}
 	return nil
 }
 
@@ -588,7 +1149,7 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 		if !c.roles[name] {
 			continue // a snapshot may know a role the catalog does not
 		}
-		if name == c.currentOwner() || name == c.sessionUser {
+		if name == c.currentOwner() || name == c.currentSessionUser() {
 			return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be dropped"}
 		}
 		if c.roleInUse(name) {
@@ -602,6 +1163,13 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 	return nil
 }
 
+func (c *Catalog) currentSessionUser() string {
+	if c.sessionUser != "" {
+		return c.sessionUser
+	}
+	return "postgres"
+}
+
 // ownerRoleName resolves a role spec to the role name an object's owner is
 // recorded under.
 func (c *Catalog) ownerRoleName(rs *nodes.RoleSpec) string {
@@ -610,10 +1178,7 @@ func (c *Catalog) ownerRoleName(rs *nodes.RoleSpec) string {
 	case "CURRENT_USER", "CURRENT_ROLE":
 		return c.currentOwner()
 	case "SESSION_USER":
-		if c.sessionUser != "" {
-			return c.sessionUser
-		}
-		return c.currentOwner()
+		return c.currentSessionUser()
 	}
 	return name
 }

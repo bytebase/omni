@@ -17,7 +17,7 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 	// pg: src/backend/commands/schemacmds.c — CreateSchemaCommand (authId / schemaName logic)
 	var ownerName string
 	if stmt.Authrole != nil {
-		ownerName = roleSpecName(stmt.Authrole)
+		ownerName = c.ownerRoleName(stmt.Authrole)
 		if schemaName == "" {
 			schemaName = ownerName
 		}
@@ -117,6 +117,7 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			c.removeTypesInSchema(s)
 		}
 
+		c.removeGrantsForObject('n', s.OID)
 		c.removeComments('n', s.OID)
 		delete(c.schemas, s.OID)
 		delete(c.schemaByName, s.Name)

@@ -66,10 +66,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.AlterObjectSchemaStmt:
 		return c.ExecAlterObjectSchemaStmt(s)
 	case *nodes.AlterOwnerStmt:
-		if nodes.ObjectType(s.ObjectType) == nodes.OBJECT_TABLESPACE {
-			return c.AlterTablespaceOwner(s)
-		}
-		return nil // no-op: pgddl has no ownership tracking for other objects
+		return c.ExecAlterOwnerStmt(s)
 	case *nodes.TruncateStmt:
 		return c.ExecuteTruncate(s)
 	case *nodes.AlterTypeStmt:
@@ -384,8 +381,8 @@ func (c *Catalog) processSetDefaultTablespace(s *nodes.VariableSetStmt) error {
 			if !ok {
 				continue
 			}
-			if err := c.checkTablespace(sv.Str); err != nil {
-				return err
+			if sv.Str != "" && !c.snapshot && !c.tablespaces[sv.Str] {
+				return errInvalidParameterValue(fmt.Sprintf("invalid value for parameter \"default_tablespace\": %q", sv.Str))
 			}
 			c.defaultTablespace = sv.Str
 		}

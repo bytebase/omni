@@ -126,6 +126,11 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"ALTER TABLE ALL IN TABLESPACE OWNED BY a missing role", "missing", "ALTER TABLE ALL IN TABLESPACE pg_default OWNED BY a SET TABLESPACE pg_default", CodeUndefinedObject},
 		{"ALTER TABLE OWNER TO a missing role", "table", "ALTER TABLE a OWNER TO missing_role", CodeUndefinedObject},
 		{"ALTER INDEX RENAME to the table's own name", "table", "ALTER INDEX a RENAME TO a", CodeDuplicateTable},
+		{"ALTER TABLESPACE missing RENAME TO a reserved name", "missing", "ALTER TABLESPACE missing RENAME TO pg_bad", CodeUndefinedObject},
+		{"ALTER ROLE missing RENAME TO a reserved name", "missing", "ALTER ROLE missing RENAME TO pg_alice", CodeUndefinedObject},
+		{"ALTER ROLE current user RENAME TO another name", "missing", "ALTER ROLE postgres RENAME TO alice", CodeFeatureNotSupported},
+		{"SET default_tablespace to a missing tablespace", "missing", "SET default_tablespace = missing", CodeInvalidParameterValue},
+		{"CREATE partitioned table under SET default_tablespace = pg_default", "missing", "SET default_tablespace = pg_default;\nCREATE TABLE p (b int) PARTITION BY RANGE (b)", CodeFeatureNotSupported},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -870,9 +875,224 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// DROP OWNED preflights the entire deletion set before mutating: internal
+	// dependencies among owned tables, views, FK constraints, functions, and
+	// types succeed regardless of order, while an external dependency aborts
+	// without deleting unrelated owned objects.
+	t.Run("DROP OWNED preflights the complete owned set", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"SET ROLE alice",
+			"CREATE TYPE mood AS ENUM ('ok')",
+			"CREATE FUNCTION check_ok(mood) RETURNS bool LANGUAGE sql AS 'SELECT true'",
+			"CREATE DOMAIN valid_mood AS mood CHECK (check_ok(VALUE))",
+			"CREATE TABLE parent_t (id int PRIMARY KEY, m valid_mood)",
+			"CREATE TABLE child_t (id int REFERENCES parent_t(id))",
+			"CREATE VIEW v_owned AS SELECT id FROM parent_t",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY alice RESTRICT"); code != "0" {
+			t.Fatalf("catalog refused intra-set DROP OWNED with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE alice with %s", code)
+		}
+
+		c2 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"SET ROLE alice",
+			"CREATE TABLE unrelated_t (id int)",
+			"CREATE FUNCTION f_ext() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"SET ROLE bob",
+			"CREATE VIEW v_ext AS SELECT f_ext()",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c2, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c2, "DROP OWNED BY alice RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c2.schemaByName["public"].Relations["unrelated_t"] == nil {
+			t.Fatal("failed DROP OWNED deleted unrelated_t")
+		}
+	})
+
+	// Ordinary DROP TYPE clears ownership for enums, domains, and ranges.
+	t.Run("DROP TYPE clears enum, domain and range ownership", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"SET ROLE alice",
+			"CREATE TYPE e AS ENUM ('a')",
+			"CREATE DOMAIN d AS int",
+			"CREATE TYPE r AS RANGE (subtype = int4)",
+			"RESET ROLE",
+			"DROP TYPE e",
+			"DROP DOMAIN d",
+			"DROP TYPE r",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE alice after DROP TYPE with %s", code)
+		}
+	})
+
+	// Grants, policies, schemas, sequences, types, functions, and tablespaces
+	// participate in DROP ROLE, ALTER ... OWNER TO, REASSIGN OWNED, DROP OWNED,
+	// and ALTER ROLE RENAME.
+	t.Run("role dependencies cover grants, policies, sequences, owners and tablespaces", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE TABLE t (a int)",
+			"GRANT SELECT ON t TO alice",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		// #103 & #112: grant blocks DROP ROLE, and REASSIGN OWNED leaves ACLs on alice.
+		if code := simulationCatalogCode(t, c, "REASSIGN OWNED BY alice TO bob"); code != "0" {
+			t.Fatalf("catalog refused REASSIGN OWNED with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s while grant remains", code, CodeDependentObjects)
+		}
+		// #104: renaming alice rewrites ACL grantees so carol retains the grant.
+		if code := simulationCatalogCode(t, c, "ALTER ROLE alice RENAME TO carol"); code != "0" {
+			t.Fatalf("catalog refused ALTER ROLE RENAME with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE carol"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s after rename", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY carol"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED BY carol with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE carol"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE carol after DROP OWNED with %s", code)
+		}
+
+		// #108, #113, #114: tablespace ownership is preserved on DROP OWNED,
+		// updated by ALTER TABLESPACE OWNER TO, and moved by REASSIGN OWNED.
+		for _, stmt := range []string{
+			"CREATE ROLE ts_owner",
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"ALTER TABLESPACE ts OWNER TO ts_owner",
+			"DROP OWNED BY ts_owner",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if !c.tablespaces["ts"] {
+			t.Fatal("DROP OWNED removed tablespace ts")
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE ts_owner"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s while owning tablespace", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c, "REASSIGN OWNED BY ts_owner TO bob"); code != "0" {
+			t.Fatalf("catalog refused REASSIGN OWNED for tablespace with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE ts_owner"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE ts_owner after REASSIGN with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE bob"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s for reassigned tablespace owner", code, CodeDependentObjects)
+		}
+
+		// #105 & #110: ALTER SEQUENCE OWNER TO updates sequence owner, and
+		// renaming to a reserved role name is rejected with 42939.
+		for _, stmt := range []string{
+			"CREATE ROLE seq_role",
+			"CREATE SEQUENCE s",
+			"ALTER SEQUENCE s OWNER TO seq_role",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "ALTER ROLE seq_role RENAME TO pg_bad"); code != CodeReservedName {
+			t.Fatalf("catalog answered %s, want %s", code, CodeReservedName)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE seq_role"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s while owning sequence", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY seq_role"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED BY seq_role with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE seq_role"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE seq_role with %s", code)
+		}
+	})
+
+	// #106, #107, #109, #116: partition tablespace precedence, storage-free
+	// composite types, dropped default_tablespace fallback, and temp indexes.
+	t.Run("tablespace fallbacks for partitions, composite types and temp indexes", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE parent_ts LOCATION '/tmp/parent_ts'",
+			"CREATE TABLESPACE child_ts LOCATION '/tmp/child_ts'",
+			"CREATE TABLESPACE temp_ts LOCATION '/tmp/temp_ts'",
+			"CREATE TABLE p_with_ts (a int) PARTITION BY RANGE (a) TABLESPACE parent_ts",
+			"CREATE TABLE p_no_ts (a int) PARTITION BY RANGE (a)",
+			"SET default_tablespace = child_ts",
+			"CREATE TABLE c_from_parent PARTITION OF p_with_ts FOR VALUES FROM (0) TO (10)",
+			"CREATE TABLE c_from_default PARTITION OF p_no_ts FOR VALUES FROM (0) TO (10)",
+			"SET default_tablespace = pg_global",
+			"CREATE TABLE c_parent_beats_global PARTITION OF p_with_ts FOR VALUES FROM (10) TO (20)",
+			"CREATE TYPE ct AS (a int)",
+			"SET default_tablespace = temp_ts",
+			"DROP TABLESPACE temp_ts",
+			"CREATE TABLE after_drop (a int)",
+			"CREATE TEMP TABLE tt (a int) TABLESPACE child_ts",
+			"CREATE INDEX tt_a_idx ON tt (a)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if got := c.schemaByName["public"].Relations["c_from_parent"].Tablespace; got != "parent_ts" {
+			t.Fatalf("c_from_parent tablespace = %q, want parent_ts", got)
+		}
+		if got := c.schemaByName["public"].Relations["c_from_default"].Tablespace; got != "child_ts" {
+			t.Fatalf("c_from_default tablespace = %q, want child_ts", got)
+		}
+		if got := c.schemaByName["public"].Relations["c_parent_beats_global"].Tablespace; got != "parent_ts" {
+			t.Fatalf("c_parent_beats_global tablespace = %q, want parent_ts", got)
+		}
+		if got := c.schemaByName["public"].Relations["after_drop"].Tablespace; got != "" {
+			t.Fatalf("after_drop tablespace = %q, want empty default", got)
+		}
+		tt := c.GetRelation("pg_temp", "tt")
+		if tt == nil {
+			tt = c.GetRelation("", "tt")
+		}
+		if tt == nil {
+			t.Fatal("temp table tt not found")
+		}
+		for _, idx := range c.indexesByRel[tt.OID] {
+			if idx.Tablespace != "" {
+				t.Fatalf("temp index %s tablespace = %q, want empty default", idx.Name, idx.Tablespace)
+			}
+		}
+	})
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := conn.ExecContext(ctx, "DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\n"+fixtures[tc.fixture]); err != nil {
+			if _, err := conn.ExecContext(ctx, "DROP SCHEMA IF EXISTS public CASCADE;\nCREATE SCHEMA public;\nRESET default_tablespace;\n"+fixtures[tc.fixture]); err != nil {
 				t.Fatalf("build fixture %s: %v", tc.fixture, err)
 			}
 			_, err := conn.ExecContext(ctx, tc.stmt)

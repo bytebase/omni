@@ -473,6 +473,7 @@ func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, 
 func (c *Catalog) removeSequence(schema *Schema, seq *Sequence) {
 	delete(schema.Sequences, seq.Name)
 	delete(c.sequenceByOID, seq.OID)
+	c.removeGrantsForObject('s', seq.OID)
 	c.removeComments('s', seq.OID)
 	c.removeDepsOf('s', seq.OID)
 	c.removeDepsOn('s', seq.OID)

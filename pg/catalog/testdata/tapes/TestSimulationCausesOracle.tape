@@ -4,6 +4,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -14,6 +15,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -24,6 +26,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -33,6 +36,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -42,6 +46,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -52,6 +57,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -61,6 +67,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -70,6 +77,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -80,6 +88,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -90,6 +99,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -100,6 +110,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -110,6 +121,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -120,6 +132,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -130,6 +143,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -139,6 +153,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -149,6 +164,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -157,6 +173,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -167,6 +184,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -177,6 +195,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -186,6 +205,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -195,6 +215,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -204,6 +225,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -213,6 +235,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -221,6 +244,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -231,6 +255,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -241,6 +266,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -249,6 +275,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -258,6 +285,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -267,6 +295,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -276,6 +305,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -285,6 +315,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -293,6 +324,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -302,6 +334,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -312,6 +345,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -322,6 +356,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -332,6 +367,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -341,6 +377,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -350,6 +387,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -360,6 +398,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -370,6 +409,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -379,6 +419,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -388,6 +429,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -398,6 +440,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -408,6 +451,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -417,6 +461,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -426,6 +471,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -435,6 +481,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -443,6 +490,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -453,6 +501,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -462,6 +511,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -471,6 +521,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -479,6 +530,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -488,6 +540,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -497,6 +550,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -506,6 +560,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -514,6 +569,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -523,6 +579,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -532,6 +589,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -541,6 +599,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -550,6 +609,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -559,6 +619,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -568,6 +629,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -577,6 +639,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -586,6 +649,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -594,6 +658,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -602,6 +667,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -611,6 +677,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -621,6 +688,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -629,6 +697,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
 < ok 0 -
 > exec
@@ -637,6 +706,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -646,6 +716,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -655,6 +726,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -664,6 +736,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -673,6 +746,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -682,6 +756,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -691,6 +766,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -701,6 +777,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -710,6 +787,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
 < ok 0 -
 > exec
@@ -719,6 +797,7 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
@@ -728,9 +807,62 @@
 > exec
 | DROP SCHEMA IF EXISTS public CASCADE;
 | CREATE SCHEMA public;
+| RESET default_tablespace;
 | CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
 < ok 0 -
 > exec
 | ALTER INDEX a RENAME TO a
 < error
 | 42P07 relation "a" already exists
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER TABLESPACE missing RENAME TO pg_bad
+< error
+| 42704 tablespace "missing" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER ROLE missing RENAME TO pg_alice
+< error
+| 42704 role "missing" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER ROLE postgres RENAME TO alice
+< error
+| 0A000 session user cannot be renamed
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| SET default_tablespace = missing
+< error
+| 22023 invalid value for parameter "default_tablespace": "missing"
+| detail: Tablespace "missing" does not exist.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| SET default_tablespace = pg_default;
+| CREATE TABLE p (b int) PARTITION BY RANGE (b)
+< error
+| 0A000 cannot specify default tablespace for partitioned relations

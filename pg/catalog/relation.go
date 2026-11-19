@@ -217,6 +217,11 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 			delete(c.typeByName, typeKey{ns: rt.Namespace, name: rt.TypeName})
 		}
 		delete(c.typeByOID, rel.RowTypeOID)
+		delete(c.typeOwners, rel.RowTypeOID)
+		c.removeGrantsForObject('T', rel.RowTypeOID)
+		c.removeComments('t', rel.RowTypeOID)
+		c.removeDepsOf('t', rel.RowTypeOID)
+		c.removeDepsOn('t', rel.RowTypeOID)
 	}
 
 	// Remove array type.
@@ -225,6 +230,8 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 			delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
 		}
 		delete(c.typeByOID, rel.ArrayOID)
+		delete(c.typeOwners, rel.ArrayOID)
+		c.removeGrantsForObject('T', rel.ArrayOID)
 	}
 }
 

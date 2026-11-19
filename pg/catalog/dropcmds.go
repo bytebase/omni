@@ -161,6 +161,15 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	type target struct {
+		bt       *BuiltinType
+		typeName string
+		compRel  *Relation
+	}
+	var targets []target
+	dropTypeOIDs := map[uint32]bool{}
+	dropRelOIDs := map[uint32]bool{}
+	dropDomainConOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		// The parser gives a plain name as a list of strings, and a type name
 		// with modifiers, array bounds or SETOF as a TypeName. SETOF names the
@@ -199,7 +208,8 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 			return errUndefinedType(shownName)
 		}
 
-		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) {
+		isUserBaseOrShell := bt.OID >= FirstNormalObjectId && bt.Elem == 0 && (bt.Type == 'b' || !bt.IsDefined)
+		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) && !isUserBaseOrShell {
 			return errWrongObjectType(typeName, "a droppable type")
 		}
 
@@ -215,77 +225,192 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 			return &Error{Code: CodeDependentObjects, Message: fmt.Sprintf("cannot drop type %s because type %s requires it", shownName, typeName)}
 		}
 
-		// Composite type: drop the backing relation (relkind='c') which also removes the type.
+		var compRel *Relation
 		if bt.Type == 'c' && bt.RelID != 0 {
-			rel := c.relationByOID[bt.RelID]
-			if rel != nil && rel.RelKind == 'c' {
-				// Check for dependents.
-				relDeps := c.findTypeDependents(bt.OID)
-				recordedDeps := c.findNormalDependents('t', bt.OID)
-				if len(relDeps) > 0 || len(recordedDeps) > 0 {
-					if !cascade {
-						return errDependentObjects("type", typeName)
-					}
-					for _, depRelOID := range relDeps {
-						depRel := c.relationByOID[depRelOID]
-						if depRel == nil {
-							continue
-						}
-						c.dropDependents('r', depRel.OID)
-						c.removeRelation(depRel.Schema, depRel.Name, depRel)
-					}
-					c.dropDependents('t', bt.OID)
-				}
-				c.removeRelation(rel.Schema, rel.Name, rel)
-				continue
+			if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
+				compRel = rel
+				dropRelOIDs[rel.OID] = true
 			}
 		}
-
-		// Check for dependents: relations using this type, and recorded deps.
-		relDeps := c.findTypeDependents(bt.OID)
-		recordedDeps := c.findNormalDependents('t', bt.OID)
-		if len(relDeps) > 0 || len(recordedDeps) > 0 {
-			if !cascade {
-				return errDependentObjects("type", typeName)
+		for _, oid := range c.typeFamilyOIDs(bt) {
+			dropTypeOIDs[oid] = true
+		}
+		if dt := c.domainTypes[bt.OID]; dt != nil {
+			for _, dc := range dt.Constraints {
+				dropDomainConOIDs[dc.OID] = true
 			}
-			for _, relOID := range relDeps {
-				rel := c.relationByOID[relOID]
-				if rel == nil {
+		}
+		targets = append(targets, target{bt: bt, typeName: typeName, compRel: compRel})
+	}
+
+	if !cascade {
+		for _, t := range targets {
+			for _, relOID := range c.typeRelationDependents(t.bt) {
+				if !dropRelOIDs[relOID] {
+					return errDependentObjects("type", t.typeName)
+				}
+			}
+			for _, dep := range c.typeNormalDependents(t.bt) {
+				if (dep.ObjType == 't' && dropTypeOIDs[dep.ObjOID]) ||
+					(dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) ||
+					(dep.ObjType == 'c' && dropDomainConOIDs[dep.ObjOID]) {
 					continue
 				}
-				c.dropDependents('r', rel.OID)
-				c.removeRelation(rel.Schema, rel.Name, rel)
+				return errDependentObjects("type", t.typeName)
 			}
-			c.dropDependents('t', bt.OID)
 		}
+	}
 
-		// Remove enum/domain/range metadata.
-		if bt.Type == 'e' {
-			delete(c.enumTypes, bt.OID)
-		} else if bt.Type == 'd' {
-			delete(c.domainTypes, bt.OID)
-		} else if bt.Type == 'r' {
-			delete(c.rangeTypes, bt.OID)
+	for _, t := range targets {
+		if c.typeByOID[t.bt.OID] == nil {
+			continue
 		}
-
-		// Remove array type.
-		if bt.Array != 0 {
-			if at := c.typeByOID[bt.Array]; at != nil {
-				delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
+		if cascade {
+			for _, relOID := range c.typeRelationDependents(t.bt) {
+				if dropRelOIDs[relOID] {
+					continue
+				}
+				if depRel := c.relationByOID[relOID]; depRel != nil {
+					c.dropDependents('r', depRel.OID)
+					c.removeRelation(depRel.Schema, depRel.Name, depRel)
+				}
 			}
-			delete(c.typeByOID, bt.Array)
-			delete(c.typeOwners, bt.Array)
+			c.dropTypeDependents(t.bt)
 		}
-
-		// Remove the type itself.
-		delete(c.typeByName, typeKey{ns: bt.Namespace, name: bt.TypeName})
-		delete(c.typeByOID, bt.OID)
-		delete(c.typeOwners, bt.OID)
-		c.removeComments('t', bt.OID)
-		c.removeDepsOf('t', bt.OID)
-		c.removeDepsOn('t', bt.OID)
+		if t.compRel != nil {
+			if c.relationByOID[t.compRel.OID] != nil {
+				c.removeRelation(t.compRel.Schema, t.compRel.Name, t.compRel)
+			}
+			continue
+		}
+		c.deleteUserType(t.bt)
 	}
 	return nil
+}
+
+// typeFamilyOIDs returns the OIDs that belong to bt as one logical type: the
+// type itself, its array type, and for a range type its companion multirange
+// and multirange array.
+func (c *Catalog) typeFamilyOIDs(bt *BuiltinType) []uint32 {
+	if bt == nil {
+		return nil
+	}
+	oids := []uint32{bt.OID}
+	if bt.Array != 0 {
+		oids = append(oids, bt.Array)
+	}
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil && rt.MultirangeOID != 0 {
+			oids = append(oids, rt.MultirangeOID)
+			if mr := c.typeByOID[rt.MultirangeOID]; mr != nil && mr.Array != 0 {
+				oids = append(oids, mr.Array)
+			}
+		}
+	}
+	return oids
+}
+
+func (c *Catalog) typeRelationDependents(bt *BuiltinType) []uint32 {
+	var out []uint32
+	seen := map[uint32]bool{}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		for _, relOID := range c.findTypeDependents(oid) {
+			if !seen[relOID] {
+				seen[relOID] = true
+				out = append(out, relOID)
+			}
+		}
+	}
+	return out
+}
+
+func (c *Catalog) typeNormalDependents(bt *BuiltinType) []DepEntry {
+	var out []DepEntry
+	family := map[uint32]bool{}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		family[oid] = true
+	}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		for _, dep := range c.findNormalDependents('t', oid) {
+			if dep.ObjType == 't' && family[dep.ObjOID] {
+				continue
+			}
+			out = append(out, dep)
+		}
+	}
+	return out
+}
+
+func (c *Catalog) dropTypeDependents(bt *BuiltinType) {
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		c.dropDependents('t', oid)
+	}
+}
+
+// deleteUserType removes a non-composite user-defined type and its companion
+// array/multirange entries, ownership records, grants, comments, and deps.
+func (c *Catalog) deleteUserType(bt *BuiltinType) {
+	if bt == nil {
+		return
+	}
+	if dt := c.domainTypes[bt.OID]; dt != nil {
+		for _, dc := range dt.Constraints {
+			c.removeDepsOf('c', dc.OID)
+		}
+	}
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil && rt.MultirangeOID != 0 {
+			if mr := c.typeByOID[rt.MultirangeOID]; mr != nil {
+				if mr.Array != 0 {
+					if mra := c.typeByOID[mr.Array]; mra != nil {
+						delete(c.typeByName, typeKey{ns: mra.Namespace, name: mra.TypeName})
+					}
+					delete(c.typeByOID, mr.Array)
+					delete(c.typeOwners, mr.Array)
+					c.removeGrantsForObject('T', mr.Array)
+					c.removeComments('t', mr.Array)
+					c.removeDepsOf('t', mr.Array)
+					c.removeDepsOn('t', mr.Array)
+				}
+				delete(c.typeByName, typeKey{ns: mr.Namespace, name: mr.TypeName})
+			}
+			delete(c.typeByOID, rt.MultirangeOID)
+			delete(c.typeOwners, rt.MultirangeOID)
+			c.removeGrantsForObject('T', rt.MultirangeOID)
+			c.removeComments('t', rt.MultirangeOID)
+			c.removeDepsOf('t', rt.MultirangeOID)
+			c.removeDepsOn('t', rt.MultirangeOID)
+		}
+	}
+
+	switch bt.Type {
+	case 'e':
+		delete(c.enumTypes, bt.OID)
+	case 'd':
+		delete(c.domainTypes, bt.OID)
+	case 'r':
+		delete(c.rangeTypes, bt.OID)
+	}
+
+	if bt.Array != 0 {
+		if at := c.typeByOID[bt.Array]; at != nil {
+			delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
+		}
+		delete(c.typeByOID, bt.Array)
+		delete(c.typeOwners, bt.Array)
+		c.removeGrantsForObject('T', bt.Array)
+		c.removeComments('t', bt.Array)
+		c.removeDepsOf('t', bt.Array)
+		c.removeDepsOn('t', bt.Array)
+	}
+
+	delete(c.typeByName, typeKey{ns: bt.Namespace, name: bt.TypeName})
+	delete(c.typeByOID, bt.OID)
+	delete(c.typeOwners, bt.OID)
+	c.removeGrantsForObject('T', bt.OID)
+	c.removeComments('t', bt.OID)
+	c.removeDepsOf('t', bt.OID)
+	c.removeDepsOn('t', bt.OID)
 }
 
 // removeFunctionObjects handles DROP FUNCTION/PROCEDURE for one or more functions.

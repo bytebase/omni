@@ -8,16 +8,16 @@ import (
 
 // Policy represents a row-level security policy.
 type Policy struct {
-	OID        uint32
-	Name       string
-	RelOID     uint32
-	CmdType    string // "all", "select", "insert", "update", "delete"
-	Permissive bool
-	Roles      []string
-	UsingExpr      string       // deparsed USING expression
-	CheckExpr      string       // deparsed WITH CHECK expression
-	UsingAnalyzed  AnalyzedExpr // analyzed USING expression (for Tier 2 deparse)
-	CheckAnalyzed  AnalyzedExpr // analyzed WITH CHECK expression (for Tier 2 deparse)
+	OID           uint32
+	Name          string
+	RelOID        uint32
+	CmdType       string // "all", "select", "insert", "update", "delete"
+	Permissive    bool
+	Roles         []string
+	UsingExpr     string       // deparsed USING expression
+	CheckExpr     string       // deparsed WITH CHECK expression
+	UsingAnalyzed AnalyzedExpr // analyzed USING expression (for Tier 2 deparse)
+	CheckAnalyzed AnalyzedExpr // analyzed WITH CHECK expression (for Tier 2 deparse)
 }
 
 // CreatePolicy creates a new row-level security policy on a table.
@@ -65,7 +65,7 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 			Message: "only WITH CHECK expression allowed for INSERT"}
 	}
 
-	roles := extractRoleNames(stmt.Roles)
+	roles := c.extractPolicyRoles(stmt.Roles)
 
 	policy := &Policy{
 		OID:        c.oidGen.Next(),
@@ -139,7 +139,7 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 
 	// Update fields if provided.
 	if stmt.Roles != nil {
-		policy.Roles = extractRoleNames(stmt.Roles)
+		policy.Roles = c.extractPolicyRoles(stmt.Roles)
 	}
 	if stmt.Qual != nil {
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
@@ -163,7 +163,7 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 // If the roles list is empty, returns ["public"] (PG default).
 //
 // pg: src/backend/commands/policy.c — policy role handling
-func extractRoleNames(roleList *nodes.List) []string {
+func (c *Catalog) extractPolicyRoles(roleList *nodes.List) []string {
 	if roleList == nil || len(roleList.Items) == 0 {
 		return []string{"public"}
 	}
@@ -173,7 +173,11 @@ func extractRoleNames(roleList *nodes.List) []string {
 		if !ok {
 			continue
 		}
-		roles = append(roles, roleSpecName(rs))
+		if nodes.RoleSpecType(rs.Roletype) == nodes.ROLESPEC_PUBLIC {
+			roles = append(roles, "public")
+		} else {
+			roles = append(roles, c.ownerRoleName(rs))
+		}
 	}
 	if len(roles) == 0 {
 		return []string{"public"}

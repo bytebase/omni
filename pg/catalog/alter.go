@@ -151,26 +151,14 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			}
 			return err
 		}
-		if stmt.Cmds != nil {
-			for _, item := range stmt.Cmds.Items {
-				atc, ok := item.(*nodes.AlterTableCmd)
-				if !ok || nodes.AlterTableType(atc.Subtype) != nodes.AT_ChangeOwner || atc.Newowner == nil {
-					continue
-				}
-				owner := c.ownerRoleName(atc.Newowner)
-				if err := c.checkRole(owner); err != nil {
-					return err
-				}
-				seq.OwnerName = owner
-			}
-		}
-		return nil
+		return c.execAlterSequenceTableCmds(seq, relName, stmt.Cmds)
 	}
 
 	schema, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
 		// OWNER TO and SET TABLESPACE resolve their role or tablespace before
-		// the relation's kind, so on an index they report that object first.
+		// the relation's kind, so on an index they report that object first;
+		// and ALTER TABLE ... OWNER TO also operates on sequences.
 		var refusal *Error
 		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType && stmt.Cmds != nil {
 			for _, item := range stmt.Cmds.Items {
@@ -189,6 +177,11 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 					if tsErr := c.checkRelationTablespace(atc.Name); tsErr != nil {
 						return tsErr
 					}
+				}
+			}
+			if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_TABLE {
+				if seq, seqErr := c.findSequence(schemaName, relName); seqErr == nil && allAlterCmdsChangeOwner(stmt.Cmds) {
+					return c.execAlterSequenceTableCmds(seq, relName, stmt.Cmds)
 				}
 			}
 		}

@@ -174,7 +174,11 @@ func (c *Catalog) extractGrantees(granteeList *nodes.List) []string {
 		if !ok {
 			continue
 		}
-		result = append(result, roleSpecName(rs))
+		if nodes.RoleSpecType(rs.Roletype) == nodes.ROLESPEC_PUBLIC {
+			result = append(result, "")
+		} else {
+			result = append(result, c.ownerRoleName(rs))
+		}
 	}
 	return result
 }

@@ -910,6 +910,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 	c.typeByOID[multirangeOID] = multirangeType
 	c.typeByName[typeKey{ns: schema.OID, name: multirangeName}] = multirangeType
+	c.typeOwners[multirangeOID] = c.currentOwner()
 
 	multirangeArrayType := &BuiltinType{
 		OID:       multirangeArrayOID,
@@ -928,6 +929,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 	c.typeByOID[multirangeArrayOID] = multirangeArrayType
 	c.typeByName[typeKey{ns: schema.OID, name: multirangeArrayName}] = multirangeArrayType
+	c.typeOwners[multirangeArrayOID] = c.currentOwner()
 
 	// Store range metadata.
 	c.rangeTypes[typeOID] = &RangeType{
@@ -941,8 +943,8 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Range depends on subtype.
 	c.recordDependency('t', typeOID, 0, 't', subtypeOID, 0, DepNormal)
-	// Multirange depends on range.
-	c.recordDependency('t', multirangeOID, 0, 't', typeOID, 0, DepNormal)
+	// Multirange is an internal companion of its range type.
+	c.recordDependency('t', multirangeOID, 0, 't', typeOID, 0, DepInternal)
 
 	return nil
 }
@@ -1011,6 +1013,7 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 		}
 		c.typeByOID[shellOID] = shellType
 		c.typeByName[typeKey{ns: schema.OID, name: name}] = shellType
+		c.typeOwners[shellOID] = c.currentOwner()
 		return nil
 	}
 
@@ -1279,6 +1282,8 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	}
 	c.typeByOID[arrayOID] = arrayType
 	c.typeByName[typeKey{ns: schema.OID, name: arrayTypeName}] = arrayType
+	c.typeOwners[existing.OID] = c.currentOwner()
+	c.typeOwners[arrayOID] = c.currentOwner()
 
 	_ = defaultValue // Default value is stored on the type but not tracked further in pgddl.
 	_ = preferred    // Already set on the type above.

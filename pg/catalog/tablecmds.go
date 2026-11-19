@@ -496,11 +496,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			return errDuplicateTable(relName)
 		}
 	}
-	effectiveTablespace := c.effectiveTablespace(stmt.Tablespacename)
-	if stmt.Tablespacename == "" && rv.Relpersistence == 't' {
-		effectiveTablespace = ""
+	// PostgreSQL resolves a new relation's tablespace in DefineRelation order:
+	// explicit TABLESPACE clause, then a partitioned parent's stored tablespace
+	// when non-empty, then GetDefaultTablespace ("" for temp relations, else the
+	// session's effective default_tablespace).
+	effectiveTablespace := stmt.Tablespacename
+	if effectiveTablespace == "" && isPartition && len(parentOIDs) > 0 {
+		if parent := c.relationByOID[parentOIDs[0]]; parent != nil && parent.Tablespace != "" {
+			effectiveTablespace = parent.Tablespace
+		}
 	}
-	if stmt.Partspec != nil && stmt.Tablespacename == "pg_default" {
+	if effectiveTablespace == "" && rv.Relpersistence != 't' {
+		effectiveTablespace = c.effectiveTablespace("")
+	}
+	if stmt.Partspec != nil && effectiveTablespace == "pg_default" {
 		return &Error{Code: CodeFeatureNotSupported,
 			Message: "cannot specify default tablespace for partitioned relations"}
 	}
@@ -513,12 +522,34 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		return err
 	}
 
-	// Constraint indexes may name a tablespace; refuse one the catalog cannot
-	// place before any implicit sequence is made.
+	// Constraint indexes and cloned partition indexes may take a tablespace;
+	// refuse one the catalog cannot place before any implicit sequence is made.
 	for _, def := range constraintDefs {
-		if def.IndexSpace != "" || c.defaultTablespace != "" {
-			if err := c.checkRelationTablespace(c.effectiveTablespace(def.IndexSpace)); err != nil {
+		idxSpace := def.IndexSpace
+		if idxSpace == "" && rv.Relpersistence != 't' {
+			idxSpace = c.effectiveTablespace("")
+		}
+		if stmt.Partspec != nil && idxSpace == "pg_default" {
+			return &Error{Code: CodeFeatureNotSupported,
+				Message: "cannot specify default tablespace for partitioned relations"}
+		}
+		if idxSpace != "" {
+			if err := c.checkRelationTablespace(idxSpace); err != nil {
 				return err
+			}
+		}
+	}
+	if isPartition && len(parentOIDs) > 0 && rv.Relpersistence != 't' {
+		for _, idx := range c.indexesByRel[parentOIDs[0]] {
+			if idx.Tablespace == "" {
+				partIdxSpace := c.effectiveTablespace("")
+				if stmt.Partspec != nil && partIdxSpace == "pg_default" {
+					return &Error{Code: CodeFeatureNotSupported,
+						Message: "cannot specify default tablespace for partitioned relations"}
+				}
+				if err := c.checkRelationTablespace(partIdxSpace); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -636,13 +667,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 		for _, parentOID := range parentOIDs {
 			c.recordDependency('r', relOID, 0, 'r', parentOID, 0, depType)
-		}
-	}
-
-	// A partition with no TABLESPACE of its own takes its parent's.
-	if stmt.Tablespacename == "" && c.defaultTablespace == "" && isPartition && len(parentOIDs) > 0 {
-		if parent := c.relationByOID[parentOIDs[0]]; parent != nil {
-			rel.Tablespace = parent.Tablespace
 		}
 	}
 
@@ -1547,12 +1571,16 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			copy(partIndOption, idx.IndOption)
 		}
 
+		partIdxSpace := idx.Tablespace
+		if partIdxSpace == "" {
+			partIdxSpace = normalizeTablespace(c.effectiveIndexTablespace("", partition))
+		}
 		partIdx := &Index{
 			OID:              c.oidGen.Next(),
 			Name:             partIdxName,
 			Schema:           schema,
 			RelOID:           partition.OID,
-			Tablespace:       idx.Tablespace,
+			Tablespace:       partIdxSpace,
 			OwnerName:        partition.OwnerName,
 			Columns:          partAttnums,
 			IsUnique:         idx.IsUnique,

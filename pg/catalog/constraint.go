@@ -122,7 +122,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 
 	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
 	if existingIdx == nil {
-		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+		if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
 			return err
 		}
 	}
@@ -606,7 +606,7 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 
 	// Create backing index.
 	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
-	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
 		return err
 	}
 	idxName := name
@@ -931,6 +931,32 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			return
 		}
 		c.removeEventTrigger(evt)
+	case 't':
+		bt := c.typeByOID[objOID]
+		if bt == nil {
+			return
+		}
+		if bt.Type == 'c' && bt.RelID != 0 {
+			if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
+				for _, relOID := range c.typeRelationDependents(bt) {
+					if depRel := c.relationByOID[relOID]; depRel != nil {
+						c.dropDependents('r', depRel.OID)
+						c.removeRelation(depRel.Schema, depRel.Name, depRel)
+					}
+				}
+				c.dropTypeDependents(bt)
+				c.removeRelation(rel.Schema, rel.Name, rel)
+			}
+			return
+		}
+		for _, relOID := range c.typeRelationDependents(bt) {
+			if depRel := c.relationByOID[relOID]; depRel != nil {
+				c.dropDependents('r', depRel.OID)
+				c.removeRelation(depRel.Schema, depRel.Name, depRel)
+			}
+		}
+		c.dropTypeDependents(bt)
+		c.deleteUserType(bt)
 	}
 }
 
