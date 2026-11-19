@@ -3162,6 +3162,9 @@ type ShowStmt struct {
 	Future   bool         // SHOW FUTURE GRANTS ...
 	GrantsOn *GrantTarget // ON <target> (SHOW GRANTS ON ... / SHOW FUTURE GRANTS IN ...)
 	GrantsTo *Grantee     // TO/OF <grantee> (SHOW GRANTS TO/OF ...)
+	// IncludeHierarchy is SHOW GRANTS TO ... INCLUDE HIERARCHY, which the
+	// page writes for a role, a database role and a user.
+	IncludeHierarchy bool
 
 	// Result pipe: SHOW ... ->> <query>.
 	Pipe Node // the piped statement (e.g. a SELECT), or nil if no ->> present

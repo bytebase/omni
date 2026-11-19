@@ -36,6 +36,9 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 			}
 		}
 		delete(db.Tables, key)
+		// A materialized view log of the table goes with it.
+		delete(db.MaterializedViewLogs, key)
+		delete(db.MaterializedViewLogsKnown, key)
 	}
 	return nil
 }

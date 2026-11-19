@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
 // generateGrantDDL produces GRANT and REVOKE operations from the diff.
@@ -20,7 +22,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpGrant,
 				ObjectName:    objName,
 				SQL:           sql,
-				Transactional: true,
+				Transactional: grantTransactional(g),
 				Phase:         PhaseMain,
 				ObjType:       g.ObjType,
 				ObjOID:        g.ObjOID,
@@ -35,7 +37,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpRevoke,
 				ObjectName:    objName,
 				SQL:           sql,
-				Transactional: true,
+				Transactional: grantTransactional(g),
 				Phase:         PhaseMain,
 				ObjType:       g.ObjType,
 				ObjOID:        g.ObjOID,
@@ -52,7 +54,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpRevoke,
 				ObjectName:    objNameFrom,
 				SQL:           formatRevokeSQL(gFrom, objNameFrom),
-				Transactional: true,
+				Transactional: grantTransactional(gFrom),
 				Phase:         PhaseMain,
 				ObjType:       gFrom.ObjType,
 				ObjOID:        gFrom.ObjOID,
@@ -62,7 +64,7 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				Type:          OpGrant,
 				ObjectName:    objNameTo,
 				SQL:           formatGrantSQL(gTo, objNameTo),
-				Transactional: true,
+				Transactional: grantTransactional(gTo),
 				Phase:         PhaseMain,
 				ObjType:       gTo.ObjType,
 				ObjOID:        gTo.ObjOID,
@@ -87,15 +89,22 @@ func generateGrantDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	return ops
 }
 
+// grantTransactional reports whether a grant runs inside a transaction block. A
+// GRANT on an external resource cannot, the docs say
+// (https://docs.aws.amazon.com/redshift/latest/dg/r_GRANT.html).
+func grantTransactional(g Grant) bool {
+	return g.Target != nodes.OBJECT_FOREIGN_TABLE && g.Target != nodes.OBJECT_EXTERNAL_SCHEMA
+}
+
 // formatGrantSQL generates a GRANT statement.
 func formatGrantSQL(g Grant, objName string) string {
 	var b strings.Builder
 	b.WriteString("GRANT ")
 	b.WriteString(formatGrantPrivilege(g))
 	b.WriteString(" ON ")
-	b.WriteString(formatGrantObjectRef(g.ObjType, objName))
+	b.WriteString(formatGrantObjectRef(g, objName))
 	b.WriteString(" TO ")
-	b.WriteString(formatGrantee(g.Grantee))
+	b.WriteString(formatGrantee(g))
 	if g.WithGrant {
 		b.WriteString(" WITH GRANT OPTION")
 	}
@@ -108,9 +117,9 @@ func formatRevokeSQL(g Grant, objName string) string {
 	b.WriteString("REVOKE ")
 	b.WriteString(formatGrantPrivilege(g))
 	b.WriteString(" ON ")
-	b.WriteString(formatGrantObjectRef(g.ObjType, objName))
+	b.WriteString(formatGrantObjectRef(g, objName))
 	b.WriteString(" FROM ")
-	b.WriteString(formatGrantee(g.Grantee))
+	b.WriteString(formatGrantee(g))
 	return b.String()
 }
 
@@ -127,9 +136,18 @@ func formatGrantPrivilege(g Grant) string {
 	return priv
 }
 
-// formatGrantObjectRef formats the ON clause for a grant/revoke.
-func formatGrantObjectRef(objType byte, objName string) string {
-	switch objType {
+// formatGrantObjectRef formats the ON clause for a grant/revoke, including the
+// Redshift objects whose code alone does not say how they are written.
+func formatGrantObjectRef(g Grant, objName string) string {
+	switch g.Target {
+	case nodes.OBJECT_PROCEDURE:
+		return fmt.Sprintf("PROCEDURE %s", objName)
+	case nodes.OBJECT_FOREIGN_TABLE:
+		return fmt.Sprintf("EXTERNAL TABLE %s", formatQualifiedDescription(objName))
+	case nodes.OBJECT_EXTERNAL_SCHEMA:
+		return fmt.Sprintf("EXTERNAL SCHEMA %s", quoteIdentAlways(objName))
+	}
+	switch g.ObjType {
 	case 'r':
 		return fmt.Sprintf("TABLE %s", formatQualifiedDescription(objName))
 	case 's':
@@ -145,10 +163,31 @@ func formatGrantObjectRef(objType byte, objName string) string {
 	}
 }
 
-// formatGrantee formats the grantee name for GRANT/REVOKE.
-func formatGrantee(grantee string) string {
-	if grantee == "" {
+// formatGrantee formats the grantee for GRANT/REVOKE, keeping the alternative
+// the statement was written with: an IAM role, a namespace or account, the
+// admins of an account, a datashare, or a role name.
+func formatGrantee(g Grant) string {
+	name := g.GranteeName
+	switch g.GranteeKind {
+	case "iam_role":
+		return fmt.Sprintf("IAM_ROLE '%s'", strings.ReplaceAll(name, "'", "''"))
+	case "iam_role_default":
+		return "IAM_ROLE DEFAULT"
+	case "namespace":
+		return fmt.Sprintf("NAMESPACE '%s'", strings.ReplaceAll(name, "'", "''"))
+	case "account":
+		return fmt.Sprintf("ACCOUNT '%s'", strings.ReplaceAll(name, "'", "''"))
+	case "account_via_data_catalog":
+		return fmt.Sprintf("ACCOUNT '%s' VIA DATA CATALOG", strings.ReplaceAll(name, "'", "''"))
+	case "admins_of_account":
+		return fmt.Sprintf("ADMINS OF ACCOUNT '%s'", strings.ReplaceAll(name, "'", "''"))
+	case "datashare":
+		return "DATASHARE " + quoteIdentAlways(name)
+	case "rls_policy":
+		return "RLS POLICY " + quoteIdentAlways(name)
+	}
+	if g.Grantee == "" {
 		return "PUBLIC"
 	}
-	return quoteIdentAlways(grantee)
+	return quoteIdentAlways(g.Grantee)
 }

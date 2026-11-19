@@ -32,6 +32,12 @@ func (p *Parser) parseCopyStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	// r_COPY writes the column list as one name, `COPY table column FROM ...`:
+	// the docs' placeholder, not a parenthesized list.
+	if attlist == nil && p.isRedshiftCopyColumnStart() {
+		tok := p.advance()
+		attlist = &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}}
+	}
 	isFrom, err := p.parseCopyFrom()
 	if err != nil {
 		return nil, err
@@ -51,7 +57,7 @@ func (p *Parser) parseCopyStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	redshiftOptions, err := p.parseRedshiftDataMovementOptions()
+	redshiftOptions, err := p.parseRedshiftDataMovementOptions(false)
 	if err != nil {
 		return nil, err
 	}

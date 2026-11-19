@@ -183,6 +183,19 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
+	// [ PRESERVE TABLE ] is the one option DROP MATERIALIZED VIEW takes, and
+	// it ends the statement: Oracle answers ORA-03049 at FORCE before it, at a
+	// second PRESERVE and at PURGE after it.
+	if stmt.ObjectType == nodes.OBJECT_MATERIALIZED_VIEW && p.isKeywordStr("PRESERVE") {
+		p.advance() // consume PRESERVE
+		if err := p.expectWords("TABLE"); err != nil {
+			return nil, err
+		}
+		stmt.PreserveTable = true
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
 	// Optional trailing options: CASCADE CONSTRAINTS, PURGE, FORCE, ONLINE, DEFERRED/IMMEDIATE INVALIDATION
 	for {
 		if p.cur.Type == kwCASCADE {
@@ -267,6 +280,61 @@ func (p *Parser) parseDropSimpleStmt(objType nodes.ObjectType, start int) (*node
 	}
 
 	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseDropRestorePointStmt parses DROP RESTORE POINT, after the words that
+// name it.
+//
+// BNF: oracle/parser/bnf/DROP-RESTORE-POINT.bnf
+//
+//	DROP RESTORE POINT restore_point [ FOR PLUGGABLE DATABASE pdb_name ] ;
+//
+// Unlike the other simple DROPs it takes no IF [NOT] EXISTS and no FORCE:
+// Oracle answers ORA-11600 at the name after IF [NOT] EXISTS and ORA-03049
+// at FORCE.
+func (p *Parser) parseDropRestorePointStmt(start int) (*nodes.DropStmt, error) {
+	stmt := &nodes.DropStmt{
+		ObjectType: nodes.OBJECT_RESTORE_POINT,
+		Names:      &nodes.List{},
+		Loc:        nodes.Loc{Start: start},
+	}
+	if p.cur.Type == kwIF {
+		p.advance() // consume IF
+		if p.isKeywordStr("NOT") {
+			p.advance()
+		}
+		if err := p.expectCreateTableToken(kwEXISTS); err != nil {
+			return nil, err
+		}
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwFORCE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// A restore point takes no schema and no reserved word (ORA-03048,
+	// ORA-03050), as CREATE RESTORE POINT's does.
+	name, err := p.parseUnqualifiedName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Names.Items = append(stmt.Names.Items, name)
+	stmt.Loc.End = p.prev.End
+	if p.cur.Type == kwFORCE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwFOR {
+		p.advance() // consume FOR
+		if err := p.expectWords("PLUGGABLE", "DATABASE"); err != nil {
+			return nil, err
+		}
+		name, err := p.parseUnqualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForPDB = name.Name
+		stmt.Loc.End = p.prev.End
+	}
 	return stmt, nil
 }
 

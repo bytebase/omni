@@ -26,9 +26,11 @@ func TestResolveQuerySpanLinkedServer(t *testing.T) {
 		{"SELECT * FROM OPENQUERY(srv, 'SELECT a FROM t')", &LinkedServerError{Server: "srv", PassThrough: true}},
 		{"SELECT o.a FROM OPENQUERY([my srv], 'SELECT a FROM t') AS o", &LinkedServerError{Server: "my srv", PassThrough: true}},
 		// An ad-hoc provider has no linked server to name, and a pass-through
-		// call the parser reads no server from is still a pass-through call.
+		// call names the server it sends the query to. OPENQUERY takes the
+		// server as an identifier, not a string: the pinned SQL Server
+		// refuses OPENQUERY('srv', ...).
 		{"SELECT * FROM OPENROWSET('SQLNCLI', 'x', 'SELECT 1')", &LinkedServerError{}},
-		{"SELECT * FROM OPENQUERY('srv', 'SELECT 1')", &LinkedServerError{PassThrough: true}},
+		{"SELECT * FROM OPENQUERY(srv, 'SELECT 1')", &LinkedServerError{Server: "srv", PassThrough: true}},
 		{"SELECT * FROM OPENDATASOURCE('SQLNCLI', 'x').db.dbo.t", &LinkedServerError{}},
 	}
 	for _, tc := range tests {

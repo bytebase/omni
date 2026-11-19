@@ -30,10 +30,55 @@ type Parser struct {
 	// VALUE, which only ALTER TABLE MODIFY takes.
 	createTableColumns bool
 
+	// alterTableAddColumn is set while the column definition ALTER TABLE
+	// ... ADD takes is parsed, where Oracle 23ai reads the datatype at the
+	// resolve phase: ALTER TABLE t ADD c answers ORA-02263 (need to specify
+	// the datatype of column) at c, and ALTER TABLE t ADD c d ORA-00902
+	// (invalid datatype) at d, a word it does not reserve naming a type it
+	// has. Neither is a syntax error, so the statement is accepted, and a
+	// word Oracle reserves names neither (ORA-00904 at it, as for VALIDATE
+	// or IMMEDIATE). The rows are compat.tsv's alterTable_constraint_state
+	// family: ADD RELY, ADD DEFERRABLE, ADD INITIALLY DEFERRED are all
+	// column definitions with the datatype left to the engine.
+	alterTableAddColumn bool
+
+	// alterTableModifyColumn is set while a column of ALTER TABLE MODIFY is
+	// parsed. Oracle leaves a word there to the resolve phase, as it does a
+	// bare ADD column: MODIFY (a KEY), MODIFY (a IDENTITY) and MODIFY (a
+	// NULLS) are accepted (compat.tsv's alterTable_inline_constraint,
+	// modify_col_properties and DROP IDENTITY rows).
+	alterTableModifyColumn bool
+
+	// alterTableAddList is set while the columns of ALTER TABLE ... ADD (
+	// ... ) are parsed, where a column takes SCOPE IS or WITH ROWID whatever
+	// its datatype, as a bare ADD column does.
+	alterTableAddList bool
+
+	// upgradeIncludingData is set while the column_properties of ALTER
+	// TABLE's upgrade_table_clause (UPGRADE [ NOT ] INCLUDING DATA ...) are
+	// parsed. Oracle answers ORA-01735 at byte 0 for the option and reads no
+	// item of a nested table's storage there, on a table that holds the
+	// nested table column as on one that does not, so that group is text
+	// (parseATNestedTableStorage).
+	upgradeIncludingData bool
+
 	// createTableIndexOrganized is set while the compression of an
 	// index-organized table, or of its partitions, is parsed: only there
 	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).
 	createTableIndexOrganized bool
+
+	// alterMview is set while ALTER MATERIALIZED VIEW is parsed. Oracle's
+	// reader for the clauses it shares with ALTER TABLE is looser there:
+	// it takes a bare SUBPARTITION after SUBPARTITION TEMPLATE, a word
+	// where SUBPARTITIONS stands, a subpartition description without
+	// VALUES, and an annotations_clause as balanced text.
+	alterMview bool
+
+	// atSubpartitionTemplate is set while a subpartition template's
+	// description list is parsed. Oracle reads a description's values
+	// without VALUES, a parenthesized list where a hash subpartition has no
+	// values, and a trailing word there on ALTER MATERIALIZED VIEW.
+	atSubpartitionTemplate bool
 
 	// createTablePartitionsOfLog is set while CREATE MATERIALIZED VIEW LOG's
 	// table_partitioning_clauses are read with CREATE TABLE's reader: a
@@ -546,6 +591,19 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	return stmt, nil
 }
 
+// sessionEndsWithEmptyOutline reports whether an ALTER SESSION SET's last
+// setting is one of the two outline settings, written with '=' and no value.
+func sessionEndsWithEmptyOutline(stmt *nodes.AlterSessionStmt) bool {
+	if stmt.Action != "SET" || stmt.SetParams == nil || stmt.SetParams.Len() == 0 {
+		return false
+	}
+	last, ok := stmt.SetParams.Items[stmt.SetParams.Len()-1].(*nodes.SetParam)
+	if !ok || last.Value != nil {
+		return false
+	}
+	return last.Name == "USE_PRIVATE_OUTLINES" || last.Name == "USE_STORED_OUTLINES"
+}
+
 // nextSelection returns the branch choices of the selection that follows
 // the one whose undecided $IF directives decided records in order, or nil
 // when none is left: the last $IF that can pass over one more undecided
@@ -621,6 +679,82 @@ func checkSelectionDelimiters(sql string, start, end int, choices *ccChoices) er
 	return scanDelimiters(lexer, sql, end, func() bool { return true })
 }
 
+// extraCloseShape records the statement shape that Oracle still parses
+// when one closing parenthesis is left over at its end (ALTER ... SPLIT
+// SUBPARTITION ... INTO ..., ALTER MATERIALIZED VIEW's bare subpartition
+// template and in-memory column list, and CREATE JAVA ... USING BFILE).
+// Every other extra closing parenthesis is a syntax error.
+type extraCloseShape struct {
+	alter, create           bool
+	materialized, mviewLog  bool
+	table, java             bool
+	split, subpartition, at bool
+	atParen, into           bool
+	set, template           bool
+	templateBare            bool
+	pendingViewLog          bool
+	seenInmemory, bfile     bool
+}
+
+func (s *extraCloseShape) observe(tok Token, word, prevWord string) {
+	if tok.Type == ';' || tok.Type == tokEOF || tok.Type == tokSCONST || tok.Type == tokNCHARLIT || tok.Type == tokQIDENT {
+		return
+	}
+	if s.pendingViewLog {
+		if word == "ON" {
+			s.mviewLog = true
+		}
+		s.pendingViewLog = false
+	}
+	switch word {
+	case "ALTER":
+		s.alter = true
+	case "CREATE":
+		s.create = true
+	case "MATERIALIZED":
+		s.materialized = true
+	case "TABLE":
+		s.table = true
+	case "JAVA":
+		s.java = true
+	case "LOG":
+		if prevWord == "VIEW" {
+			// MATERIALIZED VIEW LOG ON, or a view named LOG; the ON decides.
+			s.pendingViewLog = true
+		}
+	case "SPLIT":
+		s.split = true
+	case "SUBPARTITION":
+		s.subpartition = true
+		if prevWord == "TEMPLATE" {
+			s.templateBare = true
+		}
+	case "AT":
+		s.at = true
+	case "INTO":
+		s.into = true
+	case "SET":
+		s.set = true
+	case "TEMPLATE":
+		s.template = true
+	case "INMEMORY":
+		s.seenInmemory = true
+	case "BFILE":
+		s.bfile = true
+	}
+	if tok.Type == '(' && prevWord == "AT" {
+		s.atParen = true
+	}
+}
+
+func (s *extraCloseShape) allowsExtraClose() bool {
+	split := s.alter && s.split && s.subpartition && s.atParen && s.into
+	mviewTemplate := s.alter && s.materialized && !s.mviewLog && s.set && s.subpartition && s.template && s.templateBare
+	mviewInmemory := s.alter && s.materialized && !s.mviewLog && s.seenInmemory
+	javaBfile := s.create && s.java && s.bfile
+	return split || mviewTemplate || mviewInmemory || javaBfile
+}
+
 // scanDelimiters checks the parentheses of the tokens lexer returns up to
 // end, reporting an imbalance only while settled says the selection the
 // lexer reads is the one to check.
@@ -628,8 +762,20 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 	depth := 0
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
+	var shape extraCloseShape
+	var prevWord string
+	var extraClose *Token
+	afterExtra := false
 	for {
 		tok := lexer.NextToken()
+		if tok.Type != tokEOF {
+			word := strings.ToUpper(tok.Str)
+			shape.observe(tok, word, prevWord)
+			prevWord = word
+			if extraClose != nil {
+				afterExtra = true
+			}
+		}
 		if lexer.Err != nil {
 			return nil
 		}
@@ -648,8 +794,27 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 		prev3, prev2, prev1 = prev2, prev1, tok
 		switch tok.Type {
 		case ';':
+			if extraClose != nil {
+				if depth == -1 && settled() && shape.allowsExtraClose() {
+					depth = 0
+				} else if settled() {
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+				}
+			}
 			javaHead = embeddedSourceHead{}
+			shape = extraCloseShape{}
+			extraClose = nil
+			afterExtra = false
+			prevWord = ""
 		case tokEOF:
+			if extraClose != nil {
+				if depth == -1 && !afterExtra && settled() && shape.allowsExtraClose() {
+					return nil
+				}
+				if settled() {
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+				}
+			}
 			if depth > 0 && settled() {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
@@ -658,9 +823,19 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 			depth++
 		case ')':
 			depth--
-			if depth < 0 && settled() {
-				text := ")"
-				return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
+			if depth < 0 {
+				// Only a closing parenthesis that ends the statement may be
+				// read as Oracle does; one in the middle is the error it
+				// always was.
+				next := lexer.lookahead(lexer.pos, lexer.end).NextToken()
+				if depth == -1 && extraClose == nil && (next.Type == tokEOF || next.Type == ';') {
+					extraClose = &tok
+					continue
+				}
+				if settled() {
+					text := ")"
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
+				}
 			}
 		}
 	}
@@ -668,7 +843,14 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 
 func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	switch p.prev.Type {
-	case '(', ',', '.', '=', '+', '-', '/', tokASSIGN, tokASSOC, tokCONCAT:
+	case '=', tokASSIGN, tokASSOC:
+		// ALTER SESSION SET USE_PRIVATE_OUTLINES = ends the statement: the
+		// outline settings take no value (see parseAlterSessionSetParam).
+		if session, ok := stmt.(*nodes.AlterSessionStmt); ok && sessionEndsWithEmptyOutline(session) {
+			return false
+		}
+		return true
+	case '(', ',', '.', '+', '-', '/', tokCONCAT:
 		return true
 	}
 
@@ -701,7 +883,21 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	case *nodes.CreateViewStmt:
 		return p.prev.Type == kwAS
 	case *nodes.AlterTableStmt:
-		return p.prev.Type == kwTABLE || p.prev.Type == kwADD || p.prev.Type == kwMODIFY
+		if p.prev.Type == kwTABLE {
+			// MAPPING TABLE ends a MOVE PARTITION action; ALTER TABLE alone
+			// is incomplete.
+			if actions := stmt.(*nodes.AlterTableStmt).Actions; actions != nil && actions.Len() > 0 {
+				if cmd, ok := actions.Items[actions.Len()-1].(*nodes.AlterTableCmd); ok && cmd.Options != nil {
+					for _, item := range cmd.Options.Items {
+						if opt, ok := item.(*nodes.DDLOption); ok && opt.Key == "MAPPING" {
+							return false
+						}
+					}
+				}
+			}
+			return true
+		}
+		return p.prev.Type == kwADD || p.prev.Type == kwMODIFY
 	case *nodes.CreateProcedureStmt, *nodes.CreateFunctionStmt, *nodes.CreatePackageStmt,
 		*nodes.CreateTriggerStmt, *nodes.PLSQLBlock:
 		return p.prev.Type == kwBEGIN || p.prev.Type == kwTHEN

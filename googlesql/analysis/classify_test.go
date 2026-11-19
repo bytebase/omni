@@ -20,6 +20,11 @@ func TestClassifySQL(t *testing.T) {
 		{"with cte", "WITH c AS (SELECT 1 AS n) SELECT n FROM c", Select},
 		{"set op union", "SELECT a FROM t UNION ALL SELECT a FROM u", Select},
 		{"parenthesized query", "(SELECT 1) UNION ALL (SELECT 2)", Select},
+		// The `TABLE t` query primary (query_primary: table_clause_reserved) is a
+		// read of that table, exactly like `SELECT * FROM t`.
+		{"table clause", "TABLE t", Select},
+		{"table clause with filter", "TABLE t WHERE a > 1", Select},
+		{"table clause tvf", "TABLE ds.f(a)", Select},
 
 		// --- DML ---
 		{"insert", "INSERT INTO t (a) VALUES (1)", DML},
@@ -78,6 +83,7 @@ func TestClassifySQL(t *testing.T) {
 		{"create proto bundle", "CREATE PROTO BUNDLE (`a.b.C`)", DDL},
 		{"alter proto bundle", "ALTER PROTO BUNDLE INSERT (`a.b.C`)", DDL},
 		{"grant to role", "GRANT SELECT ON TABLE t TO ROLE r", DDL},
+		{"undrop schema", "UNDROP SCHEMA s", DDL},
 		{"grant role to role", "GRANT ROLE a TO ROLE b", DDL},
 		{"revoke role from role", "REVOKE ROLE a FROM ROLE b", DDL},
 
@@ -187,6 +193,22 @@ func TestClassifyRecordsTheSpanTables(t *testing.T) {
 		"SELECT a FROM t UNION ALL (SELECT a FROM u EXCEPT DISTINCT SELECT a FROM v) UNION ALL SELECT * FROM w",
 		"INSERT INTO t SELECT * FROM u JOIN v USING (a)",
 		"UPDATE t SET a = (SELECT 1 FROM s) FROM u, u.arr AS x WHERE x.b = 1",
+		"SELECT x FROM t |> JOIN u ON true |> WHERE x IN (SELECT x FROM v)",
+		"|> UNION ALL TABLE u, (SELECT 1 FROM v)",
+		"|> WITH c AS (SELECT 1 FROM v) |> JOIN u",
+		"SELECT 1 |> INSERT t (x)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> CALL f(TABLE secret)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> CALL f(arg => TABLE secret)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> JOIN INFORMATION_SCHEMA.COLUMNS TABLESAMPLE SYSTEM (10 PERCENT PARTITION BY (SELECT x FROM secret)) ON true",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> JOIN f(TABLE secret) ON true",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> JOIN UNNEST([1]) TABLESAMPLE SYSTEM (10 PERCENT PARTITION BY (SELECT x FROM secret)) ON true",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> CALL f(TABLE g((SELECT x FROM secret)))",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> SELECT t.* REPLACE ((SELECT x FROM secret) AS c)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> WINDOW t.* REPLACE ((SELECT x FROM secret) AS c)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> AGGREGATE COUNT(*) GROUP BY ROLLUP((SELECT x FROM secret))",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> UNION ALL TABLE f(TABLE secret)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> PIVOT(SUM((SELECT x FROM secret)) FOR c IN (1))",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> SELECT SUM(x) OVER w WINDOW w AS (PARTITION BY (SELECT y FROM secret))",
 	} {
 		file, err := parseFile(sql)
 		if err != nil {

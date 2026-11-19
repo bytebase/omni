@@ -79,6 +79,10 @@ func SplitAll(input string) []Segment {
 	stmtStart := 0
 	state := stateTop
 	depth := 0
+	// prefix holds the first tokens of the statement being split, up to the
+	// ones beginOpensBlock reads, so a BEGIN inside an expression is told
+	// apart from one that opens a statement's compound block.
+	var prefix []TokenKind
 
 	// We need lookahead after kwBEGIN to disambiguate TCL from a compound
 	// block: one token for most followers, two for BEGIN WITH LABEL (WITH
@@ -115,6 +119,7 @@ func SplitAll(input string) []Segment {
 			ByteStart: stmtStart,
 			ByteEnd:   end,
 		})
+		prefix = prefix[:0]
 	}
 
 	for {
@@ -127,6 +132,12 @@ func SplitAll(input string) []Segment {
 		case stateTop:
 			switch tok.Kind {
 			case kwBEGIN:
+				if !beginOpensBlock(prefix) {
+					// BEGIN is not the statement's first word and not a
+					// procedure's body opener: it is a name, as BEGIN is
+					// nonReserved. `SELECT BEGIN zzz;` stays one statement.
+					break
+				}
 				next := peekToken()
 				// BEGIN WITH LABEL x is the transaction form. WITH alone does
 				// not decide — a compound block's first statement can be a
@@ -148,6 +159,10 @@ func SplitAll(input string) []Segment {
 				// next segment starts AFTER the `;`.
 				emit(tok.Loc.Start)
 				stmtStart = tok.Loc.End
+				continue
+			}
+			if len(prefix) < blockBeginPrefix {
+				prefix = append(prefix, tok.Kind)
 			}
 
 		case stateInBlock:
@@ -173,6 +188,27 @@ func SplitAll(input string) []Segment {
 	}
 
 	return segments
+}
+
+// blockBeginPrefix is how many tokens of a statement blockBeginPrefix reads.
+const blockBeginPrefix = 5
+
+// beginOpensBlock reports whether a BEGIN that appears at the top level of a
+// statement opens a compound block rather than naming a column. BEGIN is
+// nonReserved, so `SELECT BEGIN zzz` names one; only a statement's first
+// token, or the body of a CREATE [OR REPLACE] PROCEDURE, opens a block.
+func beginOpensBlock(prefix []TokenKind) bool {
+	if len(prefix) == 0 {
+		return true
+	}
+	if prefix[0] != kwCREATE || len(prefix) < 2 {
+		return false
+	}
+	if prefix[1] == kwPROCEDURE {
+		return true
+	}
+	return len(prefix) >= 4 && prefix[1] == kwOR &&
+		prefix[2] == kwREPLACE && prefix[3] == kwPROCEDURE
 }
 
 // isDorisTCLBeginFollower reports whether tok, appearing immediately after a

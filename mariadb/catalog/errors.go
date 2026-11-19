@@ -31,6 +31,7 @@ const (
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
 	ErrNoSuchTable                       = 1146
+	ErrUnknownView                       = 4092
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
 	ErrCantRemoveAllFields               = 1090
@@ -40,6 +41,7 @@ const (
 	ErrCheckConstraintViolated           = 3819
 	ErrFKCannotDropParent                = 3730
 	ErrNoSuchFunction                    = 1305
+	ErrFunctionNotDefined                = 1128
 	ErrNoSuchProcedure                   = 1305
 	ErrDupFunction                       = 1304
 	ErrDupProcedure                      = 1304
@@ -52,6 +54,9 @@ const (
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
 	ErrWrongNameForIndex                 = 1280
+	ErrCannotPartOfFulltext              = 1283
+	ErrUnknownStorageEngine              = 1286
+	ErrKeyRefMismatch                    = 1239
 	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
 	// The window-reference errors, measured on mariadb:11.8.8.
@@ -106,6 +111,7 @@ var sqlStateMap = map[int]string{
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
 	ErrNoSuchTable:                       "42S02",
+	ErrUnknownView:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrNoDatabaseSelected:                "3D000",
 	ErrCantRemoveAllFields:               "42000",
@@ -115,6 +121,7 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintViolated:           "HY000",
 	ErrFKCannotDropParent:                "HY000",
 	ErrNoSuchFunction:                    "42000",
+	ErrFunctionNotDefined:                "HY000",
 	ErrDupFunction:                       "HY000",
 	ErrNoSuchEvent:                       "HY000",
 	ErrTriggerInWrongSchema:              "HY000",
@@ -143,6 +150,9 @@ var sqlStateMap = map[int]string{
 	ErrPeriodFieldsDifferentTypes:        "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
+	ErrCannotPartOfFulltext:              "HY000",
+	ErrUnknownStorageEngine:              "42000",
+	ErrKeyRefMismatch:                    "42000",
 	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
 	ErrFKDupName:                         "HY000",
@@ -182,6 +192,20 @@ func errDupTable(name string) error {
 func errNoSuchTable(db, name string) error {
 	return &Error{Code: ErrNoSuchTable, SQLState: sqlState(ErrNoSuchTable),
 		Message: fmt.Sprintf("Table '%s.%s' doesn't exist", db, name)}
+}
+
+// errUnknownView is what DROP VIEW reports for a name the database holds no
+// view of, whether it holds a table of that name or nothing at all.
+func errUnknownView(db, name string) error {
+	return &Error{Code: ErrUnknownView, SQLState: sqlState(ErrUnknownView),
+		Message: fmt.Sprintf("Unknown VIEW: '%s.%s'", db, name)}
+}
+
+// errFunctionNotDefined is 1128, what MariaDB answers for a function or a
+// fulltext parser plugin it does not have.
+func errFunctionNotDefined(name string) error {
+	return &Error{Code: ErrFunctionNotDefined, SQLState: sqlState(ErrFunctionNotDefined),
+		Message: fmt.Sprintf("Function '%s' is not defined", name)}
 }
 
 // errPartitionMgmtOnNonpartitioned is 1505, a partition action on a table with no
@@ -363,6 +387,27 @@ func errFKCannotDropParent(table, fkName, refTable string) error {
 func errCantDropKey(kind, name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
 		Message: fmt.Sprintf("Can't DROP %s `%s`; check that it exists", kind, name)}
+}
+
+// errCannotPartOfFulltext is 1283, a FULLTEXT key over a column whose type it
+// cannot index: every type but the character ones, BLOB and VARBINARY included.
+func errCannotPartOfFulltext(name string) error {
+	return &Error{Code: ErrCannotPartOfFulltext, SQLState: sqlState(ErrCannotPartOfFulltext),
+		Message: fmt.Sprintf("Column '%s' cannot be part of FULLTEXT index", name)}
+}
+
+// errUnknownStorageEngine is 1286, an ENGINE option naming an engine the pinned
+// server does not ship.
+func errUnknownStorageEngine(name string) error {
+	return &Error{Code: ErrUnknownStorageEngine, SQLState: sqlState(ErrUnknownStorageEngine),
+		Message: fmt.Sprintf("Unknown storage engine '%s'", name)}
+}
+
+// errKeyRefMismatch is 1239, a foreign key whose local columns and referenced
+// columns do not count the same: `FOREIGN KEY (a) REFERENCES z(a, a)`.
+func errKeyRefMismatch(name string) error {
+	return &Error{Code: ErrKeyRefMismatch, SQLState: sqlState(ErrKeyRefMismatch),
+		Message: fmt.Sprintf("Incorrect foreign key definition for '%s': Key reference and table reference don't match", name)}
 }
 
 func errCantRemoveAllFields() error {

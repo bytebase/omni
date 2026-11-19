@@ -444,6 +444,18 @@ func (p *Parser) isATIndexCompressionStart() bool {
 // parseATIndexCompression reads index_compression.
 func (p *Parser) parseATIndexCompression() error {
 	if p.cur.Type == kwCOMPRESS {
+		// COMPRESS ADVANCED [ LOW | HIGH ] is accepted where the group ends
+		// right after it (compat.tsv's ALTER MATERIALIZED VIEW rows); a word
+		// after it is refused at ADVANCED, as it was before.
+		toks := p.peekAhead(3)
+		if p.alterMview && len(toks) == 3 && p.isIdentLikeStrAt(toks[0], "ADVANCED") &&
+			(toks[1].Type == ')' ||
+				((p.isIdentLikeStrAt(toks[1], "LOW") || p.isIdentLikeStrAt(toks[1], "HIGH")) && toks[2].Type == ')')) {
+			p.advance() // COMPRESS
+			p.advance() // ADVANCED
+			p.atOptOneOf("LOW", "HIGH")
+			return nil
+		}
 		p.advance()
 		if p.cur.Type == tokICONST {
 			p.advance()
@@ -1566,8 +1578,21 @@ func (p *Parser) parseATNestedTableStorage() error {
 	if err := p.parseATName(); err != nil {
 		return err
 	}
-	if p.cur.Type == '(' {
+	if p.cur.Type == '(' && p.upgradeIncludingData {
+		// Oracle answers ORA-01735 at byte 0 for UPGRADE [ NOT ] INCLUDING
+		// DATA with a nested table's storage, on a table that holds the
+		// column as on one that does not, and reads no item of the group:
+		// ((a) ZZZ) and ((a) SEGMENT CREATION IMMEDIATE) answer alike, an
+		// unbalanced group answers ORA-00921 at its '(', and a token after
+		// the group ORA-00922. So the group is text, and the page's items
+		// are held where an ordinary ALTER TABLE reads it.
+		if err := p.skipATNestedStorageGroup(); err != nil {
+			return err
+		}
+	} else if p.cur.Type == '(' {
 		p.advance()
+		var orgSeen, clusterSeen, objectSeen, nonObjectSeen bool
+		phase := -1
 		for n := 0; ; n++ {
 			if p.cur.Type == ')' && n > 0 {
 				p.advance()
@@ -1575,27 +1600,171 @@ func (p *Parser) parseATNestedTableStorage() error {
 			}
 			start := p.pos()
 			if p.cur.Type == '(' {
+				if objectSeen || nonObjectSeen {
+					return p.syntaxErrorAtCur()
+				}
+				objectSeen = true
 				if err := p.parseATObjectProperties(); err != nil {
 					return err
 				}
 				continue
 			}
+			nonObjectSeen = true
 			if p.atWord("ORGANIZATION") {
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
 				p.advance()
 				if err := p.atOneOf("HEAP", "INDEX"); err != nil {
 					return err
 				}
 				continue
 			}
-			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
-			if err := p.parseATClauses(physical, nil); err != nil {
-				return err
+			// The rest of physical_properties that ALTER TABLE's clauses
+			// do not share: an index-organized table's mapping table and
+			// threshold, a heap table's cache hint, and the cluster its
+			// storage table belongs to.
+			if p.atWord("MAPPING") {
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
+				p.advance()
+				if err := p.atExpect(kwTABLE); err != nil {
+					return err
+				}
+				continue
 			}
+			if p.atWord("NOMAPPING") {
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
+				p.advance()
+				continue
+			}
+			if p.atWord("PCTTHRESHOLD") {
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
+				p.advance()
+				if err := p.parseATInteger(); err != nil {
+					return err
+				}
+				continue
+			}
+			if p.atWord("CACHE") || p.atWord("NOCACHE") {
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
+				p.advance()
+				continue
+			}
+			if p.atWord("INCLUDING") {
+				ahead := p.peekAhead(2)
+				if !isGrantWordToken(ahead[0]) || !p.isIdentLikeStrAt(ahead[1], "OVERFLOW") {
+					return p.syntaxErrorAtCur()
+				}
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
+				p.advance() // INCLUDING
+				if err := p.parseATName(); err != nil {
+					return err
+				}
+				if err := p.atExpectWord("OVERFLOW"); err != nil {
+					return err
+				}
+				if p.isATSegmentAttrStart() {
+					if err := p.parseATSegmentAttrs(nil); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			if p.cur.Type == kwCLUSTER {
+				if clusterSeen || phase > 5 {
+					return p.syntaxErrorAtCur()
+				}
+				clusterSeen = true
+				phase = 6
+				p.advance()
+				if err := p.parseATName(); err != nil {
+					return err
+				}
+				if err := p.parseATNameList(); err != nil {
+					return err
+				}
+				continue
+			}
+			if clusterSeen && (p.isATSegmentAttrStart() || p.isATTableCompressionStart() ||
+				p.isATInmemoryStart() || p.atWord("SEGMENT") || p.atWord("OVERFLOW")) {
+				return p.syntaxErrorAtCur()
+			}
+			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
+			for {
+				rank := p.nestedPhysicalPhase(physical, phase)
+				if rank < 0 {
+					break
+				}
+				if rank < phase {
+					return p.syntaxErrorAtCur()
+				}
+				switch rank {
+				case 0, 1:
+					phase = 1
+				case 2:
+					phase = 3
+				case 3:
+					phase = 4
+				case 4:
+					if orgSeen {
+						return p.syntaxErrorAtCur()
+					}
+					orgSeen = true
+					phase = 5
+				}
+				var parsed bool
+				var err error
+				if rank == 4 && (p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS) {
+					err = p.parseATIndexCompression()
+					parsed = true
+				} else {
+					parsed, err = p.parseATClause(physical, nil)
+				}
+				if err != nil {
+					return err
+				}
+				if !parsed {
+					return p.syntaxErrorAtCur()
+				}
+				if rank == 3 {
+					for p.atWord("INMEMORY") || (p.atWord("NO") && p.atNextWord("INMEMORY")) {
+						if err := p.parseATInmemoryColumnItem(); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			columnStart := p.pos()
 			if err := p.parseATColumnProperties(nil); err != nil {
 				return err
 			}
 			if p.pos() == start {
 				return p.syntaxErrorAtCur()
+			}
+			if p.pos() != columnStart && phase < 6 {
+				phase = 6
 			}
 		}
 	}
@@ -1609,9 +1778,46 @@ func (p *Parser) parseATNestedTableStorage() error {
 	return nil
 }
 
+// nestedPhysicalPhase ranks a physical_properties clause in the page's
+// order: deferred segment creation, segment attributes, compression,
+// inmemory, then an organization clause.
+func (p *Parser) nestedPhysicalPhase(allowed atClauses, phase int) int {
+	if p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS {
+		if p.cur.Type == kwCOMPRESS && p.peekNext().Type == tokICONST {
+			// COMPRESS integer is an index-organized table's prefix
+			// compression, the alternative to its mapping table and
+			// threshold.
+			return 4
+		}
+		if phase >= 3 {
+			// After table compression or INMEMORY, COMPRESS or NOCOMPRESS
+			// is the organization's prefix-compression alternative.
+			return 4
+		}
+	}
+	switch p.atClauseAt(allowed) {
+	case atcSegmentCreation:
+		return 0
+	case atcSegment:
+		return 1
+	case atcCompression:
+		return 2
+	case atcInmemory:
+		return 3
+	case atcOverflow:
+		return 4
+	}
+	return -1
+}
+
 // parseATObjectProperties reads ( object_properties ) of a nested table's
-// storage table: ( { column [ DEFAULT expr ] | out_of_line_constraint
-// | out_of_line_ref_constraint } [, ...] ).
+// storage table: ( { column [ DEFAULT expr ] [ inline_constraint ... ]
+// [ inline_ref_constraint ] | out_of_line_constraint
+// | out_of_line_ref_constraint | supplemental_logging_props } [, ...] ).
+//
+// An ordinary ALTER TABLE holds it to the page's items. Under
+// upgrade_table_clause the whole group is text, its object_properties with
+// it (parseATNestedTableStorage).
 func (p *Parser) parseATObjectProperties() error {
 	p.advance() // (
 	for {
@@ -1632,6 +1838,11 @@ func (p *Parser) parseATObjectProperties() error {
 			if tc == nil {
 				return p.syntaxErrorAtCur()
 			}
+		case p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG"):
+			p.advance()
+			if err := p.parseATSupplementalLogging(true, true, nil); err != nil {
+				return err
+			}
 		default:
 			if err := p.parseATName(); err != nil {
 				return err
@@ -1646,13 +1857,111 @@ func (p *Parser) parseATObjectProperties() error {
 					return p.syntaxErrorAtCur()
 				}
 			}
+			scopeSeen := false
+			for p.isATObjectInlineConstraintStart() {
+				if err := p.parseATObjectInlineConstraint(&scopeSeen); err != nil {
+					return err
+				}
+			}
 		}
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
+		if p.cur.Type == ')' {
+			return p.syntaxErrorAtCur()
+		}
 	}
 	return p.atExpect(')')
+}
+
+// skipATNestedStorageGroup reads the balanced text of the parenthesized
+// group a nested table's storage takes after STORE AS storage_table, which
+// Oracle does not judge under upgrade_table_clause (parseATNestedTableStorage):
+// the tokens up to the group's own ')'.
+func (p *Parser) skipATNestedStorageGroup() error {
+	p.advance() // (
+	for depth := 1; depth > 0; {
+		switch p.cur.Type {
+		case tokEOF:
+			return p.syntaxErrorAtCur()
+		case ';':
+			// A ';' ends the statement, so it cannot stand in the group.
+			return p.syntaxErrorAtCur()
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		p.advance()
+	}
+	return nil
+}
+
+// isATObjectInlineConstraintStart reports an item of object_properties'
+// inline_constraint or inline_ref_constraint after its column.
+func (p *Parser) isATObjectInlineConstraintStart() bool {
+	switch p.cur.Type {
+	case kwCONSTRAINT, kwNOT, kwNULL, kwUNIQUE, kwPRIMARY, kwCHECK, kwREFERENCES, kwWITH:
+		return true
+	}
+	return p.atWord("SCOPE")
+}
+
+// parseATObjectInlineConstraint reads one inline_constraint or
+// inline_ref_constraint of object_properties. Its column has no declared
+// type here, so the REF-only checks of parseInlineRefConstraint do not
+// apply: SCOPE IS and WITH ROWID are read as the page gives them.
+func (p *Parser) parseATObjectInlineConstraint(scopeSeen *bool) error {
+	named := p.cur.Type == kwCONSTRAINT
+	if named {
+		p.advance()
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+	}
+	if named && (p.cur.Type == kwWITH || p.atWord("SCOPE")) {
+		// SCOPE IS and WITH ROWID have no CONSTRAINT name in the page's
+		// inline_ref_constraint.
+		return p.syntaxErrorAtCur()
+	}
+	switch {
+	case p.cur.Type == kwNOT:
+		p.advance()
+		if err := p.atExpect(kwNULL); err != nil {
+			return err
+		}
+		var cs constraintState
+		return p.parseConstraintState(&cs)
+	case p.cur.Type == kwNULL:
+		p.advance()
+		var cs constraintState
+		return p.parseConstraintState(&cs)
+	case p.cur.Type == kwWITH:
+		p.advance()
+		return p.atExpect(kwROWID)
+	case p.atWord("SCOPE"):
+		if *scopeSeen {
+			return p.syntaxErrorAtCur()
+		}
+		*scopeSeen = true
+		p.advance()
+		if err := p.atExpect(kwIS); err != nil {
+			return err
+		}
+		return p.parseATQualifiedName()
+	}
+	cc, err := p.parseColumnConstraintInline()
+	if err != nil {
+		return err
+	}
+	if cc == nil {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // isATExternalDataPropStart reports an item of external_table_data_props or
@@ -1964,9 +2273,21 @@ func (p *Parser) parseATMethodValues(method atMethod) error {
 		return p.parseATListValues()
 	case atMethodHash:
 		return nil
-	}
-	if p.cur.Type == kwVALUES {
-		return p.parseATValuesClause()
+	case atMethodAny:
+		// A template names no method: Oracle reads a description's values
+		// with or without VALUES (compat.tsv's SUBPARTITION LESS THAN(1)
+		// row), and takes none for a hash subpartition.
+		if p.cur.Type == kwVALUES {
+			return p.parseATValuesClause()
+		}
+		if p.alterMview && p.atSubpartitionTemplate && p.atWord("LESS") {
+			p.advance()
+			if err := p.atExpectWord("THAN"); err != nil {
+				return err
+			}
+			return p.parseATBoundValues(true)
+		}
+		return nil
 	}
 	return nil
 }
@@ -1977,6 +2298,11 @@ func (p *Parser) parseATMethodValues(method atMethod) error {
 // operation: dependent_tables_clause, update_index_clauses and the like.
 func (p *Parser) isATPartitionNameHere(allowed atClauses) bool {
 	if !p.isATNameStart() || p.cur.Type == kwVALUES {
+		return false
+	}
+	if p.alterMview && p.atSubpartitionTemplate && p.atWord("LESS") {
+		// A materialized view's template takes range values without VALUES
+		// (compat.tsv's SUBPARTITION LESS THAN(1) row).
 		return false
 	}
 	// A word that ends the partition is its name (ADD PARTITION INDEXING).
@@ -2046,8 +2372,33 @@ func (p *Parser) parseATSubpartitionDesc(method atMethod) error {
 	if p.isATPartitionNameHere(allowed) {
 		p.advance()
 	}
+	if p.alterMview && p.atSubpartitionTemplate && p.cur.Type == '(' && p.peekNext().Type != ')' {
+		// Oracle reads a parenthesized list where a hash subpartition has
+		// no values (compat.tsv's SUBPARTITION(1) row).
+		depth := 0
+		for {
+			switch p.cur.Type {
+			case tokEOF, ';':
+				return p.syntaxErrorAtCur()
+			case '(':
+				depth++
+			case ')':
+				depth--
+				if depth == 0 {
+					p.advance()
+					return p.parseATClauses(allowed, nil)
+				}
+			}
+			p.advance()
+		}
+	}
 	if err := p.parseATMethodValues(method); err != nil {
 		return err
+	}
+	if p.alterMview && p.atSubpartitionTemplate && p.isIdentLike() && (p.peekNext().Type == ',' || p.peekNext().Type == ')') {
+		// Oracle reads a trailing word after the values as an acceptance
+		// (compat.tsv's SUBPARTITION VALUES LESS THAN(1) zzz row).
+		p.advance()
 	}
 	return p.parseATClauses(allowed, nil)
 }
@@ -2286,8 +2637,24 @@ func (p *Parser) parseATSubpartitionBy(method *atMethod) error {
 //
 // A quantity stands for hash subpartitions only (ORA-14603).
 func (p *Parser) parseATSubpartitionTemplate(method atMethod) error {
+	defer func(saved bool) { p.atSubpartitionTemplate = saved }(p.atSubpartitionTemplate)
+	p.atSubpartitionTemplate = true
 	p.advance() // SUBPARTITION
 	p.advance() // TEMPLATE
+	if p.alterMview {
+		// Oracle reads a bare SUBPARTITION here, and a word where
+		// SUBPARTITIONS stands, as acceptances on ALTER MATERIALIZED VIEW.
+		if p.cur.Type == kwSUBPARTITION && p.peekNext().Type == ')' {
+			p.advance()
+			p.advance()
+			return nil
+		}
+		if p.isIdentLike() && p.cur.Type != kwSUBPARTITION && p.peekNext().Type == tokICONST {
+			p.advance()
+			p.advance()
+			return nil
+		}
+	}
 	if p.cur.Type == tokICONST && (method == atMethodAny || method == atMethodHash) {
 		p.advance()
 		return nil

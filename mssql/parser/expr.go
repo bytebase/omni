@@ -29,15 +29,32 @@ func exprLocStart(expr nodes.ExprNode, fallback int) int {
 	return fallback
 }
 
+// parseScalarExpr parses an expression in a value position, where the search
+// condition around it does not reach: a boolean is no value, so SQL Server
+// refuses IF ABS(1 AND 2) = 1 and IF CAST(1 AND 2 AS int) = 1 with Msg 4145
+// and IF CASE 1 WHEN 1 AND 2 THEN 1 END = 1 with Msg 156 (measured). A
+// construct that opens value slots clears the depth for them, as
+// parseSelectStmtAfterWith does for a subquery's SELECT.
+func (p *Parser) parseScalarExpr() (nodes.ExprNode, error) {
+	saved := p.searchCondDepth
+	p.searchCondDepth = 0
+	defer func() { p.searchCondDepth = saved }()
+	return p.parseExpr()
+}
+
 // parseOr parses OR expressions (lowest precedence).
 //
 //	or_expr = and_expr { OR and_expr }
+//
+// SQL Server reads AND, OR and NOT only in a search condition: a boolean is no
+// value there, so SELECT 1 OR 2 and UPDATE a SET a = 1 AND 2 are Msg 156
+// (measured), and the three operators stop an expression outside one.
 func (p *Parser) parseOr() (nodes.ExprNode, error) {
 	left, err := p.parseAnd()
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == kwOR {
+	for p.cur.Type == kwOR && p.inSearchCondition() {
 		loc := p.pos()
 		p.advance()
 		// Completion: after OR → columnref, func_name
@@ -71,7 +88,7 @@ func (p *Parser) parseAnd() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == kwAND {
+	for p.cur.Type == kwAND && p.inSearchCondition() {
 		loc := p.pos()
 		p.advance()
 		// Completion: after AND → columnref, func_name
@@ -107,7 +124,7 @@ func (p *Parser) parseNot() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	if p.cur.Type == kwNOT {
+	if p.cur.Type == kwNOT && p.inSearchCondition() {
 		loc := p.pos()
 		p.advance()
 		if p.collectMode() {
@@ -183,6 +200,73 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 			}, nil
 		}
+		// IS [NOT] DISTINCT FROM, which SQL Server 2022 takes only in a
+		// search condition: IF 1 IS DISTINCT FROM 2 is accepted and
+		// SELECT 1 IS DISTINCT FROM 2 is an error.
+		if p.cur.Type == kwDISTINCT && p.inSearchCondition() {
+			p.advance() // consume DISTINCT
+			if _, err := p.expect(kwFROM); err != nil {
+				return nil, err
+			}
+			testType := nodes.IsDistinctFrom
+			if not {
+				testType = nodes.IsNotDistinctFrom
+			}
+			switch {
+			case p.cur.Type == kwNULL:
+				// IS [NOT] DISTINCT FROM NULL
+				// (booleanExpressionNullPredicateFromDistinctPredicate)
+				p.advance()
+				return &nodes.IsExpr{
+					Expr:     left,
+					TestType: testType,
+					Value:    &nodes.Literal{Type: nodes.LitNull, Loc: nodes.Loc{Start: p.prev.Loc, End: p.prevEnd()}},
+					Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+				}, nil
+			case (p.cur.Type == kwALL || p.cur.Type == kwSOME || p.cur.Type == kwANY) && p.peekNext().Type == '(':
+				// IS [NOT] DISTINCT FROM { ALL | SOME | ANY } ( <subquery> )
+				// (subqueryComparisonDistinctPredicate)
+				quantifier := strings.ToUpper(p.cur.Str)
+				p.advance() // consume ALL/SOME/ANY
+				p.advance() // consume (
+				subquery, err := p.parseSubquerySelect()
+				if err != nil {
+					return nil, err
+				}
+				if subquery == nil {
+					return nil, p.unexpectedToken()
+				}
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
+				distinct := nodes.DistinctFrom
+				if not {
+					distinct = nodes.DistinctNotFrom
+				}
+				return &nodes.SubqueryComparisonExpr{
+					Left:       left,
+					Quantifier: quantifier,
+					Distinct:   distinct,
+					Subquery:   subquery,
+					Loc:        nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+				}, nil
+			}
+			// IS [NOT] DISTINCT FROM <expression>
+			// (booleanExpressionDistinctPredicate)
+			value, err := p.parseAddition()
+			if err != nil {
+				return nil, err
+			}
+			if value == nil {
+				return nil, p.unexpectedToken()
+			}
+			return &nodes.IsExpr{
+				Expr:     left,
+				TestType: testType,
+				Value:    value,
+				Loc:      nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+			}, nil
+		}
 	}
 
 	// BETWEEN
@@ -253,7 +337,7 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 		}
 		// Check for subquery: IN (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub, err := p.parseSelectStmt()
+			sub, err := p.parseSubquerySelect()
 			if err != nil {
 				return nil, err
 			}
@@ -278,7 +362,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			// IN's list holds expressions, and a star is none: IF 1 IN (*)
+			// SELECT 1 is Msg 102 (measured).
 			if expr == nil {
+				return nil, p.unexpectedToken()
+			}
+			if _, star := expr.(*nodes.StarExpr); star {
 				return nil, p.unexpectedToken()
 			}
 			return expr, nil
@@ -320,27 +409,63 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			return nil, p.unexpectedToken()
 		}
 		var escape nodes.ExprNode
+		braced := false
 		if p.cur.Type == kwESCAPE {
 			p.advance()
 			escape, err = p.parseAddition()
 			if err != nil {
 				return nil, err
 			}
+			// ESCAPE takes an expression: IF 1 LIKE 1 ESCAPE SELECT 1 is
+			// Msg 156 (measured).
+			if escape == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+		} else if p.cur.Type == '{' {
+			// likePredicate takes the ODBC escape { ESCAPE <expr> } beside
+			// the bare escapeExpression (bnf/TSql170.g).
+			p.advance() // consume {
+			if _, err := p.expect(kwESCAPE); err != nil {
+				return nil, err
+			}
+			escape, err = p.parseAddition()
+			if err != nil {
+				return nil, err
+			}
+			if escape == nil {
+				return nil, p.unexpectedToken()
+			}
+			if _, err := p.expect('}'); err != nil {
+				return nil, err
+			}
+			braced = true
 		}
 		return &nodes.LikeExpr{
-			Expr:    left,
-			Pattern: pattern,
-			Escape:  escape,
-			Not:     not,
-			Loc:     nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
+			Expr:         left,
+			Pattern:      pattern,
+			Escape:       escape,
+			Not:          not,
+			EscapeBraced: braced,
+			Loc:          nodes.Loc{Start: exprLocStart(left, loc), End: p.prevEnd()},
 		}, nil
 	}
 
-	// Comparison operators
-	op, ok := comparisonOp(p.cur.Type)
+	// Comparison operators. In a search condition SQL Server also reads the
+	// operators ScriptDOM's comparisonOperator writes with a space between
+	// their characters: ! =, ! <, ! >, < =, < > and > =. The lexer joins them
+	// only when they touch, and elsewhere they are errors
+	// (SELECT 1 ! = 2 is refused).
+	op, ok := p.splitComparisonOp()
+	tokens := 2
+	if !ok {
+		op, ok = comparisonOp(p.cur.Type)
+		tokens = 1
+	}
 	if ok {
 		loc := p.pos()
-		p.advance()
+		for i := 0; i < tokens; i++ {
+			p.advance()
+		}
 
 		// Completion: after comparison operator → columnref, func_name
 		if p.collectMode() {
@@ -355,9 +480,12 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			p.advance() // consume ALL/SOME/ANY
 			if p.cur.Type == '(' {
 				p.advance() // consume (
-				subquery, err := p.parseSelectStmt()
+				subquery, err := p.parseSubquerySelect()
 				if err != nil {
 					return nil, err
+				}
+				if subquery == nil {
+					return nil, p.unexpectedToken()
 				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
@@ -388,6 +516,48 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 	}
 
 	return left, nil
+}
+
+// splitComparisonOp reads a comparison operator whose two characters the
+// lexer made two tokens, which SQL Server takes in a search condition:
+// ! =, ! <, ! >, < =, < > and > =. It reads the two tokens without advancing
+// and reports false otherwise.
+func (p *Parser) splitComparisonOp() (nodes.BinaryOp, bool) {
+	if !p.inSearchCondition() {
+		return 0, false
+	}
+	first, second := p.cur.Type, p.peekNext().Type
+	var op nodes.BinaryOp
+	switch first {
+	case '!':
+		switch second {
+		case '=':
+			op = nodes.BinOpNeq
+		case '<':
+			op = nodes.BinOpNotLt
+		case '>':
+			op = nodes.BinOpNotGt
+		default:
+			return 0, false
+		}
+	case '<':
+		switch second {
+		case '=':
+			op = nodes.BinOpLte
+		case '>':
+			op = nodes.BinOpNeq
+		default:
+			return 0, false
+		}
+	case '>':
+		if second != '=' {
+			return 0, false
+		}
+		op = nodes.BinOpGte
+	default:
+		return 0, false
+	}
+	return op, true
 }
 
 func comparisonOp(tok int) (nodes.BinaryOp, bool) {
@@ -770,7 +940,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		// Scalar subquery: (SELECT ...)
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sub, err := p.parseSelectStmt()
+			sub, err := p.parseSubquerySelect()
 			if err != nil {
 				return nil, err
 			}
@@ -785,6 +955,15 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		// Parentheses hold an expression, and a star is no expression outside
+		// a select list: SELECT (), SELECT (*) and IF 1 IN (*) SELECT 1 are
+		// Msg 102 (measured).
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, star := expr.(*nodes.StarExpr); star {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -818,6 +997,52 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 	case kwEXISTS:
 		return p.parseExists()
+	case kwTSEQUAL:
+		// tsEqualCall (TSql160.g:30641): TSEQUAL ( expression , expression ),
+		// a predicate of a search condition and nothing else. SQL Server
+		// refuses it in a select list (Msg 156), with other than two
+		// arguments (Msg 102, measured), and reads each argument as an
+		// expression rather than a condition: IF TSEQUAL(1 AND 2, 3) SELECT 1
+		// is Msg 156 too.
+		if !p.inSearchCondition() || p.peekNext().Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		loc := p.pos()
+		name := p.advance() // consume TSEQUAL
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		savedDepth := p.searchCondDepth
+		p.searchCondDepth = 0
+		first, err := p.parseExpr()
+		if err == nil {
+			if first == nil {
+				err = p.syntaxErrorAtCur()
+			} else {
+				_, err = p.expect(',')
+			}
+		}
+		var second nodes.ExprNode
+		if err == nil {
+			second, err = p.parseExpr()
+			if err == nil && second == nil {
+				err = p.syntaxErrorAtCur()
+			}
+		}
+		p.searchCondDepth = savedDepth
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		// Neither DISTINCT, WITHIN GROUP nor OVER: this is a predicate of its
+		// own, not the generic function call.
+		return &nodes.FuncCallExpr{
+			Name: &nodes.TableRef{Object: name.Str, Loc: nodes.Loc{Start: loc, End: name.End}},
+			Args: &nodes.List{Items: []nodes.Node{first, second}},
+			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
+		}, nil
 	case kwTRY_CAST:
 		if p.peekNext().Type == '(' {
 			return p.parseTryCast()
@@ -830,9 +1055,34 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			return p.parseIdentExpr()
 		}
 		return nil, nil
+	// CURRENT_DATE and CURRENT_TIME are ScriptDOM's parameterlessCall for
+	// another engine: SQL Server 2022 refuses both with Msg 156 (measured).
 	case kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwSESSION_USER,
-		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE:
+		kwSYSTEM_USER, kwUSER:
 		return p.parseNiladicKeywordFunc()
+	case '.':
+		// A name may start with a dot, which names an empty first part, and
+		// $PARTITION's call follows one: SELECT .$PARTITION.a(1) is accepted
+		// (measured).
+		loc := p.pos()
+		p.advance() // consume .
+		if p.cur.Type != tokPSEUDOCOL {
+			return nil, p.syntaxErrorAtCur()
+		}
+		expr, err := p.parsePseudoColumn()
+		if err != nil {
+			return nil, err
+		}
+		if fc, ok := expr.(*nodes.FuncCallExpr); ok {
+			fc.Loc.Start = loc
+			if fc.Name != nil {
+				fc.Name.Loc.Start = loc
+			}
+		}
+		return expr, nil
+	case '{':
+		// ODBC escape: { fn <function> } or { d|t|ts '<literal>' }
+		return p.parseOdbcEscape()
 	case kwIDENTITYCOL, kwROWGUIDCOL:
 		// IDENTITYCOL / ROWGUIDCOL reference the identity / rowguid column of a
 		// table without naming it. Keyword-only column references; no parens.
@@ -884,7 +1134,7 @@ func (p *Parser) parseCast() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -933,7 +1183,7 @@ func (p *Parser) parseTryCast() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1108,7 +1358,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 	// Simple CASE vs searched CASE
 	if p.cur.Type != kwWHEN {
 		var err error
-		arg, err = p.parseExpr()
+		arg, err = p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1138,6 +1388,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if arg == nil {
 			p.enterSearchCondition()
 		}
+		// The searched WHEN is a condition, the simple one's a value.
 		cond, err := p.parseExpr()
 		if arg == nil {
 			p.leaveSearchCondition()
@@ -1148,6 +1399,12 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		if cond == nil {
 			return nil, p.unexpectedToken()
 		}
+		// A searched CASE's WHEN is a search condition, and SQL Server refuses
+		// an expression of no boolean type there: CASE WHEN 1 THEN 1 END is
+		// Msg 4145 (measured).
+		if arg == nil && !procIsCondition(cond) {
+			return nil, p.newParseError(wloc, "an expression of non-boolean type specified in a context where a condition is expected")
+		}
 		if _, err := p.expect(kwTHEN); err != nil {
 			return nil, err
 		}
@@ -1157,7 +1414,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 			p.addRuleCandidate("func_name")
 			return nil, errCollecting
 		}
-		result, err := p.parseExpr()
+		result, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1220,7 +1477,7 @@ func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 	}
 	var args []nodes.Node
 	for {
-		arg, err := p.parseExpr()
+		arg, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1263,7 +1520,7 @@ func (p *Parser) parseNullif() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
-	left, err := p.parseExpr()
+	left, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1304,12 +1561,19 @@ func (p *Parser) parseIif() (nodes.ExprNode, error) {
 		p.addRuleCandidate("func_name")
 		return nil, errCollecting
 	}
+	// IIF's first argument is a search condition: IIF(1 = 1 AND 2 = 2, 1, 0)
+	// is accepted and IIF(1, 1, 0) is Msg 4145 (measured).
+	p.enterSearchCondition()
 	cond, err := p.parseExpr()
+	p.leaveSearchCondition()
 	if err != nil {
 		return nil, err
 	}
 	if cond == nil {
 		return nil, p.unexpectedToken()
+	}
+	if !procIsCondition(cond) {
+		return nil, p.newParseError(nodes.NodeLoc(cond).Start, "an expression of non-boolean type specified in a context where a condition is expected")
 	}
 	if _, err := p.expect(','); err != nil {
 		return nil, err
@@ -1352,7 +1616,7 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 		p.addTokenCandidate(kwSELECT)
 		return nil, errCollecting
 	}
-	query, err := p.parseSelectStmt()
+	query, err := p.parseSubquerySelect()
 	if err != nil {
 		return nil, err
 	}
@@ -1409,7 +1673,7 @@ func (p *Parser) parseParseExpr(name string, loc int) (nodes.ExprNode, error) {
 		Try: strings.EqualFold(name, "TRY_PARSE"),
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
-	expr, err := p.parseExpr()
+	expr, err := p.parseScalarExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -1430,7 +1694,7 @@ func (p *Parser) parseParseExpr(name string, loc int) (nodes.ExprNode, error) {
 	n.DataType = dt
 	if p.cur.Type == kwUSING {
 		p.advance()
-		culture, err := p.parseExpr()
+		culture, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1483,6 +1747,13 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 	}
 
 	if p.cur.Type == ')' {
+		// LEFT, RIGHT and TRIM take an argument, and SQL Server refuses the
+		// empty list: SELECT LEFT() is Msg 102 and SELECT TRIM() is Msg 189
+		// (measured).
+		switch strings.ToUpper(name) {
+		case "LEFT", "RIGHT", "TRIM":
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance()
 		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
@@ -1522,7 +1793,7 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 				Loc:  nodes.Loc{Start: tok.Loc, End: tok.End},
 			}, nil
 		}
-		arg, err := p.parseExpr()
+		arg, err := p.parseScalarExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1536,6 +1807,14 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 		return nil, err
 	}
 	fc.Args = &nodes.List{Items: args}
+
+	// LEFT and RIGHT take exactly two arguments, and SQL Server counts them
+	// while parsing: SELECT LEFT(1) is Msg 174 (measured).
+	if n := strings.ToUpper(name); n == "LEFT" || n == "RIGHT" {
+		if len(args) != 2 {
+			return nil, &ParseError{Message: "the " + strings.ToLower(n) + " function requires 2 arguments", Position: loc}
+		}
+	}
 
 	if _, err := p.expect(')'); err != nil {
 		return nil, err

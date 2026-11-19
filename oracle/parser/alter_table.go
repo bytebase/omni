@@ -201,6 +201,12 @@ func (p *Parser) parseAlterTableClause(subtype string, parse func() error) (*nod
 //	constraint_clauses:
 //	    ADD { out_of_line_constraint | out_of_line_ref_constraint | constraint_state }
 //
+// A constraint_state needs a constraint, and Oracle 23ai reads ADD followed by
+// one of its words as a column definition instead: every row of the family
+// (ALTER TABLE a ADD RELY, ADD DEFERRABLE, ADD INITIALLY DEFERRED) answers
+// ORA-02263 or ORA-00902 at the word, neither a syntax error. What it reads a
+// column to be is parseColumnDef's with alterTableAddColumn set.
+//
 //	add_period_clause:
 //	    ADD ( PERIOD FOR valid_time_column [ ( start, end ) ] )
 //
@@ -219,7 +225,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	if p.atWord("SUPPLEMENTAL") {
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(true, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(true, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -251,8 +257,11 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, nil
 	}
 
-	// Check if this starts a constraint: CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, CHECK
-	if p.isTableConstraintStart() {
+	// Check if this starts a constraint: CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, CHECK.
+	// ADD CONSTRAINT with nothing after it is no constraint clause: Oracle
+	// reads the word as a column named CONSTRAINT (ORA-02263 at it), as the
+	// single-column path below takes a bare word.
+	if p.isTableConstraintStart() && !(p.atWord("CONSTRAINT") && p.statementEndsAfterNext()) {
 		tc, err := p.parseTableConstraint()
 		if err != nil {
 			return nil, err
@@ -314,8 +323,18 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		cols := &nodes.List{}
 		var col *nodes.ColumnDef
 		var constraints []*nodes.AlterTableCmd
+		savedAddList := p.alterTableAddList
+		p.alterTableAddList = true
+		// Oracle refuses a column named twice in the list at the second
+		// name (ORA-00957), as it does in CREATE TABLE's. omni checks the
+		// names of the columns the list leaves its datatype to: a repeated
+		// name that both define is one of compat.tsv's recorded over-accepts
+		// (ALTER TABLE a ADD (a NUMBER, a NUMBER)), which oracle/review's
+		// walk sends as a statement it expects the server to refuse.
+		listed := map[string]bool{}
 		for {
 			itemStart := p.pos()
+			itemTok := p.cur
 			var tc *nodes.TableConstraint
 			var err error
 			switch {
@@ -329,7 +348,12 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 					err = p.syntaxErrorAtCur()
 				}
 				if err == nil {
-					cols.Items = append(cols.Items, col)
+					if col.TypeName == nil && col.Domain == nil && listed[col.Name] {
+						err = p.syntaxErrorAtTok(itemTok)
+					} else {
+						listed[col.Name] = true
+						cols.Items = append(cols.Items, col)
+					}
 				}
 			}
 			if err != nil {
@@ -347,17 +371,18 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			}
 			p.advance() // consume ','
 		}
+		p.alterTableAddList = savedAddList
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume ')'
 		// The list's REF constraints follow the CREATE TABLE rules over
 		// its own columns (ORA-22893 for ADD (n NUMBER, SCOPE FOR (n) IS t)).
-		listed := &nodes.CreateTableStmt{Columns: cols, Constraints: &nodes.List{}}
+		addStmt := &nodes.CreateTableStmt{Columns: cols, Constraints: &nodes.List{}}
 		for _, c := range constraints {
-			listed.Constraints.Items = append(listed.Constraints.Items, c.Constraint)
+			addStmt.Constraints.Items = append(addStmt.Constraints.Items, c.Constraint)
 		}
-		if err := p.checkOutOfLineRefConstraints(listed, false); err != nil {
+		if err := p.checkOutOfLineRefConstraints(addStmt, false); err != nil {
 			return nil, err
 		}
 		options := &nodes.List{}
@@ -386,7 +411,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, options), nil
 	}
 
-	// ADD column_def (without parentheses)
+	// ADD column_def (without parentheses), whose datatype Oracle leaves to
+	// the resolve phase here: see alterTableAddColumn.
+	defer func(saved bool) { p.alterTableAddColumn = saved }(p.alterTableAddColumn)
+	p.alterTableAddColumn = true
 	col, err := p.parseColumnDef()
 	if err != nil {
 		return nil, err
@@ -618,6 +646,8 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 // take. In a list (inList), a column followed by ',' or ')' is read alone;
 // otherwise one followed by the end of the statement or by another action.
 func (p *Parser) parseATModifyColumn(inList bool) (*nodes.ColumnDef, error) {
+	defer func(saved bool) { p.alterTableModifyColumn = saved }(p.alterTableModifyColumn)
+	p.alterTableModifyColumn = true
 	if p.isATNameStart() {
 		next := p.peekNext()
 		var alone bool
@@ -969,7 +999,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	case p.atWord("SUPPLEMENTAL"):
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(false, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -1438,7 +1468,13 @@ func (p *Parser) parseAlterTableInmemory() (*nodes.AlterTableCmd, error) {
 	p.atOption(cmd.Options, start)
 	for p.isATInmemoryStart() {
 		optStart := p.pos()
-		if err := p.parseATInmemoryColumnItem(); err != nil {
+		var err error
+		if p.alterMview {
+			err = p.parseAlterMviewInmemoryColumnItem()
+		} else {
+			err = p.parseATInmemoryColumnItem()
+		}
+		if err != nil {
 			return nil, err
 		}
 		p.atOption(cmd.Options, optStart)
@@ -1606,6 +1642,10 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			if err := p.atExpectWord("DATA"); err != nil {
 				return nil, err
 			}
+			// Oracle reads no item of a nested table's object_properties
+			// here: parseATObjectProperties takes it as text.
+			defer func(saved bool) { p.upgradeIncludingData = saved }(p.upgradeIncludingData)
+			p.upgradeIncludingData = true
 			if err := p.parseATColumnProperties(options); err != nil {
 				return nil, err
 			}

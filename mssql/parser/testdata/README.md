@@ -12,9 +12,9 @@ a minute; a second recording on a fresh server wrote the same file.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,149 | 188 | 173 |
-| Near-misses | 11,960 | 11,721 | 59 | 180 |
-| `suite:lexer` | 67 | 62 | 2 | 3 |
+| One per alternative | 5,510 | 5,405 | 0 | 105 |
+| Near-misses | 11,960 | 11,936 | 20 | 4 |
+| `suite:lexer` | 67 | 65 | 0 | 2 |
 
 SQL Server accepts 3,034 of the 5,510 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text
@@ -92,31 +92,57 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,020 rows agree: 12,212 when the file was recorded, the rest closed family
-by family (#1034 to #1070), each reading its option lists and clauses by the
-grammar and the server's checks. What is left, and why:
+17,406 rows agree: 12,212 when the file was recorded, the rest closed family
+by family (#1034 to #1070, and then the batch's call by name, `ALTER
+AUTHORIZATION` and the refusals around it, `SELECT`'s table sources, ODBC
+escapes, graph `MATCH`, the security policies, sensitivity classifications and
+federation shapes, and then `ALTER TABLE`'s remaining clauses, DML targets,
+`WITH CHANGE_TRACKING_CONTEXT`, the `CREATE`/`DROP`/`ALTER` statement shapes,
+query-expression parentheses, `GROUP BY`'s `DISTRIBUTED_AGG`, `TSEQUAL`, the
+search-condition-only boolean operators, and the shapes a query expression's
+parentheses, a name's dot and a label's colon carry). 131 rows disagree. What
+is left, and why:
 
-- **Only omni accepts (317):**
+- **Only omni accepts (111):**
   - The judge has no PolyBase (`IsPolyBaseInstalled` is 0), so it refuses
     every `CREATE EXTERNAL TABLE`, `FILE FORMAT` and `STREAM`, `COPY INTO`
     and Synapse's `CREATE TABLE ... AS SELECT` (80). omni reads them by the
-    grammar and the docs rather than refuse a kind of statement outright,
-    except the `CREATE EXTERNAL TABLE ... AS SELECT` tail, which it does not
-    read either (18 rows, `ctasCreateExternalTableStatement`).
-  - Statements omni still reads by their shape: federations (36, Azure SQL
-    Database's), security policies (32), sensitivity classifications (29),
-    `ALTER AUTHORIZATION` (12), `CREATE RULE`, `CREATE SYNONYM`.
-  - Table sources and their arguments in `SELECT` (50): `OPENROWSET`,
-    `OPENQUERY`, `CONTAINSTABLE` arguments, a trailing comma after a table.
-  - Graph `MATCH` patterns (22): omni does not read the arrows.
-- **Only SQL Server accepts (200):**
-  - A procedure called without `EXEC` as a batch's first statement (`a 1`,
-    65).
-  - `ALTER TABLE` (12): `ADD CONNECTION`, `COLUMN_SET` and the rest of what an
-    AST field would be needed for.
-  - Split comparison operators (`! =`, `< =`), `IS DISTINCT FROM` and graph
-    arrows in `IF` (32), ODBC escapes (`{fn NOW()}`, 18), `FOR PATH`.
-  - Full-text `LANGUAGE x zzz` (10): the judge has no full-text search, so it
-    stops at the language lookup, which counts as an acceptance.
-  - `DELETE` from `OPENQUERY`, `OPENDATASOURCE` or a function (11), `USE
-    FEDERATION` (8), `WITH CHANGE_TRACKING_CONTEXT`.
+    grammar and the docs rather than refuse a kind of statement outright.
+  - Federations (12, Azure SQL Database's): every `CREATE`, `ALTER` and `DROP
+    FEDERATION` met Msg 343 "Unknown object type 'FEDERATION'" on the pinned
+    server, so it has no answer for the statements themselves and only the
+    near-misses above are closed. omni reads them by `TSql160.g` for the
+    service that has them.
+  - Full-text `LANGUAGE x zzz` (10): a full-text statement's language term is
+    looked up while it is parsed (Msg 7678), so the server stops there and
+    never reads the words after it — `LANGUAGE 'a' 1 2 3` is accepted too.
+    omni reads those words by the grammar and refuses them. The same artifact
+    keeps `ALTER DATABASE a COLLATE a zzz` open (Msg 448, then 102).
+  - `SELECT PARSE(1 AS a)` and `TRY_PARSE` (6): these resolve their `AS` type
+    while parsing and refuse one outside the set they convert, so
+    `PARSE(1 AS nvarchar(10))` is Msg 10761 as `PARSE(1 AS a)` is. omni has no
+    table of the types they take.
+  - A CTE the statement does not use (4): `WITH a AS (SELECT 1) SELECT 1` is
+    Msg 422, "Common table expression defined but not used", which needs the
+    query's name resolution rather than its text.
+  - `GOTO a` (3): the label is looked up as the statement is read, and a batch
+    of one statement cannot declare the label it jumps to, so the judge reads
+    Msg 133 as a rejection. `BREAK` outside a `WHILE` (135) is the same kind of
+    check and is already recorded below.
+  - 2 single rows: a name of 129 characters, which SQL Server refuses as Msg
+    103 while `mssql/review`'s walk reports it as WT403 (the name-length check
+    is the review layer's, and moving it into the lexer is its own change), and
+    `SELECT 1 --(* a *)`, where the server's lexer refuses the four characters
+    `--(*` inside a line comment (Msg 102, near `--(*`) although `--( *`,
+    `-- (*` and `--a(*` are comments.
+- **Only SQL Server accepts (20):**
+  - `USE FEDERATION` (9): `USE` takes the next word as a database name and
+    looks it up while it parses, so `USE FEDERATION ROOT WITH zzz RESET` is
+    Msg 911 for the database `FEDERATION` and nothing after it is read — an
+    acceptance, like every other lookup. Closing these would make omni accept
+    the garbage.
+  - The pinned server's full-text statements answer Msg 7678 and 7609 for the
+    ten `LANGUAGE x zzz` rows above, whose words are read after the lookup
+    stops it: omni reads them by the grammar and refuses them.
+  - 1 single row: `ALTER DATABASE a COLLATE a zzz`, whose collation lookup
+    (Msg 448) stops the server before the words after it.

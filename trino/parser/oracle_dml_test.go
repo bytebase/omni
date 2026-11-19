@@ -147,10 +147,8 @@ var dmlOracleCorpus = []string{
 }
 
 // dmlBranchDivergenceCorpus holds the `@ branch_name` DML forms (divergence
-// ledger #5). Trino 481 ACCEPTS each; omni REJECTS each because the lexer emits
-// no '@' token. This documents and pins the known divergence so a future lexer
-// change that adds the '@' token (and the corresponding DML support) is detected
-// here as a behavior change.
+// ledger #5, now resolved). Both Trino 481 and omni accept each; the test pins
+// that and the recorded oracle answers.
 var dmlBranchDivergenceCorpus = []string{
 	"INSERT INTO cities @ audit VALUES (1, 'San Francisco')",
 	"DELETE FROM orders @ audit",
@@ -169,15 +167,10 @@ func TestDML_BranchDivergence(t *testing.T) {
 	for _, sql := range dmlBranchDivergenceCorpus {
 		sql := sql
 		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := parseForTest(sql)
-			omniAccepts := len(errs) == 0
-			if omniAccepts {
-				t.Errorf("DIVERGENCE RESOLVED: omni now ACCEPTS %q — Trino 481 accepts it too; "+
-					"promote this case into dmlOracleCorpus and update divergence ledger #5", sql)
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("parseForTest(%q) should accept the @branch form, got: %v", sql, errs)
 			}
-
-			trinoAccepts := oracleAccepts(t, o, sql)
-			if !trinoAccepts {
+			if !oracleAccepts(t, o, sql) {
 				t.Errorf("ORACLE CHANGED: Trino 481 now REJECTS %q — revisit divergence ledger #5", sql)
 			}
 		})

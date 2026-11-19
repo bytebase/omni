@@ -477,13 +477,17 @@ func (b *builder) alterTextFails(r objRef, actions []*ast.AlterTableAction) bool
 			if a.Constraint != nil {
 				d.constraints = append(d.constraints, a.Constraint)
 			}
-		case ast.ATDropColumn, ast.ATDropConstraint:
+		case ast.ATDropColumn, ast.ATDropConstraint, ast.ATDropIndex:
 			nm, kind := a.ColName, "column"
 			if a.Type == ast.ATDropConstraint {
 				kind = "constraint"
 				if a.Constraint != nil {
 					nm = a.Constraint.Name
 				}
+			}
+			if a.Type == ast.ATDropIndex {
+				kind = "index"
+				nm = a.IndexName
 			}
 			if dropped[a.Type] == nil {
 				dropped[a.Type] = map[string]bool{}
@@ -541,6 +545,23 @@ func (b *builder) alterAction(r objRef, path string, known bool, a *ast.AlterTab
 		b.defNameChecks(r, d)
 		b.addConstraintChecks(r, path, known, d)
 		b.defEffects(r, path, known, d)
+	case ast.ATDropIndex:
+		// DROP INDEX name as a table element: the index must be one of the
+		// table's, and it is gone afterwards. Only the named index leaves: the
+		// other indexes of the table stay known. A key's index carries the
+		// constraint's name and cannot be dropped on its own, as DROP INDEX
+		// reports for the same name (IndexBacksConstraint).
+		in, ok := keyed(a.IndexName)
+		if !ok {
+			return false
+		}
+		if !known {
+			return true
+		}
+		b.needs(spaceIndex, path, in, nil, note(rng, msgMissingIn("index", ident(a.IndexName), r.written), nil))
+		ixName := review.Code(ident(a.IndexName))
+		b.ofKind(spaceIndex, path, in, []string{kindIndex, kindXMLIndex}, note(rng, "", text("Index "+ixName+" enforces constraint "+ixName+".")).as(review.IndexBacksConstraint))
+		b.leave(spaceIndex, path, in)
 	case ast.ATDropColumn:
 		cn, ok := keyed(a.ColName)
 		if !ok {

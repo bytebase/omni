@@ -52,6 +52,9 @@ func (p *Parser) parseRowsetFunction() (nodes.TableExpr, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := checkRowsetArgs(funcTok, args); err != nil {
+			return nil, err
+		}
 		if len(args) > 0 {
 			fc.Args = &nodes.List{Items: args}
 		}
@@ -134,10 +137,10 @@ func (p *Parser) parseOpenXMLWithTable() (*nodes.TableRef, error) {
 //
 //	OPENDATASOURCE ( provider_name , init_string ) . database . schema . object [ [ AS ] alias ]
 //
-// SQL Server takes two string literals as the arguments and exactly three
-// name parts, of which database and schema may be empty (db..t, ...t). The
-// call alone, a shorter or longer name, a column list, a table hint, and
-// TABLESAMPLE are errors.
+// SQL Server takes two string literals as the arguments and one to four name
+// parts, of which the last is the object and the others may be empty
+// (db..t, ...t). The call alone, a fifth part, a column list, a table hint,
+// and TABLESAMPLE are errors.
 func (p *Parser) parseAdHocTableRef(fc *nodes.FuncCallExpr) (*nodes.AdHocTableRef, error) {
 	var args []nodes.Node
 	if fc.Args != nil {
@@ -156,34 +159,111 @@ func (p *Parser) parseAdHocTableRef(fc *nodes.FuncCallExpr) (*nodes.AdHocTableRe
 		return nil, err
 	}
 	objLoc := p.pos()
-	var parts [3]string
-	for i := range parts {
-		if i > 0 {
-			if _, err := p.expect('.'); err != nil {
-				return nil, err
-			}
-		}
+	// objectOrString's three-part name, of which SQL Server takes one to four
+	// parts, an empty part being a dot of its own: .a, .a.b, .db..t,
+	// .server.db.schema.object (measured; the fourth is the remote server's).
+	var parts []string
+	for {
 		if name, ok := p.parseIdentifier(); ok {
-			parts[i] = name
+			parts = append(parts, name)
+		} else {
+			parts = append(parts, "")
 		}
+		if p.cur.Type != '.' {
+			break
+		}
+		if len(parts) == 4 {
+			return nil, p.unexpectedToken()
+		}
+		p.advance() // consume '.'
 	}
-	if parts[2] == "" || p.cur.Type == '.' {
+	if parts[len(parts)-1] == "" {
 		return nil, p.unexpectedToken()
 	}
 
 	ref := &nodes.AdHocTableRef{
 		DataSource: fc,
-		Object: &nodes.TableRef{
-			Database: parts[0],
-			Schema:   parts[1],
-			Object:   parts[2],
-			Loc:      nodes.Loc{Start: objLoc, End: p.prevEnd()},
-		},
-		Loc: nodes.Loc{Start: fc.Loc.Start, End: -1},
+		Object:     &nodes.TableRef{Loc: nodes.Loc{Start: objLoc, End: p.prevEnd()}},
+		Loc:        nodes.Loc{Start: fc.Loc.Start, End: -1},
 	}
+	assignObjectRefParts(ref.Object, parts)
 	ref.Alias = p.parseOptionalAlias()
 	ref.Loc.End = p.prevEnd()
 	return ref, nil
+}
+
+// checkRowsetArgs holds OPENQUERY and OPENXML to their own argument lists.
+//
+//	openQueryRowset: OPENQUERY ( identifier , stringLiteral )
+//	openXmlParams:   OPENXML ( variable , stringOrVariable [ , integerOrVariable ] )
+//
+// OPENROWSET reads its arguments by shape (openRowsetParams,
+// internalOpenRowsetArgs, openRowsetBulk), and OPENJSON takes one or two
+// expressions; their shapes are checked where they differ.
+func checkRowsetArgs(funcTok int, args []nodes.Node) error {
+	switch funcTok {
+	case kwOPENROWSET:
+		// OPENROWSET's first argument is the provider name, a string
+		// literal (openRowsetParams) or BULK, and SQL Server refuses the
+		// identifier internalOpenRowsetArgs takes in a FROM clause:
+		// SELECT * FROM OPENROWSET(a) is Msg 156, near OPENROWSET
+		// (measured). BULK is refused earlier, as its own rule needs an
+		// alias.
+		if len(args) == 0 {
+			return &ParseError{Message: "OPENROWSET takes a provider name", Position: -1}
+		}
+		if lit, ok := args[0].(*nodes.Literal); !ok || lit.Type != nodes.LitString {
+			return &ParseError{Message: "OPENROWSET takes a provider name as a string literal", Position: nodes.NodeLoc(args[0]).Start}
+		}
+	case kwOPENQUERY:
+		if len(args) != 2 {
+			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[len(args)-1]).Start}
+		}
+		ref, ok := args[0].(*nodes.TableRef)
+		if !ok || ref.Server != "" || ref.Database != "" || ref.Schema != "" {
+			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[0]).Start}
+		}
+		if lit, ok := args[1].(*nodes.Literal); !ok || lit.Type != nodes.LitString {
+			return &ParseError{Message: "OPENQUERY takes a linked server name and a query", Position: nodes.NodeLoc(args[1]).Start}
+		}
+	case kwOPENXML:
+		if len(args) < 2 || len(args) > 3 {
+			return &ParseError{Message: "OPENXML takes a document handle, a row pattern, and an optional row number", Position: nodes.NodeLoc(args[len(args)-1]).Start}
+		}
+		if _, ok := args[0].(*nodes.VariableRef); !ok {
+			return &ParseError{Message: "OPENXML takes a document handle from a variable", Position: nodes.NodeLoc(args[0]).Start}
+		}
+		if !isStringOrVariable(args[1]) {
+			return &ParseError{Message: "OPENXML takes a row pattern as a string or a variable", Position: nodes.NodeLoc(args[1]).Start}
+		}
+		if len(args) == 3 && !isIntegerOrVariable(args[2]) {
+			return &ParseError{Message: "OPENXML takes a row number as an integer or a variable", Position: nodes.NodeLoc(args[2]).Start}
+		}
+	}
+	return nil
+}
+
+// isStringOrVariable reports whether n is a string literal or a variable.
+func isStringOrVariable(n nodes.Node) bool {
+	switch v := n.(type) {
+	case *nodes.Literal:
+		return v.Type == nodes.LitString
+	case *nodes.VariableRef:
+		return true
+	}
+	return false
+}
+
+// isIntegerOrVariable reports whether n is an integer literal, not a binary
+// constant, or a variable.
+func isIntegerOrVariable(n nodes.Node) bool {
+	switch v := n.(type) {
+	case *nodes.Literal:
+		return v.Type == nodes.LitInteger && !procIsBinary(Token{Type: tokICONST, Str: v.Str})
+	case *nodes.VariableRef:
+		return true
+	}
+	return false
 }
 
 func isRowsetObjectArg(funcName string, argIndex int) bool {

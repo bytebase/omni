@@ -7,6 +7,7 @@ package parser
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
@@ -33,11 +34,11 @@ type Parser struct {
 	// when this depth is > 0, matching SqlScriptDOM's separation of
 	// booleanExpressionWithFlags from expressionWithFlags.
 	searchCondDepth int
-	// graphMatchDepth is non-zero inside the pattern of a graph MATCH
-	// predicate, where LAST_NODE is graph syntax.
-	graphMatchDepth int
-
-	depth int // nesting depth of the productions being parsed (see enterNesting)
+	// subqueryDepth is non-zero while parsing a subquery's query expression,
+	// whose ORDER BY SQL Server holds to TOP, OFFSET or FOR and which takes no
+	// FOR BROWSE (Msg 1033, 176).
+	subqueryDepth int
+	depth         int // nesting depth of the productions being parsed (see enterNesting)
 
 	// procWhileDepth, procCatchDepth and procRoutineDepth count the WHILE
 	// bodies, CATCH blocks and procedure or function bodies being parsed:
@@ -46,6 +47,11 @@ type Parser struct {
 	procWhileDepth   int
 	procCatchDepth   int
 	procRoutineDepth int
+	// batchStart is set while the statement about to be parsed is the first
+	// of its batch (the start of the text, or after a GO): batch
+	// (TSql160.g:158) takes optSimpleExecute there, a procedure called by
+	// name without EXEC (execute.go, parseImpliedExecStmt).
+	batchStart bool
 	// procedureBatch is set by CREATE or ALTER PROCEDURE and cleared by GO:
 	// a procedure's body runs to the end of its batch, so every statement
 	// after AS is the procedure's (procedureStatementBody, TSql160.g), and a
@@ -76,10 +82,20 @@ func Parse(sql string) (*nodes.List, error) {
 	p.advance()
 
 	var stmts []nodes.Node
+	// A batch begins at the text's start and after each GO: batch
+	// (TSql160.g:158), script (TSql160.g:118). impliedBatch is set while the
+	// batch's first statement is a procedure called by name without EXEC, and
+	// declared holds the variables that batch declares so far.
+	batchStart := true
+	impliedBatch := false
+	declared := map[string]int{}
 	for p.cur.Type != tokEOF {
-		// Skip semicolons
+		// Skip semicolons. A batch's first statement may not follow one: SQL
+		// Server refuses `; my_proc` (Msg 102), so the name is no longer the
+		// batch's first statement (batch, TSql160.g:158).
 		if p.cur.Type == ';' {
 			p.advance()
+			batchStart = false
 			continue
 		}
 		// Check for lexer errors before parsing statement.
@@ -87,6 +103,8 @@ func Parse(sql string) (*nodes.List, error) {
 			return nil, p.lexerError()
 		}
 		stmtStart := p.cur.Loc
+		first := batchStart
+		p.batchStart = first
 		stmt, err := p.parseStmt()
 		if err != nil {
 			return nil, err
@@ -104,8 +122,25 @@ func Parse(sql string) (*nodes.List, error) {
 			}
 			break
 		}
+		if first {
+			e, ok := stmt.(*nodes.ExecStmt)
+			impliedBatch = ok && e.Implied
+			declared = map[string]int{}
+		}
 		if treeTooHigh(stmt, p.prev.End-stmtStart) {
 			return nil, nestedTooDeeply(stmtStart)
+		}
+		// After the height check: the read below walks the tree (AGENTS.md,
+		// "No input overflows the stack").
+		if impliedBatch {
+			if name, at := p.impliedBatchVariable(stmt, stmtStart, p.prev.End, declared); name != "" {
+				return nil, p.newParseError(at, "Must declare the scalar variable \""+name+"\".")
+			}
+		}
+		_, batchStart = stmt.(*nodes.GoStmt)
+		if batchStart {
+			// A GO starts a batch, and the next statement is its first.
+			impliedBatch = false
 		}
 		stmts = append(stmts, stmt)
 	}
@@ -114,6 +149,74 @@ func Parse(sql string) (*nodes.List, error) {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// impliedBatchVariable records the variables stmt declares and returns the
+// first it uses that its batch has not declared before it, with its offset.
+//
+// SQL Server's parser reports Msg 137 ("Must declare the scalar variable") for
+// a batch that uses a variable it does not declare, and a batch beginning with
+// a call without EXEC can hold statements after the call (measured: `my_proc
+// DECLARE @a INT` and `my_proc; SELECT 1` are accepted, `my_proc SET @a = 1`
+// and `my_proc @a` are Msg 137). omni reads the variables of such a batch
+// only: a row of compat.tsv is one statement, and its judge declares the
+// variable it names before asking again, which it cannot do for a
+// declaration that would take the call's place as the batch's first
+// statement. Every other batch is read as written, variable or not.
+//
+// A DECLARE declares a variable where its @name is, so a use before it in the
+// same statement is still undeclared, and an EXEC's `@p = ...` names a
+// parameter at its own @p rather than using a variable: `@p = @p` names the
+// first and uses the second. Every other @name is a use, which a token read of
+// the statement finds whether the AST carries it as a node (VariableRef) or as
+// a field (SET @a = ..., FETCH ... INTO @a, ...).
+func (p *Parser) impliedBatchVariable(stmt nodes.Node, start, end int, declared map[string]int) (string, int) {
+	names := map[int]bool{}
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		switch v := n.(type) {
+		case *nodes.DeclareStmt:
+			if v.Variables == nil {
+				return true
+			}
+			for _, item := range v.Variables.Items {
+				decl, ok := item.(*nodes.VariableDecl)
+				if !ok {
+					continue
+				}
+				name := strings.ToLower(decl.Name)
+				if at, seen := declared[name]; !seen || decl.Loc.Start < at {
+					declared[name] = decl.Loc.Start
+				}
+			}
+		case *nodes.ExecArg:
+			if v.Name != "" {
+				names[v.Loc.Start] = true
+			}
+		}
+		return true
+	})
+	if end <= start || end > len(p.source) {
+		return "", -1
+	}
+	lexer := NewLexer(p.source[start:end])
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == tokEOF {
+			return "", -1
+		}
+		if tok.Type != tokVARIABLE {
+			continue
+		}
+		at := start + tok.Loc
+		if names[at] {
+			continue
+		}
+		// The declaration's own @name is no use of the variable.
+		if declaredAt, ok := declared[strings.ToLower(tok.Str)]; ok && declaredAt <= at {
+			continue
+		}
+		return tok.Str, at
+	}
 }
 
 // isNilNode reports whether n is nil, including a typed nil such as a
@@ -142,7 +245,7 @@ func isNilNode(n nodes.Node) bool {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
 func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
-	withClause, err := p.parseWithClause()
+	withClause, err := p.parseWithClause(true)
 	if err != nil {
 		return nil, err
 	}
@@ -199,12 +302,22 @@ func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 
 // parseStmt dispatches to statement-specific parsers.
 func (p *Parser) parseStmt() (nodes.StmtNode, error) {
+	// Only the statement Parse asks for is a batch's first; a statement
+	// inside it, as an IF body, is not (control_flow.go).
+	batchStart := p.batchStart
+	p.batchStart = false
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// Completion: when in collect mode, offer all top-level statement keywords.
+	// Completion: when in collect mode, offer all top-level statement keywords,
+	// or a procedure's name when the cursor is on one that begins a batch:
+	// that is where a call by name stands (optSimpleExecute, TSql160.g:567).
 	if p.collectMode() {
+		if batchStart && p.isImpliedExecName() {
+			p.addRuleCandidate("proc_ref")
+			return nil, errCollecting
+		}
 		for _, t := range topLevelKeywords {
 			p.addTokenCandidate(t)
 		}
@@ -215,6 +328,9 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
 	case kwSELECT:
 		return p.parseSelectStmt()
+	case '(':
+		// A parenthesized query expression is a statement of its own.
+		return p.parseQueryParenthesisStmt()
 	case kwWITH:
 		return p.parseWithStmt()
 	case kwINSERT:
@@ -439,7 +555,11 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		// Check for label: identifier followed by ':'
 		if p.isIdentLike() {
 			next := p.peekNext()
-			if next.Type == ':' {
+			// A label's colon touches its name: SQL Server reads `a: SELECT 1`
+			// as a label and `a : SELECT 1` as the name `a` and a stray colon
+			// (Msg 102, measured), so a separated colon is no label here and
+			// the statement falls through to the error.
+			if next.Type == ':' && next.Loc == p.cur.End {
 				// Labels must be identifiers; reject reserved keywords here.
 				if !p.isIdentLike() {
 					return nil, p.syntaxErrorAtCur()
@@ -484,8 +604,14 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 				next.Type == kwINTO {
 				return p.parseCopyIntoStmt()
 			}
-			// RENAME OBJECT/DATABASE (Azure Synapse/PDW)
-			if p.cur.Type == kwRENAME {
+			// RENAME OBJECT/DATABASE (Azure Synapse/PDW). SQL Server 2022
+			// has no RENAME statement, and its grammar's bare
+			// renameEntityStatement, `RENAME a TO a`, is Msg 156 there
+			// (measured): only the documented Synapse forms are read, and a
+			// RENAME without one of their two words falls through to the
+			// procedure call SQL Server reads it as.
+			if p.cur.Type == kwRENAME &&
+				(next.Type == kwOBJECT || next.Type == kwDATABASE) {
 				return p.parseRenameStmt()
 			}
 			// REVERT (security context)
@@ -501,6 +627,12 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		if p.cur.Type == kwADD {
 			return p.parseAddStmt()
 		}
+		// A procedure called by name without EXEC as the batch's first
+		// statement (optSimpleExecute, TSql160.g:567). Everything else that
+		// starts with a name is not a statement.
+		if batchStart && p.isImpliedExecName() {
+			return p.parseImpliedExecStmt()
+		}
 		return nil, nil
 	}
 }
@@ -510,11 +642,11 @@ func (p *Parser) parseAddStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
 	p.advance() // consume ADD
 
-	// ADD SENSITIVITY CLASSIFICATION
+	// ADD SENSITIVITY CLASSIFICATION: both words, as the grammar names them.
 	if p.cur.Type == kwSENSITIVITY {
 		p.advance() // consume SENSITIVITY
-		if p.cur.Type == kwCLASSIFICATION {
-			p.advance() // consume CLASSIFICATION
+		if _, err := p.expect(kwCLASSIFICATION); err != nil {
+			return nil, err
 		}
 		stmt, err := p.parseAddSensitivityClassificationStmt()
 		if err != nil {
@@ -541,7 +673,8 @@ func (p *Parser) parseAddStmt() (nodes.StmtNode, error) {
 		return stmt, nil
 	}
 
-	return nil, nil
+	// ADD names one of its two statements, and bare ADD is Msg 102 (measured).
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseCreateStmt dispatches CREATE to the appropriate sub-parser.
@@ -1293,11 +1426,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		// CREATE AVAILABILITY GROUP
+		// CREATE AVAILABILITY GROUP: the GROUP is required.
 		if p.cur.Type == kwAVAILABILITY {
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateAvailabilityGroupStmt()
 			if err != nil {
@@ -1365,7 +1498,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		return nil, nil
+		// A CREATE with no object after it names nothing: bare CREATE is
+		// Msg 102 (measured).
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -1921,11 +2056,12 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		// ALTER AVAILABILITY GROUP
+		// ALTER AVAILABILITY GROUP: the GROUP is required, and ALTER
+		// AVAILABILITY a FAILOVER is Msg 102 (measured).
 		if p.cur.Type == kwAVAILABILITY {
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterAvailabilityGroupStmt()
 			if err != nil {
@@ -2100,7 +2236,9 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		}
 		if p.cur.Type == kwIF {
 			p.advance()
-			p.match(kwEXISTS)
+			if _, err := p.expect(kwEXISTS); err != nil {
+				return nil, err
+			}
 			dropStmt.IfExists = true
 		}
 		// Completion: after DROP DATABASE [IF EXISTS] → database_ref
@@ -2315,12 +2453,13 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		// DROP AVAILABILITY GROUP
+		// DROP AVAILABILITY GROUP: the GROUP is required, and DROP
+		// AVAILABILITY a is Msg 102 (measured).
 		if next.Type == kwAVAILABILITY {
 			p.advance() // consume DROP
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropAvailabilityGroupStmt()
 			if err != nil {
@@ -2416,12 +2555,12 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			}
 			return nil, nil
 		}
-		// DROP SENSITIVITY CLASSIFICATION
+		// DROP SENSITIVITY CLASSIFICATION: both words, as the grammar names them.
 		if next.Type == kwSENSITIVITY {
 			p.advance() // consume DROP
 			p.advance() // consume SENSITIVITY
-			if p.cur.Type == kwCLASSIFICATION {
-				p.advance() // consume CLASSIFICATION
+			if _, err := p.expect(kwCLASSIFICATION); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropSensitivityClassificationStmt()
 			if err != nil {

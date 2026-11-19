@@ -471,6 +471,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterIndextypeStmt(sb, n)
 	case *IndextypeOp:
 		writeIndextypeOp(sb, n)
+	case *ArrayDMLTypePair:
+		writeArrayDMLTypePair(sb, n)
 	case *IndextypeModOp:
 		writeIndextypeModOp(sb, n)
 	case *CreateOperatorStmt:
@@ -1956,6 +1958,9 @@ func writeResTarget(sb *strings.Builder, n *ResTarget) {
 	if n.Name != "" {
 		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
 	}
+	if n.AliasBind {
+		sb.WriteString(" :aliasBind true")
+	}
 	if n.Expr != nil {
 		sb.WriteString(" :val ")
 		writeNode(sb, n.Expr)
@@ -2122,6 +2127,16 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	}
 	if n.DropIdentity {
 		sb.WriteString(" :dropIdentity true")
+	}
+	if n.Annotations != nil && n.Annotations.Len() > 0 {
+		sb.WriteString(" :annotations (")
+		for i, item := range n.Annotations.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
 	}
 	if n.Constraints != nil {
 		sb.WriteString(" :constraints ")
@@ -2845,6 +2860,12 @@ func writeDropStmt(sb *strings.Builder, n *DropStmt) {
 	if n.Invalidation != "" {
 		sb.WriteString(fmt.Sprintf(" :invalidation %q", n.Invalidation))
 	}
+	if n.PreserveTable {
+		sb.WriteString(" :preserveTable true")
+	}
+	if n.ForPDB != "" {
+		sb.WriteString(fmt.Sprintf(" :forPDB %q", n.ForPDB))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3193,6 +3214,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 	if n.IfNotExists {
 		sb.WriteString(" :ifNotExists true")
 	}
+	if n.Edition != "" {
+		sb.WriteString(fmt.Sprintf(" :edition %q", n.Edition))
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -3200,6 +3224,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 	if n.Target != nil {
 		sb.WriteString(" :target ")
 		writeNode(sb, n.Target)
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -4078,6 +4105,9 @@ func writePurgeStmt(sb *strings.Builder, n *PurgeStmt) {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.User != "" {
+		sb.WriteString(fmt.Sprintf(" :user %q", n.User))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -4643,6 +4673,39 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 	}
 	if n.EditionName != "" {
 		sb.WriteString(fmt.Sprintf(" :editionName %q", n.EditionName))
+	}
+	if n.ConsiderFresh {
+		sb.WriteString(" :considerFresh true")
+	}
+	if n.FreshMode != "" {
+		sb.WriteString(fmt.Sprintf(" :freshMode %q", n.FreshMode))
+	}
+	if n.EvaluationSuffix != "" {
+		sb.WriteString(fmt.Sprintf(" :evaluationSuffix %q", n.EvaluationSuffix))
+	}
+	if n.Annotations != nil && n.Annotations.Len() > 0 {
+		sb.WriteString(" :annotations (")
+		for i, item := range n.Annotations.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
+	}
+	if n.Modify != nil {
+		sb.WriteString(" :modify ")
+		writeNode(sb, n.Modify)
+	}
+	if n.Options != nil && n.Options.Len() > 0 {
+		sb.WriteString(" :options (")
+		for i, item := range n.Options.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
 	}
 	if n.ScopeColumn != "" {
 		sb.WriteString(fmt.Sprintf(" :scopeColumn %q", n.ScopeColumn))
@@ -7062,11 +7125,30 @@ func writeCreateIndextypeStmt(sb *strings.Builder, n *CreateIndextypeStmt) {
 	if n.WithRange {
 		sb.WriteString(" :withRange true")
 	}
+	if n.WithoutLocal {
+		sb.WriteString(" :withoutLocal true")
+	}
+	if n.WithoutRange {
+		sb.WriteString(" :withoutRange true")
+	}
 	if n.StorageTable != "" {
 		sb.WriteString(fmt.Sprintf(" :storageTable %q", n.StorageTable))
 	}
 	if n.ArrayDML {
 		sb.WriteString(" :arrayDML true")
+	}
+	if len(n.ArrayDMLTypes) > 0 {
+		sb.WriteString(" :arrayDMLTypes (")
+		for i, pair := range n.ArrayDMLTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, pair)
+		}
+		sb.WriteString(")")
+	}
+	if n.WithoutArrayDML {
+		sb.WriteString(" :withoutArrayDML true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -7080,6 +7162,20 @@ func writeIndextypeOp(sb *strings.Builder, n *IndextypeOp) {
 	}
 	if len(n.ParamTypes) > 0 {
 		sb.WriteString(fmt.Sprintf(" :paramTypes %q", strings.Join(n.ParamTypes, ",")))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeArrayDMLTypePair(sb *strings.Builder, n *ArrayDMLTypePair) {
+	sb.WriteString("{ARRAY_DML_TYPE_PAIR")
+	if n.Type != nil {
+		sb.WriteString(" :type ")
+		writeNode(sb, n.Type)
+	}
+	if n.VarrayType != nil {
+		sb.WriteString(" :varrayType ")
+		writeNode(sb, n.VarrayType)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -7112,8 +7208,24 @@ func writeAlterIndextypeStmt(sb *strings.Builder, n *AlterIndextypeStmt) {
 	if n.ArrayDML {
 		sb.WriteString(" :arrayDML true")
 	}
+	if len(n.ArrayDMLTypes) > 0 {
+		sb.WriteString(" :arrayDMLTypes (")
+		for i, pair := range n.ArrayDMLTypes {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, pair)
+		}
+		sb.WriteString(")")
+	}
+	if n.WithoutArrayDML {
+		sb.WriteString(" :withoutArrayDML true")
+	}
 	if n.WithLocal {
 		sb.WriteString(" :withLocal true")
+	}
+	if n.WithoutLocal {
+		sb.WriteString(" :withoutLocal true")
 	}
 	if n.StorageTable != "" {
 		sb.WriteString(fmt.Sprintf(" :storageTable %q", n.StorageTable))

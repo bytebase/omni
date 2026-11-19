@@ -58,29 +58,52 @@ func TestRedshiftGrantModelParse(t *testing.T) {
 	for _, sql := range []string{
 		"GRANT EXECUTE ON MODEL customer_churn_model TO ml_user",
 		"GRANT ALL PRIVILEGES ON MODEL recommendation_model TO data_scientist",
-		"GRANT CREATE MODEL TO ml_admin",
 	} {
-		stmt := singleStmt(t, sql)
-		switch grant := stmt.(type) {
-		case *nodes.GrantStmt:
-			if !grant.IsGrant {
-				t.Fatalf("Parse(%q): expected grant", sql)
-			}
-			if grant.Objtype != nodes.OBJECT_MODEL {
-				t.Fatalf("Parse(%q): objtype = %v, want OBJECT_MODEL", sql, grant.Objtype)
-			}
-			if grant.Objects == nil || len(grant.Objects.Items) != 1 {
-				t.Fatalf("Parse(%q): objects = %#v, want one object", sql, grant.Objects)
-			}
-		case *nodes.GrantRoleStmt:
-			if !grant.IsGrant {
-				t.Fatalf("Parse(%q): expected grant role/system privilege", sql)
-			}
-			if grant.GrantedRoles == nil || len(grant.GrantedRoles.Items) != 1 {
-				t.Fatalf("Parse(%q): granted roles = %#v, want one", sql, grant.GrantedRoles)
-			}
-		default:
-			t.Fatalf("Parse(%q): expected GrantStmt or GrantRoleStmt, got %T", sql, stmt)
+		grant, ok := singleStmt(t, sql).(*nodes.GrantStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected GrantStmt", sql)
+		}
+		if !grant.IsGrant {
+			t.Fatalf("Parse(%q): expected grant", sql)
+		}
+		if grant.Objtype != nodes.OBJECT_MODEL {
+			t.Fatalf("Parse(%q): objtype = %v, want OBJECT_MODEL", sql, grant.Objtype)
+		}
+		if grant.Objects == nil || len(grant.Objects.Items) != 1 {
+			t.Fatalf("Parse(%q): objects = %#v, want one object", sql, grant.Objects)
+		}
+	}
+
+	// GRANT CREATE MODEL names no object: it is a permission of the warehouse,
+	// kept in a GrantRoleStmt like Redshift's system permissions so the catalog
+	// records nothing for it.
+	for _, tc := range []struct {
+		sql             string
+		withGrantOption bool
+		grantees        int
+	}{
+		{"GRANT CREATE MODEL TO ml_admin", false, 1},
+		{"GRANT CREATE MODEL TO a WITH GRANT OPTION", true, 1},
+		{"GRANT CREATE MODEL TO ROLE a, GROUP g, PUBLIC", false, 3},
+	} {
+		grant, ok := singleStmt(t, tc.sql).(*nodes.GrantRoleStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected GrantRoleStmt", tc.sql)
+		}
+		if !grant.IsGrant {
+			t.Fatalf("Parse(%q): expected grant", tc.sql)
+		}
+		if grant.GrantedRoles == nil || len(grant.GrantedRoles.Items) != 1 {
+			t.Fatalf("Parse(%q): granted permissions = %#v, want one", tc.sql, grant.GrantedRoles)
+		}
+		if priv := grant.GrantedRoles.Items[0].(*nodes.AccessPriv); priv.PrivName != "create_model" {
+			t.Fatalf("Parse(%q): privilege = %q, want create_model", tc.sql, priv.PrivName)
+		}
+		if grant.GranteeRoles == nil || len(grant.GranteeRoles.Items) != tc.grantees {
+			t.Fatalf("Parse(%q): grantees = %#v, want %d", tc.sql, grant.GranteeRoles, tc.grantees)
+		}
+		if got := findDefElem(grant.Opt, "grant_option") != nil; got != tc.withGrantOption {
+			t.Fatalf("Parse(%q): grant option = %v, want %v", tc.sql, got, tc.withGrantOption)
 		}
 	}
 }

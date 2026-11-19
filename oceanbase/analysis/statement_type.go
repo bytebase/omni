@@ -51,6 +51,8 @@ func StatementTypeOf(node ast.Node) StatementType {
 		return CreateIndex
 	case *ast.CreateViewStmt:
 		return CreateView
+	case *ast.CreateMaterializedViewStmt:
+		return CreateView
 	case *ast.CreateEventStmt:
 		return CreateEvent
 	case *ast.CreateTriggerStmt:
@@ -86,6 +88,8 @@ func StatementTypeOf(node ast.Node) StatementType {
 	case *ast.AlterDatabaseStmt:
 		return AlterDatabase
 	case *ast.AlterViewStmt:
+		return AlterView
+	case *ast.AlterMaterializedViewStmt:
 		return AlterView
 	case *ast.AlterEventStmt:
 		return AlterEvent

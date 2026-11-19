@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/trino/ast"
 )
@@ -103,8 +104,9 @@ func (n *DescribeInputStmt) Tag() ast.NodeTag { return ast.T_DescribeInputStmt }
 
 // DescribeOutputStmt is a DESCRIBE OUTPUT <name>.
 type DescribeOutputStmt struct {
-	Name *ast.Identifier
-	Loc  ast.Loc
+	Name  *ast.Identifier // DESCRIBE OUTPUT <name>, nil for the query form
+	Query *Query          // DESCRIBE OUTPUT (query), nil for the name form
+	Loc   ast.Loc
 }
 
 // Tag implements ast.Node.
@@ -388,6 +390,108 @@ func (p *Parser) parseDeallocateStmt() (ast.Node, error) {
 	}, nil
 }
 
+// stringSourceOffset maps a byte offset in a string literal's decoded value to
+// the byte offset of that character in the source token. A doubled quote is one
+// decoded byte but two source bytes.
+func (p *Parser) stringSourceOffset(tok Token, decoded int) int {
+	raw := p.sourceSlice(tok.Loc.Start, tok.Loc.End)
+	open := strings.IndexByte(raw, '\'')
+	if open < 0 || open+1 >= len(raw) {
+		return tok.Loc.Start + decoded
+	}
+	i, n := open+1, 0
+	for i < len(raw)-1 && n < decoded {
+		if raw[i] == '\'' && i+1 < len(raw)-1 && raw[i+1] == '\'' {
+			n++
+			i += 2
+		} else if tok.Kind == tokUnicodeString && raw[i] == '\\' {
+			if i+1 < len(raw)-1 && raw[i+1] == '\\' {
+				n++
+				i += 2
+				continue
+			}
+			r, next, ok := unicodeEscapeAt(raw, i, len(raw)-1)
+			if !ok {
+				n++
+				i++
+			} else {
+				n += utf8.RuneLen(r)
+				i = next
+			}
+		} else {
+			n++
+			i++
+		}
+	}
+	return tok.Loc.Start + i
+}
+
+// decodeUnicodeString decodes the default-escape (backslash) Unicode literal
+// body the lexer captured verbatim: \XXXX, \+XXXXXX, or the escape character
+// doubled. raw is the inter-quote text, without the surrounding U&'…'.
+func decodeUnicodeString(raw string) string {
+	var b strings.Builder
+	for i := 0; i < len(raw); {
+		if raw[i] == '\\' {
+			if i+1 < len(raw) && raw[i+1] == '\\' {
+				b.WriteByte('\\')
+				i += 2
+				continue
+			}
+			if r, next, ok := unicodeEscapeAt(raw, i, len(raw)); ok {
+				b.WriteRune(r)
+				i = next
+				continue
+			}
+		}
+		b.WriteByte(raw[i])
+		i++
+	}
+	return b.String()
+}
+
+// unicodeEscapeAt reads a \XXXX or \+XXXXXX escape at i, where end bounds the
+// literal body. It returns the rune and the index just past the escape.
+func unicodeEscapeAt(raw string, i, end int) (rune, int, bool) {
+	if i >= end || raw[i] != '\\' {
+		return 0, i, false
+	}
+	digits := 4
+	start := i + 1
+	if start < end && raw[start] == '+' {
+		digits = 6
+		start++
+	}
+	if start+digits > end {
+		return 0, i, false
+	}
+	v := 0
+	for j := 0; j < digits; j++ {
+		d := hexValue(raw[start+j])
+		if d < 0 {
+			return 0, i, false
+		}
+		v = v*16 + d
+	}
+	if v > utf8.MaxRune {
+		return 0, i, false
+	}
+	return rune(v), start + digits, true
+}
+
+func hexValue(b byte) int {
+	switch {
+	case b >= '0' && b <= '9':
+		return int(b - '0')
+	case b >= 'a' && b <= 'f':
+		return int(b-'a') + 10
+	case b >= 'A' && b <= 'F':
+		return int(b-'A') + 10
+	default:
+		return -1
+	}
+}
+
 // parseExecuteStmt parses both EXECUTE forms, dispatching on a leading
 // IMMEDIATE:
 //
@@ -444,9 +548,13 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	strTok := p.advance()
+	sql := strTok.Str
+	if strTok.Kind == tokUnicodeString {
+		sql = decodeUnicodeString(sql)
+	}
 
 	stmt := &ExecuteImmediateStmt{
-		SQL: strTok.Str,
+		SQL: sql,
 		Loc: ast.Loc{Start: start, End: strTok.Loc.End},
 	}
 	using, err := p.parseOptionalUsing()
@@ -455,6 +563,28 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 	}
 	stmt.Using = using
 	stmt.Loc.End = p.prev.Loc.End
+
+	// Trino runs the immediate statement, and an inner SYNTAX_ERROR is the
+	// statement's rejection (positioned inside the string). Validate the text
+	// the same way, mapping an inner byte offset back into the literal. A
+	// trailing-token error is reported before execution, so validate only when
+	// the statement itself ended.
+	if p.cur.Kind == tokEOF {
+		inner, err := Parse(sql)
+		if err != nil {
+			if errs := AllErrors(err); len(errs) > 0 {
+				return nil, &ParseError{
+					Position: p.stringSourceOffset(strTok, errs[0].Position),
+					End:      p.stringSourceOffset(strTok, errs[0].End),
+					Message:  errs[0].Message,
+				}
+			}
+		}
+		if inner == nil || len(inner.Stmts) != 1 {
+			at := p.stringSourceOffset(strTok, 0)
+			return nil, &ParseError{Position: at, End: at, Message: "EXECUTE IMMEDIATE requires exactly one statement"}
+		}
+	}
 	return stmt, nil
 }
 
@@ -499,7 +629,7 @@ func (p *Parser) describeIntrospectionFollows() bool {
 	defer p.restore(cp)
 	p.advance() // consume DESCRIBE
 	p.advance() // consume INPUT / OUTPUT
-	return isIdentifierStart(p.cur.Kind)
+	return isIdentifierStart(p.cur.Kind) || p.cur.Kind == int('(')
 }
 
 // parseDescribeInputStmt parses DESCRIBE INPUT <name>. On entry the DESCRIBE
@@ -521,6 +651,21 @@ func (p *Parser) parseDescribeInputStmt(start int) (ast.Node, error) {
 // and OUTPUT keywords have both already been consumed; start is the DESCRIBE
 // keyword's byte offset.
 func (p *Parser) parseDescribeOutputStmt(start int) (ast.Node, error) {
+	if p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		q, err := p.parseRootQuery()
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		return &DescribeOutputStmt{
+			Query: q,
+			Loc:   ast.Loc{Start: start, End: closeTok.Loc.End},
+		}, nil
+	}
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err

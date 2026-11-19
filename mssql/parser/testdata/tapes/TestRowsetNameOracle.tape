@@ -577,6 +577,20 @@
 | SET PARSEONLY ON
 < ok 0 -
 > exec
+| DECLARE @h INT; SELECT * FROM OPENDATASOURCE('MSOLEDBSQL', 'Data Source=x;Integrated Security=SSPI').a.b.c.d.e
+|
+< error
+| 117 1 15 1 The object name 'a.b.c.d.e' contains more than the maximum number of prefixes. The maximum is 3.
+> exec
+| SET PARSEONLY OFF
+| SET QUOTED_IDENTIFIER ON
+| SET FIPS_FLAGGER OFF
+| USE [omni_TestRowsetNameOracle]
+< ok 0 -
+> exec
+| SET PARSEONLY ON
+< ok 0 -
+> exec
 | DECLARE @h INT; SELECT * FROM OPENDATASOURCE('MSOLEDBSQL', 'Data Source=x;Integrated Security=SSPI').db.dbo.f()
 |
 < error

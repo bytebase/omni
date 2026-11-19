@@ -244,6 +244,27 @@ func walkChildren(v Visitor, node Node) {
 		if n.Into != nil {
 			Walk(v, n.Into)
 		}
+	case *ValuesStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
+		for _, row := range n.Rows {
+			for _, item := range row {
+				Walk(v, item)
+			}
+		}
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
 	case *SelectItem:
 		if n.Expr != nil {
 			Walk(v, n.Expr)
@@ -507,6 +528,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		for _, item := range n.SelectItems {
+			Walk(v, item)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
@@ -537,6 +564,17 @@ func walkChildren(v Visitor, node Node) {
 		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
+		}
+	case *LoadPropertyStmt:
+		if n.Expr != nil {
+			Walk(v, n.Expr)
+		}
+		for _, column := range n.Columns {
+			Walk(v, column)
+		}
+	case *ImportColumnDesc:
+		if n.Expr != nil {
+			Walk(v, n.Expr)
 		}
 	case *ExportStmt:
 		if n.Target != nil {
@@ -910,6 +948,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		if n.On != nil {
+			Walk(v, n.On)
+		}
 		if n.Where != nil {
 			Walk(v, n.Where)
 		}
@@ -947,6 +988,9 @@ func walkChildren(v Visitor, node Node) {
 	case *DescribeStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
+		}
+		for _, prop := range n.Args {
+			Walk(v, prop)
 		}
 	case *ExplainStmt:
 		if n.Query != nil {
@@ -1114,6 +1158,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		for _, param := range n.Parameters {
 			Walk(v, param)
+		}
+	case *AlterProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *CallProcedureStmt:
 		if n.Name != nil {

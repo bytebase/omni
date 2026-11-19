@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -214,31 +212,21 @@ func (p *Parser) parseDropEncryptKey(startLoc ast.Loc) (ast.Node, error) {
 // DICTIONARY
 // ---------------------------------------------------------------------------
 
-// parseCreateDictionary parses:
+// parseCreateDictionary parses createDictionaryStatement (StarRocks.g4:842):
 //
-//	CREATE DICTIONARY [IF NOT EXISTS] name
+//	CREATE DICTIONARY name
 //	    USING table_name
 //	    (col1 KEY, col2 VALUE, ...)
-//	    LAYOUT(layout_type)
 //	    PROPERTIES(...)
+//
+// Doris's IF NOT EXISTS and LAYOUT(layout_type) are not in the rule, and the
+// pinned server refuses both.
 //
 // On entry, CREATE has been consumed; cur is DICTIONARY.
 func (p *Parser) parseCreateDictionary(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume DICTIONARY
 
 	stmt := &ast.CreateDictionaryStmt{}
-
-	// Optional IF NOT EXISTS
-	if p.cur.Kind == kwIF {
-		p.advance()
-		if _, err := p.expect(kwNOT); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-		stmt.IfNotExists = true
-	}
 
 	// Dictionary name
 	name, err := p.parseMultipartIdentifier()
@@ -267,26 +255,6 @@ func (p *Parser) parseCreateDictionary(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.Columns = cols
 		endLoc = loc
-	}
-
-	// LAYOUT(layout_type)
-	if p.cur.Kind == kwLAYOUT {
-		p.advance()
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
-		}
-		// Layout type is an identifier/keyword; normalize to lowercase.
-		layoutName, layoutLoc, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Layout = strings.ToLower(layoutName)
-		endLoc = layoutLoc
-		rparen, err := p.expect(int(')'))
-		if err != nil {
-			return nil, err
-		}
-		endLoc = rparen.Loc
 	}
 
 	// PROPERTIES(...)
@@ -654,9 +622,6 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 		endLoc = roleLoc
 	}
 
-	// Optional password policy clauses
-	endLoc = p.parsePasswordPolicyCreate(stmt, endLoc)
-
 	// Optional COMMENT
 	if p.cur.Kind == kwCOMMENT {
 		p.advance()
@@ -670,67 +635,6 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
-}
-
-// parsePasswordPolicyCreate parses optional password policy clauses for CREATE USER.
-// Modifies stmt in place and returns the updated endLoc.
-func (p *Parser) parsePasswordPolicyCreate(stmt *ast.CreateUserStmt, endLoc ast.Loc) ast.Loc {
-	for {
-		switch p.cur.Kind {
-		case kwPASSWORD_EXPIRE:
-			stmt.PasswordExpire = true
-			endLoc = p.cur.Loc
-			p.advance()
-			// Optional INTERVAL n DAY
-			if p.cur.Kind == kwINTERVAL {
-				p.advance()
-				if p.cur.Kind == tokInt {
-					n := int(p.cur.Ival)
-					stmt.PasswordExpireInterval = n
-					endLoc = p.cur.Loc
-					p.advance()
-				}
-				// Consume DAY/DAYS
-				if p.cur.Kind == kwDAY || p.cur.Kind == kwDAYS {
-					endLoc = p.cur.Loc
-					p.advance()
-				}
-			}
-		case kwFAILED_LOGIN_ATTEMPTS:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.FailedLoginAttempts = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwPASSWORD_LOCK_TIME:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.PasswordLockTime = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-			if p.cur.Kind == kwDAY || p.cur.Kind == kwDAYS {
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwPASSWORD_HISTORY:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.PasswordHistory = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		default:
-			return endLoc
-		}
-	}
 }
 
 // parseAlterUser parses:
@@ -790,28 +694,6 @@ func (p *Parser) parseAlterUser(startLoc ast.Loc) (ast.Node, error) {
 	// Optional password policy / account clauses
 	for {
 		switch p.cur.Kind {
-		case kwFAILED_LOGIN_ATTEMPTS:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.FailedLoginAttempts = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwPASSWORD_LOCK_TIME:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.PasswordLockTime = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-			if p.cur.Kind == kwDAY || p.cur.Kind == kwDAYS {
-				endLoc = p.cur.Loc
-				p.advance()
-			}
 		case kwACCOUNT_LOCK:
 			stmt.AccountLock = true
 			endLoc = p.cur.Loc

@@ -116,7 +116,9 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			}
 			st.kind = barrier
 		case *ast.BeginStmt, *ast.UnlockTablesStmt,
-			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt:
+			*ast.AnalyzeTableStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt,
+			*ast.MethodOptStmt:
+			// method_opt changes no name and runs nothing.
 			continue
 		case *ast.CommitStmt:
 			// COMMIT RELEASE ends the session.
@@ -149,7 +151,9 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			st.kind = barrier
 		case *ast.UseStmt:
 			st.kind, st.database = uses, v.Database
-		case *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.DropViewStmt, *ast.CreateTriggerStmt, *ast.DropTriggerStmt,
+		case *ast.CreateViewStmt, *ast.CreateMaterializedViewStmt, *ast.AlterViewStmt, *ast.AlterMaterializedViewStmt,
+			*ast.DropViewStmt, *ast.CreateMaterializedViewLogStmt, *ast.AlterMaterializedViewLogStmt, *ast.DropMaterializedViewLogStmt,
+			*ast.CreateTriggerStmt, *ast.DropTriggerStmt,
 			*ast.CreateFunctionStmt, *ast.AlterRoutineStmt, *ast.DropRoutineStmt, *ast.DropEventStmt,
 			*ast.CreateDatabaseStmt, *ast.AlterDatabaseStmt,
 			*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt, *ast.SetPasswordStmt, *ast.GrantStmt, *ast.RevokeStmt,

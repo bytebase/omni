@@ -185,7 +185,7 @@ func TestRedshiftRevokeExternalObjectIAMRoleParse(t *testing.T) {
 		sql     string
 		objtype nodes.ObjectType
 	}{
-		{"REVOKE CREATE ON EXTERNAL SCHEMA spectrum_schema FROM IAM_ROLE 'spectrum_user'", nodes.OBJECT_SCHEMA},
+		{"REVOKE CREATE ON EXTERNAL SCHEMA spectrum_schema FROM IAM_ROLE 'spectrum_user'", nodes.OBJECT_EXTERNAL_SCHEMA},
 		{"REVOKE SELECT ON EXTERNAL TABLE spectrum_schema.data FROM IAM_ROLE 'arn:aws:iam::123456789012:role/SpectrumRole'", nodes.OBJECT_FOREIGN_TABLE},
 	} {
 		stmt := singleStmt(t, tc.sql)

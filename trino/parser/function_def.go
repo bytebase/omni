@@ -121,9 +121,10 @@ const (
 // characteristic (F4). Name is a single identifier (quoted allowed); Value is a
 // full expression.
 type RoutineProperty struct {
-	Name  *ast.Identifier
-	Value Expr
-	Loc   ast.Loc
+	Name      *ast.Identifier
+	Value     Expr // nil when IsDefault
+	IsDefault bool
+	Loc       ast.Loc
 }
 
 // RoutineCharacteristic is one routineCharacteristic. Only the fields relevant
@@ -239,7 +240,7 @@ var _ ast.Node = (*DropFunctionStmt)(nil)
 // declaration's qualified name.
 func (p *Parser) parseDropFunctionStmt(dropStart int) (ast.Node, error) {
 	s := &DropFunctionStmt{Loc: ast.Loc{Start: dropStart}}
-	if p.cur.Kind == kwIF {
+	if p.cur.Kind == kwIF && p.peekNext().Kind == kwEXISTS {
 		p.advance() // consume IF
 		if _, err := p.expect(kwEXISTS); err != nil {
 			return nil, err
@@ -281,31 +282,54 @@ var _ ast.Node = (*WithFunctionStmt)(nil)
 // select.go) has already confirmed FUNCTION follows it. Returns a
 // *WithFunctionStmt wrapping the inline routines and the trailing query.
 func (p *Parser) parseWithFunctionQuery() (ast.Node, error) {
-	withTok := p.advance() // consume WITH
-	s := &WithFunctionStmt{Loc: ast.Loc{Start: withTok.Loc.Start}}
-
-	first, err := p.parseFunctionSpecification()
+	start := p.cur.Loc.Start
+	q, err := p.parseRootQuery()
 	if err != nil {
 		return nil, err
 	}
-	s.Functions = append(s.Functions, first)
-	for p.cur.Kind == int(',') {
-		p.advance() // consume ','
-		next, err := p.parseFunctionSpecification()
+	return &WithFunctionStmt{
+		Functions: q.Functions,
+		Query:     q,
+		Loc:       ast.Loc{Start: start, End: q.Loc.End},
+	}, nil
+}
+
+// parseRootQuery parses a rootQuery: `(WITH functionSpecification (, …)*)?
+// query`. WITH FUNCTION is current when the leading WITH is the inline-routine
+// prefix; otherwise this is an ordinary query.
+func (p *Parser) parseRootQuery() (*Query, error) {
+	start := p.cur.Loc.Start
+	var functions []FunctionSpecification
+	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwFUNCTION {
+		p.advance() // consume WITH
+		first, err := p.parseFunctionSpecification()
 		if err != nil {
 			return nil, err
 		}
-		s.Functions = append(s.Functions, next)
+		functions = append(functions, first)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			next, err := p.parseFunctionSpecification()
+			if err != nil {
+				return nil, err
+			}
+			functions = append(functions, next)
+		}
 	}
-
-	// The trailing query (which may itself begin with a CTE `WITH`, F6).
 	q, err := p.parseQuery()
 	if err != nil {
 		return nil, err
 	}
-	s.Query = q
-	s.Loc.End = q.Loc.End
-	return s, nil
+	for _, fn := range functions {
+		if err := checkFunctionBody(fn.Body); err != nil {
+			return nil, err
+		}
+	}
+	q.Functions = functions
+	if len(functions) > 0 {
+		q.Loc.Start = start
+	}
+	return q, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -350,14 +374,38 @@ func (p *Parser) parseFunctionSpecification() (FunctionSpecification, error) {
 		spec.Characteristics = append(spec.Characteristics, ch)
 	}
 
-	// controlStatement (the trailing body — RETURN / BEGIN / IF / …).
+	// controlStatement (the trailing body — RETURN / BEGIN / IF / …). Trino's
+	// AstBuilder refuses a function body that does not START with RETURN or BEGIN,
+	// even though the grammar's controlStatement admits every alternative.
 	body, err := p.parseRoutineStatement()
 	if err != nil {
 		return FunctionSpecification{}, err
 	}
+	// Only apply the body restriction once the whole statement parsed: a
+	// trailing-token error is reported first, where the grammar finds it.
+	if p.cur.Kind == tokEOF {
+		if err := checkFunctionBody(body); err != nil {
+			return FunctionSpecification{}, err
+		}
+	}
 	spec.Body = body
 	spec.Loc.End = body.Span().End
 	return spec, nil
+}
+
+// checkFunctionBody enforces Trino's AstBuilder rule that a function body
+// starts with RETURN or BEGIN.
+func checkFunctionBody(body RoutineStatement) error {
+	switch body.(type) {
+	case *ReturnStatement, *CompoundStatement:
+		return nil
+	default:
+		return &ParseError{
+			Position: body.Span().Start,
+			End:      body.Span().End,
+			Message:  "function body must start with RETURN or BEGIN",
+		}
+	}
 }
 
 // parseFunctionDeclaration parses
@@ -621,6 +669,13 @@ func (p *Parser) parseRoutineProperty() (RoutineProperty, error) {
 	}
 	if _, err := p.expect(int('=')); err != nil {
 		return RoutineProperty{}, err
+	}
+	if defTok, ok := p.match(kwDEFAULT); ok {
+		return RoutineProperty{
+			Name:      name,
+			IsDefault: true,
+			Loc:       ast.Loc{Start: name.Loc.Start, End: defTok.Loc.End},
+		}, nil
 	}
 	val, err := p.parseExpr()
 	if err != nil {

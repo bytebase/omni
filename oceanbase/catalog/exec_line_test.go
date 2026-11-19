@@ -71,3 +71,23 @@ func TestExecResultLineWithDelimiter(t *testing.T) {
 		}
 	}
 }
+
+// TestExecResultLineMethodOpt pins that a method_opt statement reports its own
+// line: it is a statement the parser reaches (stmt: method_opt) and the catalog
+// runs nothing for, so its result must not fall to the default arm's line 1.
+func TestExecResultLineMethodOpt(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test;", nil); err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	results, err := c.Exec("FOR COLUMNS;\nCREATE TABLE t1 (id INT);", nil)
+	if err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("got %d results, want 2", len(results))
+	}
+	if results[0].Line != 1 || results[1].Line != 2 {
+		t.Errorf("lines = %d, %d, want 1, 2", results[0].Line, results[1].Line)
+	}
+}

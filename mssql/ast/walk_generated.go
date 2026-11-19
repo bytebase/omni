@@ -486,6 +486,33 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.OnName)
 		}
 		walkList(v, n.Principals)
+	case *GraphMatchCompositeExpr:
+		if n.Left != nil {
+			Walk(v, n.Left)
+		}
+		if n.Right != nil {
+			Walk(v, n.Right)
+		}
+	case *GraphMatchLastNodePredicate:
+		if n.Left != nil {
+			Walk(v, n.Left)
+		}
+		if n.Right != nil {
+			Walk(v, n.Right)
+		}
+	case *GraphMatchPredicate:
+		Walk(v, n.Expression)
+	case *GraphMatchRecursivePredicate:
+		walkList(v, n.Expression)
+		if n.Outer != nil {
+			Walk(v, n.Outer)
+		}
+		if n.Lower != nil {
+			Walk(v, n.Lower)
+		}
+		if n.Upper != nil {
+			Walk(v, n.Upper)
+		}
 	case *GroupingSetsExpr:
 		walkList(v, n.Sets)
 	case *IfStmt:
@@ -594,6 +621,12 @@ func walkChildren(v Visitor, node Node) {
 	case *NullifExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *OdbcFunctionCallExpr:
+		walkList(v, n.Args)
+	case *OdbcLiteralExpr:
+		if n.Value != nil {
+			Walk(v, n.Value)
+		}
 	case *OptimizeForParam:
 		Walk(v, n.Value)
 	case *OrderByItem:
@@ -907,6 +940,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *WithClause:
 		walkList(v, n.XmlNamespaces)
+		Walk(v, n.CTContext)
 		walkList(v, n.CTEs)
 	case *WritetextStmt:
 		if n.Column != nil {

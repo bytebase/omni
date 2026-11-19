@@ -286,6 +286,13 @@ func TestDisallowDropObject(t *testing.T) {
 		},
 		{name: "a constraint belongs to DisallowDropConstraint", sql: "ALTER TABLE t DROP CONSTRAINT ck_n;"},
 		{
+			// DROP INDEX name as a table element drops an index as DROP INDEX
+			// name ON table does.
+			name: "a table element's index",
+			sql:  "ALTER TABLE t DROP INDEX ix, ix;",
+			want: []finding{{0, "INDEX ix", "Drops index `ix` of `t`.", []int{0}}},
+		},
+		{
 			name: "a name with a line break",
 			sql:  "DROP TABLE [a\nb];",
 			want: []finding{{0, "DROP TABLE [a\nb]", "Drops table `[a\\nb]`.", []int{0}}},
@@ -351,6 +358,11 @@ func TestDisallowRename(t *testing.T) {
 				{1, "EXEC sp_rename @objname = N't', @newname = N't3'", "Renames table `t` to `t3`.", []int{0}},
 				{2, "EXEC sys.sp_rename 'v', 'v2', 'OBJECT'", "Renames view `v` to `v2`.", []int{0}},
 			},
+		},
+		{
+			name: "sp_rename called by name without EXEC as its batch's first statement",
+			sql:  "sp_rename 'dbo.t', 'moved', 'OBJECT';",
+			want: []finding{{0, "sp_rename 'dbo.t', 'moved', 'OBJECT'", "Renames table `dbo.t` to `moved`.", []int{0}}},
 		},
 		{
 			name: "sp_rename of a column whose name keeps spaces inside brackets",
@@ -587,12 +599,13 @@ func TestPriorBackup(t *testing.T) {
 		},
 		{
 			name:   "what the backup refuses",
-			sql:    "DECLARE @v TABLE (id INT);\nUPDATE @v SET id = 1 WHERE id = 2;\nWITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1;\nUPDATE TOP (3) p SET note = '' WHERE id > 0;",
+			sql:    "DECLARE @v TABLE (id INT);\nUPDATE @v SET id = 1 WHERE id = 2;\nWITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1;\nUPDATE TOP (3) p SET note = '' WHERE id > 0;\nDELETE OPENQUERY(srv, 'SELECT * FROM dbo.t');",
 			change: backup,
 			want: []finding{
 				{1, "UPDATE @v SET id = 1 WHERE id = 2", "Prior backup can't back up the table variable `@v`.\n\nTurn off **Prior backup** for this change.", []int{0}},
 				{2, "WITH c AS (SELECT * FROM t) DELETE FROM c WHERE id = 1", "Prior backup can't back up through the `WITH` query `c`.\n\nChange the base table instead, or turn off **Prior backup**.", []int{0}},
 				{3, "UPDATE TOP (3) p SET note = '' WHERE id > 0", "Prior backup can't copy this statement's `TOP`: SQL Server rejects it where the backup query puts it.\n\nUse a `WHERE` instead of `TOP`, or turn off **Prior backup**.", []int{0}},
+				{4, "DELETE OPENQUERY(srv, 'SELECT * FROM dbo.t')", "Prior backup can't back up a rowset function or a function call as a statement's target.\n\nName the table the change writes, or turn off **Prior backup** for this change.", []int{0}},
 			},
 		},
 		{

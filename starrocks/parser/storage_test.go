@@ -10,225 +10,6 @@ import (
 // CREATE STORAGE VAULT
 // ---------------------------------------------------------------------------
 
-func TestCreateStorageVault_Basic(t *testing.T) {
-	sql := `CREATE STORAGE VAULT hdfs_vault PROPERTIES (
-		"type" = "hdfs",
-		"fs.defaultFS" = "hdfs://127.0.0.1:8020"
-	)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.CreateStorageVaultStmt)
-	if !ok {
-		t.Fatalf("expected *ast.CreateStorageVaultStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "hdfs_vault" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "hdfs_vault")
-	}
-	if stmt.IfNotExists {
-		t.Error("IfNotExists should be false")
-	}
-	if len(stmt.Properties) != 2 {
-		t.Fatalf("expected 2 properties, got %d", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "type" {
-		t.Errorf("Properties[0].Key = %q, want %q", stmt.Properties[0].Key, "type")
-	}
-	if stmt.Properties[0].Value != "hdfs" {
-		t.Errorf("Properties[0].Value = %q, want %q", stmt.Properties[0].Value, "hdfs")
-	}
-}
-
-func TestCreateStorageVault_IfNotExists(t *testing.T) {
-	sql := `CREATE STORAGE VAULT IF NOT EXISTS s3_vault PROPERTIES (
-		"type" = "S3",
-		"s3.endpoint" = "s3.us-east-1.amazonaws.com",
-		"s3.access_key" = "xxxxxx",
-		"s3.secret_key" = "xxxxxx",
-		"s3.region" = "us-east-1",
-		"s3.root.path" = "prefix",
-		"s3.bucket" = "mybucket",
-		"provider" = "S3",
-		"use_path_style" = "false"
-	)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.CreateStorageVaultStmt)
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
-	}
-	if stmt.Name != "s3_vault" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "s3_vault")
-	}
-	if len(stmt.Properties) != 9 {
-		t.Fatalf("expected 9 properties, got %d", len(stmt.Properties))
-	}
-}
-
-func TestCreateStorageVault_LegacyCorpus_HDFS(t *testing.T) {
-	sql := `CREATE STORAGE VAULT IF NOT EXISTS hdfs_vault_demo PROPERTIES (
-		"type" = "hdfs",
-		"fs.defaultFS" = "hdfs://127.0.0.1:8020",
-		"path_prefix" = "big/data",
-		"hadoop.username" = "user",
-		"hadoop.security.authentication" = "kerberos",
-		"hadoop.kerberos.principal" = "hadoop/127.0.0.1@XXX",
-		"hadoop.kerberos.keytab" = "/etc/emr.keytab"
-	)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.CreateStorageVaultStmt)
-	if stmt.Name != "hdfs_vault_demo" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "hdfs_vault_demo")
-	}
-	if len(stmt.Properties) != 7 {
-		t.Fatalf("expected 7 properties, got %d", len(stmt.Properties))
-	}
-}
-
-func TestCreateStorageVault_Tag(t *testing.T) {
-	file, errs := parseForTest(`CREATE STORAGE VAULT v PROPERTIES("type"="S3")`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_CreateStorageVaultStmt {
-		t.Errorf("Tag() = %v, want T_CreateStorageVaultStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// ALTER STORAGE VAULT
-// ---------------------------------------------------------------------------
-
-func TestAlterStorageVault_Basic(t *testing.T) {
-	sql := `ALTER STORAGE VAULT old_vault_name PROPERTIES (
-		"type" = "S3",
-		"VAULT_NAME" = "new_vault_name",
-		"s3.access_key" = "new_ak"
-	)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.AlterStorageVaultStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AlterStorageVaultStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "old_vault_name" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "old_vault_name")
-	}
-	if len(stmt.Properties) != 3 {
-		t.Fatalf("expected 3 properties, got %d", len(stmt.Properties))
-	}
-	if stmt.Properties[1].Key != "VAULT_NAME" {
-		t.Errorf("Properties[1].Key = %q, want %q", stmt.Properties[1].Key, "VAULT_NAME")
-	}
-	if stmt.Properties[1].Value != "new_vault_name" {
-		t.Errorf("Properties[1].Value = %q, want %q", stmt.Properties[1].Value, "new_vault_name")
-	}
-}
-
-func TestAlterStorageVault_Tag(t *testing.T) {
-	file, errs := parseForTest(`ALTER STORAGE VAULT v PROPERTIES("type"="S3")`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_AlterStorageVaultStmt {
-		t.Errorf("Tag() = %v, want T_AlterStorageVaultStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// DROP STORAGE VAULT
-// ---------------------------------------------------------------------------
-
-func TestDropStorageVault_Basic(t *testing.T) {
-	file, errs := parseForTest("DROP STORAGE VAULT my_vault")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.DropStorageVaultStmt)
-	if !ok {
-		t.Fatalf("expected *ast.DropStorageVaultStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "my_vault" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_vault")
-	}
-	if stmt.IfExists {
-		t.Error("IfExists should be false")
-	}
-}
-
-func TestDropStorageVault_IfExists(t *testing.T) {
-	file, errs := parseForTest("DROP STORAGE VAULT IF EXISTS my_vault")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.DropStorageVaultStmt)
-	if !stmt.IfExists {
-		t.Error("IfExists should be true")
-	}
-	if stmt.Name != "my_vault" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_vault")
-	}
-}
-
-func TestDropStorageVault_Tag(t *testing.T) {
-	file, errs := parseForTest("DROP STORAGE VAULT v")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_DropStorageVaultStmt {
-		t.Errorf("Tag() = %v, want T_DropStorageVaultStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// SET / UNSET DEFAULT STORAGE VAULT
-// ---------------------------------------------------------------------------
-
-func TestSetDefaultStorageVault(t *testing.T) {
-	file, errs := parseForTest("SET DEFAULT STORAGE VAULT my_vault")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.SetDefaultStorageVaultStmt)
-	if !ok {
-		t.Fatalf("expected *ast.SetDefaultStorageVaultStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "my_vault" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_vault")
-	}
-}
-
-func TestSetDefaultStorageVault_Tag(t *testing.T) {
-	file, errs := parseForTest("SET DEFAULT STORAGE VAULT v")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_SetDefaultStorageVaultStmt {
-		t.Errorf("Tag() = %v, want T_SetDefaultStorageVaultStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// CREATE STORAGE POLICY
-// ---------------------------------------------------------------------------
-
 func TestCreateStoragePolicy_Basic(t *testing.T) {
 	sql := `CREATE STORAGE POLICY testPolicy PROPERTIES(
 		"storage_resource" = "s3",
@@ -380,61 +161,6 @@ func TestDropStoragePolicy_Tag(t *testing.T) {
 // CREATE REPOSITORY
 // ---------------------------------------------------------------------------
 
-func TestCreateRepository_S3(t *testing.T) {
-	sql := `CREATE REPOSITORY s3_repo
-		WITH S3
-		ON LOCATION "s3://bucket/path"
-		PROPERTIES(
-			"s3.endpoint" = "s3.us-east-1.amazonaws.com",
-			"s3.access_key" = "xxxxxx",
-			"s3.secret_key" = "xxxxxx",
-			"s3.region" = "us-east-1"
-		)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.CreateRepositoryStmt)
-	if !ok {
-		t.Fatalf("expected *ast.CreateRepositoryStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "s3_repo" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "s3_repo")
-	}
-	if stmt.ReadOnly {
-		t.Error("ReadOnly should be false")
-	}
-	if stmt.Type != "S3" {
-		t.Errorf("Type = %q, want %q", stmt.Type, "S3")
-	}
-	if stmt.BrokerName != "" {
-		t.Errorf("BrokerName = %q, want empty", stmt.BrokerName)
-	}
-	if len(stmt.Properties) != 4 {
-		t.Fatalf("expected 4 properties, got %d", len(stmt.Properties))
-	}
-}
-
-func TestCreateRepository_HDFS(t *testing.T) {
-	sql := `CREATE REPOSITORY hdfs_repo
-		WITH HDFS
-		ON LOCATION "hdfs://namenode:8020/path"
-		PROPERTIES(
-			"hadoop.username" = "user"
-		)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.CreateRepositoryStmt)
-	if stmt.Name != "hdfs_repo" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "hdfs_repo")
-	}
-	if stmt.Type != "HDFS" {
-		t.Errorf("Type = %q, want %q", stmt.Type, "HDFS")
-	}
-}
-
 func TestCreateRepository_Broker(t *testing.T) {
 	sql := `CREATE REPOSITORY broker_repo
 		WITH BROKER my_broker
@@ -458,7 +184,7 @@ func TestCreateRepository_Broker(t *testing.T) {
 
 func TestCreateRepository_ReadOnly(t *testing.T) {
 	sql := `CREATE READ ONLY REPOSITORY ro_repo
-		WITH S3
+		WITH BROKER
 		ON LOCATION "s3://bucket/path"
 		PROPERTIES("s3.endpoint"="s3.amazonaws.com","s3.access_key"="ak","s3.secret_key"="sk","s3.region"="us-east-1")`
 	file, errs := parseForTest(sql)
@@ -475,7 +201,7 @@ func TestCreateRepository_ReadOnly(t *testing.T) {
 }
 
 func TestCreateRepository_Tag(t *testing.T) {
-	sql := `CREATE REPOSITORY r WITH S3 ON LOCATION "s3://b/p" PROPERTIES("s3.endpoint"="ep","s3.access_key"="ak","s3.secret_key"="sk","s3.region"="us-east-1")`
+	sql := `CREATE REPOSITORY r WITH BROKER ON LOCATION "s3://b/p" PROPERTIES("s3.endpoint"="ep","s3.access_key"="ak","s3.secret_key"="sk","s3.region"="us-east-1")`
 	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
@@ -547,105 +273,6 @@ func TestDropRepository_Tag(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // CREATE STAGE
-// ---------------------------------------------------------------------------
-
-func TestCreateStage_Basic(t *testing.T) {
-	sql := `CREATE STAGE my_stage PROPERTIES(
-		"endpoint" = "cos.ap-guangzhou.myqcloud.com",
-		"access_key_id" = "xxxxxx",
-		"access_key_secret" = "xxxxxx",
-		"bucket" = "mybucket",
-		"path" = "mypath"
-	)`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.CreateStageStmt)
-	if !ok {
-		t.Fatalf("expected *ast.CreateStageStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "my_stage" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_stage")
-	}
-	if stmt.IfNotExists {
-		t.Error("IfNotExists should be false")
-	}
-	if len(stmt.Properties) != 5 {
-		t.Fatalf("expected 5 properties, got %d", len(stmt.Properties))
-	}
-}
-
-func TestCreateStage_IfNotExists(t *testing.T) {
-	sql := `CREATE STAGE IF NOT EXISTS my_stage PROPERTIES("endpoint"="ep","access_key_id"="ak","access_key_secret"="sk","bucket"="b","path"="p")`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.CreateStageStmt)
-	if !stmt.IfNotExists {
-		t.Error("IfNotExists should be true")
-	}
-}
-
-func TestCreateStage_Tag(t *testing.T) {
-	sql := `CREATE STAGE s PROPERTIES("endpoint"="ep","access_key_id"="ak","access_key_secret"="sk","bucket"="b","path"="p")`
-	file, errs := parseForTest(sql)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_CreateStageStmt {
-		t.Errorf("Tag() = %v, want T_CreateStageStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// DROP STAGE
-// ---------------------------------------------------------------------------
-
-func TestDropStage_Basic(t *testing.T) {
-	file, errs := parseForTest("DROP STAGE my_stage")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.DropStageStmt)
-	if !ok {
-		t.Fatalf("expected *ast.DropStageStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "my_stage" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_stage")
-	}
-	if stmt.IfExists {
-		t.Error("IfExists should be false")
-	}
-}
-
-func TestDropStage_IfExists(t *testing.T) {
-	file, errs := parseForTest("DROP STAGE IF EXISTS my_stage")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.DropStageStmt)
-	if !stmt.IfExists {
-		t.Error("IfExists should be true")
-	}
-	if stmt.Name != "my_stage" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_stage")
-	}
-}
-
-func TestDropStage_Tag(t *testing.T) {
-	file, errs := parseForTest("DROP STAGE s")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if file.Stmts[0].Tag() != ast.T_DropStageStmt {
-		t.Errorf("Tag() = %v, want T_DropStageStmt", file.Stmts[0].Tag())
-	}
-}
-
-// ---------------------------------------------------------------------------
-// CREATE FILE
 // ---------------------------------------------------------------------------
 
 func TestCreateFile_Basic(t *testing.T) {
@@ -785,75 +412,21 @@ func TestLegacyCorpus_StoragePolicy(t *testing.T) {
 	}
 }
 
-func TestLegacyCorpus_StorageVault(t *testing.T) {
-	// From doris/parser/testdata/legacy/cluster_storage_vault.sql
-	tests := []string{
-		`CREATE STORAGE VAULT IF NOT EXISTS hdfs_vault_demo PROPERTIES (
-			"type" = "hdfs",
-			"fs.defaultFS" = "hdfs://127.0.0.1:8020",
-			"path_prefix" = "big/data",
-			"hadoop.username" = "user",
-			"hadoop.security.authentication" = "kerberos",
-			"hadoop.kerberos.principal" = "hadoop/127.0.0.1@XXX",
-			"hadoop.kerberos.keytab" = "/etc/emr.keytab"
-		)`,
-		`CREATE STORAGE VAULT IF NOT EXISTS oss_demo_vault PROPERTIES (
-			"type" = "S3",
-			"s3.endpoint" = "oss-cn-beijing.aliyuncs.com",
-			"s3.access_key" = "xxxxxx",
-			"s3.secret_key" = "xxxxxx",
-			"s3.region" = "cn-beijing",
-			"s3.root.path" = "oss_demo_vault_prefix",
-			"s3.bucket" = "xxxxxx",
-			"provider" = "OSS",
-			"use_path_style" = "false"
-		)`,
-		`ALTER STORAGE VAULT old_vault_name PROPERTIES (
-			"type" = "S3",
-			"VAULT_NAME" = "new_vault_name",
-			"s3.access_key" = "new_ak"
-		)`,
-	}
-
-	for _, sql := range tests {
-		file, errs := parseForTest(sql)
-		if len(errs) != 0 {
-			t.Errorf("sql:\n%s\nunexpected errors: %v", sql, errs)
-			continue
-		}
-		if len(file.Stmts) != 1 {
-			t.Errorf("sql:\n%s\nexpected 1 stmt, got %d", sql, len(file.Stmts))
-		}
-	}
-}
-
-// ---------------------------------------------------------------------------
-// Multi-statement round-trip
-// ---------------------------------------------------------------------------
-
 func TestStorage_MultiStatement(t *testing.T) {
-	input := `CREATE STORAGE VAULT v PROPERTIES("type"="S3");
-DROP STORAGE VAULT v;
-CREATE STORAGE POLICY p PROPERTIES("storage_resource"="s3");
+	input := `CREATE STORAGE POLICY p PROPERTIES("storage_resource"="s3");
 DROP STORAGE POLICY p`
 	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
-	if len(file.Stmts) != 4 {
-		t.Fatalf("expected 4 stmts, got %d", len(file.Stmts))
+	if len(file.Stmts) != 2 {
+		t.Fatalf("expected 2 stmts, got %d", len(file.Stmts))
 	}
-	if _, ok := file.Stmts[0].(*ast.CreateStorageVaultStmt); !ok {
-		t.Errorf("Stmts[0]: expected CreateStorageVaultStmt, got %T", file.Stmts[0])
+	if _, ok := file.Stmts[0].(*ast.CreateStoragePolicyStmt); !ok {
+		t.Errorf("Stmts[0]: expected CreateStoragePolicyStmt, got %T", file.Stmts[0])
 	}
-	if _, ok := file.Stmts[1].(*ast.DropStorageVaultStmt); !ok {
-		t.Errorf("Stmts[1]: expected DropStorageVaultStmt, got %T", file.Stmts[1])
-	}
-	if _, ok := file.Stmts[2].(*ast.CreateStoragePolicyStmt); !ok {
-		t.Errorf("Stmts[2]: expected CreateStoragePolicyStmt, got %T", file.Stmts[2])
-	}
-	if _, ok := file.Stmts[3].(*ast.DropStoragePolicyStmt); !ok {
-		t.Errorf("Stmts[3]: expected DropStoragePolicyStmt, got %T", file.Stmts[3])
+	if _, ok := file.Stmts[1].(*ast.DropStoragePolicyStmt); !ok {
+		t.Errorf("Stmts[1]: expected DropStoragePolicyStmt, got %T", file.Stmts[1])
 	}
 }
 

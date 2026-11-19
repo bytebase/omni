@@ -579,15 +579,14 @@ func (p *Parser) parseUserIdentity() (*ast.UserIdentity, error) {
 	}, nil
 }
 
-// parseCreateUser parses:
+// parseCreateUser parses (DorisParser.g4:808-810; DorisLegacyParser.g4's
+// create_stmt, sql_parser.cup:2100, take the same shape, and the engine runs
+// both for a CREATE USER):
 //
 //	CREATE USER [IF NOT EXISTS] 'user'@'host'
 //	    [IDENTIFIED BY 'password' | IDENTIFIED BY PASSWORD 'hash']
-//	    [DEFAULT ROLE 'role']
-//	    [PASSWORD_EXPIRE [INTERVAL n DAY]]
-//	    [FAILED_LOGIN_ATTEMPTS n]
-//	    [PASSWORD_LOCK_TIME n DAY]
-//	    [PASSWORD_HISTORY n]
+//	    [SUPERUSER | DEFAULT ROLE 'role']
+//	    [passwordOption]
 //	    [COMMENT 'text']
 //
 // On entry, CREATE has been consumed; cur is USER.
@@ -612,9 +611,8 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	stmt.Name = identity
-	endLoc := identity.Loc
 
-	// Optional IDENTIFIED BY ['PASSWORD'] 'value'
+	// Optional IDENTIFIED BY ['PASSWORD'] 'value' (grantUserIdentify).
 	if p.cur.Kind == kwIDENTIFIED {
 		p.advance() // consume IDENTIFIED
 		if _, err := p.expect(kwBY); err != nil {
@@ -627,7 +625,6 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.PasswordHash = p.cur.Str
-			endLoc = p.cur.Loc
 			p.advance()
 		} else {
 			// IDENTIFIED BY 'password'
@@ -635,27 +632,42 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.Password = p.cur.Str
-			endLoc = p.cur.Loc
 			p.advance()
 		}
 	}
 
-	// Optional DEFAULT ROLE 'role'
-	if p.cur.Kind == kwDEFAULT {
+	// Optional (SUPERUSER | DEFAULT ROLE 'role'). The grammar takes the role
+	// as a STRING_LITERAL in DorisParser.g4:809 and in the legacy
+	// opt_user_role (DorisLegacyParser.g4:2284), so an identifier is refused.
+	switch p.cur.Kind {
+	case kwSUPERUSER:
+		stmt.Superuser = true
+		p.advance()
+	case kwDEFAULT:
 		p.advance()
 		if _, err := p.expect(kwROLE); err != nil {
 			return nil, err
 		}
-		roleName, roleLoc, err := p.parseIdentifierOrString()
-		if err != nil {
-			return nil, err
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
 		}
-		stmt.DefaultRole = roleName
-		endLoc = roleLoc
+		stmt.DefaultRole = p.cur.Str
+		p.advance()
 	}
 
-	// Optional password policy clauses
-	endLoc = p.parsePasswordPolicyCreate(stmt, endLoc)
+	// Optional passwordOption.
+	opt, err := p.parsePasswordOption()
+	if err != nil {
+		return nil, err
+	}
+	stmt.PasswordHistory = opt.history
+	stmt.PasswordExpire = opt.expire
+	stmt.PasswordReuse = opt.reuse
+	stmt.FailedLoginAttempts = opt.failedLoginAttempts
+	stmt.PasswordLockTime = opt.lockTime
+	stmt.PasswordLockTimeUnit = opt.lockTimeUnit
+	stmt.AccountLock = opt.accountLock
+	stmt.AccountUnlock = opt.accountUnlock
 
 	// Optional COMMENT
 	if p.cur.Kind == kwCOMMENT {
@@ -664,73 +676,129 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Comment = p.cur.Str
-		endLoc = p.cur.Loc
 		p.advance()
 	}
 
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
 }
 
-// parsePasswordPolicyCreate parses optional password policy clauses for CREATE USER.
-// Modifies stmt in place and returns the updated endLoc.
-func (p *Parser) parsePasswordPolicyCreate(stmt *ast.CreateUserStmt, endLoc ast.Loc) ast.Loc {
-	for {
+// passwordOption is the value of one passwordOption clause (DorisParser.g4:861),
+// which DorisLegacyParser.g4's opt_password_option (sql_parser.cup:2289)
+// matches option for option. CREATE USER and ALTER USER both carry it.
+type passwordOption struct {
+	history             string
+	expire              string
+	reuse               string
+	failedLoginAttempts int
+	lockTime            int
+	lockTimeUnit        string
+	accountLock         bool
+	accountUnlock       bool
+}
+
+// parsePasswordOption reads passwordOption, whose clauses are each optional,
+// at most once, and in this order:
+//
+//	[PASSWORD_HISTORY (DEFAULT | n)]
+//	[PASSWORD_EXPIRE (DEFAULT | NEVER | INTERVAL n DAY|HOUR|SECOND)]
+//	[PASSWORD_REUSE INTERVAL (DEFAULT | n DAY)]
+//	[FAILED_LOGIN_ATTEMPTS n]
+//	[PASSWORD_LOCK_TIME (UNBOUNDED | n DAY|HOUR|SECOND)]
+//	[ACCOUNT_LOCK | ACCOUNT_UNLOCK]
+//
+// A value keeps the text after its keyword, as written: "DEFAULT", "NEVER",
+// "INTERVAL 1 DAY", "1". Nothing is read when cur does not start one.
+func (p *Parser) parsePasswordOption() (passwordOption, error) {
+	var opt passwordOption
+	timeUnit := func() (string, error) {
 		switch p.cur.Kind {
-		case kwPASSWORD_EXPIRE:
-			stmt.PasswordExpire = true
-			endLoc = p.cur.Loc
-			p.advance()
-			// Optional INTERVAL n DAY
-			if p.cur.Kind == kwINTERVAL {
-				p.advance()
-				if p.cur.Kind == tokInt {
-					n := int(p.cur.Ival)
-					stmt.PasswordExpireInterval = n
-					endLoc = p.cur.Loc
-					p.advance()
-				}
-				// Consume DAY/DAYS
-				if p.cur.Kind == kwDAY || p.cur.Kind == kwDAYS {
-					endLoc = p.cur.Loc
-					p.advance()
-				}
-			}
-		case kwFAILED_LOGIN_ATTEMPTS:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.FailedLoginAttempts = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwPASSWORD_LOCK_TIME:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.PasswordLockTime = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-			if p.cur.Kind == kwDAY || p.cur.Kind == kwDAYS {
-				endLoc = p.cur.Loc
-				p.advance()
-			}
-		case kwPASSWORD_HISTORY:
-			endLoc = p.cur.Loc
-			p.advance()
-			if p.cur.Kind == tokInt {
-				n := int(p.cur.Ival)
-				stmt.PasswordHistory = n
-				endLoc = p.cur.Loc
-				p.advance()
-			}
+		case kwDAY, kwHOUR, kwSECOND:
+			return strings.ToUpper(p.advance().Str), nil
+		}
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Kind == kwPASSWORD_HISTORY {
+		p.advance()
+		switch p.cur.Kind {
+		case kwDEFAULT, tokInt:
+			opt.history = strings.ToUpper(p.advance().Str)
 		default:
-			return endLoc
+			return opt, p.syntaxErrorAtCur()
 		}
 	}
+	if p.cur.Kind == kwPASSWORD_EXPIRE {
+		p.advance()
+		switch p.cur.Kind {
+		case kwDEFAULT, kwNEVER:
+			opt.expire = strings.ToUpper(p.advance().Str)
+		case kwINTERVAL:
+			p.advance()
+			n, err := p.alterExpectInt()
+			if err != nil {
+				return opt, err
+			}
+			unit, err := timeUnit()
+			if err != nil {
+				return opt, err
+			}
+			opt.expire = "INTERVAL " + n.Str + " " + unit
+		default:
+			return opt, p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind == kwPASSWORD_REUSE {
+		p.advance()
+		if _, err := p.expect(kwINTERVAL); err != nil {
+			return opt, err
+		}
+		switch p.cur.Kind {
+		case kwDEFAULT:
+			opt.reuse = "DEFAULT"
+			p.advance()
+		case tokInt:
+			n := p.advance()
+			if _, err := p.expect(kwDAY); err != nil {
+				return opt, err
+			}
+			opt.reuse = n.Str + " DAY"
+		default:
+			return opt, p.syntaxErrorAtCur()
+		}
+	}
+	if p.cur.Kind == kwFAILED_LOGIN_ATTEMPTS {
+		p.advance()
+		n, err := p.alterExpectInt()
+		if err != nil {
+			return opt, err
+		}
+		opt.failedLoginAttempts = int(n.Ival)
+	}
+	if p.cur.Kind == kwPASSWORD_LOCK_TIME {
+		p.advance()
+		if p.cur.Kind == kwUNBOUNDED {
+			opt.lockTimeUnit = "UNBOUNDED"
+			p.advance()
+		} else {
+			n, err := p.alterExpectInt()
+			if err != nil {
+				return opt, err
+			}
+			opt.lockTime = int(n.Ival)
+			if opt.lockTimeUnit, err = timeUnit(); err != nil {
+				return opt, err
+			}
+		}
+	}
+	switch p.cur.Kind {
+	case kwACCOUNT_LOCK:
+		opt.accountLock = true
+		p.advance()
+	case kwACCOUNT_UNLOCK:
+		opt.accountUnlock = true
+		p.advance()
+	}
+	return opt, nil
 }
 
 // parseAlterUser parses:
@@ -931,102 +999,21 @@ func (p *Parser) consumeParenGroup() (string, ast.Loc, error) {
 	return "", ast.NoLoc(), p.syntaxErrorAtCur()
 }
 
-// parseAlterUserPasswordOptions reads passwordOption (DorisParser.g4:861),
-// which DorisLegacyParser.g4 opt_password_option matches option for option:
-//
-//	[PASSWORD_HISTORY (DEFAULT | n)]
-//	[PASSWORD_EXPIRE (DEFAULT | NEVER | INTERVAL n (DAY | HOUR | SECOND))]
-//	[PASSWORD_REUSE INTERVAL (DEFAULT | n DAY)]
-//	[FAILED_LOGIN_ATTEMPTS n]
-//	[PASSWORD_LOCK_TIME (UNBOUNDED | n (DAY | HOUR | SECOND))]
-//	[ACCOUNT_LOCK | ACCOUNT_UNLOCK]
+// parseAlterUserPasswordOptions reads passwordOption for ALTER USER, which
+// DorisParser.g4:861 gives and DorisLegacyParser.g4's opt_password_option
+// matches option for option, and stores it on stmt.
 func (p *Parser) parseAlterUserPasswordOptions(stmt *ast.AlterUserStmt) error {
-	timeUnit := func() (string, error) {
-		switch p.cur.Kind {
-		case kwDAY, kwHOUR, kwSECOND:
-			return strings.ToUpper(p.advance().Str), nil
-		}
-		return "", p.syntaxErrorAtCur()
+	opt, err := p.parsePasswordOption()
+	if err != nil {
+		return err
 	}
-	if p.cur.Kind == kwPASSWORD_HISTORY {
-		p.advance()
-		switch p.cur.Kind {
-		case kwDEFAULT, tokInt:
-			stmt.PasswordHistory = strings.ToUpper(p.advance().Str)
-		default:
-			return p.syntaxErrorAtCur()
-		}
-	}
-	if p.cur.Kind == kwPASSWORD_EXPIRE {
-		p.advance()
-		switch p.cur.Kind {
-		case kwDEFAULT, kwNEVER:
-			stmt.PasswordExpire = strings.ToUpper(p.advance().Str)
-		case kwINTERVAL:
-			p.advance()
-			n, err := p.alterExpectInt()
-			if err != nil {
-				return err
-			}
-			unit, err := timeUnit()
-			if err != nil {
-				return err
-			}
-			stmt.PasswordExpire = "INTERVAL " + n.Str + " " + unit
-		default:
-			return p.syntaxErrorAtCur()
-		}
-	}
-	if p.cur.Kind == kwPASSWORD_REUSE {
-		p.advance()
-		if _, err := p.expect(kwINTERVAL); err != nil {
-			return err
-		}
-		switch p.cur.Kind {
-		case kwDEFAULT:
-			stmt.PasswordReuse = "DEFAULT"
-			p.advance()
-		case tokInt:
-			n := p.advance()
-			if _, err := p.expect(kwDAY); err != nil {
-				return err
-			}
-			stmt.PasswordReuse = n.Str + " DAY"
-		default:
-			return p.syntaxErrorAtCur()
-		}
-	}
-	if p.cur.Kind == kwFAILED_LOGIN_ATTEMPTS {
-		p.advance()
-		n, err := p.alterExpectInt()
-		if err != nil {
-			return err
-		}
-		stmt.FailedLoginAttempts = int(n.Ival)
-	}
-	if p.cur.Kind == kwPASSWORD_LOCK_TIME {
-		p.advance()
-		if p.cur.Kind == kwUNBOUNDED {
-			stmt.PasswordLockTimeUnit = "UNBOUNDED"
-			p.advance()
-		} else {
-			n, err := p.alterExpectInt()
-			if err != nil {
-				return err
-			}
-			stmt.PasswordLockTime = int(n.Ival)
-			if stmt.PasswordLockTimeUnit, err = timeUnit(); err != nil {
-				return err
-			}
-		}
-	}
-	switch p.cur.Kind {
-	case kwACCOUNT_LOCK:
-		stmt.AccountLock = true
-		p.advance()
-	case kwACCOUNT_UNLOCK:
-		stmt.AccountUnlock = true
-		p.advance()
-	}
+	stmt.PasswordHistory = opt.history
+	stmt.PasswordExpire = opt.expire
+	stmt.PasswordReuse = opt.reuse
+	stmt.FailedLoginAttempts = opt.failedLoginAttempts
+	stmt.PasswordLockTime = opt.lockTime
+	stmt.PasswordLockTimeUnit = opt.lockTimeUnit
+	stmt.AccountLock = opt.accountLock
+	stmt.AccountUnlock = opt.accountUnlock
 	return nil
 }

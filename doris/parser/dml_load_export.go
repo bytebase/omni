@@ -63,12 +63,17 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 // COPY INTO (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseCopyInto parses:
+// parseCopyInto parses Doris's copyInto (DorisParser.g4:936):
 //
-//	COPY INTO target FROM @stage_or_path
-//	    [FILES = ('f1', 'f2')]
-//	    [PATTERN = 'glob']
-//	    [PROPERTIES(...)]
+//	COPY INTO name=multipartIdentifier columns=identifierList? FROM
+//	    (stageAndPattern | (LEFT_PAREN SELECT selectColumnClause
+//	        FROM stageAndPattern whereClause? RIGHT_PAREN))
+//	    properties=propertyClause?
+//
+// The source is a stage and what it names — @stage (stageAndPattern, :942) or
+// a query of the stage's files — never the bare word it looks like the CUP
+// parser's copy_from_param would take there: COPY INTO a FROM a is refused
+// (compat.tsv's ..._FROM_(s...!drop-5 rows).
 //
 // The COPY keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseCopyInto() (ast.Node, error) {
@@ -83,57 +88,61 @@ func (p *Parser) parseCopyInto() (ast.Node, error) {
 		Loc: ast.Loc{Start: copyTok.Loc.Start},
 	}
 
-	// Target table name
 	target, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Target = target
 
-	// Required FROM keyword
+	// identifierList? — the columns the load fills, in the target's order.
+	if p.cur.Kind == int('(') {
+		columns, err := p.parseLoadIdentifierList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Columns = columns
+	}
+
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
 
-	// Source: @stage, 'path', or bare identifier
-	// Handle leading @ sign for stage references like @stage_name
-	source, err := p.parseCopySource()
-	if err != nil {
-		return nil, err
+	if p.cur.Kind == int('(') {
+		// (SELECT selectColumnClause FROM stageAndPattern whereClause?)
+		p.advance() // consume '('
+		if _, err := p.expect(kwSELECT); err != nil {
+			return nil, err
+		}
+		items, err := p.parseCopySelectList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.SelectItems = items
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+		if stmt.Stage, stmt.Pattern, stmt.HasPattern, err = p.parseCopyStage(); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == kwWHERE {
+			p.advance() // consume WHERE
+			if stmt.Where, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	} else {
+		if stmt.Stage, stmt.Pattern, stmt.HasPattern, err = p.parseCopyStage(); err != nil {
+			return nil, err
+		}
 	}
-	stmt.Source = source
 
-	// Optional FILES = ('f1', 'f2', ...)
-	for p.cur.Kind != tokEOF {
-		if isIdentText(p, "files") || p.cur.Kind == kwFILE {
-			p.advance() // consume FILES/FILE
-			if _, err := p.expect(int('=')); err != nil {
-				return nil, err
-			}
-			files, err := p.parseStringList()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Files = files
-		} else if isIdentText(p, "pattern") || p.cur.Kind == kwPATH {
-			// PATTERN = '...'
-			p.advance() // consume PATTERN
-			if _, err := p.expect(int('=')); err != nil {
-				return nil, err
-			}
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Pattern = p.cur.Str
-			p.advance()
-		} else if p.cur.Kind == kwPROPERTIES {
-			props, err := p.parseProperties()
-			if err != nil {
-				return nil, err
-			}
-			stmt.Properties = props
-		} else {
-			break
+	// propertyClause? — PROPERTIES(...), the form Doris configures a load with.
+	if p.cur.Kind == kwPROPERTIES {
+		if stmt.Properties, err = p.parseProperties(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -141,58 +150,65 @@ func (p *Parser) parseCopyInto() (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseCopySource parses the FROM source in COPY INTO.
-// Handles: @stage_name, 'string_path', or bare identifier.
-func (p *Parser) parseCopySource() (string, error) {
-	// @stage_name: '@' is not a keyword, it's ASCII 64
-	if p.cur.Kind == int('@') {
-		p.advance() // consume '@'
-		name, _, err := p.parseIdentifier()
+// parseCopySelectList parses the selectColumnClause of a COPY INTO source
+// (DorisParser.g4:1215), as the legacy parser's copy_select_expr_list
+// (DorisLegacyParser.g4:625) also takes it. Doris parses a COPY INTO with both
+// grammars, so the clause is a bare '*' or a list of expressions: the grammar
+// takes an alias, and COPY INTO a FROM (SELECT 1 zzz FROM @a) is refused
+// (compat.tsv's copy_select_expr_list/expr_list!insert row).
+func (p *Parser) parseCopySelectList() ([]*ast.SelectItem, error) {
+	if p.cur.Kind == int('*') {
+		star := p.advance()
+		return []*ast.SelectItem{{Star: true, Loc: star.Loc}}, nil
+	}
+	var items []*ast.SelectItem
+	for {
+		expr, err := p.parseExpr()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		// Handle @stage/path segments
-		var sb strings.Builder
-		sb.WriteByte('@')
-		sb.WriteString(name)
-		// Consume optional sub-path segments (slash-separated)
-		for p.cur.Kind == int('/') {
-			p.advance()
-			sb.WriteByte('/')
-			if p.cur.Kind == tokString || p.cur.Kind == tokIdent || isIdentifierToken(p.cur.Kind) {
-				sb.WriteString(p.cur.Str)
-				p.advance()
-			}
+		items = append(items, &ast.SelectItem{Expr: expr, Loc: ast.NodeLoc(expr)})
+		if p.cur.Kind != int(',') {
+			return items, nil
 		}
-		return sb.String(), nil
+		p.advance() // consume ','
 	}
-
-	// String literal path: 'path'
-	if p.cur.Kind == tokString {
-		s := p.cur.Str
-		p.advance()
-		return s, nil
-	}
-
-	// Bare identifier (stage name without @)
-	if isIdentifierToken(p.cur.Kind) {
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return "", err
-		}
-		return name, nil
-	}
-
-	return "", p.syntaxErrorAtCur()
 }
 
-// isIdentText checks whether cur is an identifier with the given lowercase text.
-// Used for pseudo-keywords like FILES and PATTERN that may appear as bare idents.
-func isIdentText(p *Parser, lower string) bool {
-	if p.cur.Kind == tokIdent || (p.cur.Kind >= 700 && !IsReserved(p.cur.Kind)) {
-		return strings.ToLower(p.cur.Str) == lower
+// parseCopyStage parses a stageAndPattern (DorisParser.g4:942):
+//
+//	ATSIGN (stage=identifier | TILDE) (LEFT_PAREN pattern=STRING_LITERAL RIGHT_PAREN)?
+//
+// returning the stage as written — "@stage", "@`stage`", "@~" — the glob it
+// takes, and whether it stated one: @stage(”) states an empty glob, which is
+// not the same source as @stage. The text is the source's, so a quoted stage
+// name stays distinguishable from the tilde: @`~` names a stage, @~ is the user
+// stage. cur must be on the '@'.
+func (p *Parser) parseCopyStage() (stage, pattern string, hasPattern bool, err error) {
+	if p.cur.Kind != int('@') {
+		return "", "", false, p.syntaxErrorAtCur()
 	}
-	return false
+	at := p.advance() // consume '@'
+
+	if p.cur.Kind == int('~') {
+		p.advance()
+	} else if _, _, err := p.parseIdentifier(); err != nil {
+		return "", "", false, err
+	}
+	stage = p.textBetween(at.Loc.Start, p.prev.Loc.End)
+
+	if p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		if p.cur.Kind != tokString {
+			return "", "", false, p.syntaxErrorAtCur()
+		}
+		hasPattern = true
+		pattern = p.advance().Str
+		if _, err := p.expect(int(')')); err != nil {
+			return "", "", false, err
+		}
+	}
+	return stage, pattern, hasPattern, nil
 }
 
 // parseStringList parses '(' STRING_LITERAL (',' STRING_LITERAL)* ')': at
@@ -319,47 +335,64 @@ func (p *Parser) parseLoadComment(stmt *ast.LoadDataStmt) error {
 	return nil
 }
 
-// parseLoadStorage reads withRemoteStorageSystem (DorisParser.g4:1121):
+// parseLoadStorage reads withRemoteStorageSystem for LOAD LABEL and stores it
+// on stmt. The engine holds a broker load's list to strings on both sides, as
+// the CUP parser's key_value_map does: (username = "u"), ("k" = 1) and
+// ("k" = v) are refused by its legacy parser ("Syntax error ... Encountered:
+// IDENTIFIER"), while EXPORT's list takes all three (container-verified both
+// ways). So this reads the list with parseStringProperty, and parseExport
+// reads it with parsePropertyItem.
+func (p *Parser) parseLoadStorage(stmt *ast.LoadDataStmt) error {
+	storageType, name, props, err := p.parseRemoteStorage(p.parseStringProperty)
+	if err != nil {
+		return err
+	}
+	stmt.StorageType = storageType
+	stmt.BrokerName = name
+	stmt.BrokerProperties = props
+	return nil
+}
+
+// parseRemoteStorage reads withRemoteStorageSystem (DorisParser.g4:1121),
+// which LOAD LABEL and EXPORT TABLE take:
 //
 //	WITH RESOURCE identifierOrText (LEFT_PAREN propertyItemList RIGHT_PAREN)?
 //	| WITH (S3 | HDFS | LOCAL) LEFT_PAREN propertyItemList RIGHT_PAREN
 //	| WITH BROKER identifierOrText (LEFT_PAREN propertyItemList RIGHT_PAREN)?
 //
-// The engine holds a broker load's list to strings on both sides, as the CUP
-// parser's key_value_map does: (username = "u"), ("k" = 1) and ("k" = v) are
-// refused by its legacy parser ("Syntax error ... Encountered: IDENTIFIER"),
-// while EXPORT's list takes all three (container-verified both ways). The
-// other storage systems' lists are read the same way, failing closed.
-func (p *Parser) parseLoadStorage(stmt *ast.LoadDataStmt) error {
+// A S3, HDFS or LOCAL clause needs its list; RESOURCE and BROKER name a
+// resource or broker and may leave it out. cur must be kwWITH on entry; it is
+// consumed here.
+//
+// parseItem reads one item of the list: the clauses differ in what they take
+// for a key and a value, not in the shape of the list.
+func (p *Parser) parseRemoteStorage(parseItem func() (*ast.Property, error)) (storageType, name string, props []*ast.Property, err error) {
 	p.advance() // consume WITH
 	needList := false
 	switch p.cur.Kind {
 	case kwRESOURCE, kwBROKER:
-		stmt.StorageType = strings.ToUpper(p.advance().Str)
-		name, _, err := p.parseIdentifierOrString()
-		if err != nil {
-			return err
+		storageType = strings.ToUpper(p.advance().Str)
+		if name, _, err = p.parseIdentifierOrString(); err != nil {
+			return "", "", nil, err
 		}
-		stmt.BrokerName = name
 	case kwS3, kwHDFS, kwLOCAL:
-		stmt.StorageType = strings.ToUpper(p.advance().Str)
+		storageType = strings.ToUpper(p.advance().Str)
 		needList = true
 	default:
-		return p.syntaxErrorAtCur()
+		return "", "", nil, p.syntaxErrorAtCur()
 	}
 	if p.cur.Kind != int('(') {
 		if needList {
-			return p.syntaxErrorAtCur()
+			return "", "", nil, p.syntaxErrorAtCur()
 		}
-		return nil
+		return storageType, name, nil, nil
 	}
 	p.advance() // consume '('
-	props, err := p.parsePropertyItems(p.parseStringProperty)
+	props, err = p.parsePropertyItems(parseItem)
 	if err != nil {
-		return err
+		return "", "", nil, err
 	}
-	stmt.BrokerProperties = props
-	return nil
+	return storageType, name, props, nil
 }
 
 // parseLoadLabel parses the load label, which may be db_name.label_name or
@@ -775,12 +808,23 @@ func (p *Parser) parseLoadMappings() ([]*ast.Assignment, error) {
 // EXPORT TABLE (T6.1)
 // ---------------------------------------------------------------------------
 
-// parseExport parses:
+// parseExport parses EXPORT TABLE (DorisParser.g4:159-163):
 //
-//	EXPORT TABLE name [PARTITION(p1, p2, ...)] [WHERE expr]
+//	EXPORT TABLE name
+//	    [PARTITION(p1, p2, ...)] [WHERE expr]
 //	    TO 'path'
 //	    [PROPERTIES(...)]
-//	    [WITH BROKER name [(key=val, ...)]]
+//	    [withRemoteStorageSystem]
+//
+// DorisLegacyParser.g4's export_stmt (sql_parser.cup:1660) agrees on the
+// PARTITION keyword: it takes `PARTITION`, never `PARTITIONS`, so
+// `EXPORT TABLE a PARTITIONS(a) TO 'a'` is refused (container-verified). Its
+// opt_broker takes the same WITH forms as the grammar's
+// withRemoteStorageSystem, which parseRemoteStorage reads.
+//
+// Both property lists carry the grammar's full propertyItem, which is wider
+// than the "key"="value" pair most clauses take: (a = a) and ('a' = 'a') are
+// both accepted here (container-verified).
 //
 // The EXPORT keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseExport() (ast.Node, error) {
@@ -803,8 +847,8 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	stmt.Target = target
 
 	// Optional PARTITION(p1, p2, ...)
-	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
+	if p.cur.Kind == kwPARTITION {
+		p.advance() // consume PARTITION
 		parts, err := p.parsePartitionNameList()
 		if err != nil {
 			return nil, err
@@ -834,36 +878,22 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	// Optional PROPERTIES(...)
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
+		props, err := p.parseFullProperties()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Properties = props
 	}
 
-	// Optional WITH BROKER broker_name [(key=val, ...)]
+	// Optional withRemoteStorageSystem
 	if p.cur.Kind == kwWITH {
-		p.advance() // consume WITH
-		if _, err := p.expect(kwBROKER); err != nil {
-			return nil, err
-		}
-		brokerName, _, err := p.parseIdentifier()
+		storageType, name, props, err := p.parseRemoteStorage(p.parsePropertyItem)
 		if err != nil {
 			return nil, err
 		}
-		stmt.BrokerName = brokerName
-
-		// Optional broker properties: withRemoteStorageSystem's
-		// (LEFT_PAREN brokerProperties=propertyItemList RIGHT_PAREN)?, in the
-		// grammar's full item form (see parsePropertyItem).
-		if p.cur.Kind == int('(') {
-			p.advance() // consume '('
-			props, err := p.parsePropertyItems(p.parsePropertyItem)
-			if err != nil {
-				return nil, err
-			}
-			stmt.BrokerProperties = props
-		}
+		stmt.StorageType = storageType
+		stmt.BrokerName = name
+		stmt.BrokerProperties = props
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

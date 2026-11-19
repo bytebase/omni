@@ -49,6 +49,26 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateIndexStmt(sb, n)
 	case *CreateViewStmt:
 		writeCreateViewStmt(sb, n)
+	case *CreateMaterializedViewStmt:
+		writeCreateMaterializedViewStmt(sb, n)
+	case *CreateMaterializedViewLogStmt:
+		writeCreateMaterializedViewLogStmt(sb, n)
+	case *MaterializedViewPrimaryKey:
+		writeMaterializedViewPrimaryKey(sb, n)
+	case *MviewOptions:
+		writeMviewOptions(sb, n)
+	case *MviewRefreshInfo:
+		writeMviewRefreshInfo(sb, n)
+	case *ParallelOption:
+		writeParallelOption(sb, n)
+	case *MlogWith:
+		writeMlogWith(sb, n)
+	case *MlogPurge:
+		writeMlogPurge(sb, n)
+	case *AlterMviewAction:
+		writeAlterMviewAction(sb, n)
+	case *AlterMlogAction:
+		writeAlterMlogAction(sb, n)
 	case *CreateDatabaseStmt:
 		writeCreateDatabaseStmt(sb, n)
 	case *TruncateStmt:
@@ -115,6 +135,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDeallocateStmt(sb, n)
 	case *AnalyzeTableStmt:
 		writeAnalyzeTableStmt(sb, n)
+	case *MethodOptStmt:
+		writeMethodOptStmt(sb, n)
+	case *StatsMethod:
+		writeStatsMethod(sb, n)
+	case *StatsForColumnsItem:
+		writeStatsForColumnsItem(sb, n)
 	case *OptimizeTableStmt:
 		writeOptimizeTableStmt(sb, n)
 	case *CheckTableStmt:
@@ -147,6 +173,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDropIndexStmt(sb, n)
 	case *DropViewStmt:
 		writeDropViewStmt(sb, n)
+	case *DropMaterializedViewLogStmt:
+		writeDropMaterializedViewLogStmt(sb, n)
 	case *RawStmt:
 		writeRawStmt(sb, n)
 	case *TableStmt:
@@ -209,6 +237,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *TableFlashback:
+		writeTableFlashback(sb, n)
 	case *IntLit:
 		fmt.Fprintf(sb, "{INT_LIT :val %d :loc %d}", n.Value, n.Loc.Start)
 	case *FloatLit:
@@ -319,6 +349,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeMemberOfExpr(sb, n)
 	case *JsonTableExpr:
 		writeJsonTableExpr(sb, n)
+	case *ExternalTableRef:
+		writeExternalTableRef(sb, n)
+	case *ExternalProperty:
+		writeExternalProperty(sb, n)
+	case *RbIterateExpr:
+		writeRbIterateExpr(sb, n)
+	case *UnnestExpr:
+		writeUnnestExpr(sb, n)
 	case *JsonTableColumn:
 		writeJsonTableColumn(sb, n)
 	case *CallStmt:
@@ -415,6 +453,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeDropResourceGroupStmt(sb, n)
 	case *AlterViewStmt:
 		writeAlterViewStmt(sb, n)
+	case *AlterMaterializedViewStmt:
+		writeAlterMaterializedViewStmt(sb, n)
+	case *AlterMaterializedViewLogStmt:
+		writeAlterMaterializedViewLogStmt(sb, n)
 	case *AlterEventStmt:
 		writeAlterEventStmt(sb, n)
 	case *AlterRoutineStmt:
@@ -800,6 +842,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Temporary {
 		sb.WriteString(" :temporary true")
 	}
+	if n.External {
+		sb.WriteString(" :external true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -855,6 +900,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	sb.WriteString("{ALTER_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.External {
+		sb.WriteString(" :external true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -981,6 +1029,269 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	}
 	if n.CheckOption != "" {
 		fmt.Fprintf(sb, " :check_option %s", n.CheckOption)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateMaterializedViewStmt(sb *strings.Builder, n *CreateMaterializedViewStmt) {
+	sb.WriteString("{CREATE_MATERIALIZED_VIEW")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns %s", strings.Join(n.Columns, ", "))
+	}
+	if n.PrimaryKey != nil {
+		sb.WriteString(" :primary_key ")
+		writeNode(sb, n.PrimaryKey)
+	}
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options ")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	if n.Partitions != nil {
+		sb.WriteString(" :partitions ")
+		writeNode(sb, n.Partitions)
+	}
+	if n.ColumnGroup != "" {
+		fmt.Fprintf(sb, " :column_group %s", n.ColumnGroup)
+	}
+	if n.MviewOptions != nil {
+		sb.WriteString(" :mview_options ")
+		writeNode(sb, n.MviewOptions)
+	}
+	if n.Select != nil {
+		sb.WriteString(" :select ")
+		writeNode(sb, n.Select)
+	}
+	if n.CheckOption != "" {
+		fmt.Fprintf(sb, " :check_option %s", n.CheckOption)
+	}
+	sb.WriteString("}")
+}
+
+func writeMaterializedViewPrimaryKey(sb *strings.Builder, n *MaterializedViewPrimaryKey) {
+	sb.WriteString("{MATERIALIZED_VIEW_PRIMARY_KEY")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns %s", strings.Join(n.Columns, ", "))
+	}
+	if n.IndexType != "" {
+		fmt.Fprintf(sb, " :index_type %s", n.IndexType)
+	}
+	if n.Comment != "" {
+		fmt.Fprintf(sb, " :comment %q", n.Comment)
+	}
+	sb.WriteString("}")
+}
+
+func writeMviewOptions(sb *strings.Builder, n *MviewOptions) {
+	sb.WriteString("{MV_OPTIONS")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Refresh != nil {
+		sb.WriteString(" :refresh ")
+		writeNode(sb, n.Refresh)
+	}
+	if n.OnQueryComputation != "" {
+		fmt.Fprintf(sb, " :on_query_computation %s", n.OnQueryComputation)
+	}
+	if n.QueryRewrite != "" {
+		fmt.Fprintf(sb, " :query_rewrite %s", n.QueryRewrite)
+	}
+	sb.WriteString("}")
+}
+
+func writeMviewRefreshInfo(sb *strings.Builder, n *MviewRefreshInfo) {
+	sb.WriteString("{MV_REFRESH_INFO")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Never {
+		sb.WriteString(" :never true")
+	}
+	if n.Method != "" {
+		fmt.Fprintf(sb, " :method %s", n.Method)
+	}
+	if n.NestedRefresh != "" {
+		fmt.Fprintf(sb, " :nested_refresh %s", n.NestedRefresh)
+	}
+	if n.On != "" {
+		fmt.Fprintf(sb, " :on %s", n.On)
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :start_with ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.Next != nil {
+		sb.WriteString(" :next ")
+		writeNode(sb, n.Next)
+	}
+	sb.WriteString("}")
+}
+
+func writeParallelOption(sb *strings.Builder, n *ParallelOption) {
+	sb.WriteString("{PARALLEL")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.NoParallel {
+		sb.WriteString(" :no_parallel true")
+	} else {
+		fmt.Fprintf(sb, " :degree %d", n.Degree)
+	}
+	sb.WriteString("}")
+}
+
+func writeCreateMaterializedViewLogStmt(sb *strings.Builder, n *CreateMaterializedViewLogStmt) {
+	sb.WriteString("{CREATE_MATERIALIZED_VIEW_LOG")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.Options) > 0 {
+		sb.WriteString(" :options ")
+		for i, o := range n.Options {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, o)
+		}
+	}
+	if n.With != nil {
+		sb.WriteString(" :with ")
+		writeNode(sb, n.With)
+	}
+	if n.NewValues != "" {
+		fmt.Fprintf(sb, " :new_values %s", n.NewValues)
+	}
+	if n.Purge != nil {
+		sb.WriteString(" :purge ")
+		writeNode(sb, n.Purge)
+	}
+	sb.WriteString("}")
+}
+
+func writeMlogWith(sb *strings.Builder, n *MlogWith) {
+	sb.WriteString("{MLOG_WITH")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.SpecialColumns) > 0 {
+		fmt.Fprintf(sb, " :special_columns %s", strings.Join(n.SpecialColumns, ", "))
+	}
+	if n.HasReferenceList {
+		fmt.Fprintf(sb, " :reference_columns %s", strings.Join(n.ReferenceColumns, ", "))
+	}
+	sb.WriteString("}")
+}
+
+func writeMlogPurge(sb *strings.Builder, n *MlogPurge) {
+	sb.WriteString("{MLOG_PURGE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Immediate {
+		sb.WriteString(" :immediate true")
+	}
+	if n.Sync != "" {
+		fmt.Fprintf(sb, " :sync %s", n.Sync)
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :start_with ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.Next != nil {
+		sb.WriteString(" :next ")
+		writeNode(sb, n.Next)
+	}
+	sb.WriteString("}")
+}
+
+func writeDropMaterializedViewLogStmt(sb *strings.Builder, n *DropMaterializedViewLogStmt) {
+	sb.WriteString("{DROP_MATERIALIZED_VIEW_LOG")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedViewStmt) {
+	sb.WriteString("{ALTER_MATERIALIZED_VIEW")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if len(n.Actions) > 0 {
+		sb.WriteString(" :actions ")
+		for i, a := range n.Actions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, a)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterMviewAction(sb *strings.Builder, n *AlterMviewAction) {
+	sb.WriteString("{ALTER_MVIEW_ACTION")
+	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
+	if n.Type == AMViewEnableOnQueryComputation || n.Type == AMViewEnableQueryRewrite {
+		fmt.Fprintf(sb, " :enable %t", n.Enable)
+	}
+	if n.Parallel != nil {
+		sb.WriteString(" :parallel ")
+		writeNode(sb, n.Parallel)
+	}
+	if n.Refresh != nil {
+		sb.WriteString(" :refresh ")
+		writeNode(sb, n.Refresh)
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterMaterializedViewLogStmt(sb *strings.Builder, n *AlterMaterializedViewLogStmt) {
+	sb.WriteString("{ALTER_MATERIALIZED_VIEW_LOG")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Table != nil {
+		sb.WriteString(" :table ")
+		writeNode(sb, n.Table)
+	}
+	if len(n.Actions) > 0 {
+		sb.WriteString(" :actions ")
+		for i, a := range n.Actions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, a)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterMlogAction(sb *strings.Builder, n *AlterMlogAction) {
+	sb.WriteString("{ALTER_MLOG_ACTION")
+	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
+	if n.Parallel != nil {
+		sb.WriteString(" :parallel ")
+		writeNode(sb, n.Parallel)
+	}
+	if n.StartWith != nil {
+		sb.WriteString(" :start_with ")
+		writeNode(sb, n.StartWith)
+	}
+	if n.Next != nil {
+		sb.WriteString(" :next ")
+		writeNode(sb, n.Next)
+	}
+	if n.Type == AMLogLobInRowThreshold {
+		fmt.Fprintf(sb, " :threshold %d", n.Threshold)
 	}
 	sb.WriteString("}")
 }
@@ -1751,6 +2062,17 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 		}
 		fmt.Fprintf(sb, " :s3_uri %q", n.S3URI)
 	}
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
+	}
+	if n.SourceQuery != nil {
+		sb.WriteString(" :source_query ")
+		writeNode(sb, n.SourceQuery)
+	}
+	if n.OnError != "" {
+		fmt.Fprintf(sb, " :on_error %q", n.OnError)
+	}
 	if n.Replace {
 		sb.WriteString(" :replace true")
 	}
@@ -2063,6 +2385,9 @@ func writeDropIndexStmt(sb *strings.Builder, n *DropIndexStmt) {
 func writeDropViewStmt(sb *strings.Builder, n *DropViewStmt) {
 	sb.WriteString("{DROP_VIEW")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Materialized {
+		sb.WriteString(" :materialized true")
+	}
 	if n.IfExists {
 		sb.WriteString(" :if_exists true")
 	}
@@ -2257,6 +2582,10 @@ func writeSubqueryExpr(sb *strings.Builder, n *SubqueryExpr) {
 	}
 	if n.Alias != "" {
 		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	if n.Flashback != nil {
+		sb.WriteString(" :flashback ")
+		writeNode(sb, n.Flashback)
 	}
 	if n.Select != nil {
 		sb.WriteString(" :select ")
@@ -2590,6 +2919,18 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			}
 			writeNode(sb, h)
 		}
+	}
+	sb.WriteString("}")
+}
+
+func writeTableFlashback(sb *strings.Builder, n *TableFlashback) {
+	sb.WriteString("{FLASHBACK")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Proctime {
+		sb.WriteString(" :proctime true")
+	} else {
+		sb.WriteString(" :snapshot ")
+		writeNode(sb, n.Snapshot)
 	}
 	sb.WriteString("}")
 }
@@ -3055,6 +3396,19 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.PartitionBy != nil {
 		sb.WriteString(" :partition_by ")
 		writeNode(sb, n.PartitionBy)
+	}
+	if len(n.PartitionValues) > 0 {
+		sb.WriteString(" :partition_values (")
+		for i, v := range n.PartitionValues {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, v)
+		}
+		sb.WriteString(")")
+	}
+	if n.Location != "" {
+		fmt.Fprintf(sb, " :location %q", n.Location)
 	}
 	sb.WriteString("}")
 }
@@ -3615,6 +3969,38 @@ func writeJsonTableExpr(sb *strings.Builder, n *JsonTableExpr) {
 	sb.WriteString("}")
 }
 
+func writeRbIterateExpr(sb *strings.Builder, n *RbIterateExpr) {
+	sb.WriteString("{RB_ITERATE")
+	fmt.Fprintf(sb, " :loc %d :arg ", n.Loc.Start)
+	writeNode(sb, n.Arg)
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	if n.Column != "" {
+		fmt.Fprintf(sb, " :column %s", n.Column)
+	}
+	sb.WriteString("}")
+}
+
+func writeUnnestExpr(sb *strings.Builder, n *UnnestExpr) {
+	sb.WriteString("{UNNEST")
+	fmt.Fprintf(sb, " :loc %d :args (", n.Loc.Start)
+	for i, arg := range n.Args {
+		if i > 0 {
+			sb.WriteString(" ")
+		}
+		writeNode(sb, arg)
+	}
+	sb.WriteString(")")
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
+	}
+	sb.WriteString("}")
+}
+
 func writeJsonTableColumn(sb *strings.Builder, n *JsonTableColumn) {
 	sb.WriteString("{JT_COL")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
@@ -3644,6 +4030,96 @@ func writeJsonTableColumn(sb *strings.Builder, n *JsonTableColumn) {
 		if n.Exists {
 			sb.WriteString(" :exists true")
 		}
+	}
+	sb.WriteString("}")
+}
+
+func writeExternalTableRef(sb *strings.Builder, n *ExternalTableRef) {
+	sb.WriteString("{EXTERNAL_TABLE_REF")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Function != "" {
+		fmt.Fprintf(sb, " :function %s", n.Function)
+	}
+	if n.Path != "" {
+		fmt.Fprintf(sb, " :path %q", n.Path)
+	}
+	if len(n.Source) > 0 {
+		sb.WriteString(" :source ")
+		writeNodeList(sb, externalPropertyNodes(n.Source))
+	}
+	if len(n.Format) > 0 {
+		sb.WriteString(" :format ")
+		writeNodeList(sb, externalPropertyNodes(n.Format))
+	}
+	if n.PatternSet {
+		fmt.Fprintf(sb, " :pattern %q", n.Pattern)
+	}
+	if n.Alias != "" {
+		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	sb.WriteString("}")
+}
+
+func externalPropertyNodes(props []*ExternalProperty) []Node {
+	out := make([]Node, len(props))
+	for i, p := range props {
+		out[i] = p
+	}
+	return out
+}
+
+func writeExternalProperty(sb *strings.Builder, n *ExternalProperty) {
+	sb.WriteString("{EXTERNAL_PROPERTY")
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	// The grammar marks these entries as sensitive, so a snapshot, a log or a
+	// diagnostic never holds the credential.
+	switch n.Name {
+	case "ACCESSID", "ACCESSKEY", "STSTOKEN":
+		sb.WriteString(" :value ***")
+	default:
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString("}")
+}
+
+func writeMethodOptStmt(sb *strings.Builder, n *MethodOptStmt) {
+	sb.WriteString("{METHOD_OPT")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	for _, m := range n.Methods {
+		sb.WriteString(" :method ")
+		writeNode(sb, m)
+	}
+	sb.WriteString("}")
+}
+
+func writeStatsMethod(sb *strings.Builder, n *StatsMethod) {
+	sb.WriteString("{STATS_METHOD")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.ForAll {
+		sb.WriteString(" :for_all true")
+	}
+	if n.Indexed != "" {
+		fmt.Fprintf(sb, " :indexed %s", n.Indexed)
+	}
+	if n.Size != "" {
+		fmt.Fprintf(sb, " :size %s", n.Size)
+	}
+	for _, item := range n.Items {
+		sb.WriteString(" :item ")
+		writeNode(sb, item)
+	}
+	sb.WriteString("}")
+}
+
+func writeStatsForColumnsItem(sb *strings.Builder, n *StatsForColumnsItem) {
+	sb.WriteString("{FOR_COLUMNS_ITEM")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if len(n.Columns) > 0 {
+		fmt.Fprintf(sb, " :columns (%s)", strings.Join(n.Columns, " "))
+	}
+	if n.Size != "" {
+		fmt.Fprintf(sb, " :size %s", n.Size)
 	}
 	sb.WriteString("}")
 }

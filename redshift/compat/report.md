@@ -26,9 +26,9 @@ Source: https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html
 | Metric | Count |
 |---|---:|
 | total statements | 5075 |
-| both accept | 5066 |
+| both accept | 5067 |
 | both reject | 0 |
-| legacy accepts, omni rejects | 9 |
+| legacy accepts, omni rejects | 8 |
 | legacy rejects, omni accepts | 0 |
 
 ### Legacy Accepts, Omni Rejects
@@ -37,7 +37,6 @@ Source: https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html
 - create_role.sql[36]: -- Empty external ID (edge case) CREATE ROLE empty_external_role EXTERNALID "";
 - drop_materialized_view.sql[114]: -- DROP MATERIALIZED VIEW statements without semicolons (should also be valid) DROP MATERIALIZED VIEW test_schema.test_mv DROP MATERIALIZED VIEW IF EXISTS test_...
 - drop_role.sql[66]: -- DROP ROLE without semicolon (should also work) DROP ROLE sample_role1 DROP ROLE sample_role1 FORCE DROP ROLE sample_role1 RESTRICT -- Edge cases and boundary...
-- grant.sql[63]: GRANT ALL ON TABLE customers TO user1 WITH GRANT OPTION, ROLE customer_admin, GROUP support_team;
 - grant.sql[87]: GRANT USAGE ON SCHEMA "" TO edge_case_user;
 - revoke.sql[163]: REVOKE USAGE ON SCHEMA "" FROM edge_case_user;
 - revoke.sql[199]: -- Conditional revocations based on object existence REVOKE SELECT ON TABLE IF EXISTS optional_table FROM optional_user;

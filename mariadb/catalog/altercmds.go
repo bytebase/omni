@@ -22,6 +22,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	// An ENGINE option naming an engine the pinned server does not ship is
+	// 1286, answered before the table is looked up (measured on
+	// mariadb:11.8.8: `ALTER TABLE a ENGINE zzz` on no table answers 1286,
+	// not 1146).
+	if err := validateAlteredStorageEngines(stmt.Commands); err != nil {
+		return err
+	}
 	tbl := db.Tables[key]
 	if tbl == nil {
 		// IF EXISTS makes a missing table a note (1146 as a warning).
@@ -310,7 +317,18 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATConvertTableToPartition:
 		return c.alterConvertTableToPartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonpartitioned()
+		}
 		tbl.Partitioning = nil
+		return nil
+	case nodes.ATRebuildPartition, nodes.ATOptimizePartition, nodes.ATAnalyzePartition,
+		nodes.ATCheckPartition, nodes.ATRepairPartition:
+		// These leave the schema as it is; a table without partitions is
+		// still refused (1505, measured on mariadb:11.8.8).
+		if tbl.Partitioning == nil {
+			return errPartitionMgmtOnNonpartitioned()
+		}
 		return nil
 	case nodes.ATAddSystemVersioning:
 		if tbl.SystemVersioned {
@@ -579,6 +597,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
@@ -594,6 +613,24 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
+	}
+	// SERIAL implies a unique key, as it does on the CREATE TABLE path.
+	if isSerial {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 	// Process column-level constraints that produce indexes/constraints.
 	for _, cc := range colDef.Constraints {
@@ -665,6 +702,52 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Columns:   []string{colDef.Name},
 				IndexName: idxName,
 			})
+		case nodes.ColConstrReferences:
+			// MariaDB makes a real foreign key of a column-level REFERENCES
+			// the ALTER adds, as it does of the CREATE TABLE path's, and
+			// judges it against the table the statement leaves: measured on
+			// mariadb:11.8.8, `ALTER TABLE a ADD a INT REFERENCES a` over a
+			// table whose keys do not lead with a answers 1005.
+			conName := cc.Name
+			if conName == "" {
+				conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
+			}
+			if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
+				return errFKDupName(conName)
+			}
+			refDB, refTable := "", ""
+			if cc.RefTable != nil {
+				refDB = cc.RefTable.Schema
+				refTable = cc.RefTable.Name
+			}
+			fkCols := []string{colDef.Name}
+			fkCon := &Constraint{
+				Name:        conName,
+				Type:        ConForeignKey,
+				Table:       tbl,
+				Columns:     fkCols,
+				RefDatabase: refDB,
+				RefTable:    refTable,
+				RefColumns:  refColumnsOrDefault(cc.RefColumns, fkCols),
+				OnDelete:    refActionToString(cc.OnDelete),
+				OnUpdate:    refActionToString(cc.OnUpdate),
+			}
+			if c.foreignKeyChecks {
+				if err := c.validateSingleFK(tbl.Database, tbl, fkCon); err != nil {
+					return err
+				}
+			}
+			tbl.Constraints = append(tbl.Constraints, fkCon)
+			// The backing index is named after the constraint only where the
+			// statement named one, as the CREATE TABLE path's is, and a name
+			// the table's indexes already hold is 1061, measured on
+			// mariadb:11.8.8: `ADD a INT CONSTRAINT k REFERENCES p(id)` over
+			// a table holding KEY k(b) answers it rather than adding a second
+			// index called k.
+			if !hasIndexCoveringColumns(tbl, fkCols) && cc.Name != "" && indexNameExists(tbl, cc.Name) {
+				return errDupKeyName(cc.Name)
+			}
+			insertFKBackingIndex(tbl, cc.Name, fkCols, []*IndexColumn{{Name: colDef.Name}}, len(tbl.Indexes))
 		}
 	}
 
@@ -1017,6 +1100,27 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
 	}
 
+	// SERIAL implies a unique key here too: a replacement keeps the keys the
+	// old definition had and adds the new one's, so MODIFY of a SERIAL column
+	// leaves two unique keys. Measured on mariadb:11.8.8.
+	if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
+	}
+
 	// Handle repositioning.
 	if cmd.First || cmd.After != "" {
 		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
@@ -1162,6 +1266,25 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 	return name != "" && indexNameExists(tbl, name)
 }
 
+// validateAddedKeyColumns refuses a key part that names a column the table
+// does not have: mariadb:11.8.8 answers 1072 for ADD KEY, FULLTEXT, SPATIAL,
+// UNIQUE and FOREIGN KEY alike. A functional part is an expression, and a
+// WITHOUT OVERLAPS part names the application-time period; neither is a
+// column, and the checks that judge them run later.
+func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
+	for _, ic := range cols {
+		if ic == nil || ic.Functional || ic.WithoutOverlaps {
+			continue
+		}
+		ref, ok := ic.Expr.(*nodes.ColumnRef)
+		if !ok || tbl.GetColumn(ref.Column) != nil {
+			continue
+		}
+		return errKeyColumnDoesNotExist(ref.Column)
+	}
+	return nil
+}
+
 func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
@@ -1173,6 +1296,17 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		return nil
 	}
 	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
+		return err
+	}
+	// A FULLTEXT key's parser is looked up before its columns: mariadb:11.8.8
+	// answers 1128 for `ADD FULLTEXT(a) WITH PARSER a` even where a is not a
+	// column, and 1072 only for a key without a parser.
+	if con.Type == nodes.ConstrFulltextIndex {
+		if err := validateFulltextParser(con.IndexOptions); err != nil {
+			return err
+		}
+	}
+	if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
 		return err
 	}
 
@@ -1278,7 +1412,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Columns:     cols,
 			RefDatabase: refDBName,
 			RefTable:    refTable,
-			RefColumns:  con.RefColumns,
+			RefColumns:  refColumnsOrDefault(con.RefColumns, cols),
 			OnDelete:    refActionToString(con.OnDelete),
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
@@ -1364,6 +1498,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateFulltextParser(con.IndexOptions); err != nil {
+			return err
+		}
+		if err := validateFulltextColumns(tbl, idxCols); err != nil {
+			return err
+		}
 		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -1741,7 +1881,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "auto_increment":
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 	case "row_format":
-		tbl.RowFormat = opt.Value
+		// DEFAULT clears the option: MariaDB prints no ROW_FORMAT for
+		// `ALTER TABLE a ROW_FORMAT DEFAULT`, measured on mariadb:11.8.8.
+		tbl.RowFormat = canonicalRowFormat(opt.Value)
 	case "key_block_size":
 		fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 	case "compression":
@@ -1755,13 +1897,15 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "stats_sample_pages":
 		tbl.StatsSamplePages = opt.Value
 	case "min_rows":
-		tbl.MinRows = opt.Value
+		tbl.MinRows = canonicalRows(opt.Value)
 	case "max_rows":
-		tbl.MaxRows = opt.Value
+		tbl.MaxRows = canonicalRows(opt.Value)
 	case "avg_row_length":
 		tbl.AvgRowLength = opt.Value
 	case "tablespace":
-		tbl.Tablespace = opt.Value
+		// MariaDB 11.8.8 accepts the option and prints no TABLESPACE for it,
+		// so the catalog keeps none. Measured on `ALTER TABLE a TABLESPACE a`
+		// and on a CREATE TABLE with it.
 	case "pack_keys":
 		tbl.PackKeys = opt.Value
 	case "checksum", "table_checksum":
@@ -1861,6 +2005,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
+		// CREATE TABLE path; the caller adds its unique key.
+		if strings.EqualFold(colDef.TypeName.Name, "serial") {
+			col.DataType = "bigint"
+			col.ColumnType = "bigint(20) unsigned"
+			col.AutoIncrement = true
+			col.Nullable = false
+		}
 		// A column added or retyped JSON takes the same shape it would in a
 		// CREATE TABLE: longtext with the binary collation, and the
 		// json_valid check its caller attaches. Measured on mariadb:11.8.8:
@@ -1881,6 +2033,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 			}
+		}
+		// A string type with CHARACTER SET binary is the binary type: MariaDB
+		// stores `ADD a CHAR BYTE` and `ADD a CHAR COLLATE BINARY` as
+		// `a` binary(1), measured on mariadb:11.8.8.
+		if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			col = convertToBinaryType(col, colDef.TypeName)
 		}
 	}
 

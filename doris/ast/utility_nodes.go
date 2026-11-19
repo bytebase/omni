@@ -22,6 +22,7 @@ type ShowStmt struct {
 	// "COLUMNS", "CREATE TABLE", "GRANTS", "VARIABLES", "PARTITIONS", etc.
 	Type     string
 	Target   *ObjectName // optional target (e.g. SHOW COLUMNS FROM target)
+	On       *ObjectName // optional ON table (SHOW CREATE MATERIALIZED VIEW name ON table)
 	From     string      // optional FROM db name
 	Like     string      // optional LIKE 'pattern'
 	Where    Node        // optional WHERE expression
@@ -40,16 +41,30 @@ var _ Node = (*ShowStmt)(nil)
 // DESCRIBE / DESC
 // ---------------------------------------------------------------------------
 
-// DescribeStmt represents DESCRIBE / DESC statements.
+// DescribeStmt represents DESCRIBE / DESC statements that name what they
+// describe:
 //
 //	DESC [FULL] table_name
 //	DESCRIBE [FULL] table_name [ALL VERBOSE]
-//	DESCRIBE FUNCTION name
+//	DESCRIBE [FULL] table_name opt_partition_names
+//	DESCRIBE FUNCTION name '(' [properties] ')' [table_alias]
+//
+// (DorisLegacyParser.g4:1629 describe_stmt, which the ANTLR parser's
+// unsupportedDescribeStatement, DorisParser.g4:947-952, agrees with.)
+// DESCRIBE followed by a query or an INSERT is an explain command and parses
+// as an ExplainStmt: DorisParser.g4:52 makes statementBase an explain? query,
+// and explainCommand (:1067) is EXPLAIN, DESC or DESCRIBE.
 type DescribeStmt struct {
-	Target     *ObjectName
-	Full       bool // DESCRIBE FULL ...
-	AllVerbose bool // ALL VERBOSE suffix
-	Loc        Loc
+	Target        *ObjectName
+	Full          bool        // DESCRIBE FULL ...
+	AllVerbose    bool        // ALL VERBOSE suffix
+	Function      bool        // DESCRIBE FUNCTION name(...)
+	Args          []*Property // DESCRIBE FUNCTION's key=value arguments
+	TableAlias    string      // DESCRIBE FUNCTION's optional table alias
+	TableColumns  []string    // the identifier list a table alias may carry
+	Partition     []string    // opt_partition_names: the named partitions
+	TempPartition bool        // a TEMPORARY PARTITION clause was given
+	Loc           Loc
 }
 
 // Tag implements Node.
@@ -63,8 +78,11 @@ var _ Node = (*DescribeStmt)(nil)
 
 // ExplainStmt represents EXPLAIN [modifier] query.
 //
-//	EXPLAIN [VERBOSE | GRAPH | PARSED | ANALYZED | REWRITTEN | PLAN |
-//	         PHYSICAL | MEMO | SHAPE | DUMP | OPTIMIZED | PLAN PROCESS] query
+//	EXPLAIN [VERBOSE | GRAPH | TREE | PLAN | DUMP | PROCESS | PLAN PROCESS] query
+//
+// The plan types the grammar also derives (PARSED, ANALYZED, REWRITTEN,
+// OPTIMIZED, PHYSICAL, SHAPE, MEMO and the rest) are ones the engine refuses,
+// so no statement carries them.
 type ExplainStmt struct {
 	// Type is the optional explain modifier, e.g. "VERBOSE", "GRAPH", "PLAN", "".
 	Type  string

@@ -179,3 +179,276 @@ func TestIsRedshiftTemplateLead(t *testing.T) {
 		t.Error(`isRedshiftTemplateLead("template") = true, want false`)
 	}
 }
+
+// TestIsRedshiftMultiwordTypenameStart holds the predicate to the multiword
+// type map: every lead accepts each of its words, and nothing else is a
+// multiword type.
+func TestIsRedshiftMultiwordTypenameStart(t *testing.T) {
+	for lead, words := range redshiftTypenameContinuations {
+		for _, word := range words {
+			p := &Parser{cur: Token{Type: lead}, nextBuf: Token{Type: word}, hasNext: true}
+			if !p.isRedshiftMultiwordTypenameStart() {
+				t.Errorf("isRedshiftMultiwordTypenameStart(%d, %d) = false, want true", lead, word)
+			}
+		}
+	}
+	for _, tc := range []struct {
+		cur, next int
+	}{
+		{CHARACTER, IDENT},  // character a: one type, then extra input
+		{IDENT, VARYING},    // x varying: an IDENT is no multiword type lead
+		{IDENT, IDENT},      // a b
+		{INT_P, PRECISION},  // INT takes no second word
+		{CHARACTER, ';'},    // character;
+		{BIT, PRECISION},    // BIT takes VARYING only
+		{BINARY, PRECISION}, // BINARY takes VARYING only
+	} {
+		p := &Parser{cur: Token{Type: tc.cur}, nextBuf: Token{Type: tc.next}, hasNext: true}
+		if p.isRedshiftMultiwordTypenameStart() {
+			t.Errorf("isRedshiftMultiwordTypenameStart(%d, %d) = true, want false", tc.cur, tc.next)
+		}
+	}
+}
+
+// TestIsRedshiftDatashareNameStart holds the predicate to the tokens it reads:
+// the unquoted word DATASHARE and a name after it.
+func TestIsRedshiftDatashareNameStart(t *testing.T) {
+	newGranteeParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance()
+		return p
+	}
+	for _, sql := range []string{"datashare d", "DATASHARE sales_share"} {
+		if !newGranteeParser(sql).isRedshiftDatashareNameStart() {
+			t.Errorf("isRedshiftDatashareNameStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"datashare", "datashare, d", `"datashare" d`, "role d", "a.b d"} {
+		if newGranteeParser(sql).isRedshiftDatashareNameStart() {
+			t.Errorf("isRedshiftDatashareNameStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+// TestIsRedshiftFederatedPermissionStart holds the CONNECT and DEBUG leads to
+// the tokens they read: the unquoted words, and what may follow them.
+func TestIsRedshiftFederatedPermissionStart(t *testing.T) {
+	newStmtParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance() // GRANT or REVOKE
+		p.advance() // the permission
+		return p
+	}
+	for _, sql := range []string{
+		"GRANT CONNECT TO PUBLIC",
+		"GRANT CONNECT ON WORKGROUP TO PUBLIC",
+		"GRANT DEBUG ON DATABASE d TO a:b",
+	} {
+		p := newStmtParser(sql)
+		if sql[6] == 'C' && !p.isRedshiftConnectStart() {
+			t.Errorf("isRedshiftConnectStart(%q) = false, want true", sql)
+		}
+		if sql[6] == 'D' && !p.isRedshiftDebugStart() {
+			t.Errorf("isRedshiftDebugStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"GRANT CONNECT FROM a", "GRANT DEBUG TO a", `GRANT "CONNECT" TO a`} {
+		p := newStmtParser(sql)
+		if p.isRedshiftConnectStart() || p.isRedshiftDebugStart() {
+			t.Errorf("%q: a federated permission lead, want none", sql)
+		}
+	}
+}
+
+// TestIsRedshiftIdentityGranteeStart holds the CONNECT and DEBUG grantee leads:
+// ADMINS OF ACCOUNT, PUBLIC, and the ROLE marker of ROLE <prefix>:<name>.
+func TestIsRedshiftIdentityGranteeStart(t *testing.T) {
+	newGranteeParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance()
+		return p
+	}
+	for _, sql := range []string{"ADMINS OF ACCOUNT '1'", "admins of account '1'"} {
+		if !newGranteeParser(sql).isRedshiftAdminsOfAccountStart() {
+			t.Errorf("isRedshiftAdminsOfAccountStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"PUBLIC", "public"} {
+		if !newGranteeParser(sql).isRedshiftPublicGranteeStart() {
+			t.Errorf("isRedshiftPublicGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"ROLE AWSIDC:analysts", "role a:b"} {
+		if !newGranteeParser(sql).isRedshiftRoleIdentityStart() {
+			t.Errorf("isRedshiftRoleIdentityStart(%q) = false, want true", sql)
+		}
+	}
+	for _, tc := range []struct {
+		sql      string
+		admins   bool
+		public   bool
+		roleName bool
+	}{
+		{"ADMINS ACCOUNT '1'", false, false, false},
+		{"PUBLIC:alice", false, false, false},
+		{"ROLE:analysts", false, false, false},
+		{`"PUBLIC"`, false, false, false},
+		{"alice", false, false, false},
+	} {
+		p := newGranteeParser(tc.sql)
+		if got := p.isRedshiftAdminsOfAccountStart(); got != tc.admins {
+			t.Errorf("isRedshiftAdminsOfAccountStart(%q) = %v, want %v", tc.sql, got, tc.admins)
+		}
+		if got := p.isRedshiftPublicGranteeStart(); got != tc.public {
+			t.Errorf("isRedshiftPublicGranteeStart(%q) = %v, want %v", tc.sql, got, tc.public)
+		}
+		if got := p.isRedshiftRoleIdentityStart(); got != tc.roleName {
+			t.Errorf("isRedshiftRoleIdentityStart(%q) = %v, want %v", tc.sql, got, tc.roleName)
+		}
+	}
+}
+
+// TestIsRedshiftNamedGranteeStart holds the ROLE and GROUP grantee leads: the
+// keyword and a name after it, never the keyword alone.
+func TestIsRedshiftNamedGranteeStart(t *testing.T) {
+	newGranteeParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance()
+		return p
+	}
+	for _, sql := range []string{"ROLE analyst", "role analyst"} {
+		if !newGranteeParser(sql).isRedshiftRoleGranteeStart() {
+			t.Errorf("isRedshiftRoleGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"GROUP analysts", "group analysts"} {
+		if !newGranteeParser(sql).isRedshiftGroupGranteeStart() {
+			t.Errorf("isRedshiftGroupGranteeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, tc := range []struct {
+		sql   string
+		role  bool
+		group bool
+	}{
+		{"ROLE", false, false},
+		{"ROLE, analyst", false, false},
+		{"GROUP", false, false},
+		{"analyst", false, false},
+		{`"ROLE" analyst`, false, false},
+	} {
+		p := newGranteeParser(tc.sql)
+		if got := p.isRedshiftRoleGranteeStart(); got != tc.role {
+			t.Errorf("isRedshiftRoleGranteeStart(%q) = %v, want %v", tc.sql, got, tc.role)
+		}
+		if got := p.isRedshiftGroupGranteeStart(); got != tc.group {
+			t.Errorf("isRedshiftGroupGranteeStart(%q) = %v, want %v", tc.sql, got, tc.group)
+		}
+	}
+}
+
+// TestIsRedshiftScopedPermissionStart holds the scoped-permission lead to the
+// clause it reads: FOR straight after the first privilege.
+func TestIsRedshiftScopedPermissionStart(t *testing.T) {
+	newStmtParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance() // GRANT
+		p.advance() // the privilege
+		return p
+	}
+	for _, sql := range []string{"GRANT CREATE FOR SCHEMAS IN DATABASE d TO a", "GRANT SELECT FOR TABLES IN SCHEMA s TO a"} {
+		if !newStmtParser(sql).isRedshiftScopedPermissionStart() {
+			t.Errorf("isRedshiftScopedPermissionStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"GRANT CREATE ON DATABASE d TO a", "GRANT SELECT ON t TO a", "GRANT CREATE, USAGE FOR SCHEMAS IN DATABASE d TO a"} {
+		if newStmtParser(sql).isRedshiftScopedPermissionStart() {
+			t.Errorf("isRedshiftScopedPermissionStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+// newLeadParser lexes sql and stops on its first token, the position every
+// CREATE DATABASE and ALTER DATABASE lead probe reads.
+func newLeadParser(sql string) *Parser {
+	p := &Parser{lexer: NewLexer(sql), source: sql}
+	p.advance()
+	return p
+}
+
+func TestIsRedshiftIntegrationOptionStart(t *testing.T) {
+	for _, word := range redshiftIntegrationOptionWords {
+		p := newLeadParser(word)
+		if !p.isRedshiftIntegrationOptionStart() {
+			t.Errorf("isRedshiftIntegrationOptionStart(%q) = false, want true", word)
+		}
+	}
+	for _, sql := range []string{"OWNER", "CSV", "integration", "REFRESH_INTERVALX", `"acceptinvchars"`, "1"} {
+		p := newLeadParser(sql)
+		if p.isRedshiftIntegrationOptionStart() {
+			t.Errorf("isRedshiftIntegrationOptionStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftCreateDatabaseSourceStart(t *testing.T) {
+	for _, sql := range []string{
+		"FROM INTEGRATION 'id'",
+		"FROM ARN 'arn'",
+		"FROM DATASHARE share",
+		"WITH PERMISSIONS FROM DATASHARE share",
+	} {
+		if !newLeadParser(sql).isRedshiftCreateDatabaseSourceStart() {
+			t.Errorf("isRedshiftCreateDatabaseSourceStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{
+		"WITH",
+		"WITH OWNER a",
+		"IAM_ROLE DEFAULT",
+		"COLLATE CI",
+	} {
+		if newLeadParser(sql).isRedshiftCreateDatabaseSourceStart() {
+			t.Errorf("isRedshiftCreateDatabaseSourceStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftAlterDatabaseIntegrationStart(t *testing.T) {
+	for _, sql := range []string{"INTEGRATION REFRESH ALL TABLES", "integration set query_all_states true"} {
+		if !newLeadParser(sql).isRedshiftAlterDatabaseIntegrationStart() {
+			t.Errorf("isRedshiftAlterDatabaseIntegrationStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"OWNER TO a", "RENAME TO b", "CONNECTION LIMIT 1", `"integration" REFRESH ALL TABLES`} {
+		if newLeadParser(sql).isRedshiftAlterDatabaseIntegrationStart() {
+			t.Errorf("isRedshiftAlterDatabaseIntegrationStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftDataMovementOptionStart(t *testing.T) {
+	for _, sql := range []string{"CSV", "JSON", "PARALLEL", "ADDQUOTES", "a", "FORMAT"} {
+		if !newLeadParser(sql).isRedshiftDataMovementOptionStart() {
+			t.Errorf("isRedshiftDataMovementOptionStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"FROM", "TO", "WHERE", ";", "1", "'s'"} {
+		if newLeadParser(sql).isRedshiftDataMovementOptionStart() {
+			t.Errorf("isRedshiftDataMovementOptionStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftCopyColumnStart(t *testing.T) {
+	for _, sql := range []string{"a FROM 's'", "zzz TO STDOUT"} {
+		if !newLeadParser(sql).isRedshiftCopyColumnStart() {
+			t.Errorf("isRedshiftCopyColumnStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"a a FROM 's'", "a WHERE b", "a", "(a) FROM 's'", "1 FROM 's'"} {
+		if newLeadParser(sql).isRedshiftCopyColumnStart() {
+			t.Errorf("isRedshiftCopyColumnStart(%q) = true, want false", sql)
+		}
+	}
+}

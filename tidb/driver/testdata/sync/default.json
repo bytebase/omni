@@ -209,6 +209,63 @@
           "primaryKeyType":  "CLUSTERED"
         },
         {
+          "name":  "metrics_shard",
+          "columns":  [
+            {
+              "name":  "ts",
+              "position":  1,
+              "type":  "int"
+            },
+            {
+              "name":  "val",
+              "position":  2,
+              "type":  "bigint"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "PRIMARY",
+              "expressions":  [
+                "ts"
+              ],
+              "keyLength":  [
+                "-1"
+              ],
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
+            }
+          ],
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_bin",
+          "charset":  "utf8mb4",
+          "createOptions":  "partitioned",
+          "partitions":  [
+            {
+              "name":  "p10",
+              "type":  "RANGE",
+              "expression":  "`ts`",
+              "value":  "10",
+              "comment":  "first tenth"
+            },
+            {
+              "name":  "p2",
+              "type":  "RANGE",
+              "expression":  "`ts`",
+              "value":  "20"
+            },
+            {
+              "name":  "p1",
+              "type":  "RANGE",
+              "expression":  "`ts`",
+              "value":  "30"
+            }
+          ],
+          "shardingInfo":  "NOT_SHARDED(PK_IS_HANDLE)",
+          "primaryKeyType":  "CLUSTERED"
+        },
+        {
           "name":  "sharded_events",
           "columns":  [
             {

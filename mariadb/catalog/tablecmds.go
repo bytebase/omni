@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -23,6 +24,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+
+	// An ENGINE option naming an engine the pinned server does not ship is
+	// 1286, answered before the name is looked up: a table option's and a
+	// partition definition's alike.
+	if err := validateStorageEngines(stmt.Options); err != nil {
+		return err
+	}
+	if stmt.Partitions != nil {
+		if err := validatePartitionStorageEngines(stmt.Partitions.Partitions); err != nil {
+			return err
+		}
+	}
 
 	// A LIKE source that names the target itself is rejected as a repeated
 	// table (1066) before anything is looked up: CREATE [OR REPLACE] TABLE
@@ -60,6 +73,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		c.dropReplacedTable(db, replaced)
 		dropReplacedSequence(db, key, stmt)
 		return c.createTableLike(db, tableName, key, srcTbl, stmt)
+	}
+
+	// A CTAS body is judged with the name already resolved: mariadb:11.8.8
+	// answers 1050 for `CREATE TABLE a SELECT a` over a table a before it
+	// reads the SELECT, and 1054 only when the name is free.
+	if stmt.Select != nil {
+		if _, err := c.analyzeViewBody(stmt.Select); err != nil {
+			return err
+		}
 	}
 
 	// CREATE TABLE ... AS SELECT (CTAS) is not modeled: the catalog cannot
@@ -116,7 +138,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "auto_increment":
 			fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 		case "row_format":
-			tbl.RowFormat = opt.Value
+			tbl.RowFormat = canonicalRowFormat(opt.Value)
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 		case "compression":
@@ -130,13 +152,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "stats_sample_pages":
 			tbl.StatsSamplePages = opt.Value
 		case "min_rows":
-			tbl.MinRows = opt.Value
+			tbl.MinRows = canonicalRows(opt.Value)
 		case "max_rows":
-			tbl.MaxRows = opt.Value
+			tbl.MaxRows = canonicalRows(opt.Value)
 		case "avg_row_length":
 			tbl.AvgRowLength = opt.Value
 		case "tablespace":
-			tbl.Tablespace = opt.Value
+			// MariaDB 11.8.8 accepts the option and prints no TABLESPACE for
+			// it, so the catalog keeps none.
 		case "pack_keys":
 			tbl.PackKeys = opt.Value
 		case "checksum", "table_checksum":
@@ -445,7 +468,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Columns:     fkCols,
 					RefDatabase: refDB,
 					RefTable:    refTable,
-					RefColumns:  cc.RefColumns,
+					RefColumns:  refColumnsOrDefault(cc.RefColumns, fkCols),
 					OnDelete:    refActionToString(cc.OnDelete),
 					OnUpdate:    refActionToString(cc.OnUpdate),
 				})
@@ -722,7 +745,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Columns:     cols,
 				RefDatabase: refDB,
 				RefTable:    refTable,
-				RefColumns:  con.RefColumns,
+				RefColumns:  refColumnsOrDefault(con.RefColumns, cols),
 				OnDelete:    refActionToString(con.OnDelete),
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
@@ -795,6 +818,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateFulltextParser(con.IndexOptions); err != nil {
+				return err
+			}
+			if err := validateFulltextColumns(tbl, idxCols); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -1877,6 +1906,13 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 		return errFKIncorrectlyFormed(db.Name, tbl.Name)
 	}
 
+	// The statement's own columns and the referenced ones count the same:
+	// `FOREIGN KEY (a) REFERENCES z(a, a)` is 1239, measured on
+	// mariadb:11.8.8, whether or not the referenced key is there.
+	if len(con.RefColumns) != len(con.Columns) {
+		return errKeyRefMismatch(con.Name)
+	}
+
 	// Check that referenced columns have an index (PK or UNIQUE or KEY)
 	// that starts with the referenced columns in order.
 	if !hasIndexOnColumns(refTbl, con.RefColumns) {
@@ -1906,6 +1942,19 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	}
 
 	return nil
+}
+
+// refColumnsOrDefault fills a foreign key's referenced columns where the
+// statement named none. MariaDB takes them from the key's own columns, by
+// position, where MySQL reads `REFERENCES p` as p's primary key: measured on
+// mariadb:11.8.8, `FOREIGN KEY (p, q) REFERENCES z` is stored as
+// REFERENCES `z` (`p`, `q`), and one whose columns the referenced table has no
+// index over is the 1005 every unformable foreign key answers.
+func refColumnsOrDefault(refCols, cols []string) []string {
+	if len(refCols) > 0 {
+		return refCols
+	}
+	return append([]string{}, cols...)
 }
 
 // hasIndexOnColumns checks whether a table has an index (PK, UNIQUE, or regular KEY)
@@ -2137,9 +2186,74 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 	return validateKeyParts(tbl, idxCols, fulltext, spatial, false)
 }
 
+// validateFulltextParser refuses a FULLTEXT key naming a parser the server does
+// not have: 1128. MariaDB looks the parser up before it judges the key's
+// columns, measured on mariadb:11.8.8: `ADD FULLTEXT(a) WITH PARSER p` over a
+// column that is no column answers 1128, where the same key without a parser
+// answers 1072, and over an INT column 1128 where the key alone is 1283.
+func validateFulltextParser(opts []*nodes.IndexOption) error {
+	for _, opt := range opts {
+		if opt == nil || !strings.EqualFold(opt.Name, "PARSER") {
+			continue
+		}
+		name := ""
+		if s, ok := opt.Value.(*nodes.StringLit); ok {
+			name = s.Value
+		}
+		return errFunctionNotDefined(name)
+	}
+	return nil
+}
+
+// validateFulltextColumns refuses a FULLTEXT key part over a column whose type
+// the key cannot index: 1283, measured on mariadb:11.8.8, for BLOB, VARBINARY,
+// BINARY, ENUM, SET and every non-string type. The character types are the ones
+// it takes, JSON among them, which MariaDB stores as LONGTEXT. A part naming no
+// column is left to the 1072 the caller answers first.
+func validateFulltextColumns(tbl *Table, cols []*IndexColumn) error {
+	for _, ic := range cols {
+		if ic == nil || ic.Name == "" {
+			continue
+		}
+		col := tbl.GetColumn(ic.Name)
+		if col == nil || isFulltextColumnType(col.DataType) {
+			continue
+		}
+		return errCannotPartOfFulltext(ic.Name)
+	}
+	return nil
+}
+
+// isFulltextColumnType reports whether a column's type may be part of a
+// FULLTEXT index: the character types only.
+func isFulltextColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return true
+	}
+	return false
+}
+
+// isSpatialColumnType reports whether a column's type may be part of a SPATIAL
+// index: the geometry types only. Measured on mariadb:11.8.8: every geometry
+// type is taken, and every other type, BLOB and VARCHAR included, is 1210.
+func isSpatialColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "geometry", "point", "linestring", "polygon", "multipoint",
+		"multilinestring", "multipolygon", "geometrycollection":
+		return true
+	}
+	return false
+}
+
 // validateKeyParts is validateIndexColumns, where wholeTextBlob lets a BLOB or
 // TEXT part go without a length, as a long unique key's does.
 func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, wholeTextBlob bool) error {
+	if fulltext {
+		if err := validateFulltextColumns(tbl, idxCols); err != nil {
+			return err
+		}
+	}
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2165,6 +2279,13 @@ func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, who
 			return errUnusableInGeneratedColumn(dep, col.Name)
 		}
 		if spatial {
+			// The column's type is judged before its nullability: an INT
+			// column is 1210 whether or not it may be NULL, and only a
+			// geometry column that may be NULL is 1252. Measured on
+			// mariadb:11.8.8 against every geometry type.
+			if !isSpatialColumnType(col.DataType) {
+				return errWrongArguments("SPATIAL INDEX")
+			}
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
 			}
@@ -3559,4 +3680,41 @@ func normalizedChecksum(value string) string {
 		}
 	}
 	return "0"
+}
+
+// canonicalRowFormat is the value ROW_FORMAT reports: DEFAULT clears it, so a
+// table that had none still prints none. Measured on mariadb:11.8.8 for
+// `CREATE TABLE t (a INT) ROW_FORMAT=DEFAULT` and its ALTER form.
+func canonicalRowFormat(value string) string {
+	if strings.EqualFold(value, "DEFAULT") {
+		return ""
+	}
+	return value
+}
+
+// canonicalRows is the value MIN_ROWS and MAX_ROWS report. The server reads the
+// option as an unsigned number, keeping the integer prefix and 32 bits of it:
+// `1.5`, `1e0` and `2e3` report 1, 1 and 2, `4294967296` and above report
+// 4294967295, and a value under 1 reports nothing. Measured on mariadb:11.8.8
+// through SHOW CREATE TABLE.
+func canonicalRows(value string) string {
+	digits := strings.TrimPrefix(value, "+")
+	end := 0
+	for end < len(digits) && digits[end] >= '0' && digits[end] <= '9' {
+		end++
+	}
+	if end == 0 {
+		if strings.HasPrefix(digits, ".") {
+			return "0"
+		}
+		return value
+	}
+	n, err := strconv.ParseUint(digits[:end], 10, 64)
+	if err != nil || n > 4294967295 {
+		return "4294967295"
+	}
+	if n < 1 {
+		return "0"
+	}
+	return strconv.FormatUint(n, 10)
 }

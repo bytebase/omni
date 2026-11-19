@@ -228,12 +228,80 @@ func (*ParenExpr) exprNode()       {}
 // `ROW ( e (, e)* )` (the keyword form). Explicit records the ROW keyword form.
 type RowConstructor struct {
 	Elements []Expr
+	// Aliases holds the optional `[AS] identifier` field alias for each element
+	// of the explicit ROW(...) form; entries are nil when the field has none.
+	Aliases  []*ast.Identifier
 	Explicit bool // true for the ROW(...) spelling
 	Loc      ast.Loc
 }
 
 func (n *RowConstructor) Span() ast.Loc { return n.Loc }
 func (*RowConstructor) exprNode()       {}
+
+// MethodCall is `value.method(args)` (the methodCall primaryExpression).
+type MethodCall struct {
+	Value  Expr
+	Method *ast.Identifier
+	Args   []Expr
+	Loc    ast.Loc
+}
+
+func (n *MethodCall) Span() ast.Loc { return n.Loc }
+func (*MethodCall) exprNode()       {}
+
+// StaticMethodCall is `qualifiedName::method(args)` (the staticMethodCall
+// primaryExpression).
+type StaticMethodCall struct {
+	Name   *ast.QualifiedName
+	Method *ast.Identifier
+	Args   []Expr
+	Loc    ast.Loc
+}
+
+func (n *StaticMethodCall) Span() ast.Loc { return n.Loc }
+func (*StaticMethodCall) exprNode()       {}
+
+// NamedArgument is `identifier => expression` (the namedArgument argument
+// alternative), used inside a function or method call's argument list.
+type NamedArgument struct {
+	Name  *ast.Identifier
+	Value Expr
+	Loc   ast.Loc
+}
+
+func (n *NamedArgument) Span() ast.Loc { return n.Loc }
+func (*NamedArgument) exprNode()       {}
+
+// UniqueExpr is `UNIQUE ( query )` (the unique primaryExpression).
+type UniqueExpr struct {
+	Subquery *SubqueryExpr
+	Loc      ast.Loc
+}
+
+func (n *UniqueExpr) Span() ast.Loc { return n.Loc }
+func (*UniqueExpr) exprNode()       {}
+
+// OverlayExpr is `OVERLAY(source PLACING replacement FROM start [FOR length])`
+// (the overlay primaryExpression).
+type OverlayExpr struct {
+	Source    Expr
+	Replacing Expr
+	From      Expr
+	For       Expr // nil when no FOR clause
+	Loc       ast.Loc
+}
+
+func (n *OverlayExpr) Span() ast.Loc { return n.Loc }
+func (*OverlayExpr) exprNode()       {}
+
+// AtLocalExpr is `value AT LOCAL` (the atLocal valueExpression).
+type AtLocalExpr struct {
+	Value Expr
+	Loc   ast.Loc
+}
+
+func (n *AtLocalExpr) Span() ast.Loc { return n.Loc }
+func (*AtLocalExpr) exprNode()       {}
 
 // ArrayConstructor is `ARRAY [ e , … ]` (arrayConstructor).
 type ArrayConstructor struct {
@@ -306,6 +374,10 @@ const (
 	// SubqueryQuantified is the `( query )` of a quantified comparison
 	// `<op> (ALL|ANY|SOME) ( query )`.
 	SubqueryQuantified
+	// SubqueryUnique is the `( query )` of a `UNIQUE ( query )` primary expression.
+	SubqueryUnique
+	// SubqueryMatch is the `( query )` of a `MATCH ... ( query )` predicate.
+	SubqueryMatch
 )
 
 // ---------------------------------------------------------------------------
@@ -561,14 +633,33 @@ func (p *Parser) parseAtTimeZonePostfix() (Expr, error) {
 		return nil, err
 	}
 	for p.cur.Kind == kwAT {
+		// AT is non-reserved: when it is not followed by TIME or LOCAL it is an
+		// ordinary select-item alias (`SELECT a AT`), so leave it for the caller.
+		if p.peekNext().Kind != kwTIME && p.peekNext().Kind != kwLOCAL {
+			break
+		}
 		p.advance() // consume AT
+		if p.cur.Kind == kwLOCAL {
+			localTok := p.advance()
+			expr = &AtLocalExpr{
+				Value: expr,
+				Loc:   ast.Loc{Start: expr.Span().Start, End: localTok.Loc.End},
+			}
+			continue
+		}
 		if _, err := p.expect(kwTIME); err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(kwZONE); err != nil {
 			return nil, err
 		}
-		zone, err := p.parsePrimary()
+		var zone Expr
+		var err error
+		if p.cur.Kind == kwINTERVAL {
+			zone, err = p.parseIntervalLiteral()
+		} else {
+			zone, err = p.parsePrimary()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -661,19 +752,45 @@ func (p *Parser) parsePostfix(expr Expr) (Expr, error) {
 				Loc:   ast.Loc{Start: expr.Span().Start, End: closeTok.Loc.End},
 			}
 		case int('.'):
-			// Only a `.identifier` dereference belongs here; `.*` is selectAll.
-			if !isIdentifierStart(p.peekNext().Kind) {
+			// `.*` is selectAll, not a primary expression; leave it to the caller.
+			if p.peekNext().Kind == int('*') {
 				return expr, nil
 			}
+			// A method name may be an identifier or any keyword; a dereference
+			// field must be an identifier.
+			if !isIdentifierStart(p.peekNext().Kind) && !isKeywordKind(p.peekNext().Kind) {
+				return expr, nil
+			}
+			cp := p.checkpoint()
+			fieldIsIdentifier := isIdentifierStart(p.peekNext().Kind)
 			p.advance() // consume '.'
-			field, err := p.parseIdentifier()
+			method, err := p.parseMethodName()
 			if err != nil {
-				return nil, err
+				p.restore(cp)
+				return expr, nil
+			}
+			if p.cur.Kind == int('(') {
+				p.advance() // consume '('
+				args, closeTok, err := p.parseArgumentList()
+				if err != nil {
+					return nil, err
+				}
+				expr = &MethodCall{
+					Value:  expr,
+					Method: method,
+					Args:   args,
+					Loc:    ast.Loc{Start: expr.Span().Start, End: closeTok.Loc.End},
+				}
+				continue
+			}
+			if !fieldIsIdentifier {
+				p.restore(cp)
+				return expr, nil
 			}
 			expr = &Dereference{
 				Base:      expr,
-				FieldName: field,
-				Loc:       ast.Loc{Start: expr.Span().Start, End: field.Loc.End},
+				FieldName: method,
+				Loc:       ast.Loc{Start: expr.Span().Start, End: method.Loc.End},
 			}
 		default:
 			return expr, nil
@@ -715,7 +832,16 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 		tok := p.advance()
 		return &Parameter{Loc: tok.Loc}, nil
 	case kwINTERVAL:
-		return p.parseIntervalLiteral()
+		// An INTERVAL literal has a string body and a qualifier; otherwise INTERVAL
+		// is an ordinary identifier (it is non-reserved), e.g. `SELECT INTERVAL`
+		// or the type constructor `INTERVAL 'a'`.
+		cp := p.checkpoint()
+		lit, err := p.parseIntervalLiteral()
+		if err == nil {
+			return lit, nil
+		}
+		p.restore(cp)
+		return p.parseIdentifierOrFunction()
 	case int('('):
 		return p.parseParenOrSubqueryOrRow()
 	case kwARRAY:
@@ -728,17 +854,67 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 		return p.parseIdentifierOrFunction()
 	case kwROW:
 		// ROW( … ) constructor — distinct from the ROW type. ROW not followed by
-		// '(' is an ordinary identifier.
+		// '(' is an ordinary identifier. ROW() has no fieldConstructor, so the
+		// grammar's ordinary function-call reading applies; when the constructor
+		// does not fit, rewind and take that reading.
 		if p.peekNext().Kind == int('(') {
-			return p.parseRowConstructor()
+			cp := p.checkpoint()
+			row, err := p.parseRowConstructor()
+			if err == nil {
+				return row, nil
+			}
+			p.restore(cp)
 		}
 		return p.parseIdentifierOrFunction()
+	case int('['):
+		return p.parseBracketArrayConstructor()
 	case kwCASE:
 		return p.parseCaseExpr()
 	case kwCAST, kwTRY_CAST:
+		// TRY_CAST is non-reserved, so without a '(' it is an ordinary identifier.
+		if p.cur.Kind == kwTRY_CAST && p.peekNext().Kind != int('(') {
+			return p.parseIdentifierOrFunction()
+		}
 		return p.parseCast()
 	case kwEXISTS:
 		return p.parseExists()
+	case kwUNIQUE:
+		// Without '(' UNIQUE is an ordinary non-reserved identifier. With '(' it
+		// is the UNIQUE(query) primary when the body starts a query, and the
+		// ordinary function call otherwise (`UNIQUE(1.5)`).
+		if p.peekNext().Kind != int('(') {
+			return p.parseIdentifierOrFunction()
+		}
+		cp := p.checkpoint()
+		p.advance() // UNIQUE
+		p.advance() // '('
+		startsQuery := p.startsQueryOrParenthesized()
+		p.restore(cp)
+		if startsQuery {
+			return p.parseUnique()
+		}
+		return p.parseIdentifierOrFunction()
+	case kwOVERLAY:
+		// Without '(' OVERLAY is an ordinary non-reserved identifier. With '(' try
+		// the overlay primary first; if that fails, an ordinary function call may
+		// still parse (`overlay(1, 2)`), otherwise keep the overlay error so a
+		// malformed overlay reports where Trino does.
+		if p.peekNext().Kind != int('(') {
+			return p.parseIdentifierOrFunction()
+		}
+		cp := p.checkpoint()
+		p.speculating++
+		overlay, overlayErr := p.parseOverlay()
+		p.speculating--
+		if overlayErr == nil {
+			return overlay, nil
+		}
+		p.restore(cp)
+		if ordinary, err := p.parseIdentifierOrFunction(); err == nil {
+			return ordinary, nil
+		}
+		p.restore(cp)
+		return nil, overlayErr
 	case kwEXTRACT:
 		return p.parseExtract()
 	case kwTRIM:
@@ -753,16 +929,30 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 		return p.parseJSONFunction()
 	case kwRUNNING, kwFINAL:
 		// processingMode prefix on a function call (RUNNING/FINAL last(x)),
-		// used in MATCH_RECOGNIZE measure expressions.
-		return p.parseProcessingModeFunction()
+		// used in MATCH_RECOGNIZE measure expressions. Both words are also
+		// non-reserved identifiers, so without a following call they are ordinary
+		// column references.
+		cp := p.checkpoint()
+		fn, err := p.parseProcessingModeFunction()
+		if err == nil {
+			return fn, nil
+		}
+		p.restore(cp)
+		return p.parseIdentifierOrFunction()
 	case kwCURRENT_DATE, kwCURRENT_USER, kwCURRENT_CATALOG, kwCURRENT_SCHEMA, kwCURRENT_PATH,
 		kwCURRENT_TIME, kwCURRENT_TIMESTAMP, kwLOCALTIME, kwLOCALTIMESTAMP:
 		return p.parseSpecialDateTimeFunction()
 	case kwDOUBLE:
 		// DOUBLE PRECISION 'literal' typeConstructor. Otherwise DOUBLE is an
-		// ordinary identifier handled by the identifier path.
+		// ordinary identifier handled by the identifier path; `SELECT DOUBLE
+		// PRECISION` reads DOUBLE with the alias PRECISION.
 		if p.peekNext().Kind == kwPRECISION {
-			return p.parseDoublePrecisionConstructor()
+			cp := p.checkpoint()
+			ctor, err := p.parseDoublePrecisionConstructor()
+			if err == nil {
+				return ctor, nil
+			}
+			p.restore(cp)
 		}
 		return p.parseIdentifierOrFunction()
 	default:
@@ -820,26 +1010,93 @@ func (p *Parser) parseIntervalLiteral() (Expr, error) {
 		Loc:   ast.Loc{Start: intervalTok.Loc.Start, End: fromTok.Loc.End},
 	}
 
-	if p.cur.Kind == kwTO {
-		toTok := p.peekNext()
-		to, ok := intervalFieldFromKind(toTok.Kind)
-		if !ok {
-			p.advance() // consume TO so the error points at the bad to-field
-			return nil, p.exprErrorAt("expected interval field after TO")
+	// Optional leading precision: YEAR(3), SECOND(3, 9). The fractional part is
+	// only grammatical on the simple SECOND form; before TO only one integer is.
+	if p.cur.Kind == int('(') {
+		precEnd, err := p.parseIntervalPrecision(from, p.intervalPrecisionFollowedByTo())
+		if err != nil {
+			return nil, err
 		}
-		if !ValidIntervalRange(from, to) {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "invalid interval qualifier: " + from.String() + " TO " + to.String(),
-			}
+		lit.Loc.End = precEnd
+	}
+
+	if p.cur.Kind == kwTO {
+		to, ok := intervalFieldFromKind(p.peekNext().Kind)
+		// `INTERVAL 'a' YEAR TO` is an interval literal followed by the alias TO,
+		// not a malformed range: Trino accepts it.
+		if !ok {
+			return lit, nil
 		}
 		p.advance() // consume TO
 		toEnd := p.advance()
+		if !ValidIntervalRange(from, to) {
+			return nil, &ParseError{
+				Position: p.prev.Loc.Start, End: p.prev.Loc.End,
+				Message: "invalid interval qualifier: " + from.String() + " TO " + to.String(),
+			}
+		}
 		toVal := to
 		lit.To = &toVal
 		lit.Loc.End = toEnd.Loc.End
+		if to == IntervalSecond && p.cur.Kind == int('(') {
+			end, err := p.parseIntervalPrecision(to, true)
+			if err != nil {
+				return nil, err
+			}
+			lit.Loc.End = end
+		}
 	}
 	return lit, nil
+}
+
+// intervalPrecisionFollowedByTo reports whether the parenthesized precision at
+// the cursor is followed by TO, checked without consuming input.
+func (p *Parser) intervalPrecisionFollowedByTo() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.skipParenGroup()
+	return p.cur.Kind == kwTO
+}
+
+// parseIntervalPrecision parses an interval qualifier's optional
+// `( INTEGER [, INTEGER] )` precision, returning the closing ')' end offset.
+// A fractional part is accepted only for the simple SECOND form; before TO the
+// grammar allows a single leading precision.
+func (p *Parser) parseIntervalPrecision(field IntervalField, beforeTo bool) (int, error) {
+	p.advance() // consume '('
+	if p.cur.Kind != tokInteger {
+		return 0, p.exprErrorAt("expected interval precision")
+	}
+	p.advance()
+	if p.cur.Kind == int(',') {
+		if field != IntervalSecond || beforeTo {
+			return 0, p.exprErrorAt("unexpected fractional interval precision")
+		}
+		p.advance() // consume ','
+		if p.cur.Kind != tokInteger {
+			return 0, p.exprErrorAt("expected interval fractional precision")
+		}
+		p.advance()
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return 0, err
+	}
+	return closeTok.Loc.End, nil
+}
+
+// parseBracketArrayConstructor parses the bare `[ (expression (, expression)*)? ]`
+// arrayConstructor alternative (no ARRAY keyword).
+func (p *Parser) parseBracketArrayConstructor() (Expr, error) {
+	openTok := p.advance() // consume '['
+	elems, closeTok, err := p.parseBracketedExprList(int(']'))
+	if err != nil {
+		return nil, err
+	}
+	return &ArrayConstructor{
+		Elements: elems,
+		Loc:      ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End},
+	}, nil
 }
 
 // parseArrayConstructor parses `ARRAY [ (expression (, expression)*)? ]`
@@ -866,18 +1123,20 @@ func (p *Parser) parseRowConstructor() (Expr, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-	first, err := p.parseExpr()
+	first, alias, err := p.parseFieldConstructor()
 	if err != nil {
 		return nil, err
 	}
 	elems := []Expr{first}
+	aliases := []*ast.Identifier{alias}
 	for p.cur.Kind == int(',') {
 		p.advance() // consume ','
-		next, err := p.parseExpr()
+		next, nextAlias, err := p.parseFieldConstructor()
 		if err != nil {
 			return nil, err
 		}
 		elems = append(elems, next)
+		aliases = append(aliases, nextAlias)
 	}
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
@@ -885,9 +1144,33 @@ func (p *Parser) parseRowConstructor() (Expr, error) {
 	}
 	return &RowConstructor{
 		Elements: elems,
+		Aliases:  aliases,
 		Explicit: true,
 		Loc:      ast.Loc{Start: rowTok.Loc.Start, End: closeTok.Loc.End},
 	}, nil
+}
+
+// parseFieldConstructor parses one `fieldConstructor`: `expression [AS? identifier]`.
+func (p *Parser) parseFieldConstructor() (Expr, *ast.Identifier, error) {
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, ok := p.match(kwAS); ok {
+		alias, err := p.parseIdentifier()
+		if err != nil {
+			return nil, nil, err
+		}
+		return expr, alias, nil
+	}
+	if isIdentifierStart(p.cur.Kind) {
+		alias, err := p.parseIdentifier()
+		if err != nil {
+			return nil, nil, err
+		}
+		return expr, alias, nil
+	}
+	return expr, nil, nil
 }
 
 // parseParenOrSubqueryOrRow disambiguates a leading '(' among:

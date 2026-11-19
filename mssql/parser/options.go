@@ -92,9 +92,11 @@ func (p *Parser) isValidOptionToken(opts optionSet, tok Token) bool {
 		if kw != tokIDENT && opts.tokens[kw] {
 			return true
 		}
-		if len(opts.idents) > 0 && opts.idents[strings.ToUpper(tok.Str)] {
-			return true
-		}
+	}
+	// A registered keyword whose text is a declared identifier, as in
+	// isValidOption: FOR PATH peeks at the keyword PATH.
+	if len(opts.idents) > 0 && tok.Str != "" && opts.idents[strings.ToUpper(tok.Str)] {
+		return true
 	}
 	return false
 }

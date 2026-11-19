@@ -514,6 +514,10 @@ func (b *builder) alterRename(r tableRef, c *ast.AlterTableCmd) bool {
 		b.databaseNeeds(to.db, dest.Schema, to.rng) // 1049; 1025 on 5.7
 	}
 	b.needFree(relKey(to.db, to.name), to.rng, to.written, relTable) // 1050
+	if state, ok := b.w.materializedLogs[relKey(r.db, r.name)]; ok {
+		delete(b.w.materializedLogs, relKey(r.db, r.name))
+		b.w.materializedLogs[relKey(to.db, to.name)] = state
+	}
 	b.moveTable(r, to, relTable)
 	return true
 }
@@ -593,6 +597,14 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			return true
 		}
 		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
+		if b.w.materialized[fk] {
+			delete(b.w.materialized, fk)
+			b.w.materialized[relKey(to.db, to.name)] = true
+		}
+		if state, ok := b.w.materializedLogs[fk]; ok {
+			delete(b.w.materializedLogs, fk)
+			b.w.materializedLogs[relKey(to.db, to.name)] = state
+		}
 		b.moveTable(from, to, kind)
 		delete(moved, fk)
 		moved[relKey(to.db, to.name)] = kind
@@ -642,20 +654,34 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			continue
 		}
 		f, kind := b.l.Lookup(k)
-		if !v.IfExists {
-			// A view is no table to DROP TABLE (1051).
+		// An external table is a relation of no kind that DROP TABLE drops; a
+		// view is no table to it (1051).
+		external := f == walk.Present && kind == "" && b.w.external[k]
+		if !v.IfExists && !external {
 			b.needKind(k, []string{relTable}, r.rng, notFound("table", r.written, ""), r.written, "table")
 		}
 		switch {
 		case f == walk.Present && kind == relView:
+		case f == walk.Present && kind == "" && b.w.materialized[k]:
+			// DROP TABLE of a materialized view is a no-op: the object stays,
+			// with its marker.
+			continue
+		case external:
+			b.Set(k, walk.Absent, "")
+			delete(b.w.external, k)
+			b.Forget(path)
+			b.droppedOwned(r)
 		case f == walk.Present && kind == "", f == walk.Unknown && v.IfExists:
 			// It may be a view, which DROP TABLE IF EXISTS leaves with a
 			// note (verified).
 			b.Set(k, walk.Unknown, "")
+			delete(b.w.materialized, k)
 			b.Forget(path)
 			b.droppedOwned(r)
 		default:
 			b.Set(k, walk.Absent, "")
+			delete(b.w.materialized, k)
+			delete(b.w.materializedLogs, k)
 			b.Clear(path)
 			b.droppedOwned(r)
 		}

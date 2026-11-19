@@ -199,11 +199,13 @@ var obGaps = map[string]gap{
 		twoWays("CANONICALIZATION: user vs stored not empty", "CANONICALIZATION (reverse): stored vs user not empty"),
 	},
 
-	// The one rewrite of a view's body the deparser does not follow, because the parser
-	// does not read what OceanBase prints.
+	// The one rewrite of a view's body the deparser does not follow: OceanBase prints
+	// WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0),
+	// which the parser reads now, but the user's WEIGHT_STRING(s) still deparses as
+	// weight_string(s), so the two forms are not the same text.
 	"TestOracle_ViewIdempotence/oceanbase/weight-string-forms": {
-		"OceanBase prints WEIGHT_STRING as its internal five-argument call, weight_string(`s`,0,4,64,0), which the parser does not read",
-		[]string{"load stored SDL failed"},
+		"OceanBase prints WEIGHT_STRING as its internal five-argument call, and the user form deparses as the plain call",
+		twoWays("CANONICALIZATION: user vs stored not empty for weight-string-forms", "CANONICALIZATION (reverse): stored vs user not empty for weight-string-forms"),
 	},
 
 	// Events. OceanBase keeps an event's comment when ALTER EVENT gives an empty one, and

@@ -191,7 +191,7 @@ func isExplainableInner(node ast.Node) bool {
 	}
 	switch node.(type) {
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.MergeStmt, *ast.TruncateTableStmt:
+		*ast.TruncateTableStmt:
 		return true
 	}
 	return false

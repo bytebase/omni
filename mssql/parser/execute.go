@@ -7,6 +7,104 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
+// parseImpliedExecStmt parses a procedure called by name without EXEC as a
+// batch's first statement. batch (TSql160.g:158) takes optSimpleExecute
+// (TSql160.g:567) before its statements, so
+//
+//	my_proc 1, 2
+//	my_proc
+//
+// runs the procedure `my_proc` when it is the batch's first statement, and
+// the same text elsewhere in a batch is not a statement at all. The predicate
+// on optSimpleExecute keeps its word from being DISABLE, ENABLE, MOVE, GET,
+// RECEIVE, SEND, THROW or RENAME: those start statements of their own, which
+// parseStmt reads first.
+//
+// Grammar: TSql160.g:567 optSimpleExecute, TSql160.g:26318 execProc, which is
+// ( procObjectReference | varObjectReference ) ( setParamList )? — the
+// procedure name with an optional ;number (procNumOpt, TSql160.g:26505) and
+// the arguments of EXEC, without EXEC's WITH options. Parse reads it only for
+// a batch that is the call and nothing else; why is beside that check.
+func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
+	loc := p.pos()
+	stmt := &nodes.ExecStmt{
+		Implied: true,
+		Loc:     nodes.Loc{Start: loc, End: -1},
+	}
+
+	// procedureReference (TSql160.g:26352): schemaObjectFourPartName
+	// procNumOpt. The name may start with dots, as `.a` does. execProc's other
+	// form, varObjectReference (TSql160.g:26342), names a variable, which a
+	// batch beginning here cannot declare: SQL Server reports 137 for it.
+	parts, err := p.parseMultiPartIdentifier("proc_ref")
+	if err != nil {
+		return nil, err
+	}
+	// The name ends after its last part; the procedure number is no part of
+	// it, as in EXEC's procedureReference (parseExecStmt).
+	ref := &nodes.TableRef{Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
+	assignObjectRefParts(ref, parts)
+	if p.cur.Type == ';' && p.peekNext().Type == tokICONST {
+		p.advance() // consume ;
+		p.advance() // consume number
+	}
+	stmt.Name = ref
+
+	// setParamList (TSql160.g:26422), the arguments EXEC takes. A variable
+	// among them is the batch's to declare; Parse reads it
+	// (impliedBatchVariable).
+	if p.impliedExecHasParams() {
+		args, err := p.parseExecArgList(true)
+		if err != nil {
+			return nil, err
+		}
+		if len(args) > 0 {
+			stmt.Args = &nodes.List{Items: args}
+		}
+	}
+
+	stmt.Loc.End = p.prevEnd()
+	return stmt, nil
+}
+
+// isImpliedExecName reports whether the current token can name a procedure
+// called by name without EXEC. optSimpleExecute's predicate keeps its word
+// from being DISABLE, ENABLE, MOVE, GET, RECEIVE, SEND or THROW
+// (TSql160.g:572), which start statements of their own: `ENABLE 1` is no call
+// (Msg 102, measured). RENAME is not among them: SQL Server 2022 has no
+// RENAME statement, so `RENAME a` is a call to a procedure RENAME, as it is
+// for ScriptDOM's identifier, and the Synapse forms omni does read are
+// dispatched before this by their OBJECT or DATABASE word.
+func (p *Parser) isImpliedExecName() bool {
+	if p.cur.Type != '.' && !p.isIdentLike() {
+		return false
+	}
+	if p.cur.Type == '.' || p.isDelimited(p.cur) {
+		return true
+	}
+	switch strings.ToUpper(p.cur.Str) {
+	case "DISABLE", "ENABLE", "MOVE", "GET", "RECEIVE", "SEND", "THROW":
+		return false
+	}
+	return true
+}
+
+// impliedExecHasParams reports whether the current token begins the
+// setParamList of a procedure called by name: a setParam begins with a value
+// (possibleNegativeConstantOrIdentifier, TSql160.g:5186), DEFAULT, or the
+// variable of `@p = value`, and any other token starts a statement, which
+// parseStmt reads — COMMIT, CHECKPOINT and BACKUP among them, which
+// isStatementStart does not name. A word is an identifier to ScriptDOM unless
+// it is one of its keywords, so omni's identifier-like tokens begin a value.
+func (p *Parser) impliedExecHasParams() bool {
+	switch p.cur.Type {
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokMONEY, kwNULL, kwDEFAULT,
+		tokVARIABLE, tokSYSVARIABLE, '-':
+		return true
+	}
+	return p.isIdentLike()
+}
+
 // parseExecStmt parses an EXEC/EXECUTE statement.
 //
 // BNF: mssql/parser/bnf/execute-transact-sql.bnf

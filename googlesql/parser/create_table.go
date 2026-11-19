@@ -218,6 +218,29 @@ func (p *Parser) matchCreateScope() string {
 //	  partition_by_clause_prefix_no_hint? cluster_by_clause_prefix_no_hint?
 //	  opt_ttl_clause? with_connection_clause? opt_options_list? as_query?
 func (p *Parser) parseCreateTable(create Token, orReplace bool, scope string) (ast.Node, error) {
+	stmt, err := p.parseCreateTablePrefix(create, orReplace, scope)
+	if err != nil {
+		return nil, err
+	}
+
+	// as_query?  — AS query (CTAS).
+	if p.cur.Type == kwAS {
+		p.advance() // AS
+		q, err := p.parseQuery()
+		if err != nil {
+			return nil, err
+		}
+		stmt.AsQuery = q
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseCreateTablePrefix parses create_table_statement_prefix — a CREATE TABLE
+// without the trailing AS query. cur is at TABLE. The pipe CREATE TABLE
+// operator uses it directly, since its rows come from the pipe input.
+func (p *Parser) parseCreateTablePrefix(create Token, orReplace bool, scope string) (*ast.CreateTableStmt, error) {
 	p.advance() // consume TABLE
 
 	stmt := &ast.CreateTableStmt{OrReplace: orReplace, Scope: scope}
@@ -356,14 +379,7 @@ func (p *Parser) parseCreateTable(create Token, orReplace bool, scope string) (a
 	}
 
 	// as_query?  — AS query (CTAS).
-	if p.cur.Type == kwAS {
-		p.advance() // AS
-		q, err := p.parseQuery()
-		if err != nil {
-			return nil, err
-		}
-		stmt.AsQuery = q
-	}
+	//	(the caller parses it; a pipe CREATE TABLE refuses it.)
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil

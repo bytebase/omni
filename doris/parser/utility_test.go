@@ -125,25 +125,24 @@ func TestExplainPlan(t *testing.T) {
 	}
 }
 
-func TestExplainShape(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN SHAPE SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "SHAPE" {
-		t.Errorf("Type = %q, want SHAPE", n.Type)
-	}
-}
-
-func TestExplainMemo(t *testing.T) {
-	file, errs := parseForTest("EXPLAIN MEMO SELECT 1")
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	n := file.Stmts[0].(*ast.ExplainStmt)
-	if n.Type != "MEMO" {
-		t.Errorf("Type = %q, want MEMO", n.Type)
+// The grammar derives a planType after EXPLAIN (DorisParser.g4:1073), and the
+// pinned engine refuses every one of them: EXPLAIN SHAPE SELECT 1 is a syntax
+// error (compat.tsv's planType/SHAPE and planType/MEMO rows), its legacy plan
+// types being gone, so neither does this parser.
+func TestExplainPlanTypeRejected(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN SHAPE SELECT 1",
+		"EXPLAIN MEMO SELECT 1",
+		"EXPLAIN PARSED SELECT 1",
+		"EXPLAIN ANALYZED SELECT 1",
+		"EXPLAIN REWRITTEN SELECT 1",
+		"EXPLAIN OPTIMIZED SELECT 1",
+		"EXPLAIN PHYSICAL SELECT 1",
+		"DESCRIBE OPTIMIZED VERBOSE SELECT 1",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 
@@ -449,6 +448,167 @@ func TestUtilityNodeTags(t *testing.T) {
 		}
 		if got := file.Stmts[0].Tag(); got != tt.wantTag {
 			t.Errorf("parseForTest(%q): Tag() = %v, want %v", tt.input, got, tt.wantTag)
+		}
+	}
+}
+
+// TestDescribeFunction: describe_command FUNCTION table_valued_function_ref
+// (DorisLegacyParser.g4:1631; DorisParser.g4:948 derives it too).
+func TestDescribeFunction(t *testing.T) {
+	stmt := parseOne(t, "DESCRIBE FUNCTION a()").(*ast.DescribeStmt)
+	if !stmt.Function {
+		t.Error("Function should be true")
+	}
+	if stmt.Target == nil || len(stmt.Target.Parts) != 1 || stmt.Target.Parts[0] != "a" {
+		t.Errorf("Target = %+v, want a", stmt.Target)
+	}
+}
+
+func TestDescribeFunctionArgsAndAlias(t *testing.T) {
+	stmt := parseOne(t, "DESCRIBE FUNCTION a('k' = 'v') zzz").(*ast.DescribeStmt)
+	if len(stmt.Args) != 1 || stmt.Args[0].Key != "k" || stmt.Args[0].Value != "v" {
+		t.Errorf("Args = %+v, want k=v", stmt.Args)
+	}
+	if stmt.TableAlias != "zzz" {
+		t.Errorf("TableAlias = %q, want zzz", stmt.TableAlias)
+	}
+}
+
+// TestDescribePartitions: describe_stmt's opt_partition_names
+// (DorisLegacyParser.g4:1629, DorisParser.g4:951 specifiedPartition).
+func TestDescribePartitions(t *testing.T) {
+	tests := []struct {
+		sql       string
+		partition []string
+		temporary bool
+	}{
+		{"DESCRIBE a PARTITION(a)", []string{"a"}, false},
+		{"DESCRIBE a PARTITION(a, b)", []string{"a", "b"}, false},
+		{"DESCRIBE a PARTITION a", []string{"a"}, false},
+		{"DESCRIBE a PARTITIONS(a)", []string{"a"}, false},
+		{"DESCRIBE a TEMPORARY PARTITION(a)", []string{"a"}, true},
+		{"DESCRIBE a TEMPORARY PARTITIONS(a)", []string{"a"}, true},
+		{"DESCRIBE a TEMPORARY PARTITION a", []string{"a"}, true},
+	}
+	for _, tc := range tests {
+		stmt := parseOne(t, tc.sql).(*ast.DescribeStmt)
+		if len(stmt.Partition) != len(tc.partition) {
+			t.Fatalf("%q: Partition = %q, want %q", tc.sql, stmt.Partition, tc.partition)
+		}
+		for i := range tc.partition {
+			if stmt.Partition[i] != tc.partition[i] {
+				t.Errorf("%q: Partition = %q, want %q", tc.sql, stmt.Partition, tc.partition)
+			}
+		}
+		if stmt.TempPartition != tc.temporary {
+			t.Errorf("%q: TempPartition = %v, want %v", tc.sql, stmt.TempPartition, tc.temporary)
+		}
+	}
+}
+
+// TestDescribePartitionStarRejected: specifiedPartition (DorisParser.g4:1627)
+// has no star form, so the engine refuses DESCRIBE t PARTITION(*), though the
+// CUP parser's partition_names (:2311) alone would take it.
+func TestDescribePartitionStarRejected(t *testing.T) {
+	for _, sql := range []string{"DESCRIBE a PARTITION(*)", "DESCRIBE a PARTITIONS(*)"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+// TestDescribeQueryIsExplain: DESCRIBE names an explain command when a query
+// or an INSERT follows (DorisParser.g4:52 statementBase is explain? query,
+// :1067 explainCommand is EXPLAIN, DESC or DESCRIBE).
+func TestDescribeQueryIsExplain(t *testing.T) {
+	stmt := parseOne(t, "DESCRIBE VERBOSE SELECT 1").(*ast.ExplainStmt)
+	if stmt.Type != "VERBOSE" {
+		t.Errorf("Type = %q, want VERBOSE", stmt.Type)
+	}
+	if _, ok := stmt.Query.(*ast.SelectStmt); !ok {
+		t.Errorf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+
+	stmt = parseOne(t, "DESCRIBE INSERT INTO a SELECT 1").(*ast.ExplainStmt)
+	if _, ok := stmt.Query.(*ast.InsertStmt); !ok {
+		t.Errorf("Query = %T, want *ast.InsertStmt", stmt.Query)
+	}
+}
+
+// TestDescribeInsertNeedsInto: the explain command states INSERT (INTO |
+// OVERWRITE TABLE) (DorisParser.g4:139, DorisLegacyParser.g4:1777), so the
+// bare head parseInsert tolerates is refused here.
+func TestDescribeInsertNeedsInto(t *testing.T) {
+	if _, err := Parse("DESCRIBE INSERT a SELECT 1"); err == nil {
+		t.Error("Parse(DESCRIBE INSERT a SELECT 1) succeeded, want a syntax error")
+	}
+}
+
+// tableAlias (:1393) carries an optional identifier list, and the name after
+// AS is required.
+func TestDescribeFunctionTableAliasColumns(t *testing.T) {
+	stmt := parseOne(t, "DESCRIBE FUNCTION a() AS v(c)").(*ast.DescribeStmt)
+	if stmt.TableAlias != "v" || len(stmt.TableColumns) != 1 || stmt.TableColumns[0] != "c" {
+		t.Errorf("alias = %q columns = %q, want v(c)", stmt.TableAlias, stmt.TableColumns)
+	}
+	if _, err := Parse("DESCRIBE FUNCTION a() AS"); err == nil {
+		t.Error("Parse(DESCRIBE FUNCTION a() AS) succeeded, want a syntax error")
+	}
+}
+
+// FULL scopes to describe_stmt's table-name alternative, so it does not prefix
+// FUNCTION.
+func TestDescribeFullFunctionRejected(t *testing.T) {
+	if _, err := Parse("DESCRIBE FULL FUNCTION a()"); err == nil {
+		t.Error("Parse(DESCRIBE FULL FUNCTION a()) succeeded, want a syntax error")
+	}
+}
+
+// explain : explainCommand planType? level? PROCESS? (:1061), so DESCRIBE takes
+// the same options EXPLAIN does.
+func TestDescribeExplainOptions(t *testing.T) {
+	tests := []struct {
+		sql      string
+		wantType string
+	}{
+		{"DESCRIBE TREE SELECT 1", "TREE"},
+		{"DESCRIBE PROCESS SELECT 1", "PROCESS"},
+		{"DESCRIBE VERBOSE SELECT 1", "VERBOSE"},
+		{"EXPLAIN PLAN PROCESS SELECT 1", "PLAN PROCESS"},
+	}
+	for _, tc := range tests {
+		stmt := parseOne(t, tc.sql).(*ast.ExplainStmt)
+		if stmt.Type != tc.wantType {
+			t.Errorf("Parse(%q): Type = %q, want %q", tc.sql, stmt.Type, tc.wantType)
+		}
+	}
+}
+
+// A partition clause needs the table name describe_stmt states first.
+// (TEMPORARY is no test for this: it is non-reserved, so DESCRIBE TEMPORARY
+// PARTITION(a) names a table TEMPORARY.)
+func TestDescribePartitionNeedsTarget(t *testing.T) {
+	if _, err := Parse("DESCRIBE PARTITION a"); err == nil {
+		t.Error("Parse(DESCRIBE PARTITION a) succeeded, want a syntax error")
+	}
+	stmt := parseOne(t, "DESCRIBE TEMPORARY PARTITION(a)").(*ast.DescribeStmt)
+	if stmt.Target == nil || stmt.Target.Parts[0] != "TEMPORARY" || len(stmt.Partition) != 1 {
+		t.Errorf("Target = %+v Partition = %q, want table TEMPORARY partition a", stmt.Target, stmt.Partition)
+	}
+}
+
+// explain gives PROCESS one slot after the level.
+func TestExplainOneProcess(t *testing.T) {
+	if _, err := Parse("EXPLAIN PLAN PROCESS PROCESS SELECT 1"); err == nil {
+		t.Error("Parse(EXPLAIN PLAN PROCESS PROCESS SELECT 1) succeeded, want a syntax error")
+	}
+}
+
+// ALL is an alternative to describe_stmt's partition list, not a tail on it.
+func TestDescribePartitionAndAll(t *testing.T) {
+	for _, sql := range []string{"DESCRIBE a PARTITION(a) ALL", "DESCRIBE a PARTITION(a) ALL VERBOSE"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
 		}
 	}
 }

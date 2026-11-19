@@ -190,19 +190,25 @@ var _ Node = (*TruncateTableStmt)(nil)
 // COPY INTO statement (T6.1)
 // ---------------------------------------------------------------------------
 
-// CopyIntoStmt represents a COPY INTO statement:
+// CopyIntoStmt represents a COPY INTO statement (DorisParser.g4:936
+// copyInto):
 //
-//	COPY INTO target FROM @stage_or_path
-//	    [FILES = ('f1', 'f2')]
-//	    [PATTERN = 'glob']
-//	    [PROPERTIES(...)]
+//	COPY INTO target [( c1, c2, ... )] FROM source [PROPERTIES(...)]
+//
+// where source is a stage — @stage, @~, or @stage('glob') — or a query over
+// one, (SELECT ... FROM @stage [WHERE ...]). The columns to load come after
+// the target table, and everything a load configures beyond the stage and the
+// query is a property.
 type CopyIntoStmt struct {
-	Target     *ObjectName // destination table
-	Source     string      // FROM stage/path string value
-	Files      []string    // optional FILES = ('f1', 'f2', ...)
-	Pattern    string      // optional PATTERN = '...'
-	Properties []*Property
-	Loc        Loc
+	Target      *ObjectName   // destination table
+	Columns     []string      // optional column list, COPY INTO t(c1, c2)
+	Stage       string        // the stage as written: "@stage", "@`stage`" or "@~"
+	Pattern     string        // the glob of @stage('glob'), or ""
+	HasPattern  bool          // whether a glob was stated, since @stage('') states an empty one
+	SelectItems []*SelectItem // the query's select list, for (SELECT ... FROM @stage)
+	Where       Node          // the query's WHERE, or nil
+	Properties  []*Property
+	Loc         Loc
 }
 
 // Tag implements Node.
@@ -288,20 +294,25 @@ var _ Node = (*LoadDataStmt)(nil)
 // EXPORT statement (T6.1)
 // ---------------------------------------------------------------------------
 
-// ExportStmt represents an EXPORT TABLE statement:
+// ExportStmt represents an EXPORT TABLE statement
+// (DorisParser.g4:159-163):
 //
 //	EXPORT TABLE name [PARTITION(p1, p2, ...)] [WHERE expr]
 //	    TO 'path'
 //	    [PROPERTIES(...)]
-//	    [WITH BROKER name (...)]
+//	    [WITH RESOURCE name [(...)] | WITH (S3|HDFS|LOCAL) (...) | WITH BROKER name [(...)]]
+//
+// The storage system's fields are named as LoadDataStmt's are, which takes
+// the same withRemoteStorageSystem clause.
 type ExportStmt struct {
 	Target           *ObjectName // table to export
 	Partition        []string    // optional PARTITION(...)
 	Where            Node        // optional WHERE clause
 	Path             string      // TO 'path'
 	Properties       []*Property // optional PROPERTIES(...)
-	BrokerName       string      // optional WITH BROKER name
-	BrokerProperties []*Property // optional WITH BROKER name (...) list
+	StorageType      string      // BROKER, RESOURCE, S3, HDFS or LOCAL, or ""
+	BrokerName       string      // WITH BROKER or WITH RESOURCE name
+	BrokerProperties []*Property // the storage system's (...) list
 	Loc              Loc
 }
 
@@ -310,6 +321,55 @@ func (n *ExportStmt) Tag() NodeTag { return T_ExportStmt }
 
 // Compile-time assertion that *ExportStmt satisfies Node.
 var _ Node = (*ExportStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// LOAD property statement
+// ---------------------------------------------------------------------------
+
+// LoadPropertyStmt represents one load property that Doris's grammar also
+// derives as a statement of its own (DorisParser.g4:389-393, the
+// importSequenceStatement and its four siblings under
+// unsupportedLoadStatement), and that the CUP parser's import_*_stmt
+// (DorisLegacyParser.g4:48-83) also takes:
+//
+//	ORDER BY name             Kind "SEQUENCE"
+//	COLUMNS (desc, ...)       Kind "COLUMNS"
+//	PRECEDING FILTER expr     Kind "PRECEDING FILTER"
+//	WHERE expr                Kind "WHERE"
+//	DELETE ON expr            Kind "DELETE ON"
+//
+// The clause's operands are kept as the nodes they parsed to, so a subquery
+// they hold is a table read like any other; Text keeps the clause as written,
+// as CreateRoutineLoadStmt keeps the load properties it carries.
+type LoadPropertyStmt struct {
+	Kind    string              // the clause's name, as listed above
+	Name    string              // ORDER BY's column
+	Expr    Node                // WHERE, DELETE ON and PRECEDING FILTER's expression
+	Columns []*ImportColumnDesc // COLUMNS(...)'s column list
+	Text    string              // the clause's source text, as written
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *LoadPropertyStmt) Tag() NodeTag { return T_LoadPropertyStmt }
+
+// Compile-time assertion that *LoadPropertyStmt satisfies Node.
+var _ Node = (*LoadPropertyStmt)(nil)
+
+// ImportColumnDesc is one column of COLUMNS(...) (DorisParser.g4:410
+// importColumnDesc): name ('=' booleanExpression)?, the parenthesized spelling
+// allowed after the first.
+type ImportColumnDesc struct {
+	Name string
+	Expr Node // optional '=' booleanExpression; nil if absent
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ImportColumnDesc) Tag() NodeTag { return T_ImportColumnDesc }
+
+// Compile-time assertion that *ImportColumnDesc satisfies Node.
+var _ Node = (*ImportColumnDesc)(nil)
 
 // ROUTINE LOAD statements (T6.2)
 // ---------------------------------------------------------------------------

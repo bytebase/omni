@@ -190,6 +190,11 @@ type View struct {
 	// refused for a name it does not find (viewNameColumnGaps).
 	namesUncertain bool
 	IsUpdatable    bool
+	// Materialized marks the view a CREATE MATERIALIZED VIEW or a snapshot's
+	// materialized view installed. The catalog holds both as the view the query
+	// is, and this keeps a materialized view distinct from an ordinary view when
+	// one statement names the other.
+	Materialized bool
 }
 
 type ViewColumn struct {

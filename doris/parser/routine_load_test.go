@@ -557,3 +557,64 @@ func TestCreateRoutineLoad_QuotedName(t *testing.T) {
 		t.Errorf("Name.Parts = %q", stmt.Name.Parts)
 	}
 }
+
+// TestLoadPropertyStatements: Doris's grammar also derives the load properties
+// as statements of their own (DorisParser.g4:389-393), which the CUP parser's
+// import_*_stmt take too (DorisLegacyParser.g4:48-83).
+func TestLoadPropertyStatements(t *testing.T) {
+	tests := []struct {
+		sql  string
+		kind string
+	}{
+		{"ORDER BY a", "SEQUENCE"},
+		{"COLUMNS(a)", "COLUMNS"},
+		{"PRECEDING FILTER CURRENT_DATE", "PRECEDING FILTER"},
+		{"WHERE CURRENT_DATE", "WHERE"},
+		{"DELETE ON CURRENT_DATE", "DELETE ON"},
+	}
+	for _, tc := range tests {
+		stmt, ok := parseOne(t, tc.sql).(*ast.LoadPropertyStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): want *ast.LoadPropertyStmt", tc.sql)
+		}
+		if stmt.Kind != tc.kind {
+			t.Errorf("Parse(%q): Kind = %q, want %q", tc.sql, stmt.Kind, tc.kind)
+		}
+		if stmt.Text != tc.sql {
+			t.Errorf("Parse(%q): Text = %q, want the clause as written", tc.sql, stmt.Text)
+		}
+	}
+}
+
+// The clause keeps the nodes it read, so a subquery in one is a read a consumer
+// can see.
+func TestLoadPropertyStmtKeepsExpressions(t *testing.T) {
+	stmt := parseOne(t, "WHERE 1 IN (SELECT id FROM secret)").(*ast.LoadPropertyStmt)
+	if stmt.Expr == nil {
+		t.Fatal("Expr is nil, want the WHERE expression")
+	}
+	var subqueries int
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if _, ok := n.(*ast.SubqueryExpr); ok {
+			subqueries++
+		}
+		return true
+	})
+	if subqueries == 0 {
+		t.Error("the WHERE expression carries no subquery node")
+	}
+
+	stmt = parseOne(t, "COLUMNS(a = (SELECT id FROM secret))").(*ast.LoadPropertyStmt)
+	if len(stmt.Columns) != 1 || stmt.Columns[0].Expr == nil {
+		t.Fatalf("Columns = %+v, want one column with an expression", stmt.Columns)
+	}
+}
+
+// The statement alternative is importColumnsStatement, which always states its
+// list: COLUMNS TERMINATED BY is a load property of LOAD and CREATE ROUTINE
+// LOAD only.
+func TestLoadPropertyColumnsNeedsList(t *testing.T) {
+	if _, err := Parse("COLUMNS TERMINATED BY ','"); err == nil {
+		t.Error("Parse(COLUMNS TERMINATED BY ',') succeeded, want a syntax error")
+	}
+}

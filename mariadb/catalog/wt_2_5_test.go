@@ -31,12 +31,12 @@ func TestWalkThrough_2_5_CreateOrReplaceViewOnExisting(t *testing.T) {
 
 func TestWalkThrough_2_5_DropViewUnknown(t *testing.T) {
 	c := wtSetup(t)
-	// DROP VIEW on non-existent view → ErrUnknownTable (1051).
+	// DROP VIEW on non-existent view → Unknown VIEW (4092).
 	results, err := c.Exec("DROP VIEW unknown_view", nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	assertError(t, results[0].Error, ErrUnknownTable)
+	assertError(t, results[0].Error, ErrUnknownView)
 }
 
 func TestWalkThrough_2_5_DropViewIfExistsUnknown(t *testing.T) {

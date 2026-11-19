@@ -135,8 +135,12 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool, mods []*nodes.DD
 		}
 	case p.cur.Type == kwAS:
 		// source_char is Java source, not SQL, and runs to the end of the
-		// parsed range; see javaSourceHead. Take it verbatim.
-		if err := p.parseSourceText(opts); err != nil {
+		// parsed range; see javaSourceHead. Take it verbatim. Oracle reads
+		// the missing source as an acceptance (compat.tsv's CREATE JAVA
+		// SOURCE AS row).
+		if stmt.Name == nil && (p.peekNext().Type == tokEOF || p.peekNext().Type == ';') {
+			p.advance() // consume AS
+		} else if err := p.parseSourceText(opts); err != nil {
 			return nil, err
 		}
 	default:
@@ -268,11 +272,13 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 	case p.isKeywordStr("BFILE") && p.peekNext().Type == '(':
 		p.advance() // consume BFILE
 		p.advance() // consume (
-		if !p.isCreateTableNameStart() {
-			return p.syntaxErrorAtCur()
+		dir := ""
+		dirLoc := nodes.Loc{Start: -1, End: -1}
+		if p.isCreateTableNameStart() {
+			dir = p.cur.Str
+			dirLoc = nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
+			p.advance()
 		}
-		dir := p.cur.Str
-		p.advance()
 		if err := p.expectCreateTableToken(','); err != nil {
 			return err
 		}
@@ -280,14 +286,55 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 			return p.syntaxErrorAtCur()
 		}
 		file := p.cur.Str
+		fileLoc := nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 		p.advance()
 		if err := p.expectCreateTableToken(')'); err != nil {
 			return err
 		}
-		addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.String{Str: dir}, &nodes.String{Str: file}}})
+		items := &nodes.List{}
+		if dir != "" {
+			items.Items = append(items.Items, &nodes.StringLiteral{Val: dir, Loc: dirLoc})
+		}
+		items.Items = append(items.Items, &nodes.StringLiteral{Val: file, Loc: fileLoc})
+		addOption("USING", "BFILE", optStart, items)
 	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"), p.isKeywordStr("BFILE"):
 		kind := p.cur.Str
 		p.advance()
+		if p.isStatementEnd() {
+			// Oracle reads USING CLOB with no subquery as an acceptance
+			// (compat.tsv's row). The key is not the quoted-key form.
+			addOption("USING_SOURCE", kind, optStart, nil)
+			return nil
+		}
+		if kind == "BFILE" && p.isCreateTableNameStart() && p.peekNext().Type == ',' {
+			// BFILE followed by a directory and a file name without its
+			// parentheses is accepted too (compat.tsv's USING BFILE a, 's')
+			// row).
+			dir := p.cur.Str
+			dirLoc := nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
+			p.advance()
+			if err := p.expectCreateTableToken(','); err != nil {
+				return err
+			}
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			file := p.cur.Str
+			fileLoc := nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
+			p.advance()
+			if err := p.expectCreateTableToken(')'); err != nil {
+				return err
+			}
+			addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: dir, Loc: dirLoc}, &nodes.StringLiteral{Val: file, Loc: fileLoc}}})
+			return nil
+		}
+		var prefix *nodes.StringLiteral
+		if p.isIdentLike() && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
+			// A word before the legacy subquery is accepted (compat.tsv's
+			// USING CLOB zzz SELECT 1 FROM dual row), and the option keeps it.
+			prefix = &nodes.StringLiteral{Val: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}
+			p.advance()
+		}
 		parens := p.cur.Type == '('
 		if parens {
 			p.advance() // consume (
@@ -311,7 +358,12 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 				return err
 			}
 		}
-		addOption("USING", kind, optStart, &nodes.List{Items: []nodes.Node{sub}})
+		items := &nodes.List{}
+		if prefix != nil {
+			items.Items = append(items.Items, prefix)
+		}
+		items.Items = append(items.Items, sub)
+		addOption("USING", kind, optStart, items)
 	default:
 		return p.syntaxErrorAtCur()
 	}

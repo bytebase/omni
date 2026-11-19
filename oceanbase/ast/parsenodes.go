@@ -180,6 +180,9 @@ type CreateTableStmt struct {
 	Loc         Loc
 	IfNotExists bool
 	Temporary   bool
+	// External is set by CREATE EXTERNAL TABLE's special_table_type, which is
+	// one of TEMPORARY and EXTERNAL and never both.
+	External    bool
 	Table       *TableRef
 	Columns     []*ColumnDef
 	Constraints []*Constraint
@@ -197,8 +200,11 @@ func (s *CreateTableStmt) stmtNode() {}
 
 // AlterTableStmt represents an ALTER TABLE statement.
 type AlterTableStmt struct {
-	Loc      Loc
-	Table    *TableRef
+	Loc   Loc
+	Table *TableRef
+	// External is set by ALTER EXTERNAL TABLE, which takes the same actions and
+	// two of its own: ADD PARTITION (...) LOCATION 's' and DROP PARTITION LOCATION 's'.
+	External bool
 	Commands []*AlterTableCmd
 }
 
@@ -272,6 +278,11 @@ const (
 	// and Option, where DELAYED stands, names it.
 	ATAddColumnGroup
 	ATDropColumnGroup
+	// ALTER EXTERNAL TABLE's own actions: ADD PARTITION (...) LOCATION 's'
+	// holds the added partitions in PartitionValues and the path in Location;
+	// DROP PARTITION LOCATION 's' holds only the path.
+	ATAddExternalPartition
+	ATDropExternalPartition
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -297,6 +308,11 @@ type AlterTableCmd struct {
 	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem   // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
+	// PartitionValues holds an external table's added partitions, each a column
+	// and its value, and Location the path that follows them (or the one a DROP
+	// PARTITION names).
+	PartitionValues []*Assignment
+	Location        string
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -394,6 +410,75 @@ type CreateViewStmt struct {
 
 func (s *CreateViewStmt) nodeTag()  {}
 func (s *CreateViewStmt) stmtNode() {}
+
+// CreateMaterializedViewStmt represents a CREATE MATERIALIZED VIEW statement.
+//
+// Ref: create_mview_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9766).
+type CreateMaterializedViewStmt struct {
+	Loc          Loc
+	Name         *TableRef
+	Columns      []string                    // opt_mv_column_list's column_name_list
+	PrimaryKey   *MaterializedViewPrimaryKey // PRIMARY KEY (...) beside the columns, if any
+	Options      []*TableOption              // opt_table_option_list
+	Partitions   *PartitionClause            // opt_partition_option
+	ColumnGroup  string                      // WITH COLUMN GROUP (...), as written
+	MviewOptions *MviewOptions               // create_mview_opts
+	Select       *SelectStmt
+	SelectText   string // raw SQL text of the AS view_select_stmt portion
+	CheckOption  string // CASCADED, LOCAL
+}
+
+func (s *CreateMaterializedViewStmt) nodeTag()  {}
+func (s *CreateMaterializedViewStmt) stmtNode() {}
+
+// MaterializedViewPrimaryKey is the PRIMARY KEY (...) clause of a materialized
+// view's column list.
+type MaterializedViewPrimaryKey struct {
+	Loc       Loc
+	Columns   []string
+	IndexType string // BTREE or HASH, from USING; empty when unspecified
+	Comment   string
+}
+
+func (p *MaterializedViewPrimaryKey) nodeTag() {}
+
+// MviewOptions holds create_mview_opts: the refresh clause and the two
+// ENABLE/DISABLE switches that may follow it in either order.
+type MviewOptions struct {
+	Loc                Loc
+	Refresh            *MviewRefreshInfo // nil when no refresh clause is written
+	OnQueryComputation string            // ENABLE or DISABLE; empty when absent
+	QueryRewrite       string            // ENABLE or DISABLE; empty when absent
+}
+
+func (o *MviewOptions) nodeTag() {}
+
+// MviewRefreshInfo is one materialized view refresh clause. Which fields are
+// set depends on the form it came from: NEVER REFRESH sets Never; REFRESH
+// <method> sets Method and the optional clauses after it; an ALTER MATERIALIZED
+// VIEW action that names an interval sets StartWith and Next; one that names a
+// nested refresh mode sets NestedRefresh.
+type MviewRefreshInfo struct {
+	Loc           Loc
+	Never         bool     // NEVER REFRESH
+	Method        string   // FAST, COMPLETE, FORCE
+	NestedRefresh string   // INDIVIDUAL, INCONSISTENT, CONSISTENT
+	On            string   // DEMAND, COMMIT, STATEMENT
+	StartWith     ExprNode // START WITH <bit_expr>
+	Next          ExprNode // NEXT <bit_expr>
+}
+
+func (r *MviewRefreshInfo) nodeTag() {}
+
+// ParallelOption is parallel_option: PARALLEL [=] n or NOPARALLEL.
+type ParallelOption struct {
+	Loc        Loc
+	NoParallel bool
+	Degree     int64 // PARALLEL's degree; 0 for NOPARALLEL
+}
+
+func (o *ParallelOption) nodeTag() {}
 
 // CreateDatabaseStmt represents a CREATE DATABASE statement.
 type CreateDatabaseStmt struct {
@@ -833,6 +918,10 @@ const (
 	AggQuantAll
 	AggQuantDistinctAll
 	AggQuantDistinctRowAll
+	// AggQuantUnique is COUNT's UNIQUE spelling. It de-duplicates like
+	// DISTINCT, but the written word is kept because an automatic column
+	// name is the text as written.
+	AggQuantUnique
 )
 
 // String returns the quantifier as written, empty for AggQuantNone.
@@ -848,6 +937,8 @@ func (q AggQuantifier) String() string {
 		return "DISTINCT ALL"
 	case AggQuantDistinctRowAll:
 		return "DISTINCTROW ALL"
+	case AggQuantUnique:
+		return "UNIQUE"
 	}
 	return ""
 }
@@ -858,7 +949,7 @@ func (q AggQuantifier) String() string {
 // an in_sum_expr whose own opt_all follows it.
 func (q AggQuantifier) RemovesDuplicates() bool {
 	switch q {
-	case AggQuantDistinct, AggQuantDistinctRow, AggQuantDistinctAll, AggQuantDistinctRowAll:
+	case AggQuantDistinct, AggQuantDistinctRow, AggQuantDistinctAll, AggQuantDistinctRowAll, AggQuantUnique:
 		return true
 	}
 	return false
@@ -876,6 +967,10 @@ type SubqueryExpr struct {
 	Alias      string   // AS alias (for derived tables)
 	Columns    []string // derived table column alias list: (SELECT ...) AS t(c1, c2)
 	Quantifier string   // "ANY" / "SOME" / "ALL" for `expr op {ANY|SOME|ALL} (subquery)`; empty for scalar subquery
+	// Flashback is the use_flashback a derived table may carry before its alias,
+	// as in `FROM (SELECT ...) AS OF SNAPSHOT 1 t` (table_factor's
+	// select_with_parens use_flashback alternative).
+	Flashback *TableFlashback
 }
 
 func (e *SubqueryExpr) nodeTag()   {}
@@ -1037,6 +1132,43 @@ type TableRef struct {
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// ExternalTableRef is a table read from a location rather than from a stored
+// table. tbl_name takes it as url_expr: a quoted path with its FORMAT and
+// PATTERN, or OceanBase's SOURCE(...) and FILES(...) table functions, with
+// opt_as_alias after it.
+//
+// Ref: url_expr and url_table_function_expr in sql_parser_mysql_mode.y
+// (oceanbase v4.3.5_CE_BP6, lines 14499-14549).
+type ExternalTableRef struct {
+	Loc Loc
+	// Function is "SOURCE" or "FILES" for a table function, and "" for a quoted
+	// path. A path names its location itself, and SOURCE(...) carries properties
+	// rather than a path; FILES(...) names its location with LOCATION.
+	Function string
+	Path     string              // the location: the quoted path, or FILES' LOCATION 's'
+	Source   []*ExternalProperty // SOURCE(...): external_properties_list
+	Format   []*ExternalProperty // FORMAT(...): external_file_format_list
+	Pattern  string              // PATTERN 's'
+	// PatternSet marks the clause present, since PATTERN '' is a pattern and not
+	// an absent one.
+	PatternSet bool
+	Alias      string // opt_as_alias: AS relation_name
+}
+
+func (r *ExternalTableRef) nodeTag()   {}
+func (r *ExternalTableRef) tableExpr() {}
+
+// ExternalProperty is one entry of a SOURCE(...) or FORMAT(...) list: a word
+// and the value the grammar gives it, as TYPE = 'csv' or SKIP_HEADER = 1.
+// NULL_IF and COLUMN_BLOOM_FILTER keep their parenthesized list as a RowExpr.
+type ExternalProperty struct {
+	Loc   Loc
+	Name  string   // the property's word, in upper case
+	Value ExprNode // its value
+}
+
+func (p *ExternalProperty) nodeTag() {}
 
 // TableSample is the sample_clause of a table reference, with its seed:
 // SAMPLE [BLOCK | HYBRID] [ALL | BASE | INCR] (percent) [SEED (n)].
@@ -1926,15 +2058,23 @@ func (s *EventSchedule) nodeTag() {}
 // `(a, @v)` names a column and a variable rather than two columns, one of
 // them called "@v".
 type LoadDataStmt struct {
-	Loc                Loc
-	IsXML              bool // true for LOAD XML, false for LOAD DATA
-	LowPriority        bool // LOW_PRIORITY modifier
-	Concurrent         bool // CONCURRENT modifier
-	Local              bool
-	Infile             string // INFILE 'file_name' (empty for the Aurora S3 form)
-	FromS3             bool   // Aurora MySQL: LOAD DATA [FROM] S3 ... / LOAD XML FROM S3 ...
-	S3Kind             string // Aurora MySQL: FILE | PREFIX | MANIFEST (empty when omitted; FILE is the server default)
-	S3URI              string // Aurora MySQL: the 's3[-region]://bucket/key' literal after S3 [FILE | PREFIX | MANIFEST]
+	Loc         Loc
+	IsXML       bool // true for LOAD XML, false for LOAD DATA
+	LowPriority bool // LOW_PRIORITY modifier
+	Concurrent  bool // CONCURRENT modifier
+	Local       bool
+	Infile      string // INFILE 'file_name' (empty for the Aurora S3 form)
+	FromS3      bool   // Aurora MySQL: LOAD DATA [FROM] S3 ... / LOAD XML FROM S3 ...
+	S3Kind      string // Aurora MySQL: FILE | PREFIX | MANIFEST (empty when omitted; FILE is the server default)
+	S3URI       string // Aurora MySQL: the 's3[-region]://bucket/key' literal after S3 [FILE | PREFIX | MANIFEST]
+	// Source is OceanBase's LOAD DATA ... FROM url_spec: a location the rows come
+	// from, instead of an INFILE. A url_spec that is a query over one is in
+	// SourceQuery.
+	Source      *ExternalTableRef
+	SourceQuery *SelectStmt
+	// OnError is opt_on_error, as written: "LOG ERRORS",
+	// "LOG ERRORS REJECT LIMIT 1" or "LOG ERRORS REJECT LIMIT UNLIMITED".
+	OnError            string
 	Replace            bool
 	Ignore             bool
 	Table              *TableRef
@@ -2003,6 +2143,43 @@ type AnalyzeTableStmt struct {
 
 func (s *AnalyzeTableStmt) nodeTag()  {}
 func (s *AnalyzeTableStmt) stmtNode() {}
+
+// MethodOptStmt is method_opt, which the grammar reaches as a statement of its
+// own (stmt: method_opt): the statistics method of DBMS_STATS, which the server
+// parses and runs nothing for.
+//
+// Ref: method_opt, method_list, method, for_all, size_clause, for_columns and
+// for_columns_item in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, lines
+// 23802-23941).
+type MethodOptStmt struct {
+	Loc     Loc
+	Methods []*StatsMethod
+}
+
+func (s *MethodOptStmt) nodeTag()  {}
+func (s *MethodOptStmt) stmtNode() {}
+
+// StatsMethod is one method of method_opt: FOR ALL [INDEXED | HIDDEN] COLUMNS
+// [size_clause], or FOR COLUMNS with its for_columns_list.
+type StatsMethod struct {
+	Loc     Loc
+	ForAll  bool                   // FOR ALL, where false is FOR COLUMNS
+	Indexed string                 // "INDEXED" or "HIDDEN", and "" without one
+	Size    string                 // FOR ALL's size_clause: "AUTO", "REPEAT", "SKEWONLY" or a number
+	Items   []*StatsForColumnsItem // for_columns_list, for FOR COLUMNS
+}
+
+func (m *StatsMethod) nodeTag() {}
+
+// StatsForColumnsItem is one for_columns_item: a column_clause, a size_clause,
+// or a column with the size that follows it.
+type StatsForColumnsItem struct {
+	Loc     Loc
+	Columns []string // column_clause: one column name, or an extension's '(' column_name_list ')'
+	Size    string   // size_clause: "AUTO", "REPEAT", "SKEWONLY" or the number as written
+}
+
+func (i *StatsForColumnsItem) nodeTag() {}
 
 // OptimizeTableStmt represents an OPTIMIZE TABLE statement.
 type OptimizeTableStmt struct {
@@ -2170,17 +2347,107 @@ type DropIndexStmt struct {
 func (s *DropIndexStmt) nodeTag()  {}
 func (s *DropIndexStmt) stmtNode() {}
 
-// DropViewStmt represents a DROP VIEW statement.
+// DropViewStmt represents a DROP VIEW statement, and DROP MATERIALIZED VIEW
+// when Materialized is set.
 type DropViewStmt struct {
-	Loc      Loc
-	IfExists bool
-	Views    []*TableRef
-	Cascade  bool
-	Restrict bool
+	Loc          Loc
+	IfExists     bool
+	Views        []*TableRef
+	Cascade      bool
+	Restrict     bool
+	Materialized bool // DROP MATERIALIZED VIEW rather than DROP VIEW
 }
 
 func (s *DropViewStmt) nodeTag()  {}
 func (s *DropViewStmt) stmtNode() {}
+
+// DropMaterializedViewLogStmt represents DROP MATERIALIZED VIEW LOG ON <table>.
+//
+// Ref: drop_mlog_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 10926).
+type DropMaterializedViewLogStmt struct {
+	Loc   Loc
+	Table *TableRef
+}
+
+func (s *DropMaterializedViewLogStmt) nodeTag()  {}
+func (s *DropMaterializedViewLogStmt) stmtNode() {}
+
+// CreateMaterializedViewLogStmt represents CREATE [OR REPLACE] MATERIALIZED
+// VIEW LOG ON <table>.
+//
+// Ref: create_mlog_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 10724).
+type CreateMaterializedViewLogStmt struct {
+	Loc       Loc
+	OrReplace bool
+	Table     *TableRef
+	Options   []*ParallelOption // opt_mlog_option_list
+	With      *MlogWith         // nil when no WITH clause is written
+	NewValues string            // INCLUDING or EXCLUDING; empty when absent
+	Purge     *MlogPurge        // nil when no PURGE clause is written
+}
+
+func (s *CreateMaterializedViewLogStmt) nodeTag()  {}
+func (s *CreateMaterializedViewLogStmt) stmtNode() {}
+
+// MlogWith is the WITH clause of a materialized view log: any special columns
+// (ROWID, PRIMARY KEY, SEQUENCE), then an optional parenthesized list of
+// reference columns. HasReferenceList tells an absent list from WITH ().
+type MlogWith struct {
+	Loc              Loc
+	SpecialColumns   []string // ROWID, PRIMARY KEY, SEQUENCE, in order
+	ReferenceColumns []string
+	HasReferenceList bool // the (...) after the special columns was written
+}
+
+func (w *MlogWith) nodeTag() {}
+
+// MlogPurge is the PURGE clause of a materialized view log.
+type MlogPurge struct {
+	Loc       Loc
+	Immediate bool   // PURGE IMMEDIATE
+	Sync      string // SYNCHRONOUS or ASYNCHRONOUS; empty when absent
+	StartWith ExprNode
+	Next      ExprNode
+}
+
+func (p *MlogPurge) nodeTag() {}
+
+// AlterMaterializedViewLogStmt represents ALTER MATERIALIZED VIEW LOG ON
+// <table> with one or more actions.
+//
+// Ref: alter_mlog_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 10075).
+type AlterMaterializedViewLogStmt struct {
+	Loc     Loc
+	Table   *TableRef
+	Actions []*AlterMlogAction
+}
+
+func (s *AlterMaterializedViewLogStmt) nodeTag()  {}
+func (s *AlterMaterializedViewLogStmt) stmtNode() {}
+
+// AlterMlogActionType enumerates the actions alter_mlog_action takes.
+type AlterMlogActionType int
+
+const (
+	AMLogParallel          AlterMlogActionType = iota // parallel_option
+	AMLogPurge                                        // PURGE mv_refresh_interval
+	AMLogLobInRowThreshold                            // LOB_INROW_THRESHOLD [=] n
+)
+
+// AlterMlogAction is one action of ALTER MATERIALIZED VIEW LOG.
+type AlterMlogAction struct {
+	Loc       Loc
+	Type      AlterMlogActionType
+	Parallel  *ParallelOption // AMLogParallel
+	StartWith ExprNode        // AMLogPurge
+	Next      ExprNode        // AMLogPurge
+	Threshold int64           // AMLogLobInRowThreshold
+}
+
+func (a *AlterMlogAction) nodeTag() {}
 
 // ParenExpr represents a parenthesized expression.
 type ParenExpr struct {
@@ -2350,6 +2617,36 @@ type JsonTableColumn struct {
 }
 
 func (c *JsonTableColumn) nodeTag() {}
+
+// RbIterateExpr is RB_ITERATE(expr) [AS] alias [(column)], a table function of
+// OceanBase's own: the rows of an array produced by a row-based expression.
+//
+// Ref: rb_iterate_expr in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6,
+// line 25536).
+type RbIterateExpr struct {
+	Loc    Loc
+	Arg    ExprNode // the simple_expr inside the parentheses
+	Alias  string   // [AS] relation_name
+	Column string   // the relation_name in parentheses after the alias, and "" without one
+}
+
+func (e *RbIterateExpr) nodeTag()   {}
+func (e *RbIterateExpr) tableExpr() {}
+
+// UnnestExpr is UNNEST(expr_list) [AS] alias [(column list)], which reads the
+// rows of the arrays its arguments produce.
+//
+// Ref: unnest_expr in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6, line
+// 25559).
+type UnnestExpr struct {
+	Loc     Loc
+	Args    []ExprNode // simple_expr_list
+	Alias   string     // [AS] relation_name
+	Columns []string   // relation_name_list in parentheses after the alias
+}
+
+func (e *UnnestExpr) nodeTag()   {}
+func (e *UnnestExpr) tableExpr() {}
 
 // SetTransactionStmt represents a SET TRANSACTION statement.
 type SetTransactionStmt struct {
@@ -3004,6 +3301,44 @@ type AlterViewStmt struct {
 
 func (s *AlterViewStmt) nodeTag()  {}
 func (s *AlterViewStmt) stmtNode() {}
+
+// AlterMaterializedViewStmt represents ALTER MATERIALIZED VIEW with one or
+// more actions.
+//
+// Ref: alter_mview_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9985).
+type AlterMaterializedViewStmt struct {
+	Loc     Loc
+	Name    *TableRef
+	Actions []*AlterMviewAction
+}
+
+func (s *AlterMaterializedViewStmt) nodeTag()  {}
+func (s *AlterMaterializedViewStmt) stmtNode() {}
+
+// AlterMviewActionType enumerates the actions alter_mview_action takes.
+type AlterMviewActionType int
+
+const (
+	AMViewEnableOnQueryComputation AlterMviewActionType = iota // [ENABLE|DISABLE] ON QUERY COMPUTATION
+	AMViewEnableQueryRewrite                                   // [ENABLE|DISABLE] QUERY REWRITE
+	AMViewParallel                                             // opt_set parallel_option
+	AMViewRefreshMethod                                        // REFRESH {FAST|COMPLETE|FORCE}
+	AMViewNeverRefresh                                         // NEVER REFRESH
+	AMViewRefreshInterval                                      // REFRESH [START WITH e] [NEXT e]
+	AMViewNestedRefresh                                        // REFRESH {INDIVIDUAL|INCONSISTENT|CONSISTENT}
+)
+
+// AlterMviewAction is one action of ALTER MATERIALIZED VIEW.
+type AlterMviewAction struct {
+	Loc      Loc
+	Type     AlterMviewActionType
+	Enable   bool            // the ENABLE/DISABLE switches
+	Parallel *ParallelOption // AMViewParallel
+	Refresh  *MviewRefreshInfo
+}
+
+func (a *AlterMviewAction) nodeTag() {}
 
 // AlterEventStmt represents an ALTER EVENT statement.
 type AlterEventStmt struct {

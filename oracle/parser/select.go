@@ -799,6 +799,12 @@ func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 		if parseErr962 != nil {
 			return nil, parseErr962
 		}
+	} else if p.cur.Type == tokBIND {
+		// Oracle takes a bind variable after an expression as its alias
+		// (compat.tsv's suite:lexer row SELECT :a :b FROM dual).
+		rt.Name = p.cur.Str
+		rt.AliasBind = true
+		p.advance()
 	} else if p.isAliasCandidate() {
 		var parseErr963 error
 		rt.Name, parseErr963 = p.parseIdentifier()
@@ -1288,6 +1294,12 @@ func (p *Parser) isTableAliasCandidate() bool {
 	// PIVOT and UNPIVOT name an alias where no clause of theirs follows:
 	// FROM t PIVOT parses on Oracle 23ai.
 	if p.cur.Type == kwPIVOT && !p.pivotClauseAhead() || p.cur.Type == kwUNPIVOT && !p.unpivotClauseAhead() {
+		return true
+	}
+	// NATURAL names an alias where no join follows: FROM t NATURAL parses on
+	// Oracle 23ai, and so does DELETE a FROM t NATURAL, where the natural
+	// join is only the one that JOIN, INNER, LEFT, RIGHT or FULL continues.
+	if p.cur.Type == kwNATURAL && !p.naturalJoinAhead() {
 		return true
 	}
 	if p.cur.Type == tokIDENT {

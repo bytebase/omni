@@ -21,8 +21,14 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.UseStmt:
 		return b.use(v)
 	case *ast.CreateTableStmt:
+		if v.External {
+			return b.createExternalTable(v)
+		}
 		return b.createTable(v)
 	case *ast.AlterTableStmt:
+		if v.External {
+			return b.alterExternalTable(v)
+		}
 		return b.alterTable(v)
 	case *ast.RenameTableStmt:
 		return b.renameTable(v)
@@ -36,10 +42,24 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropIndex(v)
 	case *ast.CreateViewStmt:
 		return b.createView(v)
+	case *ast.CreateMaterializedViewStmt:
+		return b.createMaterializedView(v)
 	case *ast.AlterViewStmt:
 		return b.alterView(v)
+	case *ast.AlterMaterializedViewStmt:
+		return b.alterMaterializedView(v)
 	case *ast.DropViewStmt:
 		return b.dropView(v)
+	case *ast.CreateMaterializedViewLogStmt:
+		var columns []string
+		if v.With != nil {
+			columns = v.With.ReferenceColumns
+		}
+		return b.materializedViewLog(v.Table, materializedLogCreate, v.OrReplace, columns)
+	case *ast.AlterMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table, materializedLogAlter, false, nil)
+	case *ast.DropMaterializedViewLogStmt:
+		return b.materializedViewLog(v.Table, materializedLogDrop, false, nil)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.DropTriggerStmt:
@@ -82,7 +102,8 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
-		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt:
+		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
+		*ast.MethodOptStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// RENAME USER and SET PASSWORD join the other user statements:
@@ -158,6 +179,16 @@ func (b *builder) dropDatabase(v *ast.DropDatabaseStmt) bool {
 func (b *builder) clearDatabase(d string) {
 	for _, space := range []string{spaceRelation, spaceColumn, spaceIndex, spaceForeignKey, spaceTableForeignKey, spaceTrigger, spaceProcedure, spaceFunction, spaceEvent} {
 		b.Clear(walk.Scope{Space: space, Parent: walk.Path(d), Deep: true})
+	}
+	for k := range b.w.materialized {
+		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+			delete(b.w.materialized, k)
+		}
+	}
+	for k := range b.w.materializedLogs {
+		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+			delete(b.w.materializedLogs, k)
+		}
 	}
 }
 
@@ -297,6 +328,9 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if prior == walk.Unknown {
 		b.Next()
 		b.Set(k, walk.Present, "")
+	} else {
+		// A new base table has no materialized view log.
+		b.w.materializedLogs[k] = materializedLogAbsent
 	}
 	return true
 }
@@ -305,6 +339,118 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 // foreign key longer than its space allows. The name after FOREIGN KEY
 // counts only without a CONSTRAINT symbol, which names the index in its
 // place (verified).
+// createExternalTable follows a CREATE EXTERNAL TABLE: it makes a relation of
+// no kind, as a synced external table is (walk_snapshot), because the walk
+// follows neither its columns nor its location. The name checks are the regular
+// ones: another relation of the name is in the way (1050), and the database
+// must exist (1049).
+func (b *builder) createExternalTable(v *ast.CreateTableStmt) bool {
+	if v.Table == nil || b.namesTooLong(v) {
+		return true
+	}
+	r, st := b.ref(v.Table)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	b.Order = walk.Lookups
+	if v.Table.Schema != "" {
+		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
+	}
+	k := relKey(r.db, r.name)
+	prior, _ := b.l.Lookup(k)
+	if !v.IfNotExists {
+		b.needFree(k, r.rng, r.written, "")
+		prior = walk.Absent
+	}
+	if prior == walk.Present {
+		return true // a note: nothing is created
+	}
+	b.Next()
+	if prior == walk.Unknown {
+		b.Optional()
+	}
+	// The definition's own refusals — a column named twice, two primary keys —
+	// are the engine's whoever builds the table.
+	if b.tableTextFails(v, r) {
+		return true
+	}
+	b.Set(k, walk.Present, "")
+	b.Session(func() { b.w.external[k] = true })
+	return true
+}
+
+// alterExternalTable follows an ALTER EXTERNAL TABLE. The relation is one of no
+// kind, whose columns, partitions and location the walk does not hold, so the
+// statement is followed and changes nothing; unlike the generic kindless-relation
+// path it does not end the walk.
+func (b *builder) alterExternalTable(v *ast.AlterTableStmt) bool {
+	if v.Table == nil {
+		return true
+	}
+	r, st := b.ref(v.Table)
+	if st == refUnknown {
+		return false
+	}
+	if st == refFailed {
+		return true
+	}
+	b.Order = walk.Lookups
+	if v.Table.Schema != "" {
+		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
+	}
+	// The relation must be the external table it names: a missing one is 1146,
+	// and a table is the wrong kind for ALTER EXTERNAL TABLE.
+	b.needKind(relKey(r.db, r.name), []string{""}, r.rng, notFound("table", r.written, ""), r.written, "external table")
+	for _, cmd := range v.Commands {
+		if cmd == nil || cmd.Type != ast.ATRenameTable {
+			continue
+		}
+		b.Next()
+		if !b.renameExternal(r, cmd) {
+			return false
+		}
+	}
+	return true
+}
+
+// renameExternal records an ALTER EXTERNAL TABLE's RENAME TO in the ledger: the
+// relation keeps its empty kind and its mark as an external table.
+func (b *builder) renameExternal(r tableRef, c *ast.AlterTableCmd) bool {
+	dest := c.NewTable
+	if dest == nil {
+		dest = &ast.TableRef{Name: c.NewName, Loc: c.Loc}
+	}
+	to, st := b.ref(dest)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	if b.tooLong(spaceRelation, dest.Name, to.rng) {
+		return true
+	}
+	if to.db == r.db && to.name == r.name {
+		return true
+	}
+	if dest.Schema != "" {
+		b.databaseNeeds(to.db, dest.Schema, to.rng)
+	}
+	b.needFree(relKey(to.db, to.name), to.rng, to.written, "") // 1050: any relation takes the name
+	b.moveTable(r, to, "")
+	from, target := relKey(r.db, r.name), relKey(to.db, to.name)
+	b.Session(func() {
+		if b.w.external[from] {
+			delete(b.w.external, from)
+			b.w.external[target] = true
+		}
+	})
+	return true
+}
+
 func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 	if v.Table != nil && b.tooLong(spaceRelation, v.Table.Name, rangeOf(v.Table.Loc)) {
 		return true

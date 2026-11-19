@@ -251,8 +251,11 @@ func TestFullTextTableRef(t *testing.T) {
 			hasTopN:      true,
 		},
 		{
+			// LANGUAGE comes before the top-N: the pinned server refuses
+			// `5, LANGUAGE 'English'` (Msg 102), which compat.tsv's
+			// fulltextTableOptions rows measure.
 			name:         "containstable-topn-language",
-			sql:          "SELECT * FROM CONTAINSTABLE(t, b, 'foo', 5, LANGUAGE 'English') ct",
+			sql:          "SELECT * FROM CONTAINSTABLE(t, b, 'foo', LANGUAGE 'English', 5) ct",
 			wantFunc:     ast.FullTextContains,
 			wantColCount: 1,
 			wantSC:       "foo",
