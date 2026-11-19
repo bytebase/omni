@@ -1379,6 +1379,112 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("recreated pg_trgm registered %d %% operators, want %d", len(ops), pctBefore)
 		}
 
+		// #134: DROP OWNED of an extension owner preflights indexes that use
+		// the extension's operator class, and CASCADE drops them.
+		c15 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE ext_role",
+			"SET ROLE ext_role",
+			"CREATE EXTENSION pg_trgm",
+			"RESET ROLE",
+			"CREATE TABLE owned_trgm_t (t text)",
+			"CREATE INDEX owned_trgm_idx ON owned_trgm_t USING gin (t gin_trgm_ops)",
+		} {
+			if code := simulationCatalogCode(t, c15, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c15, "DROP OWNED BY ext_role RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED on an extension with an opclass index answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c15.extByName["pg_trgm"] == nil || c15.schemaByName["public"].Indexes["owned_trgm_idx"] == nil {
+			t.Fatal("failed DROP OWNED changed the extension or its index")
+		}
+		if code := simulationCatalogCode(t, c15, "DROP OWNED BY ext_role CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED BY ext_role CASCADE: %s", code)
+		}
+		if c15.extByName["pg_trgm"] != nil || c15.schemaByName["public"].Indexes["owned_trgm_idx"] != nil {
+			t.Fatal("DROP OWNED CASCADE left the extension or its opclass index")
+		}
+
+		// #135: an unqualified operator-class name resolves against the index's
+		// own access method and column type, so a same-named class in another
+		// extension is not recorded as a dependent.
+		c16 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION btree_gin",
+			"CREATE TABLE opc_t (t text)",
+			"CREATE INDEX opc_idx ON opc_t USING gin (t)",
+		} {
+			if code := simulationCatalogCode(t, c16, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c16, "DROP EXTENSION btree_gin"); code != "0" {
+			t.Fatalf("DROP EXTENSION btree_gin with an implicit opclass answered %s, want 0", code)
+		}
+
+		// #136: ALTER DATABASE naming a database a snapshot does not hold is
+		// 3D000, not a silent reuse of the loaded database's owner.
+		c17 := New()
+		_, err = c17.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Owner:   "db_alice",
+			Schemas: []*metadata.SchemaMetadata{{Name: "public"}},
+		}, LoadMetadataOptions{Full: true})
+		if err != nil {
+			t.Fatalf("LoadMetadata: %v", err)
+		}
+		if code := simulationCatalogCode(t, c17, "CREATE ROLE bob"); code != "0" {
+			t.Fatalf("CREATE ROLE bob: %s", code)
+		}
+		if code := simulationCatalogCode(t, c17, "ALTER DATABASE missing OWNER TO bob"); code != CodeInvalidCatalogName {
+			t.Fatalf("ALTER DATABASE missing answered %s, want %s", code, CodeInvalidCatalogName)
+		}
+		if c17.databaseOwners["\x00current"] != "db_alice" {
+			t.Fatalf("failed ALTER DATABASE changed the loaded owner to %q", c17.databaseOwners["\x00current"])
+		}
+
+		// #137: dropping an extension from a clone leaves the source intact.
+		c18 := New()
+		if code := simulationCatalogCode(t, c18, "CREATE EXTENSION pg_trgm"); code != "0" {
+			t.Fatalf("CREATE EXTENSION pg_trgm: %s", code)
+		}
+		clone := c18.Clone()
+		if code := simulationCatalogCode(t, clone, "DROP EXTENSION pg_trgm"); code != "0" {
+			t.Fatalf("clone DROP EXTENSION pg_trgm: %s", code)
+		}
+		if ops := c18.operByKey[operKey{name: "%", left: TEXTOID, right: TEXTOID}]; len(ops) == 0 {
+			t.Fatal("clone DROP EXTENSION removed the source catalog's operators")
+		}
+
+		// #138: event-trigger ownership participates in the role lifecycle.
+		c19 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE FUNCTION evt_fn() RETURNS event_trigger LANGUAGE plpgsql AS 'BEGIN END'",
+			"SET ROLE alice",
+			"CREATE EVENT TRIGGER evt_owned ON ddl_command_start EXECUTE FUNCTION evt_fn()",
+			"RESET ROLE",
+			"ALTER FUNCTION evt_fn() OWNER TO bob",
+		} {
+			if code := simulationCatalogCode(t, c19, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c19, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE alice with an event trigger answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c19, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("DROP OWNED BY alice: %s", code)
+		}
+		if c19.eventTriggerByName["evt_owned"] != nil {
+			t.Fatal("DROP OWNED left the owned event trigger")
+		}
+		if code := simulationCatalogCode(t, c19, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("DROP ROLE alice after DROP OWNED answered %s, want 0", code)
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

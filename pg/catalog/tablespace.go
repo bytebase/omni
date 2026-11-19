@@ -209,10 +209,20 @@ func (c *Catalog) alterDatabaseOwner(stmt *nodes.AlterOwnerStmt) error {
 	if err := c.checkRole(owner); err != nil {
 		return err
 	}
-	if name != "" && (name == c.databaseName || c.databaseOwners[name] != "") {
+	if name != "" && name == c.databaseName {
 		c.databaseOwners[name] = owner
-	} else if c.databaseOwners["\x00current"] != "" && c.databaseName == "" {
+		return nil
+	}
+	if name != "" && c.databaseOwners[name] != "" {
+		c.databaseOwners[name] = owner
+		return nil
+	}
+	if name == "" && c.databaseName == "" && c.databaseOwners["\x00current"] != "" {
 		c.databaseOwners["\x00current"] = owner
+		return nil
+	}
+	if c.snapshot || c.databaseName != "" || len(c.databaseOwners) > 0 {
+		return errInvalidCatalogName(name)
 	}
 	return nil
 }
@@ -592,7 +602,19 @@ func (c *Catalog) roleInUse(name string) bool {
 			return true
 		}
 	}
+	for _, evt := range c.eventTriggers {
+		if evt.OwnerName == name {
+			return true
+		}
+	}
 	return false
+}
+
+// ownerIndexExt pairs an index with the extension whose operator class it
+// uses, for the DROP OWNED report.
+type ownerIndexExt struct {
+	idx     *Index
+	extName string
 }
 
 // DropOwned drops the objects owned by the named roles and revokes their
@@ -633,6 +655,25 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		extName := c.extensionMembers[oid]
 		return extName != "" && ownedExtNames[extName]
 	}
+	// opclassIndexes holds the indexes that use an operator class of an owned
+	// extension: a RESTRICT drop reports them, CASCADE takes them with it.
+	var opclassIndexes []ownerIndexExt
+	opclassIndexOIDs := map[uint32]bool{}
+	for oid, extName := range c.extensionMembers {
+		if !ownedExtNames[extName] {
+			continue
+		}
+		for _, dep := range c.findNormalDependents('o', oid) {
+			if dep.ObjType != 'i' || opclassIndexOIDs[dep.ObjOID] {
+				continue
+			}
+			if idx := c.indexes[dep.ObjOID]; idx != nil {
+				opclassIndexes = append(opclassIndexes, ownerIndexExt{idx: idx, extName: extName})
+				opclassIndexOIDs[idx.OID] = true
+			}
+		}
+	}
+	sort.Slice(opclassIndexes, func(i, j int) bool { return opclassIndexes[i].idx.OID < opclassIndexes[j].idx.OID })
 
 	type ownedRel struct {
 		schema *Schema
@@ -873,6 +914,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 			}
 		}
+		for _, x := range opclassIndexes {
+			if !ownedRelOIDs[x.idx.RelOID] && !inDropSet('i', x.idx.OID) {
+				return errDependentObjects("extension", x.extName)
+			}
+		}
 		for _, x := range seqs {
 			for _, dep := range c.findNormalDependents('s', x.seq.OID) {
 				if !inDropSet(dep.ObjType, dep.ObjOID) {
@@ -975,6 +1021,23 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	for _, ext := range ownedExts {
 		if c.extensions[ext.OID] != nil {
 			c.removeExtensionMetadata(ext)
+		}
+	}
+	for _, x := range opclassIndexes {
+		if c.indexes[x.idx.OID] == x.idx {
+			c.removeIndex(x.idx.Schema, x.idx.Name, x.idx)
+		}
+	}
+	var ownedEventTriggers []*EventTrigger
+	for _, evt := range c.eventTriggers {
+		if owners[evt.OwnerName] {
+			ownedEventTriggers = append(ownedEventTriggers, evt)
+		}
+	}
+	sort.Slice(ownedEventTriggers, func(i, j int) bool { return ownedEventTriggers[i].OID < ownedEventTriggers[j].OID })
+	for _, evt := range ownedEventTriggers {
+		if c.eventTriggers[evt.OID] == evt {
+			c.removeEventTrigger(evt)
 		}
 	}
 	for _, s := range ownedSchemas {
@@ -1108,6 +1171,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			ext.OwnerName = newOwner
 		}
 	}
+	for _, evt := range c.eventTriggers {
+		if owners[evt.OwnerName] {
+			evt.OwnerName = newOwner
+		}
+	}
 	return nil
 }
 
@@ -1204,6 +1272,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for _, ext := range c.extensions {
 		if ext.OwnerName == oldName {
 			ext.OwnerName = stmt.Newname
+		}
+	}
+	for _, evt := range c.eventTriggers {
+		if evt.OwnerName == oldName {
+			evt.OwnerName = stmt.Newname
 		}
 	}
 	for i := range c.grants {

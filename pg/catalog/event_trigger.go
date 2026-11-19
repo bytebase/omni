@@ -12,6 +12,7 @@ import (
 type EventTrigger struct {
 	OID       uint32
 	Name      string
+	OwnerName string
 	EventName string
 	FuncOID   uint32
 	Enabled   byte
@@ -46,6 +47,7 @@ func (c *Catalog) CreateEventTriggerStmt(stmt *nodes.CreateEventTrigStmt) error 
 	evt := &EventTrigger{
 		OID:       oid,
 		Name:      stmt.Trigname,
+		OwnerName: c.currentOwner(),
 		EventName: stmt.Eventname,
 		FuncOID:   funcBP.OID,
 		Enabled:   'O',

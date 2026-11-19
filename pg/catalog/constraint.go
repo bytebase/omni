@@ -145,7 +145,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
 		idx.Tablespace = normalizeTablespace(effectiveTablespace)
 		idx.OwnerName = rel.OwnerName
-		c.recordOpClassDependencies('i', idx.OID, idx.OpClasses)
+		c.recordOpClassDependencies('i', idx.OID, opClassRefsFrom(idx.OpClasses), idx.AccessMethod)
 	} else {
 		idx.IsUnique = true
 		idx.IsPrimary = isPrimary
@@ -575,6 +575,25 @@ func extractCheckExprColumns(rel *Relation, exprText string) []int16 {
 // addExcludeConstraint adds an EXCLUDE constraint with a backing index.
 //
 // pg: src/backend/commands/tablecmds.c — DefineRelation (exclusion constraint handling via DefineIndex)
+// opClassRefsFrom turns stored operator-class names back into references with
+// an unqualified schema and no type, for objects built without an IndexElem
+// list.
+func opClassRefsFrom(opClasses []string) []opClassRef {
+	refs := make([]opClassRef, 0, len(opClasses))
+	for _, name := range opClasses {
+		if name == "" {
+			refs = append(refs, opClassRef{})
+			continue
+		}
+		schema, refName := "", name
+		if i := strings.LastIndexByte(name, '.'); i >= 0 {
+			schema, refName = name[:i], name[i+1:]
+		}
+		refs = append(refs, opClassRef{schema: schema, name: refName})
+	}
+	return refs
+}
+
 func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
 	attnums, err := c.resolveColumnNames(rel, def.Columns)
 	if err != nil {

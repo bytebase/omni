@@ -17,8 +17,30 @@ func (c *Catalog) Clone() *Catalog {
 
 	// --- Shared builtin indexes (immutable, pointer-safe) ---
 	clone.castIndex = c.castIndex
-	clone.operByOID = c.operByOID
-	clone.operByKey = c.operByKey
+	clone.operByOID = make(map[uint32]*BuiltinOperator, len(c.operByOID))
+	clone.operByKey = make(map[operKey][]*BuiltinOperator, len(c.operByKey))
+	opClones := make(map[uint32]*BuiltinOperator, len(c.operByOID))
+	for oid, op := range c.operByOID {
+		if oid < FirstNormalObjectId {
+			clone.operByOID[oid] = op // builtin: share pointer
+			opClones[oid] = op
+			continue
+		}
+		copied := *op
+		clone.operByOID[oid] = &copied
+		opClones[oid] = &copied
+	}
+	for key, ops := range c.operByKey {
+		list := make([]*BuiltinOperator, 0, len(ops))
+		for _, op := range ops {
+			if copied := opClones[op.OID]; copied != nil {
+				list = append(list, copied)
+			}
+		}
+		if len(list) > 0 {
+			clone.operByKey[key] = list
+		}
+	}
 
 	// Procs: start from builtin, user procs added below.
 	clone.procByOID = make(map[uint32]*BuiltinProc, len(c.procByOID))

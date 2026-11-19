@@ -125,6 +125,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var exprTexts []string // deparsed expressions for expression columns
 	var analyzedExprs []AnalyzedExpr
 	var opClasses []string
+	var opClassRefs []opClassRef
 	namedOpClass := false
 	if stmt.IndexParams != nil {
 		for _, item := range stmt.IndexParams.Items {
@@ -184,6 +185,21 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				for _, part := range elem.Opclass.Items {
 					opClass = append(opClass, stringVal(part))
 				}
+			}
+			if len(opClass) > 0 {
+				var opClassTypeOID uint32
+				if elem.Name != "" {
+					if ci, ok := rel.colByName[elem.Name]; ok {
+						opClassTypeOID = rel.Columns[ci].TypeOID
+					}
+				}
+				opClassRefs = append(opClassRefs, opClassRef{
+					schema:  strings.Join(opClass[:len(opClass)-1], "."),
+					name:    opClass[len(opClass)-1],
+					typeOID: opClassTypeOID,
+				})
+			} else {
+				opClassRefs = append(opClassRefs, opClassRef{})
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
 			namedOpClass = namedOpClass || len(opClass) > 0
@@ -318,7 +334,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	if analyzedWhere != nil {
 		c.recordDependencyOnSingleRelExpr('i', idx.OID, analyzedWhere, rel.OID, DepNormal, DepAuto)
 	}
-	c.recordOpClassDependencies('i', idx.OID, opClasses)
+	c.recordOpClassDependencies('i', idx.OID, opClassRefs, accessMethod)
 
 	return nil
 }
@@ -355,28 +371,74 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 }
 
 // registerIndex adds an index to all catalog maps.
-// recordOpClassDependencies records a NORMAL dependency of an index on each
-// operator class it names, so dropping the operator class (or the extension
-// that owns it) reports the index as a dependent.
+// opClassRef is one operator-class reference an index column made: the schema
+// it named (empty when unqualified), its name, and the indexed type it must
+// apply to (0 for an expression column).
+type opClassRef struct {
+	schema  string
+	name    string
+	typeOID uint32
+}
+
+// resolveOpClassOID finds the operator class a column reference names, the way
+// PostgreSQL does: by schema (or the first on the search path), access method,
+// and indexed type. It returns 0 when nothing matches.
 //
-// pg: src/backend/catalog/index.c — index_create (opclass dependencies)
-func (c *Catalog) recordOpClassDependencies(objType byte, objOID uint32, opClasses []string) {
-	seen := map[uint32]bool{}
-	for _, name := range opClasses {
-		if name == "" {
+// pg: src/backend/commands/opclasscmds.c — GetIndexOpClass
+func (c *Catalog) resolveOpClassOID(ref opClassRef, amOID uint32) uint32 {
+	if ref.name == "" {
+		return 0
+	}
+	var schemaOID uint32
+	if ref.schema != "" {
+		s := c.schemaByName[ref.schema]
+		if s == nil {
+			return 0
+		}
+		schemaOID = s.OID
+	}
+	var best, byType uint32
+	for oid, opc := range c.opClasses {
+		if opc.Name != ref.name || opc.AMOID != amOID {
 			continue
 		}
-		last := name
-		if i := strings.LastIndexByte(last, '.'); i >= 0 {
-			last = last[i+1:]
+		if schemaOID != 0 && opc.Schema != schemaOID {
+			continue
 		}
-		for oid, opc := range c.opClasses {
-			if opc.Name != last || seen[oid] {
-				continue
+		if ref.typeOID != 0 && opc.TypeOID == ref.typeOID {
+			if byType == 0 || oid < byType {
+				byType = oid
 			}
-			seen[oid] = true
-			c.recordDependency(objType, objOID, 0, 'o', oid, 0, DepNormal)
+			continue
 		}
+		if best == 0 || oid < best {
+			best = oid
+		}
+	}
+	if byType != 0 {
+		return byType
+	}
+	return best
+}
+
+// recordOpClassDependencies records a NORMAL dependency of an index on each
+// operator class its columns name, so dropping the operator class (or the
+// extension that owns it) reports the index as a dependent.
+//
+// pg: src/backend/catalog/index.c — index_create (opclass dependencies)
+func (c *Catalog) recordOpClassDependencies(objType byte, objOID uint32, refs []opClassRef, amName string) {
+	am := c.accessMethodByName[amName]
+	if am == nil {
+		return
+	}
+	seen := map[uint32]bool{}
+	for _, ref := range refs {
+		oid := c.resolveOpClassOID(ref, am.OID)
+		if oid == 0 || seen[oid] {
+			continue
+		}
+		seen[oid] = true
+		c.recordDependency(objType, objOID, 0, 'o', oid, 0, DepNormal)
 	}
 }
 

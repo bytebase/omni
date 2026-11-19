@@ -61,6 +61,7 @@ const (
 	CodeInvalidGrantOperation        = "0LP01"
 	CodeProgramLimitExceeded         = "54000"
 	CodeReservedName                 = "42939"
+	CodeInvalidCatalogName           = "3D000"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.
@@ -162,6 +163,13 @@ func errInvalidObjectDefinition(msg string) error {
 
 func errUndefinedObject(kind, name string) error {
 	return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("%s %q does not exist", kind, name)}
+}
+
+// errInvalidCatalogName reports a database this catalog does not hold.
+//
+// pg: src/backend/utils/cache/lsyscache.c — get_database_oid
+func errInvalidCatalogName(name string) error {
+	return &Error{Code: CodeInvalidCatalogName, Message: fmt.Sprintf("database %q does not exist", name)}
 }
 
 func errWrongObjectType(name, expected string) error {
