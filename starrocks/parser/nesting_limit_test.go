@@ -298,3 +298,21 @@ func TestTreeHeightCountsSubqueryBodies(t *testing.T) {
 		t.Fatalf("%d terms: err = %v, want the nesting error at the statement", maxTreeHeight+2, err)
 	}
 }
+
+// TestTreeHeightRechecksAttachedRawQueryBodies: validateRawQueries attaches
+// RawQuery.Query and raw-scanned SubqueryExpr.Query after parseStmt's initial
+// treeTooHigh check, so parseSingle must remeasure the completed tree.
+func TestTreeHeightRechecksAttachedRawQueryBodies(t *testing.T) {
+	// SelectStmt (1) -> SelectItem (2) -> (maxTreeHeight-3) BinaryExprs -> Literal = maxTreeHeight.
+	inner := "SELECT " + strings.Repeat("1+", maxTreeHeight-3) + "1"
+	if _, err := Parse(inner); err != nil {
+		t.Fatalf("inner SELECT at maxTreeHeight failed: %v", err)
+	}
+	// Wrapping in CTAS adds CreateTableStmt -> RawQuery above SelectStmt,
+	// pushing the completed tree past maxTreeHeight.
+	_, err := Parse("CREATE TABLE dst AS " + inner)
+	var pe *ParseError
+	if !errors.As(err, &pe) || pe.Message != nestingError || pe.Position != 0 {
+		t.Fatalf("CTAS over maxTreeHeight body: err = %v, want %q at 0", err, nestingError)
+	}
+}

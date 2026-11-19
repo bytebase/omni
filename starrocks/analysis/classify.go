@@ -80,6 +80,12 @@ func init() {
 	// Data definition language and session / administrative control.
 	register(QueryTypeDDL,
 		"CREATE",
+		"EXECUTE",
+		"DEALLOCATE",
+		"PREPARE",
+		"TRANSLATE",
+		"ADD",
+		"CLEAR",
 		"CACHE",
 		"SUBMIT",
 		"ALTER",
@@ -155,7 +161,7 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		*ast.ShowRoutineLoadStmt, *ast.ShowRoutineLoadTaskStmt,
 		*ast.ShowJobStmt, *ast.ShowJobTaskStmt,
 		*ast.ShowConstraintsStmt, *ast.ShowAnalyzeStmt, *ast.ShowStatsStmt,
-		*ast.DescribeStmt, *ast.DescStorageVolumeStmt, *ast.HelpStmt:
+		*ast.DescribeStmt, *ast.DescStorageVolumeStmt, *ast.DescPipeStmt, *ast.HelpStmt:
 		return QueryTypeSelectInfoSchema, true
 	case *ast.ExplainStmt:
 		if n.Query == nil {

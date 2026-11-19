@@ -318,17 +318,14 @@ func TestUseCatalogDB(t *testing.T) {
 	}
 }
 
-func TestUseDBAtCluster(t *testing.T) {
-	file, errs := parseForTest("USE mydb@mycluster")
+func TestUseCatalogDatabase(t *testing.T) {
+	file, errs := parseForTest("USE catalog.mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
 	n := file.Stmts[0].(*ast.UseStmt)
-	if n.Database != "mydb" {
-		t.Errorf("Database = %q, want mydb", n.Database)
-	}
-	if n.Cluster != "mycluster" {
-		t.Errorf("Cluster = %q, want mycluster", n.Cluster)
+	if n.Catalog != "catalog" || n.Database != "mydb" {
+		t.Errorf("Catalog = %q Database = %q, want catalog/mydb", n.Catalog, n.Database)
 	}
 }
 

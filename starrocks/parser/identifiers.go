@@ -116,8 +116,15 @@ func (p *Parser) parseMultipartIdentifier() (*ast.ObjectName, error) {
 		Loc:   loc,
 	}
 
-	// Consume additional '.identifier' segments.
-	for p.cur.Kind == int('.') {
+	// Consume additional '.identifier' segments. A DOT_IDENTIFIER ('.1a',
+	// StarRocksLex.g4:574) is one token holding the '.' and the identifier.
+	for p.cur.Kind == int('.') || p.cur.Kind == tokDotIdent {
+		if p.cur.Kind == tokDotIdent {
+			dot := p.advance()
+			name.Parts = append(name.Parts, dot.Str)
+			name.Loc.End = dot.Loc.End
+			continue
+		}
 		// Peek past the dot to make sure we have an identifier; if not, stop
 		// here rather than consuming the dot and getting a confusing error.
 		// Note: peekNext looks at the token after cur (the '.').

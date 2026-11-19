@@ -29,19 +29,19 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		Loc: ast.Loc{Start: insertTok.Loc.Start},
 	}
 
-	// OVERWRITE [TABLE] or INTO. doris requires TABLE after OVERWRITE; StarRocks
-	// omits it (INSERT OVERWRITE t) — accept both (additive).
+	// insertStatement (StarRocks.g4:2190) requires INTO or OVERWRITE; the
+	// pinned server answers a bare `INSERT a SELECT 1` with "Unexpected input
+	// 'a', the most similar input is {'INTO', 'OVERWRITE'}". OVERWRITE takes
+	// no TABLE here: the fork's INSERT OVERWRITE TABLE is StarRocks's
+	// INSERT OVERWRITE <name>, and TABLE would name a table called table.
 	if p.cur.Kind == kwOVERWRITE {
 		p.advance() // consume OVERWRITE
 		stmt.Overwrite = true
-		if p.cur.Kind == kwTABLE {
-			p.advance() // optional TABLE
-		}
 	} else if p.cur.Kind == kwINTO {
 		p.advance() // consume INTO
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
-	// If neither INTO nor OVERWRITE TABLE: bare INSERT table — still valid in
-	// some dialects but not standard Doris; fall through and parse the table name.
 
 	// Optional TEMPORARY keyword (before PARTITION clause)
 	if p.cur.Kind == kwTEMPORARY {
@@ -322,12 +322,13 @@ func (p *Parser) parseInsertKeyPartition() ([]*ast.Property, error) {
 			return nil, err
 		}
 		start := p.cur.Loc.Start
-		if err := p.parseAlterLiteralExpression(); err != nil {
+		expr, err := p.parseKeyPartitionValue()
+		if err != nil {
 			return nil, err
 		}
 		end := p.prev.Loc.End
 		value := strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
-		props = append(props, &ast.Property{Key: key, Value: value, Loc: ast.Loc{Start: keyTok.Loc.Start, End: end}})
+		props = append(props, &ast.Property{Key: key, Value: value, Expr: expr, Loc: ast.Loc{Start: keyTok.Loc.Start, End: end}})
 		if p.cur.Kind != int(',') {
 			break
 		}
@@ -337,6 +338,63 @@ func (p *Parser) parseInsertKeyPartition() ([]*ast.Property, error) {
 		return nil, err
 	}
 	return props, nil
+}
+
+// parseKeyPartitionValue parses the literalExpression on the right-hand side
+// of keyPartition (StarRocks.g4:2668). AstBuilder.visitKeyPartitionList casts
+// the visited node to Expr, so unitBoundary (FLOOR/CEIL, a ParseNode that is
+// not an Expr) is excluded while interval keeps its parsed value expression.
+func (p *Parser) parseKeyPartitionValue() (ast.Node, error) {
+	switch p.cur.Kind {
+	case kwNULL:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitNull, Value: tok.Str, Loc: tok.Loc}, nil
+	case kwTRUE, kwFALSE:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitBool, Value: tok.Str, Loc: tok.Loc}, nil
+	case tokInt:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Loc: tok.Loc}, nil
+	case tokFloat:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitFloat, Value: tok.Str, Loc: tok.Loc}, nil
+	case tokString:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
+	case tokHexLiteral:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitHex, Value: tok.Str, Loc: tok.Loc}, nil
+	case tokBitLiteral:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitBit, Value: tok.Str, Loc: tok.Loc}, nil
+	case tokPlaceholder:
+		tok := p.advance()
+		return &ast.Literal{Kind: ast.LitNull, Value: "?", Loc: tok.Loc}, nil
+	case kwDATE, kwDATETIME:
+		kwTok := p.advance()
+		strTok, err := p.expect(tokString)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.Literal{Kind: ast.LitString, Value: strTok.Str, Loc: kwTok.Loc.Merge(strTok.Loc)}, nil
+	case kwINTERVAL:
+		intervalTok := p.advance()
+		val, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		unit, err := p.parseIntervalUnit()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.IntervalExpr{
+			Value: val,
+			Unit:  unit,
+			Loc:   ast.Loc{Start: intervalTok.Loc.Start, End: p.prev.Loc.End},
+		}, nil
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
 }
 
 func (p *Parser) parseInsertPartition() ([]string, bool, error) {
