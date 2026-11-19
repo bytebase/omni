@@ -306,6 +306,9 @@ func writeNode(sb *strings.Builder, node Node) {
 		if n.Database != "" {
 			fmt.Fprintf(sb, " :database %s", n.Database)
 		}
+		if n.Password != "" {
+			sb.WriteString(" :password ***")
+		}
 		if n.Server != "" {
 			fmt.Fprintf(sb, " :server %q", n.Server)
 		}
