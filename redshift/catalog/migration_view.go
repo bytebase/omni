@@ -371,6 +371,13 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 		for _, idx := range from.IndexesOf(rel.OID) {
 			ownedIndexes[idx.OID] = true
 		}
+		// An index the target adds is created after the relation this chain
+		// creates, not beside it.
+		if target := to.GetRelation(rel.Schema.Name, rel.Name); target != nil {
+			for _, idx := range to.IndexesOf(target.OID) {
+				ownedIndexes[idx.OID] = true
+			}
+		}
 	}
 	kept := ops[:0]
 	for _, op := range ops {
@@ -382,6 +389,13 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 		}
 		if (op.Type == OpCreateIndex || op.Type == OpDropIndex) && ownedIndexes[op.ObjOID] {
 			continue
+		}
+		// A trigger op names the trigger and holds the relation it belongs to.
+		if owned[op.SchemaName+"."+op.ParentObject] {
+			switch op.Type {
+			case OpCreateTrigger, OpDropTrigger:
+				continue
+			}
 		}
 		kept = append(kept, op)
 	}
@@ -418,10 +432,9 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 
 	// The replaced views' own grants and comments went with their drops.
 	for _, rel := range replaced {
-		target := to.GetRelationByOID(rel.OID)
-		if target == nil {
-			target = to.GetRelation(rel.Schema.Name, rel.Name)
-		}
+		// By name: the two catalogs allocate OIDs independently, so a source
+		// OID names no relation in the target.
+		target := to.GetRelation(rel.Schema.Name, rel.Name)
 		if target == nil {
 			continue
 		}

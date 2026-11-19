@@ -111,34 +111,6 @@ CREATE MATERIALIZED VIEW ice USING ICEBERG LOCATION 's3://bucket/sales/' PARTITI
 	}
 }
 
-// TestMigrationMatViewBareDistkey pins the bare DISTKEY the attribute parser
-// accepts: a migration writes it back without a column list rather than
-// failing on it.
-func TestMigrationMatViewBareDistkey(t *testing.T) {
-	from, err := LoadSQL(`CREATE TABLE t (id int);`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	to, err := LoadSQL(`CREATE TABLE t (id int);
-CREATE MATERIALIZED VIEW m DISTKEY AS SELECT id FROM t;`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	plan := GenerateMigration(from, to, Diff(from, to))
-	found := false
-	for _, op := range plan.Ops {
-		if strings.Contains(op.SQL, "CREATE MATERIALIZED VIEW") && strings.Contains(op.SQL, `"m"`) {
-			found = true
-			if !strings.Contains(op.SQL, "DISTKEY AS") {
-				t.Errorf("materialized view op = %q, want a bare DISTKEY in it", op.SQL)
-			}
-		}
-	}
-	if !found {
-		t.Fatal("expected a CREATE MATERIALIZED VIEW op for m")
-	}
-}
-
 // TestMigrationMatViewStorageChange pins the storage in the diff: a
 // materialized view whose options changed is modified, and re-creating it keeps
 // the new storage.

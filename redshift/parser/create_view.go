@@ -433,38 +433,81 @@ func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, a
 	if strings.EqualFold(accessMethod, "iceberg") {
 		// The Iceberg form is the docs' other alternative: it takes LOCATION,
 		// PARTITIONED BY and TABLE PROPERTIES in that order, and none of the
-		// ordinary clauses the loop below reads.
+		// ordinary clauses below.
 		return p.parseRedshiftIcebergMaterializedViewOptions(options)
 	}
-	for {
-		consumed := false
-		attrs, err := p.parseRedshiftCreateTableAttributes()
+	return p.parseRedshiftMatViewTableOptions(options)
+}
+
+// parseRedshiftMatViewTableOptions parses the clauses
+// materializedViewCreateSqlCommand puts after the view's name, each at most
+// once and in this order:
+//
+//	[ BACKUP { YES | NO } ]
+//	[ DISTSTYLE { EVEN | ALL | KEY } ]
+//	[ DISTKEY ( column_name ) ]
+//	[ [ COMPOUND | INTERLEAVED ] SORTKEY ( column_name [, ...] ) ]
+//	[ AUTO REFRESH { YES [ INTERVAL number ] | NO } ]
+//
+// These are not CREATE TABLE's attributes: ENCODE, SORTKEY AUTO and a bare
+// DISTKEY are no part of the production, so they are not read here.
+func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.List, error) {
+	if p.redshiftKeywordIs("backup") {
+		p.advance()
+		backup, err := p.parseRedshiftOptionWord()
 		if err != nil {
 			return nil, err
 		}
-		if attrs != nil {
-			options = appendNodeLists(options, attrs)
-			consumed = true
+		options = appendToList(options, makeDefElem("backup", &nodes.String{Str: strings.ToLower(backup)}))
+	}
+	if p.redshiftKeywordIs("diststyle") {
+		p.advance()
+		style, err := p.parseRedshiftOptionWord()
+		if err != nil {
+			return nil, err
 		}
-		if p.redshiftKeywordIs("auto") {
-			p.advance()
-			if _, err := p.expect(REFRESH); err != nil {
-				return nil, err
-			}
-			enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
-			if err != nil {
-				return nil, err
-			}
-			options = appendToList(options, makeDefElem("auto_refresh", &nodes.Boolean{Boolval: enabled}))
-			if interval != nil {
-				options = appendToList(options, makeDefElem("auto_refresh_interval", interval))
-			}
-			consumed = true
+		options = appendToList(options, makeDefElem("diststyle", &nodes.String{Str: strings.ToLower(style)}))
+	}
+	if p.redshiftKeywordIs("distkey") {
+		p.advance()
+		cols, err := p.parseParenColumnList()
+		if err != nil {
+			return nil, err
 		}
-		if !consumed {
-			return options, nil
+		options = appendToList(options, makeDefElem("distkey", cols))
+	}
+	sortStyle := ""
+	if p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") {
+		sortStyle = strings.ToLower(p.advance().Str)
+	}
+	if sortStyle != "" || p.redshiftKeywordIs("sortkey") {
+		if !p.acceptRedshiftKeyword("sortkey") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cols, err := p.parseParenColumnList()
+		if err != nil {
+			return nil, err
+		}
+		if sortStyle != "" {
+			options = appendToList(options, makeDefElem("sortstyle", &nodes.String{Str: sortStyle}))
+		}
+		options = appendToList(options, makeDefElem("sortkey", cols))
+	}
+	if p.redshiftKeywordIs("auto") {
+		p.advance()
+		if _, err := p.expect(REFRESH); err != nil {
+			return nil, err
+		}
+		enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
+		if err != nil {
+			return nil, err
+		}
+		options = appendToList(options, makeDefElem("auto_refresh", &nodes.Boolean{Boolval: enabled}))
+		if interval != nil {
+			options = appendToList(options, makeDefElem("auto_refresh_interval", interval))
 		}
 	}
+	return options, nil
 }
 
 // parseRedshiftIcebergMaterializedViewOptions parses the clauses the docs put
