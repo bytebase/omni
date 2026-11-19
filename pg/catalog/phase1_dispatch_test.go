@@ -68,8 +68,8 @@ func TestPhase1_NewNoOpDispatch(t *testing.T) {
 		{"AlterObjectDependsStmt", "ALTER FUNCTION pg_catalog.now() DEPENDS ON EXTENSION test_ext"},
 		{"CreatePLangStmt", "CREATE LANGUAGE plpgsql"},
 		{"AlterSystemStmt", "ALTER SYSTEM SET max_connections = 200"},
-		{"DropOwnedStmt", "DROP OWNED BY test_role"},
-		{"ReassignOwnedStmt", "REASSIGN OWNED BY test_role TO CURRENT_USER"},
+		{"DropOwnedStmt", "DROP OWNED BY postgres"},
+		{"ReassignOwnedStmt", "REASSIGN OWNED BY postgres TO CURRENT_USER"},
 		{"SecLabelStmt", "SECURITY LABEL FOR test_provider ON TABLE pg_class IS 'public'"},
 
 		// Non-DDL utility statements

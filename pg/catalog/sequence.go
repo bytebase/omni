@@ -13,6 +13,7 @@ type Sequence struct {
 	OID         uint32
 	Name        string
 	Schema      *Schema
+	OwnerName   string
 	TypeOID     uint32 // int2/int4/int8
 	Start       int64
 	Increment   int64
@@ -238,6 +239,7 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 		OID:        seqOID,
 		Name:       seqName,
 		Schema:     schema,
+		OwnerName:  c.currentOwner(),
 		TypeOID:    typeOID,
 		Start:      startValue,
 		Increment:  increment,
@@ -702,6 +704,7 @@ func (c *Catalog) createSequenceInternal(schema *Schema, name string, typeOID ui
 		OID:        seqOID,
 		Name:       name,
 		Schema:     schema,
+		OwnerName:  c.currentOwner(),
 		TypeOID:    typeOID,
 		Start:      1,
 		Increment:  1,

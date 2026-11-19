@@ -220,6 +220,11 @@ func (c *Catalog) roleInUse(name string) bool {
 				return true
 			}
 		}
+		for _, seq := range schema.Sequences {
+			if seq.OwnerName == name {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -229,7 +234,10 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	if stmt.Roles == nil {
 		return nil
 	}
-	owners := c.roleSet(stmt.Roles)
+	owners, err := c.checkedRoleSet(stmt.Roles)
+	if err != nil {
+		return err
+	}
 	for _, schema := range c.schemas {
 		var rels []*Relation
 		for _, rel := range schema.Relations {
@@ -238,6 +246,18 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			}
 		}
 		for _, rel := range rels {
+			if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
+				if stmt.Behavior != nodes.DROP_CASCADE {
+					kind := "table"
+					if rel.RelKind == 'v' {
+						kind = "view"
+					} else if rel.RelKind == 'm' {
+						kind = "materialized view"
+					}
+					return errDependentObjects(kind, rel.Name)
+				}
+				c.dropDependents('r', rel.OID)
+			}
 			c.removeRelation(schema, rel.Name, rel)
 		}
 		var indexes []*Index
@@ -248,6 +268,15 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 		for _, idx := range indexes {
 			c.removeIndex(schema, idx.Name, idx)
+		}
+		var seqs []*Sequence
+		for _, seq := range schema.Sequences {
+			if owners[seq.OwnerName] {
+				seqs = append(seqs, seq)
+			}
+		}
+		for _, seq := range seqs {
+			c.removeSequence(schema, seq)
 		}
 	}
 	return nil
@@ -262,7 +291,10 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 	if err := c.checkRole(newOwner); err != nil {
 		return err
 	}
-	owners := c.roleSet(stmt.Roles)
+	owners, err := c.checkedRoleSet(stmt.Roles)
+	if err != nil {
+		return err
+	}
 	for _, schema := range c.schemas {
 		for _, rel := range schema.Relations {
 			if owners[rel.OwnerName] {
@@ -274,29 +306,42 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 				idx.OwnerName = newOwner
 			}
 		}
+		for _, seq := range schema.Sequences {
+			if owners[seq.OwnerName] {
+				seq.OwnerName = newOwner
+			}
+		}
 	}
 	return nil
 }
 
-// roleSet reads a RoleSpec list as role names.
-func (c *Catalog) roleSet(roles *nodes.List) map[string]bool {
+// checkedRoleSet reads a RoleSpec list as role names, refusing one the
+// catalog does not hold before any object is touched.
+func (c *Catalog) checkedRoleSet(roles *nodes.List) (map[string]bool, error) {
 	owners := map[string]bool{}
 	if roles == nil {
-		return owners
+		return owners, nil
 	}
 	for _, item := range roles.Items {
 		rs, ok := item.(*nodes.RoleSpec)
 		if !ok {
 			continue
 		}
-		owners[c.ownerRoleName(rs)] = true
+		name := c.ownerRoleName(rs)
+		if err := c.checkRole(name); err != nil {
+			return nil, err
+		}
+		owners[name] = true
 	}
-	return owners
+	return owners, nil
 }
 
 // RenameRole renames a role and every object it owns.
 func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
+	if oldName == c.currentOwner() || oldName == c.sessionUser {
+		return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be renamed"}
+	}
 	if !c.roles[oldName] {
 		return errUndefinedObject("role", oldName)
 	}
@@ -314,6 +359,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 		for _, idx := range schema.Indexes {
 			if idx.OwnerName == oldName {
 				idx.OwnerName = stmt.Newname
+			}
+		}
+		for _, seq := range schema.Sequences {
+			if seq.OwnerName == oldName {
+				seq.OwnerName = stmt.Newname
 			}
 		}
 	}
