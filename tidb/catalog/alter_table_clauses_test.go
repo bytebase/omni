@@ -744,3 +744,28 @@ func TestRenameTableIsAtomic(t *testing.T) {
 		t.Errorf("the refused statement renamed s: %v", db.Tables)
 	}
 }
+
+// TestRenameTableReservesItsTargets: a destination another pair already took
+// is 1050 and nothing moves, while a pair may read the name a pair before it
+// left behind (both read on v8.5.5).
+func TestRenameTableReservesItsTargets(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "CREATE TABLE s (b INT);")
+	err := execExpectError(t, c, "RENAME TABLE t TO x, s TO x;")
+	if err == nil {
+		t.Fatalf("RENAME TABLE with one destination twice was accepted")
+	}
+	if !strings.Contains(err.Error(), "1050") {
+		t.Errorf("error = %v, want 1050", err)
+	}
+	db := c.GetDatabase("d")
+	if db.GetTable("t") == nil || db.GetTable("s") == nil || db.GetTable("x") != nil {
+		t.Errorf("the refused statement moved tables: %v", db.Tables)
+	}
+
+	c2 := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c2, "RENAME TABLE t TO t2, t2 TO t;")
+	if db := c2.GetDatabase("d"); db.GetTable("t") == nil || db.GetTable("t2") != nil {
+		t.Errorf("the chained rename left %v", db.Tables)
+	}
+}

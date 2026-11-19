@@ -671,6 +671,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			// Destinations are reserved: a name two pairs take is 1050.
+			name:  "RENAME TABLE naming one destination twice",
+			setup: []string{"CREATE TABLE s (b INT)", oneTable},
+			stmt:  "RENAME TABLE a TO zz, s TO zz",
+			code:  1050,
+		},
+		{
 			name:  "CREATE INDEX on a cached table",
 			setup: []string{oneTable, "ALTER TABLE a CACHE"},
 			stmt:  "CREATE INDEX i2 ON a (c)",
