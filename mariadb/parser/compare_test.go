@@ -6364,6 +6364,18 @@ func TestParseCall(t *testing.T) {
 	}
 }
 
+// TestParseCallPackageMemberName: a packaged routine's own name is checked as a
+// routine name, as the two-part form's is (check_routine_name, 1458).
+func TestParseCallPackageMemberName(t *testing.T) {
+	for _, sql := range []string{
+		"CALL db.pkg." + strings.Repeat("a", 65),
+		"CALL db.pkg.`a `",
+	} {
+		ParseExpectError(t, sql)
+	}
+	ParseAndCheck(t, "CALL db.pkg."+strings.Repeat("a", 64))
+}
+
 func TestParseCallWithArgs(t *testing.T) {
 	tests := []string{
 		"CALL my_proc(1, 2, 3)",

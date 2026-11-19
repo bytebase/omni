@@ -650,6 +650,36 @@ func errTablespaceExists(db, table string) error {
 		Message: fmt.Sprintf("Tablespace for table '%s/%s' exists. Please DISCARD the tablespace before IMPORT", db, table)}
 }
 
+// refuseTablespaceEngine refuses DISCARD and IMPORT TABLESPACE on a table whose
+// engine has no tablespaces: 1031, measured on mariadb:11.8.8 for MyISAM, Aria
+// and MEMORY, where InnoDB takes both commands.
+func refuseTablespaceEngine(tbl *Table) error {
+	engine := tbl.Engine
+	if engine == "" || eqFoldStr(engine, "InnoDB") {
+		return nil
+	}
+	return &Error{Code: 1031, SQLState: "HY000",
+		Message: fmt.Sprintf("Storage engine %s of the table `%s`.`%s` doesn't have this option", engine, tbl.Database.Name, tbl.Name)}
+}
+
+// errTablespaceMissing is 1030, IMPORT TABLESPACE over a table whose tablespace
+// the statement DISCARDed and which holds no secondary index: there is no file
+// to import, which the server reports as storage engine error 194. Measured on
+// mariadb:11.8.8.
+func errTablespaceMissing() error {
+	return &Error{Code: 1030, SQLState: "HY000",
+		Message: "Got error 194 \"Tablespace is missing for a table\" from storage engine InnoDB"}
+}
+
+// errImportNeedsIndexesDropped is 1815, IMPORT TABLESPACE over a table whose
+// tablespace the statement DISCARDed and which still holds a secondary index:
+// the import reads the .cfg file DISCARD removed, and asks for the indexes to go
+// first. Measured on mariadb:11.8.8.
+func errImportNeedsIndexesDropped(db, table string) error {
+	return &Error{Code: 1815, SQLState: "HY000",
+		Message: fmt.Sprintf("Internal error: Drop all secondary indexes before importing table %s/%s when .cfg file is missing.", db, table)}
+}
+
 // errDupColumnInKey is 1060 for a key naming a column twice: measured on
 // mariadb:11.8.8, `ALTER TABLE a ADD KEY(b, b)` answers "Duplicate column name
 // 'b'", as CREATE TABLE with the same key does.

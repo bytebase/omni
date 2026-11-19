@@ -808,8 +808,12 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 	// parts only, so this is MariaDB's own alternative.
 	if p.cur.Type == '.' {
 		p.advance() // consume '.'
+		routineStart := p.pos()
 		routine, _, err := p.parseIdent()
 		if err != nil {
+			return nil, err
+		}
+		if err := refuseRoutineName(routine, routineStart); err != nil {
 			return nil, err
 		}
 		stmt.Package = name.Name

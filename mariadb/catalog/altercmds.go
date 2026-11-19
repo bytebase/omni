@@ -98,6 +98,17 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 	return nil
 }
 
+// hasSecondaryIndex reports whether the table holds an index that is not its
+// primary key, which is what IMPORT TABLESPACE asks to be dropped.
+func hasSecondaryIndex(tbl *Table) bool {
+	for _, idx := range tbl.Indexes {
+		if !idx.Primary {
+			return true
+		}
+	}
+	return false
+}
+
 // needsAutoIncrementCheck reports whether the ALTER can leave the table with an
 // AUTO_INCREMENT column unkeyed or with two: the table has one, a column
 // definition may add one, or a command adds or drops a key or a column. Such a
@@ -136,25 +147,36 @@ func validateAutoIncrementKeyed(tbl *Table) error {
 		}
 		auto = col.Name
 	}
-	if auto == "" || autoIncrementLeadsKey(tbl, auto) {
+	if auto == "" || autoIncrementKeyed(tbl, auto) {
 		return nil
 	}
 	return errIncorrectAutoIncrementDefinition()
 }
 
-// autoIncrementLeadsKey reports whether a key of the table has the column first,
-// which is where MariaDB requires an AUTO_INCREMENT column.
-func autoIncrementLeadsKey(tbl *Table, name string) bool {
+// autoIncrementKeyed reports whether the table's keys take an AUTO_INCREMENT
+// column where its engine needs it: the first part of a key on InnoDB, and
+// anywhere in a key on MyISAM and Aria. Measured on mariadb:11.8.8:
+// `CREATE TABLE t (g INT, id INT AUTO_INCREMENT, KEY k (g, id))` runs on MyISAM
+// and Aria and answers 1075 on InnoDB, and `DROP KEY k` over the MyISAM table
+// answers 1075 once no key holds the column at all.
+func autoIncrementKeyed(tbl *Table, name string) bool {
 	key := toLower(name)
+	first, anywhere := false, false
 	for _, idx := range tbl.Indexes {
-		if len(idx.Columns) == 0 || idx.Columns[0] == nil || idx.Columns[0].Name == "" {
-			continue
-		}
-		if toLower(idx.Columns[0].Name) == key {
-			return true
+		for i, ic := range idx.Columns {
+			if ic == nil || ic.Name == "" || toLower(ic.Name) != key {
+				continue
+			}
+			anywhere = true
+			if i == 0 {
+				first = true
+			}
 		}
 	}
-	return false
+	if engine := toLower(tbl.Engine); engine == "" || engine == "innodb" {
+		return first
+	}
+	return anywhere
 }
 
 // alterTableRun runs the commands of an ALTER TABLE, checking a partitioned
@@ -464,10 +486,30 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATConvertTableToPartition:
 		return c.alterConvertTableToPartition(db, tbl, cmd)
 	case nodes.ATImportTablespace:
-		// IMPORT TABLESPACE needs a tablespace DISCARDed first, and the server
-		// gave every table it created one: measured on mariadb:11.8.8,
-		// `ALTER TABLE a IMPORT TABLESPACE` over an ordinary table answers 1813.
+		// A tablespace is InnoDB's: measured on mariadb:11.8.8, MyISAM, Aria and
+		// MEMORY answer 1031 for both commands. Over an InnoDB table the server
+		// gave itself a tablespace, so IMPORT answers 1813 until the statement
+		// DISCARDs it, and 1030 from then on (there is no file to import).
+		if err := refuseTablespaceEngine(tbl); err != nil {
+			return err
+		}
+		if tbl.TablespaceDiscarded {
+			// The import reads the .cfg file DISCARD removed: a table with a
+			// secondary index asks for it to be dropped first (1815), and one
+			// without reports the tablespace missing (1030). Measured on
+			// mariadb:11.8.8.
+			if hasSecondaryIndex(tbl) {
+				return errImportNeedsIndexesDropped(db.Name, tbl.Name)
+			}
+			return errTablespaceMissing()
+		}
 		return errTablespaceExists(db.Name, tbl.Name)
+	case nodes.ATDiscardTablespace:
+		if err := refuseTablespaceEngine(tbl); err != nil {
+			return err
+		}
+		tbl.TablespaceDiscarded = true
+		return nil
 	case nodes.ATRemovePartitioning:
 		if tbl.Partitioning == nil {
 			return errPartitionMgmtOnNonpartitioned()

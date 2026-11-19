@@ -420,13 +420,15 @@ func validateEnumSetValues(colDef *nodes.ColumnDef) error {
 	if kind != "ENUM" && kind != "SET" {
 		return nil
 	}
-	seen := make(map[string]bool, len(colDef.TypeName.EnumValues))
+	seen := make(map[string]string, len(colDef.TypeName.EnumValues))
 	for _, value := range colDef.TypeName.EnumValues {
 		key := strings.ToLower(value)
-		if seen[key] {
-			return errDupEnumValue(colDef.Name, value, kind)
+		if first, ok := seen[key]; ok {
+			// The message names the first spelling: `ENUM('s','S')` reports
+			// "duplicated value 's'".
+			return errDupEnumValue(colDef.Name, first, kind)
 		}
-		seen[key] = true
+		seen[key] = value
 	}
 	return nil
 }

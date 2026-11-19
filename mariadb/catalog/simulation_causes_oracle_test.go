@@ -836,6 +836,39 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:        1813,
 			keepsSchema: true,
 		},
+		{
+			// A DISCARDed tablespace is gone, so there is no file to import: the
+			// import asks for the secondary indexes to go first, and reports the
+			// tablespace missing once they have.
+			name:        "IMPORT TABLESPACE after DISCARD TABLESPACE with a secondary key",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1815,
+			keepsSchema: true,
+		},
+		{
+			name:        "IMPORT TABLESPACE after DISCARD TABLESPACE without one",
+			setup:       []string{"CREATE TABLE a (b INT PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1030,
+			keepsSchema: true,
+		},
+		{
+			name:        "IMPORT TABLESPACE over a MyISAM table",
+			setup:       []string{"CREATE TABLE a (b INT) ENGINE=MyISAM"},
+			stmt:        "ALTER TABLE a IMPORT TABLESPACE",
+			code:        1031,
+			keepsSchema: true,
+		},
+		{
+			// An AUTO_INCREMENT column is the first part of a key on InnoDB, and
+			// anywhere in one on MyISAM.
+			name:        "ADD a column to a MyISAM table whose auto column is not first in its key",
+			setup:       []string{"CREATE TABLE a (g INT, id INT AUTO_INCREMENT, KEY k (g, id)) ENGINE=MyISAM"},
+			stmt:        "ALTER TABLE a ADD c INT",
+			code:        0,
+			keepsSchema: false,
+		},
 		// ALTER ... RENAME KEY of a key the table does not have is 1176, which the
 		// new name does not change.
 		{
