@@ -60,7 +60,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 		idxCols = append(idxCols, col)
 	}
-	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || isSpatialIndexType(resolveIndexUsingType(stmt.IndexType, stmt.Options))); err != nil {
 		return err
 	}
 
@@ -76,7 +76,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	case stmt.Fulltext:
 		idx.Fulltext = true
 		idx.IndexType = "FULLTEXT"
-	case stmt.Spatial:
+	case stmt.Spatial || isSpatialIndexType(resolveIndexUsingType(stmt.IndexType, stmt.Options)):
+		// USING RTREE makes a plain CREATE INDEX a SPATIAL one, as it does in a table
+		// definition, and MySQL stores it as SPATIAL KEY (mysql:8.0.46).
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
 	default:

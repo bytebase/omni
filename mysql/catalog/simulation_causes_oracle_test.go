@@ -46,6 +46,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// and must not hold.
 		contains []string
 		omits    []string
+		// keeps is the partitioning type the catalog must hold after a
+		// statement it took, "" for one it may not.
+		keeps string
 	}{
 		{
 			name:  "ALTER VIEW over a table",
@@ -766,6 +769,162 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD e BIT(64)",
 			code:  0,
 		},
+		{
+			// A partition function that reads a column the table does not hold
+			// answers before the unique keys are judged: 1488 for KEY's list,
+			// 1054 for a partitioning expression, and 1492 for a RANGE or LIST
+			// partitioning that defines no partition, which answers even on a
+			// table that is not there.
+			name:  "ALTER TABLE PARTITION BY KEY over a column the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY(zzz)",
+			code:  1488,
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY HASH over a column the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY HASH(zzz)",
+			code:  1054,
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY KEY naming a column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY(c, c)",
+			code:  1652,
+		},
+		{
+			// MySQL mixes subpartitioning with RANGE and LIST only, and answers
+			// 1500 before it reads the column the subpartition function names.
+			name:  "ALTER TABLE PARTITION BY KEY with a SUBPARTITION BY",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(zzz)",
+			code:  1500,
+		},
+		{
+			name:  "CREATE TABLE PARTITION BY HASH with a SUBPARTITION BY",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT PRIMARY KEY, c INT) PARTITION BY HASH(b) PARTITIONS 2 SUBPARTITION BY HASH(c)",
+			code:  1500,
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY RANGE with no partition",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY RANGE(c)",
+			code:  1492,
+		},
+		{
+			name: "ALTER TABLE PARTITION BY RANGE with no partition on no table",
+			stmt: "ALTER TABLE a PARTITION BY RANGE(c)",
+			code: 1492,
+		},
+		{
+			// The forms that read a column answer 1146 first.
+			name: "ALTER TABLE PARTITION BY HASH over a column on no table",
+			stmt: "ALTER TABLE a PARTITION BY HASH(c)",
+			code: 1146,
+		},
+		{
+			name:  "CREATE TABLE PARTITION BY KEY over a column the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT PRIMARY KEY, c INT) PARTITION BY KEY(zzz)",
+			code:  1488,
+		},
+		{
+			// A partitioning the statement writes is the one the table keeps.
+			name:  "ALTER TABLE PARTITION BY KEY over the primary key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY()",
+			code:  0,
+			keeps: "KEY",
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY LINEAR KEY with a partition",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY LINEAR KEY() PARTITIONS 1",
+			code:  0,
+			keeps: "KEY",
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY RANGE over the primary key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10))",
+			code:  0,
+			keeps: "RANGE",
+		},
+		{
+			// A SPATIAL key's column is judged for its type before its
+			// nullability: an INT column is 1687 whether or not it is NOT NULL,
+			// and a nullable geometry column is what answers 1252.
+			name:  "ADD SPATIAL over a nullable column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL(c)",
+			code:  1687,
+		},
+		{
+			name:  "ADD SPATIAL over a NOT NULL column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL(b)",
+			code:  1687,
+		},
+		{
+			name:  "ADD SPATIAL over a nullable geometry column",
+			setup: []string{oneTable, "ALTER TABLE a ADD g POINT"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  1252,
+		},
+		{
+			name:  "ADD SPATIAL over a NOT NULL geometry column",
+			setup: []string{oneTable, "ALTER TABLE a ADD g POINT NOT NULL"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  0,
+		},
+		{
+			name:  "ADD KEY USING RTREE over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY USING RTREE(c)",
+			code:  1687,
+		},
+		{
+			// USING RTREE makes the key a spatial one, which MySQL stores and
+			// prints as SPATIAL KEY.
+			name:     "ADD KEY USING RTREE over a NOT NULL geometry column",
+			setup:    []string{oneTable, "ALTER TABLE a ADD g POINT NOT NULL"},
+			stmt:     "ALTER TABLE a ADD KEY USING RTREE(g)",
+			code:     0,
+			contains: []string{"SPATIAL KEY `g` (`g`)"},
+		},
+		{
+			name:  "CREATE TABLE with a SPATIAL key over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT NOT NULL, SPATIAL KEY (b))",
+			code:  1687,
+		},
+		{
+			// A spatial reference system MySQL defines must write both the
+			// attributes it requires, and answers 3708 naming the one it misses.
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with no attribute",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000",
+			code:  3708,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with no NAME",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 DEFINITION 's'",
+			code:  3708,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with no DEFINITION",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME 's'",
+			code:  3708,
+		},
+		{
+			name:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM with no NAME",
+			setup: []string{oneTable},
+			stmt:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 5000 ORGANIZATION 's' IDENTIFIED BY 1",
+			code:  3708,
+		},
 	}
 
 	for _, tc := range cases {
@@ -818,6 +977,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 					if tbl == nil || tbl.Engine != "MEMORY" {
 						t.Fatalf("catalog stored engine %q for HEAP, want MEMORY", tbl.Engine)
 					}
+				}
+			}
+			if tc.code == 0 && tc.keeps != "" {
+				tbl := c.GetDatabase("d").GetTable("a")
+				if tbl == nil || tbl.Partitioning == nil || tbl.Partitioning.Type != tc.keeps {
+					t.Fatalf("catalog did not keep the %s partitioning %s wrote: %+v", tc.keeps, tc.stmt, tbl)
 				}
 			}
 			if tc.code == 0 && tc.stmt == "ALTER TABLE a ADD PRIMARY KEY(x2), ADD x2 INT" {

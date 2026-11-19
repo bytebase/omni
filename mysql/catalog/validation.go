@@ -710,3 +710,17 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 		return nil, false
 	}
 }
+
+// validateCreateSpatialRefSys refuses a CREATE SPATIAL REFERENCE SYSTEM that leaves
+// out an attribute MySQL requires: NAME first, then DEFINITION, each answered 3708
+// with the attribute it names (mysql:8.0.46). The catalog holds no spatial reference
+// system, so a statement that writes both is a no-op.
+func validateCreateSpatialRefSys(stmt *nodes.CreateSpatialRefSysStmt) error {
+	if stmt.Name == "" {
+		return errSRSMandatoryAttribute("NAME")
+	}
+	if stmt.Definition == "" {
+		return errSRSMandatoryAttribute("DEFINITION")
+	}
+	return nil
+}
