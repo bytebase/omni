@@ -100,6 +100,9 @@ func (p *Parser) parseCreateIndexStmt(start int, orReplace, unique, fulltext, sp
 			break
 		}
 		stmt.Options = append(stmt.Options, opt)
+		if fulltext {
+			p.noteFulltextParser(opt)
+		}
 	}
 
 	// [algorithm_option | lock_option] ...
@@ -372,6 +375,26 @@ func (p *Parser) validateOverlapsParts(cols []*nodes.IndexColumn, allowOverlaps 
 		return p.syntaxErrorAtCur()
 	}
 	return nil
+}
+
+// noteFulltextParser records the lookup a FULLTEXT key's WITH PARSER makes. MariaDB
+// looks the parser plugin up while it parses and answers 1128 for a name it does not
+// ship, of which the pinned server ships none; the catalog answers 1128 as well, so a
+// key that reaches it is refused, and one whose statement does not parse reports the
+// lookup rather than the syntax error. See Parser.preferLookup.
+func (p *Parser) noteFulltextParser(opt *nodes.IndexOption) {
+	if opt == nil || !strings.EqualFold(opt.Name, "PARSER") {
+		return
+	}
+	name := ""
+	if s, ok := opt.Value.(*nodes.StringLit); ok {
+		name = s.Value
+	}
+	p.noteLookup(&ParseError{
+		Code:     1128,
+		Message:  "Function '" + name + "' is not defined",
+		Position: opt.Loc.Start,
+	})
 }
 
 // parseIndexOption parses a single index_option.

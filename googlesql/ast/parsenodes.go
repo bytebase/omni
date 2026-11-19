@@ -4916,12 +4916,12 @@ func (n *GraphPropertyNameValue) Tag() NodeTag { return T_GraphPropertyNameValue
 // (create_property_graph_statement):
 //
 //	CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] <path>
-//	  [OPTIONS(…)] NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )]
+//	  NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )] [OPTIONS(…)]
 //
 // OrReplace / IfNotExists flag the prefixes. Name is the graph name. Options is
-// the optional OPTIONS list. NodeTables is the required NODE TABLES element
-// list (>= 1). EdgeTables is the optional EDGE TABLES element list (nil if
-// absent).
+// the optional OPTIONS list, which follows the graph content (googlesql.tm:2666).
+// NodeTables is the required NODE TABLES element list (>= 1). EdgeTables is the
+// optional EDGE TABLES element list (nil if absent).
 type CreatePropertyGraphStmt struct {
 	OrReplace   bool
 	IfNotExists bool

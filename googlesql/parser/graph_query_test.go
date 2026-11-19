@@ -799,7 +799,7 @@ func TestCreatePropertyGraph_Basic(t *testing.T) {
 }
 
 func TestCreatePropertyGraph_OrReplaceOptions(t *testing.T) {
-	pg := createPropertyGraphOf(t, "CREATE OR REPLACE PROPERTY GRAPH g OPTIONS(x='y') NODE TABLES (T)")
+	pg := createPropertyGraphOf(t, "CREATE OR REPLACE PROPERTY GRAPH g NODE TABLES (T) OPTIONS(x='y')")
 	if !pg.OrReplace {
 		t.Error("expected OrReplace")
 	}
@@ -808,6 +808,35 @@ func TestCreatePropertyGraph_OrReplaceOptions(t *testing.T) {
 	}
 	if len(pg.Options) != 1 || pg.Options[0].Name != "x" {
 		t.Fatalf("options = %+v, want one option x", pg.Options)
+	}
+	if got := pg.Loc.End; got != len("CREATE OR REPLACE PROPERTY GRAPH g NODE TABLES (T) OPTIONS(x='y')") {
+		t.Errorf("Loc.End = %d, want the options list's close paren", got)
+	}
+}
+
+// TestCreatePropertyGraph_OptionsAfterContent holds the OPTIONS list to the
+// position the pinned grammar (googlesql.tm:2666) and Spanner's graph DDL
+// reference both put it: after the node and edge tables. The leading position
+// the legacy ANTLR GoogleSQLParser.g4 had is no alternative of either, and the
+// emulator refuses it at the OPTIONS word (compat.tsv's suite:graph-query row).
+func TestCreatePropertyGraph_OptionsAfterContent(t *testing.T) {
+	accepted := []string{
+		"CREATE PROPERTY GRAPH g NODE TABLES (T) OPTIONS(x=true)",
+		"CREATE PROPERTY GRAPH g NODE TABLES (T) EDGE TABLES (E) OPTIONS(x=true)",
+		"CREATE PROPERTY GRAPH g NODE TABLES (T) OPTIONS()",
+	}
+	for _, sql := range accepted {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v, want accept", sql, err)
+		}
+	}
+	refused := []string{
+		"CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T)",
+		"CREATE OR REPLACE PROPERTY GRAPH g OPTIONS(x='y') NODE TABLES (T)",
+		"CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T) EDGE TABLES (E)",
+	}
+	for _, sql := range refused {
+		assertReject(t, sql)
 	}
 }
 

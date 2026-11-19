@@ -33,6 +33,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := validateColumnDisplayWidth(colDef); err != nil {
 			return err
 		}
+		// A bare NOW()-family DEFAULT on a column that is neither DATETIME nor
+		// TIMESTAMP is 1067 while the statement is prepared, ahead of the name
+		// collision and of the database the name sits in (mysql:8.0.46).
+		if err := validateBareNowDefault(colDef); err != nil {
+			return err
+		}
 	}
 	// A loader's statement (DefineTable) is a snapshot of a server that may
 	// ship another engine, so only a CREATE TABLE statement is judged, and its
@@ -759,6 +765,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
+	// A table with no visible column is 4028, not only one with no column at
+	// all: `CREATE TABLE q (a INT INVISIBLE)` is refused, and so it is with
+	// sql_generate_invisible_primary_key on, where the only column is the
+	// invisible my_row_id. MySQL answers it after the name collision (1050) and
+	// after a key's own columns are resolved (1072), and before the partition
+	// clause, which alone cannot make a column: `CREATE TABLE q (KEY (x))` is
+	// 1072 and `CREATE TABLE q PARTITION BY KEY()` 4028 (mysql:8.0.46).
+	// A CTAS is never this error's: MySQL appends the query's own columns to the
+	// declared ones as visible columns, so `CREATE TABLE t2 (col2 INT INVISIBLE)
+	// AS SELECT col1, col2 FROM t1` is a table it takes (mysql:8.0.46).
+	if stmt.Select == nil && !tableHasVisibleColumn(tbl) {
+		return errTableMustHaveColumns()
+	}
+
 	// Validate foreign key constraints (unless foreign_key_checks=0).
 	if c.foreignKeyChecks {
 		if err := c.validateForeignKeys(db, tbl); err != nil {
@@ -780,6 +800,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+// tableHasVisibleColumn reports whether the table keeps a column a SELECT * and
+// a reader may see. my_row_id is invisible, so a table the generated invisible
+// primary key alone fills has none, and neither has one whose only other column
+// is a functional index's hidden system column.
+func tableHasVisibleColumn(tbl *Table) bool {
+	for _, col := range tbl.Columns {
+		if col != nil && !col.Invisible && col.Hidden == ColumnHiddenNone {
+			return true
+		}
+	}
+	return false
 }
 
 func errGIPKPartitioned() error {

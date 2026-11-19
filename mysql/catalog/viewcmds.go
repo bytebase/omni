@@ -24,7 +24,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// of the body has, even when the name already belongs to a table (1050) or
 	// a view. A synced view's body is the engine's already, so it is not judged
 	// here.
-	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select)
+	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select, source)
 	if checkBody && bodyErr != nil {
 		return bodyErr
 	}
@@ -98,15 +98,18 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 }
 
 // analyzeViewBody analyzes a view body for the semantic IR lineage and SDL
-// diff use, and reports the one failure MySQL's CREATE VIEW reports too: a
-// target-list column in a SELECT with no FROM, which names no column at all
-// (1054). The analyzer models less than the engine here — it cannot resolve a
-// select alias a HAVING or ORDER BY reads, for one — so every other failure
-// leaves a view without AnalyzedQuery rather than refusing a view the engine
-// accepts.
-func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
+// diff use, and reports the failures MySQL's CREATE VIEW reports too: a star
+// with no table to expand (1096), and a target-list column in a SELECT with no
+// FROM, which names no column at all (1054). The analyzer models less than the
+// engine here — it cannot resolve a select alias a HAVING or ORDER BY reads, for
+// one — so every other failure leaves a view without AnalyzedQuery rather than
+// refusing a view the engine accepts.
+func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt, source string) (*Query, error) {
 	if sel == nil {
 		return nil, nil
+	}
+	if err := checkViewBodyStar(sel, source); err != nil {
+		return nil, err
 	}
 	q, err := c.AnalyzeSelectStmt(sel)
 	if err == nil {
@@ -117,6 +120,270 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 		return nil, refusal
 	}
 	return nil, nil
+}
+
+// checkViewBodyStar refuses a view body whose star has no table to expand. Every
+// query block MySQL resolves is judged: the blocks of the body itself, of a set
+// operation, of a parenthesis, of a derived table and of a subquery expression,
+// and the body of a CTE the body reaches. MySQL resolves a CTE only where it is
+// read, and only through the declarations its own scope holds — one declared
+// later in the same WITH is not visible, and a nearer one hides an outer one —
+// so the walk resolves each reference against the block's own scope and follows
+// the reads from the body rather than from every CTE. In a block with no table,
+// a bare star is 1096 "No tables used" and a qualified one is 1051 "Unknown
+// table 't'", whose table the block reads nowhere. Both answer before the view's
+// own name is looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an
+// existing table a (1050). A block naming no star is left alone: `CREATE VIEW v
+// AS SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
+func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
+	if sel == nil {
+		return nil
+	}
+	body := viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
+	body.walk(sel, nil, nil, source)
+	body.reach()
+	for _, b := range body.blocks {
+		if b.owner != nil && !body.reads[b.owner] {
+			continue
+		}
+		if err := viewBlockStar(b.block, source); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// viewBody is a view body's query blocks and what its CTEs read.
+type viewBody struct {
+	blocks []viewBlock
+	// roots are the CTEs the body itself reads, which is where resolution
+	// starts.
+	roots map[*nodes.CommonTableExpr]bool
+	// edges holds, for a CTE, the CTEs its own body reads.
+	edges map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool
+	// reads is the set of CTEs the body reaches, filled by reach.
+	reads map[*nodes.CommonTableExpr]bool
+}
+
+// viewBlock is one query block, with the CTE whose body holds it: nil for the
+// blocks of the view body itself.
+type viewBlock struct {
+	block *nodes.SelectStmt
+	owner *nodes.CommonTableExpr
+}
+
+// walk records block and the CTEs it reads, then the blocks nested in it. ctes
+// are the declarations visible from the enclosing blocks, outermost first.
+func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, owner *nodes.CommonTableExpr, source string) {
+	if block == nil {
+		return
+	}
+	visible := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs...)
+	v.blocks = append(v.blocks, viewBlock{block: block, owner: owner})
+	var children []*nodes.SelectStmt
+	var names []string
+	nodes.Inspect(block, func(n nodes.Node) bool {
+		switch e := n.(type) {
+		case *nodes.SelectStmt:
+			if e == block {
+				return true
+			}
+			// A nested block reads through its own scope: walked below.
+			children = append(children, e)
+			return false
+		case *nodes.CommonTableExpr:
+			// Walked below, with the CTE as the body's owner.
+			return false
+		case *nodes.TableRef:
+			// The dummy DUAL reads no CTE, whatever a CTE of that name is.
+			if e.Schema == "" && e.Name != "" && !isDualRef(e, source) {
+				names = append(names, e.Name)
+			}
+		}
+		return true
+	})
+	for _, name := range names {
+		cte := visibleCte(visible, name)
+		if cte == nil {
+			continue
+		}
+		if owner == nil {
+			if v.roots == nil {
+				v.roots = map[*nodes.CommonTableExpr]bool{}
+			}
+			v.roots[cte] = true
+			continue
+		}
+		if v.edges[owner] == nil {
+			v.edges[owner] = map[*nodes.CommonTableExpr]bool{}
+		}
+		v.edges[owner][cte] = true
+	}
+	for i, cte := range block.CTEs {
+		// A CTE reads the declarations of the enclosing blocks and the siblings
+		// written before it, not the ones after it, and not itself unless the
+		// WITH says RECURSIVE (mysql:8.0.46).
+		mine := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs[:i]...)
+		if cte.Recursive {
+			mine = append(mine, cte)
+		}
+		v.walk(cte.Select, mine, cte, source)
+	}
+	for _, child := range children {
+		v.walk(child, visible, owner, source)
+	}
+}
+
+// reach fills reads with the CTEs the body reads, and the CTEs those read, and
+// so on: a CTE nothing in the body reaches is one MySQL never resolves.
+func (v *viewBody) reach() {
+	v.reads = map[*nodes.CommonTableExpr]bool{}
+	queue := make([]*nodes.CommonTableExpr, 0, len(v.roots))
+	for cte := range v.roots {
+		queue = append(queue, cte)
+	}
+	for len(queue) > 0 {
+		cte := queue[0]
+		queue = queue[1:]
+		if v.reads[cte] {
+			continue
+		}
+		v.reads[cte] = true
+		for next := range v.edges[cte] {
+			if !v.reads[next] {
+				queue = append(queue, next)
+			}
+		}
+	}
+}
+
+// visibleCte is the CTE a name reads: the innermost declaration of it wins.
+func visibleCte(ctes []*nodes.CommonTableExpr, name string) *nodes.CommonTableExpr {
+	for i := len(ctes) - 1; i >= 0; i-- {
+		if strings.EqualFold(ctes[i].Name, name) {
+			return ctes[i]
+		}
+	}
+	return nil
+}
+
+// viewBlockStar reports the star of one query block that names no relation it
+// can expand from: a block with no table, or a qualified star whose qualifier is
+// not one of the block's relations.
+func viewBlockStar(sel *nodes.SelectStmt, source string) error {
+	if readsOnlyNoTable(sel, source) {
+		for _, item := range sel.TargetList {
+			expr := item
+			if target, ok := item.(*nodes.ResTarget); ok {
+				expr = target.Val
+			}
+			switch e := expr.(type) {
+			case *nodes.StarExpr:
+				return errNoTablesUsed()
+			case *nodes.ColumnRef:
+				if e.Star {
+					return errUnknownTableName(e.Table)
+				}
+			}
+		}
+		return nil
+	}
+	relations := blockRelationNames(sel)
+	for _, item := range sel.TargetList {
+		expr := item
+		if target, ok := item.(*nodes.ResTarget); ok {
+			expr = target.Val
+		}
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star {
+			if qualifier := starQualifier(e); !relations[qualifier] {
+				return errUnknownTableName(qualifier)
+			}
+		}
+	}
+	return nil
+}
+
+// starQualifier is the name a qualified star asks for: its table, qualified by
+// its schema when the star wrote one. A relation's name and alias are compared
+// as written: the pinned server runs with lower_case_table_names=0, where
+// `SELECT T.* FROM a AS t` is 1051 (mysql:8.0.46).
+func starQualifier(e *nodes.ColumnRef) string {
+	if e.Schema == "" {
+		return e.Table
+	}
+	return e.Schema + "." + e.Table
+}
+
+// blockRelationNames is the names a qualified star may carry in the block: each
+// relation's alias, or its own name when the statement gave it none.
+func blockRelationNames(sel *nodes.SelectStmt) map[string]bool {
+	names := make(map[string]bool, len(sel.From))
+	var add func(nodes.TableExpr)
+	add = func(te nodes.TableExpr) {
+		switch e := te.(type) {
+		case *nodes.TableRef:
+			// An alias hides the name; without one the reference answers to its
+			// table name, and to the schema-qualified name too.
+			if e.Alias != "" {
+				names[e.Alias] = true
+				return
+			}
+			if e.Name != "" {
+				names[e.Name] = true
+			}
+			if e.Schema != "" && e.Name != "" {
+				names[e.Schema+"."+e.Name] = true
+			}
+		case *nodes.SubqueryExpr:
+			if e.Alias != "" {
+				names[e.Alias] = true
+			}
+		case *nodes.JsonTableExpr:
+			if e.Alias != "" {
+				names[e.Alias] = true
+			}
+		case *nodes.JoinClause:
+			add(e.Left)
+			add(e.Right)
+		}
+	}
+	for _, te := range sel.From {
+		add(te)
+	}
+	return names
+}
+
+// readsOnlyNoTable reports whether the block reads no relation at all, or only
+// the dummy DUAL. MySQL expands a star over DUAL from nothing, so
+// `CREATE VIEW v AS SELECT * FROM DUAL` is 1096 like a block with no FROM while
+// `CREATE VIEW v AS SELECT 1 FROM DUAL` is a view it takes (read on
+// mysql:8.0.46). A table really named dual is written quoted and is not the
+// dummy: the same server takes the view over a backtick-quoted dual table.
+func readsOnlyNoTable(sel *nodes.SelectStmt, source string) bool {
+	if len(sel.From) > 1 {
+		return false
+	}
+	if len(sel.From) == 0 {
+		return true
+	}
+	return isDualRef(sel.From[0], source)
+}
+
+// isDualRef reports whether a FROM entry is the dummy DUAL. The parser reads the
+// DUAL keyword and the quoted table name into the same TableRef, so the text the
+// reference starts at decides: a backtick opens a quoted identifier, which names
+// a real table. Without the statement's text (a synced definition) the reference
+// is read as that table, which can only over-accept.
+func isDualRef(expr nodes.TableExpr, source string) bool {
+	ref, ok := expr.(*nodes.TableRef)
+	if !ok || ref.Schema != "" || !strings.EqualFold(ref.Name, "dual") {
+		return false
+	}
+	start := ref.Loc.Start
+	if start < 0 || start >= len(source) {
+		return false
+	}
+	return source[start] != '`'
 }
 
 // viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that
@@ -257,7 +524,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 
 	// The body is analyzed for semantic IR (used by lineage, SDL diff) and for
 	// the one failure MySQL's ALTER VIEW reports too.
-	analyzedQuery, err := c.analyzeViewBody(stmt.Select)
+	analyzedQuery, err := c.analyzeViewBody(stmt.Select, source)
 	if err != nil {
 		return err
 	}

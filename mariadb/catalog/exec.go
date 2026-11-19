@@ -91,7 +91,70 @@ func validateDDL(stmt nodes.Node) error {
 			Message:  "parameter marker (?) is not allowed in a DDL statement",
 		}
 	}
-	return nil
+	return validateParseTimeLookups(stmt)
+}
+
+// validateParseTimeLookups refuses the checks MariaDB makes while it parses that
+// answer with the code of the name they looked up, before anything of the statement
+// runs: a column whose type writes a character set and a collation of another one is
+// 1253, and a FULLTEXT key's WITH PARSER names a parser plugin the pinned server does
+// not ship, which is 1128. The server stops at the first of them, so the one earliest
+// in the text is the one reported: `ADD a CHAR ASCII COLLATE utf8mb4_bin, ADD FULLTEXT
+// (a) WITH PARSER p` is 1253.
+//
+// Measured on mariadb:11.8.8: both answer before the table is looked up (1146) and
+// before a name collides (1050) or a column repeats (1060), so this runs before the
+// statement does. The parser records the same two checks for a statement that does
+// not parse (parser.ParseError.Code), which never reaches here.
+func validateParseTimeLookups(stmt nodes.Node) error {
+	var err error
+	first := -1
+	record := func(pos int, e error) {
+		if first < 0 || pos < first {
+			first, err = pos, e
+		}
+	}
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		switch x := n.(type) {
+		case *nodes.ColumnDef:
+			dt := x.TypeName
+			if dt == nil || dt.Charset == "" || dt.Collate == "" || charsetMatchesCollation(dt.Charset, dt.Collate) {
+				return true
+			}
+			charset := normalizeCharsetName(dt.Charset)
+			record(dt.Loc.Start, &Error{
+				Code:     1253,
+				SQLState: sqlState(1253),
+				Message:  fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", strings.ToLower(dt.Collate), charset),
+			})
+		case *nodes.CreateIndexStmt:
+			if x.Fulltext {
+				recordFulltextParser(record, x.Options)
+			}
+		case *nodes.Constraint:
+			if x.Type == nodes.ConstrFulltextIndex {
+				recordFulltextParser(record, x.IndexOptions)
+			}
+		}
+		return true
+	})
+	return err
+}
+
+// recordFulltextParser records the 1128 a FULLTEXT key's WITH PARSER answers for its
+// parser plugin, which is the only option whose name the server looks up.
+func recordFulltextParser(record func(int, error), opts []*nodes.IndexOption) {
+	for _, opt := range opts {
+		if opt == nil || !strings.EqualFold(opt.Name, "PARSER") {
+			continue
+		}
+		name := ""
+		if s, ok := opt.Value.(*nodes.StringLit); ok {
+			name = s.Value
+		}
+		record(opt.Loc.Start, errFunctionNotDefined(name))
+		return
+	}
 }
 
 func LoadSQL(sql string) (*Catalog, error) {
