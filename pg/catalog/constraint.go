@@ -120,6 +120,13 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 	}
 
+	effectiveTablespace := c.effectiveTablespace(def.IndexSpace)
+	if existingIdx == nil {
+		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+			return err
+		}
+	}
+
 	conOID := c.oidGen.Next()
 
 	isPrimary := typ == ConstraintPK
@@ -131,10 +138,6 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 
 	idx := existingIdx
 	if idx == nil {
-		effectiveTablespace := c.effectiveTablespace(def.IndexSpace)
-		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
-			return err
-		}
 		idxName := name
 		if idxName == "" {
 			idxName = generateIndexName(rel.Name, def.Columns, isPrimary)

@@ -279,6 +279,21 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// A failed constraint tablespace check leaves the column as it was.
+	t.Run("a failed primary key tablespace check keeps the column nullable", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, "CREATE TABLE a (b int)"); code != "0" {
+			t.Fatalf("catalog refused CREATE TABLE with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "ALTER TABLE a ADD PRIMARY KEY (b) USING INDEX TABLESPACE missing"); code != CodeUndefinedObject {
+			t.Fatalf("catalog answered %s, want %s", code, CodeUndefinedObject)
+		}
+		rel := c.schemaByName["public"].Relations["a"]
+		if rel == nil || rel.Columns[rel.colByName["b"]].NotNull {
+			t.Fatal("a failed ALTER TABLE left b NOT NULL")
+		}
+	})
+
 	// SET TABLESPACE is only for tables, materialized views and indexes.
 	t.Run("SET TABLESPACE on a view", func(t *testing.T) {
 		c := New()
