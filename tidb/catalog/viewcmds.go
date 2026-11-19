@@ -21,6 +21,15 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		return err
 	}
 	key := toLower(stmt.Name.Name)
+	// A view body is judged before the view's name is looked up on the Exec
+	// path: TiDB resolves the body's names first, so `CREATE VIEW a AS SELECT *`
+	// is 1051 for the star even when a table a exists (1050). A synced view's
+	// body is the engine's already, so it is not judged here.
+	if checkBody {
+		if err := checkViewBodyStar(stmt.Select); err != nil {
+			return err
+		}
+	}
 	// Tables and views share the same namespace in MySQL.
 	if db.Tables[key] != nil || db.Sequences[key] != nil {
 		return errDupTable(stmt.Name.Name)
@@ -97,6 +106,43 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
 		ColumnMetadata:  viewColumnMetadata(viewCols, collations),
+	}
+	return nil
+}
+
+// checkViewBodyStar refuses a view body whose star has no table to expand.
+// Each query block with no FROM is judged: a bare `*` there names the empty
+// table TiDB reports as "Unknown table ”", and `t.*` names t, which the body
+// reads nowhere. TiDB resolves the body before the view's own name, so
+// `CREATE VIEW a AS SELECT *` is 1051 even over an existing table a, where the
+// name collision alone would be 1050 (read on v8.5.5). A FROM-less SELECT that
+// names no star is left alone: `CREATE VIEW v AS SELECT count(*)` and
+// `... SELECT 1` are both views TiDB takes.
+func checkViewBodyStar(sel *nodes.SelectStmt) error {
+	if sel == nil {
+		return nil
+	}
+	for _, inner := range []*nodes.SelectStmt{sel.ParenSource, sel.Left, sel.Right} {
+		if err := checkViewBodyStar(inner); err != nil {
+			return err
+		}
+	}
+	if len(sel.From) > 0 {
+		return nil
+	}
+	for _, field := range sel.TargetList {
+		expr := field
+		if rt, ok := field.(*nodes.ResTarget); ok {
+			expr = rt.Val
+		}
+		switch e := expr.(type) {
+		case *nodes.StarExpr:
+			return errStarNamesNoTable("")
+		case *nodes.ColumnRef:
+			if e.Star {
+				return errStarNamesNoTable(e.Table)
+			}
+		}
 	}
 	return nil
 }

@@ -15,15 +15,16 @@ import (
 // mysql:8.0.46 cause by cause: the object an ALTER or DROP VIEW names, a key
 // built on a column the table does not have, a FULLTEXT key's parser, a
 // partition action on a table that has no partitions, a type's display width, a
-// view body naming a column no relation has, and the columns MySQL gives
-// another type from the text they were: SERIAL, CHAR BYTE and CHAR COLLATE
-// BINARY. Each case is answered by the pinned server and by the catalog, and
-// both must agree with the code the case states.
+// view body naming a column no relation has or expanding a star no table backs,
+// a CREATE TABLE with no column, a NOW()-family DEFAULT the column's type cannot
+// hold, and the columns MySQL gives another type from the text they were:
+// SERIAL, CHAR BYTE and CHAR COLLATE BINARY. Each case is answered by the pinned
+// server and by the catalog, and both must agree with the code the case states.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -765,6 +766,112 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD e BIT(64)",
 			code:  0,
+		},
+		// A view body's star is resolved before the view's own name: a `*`
+		// with no FROM expands from nothing and is 1096, even over a table a,
+		// where the name alone would be 1050.
+		{
+			name:  "CREATE VIEW over a table whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW a AS SELECT *",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT *",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty qualified star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.*",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body expands a star over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a t",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body counts a star with no table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT count(*)",
+			code:  0,
+		},
+		// A table with no column at all is 4028, after the name collision and
+		// after a key's own columns are resolved.
+		{
+			name:  "CREATE TABLE with no columns over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a;",
+			code:  1050,
+		},
+		{
+			name: "CREATE TABLE with no columns",
+			stmt: "CREATE TABLE z;",
+			code: 4028,
+		},
+		{
+			name: "CREATE TABLE whose only element is a key over a missing column",
+			stmt: "CREATE TABLE z (KEY (b));",
+			code: 1072,
+		},
+		{
+			name: "CREATE TABLE whose only element is a partition clause",
+			stmt: "CREATE TABLE z PARTITION BY KEY();",
+			code: 4028,
+		},
+		{
+			name:  "CREATE TABLE LIKE over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (LIKE a);",
+			code:  0,
+		},
+		// A bare NOW()-family DEFAULT is a current-timestamp value, which only
+		// a DATETIME or TIMESTAMP column holds. MySQL judges it while it
+		// prepares the statement: ahead of the table's lookup (1146) and of a
+		// duplicate column (1060). A parenthesized DEFAULT (NOW()) is a general
+		// expression default, which the same server takes on an INT column.
+		{
+			name: "ADD a NOW() default over no table",
+			stmt: "ALTER TABLE nope ADD e INT DEFAULT NOW()",
+			code: 1067,
+		},
+		{
+			name:  "ADD a CURRENT_TIMESTAMP default over a duplicate column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD b INT DEFAULT CURRENT_TIMESTAMP",
+			code:  1067,
+		},
+		{
+			name:  "MODIFY a column to a NOW() default",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a MODIFY b INT DEFAULT NOW()",
+			code:  1067,
+		},
+		{
+			name:  "ADD a parenthesized NOW() default to an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT DEFAULT (NOW())",
+			code:  0,
+		},
+		{
+			name:  "ADD a NOW() default to a DATETIME column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e DATETIME DEFAULT NOW()",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on an INT column",
+			stmt: "CREATE TABLE z (a INT DEFAULT NOW());",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on a DATETIME column",
+			stmt: "CREATE TABLE z (a DATETIME DEFAULT NOW());",
+			code: 0,
 		},
 	}
 

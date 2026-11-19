@@ -13,6 +13,21 @@ import (
 // its indexes in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
+	// TiDB judges a CREATE TABLE's own definition while it prepares the
+	// statement, before it resolves the database and before it looks the name
+	// up: a NOW()-family DEFAULT the column's type cannot hold is 1067 ahead of
+	// a missing database (1049), and a definition that lists no column at all is
+	// 1113 ahead of a name that collides (1050). Both read on v8.5.5.
+	for _, colDef := range stmt.Columns {
+		if err := checkNowDefaultColumnType(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+			return err
+		}
+	}
+	// A LIKE clause and a CTAS take their columns from elsewhere; TiDB answers
+	// those forms with their own codes before this rule would apply.
+	if stmt.Like == nil && stmt.Select == nil && len(stmt.Columns) == 0 {
+		return errTableMustHaveColumns()
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

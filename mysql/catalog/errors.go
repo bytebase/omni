@@ -67,6 +67,13 @@ const (
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
+
+	// ErrNoTablesUsed is 1096, which mysql:8.0.46 answers for a SELECT whose
+	// star has no table to expand, a CREATE VIEW body included.
+	ErrNoTablesUsed = 1096
+	// ErrTableMustHaveColumns is 4028, which mysql:8.0.46 answers for a CREATE
+	// TABLE that lists no column at all.
+	ErrTableMustHaveColumns = 4028
 )
 
 var sqlStateMap = map[int]string{
@@ -74,6 +81,7 @@ var sqlStateMap = map[int]string{
 	ErrUnknownDatabase:                   "42000",
 	ErrDupTable:                          "42S01",
 	ErrUnknownTable:                      "42S02",
+	ErrNoTablesUsed:                      "HY000",
 	ErrDupColumn:                         "42S21",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
@@ -117,6 +125,7 @@ var sqlStateMap = map[int]string{
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
+	ErrTableMustHaveColumns:              "42000",
 }
 
 func sqlState(code int) string {
@@ -169,6 +178,31 @@ func errWrongNameForIndex(name string) error {
 func errMultiplePriKey() error {
 	return &Error{Code: ErrMultiplePriKey, SQLState: sqlState(ErrMultiplePriKey),
 		Message: "Multiple primary key defined"}
+}
+
+// errNoTablesUsed is MySQL 1096 for a star with no table to expand. mysql's
+// CREATE VIEW resolves the body before the view's own name, so this answers
+// ahead of a name collision (1050). A star that qualifies its table is not this
+// error: MySQL names the table it cannot find (1051).
+func errNoTablesUsed() error {
+	return &Error{Code: ErrNoTablesUsed, SQLState: sqlState(ErrNoTablesUsed),
+		Message: "No tables used"}
+}
+
+// errUnknownTableName is MySQL 1051 as a view body's qualified star words it:
+// `CREATE VIEW v AS SELECT t.*`, with no FROM naming t, is "Unknown table 't'"
+// (mysql:8.0.46).
+func errUnknownTableName(name string) error {
+	return &Error{Code: ErrUnknownTable, SQLState: sqlState(ErrUnknownTable),
+		Message: fmt.Sprintf("Unknown table '%s'", name)}
+}
+
+// errTableMustHaveColumns is MySQL 4028 for a CREATE TABLE whose element list
+// holds no column. mysql:8.0.46 answers it after the name collision (1050) and
+// after a key's columns are resolved (1072).
+func errTableMustHaveColumns() error {
+	return &Error{Code: ErrTableMustHaveColumns, SQLState: sqlState(ErrTableMustHaveColumns),
+		Message: "A table must have at least one visible column."}
 }
 
 func errInvalidDefault(name string) error {

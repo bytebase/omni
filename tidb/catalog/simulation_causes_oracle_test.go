@@ -9,20 +9,19 @@ import (
 )
 
 // TestSimulationCausesOracle holds the refusals testdata/simulate.tsv records to
-// pingcap/tidb:v8.5.5 for a partition action on a table that has no partitions,
-// the one cause those rows name: TiDB answers 1505 for every action that needs
-// partitions, including ANALYZE PARTITION and the interval partitions FIRST and
-// LAST name, which it takes on a partitioned table. Each case is answered by the
-// pinned server and by the catalog, and both must agree with the code the case
-// states.
+// pingcap/tidb:v8.5.5 cause by cause: a partition action on a table that has no
+// partitions, a view body's star that has no table to expand, a CREATE TABLE
+// that lists no column, and a NOW()-family DEFAULT the column's type cannot
+// hold. Each case is answered by the pinned server and by the catalog, and both
+// must agree with the code the case states.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn, cleanup := startContainer(t)
 	defer cleanup()
 	ctx := context.Background()
-	// A table named a is what every case leaves, and DROP VIEW fails on it, so
-	// the reset drops tables only.
+	// A table named a is what most cases leave, and DROP VIEW fails on it, so
+	// the reset drops tables; the view cases make v, which no table shares.
 	reset := func(tb testing.TB) {
-		for _, stmt := range []string{"DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS s"} {
+		for _, stmt := range []string{"DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v"} {
 			if _, err := conn.db.ExecContext(ctx, stmt); err != nil {
 				tb.Errorf("%s: %v", stmt, err)
 			}
@@ -150,6 +149,112 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{interval},
 			stmt:  "ALTER TABLE a LAST PARTITION LESS THAN (1000)",
 			code:  0,
+		},
+		// A view body's star is resolved before the view's own name: a `*`
+		// with no FROM expands from nothing and is 1051, even over a table a,
+		// where the name alone would be 1050.
+		{
+			name:  "CREATE VIEW over a table whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW a AS SELECT *",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT *",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty qualified star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.*",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body expands a star over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a t",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body counts a star with no table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT count(*)",
+			code:  0,
+		},
+		// A CREATE TABLE's own definition is read before the name is looked
+		// up, so a list with no column is 1113 ahead of the collision's 1050.
+		{
+			name:  "CREATE TABLE with no columns over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a",
+			code:  1113,
+		},
+		{
+			name: "CREATE TABLE with no columns",
+			stmt: "CREATE TABLE z",
+			code: 1113,
+		},
+		{
+			name: "CREATE TABLE whose only element is a key",
+			stmt: "CREATE TABLE z (KEY (b))",
+			code: 1113,
+		},
+		{
+			name:  "CREATE TABLE LIKE over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (LIKE a)",
+			code:  0,
+		},
+		// A NOW()-family DEFAULT is a current-timestamp value, which only a
+		// DATETIME or TIMESTAMP column holds. TiDB judges it while it prepares
+		// the statement: ahead of the table's lookup (1146) and of a duplicate
+		// column (1060).
+		{
+			name: "ADD a NOW() default over no table",
+			stmt: "ALTER TABLE nope ADD e TINYINT DEFAULT NOW()",
+			code: 1067,
+		},
+		{
+			name:  "ADD a CURRENT_TIMESTAMP default over a duplicate column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD b TINYINT DEFAULT CURRENT_TIMESTAMP",
+			code:  1067,
+		},
+		{
+			name:  "ADD a parenthesized CURRENT_TIMESTAMP default",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e TINYINT DEFAULT(CURRENT_TIMESTAMP)",
+			code:  1067,
+		},
+		{
+			name:  "ADD a CURRENT_TIMESTAMP default with a precision",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e TINYINT DEFAULT CURRENT_TIMESTAMP(1)",
+			code:  1067,
+		},
+		{
+			name:  "MODIFY a column to a CURRENT_TIMESTAMP default",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a MODIFY b INT DEFAULT CURRENT_TIMESTAMP",
+			code:  1067,
+		},
+		{
+			name:  "ADD a NOW() default to a DATETIME column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e DATETIME DEFAULT NOW()",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on an INT column",
+			stmt: "CREATE TABLE z (a INT DEFAULT NOW())",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on a DATETIME column",
+			stmt: "CREATE TABLE z (a DATETIME DEFAULT NOW())",
+			code: 0,
 		},
 	}
 

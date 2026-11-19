@@ -98,15 +98,18 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 }
 
 // analyzeViewBody analyzes a view body for the semantic IR lineage and SDL
-// diff use, and reports the one failure MySQL's CREATE VIEW reports too: a
-// target-list column in a SELECT with no FROM, which names no column at all
-// (1054). The analyzer models less than the engine here — it cannot resolve a
-// select alias a HAVING or ORDER BY reads, for one — so every other failure
-// leaves a view without AnalyzedQuery rather than refusing a view the engine
-// accepts.
+// diff use, and reports the failures MySQL's CREATE VIEW reports too: a star
+// with no table to expand (1096), and a target-list column in a SELECT with no
+// FROM, which names no column at all (1054). The analyzer models less than the
+// engine here — it cannot resolve a select alias a HAVING or ORDER BY reads, for
+// one — so every other failure leaves a view without AnalyzedQuery rather than
+// refusing a view the engine accepts.
 func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 	if sel == nil {
 		return nil, nil
+	}
+	if err := checkViewBodyStar(sel); err != nil {
+		return nil, err
 	}
 	q, err := c.AnalyzeSelectStmt(sel)
 	if err == nil {
@@ -117,6 +120,44 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 		return nil, refusal
 	}
 	return nil, nil
+}
+
+// checkViewBodyStar refuses a view body whose star has no table to expand. Each
+// query block with no FROM is judged: mysql:8.0.46 answers 1096 "No tables
+// used" for a bare star, and 1051 "Unknown table 't'" for a qualified one,
+// whose table the body reads nowhere. Both answer before the view's own name is
+// looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an existing table
+// a (1050). A FROM-less SELECT naming no star is left alone: `CREATE VIEW v AS
+// SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
+func checkViewBodyStar(sel *nodes.SelectStmt) error {
+	if sel == nil {
+		return nil
+	}
+	// A set operation's root carries no FROM or target list of its own; each arm
+	// is a scope of its own.
+	for _, inner := range []*nodes.SelectStmt{sel.ParenSource, sel.Left, sel.Right} {
+		if err := checkViewBodyStar(inner); err != nil {
+			return err
+		}
+	}
+	if len(sel.From) != 0 {
+		return nil
+	}
+	for _, item := range sel.TargetList {
+		expr := item
+		if target, ok := item.(*nodes.ResTarget); ok {
+			expr = target.Val
+		}
+		switch e := expr.(type) {
+		case *nodes.StarExpr:
+			return errNoTablesUsed()
+		case *nodes.ColumnRef:
+			if e.Star {
+				return errUnknownTableName(e.Table)
+			}
+		}
+	}
+	return nil
 }
 
 // viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that

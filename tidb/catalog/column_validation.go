@@ -138,6 +138,77 @@ func checkTemporalDefaultFsp(colName string, dt *nodes.DataType, defaultExpr nod
 	return nil
 }
 
+// nowDefaultCall reports the NOW()-family call a DEFAULT names, reading
+// through the parentheses it may be written in: DEFAULT CURRENT_TIMESTAMP,
+// DEFAULT(CURRENT_TIMESTAMP) and DEFAULT NOW() are one default to TiDB.
+func nowDefaultCall(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
+	for {
+		paren, ok := expr.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = paren.Expr
+	}
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok || !nowFamilyDefaultFuncs[strings.ToLower(fn.Name)] {
+		return nil, false
+	}
+	return fn, true
+}
+
+// checkNowDefaultColumnType enforces TiDB v8.5.5's 1067 for a NOW()-family
+// DEFAULT on a column that is neither DATETIME nor TIMESTAMP. The engine reads
+// such a default as a current-timestamp value, which only those two types
+// hold, and refuses a TINYINT, INT, DATE, TIME, YEAR or VARCHAR column alike;
+// the fractional-seconds argument does not change that
+// (`a TINYINT DEFAULT CURRENT_TIMESTAMP(1)` is 1067). A DATETIME or TIMESTAMP
+// column is left to checkTemporalDefaultFsp, which holds the function's
+// precision to the column's own.
+//
+// TiDB validates this while it prepares the statement, before it resolves the
+// database or looks the table up: `ALTER TABLE nodb.a ADD x INT DEFAULT NOW()`
+// is 1067 rather than 1049, and on an existing table it answers 1067 ahead of
+// the duplicate column's 1060 (measured on v8.5.5, 2026-11-19).
+func checkNowDefaultColumnType(colName string, dt *nodes.DataType, expr nodes.ExprNode) error {
+	if dt == nil {
+		return nil
+	}
+	if _, ok := nowDefaultCall(expr); !ok {
+		return nil
+	}
+	switch strings.ToLower(dt.Name) {
+	case "datetime", "timestamp":
+		return nil
+	}
+	return errInvalidDefault(colName)
+}
+
+// checkAlterNowDefaults applies checkNowDefaultColumnType to every column
+// definition an ALTER TABLE adds, modifies or changes, which is the set TiDB
+// judges while it prepares the statement.
+func checkAlterNowDefaults(cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		default:
+			continue
+		}
+		colDefs := cmd.Columns
+		if cmd.Column != nil {
+			colDefs = append(append([]*nodes.ColumnDef{}, colDefs...), cmd.Column)
+		}
+		for _, colDef := range colDefs {
+			if err := checkNowDefaultColumnType(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // errInvalidOnUpdate is TiDB 1294 for an ON UPDATE CURRENT_TIMESTAMP clause the
 // column cannot carry.
 func errInvalidOnUpdate(col string) error {

@@ -33,6 +33,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := validateColumnDisplayWidth(colDef); err != nil {
 			return err
 		}
+		// A bare NOW()-family DEFAULT on a column that is neither DATETIME nor
+		// TIMESTAMP is 1067 while the statement is prepared, ahead of the name
+		// collision and of the database the name sits in (mysql:8.0.46).
+		if err := validateBareNowDefault(colDef); err != nil {
+			return err
+		}
 	}
 	// A loader's statement (DefineTable) is a snapshot of a server that may
 	// ship another engine, so only a CREATE TABLE statement is judged, and its
@@ -757,6 +763,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// Process deferred FK backing indexes now that all explicit indexes are in place.
 	for _, fk := range pendingFKs {
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
+	}
+
+	// A table with no column at all is 4028. MySQL answers it after the name
+	// collision (1050) and after a key's own columns are resolved (1072), and
+	// before the partition clause, whose alone cannot make a column:
+	// `CREATE TABLE q (KEY (x))` is 1072, `CREATE TABLE q (KEY (b, x))` 1072,
+	// `CREATE TABLE q PARTITION BY KEY()` 4028 (mysql:8.0.46).
+	if len(tbl.Columns) == 0 {
+		return errTableMustHaveColumns()
 	}
 
 	// Validate foreign key constraints (unless foreign_key_checks=0).

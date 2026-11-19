@@ -302,6 +302,11 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 			if err := validateColumnDisplayWidth(colDef); err != nil {
 				return err
 			}
+			// A bare NOW()-family DEFAULT the column's type cannot hold is
+			// 1067 here, with the other prepare-time answers.
+			if err := validateBareNowDefault(colDef); err != nil {
+				return err
+			}
 		}
 		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
 			if err := validateStorageEngine(cmd.Option.Value, c.noEngineSubstitution()); err != nil {
