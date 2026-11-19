@@ -51,6 +51,78 @@ func TestValidateQueryServerState(t *testing.T) {
 	}
 }
 
+// CACHE SELECT returns the cache warm-up metrics, so the driver reads rows.
+func TestValidateQueryDataCacheSelect(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("CACHE SELECT a FROM t")
+	if err != nil {
+		t.Fatalf("ValidateQuery: %v", err)
+	}
+	if readOnly || !returnsData {
+		t.Errorf("CACHE SELECT = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
+	}
+}
+
+// SUBMIT TASK returns the task name and its status, so the driver must read
+// rows even though the statement is not read-only.
+func TestValidateQuerySubmitTask(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("SUBMIT TASK AS INSERT INTO t SELECT 1")
+	if err != nil {
+		t.Fatalf("ValidateQuery: %v", err)
+	}
+	if readOnly || !returnsData {
+		t.Errorf("SUBMIT TASK = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
+	}
+}
+
+// A plan-only DESC accepts a SELECT that carries INTO OUTFILE: the plan does
+// not perform the export.
+func TestValidateQueryPlanOnlyOutfile(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("DESC SELECT 1 INTO OUTFILE 'x'")
+	if err != nil {
+		t.Fatalf("ValidateQuery: %v", err)
+	}
+	if !readOnly || !returnsData {
+		t.Errorf("DESC SELECT INTO OUTFILE = (readOnly %v, returnsData %v), want (true, true)", readOnly, returnsData)
+	}
+}
+
+// EXPLAIN ANALYZE over DML is not read-only, but its profile is still a
+// result set the driver must read rather than Exec.
+func TestValidateQueryAnalyzeInsert(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN ANALYZE INSERT INTO t SELECT 1",
+		"DESC ANALYZE INSERT INTO t SELECT 1",
+	} {
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Errorf("%q: %v", sql, err)
+			continue
+		}
+		if readOnly || !returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (false, true)", sql, readOnly, returnsData)
+		}
+	}
+}
+
+// TRACE plans the query it wraps and never runs it, so it is read-only like
+// EXPLAIN, including over a query that writes out a file.
+func TestValidateQueryOptimizerTrace(t *testing.T) {
+	for _, sql := range []string{
+		"TRACE ALL SELECT 1",
+		"TRACE LOGS SELECT * FROM t",
+		"TRACE ALL SELECT 1 INTO OUTFILE 's3://bucket/x'",
+	} {
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Errorf("%q: %v", sql, err)
+			continue
+		}
+		if !readOnly || !returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (true, true)", sql, readOnly, returnsData)
+		}
+	}
+}
+
 // DESC STORAGE VOLUME answers with a storage volume's settings, so the
 // editor's read-only mode admits it the way it admits DESC over a table.
 func TestValidateQueryDescStorageVolume(t *testing.T) {
@@ -81,6 +153,10 @@ func TestDescribeExplain(t *testing.T) {
 	format, executed, ok = DescribeExplain("EXPLAIN VERBOSE SELECT 1")
 	if !ok || format != "VERBOSE" || executed {
 		t.Errorf("EXPLAIN VERBOSE = (%q, %v, %v), want (VERBOSE, false, true)", format, executed, ok)
+	}
+	format, executed, ok = DescribeExplain("TRACE ALL SELECT 1")
+	if !ok || format != "TRACE" || executed {
+		t.Errorf("TRACE = (%q, %v, %v), want (TRACE, false, true)", format, executed, ok)
 	}
 }
 

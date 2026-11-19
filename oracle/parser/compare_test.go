@@ -64,8 +64,8 @@ func TestLexerBasicTokens(t *testing.T) {
 		{">=", tokGREATEQ, ">="},
 		{"!=", tokNOTEQ, "!="},
 		{"<>", tokNOTEQ, "<>"},
-		{"~=", tokNOTEQ, "~="},
 		{"^=", tokNOTEQ, "^="},
+		{"~=", tokNOTEQ, "~="},
 		{"<<", tokLABELOPEN, "<<"},
 		{">>", tokLABELCLOSE, ">>"},
 	}

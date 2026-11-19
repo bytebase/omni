@@ -27,6 +27,9 @@ func TestClassify(t *testing.T) {
 		{"DESC STORAGE VOLUME v", QueryTypeSelectInfoSchema},
 		{"DESCRIBE STORAGE VOLUME v", QueryTypeSelectInfoSchema},
 		{"EXPLAIN SELECT 1", QueryTypeSelectInfoSchema},
+		{"TRACE ALL SELECT 1", QueryTypeSelectInfoSchema},
+		{"CACHE SELECT a FROM t", QueryTypeDDL},
+		{"SUBMIT TASK AS INSERT INTO t SELECT 1", QueryTypeDDL},
 		{"explain select * from t", QueryTypeSelectInfoSchema},
 		{"HELP", QueryTypeSelectInfoSchema},
 		{"help topics", QueryTypeSelectInfoSchema},
@@ -147,6 +150,27 @@ func TestClassifyStatementCTEPrefixedDML(t *testing.T) {
 		{"EXPLAIN WITH c AS (SELECT 1 AS a) DELETE FROM t", QueryTypeDML},
 		{"WITH c AS (SELECT 1 AS a) INSERT INTO t (a) SELECT a FROM c", QueryTypeSelect},
 		{"WITH c AS (SELECT 1 AS a) SELECT * FROM c", QueryTypeSelect},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			if got := ClassifyStatement(tc.statement); got != tc.want {
+				t.Errorf("ClassifyStatement(%q) = %s, want %s", tc.statement, got, tc.want)
+			}
+		})
+	}
+}
+
+// New statement nodes get their classification from the tree, not only from
+// the leading keyword.
+func TestClassifyStatementStarRocksTaskAndCacheStatements(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      QueryType
+	}{
+		{"TRACE ALL SELECT 1", QueryTypeSelect},
+		{"CACHE SELECT a FROM t", QueryTypeDDL},
+		{"SUBMIT TASK AS INSERT INTO t SELECT 1", QueryTypeDDL},
+		{"DROP TASK t", QueryTypeDDL},
+		{"ALTER LOAD FOR t", QueryTypeDDL},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
 			if got := ClassifyStatement(tc.statement); got != tc.want {

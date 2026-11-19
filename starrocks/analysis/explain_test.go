@@ -21,6 +21,7 @@ func TestExplainStatement(t *testing.T) {
 		{"EXPLAIN VERBOSE SELECT 1", "EXPLAIN SELECT 1"},
 		{"EXPLAIN SELECT 1 ORDER BY 1", "EXPLAIN SELECT 1 ORDER BY 1"},
 		{"EXPLAIN WITH x AS (SELECT 1) SELECT * FROM x", "EXPLAIN WITH x AS (SELECT 1) SELECT * FROM x"},
+		{"TRACE ALL SELECT 1", "EXPLAIN SELECT 1"},
 	}
 	for _, tc := range tests {
 		got, err := ExplainStatement(tc.statement)

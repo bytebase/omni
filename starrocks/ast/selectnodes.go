@@ -302,13 +302,16 @@ const (
 // (see parseSetOpTail) so that branch-local clauses inside parenthesized
 // operands remain on the inner SelectStmt.
 type SetOpStmt struct {
-	Op      SetOperator    // the set operator
-	All     bool           // true for ALL quantifier; false means DISTINCT (the default)
-	Left    Node           // SelectStmt, ParenSelect, or another SetOpStmt
-	Right   Node           // SelectStmt, ParenSelect, or another SetOpStmt
-	OrderBy []*OrderByItem // outer ORDER BY applying to the combined result
-	Limit   Node           // outer LIMIT applying to the combined result
-	Offset  Node           // outer OFFSET applying to the combined result
+	// With scopes over the whole set operation, including the right arm.
+	With    *WithClause
+	Op      SetOperator        // the set operator
+	All     bool               // true for ALL quantifier; false means DISTINCT (the default)
+	Left    Node               // SelectStmt, ParenSelect, or another SetOpStmt
+	Right   Node               // SelectStmt, ParenSelect, or another SetOpStmt
+	OrderBy []*OrderByItem     // outer ORDER BY applying to the combined result
+	Limit   Node               // outer LIMIT applying to the combined result
+	Offset  Node               // outer OFFSET applying to the combined result
+	Into    *IntoOutfileClause // outer INTO OUTFILE applying to the combined result
 	Loc     Loc
 }
 
@@ -316,7 +319,11 @@ type SetOpStmt struct {
 // (SELECT ... UNION SELECT ...). It distinguishes branch-local clauses
 // (on the inner statement) from outer clauses (on the enclosing SetOpStmt).
 type ParenSelect struct {
-	Sel Node // the inner SelectStmt, SetOpStmt, or nested ParenSelect
+	// With is an outer WITH clause on the group, as in
+	// WITH o AS (...) (WITH d AS (...) SELECT ...). It scopes over the group
+	// and keeps the inner query's own WITH a separate lexical scope.
+	With *WithClause
+	Sel  Node // the inner SelectStmt, SetOpStmt, or nested ParenSelect
 
 	// Trailing clauses applied to the grouped query from OUTSIDE the parens,
 	// as in (SELECT 1 LIMIT 1) LIMIT 2. Kept on the wrapper so a clause the
@@ -324,6 +331,7 @@ type ParenSelect struct {
 	OrderBy []*OrderByItem
 	Limit   Node
 	Offset  Node
+	Into    *IntoOutfileClause
 
 	Loc Loc
 }

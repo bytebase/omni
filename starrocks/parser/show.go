@@ -599,14 +599,59 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 // EXPLAIN
 // ---------------------------------------------------------------------------
 
-// parseExplain parses EXPLAIN statements.
+// descStartsExplain reports whether a DESC/DESCRIBE at cur opens explainDesc
+// (StarRocks.g4:2580) rather than descTableStatement (StarRocks.g4:561).
 //
-//	EXPLAIN [ANALYZE|VERBOSE|LOGICAL|COSTS|SCHEDULER] query
+// A query or DML right after the verb is an explain. A plan modifier right
+// after it is an explain only when the query follows the modifier, so
+// `DESC LOGICAL SELECT 1` plans and `DESC LOGICAL` still describes a table
+// named logical.
+func (p *Parser) descStartsExplain() bool {
+	next := p.peekNext().Kind
+	if explainStartsQuery(next) {
+		return true
+	}
+	switch next {
+	case kwLOGICAL, kwANALYZE, kwVERBOSE, kwCOSTS, kwSCHEDULER:
+		mark := p.save()
+		p.advance() // consume DESC/DESCRIBE
+		p.advance() // consume the plan modifier
+		ok := explainStartsQuery(p.cur.Kind)
+		p.restore(mark)
+		return ok
+	}
+	return false
+}
+
+// explainStartsQuery reports whether kind starts a statement explainDesc can
+// precede: a query, DML, or a parenthesized query.
+func explainStartsQuery(kind TokenKind) bool {
+	switch kind {
+	case kwSELECT, kwWITH, kwINSERT, kwUPDATE, kwDELETE, int('('):
+		return true
+	}
+	return false
+}
+
+// explainableNode reports whether node is one of the statement shapes
+// explainDesc prefixes: queryStatement, INSERT, UPDATE or DELETE.
+func explainableNode(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect,
+		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+		return true
+	}
+	return false
+}
+
+// parseExplain parses EXPLAIN, DESC and DESCRIBE statements.
 //
-// On entry, EXPLAIN has NOT yet been consumed.
+//	(EXPLAIN | DESC | DESCRIBE) [ANALYZE|VERBOSE|LOGICAL|COSTS|SCHEDULER] query
+//
+// On entry, the verb has NOT yet been consumed.
 func (p *Parser) parseExplain() (ast.Node, error) {
 	startLoc := p.cur.Loc
-	p.advance() // consume EXPLAIN
+	p.advance() // consume EXPLAIN/DESC/DESCRIBE
 
 	stmt := &ast.ExplainStmt{Loc: startLoc}
 
@@ -636,6 +681,20 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 		// No modifier — empty Type.
 	}
 
+	// A statement has at most one optional (explainDesc | optimizerTrace)
+	// prefix (StarRocks.g4:2088), so a second plan prefix is a syntax error.
+	// insertStatement also requires INTO or OVERWRITE; parseInsert admits a
+	// bare destination as a known top-level gap, which does not belong under
+	// a plan.
+	switch p.cur.Kind {
+	case kwEXPLAIN, kwDESC, kwDESCRIBE, kwTRACE:
+		return nil, p.syntaxErrorAtCur()
+	case kwINSERT:
+		if next := p.peekNext().Kind; next != kwINTO && next != kwOVERWRITE {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	// Parse the explained query. The RawQuery fallback is best-effort
 	// recovery only: on the strict path it would swallow the nested failure
 	// (EXPLAIN SELECT * FROM would parse clean with the garbage packed into
@@ -643,6 +702,37 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 	if p.cur.Kind != tokEOF {
 		query, err := p.parseStmt()
 		if err == nil && query != nil {
+			// An explain prefix is only on queryStatement and the INSERT,
+			// UPDATE and DELETE statements, so a cache or task statement
+			// cannot follow it.
+			if !explainableNode(query) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if err := p.settleQueryInto(query); err != nil {
+				return nil, err
+			}
+			// StarRocks refuses EXPLAIN ANALYZE over UPDATE and DELETE, while
+			// the plan-only levels stay readable over them.
+			if stmt.Type == "ANALYZE" {
+				switch query.(type) {
+				case *ast.UpdateStmt, *ast.DeleteStmt:
+					return nil, &ParseError{
+						Position: ast.NodeLoc(query).Start,
+						End:      ast.NodeLoc(query).End,
+						Message:  "EXPLAIN ANALYZE is not supported for UPDATE or DELETE",
+					}
+				}
+			}
+			if isQueryBody(query) && p.cur.Kind == kwINTO {
+				if queryHasInto(query) {
+					return nil, p.syntaxErrorAtCur()
+				}
+				into, err := p.parseIntoOutfileClause()
+				if err != nil {
+					return nil, err
+				}
+				attachInto(query, into)
+			}
 			stmt.Query = query
 		} else if p.strictTrailing {
 			if err == nil {
