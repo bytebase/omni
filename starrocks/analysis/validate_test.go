@@ -37,6 +37,8 @@ func TestValidateQueryServerState(t *testing.T) {
 		{"SET GLOBAL query_timeout = 3600", false, false},
 		{"SET @@global.query_timeout = 3600", false, false},
 		{"SELECT 1", true, true},
+		{"DESC FILES('path' = 's3://x')", true, true},
+		{"DESC PIPE db.p", true, true},
 		{"ADMIN SHOW FRONTEND CONFIG", false, true},
 	}
 	for _, tc := range tests {
@@ -167,6 +169,44 @@ func TestValidateQueryFailsClosedOnLexError(t *testing.T) {
 	for _, script := range []string{"/*", "SELECT 1; /*"} {
 		if readOnly, returnsData, err := ValidateQuery(script); err == nil {
 			t.Errorf("ValidateQuery(%q) = %v, %v, nil; want the lex error", script, readOnly, returnsData)
+		}
+	}
+}
+
+// A segment carries its terminator into the parse: TRANSLATE's translateSQL
+// is `.+`, so `TRANSLATE presto;` reads but a bare `TRANSLATE presto` at the
+// end of the input does not.
+func TestValidateQueryKeepsTheTerminator(t *testing.T) {
+	if _, _, err := ValidateQuery("TRANSLATE presto;"); err != nil {
+		t.Errorf("ValidateQuery(TRANSLATE presto;): %v", err)
+	}
+	if _, _, err := ValidateQuery("TRANSLATE presto"); err == nil {
+		t.Error("ValidateQuery(TRANSLATE presto) accepted, want a syntax error")
+	}
+}
+
+// EXECUTE may run a prepared SELECT, so the driver reads rows from it rather
+// than Exec'ing them away.
+func TestValidateQueryExecuteReturnsData(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("EXECUTE p")
+	if err != nil {
+		t.Fatalf("ValidateQuery(EXECUTE p): %v", err)
+	}
+	if readOnly || !returnsData {
+		t.Errorf("EXECUTE = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
+	}
+}
+
+// TRANSLATE answers with the translated SQL instead of running it, so the
+// driver reads rows from it.
+func TestValidateQueryTranslateReturnsData(t *testing.T) {
+	for _, sql := range []string{"TRANSLATE trino SELECT 1", "TRANSLATE trino SELECT 1;"} {
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Fatalf("ValidateQuery(%q): %v", sql, err)
+		}
+		if readOnly || !returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (false, true)", sql, readOnly, returnsData)
 		}
 	}
 }

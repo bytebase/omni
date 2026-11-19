@@ -160,8 +160,8 @@ func TestDropEncryptKey_IfExists(t *testing.T) {
 func TestCreateRole_Simple(t *testing.T) {
 	// CREATE ROLE role1;
 	stmt := parseCreateRoleStmt(t, `CREATE ROLE role1`)
-	if stmt.Name != "role1" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "role1")
+	if len(stmt.Names) != 1 || stmt.Names[0] != "role1" {
+		t.Errorf("Names = %v, want [role1]", stmt.Names)
 	}
 	if stmt.IfNotExists {
 		t.Error("IfNotExists should be false")
@@ -174,8 +174,8 @@ func TestCreateRole_Simple(t *testing.T) {
 func TestCreateRole_WithComment(t *testing.T) {
 	// CREATE ROLE role2 COMMENT "this is my first role";
 	stmt := parseCreateRoleStmt(t, `CREATE ROLE role2 COMMENT "this is my first role"`)
-	if stmt.Name != "role2" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "role2")
+	if len(stmt.Names) != 1 || stmt.Names[0] != "role2" {
+		t.Errorf("Names = %v, want [role2]", stmt.Names)
 	}
 	if stmt.Comment != "this is my first role" {
 		t.Errorf("Comment = %q, want %q", stmt.Comment, "this is my first role")
@@ -185,8 +185,8 @@ func TestCreateRole_WithComment(t *testing.T) {
 func TestDropRole_Simple(t *testing.T) {
 	// DROP ROLE role1;
 	stmt := parseDropRoleStmt(t, `DROP ROLE role1`)
-	if stmt.Name != "role1" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "role1")
+	if len(stmt.Names) != 1 || stmt.Names[0] != "role1" {
+		t.Errorf("Names = %v, want [role1]", stmt.Names)
 	}
 	if stmt.IfExists {
 		t.Error("IfExists should be false")
@@ -196,8 +196,8 @@ func TestDropRole_Simple(t *testing.T) {
 func TestDropRole_IfExists(t *testing.T) {
 	// DROP ROLE IF EXISTS role1
 	stmt := parseDropRoleStmt(t, `DROP ROLE IF EXISTS role1`)
-	if stmt.Name != "role1" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "role1")
+	if len(stmt.Names) != 1 || stmt.Names[0] != "role1" {
+		t.Errorf("Names = %v, want [role1]", stmt.Names)
 	}
 	if !stmt.IfExists {
 		t.Error("IfExists should be true")
@@ -259,8 +259,8 @@ func TestCreateUser_DefaultRole(t *testing.T) {
 	if stmt.Name.Host != "192.168.%" {
 		t.Errorf("Host = %q, want %q", stmt.Name.Host, "192.168.%")
 	}
-	if stmt.DefaultRole != "example_role" {
-		t.Errorf("DefaultRole = %q, want %q", stmt.DefaultRole, "example_role")
+	if len(stmt.DefaultRoles) != 1 || stmt.DefaultRoles[0] != "example_role" {
+		t.Errorf("DefaultRoles = %v, want [example_role]", stmt.DefaultRoles)
 	}
 }
 
@@ -270,8 +270,8 @@ func TestCreateUser_PasswordAndDefaultRole(t *testing.T) {
 	if stmt.Password != "12345" {
 		t.Errorf("Password = %q, want %q", stmt.Password, "12345")
 	}
-	if stmt.DefaultRole != "my_role" {
-		t.Errorf("DefaultRole = %q, want %q", stmt.DefaultRole, "my_role")
+	if len(stmt.DefaultRoles) != 1 || stmt.DefaultRoles[0] != "my_role" {
+		t.Errorf("DefaultRoles = %v, want [my_role]", stmt.DefaultRoles)
 	}
 }
 
@@ -292,11 +292,15 @@ func TestCreateUser_PasswordPolicyRefused(t *testing.T) {
 	}
 }
 
-func TestCreateUser_Comment(t *testing.T) {
-	// CREATE USER 'jack' COMMENT "this is my first user"
-	stmt := parseCreateUserStmt(t, `CREATE USER 'jack' COMMENT "this is my first user"`)
-	if stmt.Comment != "this is my first user" {
-		t.Errorf("Comment = %q, want %q", stmt.Comment, "this is my first user")
+func TestCreateUser_Properties(t *testing.T) {
+	// createUserStatement's last clause is properties, where the fork had a
+	// COMMENT.
+	stmt := parseCreateUserStmt(t, `CREATE USER 'jack' PROPERTIES("a" = "a")`)
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "a" {
+		t.Errorf("Properties = %v, want one named a", stmt.Properties)
+	}
+	if _, errs := parseForTest(`CREATE USER 'jack' COMMENT "this is my first user"`); len(errs) == 0 {
+		t.Error("CREATE USER ... COMMENT parsed, want a syntax error")
 	}
 }
 
@@ -329,22 +333,33 @@ func TestAlterUser_IdentifiedBy(t *testing.T) {
 	}
 }
 
-func TestAlterUser_AccountUnlock(t *testing.T) {
-	// ALTER USER jack@'%' ACCOUNT_UNLOCK;
-	stmt := parseAlterUserStmt(t, `ALTER USER jack@'%' ACCOUNT_UNLOCK`)
-	if !stmt.AccountUnlock {
-		t.Error("AccountUnlock should be true")
+// TestAlterUser_Clauses: alterUserStatement (StarRocks.g4:1631) holds an
+// authOption, a DEFAULT ROLE or a SET properties; the fork's ACCOUNT_LOCK,
+// ACCOUNT_UNLOCK and COMMENT are refused by the pinned server.
+func TestAlterUser_Clauses(t *testing.T) {
+	stmt := parseAlterUserStmt(t, `ALTER USER jack@'%' DEFAULT ROLE NONE`)
+	if stmt.DefaultRole != "NONE" || len(stmt.DefaultRoles) != 0 {
+		t.Errorf("DefaultRole = %q DefaultRoles = %v, want NONE", stmt.DefaultRole, stmt.DefaultRoles)
 	}
-	if stmt.AccountLock {
-		t.Error("AccountLock should be false")
+	stmt = parseAlterUserStmt(t, `ALTER USER jack@'%' DEFAULT ROLE 'a,b', c`)
+	if stmt.DefaultRole != "" || len(stmt.DefaultRoles) != 2 {
+		t.Errorf("DefaultRoles = %v, want the two roles as written", stmt.DefaultRoles)
 	}
-}
-
-func TestAlterUser_Comment(t *testing.T) {
-	// ALTER USER jack@'%' COMMENT "this is my first user"
-	stmt := parseAlterUserStmt(t, `ALTER USER jack@'%' COMMENT "this is my first user"`)
-	if stmt.Comment != "this is my first user" {
-		t.Errorf("Comment = %q, want %q", stmt.Comment, "this is my first user")
+	stmt = parseAlterUserStmt(t, `ALTER USER jack@'%' SET PROPERTIES("a" = "a")`)
+	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "a" {
+		t.Errorf("Properties = %v, want one named a", stmt.Properties)
+	}
+	stmt = parseAlterUserStmt(t, `ALTER USER jack@'%' IDENTIFIED WITH mysql_native_password BY 'x'`)
+	if stmt.Plugin != "mysql_native_password" || stmt.AuthBy != "BY" || stmt.AuthString != "x" {
+		t.Errorf("plugin=%q by=%q string=%q", stmt.Plugin, stmt.AuthBy, stmt.AuthString)
+	}
+	for _, sql := range []string{
+		`ALTER USER jack@'%' ACCOUNT_UNLOCK`,
+		`ALTER USER jack@'%' COMMENT "this is my first user"`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 
@@ -581,20 +596,25 @@ func TestDropDictionary_Basic(t *testing.T) {
 	if stmt.Name.String() != "my_dict" {
 		t.Errorf("Name = %q, want %q", stmt.Name.String(), "my_dict")
 	}
-	if stmt.IfExists {
-		t.Error("IfExists should be false")
+	if stmt.Cache {
+		t.Error("Cache should be false")
 	}
 }
 
-func TestDropDictionary_IfExists(t *testing.T) {
-	sql := `DROP DICTIONARY IF EXISTS db.my_dict`
+func TestDropDictionary_Cache(t *testing.T) {
+	// dropDictionaryStatement (StarRocks.g4:848): DROP DICTIONARY name CACHE?,
+	// with no IF EXISTS.
+	sql := `DROP DICTIONARY db.my_dict CACHE`
 	n := parseOne(t, sql)
 	stmt, ok := n.(*ast.DropDictionaryStmt)
 	if !ok {
 		t.Fatalf("expected *ast.DropDictionaryStmt, got %T", n)
 	}
-	if !stmt.IfExists {
-		t.Error("IfExists should be true")
+	if !stmt.Cache {
+		t.Error("Cache should be true")
+	}
+	if _, errs := parseForTest(`DROP DICTIONARY IF EXISTS db.my_dict`); len(errs) == 0 {
+		t.Error("DROP DICTIONARY IF EXISTS parsed, want a syntax error")
 	}
 	if stmt.Name.String() != "db.my_dict" {
 		t.Errorf("Name = %q, want %q", stmt.Name.String(), "db.my_dict")

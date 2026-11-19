@@ -603,22 +603,22 @@ func TestParseUseCatalog(t *testing.T) {
 		sql     string
 		catalog string
 		db      string
-		cluster string
 	}{
 		{sql: "USE 'cat'", catalog: "cat"},
 		{sql: "USE cat", db: "cat"},
 		{sql: "USE cat.db", catalog: "cat", db: "db"},
-		{sql: "USE db@cluster", db: "db", cluster: "cluster"},
-		{sql: "USE cat.db@cluster", catalog: "cat", db: "db", cluster: "cluster"},
 	} {
 		stmt := mustParseUse(t, tc.sql)
-		if stmt.Catalog != tc.catalog || stmt.Database != tc.db || stmt.Cluster != tc.cluster {
-			t.Errorf("Parse(%q): catalog=%q database=%q cluster=%q, want %q/%q/%q",
-				tc.sql, stmt.Catalog, stmt.Database, stmt.Cluster, tc.catalog, tc.db, tc.cluster)
+		if stmt.Catalog != tc.catalog || stmt.Database != tc.db {
+			t.Errorf("Parse(%q): catalog=%q database=%q, want %q/%q",
+				tc.sql, stmt.Catalog, stmt.Database, tc.catalog, tc.db)
 		}
 	}
 
-	for _, sql := range []string{"USE", "USE 'cat' 'db'", "USE 'cat'@c"} {
+	// useDatabaseStatement names a qualifiedName and the AST builder reads it
+	// as a catalog and a database; the doris fork's db@cluster and a third
+	// part are syntax errors on the pinned server.
+	for _, sql := range []string{"USE", "USE 'cat' 'db'", "USE 'cat'@c", "USE db@cluster", "USE a.b.c"} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
 		}

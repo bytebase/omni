@@ -611,6 +611,66 @@ const (
 	// T_DropProcedureStmt is the tag for *DropProcedureStmt.
 	T_DropProcedureStmt
 
+	// T_RefreshExternalTableStmt is the tag for *RefreshExternalTableStmt.
+	T_RefreshExternalTableStmt
+
+	// T_ExternalCatalogRef is the tag for *ExternalCatalogRef.
+	T_ExternalCatalogRef
+
+	// T_CreateResourceGroupStmt is the tag for *CreateResourceGroupStmt.
+	T_CreateResourceGroupStmt
+
+	// T_DropResourceGroupStmt is the tag for *DropResourceGroupStmt.
+	T_DropResourceGroupStmt
+
+	// T_AlterResourceGroupStmt is the tag for *AlterResourceGroupStmt.
+	T_AlterResourceGroupStmt
+
+	// T_CreateDataCacheRuleStmt is the tag for *CreateDataCacheRuleStmt.
+	T_CreateDataCacheRuleStmt
+
+	// T_DropDataCacheRuleStmt is the tag for *DropDataCacheRuleStmt.
+	T_DropDataCacheRuleStmt
+
+	// T_ClearDataCacheRulesStmt is the tag for *ClearDataCacheRulesStmt.
+	T_ClearDataCacheRulesStmt
+
+	// T_CreatePipeStmt is the tag for *CreatePipeStmt.
+	T_CreatePipeStmt
+
+	// T_DropPipeStmt is the tag for *DropPipeStmt.
+	T_DropPipeStmt
+
+	// T_AlterPipeStmt is the tag for *AlterPipeStmt.
+	T_AlterPipeStmt
+
+	// T_DescPipeStmt is the tag for *DescPipeStmt.
+	T_DescPipeStmt
+
+	// T_AlterPlanAdvisorStmt is the tag for *AlterPlanAdvisorStmt.
+	T_AlterPlanAdvisorStmt
+
+	// T_TruncatePlanAdvisorStmt is the tag for *TruncatePlanAdvisorStmt.
+	T_TruncatePlanAdvisorStmt
+
+	// T_TranslateStmt is the tag for *TranslateStmt.
+	T_TranslateStmt
+
+	// T_PrepareStmt is the tag for *PrepareStmt.
+	T_PrepareStmt
+
+	// T_ExecuteStmt is the tag for *ExecuteStmt.
+	T_ExecuteStmt
+
+	// T_DeallocateStmt is the tag for *DeallocateStmt.
+	T_DeallocateStmt
+
+	// T_ExecuteAsStmt is the tag for *ExecuteAsStmt.
+	T_ExecuteAsStmt
+
+	// T_BlacklistStmt is the tag for *BlacklistStmt.
+	T_BlacklistStmt
+
 	// T_CollateExpr is the tag for *CollateExpr (expr COLLATE name).
 	T_CollateExpr
 
@@ -1003,6 +1063,46 @@ func (t NodeTag) String() string {
 		return "CreateProcedureStmt"
 	case T_DropProcedureStmt:
 		return "DropProcedureStmt"
+	case T_RefreshExternalTableStmt:
+		return "RefreshExternalTableStmt"
+	case T_ExternalCatalogRef:
+		return "ExternalCatalogRef"
+	case T_CreateResourceGroupStmt:
+		return "CreateResourceGroupStmt"
+	case T_DropResourceGroupStmt:
+		return "DropResourceGroupStmt"
+	case T_AlterResourceGroupStmt:
+		return "AlterResourceGroupStmt"
+	case T_CreateDataCacheRuleStmt:
+		return "CreateDataCacheRuleStmt"
+	case T_DropDataCacheRuleStmt:
+		return "DropDataCacheRuleStmt"
+	case T_ClearDataCacheRulesStmt:
+		return "ClearDataCacheRulesStmt"
+	case T_CreatePipeStmt:
+		return "CreatePipeStmt"
+	case T_DropPipeStmt:
+		return "DropPipeStmt"
+	case T_AlterPipeStmt:
+		return "AlterPipeStmt"
+	case T_DescPipeStmt:
+		return "DescPipeStmt"
+	case T_AlterPlanAdvisorStmt:
+		return "AlterPlanAdvisorStmt"
+	case T_TruncatePlanAdvisorStmt:
+		return "TruncatePlanAdvisorStmt"
+	case T_TranslateStmt:
+		return "TranslateStmt"
+	case T_PrepareStmt:
+		return "PrepareStmt"
+	case T_ExecuteStmt:
+		return "ExecuteStmt"
+	case T_DeallocateStmt:
+		return "DeallocateStmt"
+	case T_ExecuteAsStmt:
+		return "ExecuteAsStmt"
+	case T_BlacklistStmt:
+		return "BlacklistStmt"
 	default:
 		return "Unknown"
 	}

@@ -55,6 +55,13 @@ func readsRows(node ast.Node) bool {
 		// SUBMIT TASK answers with the task name and its status (SUBMITTED,
 		// REJECTED or FAILED), so the driver reads rows rather than Exec'ing.
 		return true
+	case *ast.TranslateStmt:
+		// TRANSLATE answers with the translated SQL rather than running it.
+		return true
+	case *ast.ExecuteStmt:
+		// EXECUTE runs a prepared statement, which may be a SELECT, so the
+		// driver reads rows rather than Exec'ing and discarding them.
+		return true
 	case *ast.DataCacheSelectStmt:
 		// CACHE SELECT returns the cache warm-up metrics.
 		return true
@@ -77,7 +84,14 @@ func parseStatements(text string) ([]ast.Node, error) {
 		if segment.Empty() || strings.TrimSpace(segment.Text) == "" {
 			continue
 		}
-		file, err := parser.Parse(segment.Text)
+		// Parse the segment with its terminator: Split leaves it out, and a
+		// rule may read it (`TRANSLATE`'s translateSQL is `.+`, which the
+		// terminator satisfies). Positions stay relative to the segment.
+		end := segment.ByteEnd
+		if end < len(text) && text[end] == ';' {
+			end++
+		}
+		file, err := parser.Parse(text[segment.ByteStart:end])
 		if err != nil {
 			return nil, offsetParseError(err, segment.ByteStart)
 		}
@@ -167,11 +181,16 @@ func isReadOnlyAST(node ast.Node) bool {
 		return true
 	case *ast.DescribeStmt:
 		// Reject bare `DESCRIBE` / `DESC` (Target nil means no table named).
-		return n.Target != nil
+		// DESC FILES(propertyList) names no target: it describes a files()
+		// table function and answers with rows.
+		return n.Target != nil || n.Files
 	case *ast.DescStorageVolumeStmt:
 		// DESC STORAGE VOLUME answers with the volume's settings, like DESC
 		// over a table.
 		return n.Name != ""
+	case *ast.DescPipeStmt:
+		// DESC PIPE answers with the pipe's definition, like DESC over a table.
+		return n.Name != nil
 	case *ast.OptimizerTraceStmt:
 		// TRACE only plans the query it wraps; it never runs it. Even an
 		// INTO OUTFILE body writes nothing under TRACE, so the wrapper stays
