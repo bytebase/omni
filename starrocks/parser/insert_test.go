@@ -168,7 +168,7 @@ func TestInsertSelectWithColumns(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestInsertOverwriteValues(t *testing.T) {
-	stmt := mustParseInsert(t, "INSERT OVERWRITE TABLE test VALUES (1, 2)")
+	stmt := mustParseInsert(t, "INSERT OVERWRITE test VALUES (1, 2)")
 
 	if !stmt.Overwrite {
 		t.Error("Overwrite = false, want true")
@@ -182,7 +182,7 @@ func TestInsertOverwriteValues(t *testing.T) {
 }
 
 func TestInsertOverwriteSelect(t *testing.T) {
-	stmt := mustParseInsert(t, "INSERT OVERWRITE TABLE t SELECT * FROM src")
+	stmt := mustParseInsert(t, "INSERT OVERWRITE t SELECT * FROM src")
 
 	if !stmt.Overwrite {
 		t.Error("Overwrite = false, want true")
@@ -211,7 +211,7 @@ func TestInsertWithPartition(t *testing.T) {
 }
 
 func TestInsertOverwritePartition(t *testing.T) {
-	stmt := mustParseInsert(t, "INSERT OVERWRITE TABLE test PARTITION(p1, p2) VALUES (1, 2)")
+	stmt := mustParseInsert(t, "INSERT OVERWRITE test PARTITION(p1, p2) VALUES (1, 2)")
 
 	if !stmt.Overwrite {
 		t.Error("Overwrite = false, want true")
@@ -222,7 +222,7 @@ func TestInsertOverwritePartition(t *testing.T) {
 }
 
 func TestInsertPartitionStar(t *testing.T) {
-	stmt := mustParseInsert(t, "INSERT OVERWRITE TABLE test PARTITION(*) VALUES (3)")
+	stmt := mustParseInsert(t, "INSERT OVERWRITE test PARTITION(*) VALUES (3)")
 
 	if !stmt.PartitionStar {
 		t.Error("PartitionStar = false, want true")
@@ -329,31 +329,31 @@ func TestInsertLegacyCorpusDML(t *testing.T) {
 // TestInsertLegacyCorpusOverwrite verifies all statements from dml_insert_overwrite.sql.
 func TestInsertLegacyCorpusOverwrite(t *testing.T) {
 	cases := []string{
-		"INSERT OVERWRITE TABLE test VALUES (1, 2)",
-		"INSERT OVERWRITE TABLE test (c1, c2) VALUES (1, 2)",
-		"INSERT OVERWRITE TABLE test (c1, c2) VALUES (1, DEFAULT)",
-		"INSERT OVERWRITE TABLE test (c1) VALUES (1)",
-		"INSERT OVERWRITE TABLE test VALUES (1, 2), (3, 2 + 2)",
-		"INSERT OVERWRITE TABLE test (c1, c2) VALUES (1, 2), (3, 2 * 2)",
-		"INSERT OVERWRITE TABLE test (c1, c2) VALUES (1, DEFAULT), (3, DEFAULT)",
-		"INSERT OVERWRITE TABLE test (c1) VALUES (1), (3)",
-		"INSERT OVERWRITE TABLE test SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test (c1, c2) SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test WITH LABEL `label1` SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test WITH LABEL `label2` (c1, c2) SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) VALUES (1, 2)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1, c2) VALUES (1, 2)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1, c2) VALUES (1, DEFAULT)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1) VALUES (1)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) VALUES (1, 2), (4, 2 + 2)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1, c2) VALUES (1, 2), (4, 2 * 2)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1, c2) VALUES (1, DEFAULT), (4, DEFAULT)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1) VALUES (1), (4)",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) (c1, c2) SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) WITH LABEL `label3` SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test PARTITION(p1, p2) WITH LABEL `label4` (c1, c2) SELECT * FROM test2",
-		"INSERT OVERWRITE TABLE test PARTITION(*) VALUES (3), (1234)",
+		"INSERT OVERWRITE test VALUES (1, 2)",
+		"INSERT OVERWRITE test (c1, c2) VALUES (1, 2)",
+		"INSERT OVERWRITE test (c1, c2) VALUES (1, DEFAULT)",
+		"INSERT OVERWRITE test (c1) VALUES (1)",
+		"INSERT OVERWRITE test VALUES (1, 2), (3, 2 + 2)",
+		"INSERT OVERWRITE test (c1, c2) VALUES (1, 2), (3, 2 * 2)",
+		"INSERT OVERWRITE test (c1, c2) VALUES (1, DEFAULT), (3, DEFAULT)",
+		"INSERT OVERWRITE test (c1) VALUES (1), (3)",
+		"INSERT OVERWRITE test SELECT * FROM test2",
+		"INSERT OVERWRITE test (c1, c2) SELECT * FROM test2",
+		"INSERT OVERWRITE test WITH LABEL `label1` SELECT * FROM test2",
+		"INSERT OVERWRITE test WITH LABEL `label2` (c1, c2) SELECT * FROM test2",
+		"INSERT OVERWRITE test PARTITION(p1, p2) VALUES (1, 2)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1, c2) VALUES (1, 2)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1, c2) VALUES (1, DEFAULT)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1) VALUES (1)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) VALUES (1, 2), (4, 2 + 2)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1, c2) VALUES (1, 2), (4, 2 * 2)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1, c2) VALUES (1, DEFAULT), (4, DEFAULT)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1) VALUES (1), (4)",
+		"INSERT OVERWRITE test PARTITION(p1, p2) SELECT * FROM test2",
+		"INSERT OVERWRITE test PARTITION(p1, p2) (c1, c2) SELECT * FROM test2",
+		"INSERT OVERWRITE test PARTITION(p1, p2) WITH LABEL `label3` SELECT * FROM test2",
+		"INSERT OVERWRITE test PARTITION(p1, p2) WITH LABEL `label4` (c1, c2) SELECT * FROM test2",
+		"INSERT OVERWRITE test PARTITION(*) VALUES (3), (1234)",
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

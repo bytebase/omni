@@ -24,6 +24,9 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *DropIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
@@ -68,7 +71,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, a)
 		}
 	case *Property:
-		// leaf node, no children
+		if n.Expr != nil {
+			Walk(v, n.Expr)
+		}
 
 	// Expression nodes (T1.3).
 	case *BinaryExpr:
@@ -559,8 +564,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
-		if n.Where != nil {
-			Walk(v, n.Where)
+		for _, prop := range n.KeyPartitions {
+			Walk(v, prop)
 		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
@@ -712,6 +717,9 @@ func walkChildren(v Visitor, node Node) {
 	case *DropCatalogStmt:
 		// leaf-ish node, name stored as string
 	case *RefreshCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	// DDL — STORAGE VAULT nodes (T5.3).
 
 	// DDL — STORAGE VOLUME nodes (StarRocks.g4:782-822).
@@ -772,13 +780,20 @@ func walkChildren(v Visitor, node Node) {
 
 	// DDL — FILE nodes (T5.3).
 	case *CreateFileStmt:
+		if n.Catalog != nil {
+			Walk(v, n.Catalog)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
 	case *DropFileStmt:
+		if n.Catalog != nil {
+			Walk(v, n.Catalog)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
+
 	// Workload management DDL nodes (T5.4).
 	case *CreateResourceStmt:
 		for _, prop := range n.Properties {
@@ -849,9 +864,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *AlterUserStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
 		}
 	case *DropUserStmt:
 		if n.Name != nil {
@@ -935,6 +956,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *ExplainStmt:
 		if n.Query != nil {
 			Walk(v, n.Query)
@@ -980,6 +1004,9 @@ func walkChildren(v Visitor, node Node) {
 
 	// Utility / admin command nodes (T7.5).
 	case *BackupStmt:
+		for _, catalog := range n.ExternalCatalogs {
+			Walk(v, catalog)
+		}
 		for _, tbl := range n.Tables {
 			Walk(v, tbl)
 		}
@@ -987,6 +1014,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *RestoreStmt:
+		for _, catalog := range n.ExternalCatalogs {
+			Walk(v, catalog)
+		}
 		for _, tbl := range n.Tables {
 			Walk(v, tbl)
 		}
@@ -1126,6 +1156,83 @@ func walkChildren(v Visitor, node Node) {
 	case *DropProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+
+	// Statement families the fork's tail added.
+	case *RefreshExternalTableStmt:
+		Walk(v, n.Name)
+	case *ExternalCatalogRef:
+		// leaf node, no children
+	case *CreateResourceGroupStmt:
+		Walk(v, n.Name)
+		walkNodeLists(v, n.Classifiers)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropResourceGroupStmt:
+		Walk(v, n.Name)
+	case *AlterResourceGroupStmt:
+		Walk(v, n.Name)
+		walkNodeLists(v, n.Classifiers)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *CreateDataCacheRuleStmt:
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropDataCacheRuleStmt, *ClearDataCacheRulesStmt, *TruncatePlanAdvisorStmt:
+		// leaf nodes, no children
+	case *CreatePipeStmt:
+		Walk(v, n.Name)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.Insert != nil {
+			Walk(v, n.Insert)
+		}
+	case *DropPipeStmt:
+		Walk(v, n.Name)
+	case *AlterPipeStmt:
+		Walk(v, n.Name)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DescPipeStmt:
+		Walk(v, n.Name)
+	case *AlterPlanAdvisorStmt:
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *TranslateStmt:
+		// leaf node, no children
+	case *PrepareStmt:
+		Walk(v, n.Name)
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *ExecuteStmt:
+		Walk(v, n.Name)
+	case *DeallocateStmt:
+		Walk(v, n.Name)
+	case *ExecuteAsStmt:
+		if n.User != nil {
+			Walk(v, n.User)
+		}
+	case *BlacklistStmt:
+		// leaf node, no children
+	}
+}
+
+// walkNodeLists walks a list of expression lists, as a resource group's
+// classifiers are.
+func walkNodeLists(v Visitor, lists [][]Node) {
+	for _, list := range lists {
+		for _, n := range list {
+			Walk(v, n)
 		}
 	}
 }

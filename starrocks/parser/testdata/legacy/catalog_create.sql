@@ -1,4 +1,4 @@
-CREATE CATALOG hive COMMENT 'hive catalog' PROPERTIES (
+CREATE EXTERNAL CATALOG hive COMMENT 'hive catalog' PROPERTIES (
     'type'='hms',
     'hive.metastore.uris' = 'thrift://127.0.0.1:7004',
     'dfs.nameservices'='HANN',
@@ -7,11 +7,11 @@ CREATE CATALOG hive COMMENT 'hive catalog' PROPERTIES (
     'dfs.namenode.rpc-address.HANN.nn2'='nn2_host:rpc_port',
     'dfs.client.failover.proxy.provider.HANN'='org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider'
 );
-CREATE CATALOG es PROPERTIES (
+CREATE EXTERNAL CATALOG es PROPERTIES (
     "type"="es",
     "hosts"="http://127.0.0.1:9200"
 );
-CREATE CATALOG jdbc PROPERTIES (
+CREATE EXTERNAL CATALOG jdbc PROPERTIES (
     "type"="jdbc",
     "user"="root",
     "password"="123456",
@@ -19,7 +19,7 @@ CREATE CATALOG jdbc PROPERTIES (
     "driver_url" = "https://doris-community-test-1308700295.cos.ap-hongkong.myqcloud.com/jdbc_driver/mysql-connector-java-8.0.25.jar",
     "driver_class" = "com.mysql.cj.jdbc.Driver"
 );
-CREATE CATALOG jdbc_pg PROPERTIES (
+CREATE EXTERNAL CATALOG jdbc_pg PROPERTIES (
     "type"="jdbc",
     "user"="postgres",
     "password"="123456",
@@ -27,7 +27,7 @@ CREATE CATALOG jdbc_pg PROPERTIES (
     "driver_url" = "file:///path/to/postgresql-42.5.1.jar",
     "driver_class" = "org.postgresql.Driver"
 );
-CREATE CATALOG jdbc_clickhouse PROPERTIES (
+CREATE EXTERNAL CATALOG jdbc_clickhouse PROPERTIES (
     "type"="jdbc",
     "user"="default",
     "password"="123456",
@@ -35,7 +35,7 @@ CREATE CATALOG jdbc_clickhouse PROPERTIES (
     "driver_url" = "file:///path/to/clickhouse-jdbc-0.3.2-patch11-all.jar",
     "driver_class" = "com.clickhouse.jdbc.ClickHouseDriver"
 );
-CREATE CATALOG jdbc_oracle PROPERTIES (
+CREATE EXTERNAL CATALOG jdbc_oracle PROPERTIES (
     "type"="jdbc",
     "user"="doris",
     "password"="123456",
@@ -43,7 +43,7 @@ CREATE CATALOG jdbc_oracle PROPERTIES (
     "driver_url" = "file:///path/to/ojdbc8.jar",
     "driver_class" = "oracle.jdbc.driver.OracleDriver"
 );
-CREATE CATALOG sqlserver_catalog PROPERTIES (
+CREATE EXTERNAL CATALOG sqlserver_catalog PROPERTIES (
     "type"="jdbc",
     "user"="SA",
     "password"="Doris123456",
@@ -51,7 +51,7 @@ CREATE CATALOG sqlserver_catalog PROPERTIES (
     "driver_url" = "file:///path/to/mssql-jdbc-11.2.3.jre8.jar",
     "driver_class" = "com.microsoft.sqlserver.jdbc.SQLServerDriver"
 );
-CREATE CATALOG saphana_catalog PROPERTIES (
+CREATE EXTERNAL CATALOG saphana_catalog PROPERTIES (
     "type"="jdbc",
     "user"="SYSTEM",
     "password"="SAPHANA",
@@ -59,7 +59,7 @@ CREATE CATALOG saphana_catalog PROPERTIES (
     "driver_url" = "file:///path/to/ngdbc.jar",
     "driver_class" = "com.sap.db.jdbc.Driver"
 );
-CREATE CATALOG trino_catalog PROPERTIES (
+CREATE EXTERNAL CATALOG trino_catalog PROPERTIES (
     "type"="jdbc",
     "user"="hadoop",
     "password"="",
@@ -67,7 +67,7 @@ CREATE CATALOG trino_catalog PROPERTIES (
     "driver_url" = "file:///path/to/trino-jdbc-389.jar",
     "driver_class" = "io.trino.jdbc.TrinoDriver"
 );
-CREATE CATALOG oceanbase_catalog PROPERTIES (
+CREATE EXTERNAL CATALOG oceanbase_catalog PROPERTIES (
     "type"="jdbc",
     "user"="root",
     "password"="",
