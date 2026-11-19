@@ -576,7 +576,7 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 	// DESC FILES(propertyList) describes a files() table function rather than
 	// a table (descTableStatement, StarRocks.g4:561). FILES is no identifier,
 	// so it opens this form and nothing else.
-	if p.cur.Kind == kwFILES {
+	if p.cur.Kind == kwFILES && !stmt.Full {
 		p.advance() // consume FILES
 		props, err := p.parsePropertyList()
 		if err != nil {

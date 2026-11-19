@@ -52,8 +52,15 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (object_list)
+	// Optional ON (object_list). An external-catalog backup takes none: "Can
+	// not sepcify `ON` clause for external catalog".
 	if p.cur.Kind == kwON {
+		if stmt.AllExternalCatalogs || len(stmt.ExternalCatalogs) > 0 {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "an external catalog backup takes no ON clause",
+			}
+		}
 		p.advance() // consume ON
 		tables, loc, err := p.parseBackupObjectList(false)
 		if err != nil {
@@ -321,12 +328,22 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 		endLoc = aliasLoc
 	}
 
-	// Optional ON (object_list)
+	// Optional ON (object_list). An external-catalog restore takes none: the
+	// AST builder refuses it.
+	if p.cur.Kind == kwON && (stmt.AllExternalCatalogs || len(stmt.ExternalCatalogs) > 0) {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "an external catalog restore takes no ON clause",
+		}
+	}
 	if p.cur.Kind == kwON {
-		if len(labelName.Parts) < 2 {
+		// "`ON` clause is forbidden if no Database explicitly specified in
+		// Restore stmt.": a DATABASE clause names it, and so does a database
+		// in the label (`RESTORE SNAPSHOT db.s FROM r ON(t)` is accepted).
+		if len(labelName.Parts) < 2 && stmt.Database == "" {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "RESTORE with ON needs the database in the snapshot label",
+				Message: "RESTORE with ON needs a database, in the label or a DATABASE clause",
 			}
 		}
 		p.advance()

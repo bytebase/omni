@@ -107,11 +107,13 @@ var _ Node = (*AlterResourceGroupStmt)(nil)
 //	CREATE DATACACHE RULE target [(WHERE expression)] PRIORITY '=' ['-'] INTEGER_VALUE
 //	    [properties]
 //
-// target is 'catalog.database.table' with '*' for a wildcard part.
+// target is three parts — catalog, database and table — each an identifier, a
+// string or the '*' wildcard, kept apart so that a quoted part holding a dot
+// is not the same target as two parts.
 type CreateDataCacheRuleStmt struct {
-	Target     string
+	Target     []string // catalog, database and table, each an identifier, a string or "*"
 	Where      Node
-	Priority   string
+	Priority   string // the integer as written
 	Negative   bool
 	Properties []*Property
 	Loc        Loc

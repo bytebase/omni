@@ -174,6 +174,10 @@ func (p *Parser) parseTranslate() (ast.Node, error) {
 		if !p.terminated {
 			return nil, p.syntaxErrorAtCur()
 		}
+		// The terminator is the token `.+` matched, and it is the source byte
+		// at the end of the segment, so the span covers it even though the
+		// translated text is empty.
+		stmt.Loc.End = p.cur.Loc.Start + 1
 		return stmt, nil
 	}
 	rawStart := p.cur.Loc.Start

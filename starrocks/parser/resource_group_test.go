@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/starrocks/ast"
@@ -117,12 +118,29 @@ func TestRefreshExternalTable(t *testing.T) {
 
 func TestDataCacheRules(t *testing.T) {
 	stmt := parseOne(t, `CREATE DATACACHE RULE *.*.* PRIORITY = 1`).(*ast.CreateDataCacheRuleStmt)
-	if stmt.Target != "*.*.*" || stmt.Priority != "1" || stmt.Negative {
-		t.Errorf("Target = %q Priority = %q Negative = %v", stmt.Target, stmt.Priority, stmt.Negative)
+	if strings.Join(stmt.Target, "|") != "*|*|*" || stmt.Priority != "1" || stmt.Negative {
+		t.Errorf("Target = %v Priority = %q Negative = %v", stmt.Target, stmt.Priority, stmt.Negative)
+	}
+
+	// The three parts stay apart: a quoted part holding a dot is not the
+	// same target as two parts.
+	stmt = parseOne(t, `CREATE DATACACHE RULE 'a.b'.c.d PRIORITY = 1`).(*ast.CreateDataCacheRuleStmt)
+	if len(stmt.Target) != 3 || stmt.Target[0] != "a.b" || stmt.Target[1] != "c" {
+		t.Errorf("Target = %v, want [a.b c d]", stmt.Target)
+	}
+
+	// The AST builder parses the priority with Integer.parseInt.
+	for _, sql := range []string{
+		`CREATE DATACACHE RULE *.*.* PRIORITY = 2147483648`,
+		`CREATE DATACACHE RULE *.*.* PRIORITY = - 2147483649`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
 	}
 
 	stmt = parseOne(t, `CREATE DATACACHE RULE hive.db.t WHERE a = 1 PRIORITY = - 2 PROPERTIES('a' = 'a')`).(*ast.CreateDataCacheRuleStmt)
-	if stmt.Target != "hive.db.t" || stmt.Where == nil || stmt.Priority != "2" || !stmt.Negative {
+	if strings.Join(stmt.Target, ".") != "hive.db.t" || stmt.Where == nil || stmt.Priority != "2" || !stmt.Negative {
 		t.Errorf("stmt = %+v, want hive.db.t with a WHERE and -2", stmt)
 	}
 	if len(stmt.Properties) != 1 {

@@ -243,7 +243,7 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 			return false
 		}
 		expr, err := p.parseExpr()
-		return err == nil && isPredicateExpr(expr)
+		return err == nil && isPredicateNode(expr)
 	case "strwhere": // (WHERE expression): SHOW PIPES' predicate, whose literals are strings
 		if !p.showShapeToken(kwWHERE) {
 			return false
@@ -329,7 +329,10 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 // comparison, IN, BETWEEN, LIKE, REGEXP or IS predicate, a compound AND or OR,
 // or a NOT. A resource group's classifier is one (`Cannot cast
 // com.starrocks.analysis.IntLiteral to com.starrocks.analysis.Predicate` for
-// `TO(1)`, and `TO(user = 'x')` and `TO(1 = 1)` are accepted).
+// `TO(1)`, and `TO(user = 'x')` and `TO(1 = 1)` are accepted), and so is the
+// WHERE of SHOW ANALYZE, SHOW STATS META, SHOW HISTOGRAM META and SHOW
+// PROCEDURE STATUS (`SHOW ANALYZE WHERE a = 1 OR b = 2` and
+// `... WHERE NOT a = 1` are accepted, `... WHERE CURRENT_USER` is not).
 func isPredicateNode(n ast.Node) bool {
 	switch v := n.(type) {
 	case *ast.BinaryExpr:
@@ -343,26 +346,6 @@ func isPredicateNode(n ast.Node) bool {
 		return true
 	case *ast.UnaryExpr:
 		return v.Op == ast.UnaryNot
-	}
-	return false
-}
-
-// isPredicateExpr reports whether n is one comparison predicate, the shape
-// SHOW ANALYZE, SHOW STATS META, SHOW HISTOGRAM META and SHOW PROCEDURE STATUS
-// read their WHERE as: each casts the expression to a Predicate and fails on
-// anything else, so `SHOW ANALYZE WHERE CURRENT_USER` is a syntax error and
-// `SHOW ANALYZE WHERE 1 = 1`, `... WHERE a IN (1)`, `... WHERE a IS NULL` and
-// `... WHERE a LIKE 'x'` are not (engine-verified).
-func isPredicateExpr(n ast.Node) bool {
-	switch v := n.(type) {
-	case *ast.BinaryExpr:
-		switch v.Op {
-		case ast.BinEq, ast.BinNe, ast.BinLt, ast.BinGt, ast.BinLe, ast.BinGe, ast.BinNullSafeEq:
-			return true
-		}
-		return false
-	case *ast.InExpr, *ast.BetweenExpr, *ast.LikeExpr, *ast.RegexpExpr, *ast.IsExpr:
-		return true
 	}
 	return false
 }

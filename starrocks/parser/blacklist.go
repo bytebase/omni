@@ -69,7 +69,9 @@ func (p *Parser) parseBlacklistTail(startLoc ast.Loc, stmt *ast.BlacklistStmt) (
 	if p.cur.Kind == kwSQLBLACKLIST {
 		p.advance() // consume SQLBLACKLIST
 		if stmt.Add {
-			if p.cur.Kind != tokString {
+			// The AST builder refuses an empty pattern: "Sql to be add black
+			// list is empty".
+			if p.cur.Kind != tokString || p.cur.Str == "" {
 				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.SQL = p.cur.Str

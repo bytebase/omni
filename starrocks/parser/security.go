@@ -566,6 +566,7 @@ func (p *Parser) parseUserIdentity() (*ast.UserIdentity, error) {
 	endLoc := userLoc
 
 	host := "%"
+	domain := false
 
 	// Optional @'host', or @['host'] (StarRocks.g4:2892, user's third form,
 	// which brackets the host as `userWithHostAndBlanket`).
@@ -582,6 +583,7 @@ func (p *Parser) parseUserIdentity() (*ast.UserIdentity, error) {
 				return nil, err
 			}
 			host = bracketHost
+			domain = true
 			endLoc = closeTok.Loc
 		} else {
 			if p.cur.Kind != tokString && !isIdentifierToken(p.cur.Kind) {
@@ -599,6 +601,7 @@ func (p *Parser) parseUserIdentity() (*ast.UserIdentity, error) {
 	return &ast.UserIdentity{
 		Username: username,
 		Host:     host,
+		Domain:   domain,
 		Loc:      ast.Loc{Start: startLoc.Start, End: endLoc.End},
 	}, nil
 }

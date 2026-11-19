@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"strings"
+	"math"
 
 	"github.com/bytebase/omni/starrocks/ast"
 )
@@ -236,7 +236,7 @@ func (p *Parser) parseCreateDataCacheRule(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 	}
-	stmt.Target = strings.Join(parts, ".")
+	stmt.Target = parts
 	endLoc := stmt.Loc
 
 	if p.cur.Kind == kwWHERE {
@@ -261,6 +261,12 @@ func (p *Parser) parseCreateDataCacheRule(startLoc ast.Loc) (ast.Node, error) {
 		p.advance() // consume '-'
 	}
 	if p.cur.Kind != tokInt {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// The AST builder parses the value with Integer.parseInt, so a priority
+	// outside a signed 32-bit integer is refused ("For input string:
+	// \"2147483648\"").
+	if p.cur.Ival > math.MaxInt32 || p.cur.Ival < math.MinInt32 {
 		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Priority = p.cur.Str

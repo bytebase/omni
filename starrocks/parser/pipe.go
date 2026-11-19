@@ -7,6 +7,23 @@ import (
 // Pipes (StarRocks.g4:1913-1939). PIPE is nonReserved, so DESC PIPE is told
 // from a table named pipe by the name that follows it.
 
+// parsePipeName reads a pipe's name. The AST builder refuses a name of more
+// than a database and a pipe ("Invalid pipe name 'a.b.c'"), so a third part is
+// a syntax error here.
+func (p *Parser) parsePipeName() (*ast.ObjectName, error) {
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if len(name.Parts) > 2 {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "a pipe's name is a database and a name",
+		}
+	}
+	return name, nil
+}
+
 // parseCreatePipe parses createPipeStatement (StarRocks.g4:1913):
 //
 //	CREATE [OR REPLACE] PIPE [IF NOT EXISTS] qualifiedName properties? AS insertStatement
@@ -27,12 +44,21 @@ func (p *Parser) parseCreatePipe(startLoc ast.Loc, orReplace bool) (ast.Node, er
 		stmt.IfNotExists = true
 	}
 
-	name, err := p.parseMultipartIdentifier()
+	name, err := p.parsePipeName()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
 	endLoc := name.Loc
+
+	// The AST builder refuses the pair: "Conflicted options OR REPLACE and
+	// IF NOT EXISTS".
+	if stmt.OrReplace && stmt.IfNotExists {
+		return nil, &ParseError{
+			Position: startLoc.Start, End: endLoc.End,
+			Message: "OR REPLACE and IF NOT EXISTS conflict",
+		}
+	}
 
 	if p.cur.Kind == kwPROPERTIES {
 		props, err := p.parseProperties()
@@ -75,7 +101,7 @@ func (p *Parser) parseDropPipe(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.IfExists = true
 	}
-	name, err := p.parseMultipartIdentifier()
+	name, err := p.parsePipeName()
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +119,7 @@ func (p *Parser) parseDropPipe(startLoc ast.Loc) (ast.Node, error) {
 // On entry ALTER has been consumed; cur is PIPE.
 func (p *Parser) parseAlterPipe(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume PIPE
-	name, err := p.parseMultipartIdentifier()
+	name, err := p.parsePipeName()
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +192,7 @@ func (p *Parser) atDescPipe() bool {
 // On entry the verb has been consumed; cur is PIPE.
 func (p *Parser) parseDescPipe(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume PIPE
-	name, err := p.parseMultipartIdentifier()
+	name, err := p.parsePipeName()
 	if err != nil {
 		return nil, err
 	}

@@ -211,10 +211,12 @@ var _ Node = (*DropRoleStmt)(nil)
 // ---------------------------------------------------------------------------
 
 // UserIdentity represents the 'user'@'host' form used in user statements.
-// Host defaults to '%' when omitted.
+// Host defaults to '%' when omitted. Domain marks `'user'@['domain']`, which
+// StarRocks keeps apart from a plain host: the brackets name a domain.
 type UserIdentity struct {
 	Username string
 	Host     string // '%' when not specified
+	Domain   bool   // the host was written inside brackets
 	Loc      Loc
 }
 

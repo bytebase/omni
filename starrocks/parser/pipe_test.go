@@ -18,18 +18,27 @@ func TestCreatePipe(t *testing.T) {
 		t.Errorf("Insert = %T, want *ast.InsertStmt", stmt.Insert)
 	}
 
-	stmt = parseOne(t, `CREATE OR REPLACE PIPE IF NOT EXISTS db.p PROPERTIES('a' = 'a') AS INSERT INTO t VALUES(1)`).(*ast.CreatePipeStmt)
-	if stmt.Name.String() != "db.p" || !stmt.OrReplace || !stmt.IfNotExists {
-		t.Errorf("stmt = %+v, want db.p with OR REPLACE and IF NOT EXISTS", stmt)
+	stmt = parseOne(t, `CREATE OR REPLACE PIPE db.p PROPERTIES('a' = 'a') AS INSERT INTO t VALUES(1)`).(*ast.CreatePipeStmt)
+	if stmt.Name.String() != "db.p" || !stmt.OrReplace || stmt.IfNotExists {
+		t.Errorf("stmt = %+v, want db.p with OR REPLACE", stmt)
 	}
 	if len(stmt.Properties) != 1 {
 		t.Errorf("Properties = %v, want one", stmt.Properties)
+	}
+	stmt = parseOne(t, `CREATE PIPE IF NOT EXISTS p AS INSERT INTO t SELECT 1`).(*ast.CreatePipeStmt)
+	if !stmt.IfNotExists || stmt.OrReplace {
+		t.Errorf("stmt = %+v, want IF NOT EXISTS alone", stmt)
 	}
 
 	for _, sql := range []string{
 		`CREATE PIPE p AS INSERT a SELECT 1`,
 		`CREATE PIPE p SELECT 1`,
 		`CREATE PIPE AS INSERT INTO t VALUES(1)`,
+		// The AST builder refuses the pair and any name but a database and a
+		// name.
+		`CREATE OR REPLACE PIPE IF NOT EXISTS p AS INSERT INTO t SELECT 1`,
+		`CREATE PIPE a.b.c AS INSERT INTO t SELECT 1`,
+		`DROP PIPE a.b.c`,
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
@@ -351,5 +360,96 @@ func TestDropResourceGroupSpanEndsAtTheParen(t *testing.T) {
 	sql := `ALTER RESOURCE GROUP rg DROP(1, 2)`
 	if got := ast.NodeLoc(parseOne(t, sql)).End; got != len(sql) {
 		t.Errorf("Loc.End = %d, want %d", got, len(sql))
+	}
+}
+
+func TestUserHostBracketsMarkADomain(t *testing.T) {
+	// `'u'@['example.com']` is userWithHostAndBlanket (:2896): the brackets
+	// name a domain, which StarRocks keeps apart from a plain host.
+	stmt := parseOne(t, `CREATE USER u@['example.com']`).(*ast.CreateUserStmt)
+	if !stmt.Name.Domain || stmt.Name.Host != "example.com" {
+		t.Errorf("identity = %+v, want a domain host", stmt.Name)
+	}
+	stmt = parseOne(t, `CREATE USER u@'example.com'`).(*ast.CreateUserStmt)
+	if stmt.Name.Domain || stmt.Name.Host != "example.com" {
+		t.Errorf("identity = %+v, want a plain host", stmt.Name)
+	}
+}
+
+func TestBlacklistRefusals(t *testing.T) {
+	// The AST builder refuses an empty pattern and an id outside a signed
+	// 64-bit integer.
+	for _, sql := range []string{
+		`ADD SQLBLACKLIST ''`,
+		`ADD BACKEND BLACKLIST 9223372036854775808`,
+		`DELETE SQLBLACKLIST 9223372036854775808`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+func TestExternalCatalogSnapshotTakesNoOn(t *testing.T) {
+	// "Can not sepcify `ON` clause for external catalog": the ON clause needs
+	// a database, and an external-catalog snapshot has none.
+	for _, sql := range []string{
+		`BACKUP EXTERNAL CATALOG(a) SNAPSHOT s TO r ON(t)`,
+		`RESTORE SNAPSHOT s FROM r EXTERNAL CATALOG(a) ON(t)`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		`BACKUP DATABASE db SNAPSHOT s TO r ON(t)`,
+		`RESTORE SNAPSHOT s FROM r DATABASE d ON(t)`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+}
+
+func TestShowFiltersTakeCompoundPredicates(t *testing.T) {
+	// The WHERE of these SHOW statements is a Predicate, compound forms and
+	// NOT included, while a bare expression is not one.
+	for _, sql := range []string{
+		`SHOW STATS META WHERE a = 'x' AND b = 'y'`,
+		`SHOW STATS META WHERE NOT a = 1`,
+		`SHOW ANALYZE WHERE a = 1 OR b = 2`,
+		`SHOW HISTOGRAM META WHERE a = 1`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+	for _, sql := range []string{
+		`SHOW ANALYZE WHERE CURRENT_USER`,
+		`SHOW STATS META WHERE a`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+func TestDescFullFilesRefused(t *testing.T) {
+	// descTableStatement (:561) is a qualified name or FILES propertyList;
+	// FULL precedes neither.
+	if _, errs := parseForTest(`DESC FULL FILES('a' = 'b')`); len(errs) == 0 {
+		t.Error("DESC FULL FILES parsed, want a syntax error")
+	}
+}
+
+func TestTranslateTerminatorIsInTheSpan(t *testing.T) {
+	// `TRANSLATE presto;` is accepted because the terminator is the token
+	// translateSQL matched, so the span covers it and the text is empty.
+	stmt := parseOne(t, `TRANSLATE presto;`).(*ast.TranslateStmt)
+	if stmt.SQL != "" {
+		t.Errorf("SQL = %q, want empty", stmt.SQL)
+	}
+	if stmt.Loc.End != len(`TRANSLATE presto;`) {
+		t.Errorf("Loc.End = %d, want %d", stmt.Loc.End, len(`TRANSLATE presto;`))
 	}
 }
