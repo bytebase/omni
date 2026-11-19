@@ -606,6 +606,10 @@ func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
 		{"SELECT EXISTS { RETURN 1 GROUP BY (SELECT id FROM secret) }", []string{"secret"}, 1},
 		{"SELECT EXISTS { TABLESAMPLE BERNOULLI(1 ROWS PARTITION BY (SELECT id FROM secret)) RETURN 1 }", []string{"secret"}, 1},
 		{"SELECT EXISTS { MATCH ({a: (SELECT id FROM secret)}) RETURN 1 }", []string{"secret"}, 1},
+		// A graph CALL's TVF table argument names a table the call reads, in both
+		// the positional and the named shape.
+		{"SELECT EXISTS { CALL f(TABLE secret) RETURN 1 }", []string{"secret"}, 1},
+		{"SELECT EXISTS { CALL f(t => TABLE secret) RETURN 1 }", []string{"secret"}, 1},
 		// A standalone graph predicate's operands are ordinary relational
 		// columns: neither names a table here.
 		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},

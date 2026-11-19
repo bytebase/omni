@@ -2364,6 +2364,10 @@ func (ew *exprWalk) walkGraphNode(node ast.Node) {
 		ew.walkGraphNodes(n.Ops)
 	case *ast.GraphCallOp:
 		if n.Call != nil {
+			// A TVF argument names a table the call reads (`CALL f(TABLE t)`), which
+			// the expression walk cannot see: the argument is a table clause, not an
+			// expression. Record it the way a pipe CALL does.
+			ew.w.recordCallTableArgs(n.Call)
 			ew.walk(n.Call)
 		}
 		if n.Subquery != nil {
