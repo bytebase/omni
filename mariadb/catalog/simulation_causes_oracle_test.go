@@ -1327,6 +1327,40 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"CHECK (`z` > 0)"},
 		},
+		// A charset or collation written as DEFAULT is resolved while it is read:
+		// `CHARSET DEFAULT` is utf8mb4 with utf8mb4_general_ci, and `COLLATE
+		// DEFAULT` the table's charset with its 11.8 default (a case-insensitive
+		// one for utf8mb4, so an existing ENUM('s','S') is 1291 on CONVERT).
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT",
+			setup:    []string{"CREATE TABLE a (b VARCHAR(3)) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:     0,
+			contains: []string{"COLLATE=utf8mb4_general_ci"},
+		},
+		{
+			name:  "CONVERT TO CHARACTER SET DEFAULT over a binary-collated ENUM",
+			setup: []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
+			code:  1291,
+		},
+		{
+			name:     "COLLATE DEFAULT on a binary-collated table",
+			setup:    []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a COLLATE DEFAULT",
+			code:     0,
+			contains: []string{"COLLATE=utf8mb4_uca1400_ai_ci"},
+		},
+		// An engine-defined key option IGNORE_BAD_TABLE_OPTIONS tolerated is
+		// commented out once the mode is gone, a VECTOR key's own M and DISTANCE
+		// excepted.
+		{
+			name:     "VECTOR key option the engine defines beside one it does not",
+			setup:    []string{"SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'", "CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) M=6 DISTANCE=cosine x=1)", "SET sql_mode = DEFAULT"},
+			stmt:     "ALTER TABLE a ADD c INT",
+			code:     0,
+			contains: []string{"VECTOR KEY `i` (`v`) `M`=6 `DISTANCE`=cosine /* `x`=1 */"},
+		},
 	}
 
 	for _, tc := range cases {

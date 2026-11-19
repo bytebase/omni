@@ -6342,3 +6342,156 @@
 > exec
 | DROP TABLE IF EXISTS z
 < ok 0 0
+> exec
+| CREATE TABLE a (b VARCHAR(3)) COLLATE utf8mb4_bin
+< ok 0 0
+> exec
+| ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` varchar(3) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin
+< ok 0 0
+> exec
+| ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT
+< error
+| 1291 HY000 Column 'e' has duplicated value 's' in ENUM
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE DEFAULT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `e` enum('s','S') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS'
+< ok 0 0
+> exec
+| CREATE TABLE a (v VECTOR(3) NOT NULL, VECTOR INDEX i (v) M=6 DISTANCE=cosine x=1)
+< ok 0 0
+> exec
+| SET sql_mode = DEFAULT
+< ok 0 0
+> exec
+| ALTER TABLE a ADD c INT
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `v` vector(3) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   VECTOR KEY `i` (`v`) `M`=6 `DISTANCE`=cosine /* `x`=1 */
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> exec
+| DROP TEMPORARY TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0

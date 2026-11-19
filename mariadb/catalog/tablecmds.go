@@ -207,6 +207,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.Charset = normalizeCharsetName(cs)
 		}
 	}
+	// A charset or collation written as DEFAULT is resolved the way the server
+	// resolves it: measured on mariadb:11.8.8, `CREATE TABLE a (b INT) CHARSET
+	// DEFAULT` is utf8mb4 with utf8mb4_general_ci, and `COLLATE DEFAULT` the
+	// table's charset with its 11.8 default (utf8mb4_uca1400_ai_ci).
+	tbl.Charset, tbl.Collation = c.resolveCharsetDefault(db, tbl.Charset, tbl.Collation, tblCharsetExplicit, tblCollationExplicit)
 	if tblCharsetExplicit && tblCollationExplicit && !charsetMatchesCollation(tbl.Charset, tbl.Collation) {
 		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
 	}

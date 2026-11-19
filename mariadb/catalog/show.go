@@ -740,12 +740,27 @@ func showIndexOptions(idx *Index, plainOptions bool) string {
 	// 11.8.8 prints them: VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine,
 	// and inside a comment where the engine knows none of them.
 	// A VECTOR key's options are the ones its engine defines, M and DISTANCE, and
-	// it prints them bare: VECTOR KEY `i` (`v`) `M`=6.
-	if len(idx.EngineOptions) > 0 {
-		if plainOptions || idx.Vector {
-			b.WriteString(" " + strings.Join(idx.EngineOptions, " "))
-		} else {
-			b.WriteString(" /* " + strings.Join(idx.EngineOptions, " ") + " */")
+	// it prints those bare: VECTOR KEY `i` (`v`) `M`=6. One it does not define —
+	// which only IGNORE_BAD_TABLE_OPTIONS lets in — is commented like an ordinary
+	// key's: measured on mariadb:11.8.8, `VECTOR INDEX i (v) M=6 x=1` created
+	// under the mode reports VECTOR KEY `i` (`v`) `M`=6 /* `x`=1 */ once it is
+	// gone, and both bare while it is on (plainOptions).
+	if len(idx.EngineOptions) > 0 && plainOptions {
+		b.WriteString(" " + strings.Join(idx.EngineOptions, " "))
+	} else if len(idx.EngineOptions) > 0 {
+		var bare, commented []string
+		for _, opt := range idx.EngineOptions {
+			if idx.Vector && vectorEngineOption(opt) {
+				bare = append(bare, opt)
+				continue
+			}
+			commented = append(commented, opt)
+		}
+		if len(bare) > 0 {
+			b.WriteString(" " + strings.Join(bare, " "))
+		}
+		if len(commented) > 0 {
+			b.WriteString(" /* " + strings.Join(commented, " ") + " */")
 		}
 	}
 
@@ -755,6 +770,27 @@ func showIndexOptions(idx *Index, plainOptions bool) string {
 	}
 
 	return b.String()
+}
+
+// vectorEngineOption reports whether an engine-defined key option, as
+// SHOW CREATE TABLE writes it (`M`=6), is one a VECTOR key's engine defines.
+// MariaDB 11.8.8 takes M and DISTANCE on a VECTOR key and answers 1911 for
+// every other one, so those two are the bare ones (see validateKeyEngineOptions).
+func vectorEngineOption(opt string) bool {
+	name := opt
+	if i := strings.IndexByte(name, '`'); i == 0 {
+		rest := name[1:]
+		if j := strings.IndexByte(rest, '`'); j >= 0 {
+			name = rest[:j]
+		} else {
+			name = rest
+		}
+	}
+	switch toLower(name) {
+	case "m", "distance":
+		return true
+	}
+	return false
 }
 
 func showIndexColumn(ic *IndexColumn) string {

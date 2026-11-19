@@ -2266,11 +2266,13 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if defColl := c.charsetCollation(tbl.Charset); defColl != "" {
 			tbl.Collation = defColl
 		}
+		tbl.Charset, tbl.Collation = c.resolveCharsetDefault(tbl.Database, tbl.Charset, tbl.Collation, true, false)
 	case "collate", "default collate":
 		tbl.Collation = opt.Value
 		if cs := charsetForCollation(opt.Value); cs != "" {
 			tbl.Charset = normalizeCharsetName(cs)
 		}
+		tbl.Charset, tbl.Collation = c.resolveCharsetDefault(tbl.Database, tbl.Charset, tbl.Collation, false, true)
 	case "comment":
 		tbl.Comment = opt.Value
 	case "auto_increment":
@@ -2634,7 +2636,7 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 // This changes the table's default charset/collation AND converts all existing
 // string columns to the new charset/collation.
 func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	charset := cmd.Name
+	charset := normalizeCharsetName(cmd.Name)
 	collation := cmd.NewName
 
 	// If no collation specified, use the default collation for the charset.
@@ -2642,6 +2644,14 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if defColl := c.charsetCollation(charset); defColl != "" {
 			collation = defColl
 		}
+	}
+	// CHARACTER SET DEFAULT and COLLATE DEFAULT are resolved before anything is
+	// read: measured on mariadb:11.8.8, `CONVERT TO CHARACTER SET DEFAULT` is
+	// utf8mb4 with utf8mb4_general_ci, and `COLLATE DEFAULT` the charset's own
+	// 11.8 default.
+	charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation, true, cmd.NewName != "")
+	if collation == "" {
+		collation = versionCollation(tbl.Database, charset)
 	}
 
 	// Converting existing ENUM or SET columns re-checks their members under the
@@ -2905,6 +2915,34 @@ func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableC
 	return nil
 }
 
+// defaultCharsetCollation is what a charset written as DEFAULT resolves to on
+// the pin: measured on mariadb:11.8.8, `CREATE TABLE a (b INT) CHARSET DEFAULT`,
+// `ALTER TABLE a CHARSET DEFAULT` and `ALTER TABLE a CONVERT TO CHARACTER SET
+// DEFAULT` all report CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci, whatever the
+// table's charset was, where `COLLATE DEFAULT` keeps the table's charset and
+// takes its 11.8 default (utf8mb4_uca1400_ai_ci for utf8mb4, latin1_swedish_ci
+// for latin1).
+const defaultCharsetCollation = "utf8mb4_general_ci"
+
+// resolveCharsetDefault replaces a charset or collation a statement writes as
+// DEFAULT with the character set and collation MariaDB resolves it to, so no
+// later check sees the word: `CHARSET DEFAULT` is the server's own character set
+// with utf8mb4_general_ci, and `COLLATE DEFAULT` is the collation the table's
+// charset takes on this release.
+func (c *Catalog) resolveCharsetDefault(db *Database, charset, collation string, charsetExplicit, collationExplicit bool) (string, string) {
+	if charsetExplicit && eqFoldStr(charset, "DEFAULT") {
+		charset = c.defaultCharset
+		if !collationExplicit || eqFoldStr(collation, "DEFAULT") {
+			return charset, defaultCharsetCollation
+		}
+		return charset, collation
+	}
+	if collationExplicit && eqFoldStr(collation, "DEFAULT") {
+		return charset, versionCollation(db, charset)
+	}
+	return charset, collation
+}
+
 // alteredTableCharsetCollation returns the default charset and collation the
 // statement leaves on tbl, which columns added or retyped in the same ALTER
 // inherit regardless of where in the command list COLLATE or CONVERT TO stands
@@ -2921,7 +2959,8 @@ func (c *Catalog) alteredTableCharsetCollation(tbl *Table, cmds []*nodes.AlterTa
 			if cmd.Option == nil || cmd.Option.EngineDefined {
 				continue
 			}
-			switch toLower(cmd.Option.Name) {
+			name := toLower(cmd.Option.Name)
+			switch name {
 			case "charset", "character set", "default charset", "default character set":
 				charset = normalizeCharsetName(cmd.Option.Value)
 				if dc := c.charsetCollation(charset); dc != "" {
@@ -2934,7 +2973,11 @@ func (c *Catalog) alteredTableCharsetCollation(tbl *Table, cmds []*nodes.AlterTa
 						charset = normalizeCharsetName(cs)
 					}
 				}
+			default:
+				continue
 			}
+			charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation,
+				name != "collate" && name != "default collate", name == "collate" || name == "default collate")
 		case nodes.ATConvertCharset:
 			charset = normalizeCharsetName(cmd.Name)
 			if cmd.NewName != "" {
@@ -2942,6 +2985,7 @@ func (c *Catalog) alteredTableCharsetCollation(tbl *Table, cmds []*nodes.AlterTa
 			} else if dc := c.charsetCollation(charset); dc != "" {
 				collation = dc
 			}
+			charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation, true, true)
 		}
 	}
 	return charset, collation
