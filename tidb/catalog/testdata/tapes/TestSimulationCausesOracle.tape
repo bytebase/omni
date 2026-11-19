@@ -2576,6 +2576,68 @@
 | DROP TABLE IF EXISTS `dual`
 < ok 0 0
 > exec
+| CREATE TABLE s (b INT)
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a CACHE
+< ok 0 0
+> exec
+| RENAME TABLE s TO s2, a TO a2
+< error
+| 8242 HY000 'Rename Tables' is unsupported on cache tables.
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| RENAME TABLE a TO a2
+< ok 0 0
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec

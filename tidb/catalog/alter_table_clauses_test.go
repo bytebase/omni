@@ -722,3 +722,25 @@ func TestAlterTableAddColumnWithConstraintIsAtomic(t *testing.T) {
 		t.Errorf("ADD c INT applied nothing:\n%s", c.ShowCreateTable("d", "t"))
 	}
 }
+
+// TestRenameTableIsAtomic: RENAME TABLE is one statement, so a pair that
+// cannot go leaves every table under its own name (read on v8.5.5).
+func TestRenameTableIsAtomic(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "CREATE TABLE s (b INT);")
+	execAll(t, c, "ALTER TABLE s CACHE;")
+	err := execExpectError(t, c, "RENAME TABLE t TO t2, s TO s2;")
+	if err == nil {
+		t.Fatalf("RENAME TABLE of a cached table was accepted")
+	}
+	if !strings.Contains(err.Error(), "8242") {
+		t.Errorf("error = %v, want 8242", err)
+	}
+	db := c.GetDatabase("d")
+	if db.GetTable("t") == nil || db.GetTable("t2") != nil {
+		t.Errorf("the refused statement renamed t: %v", db.Tables)
+	}
+	if db.GetTable("s") == nil || db.GetTable("s2") != nil {
+		t.Errorf("the refused statement renamed s: %v", db.Tables)
+	}
+}

@@ -657,6 +657,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  8242,
 		},
 		{
+			// RENAME TABLE is one atomic statement, and TiDB names the plural
+			// form when it holds several pairs.
+			name:  "RENAME TABLE of a cached table among others",
+			setup: []string{"CREATE TABLE s (b INT)", oneTable, "ALTER TABLE a CACHE"},
+			stmt:  "RENAME TABLE s TO s2, a TO a2",
+			code:  8242,
+		},
+		{
+			name:  "RENAME TABLE of an ordinary table",
+			setup: []string{oneTable},
+			stmt:  "RENAME TABLE a TO a2",
+			code:  0,
+		},
+		{
 			name:  "CREATE INDEX on a cached table",
 			setup: []string{oneTable, "ALTER TABLE a CACHE"},
 			stmt:  "CREATE INDEX i2 ON a (c)",
