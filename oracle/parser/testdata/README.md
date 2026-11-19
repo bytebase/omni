@@ -163,18 +163,19 @@ missing `DATAFILE` the truncated text leaves.
 
 ## Rows only omni accepts, measured
 
-The other direction: the 796 rows whose cells were `accept` where the pinned
-Oracle says `reject`. Each was measured the same way, at judge revision 3,
+The other direction: the 696 rows whose cells are `accept` where the pinned
+Oracle says `reject` (left of the 796 originally measured after the closed
+families below, #1475's 2 and #1480's 51). Each was measured the same way, at judge revision 3,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
 `bnf/` quotes under it is the grammar omni must read, so a statement the page
 derives stays accepted even where this server refuses it, and is recorded
-here instead of closed. Fifteen rows are text the page refuses too, and are
-closed, and so are the thirty-two `PARTITIONSET` rows: the page's clause is
+here instead of closed. Fifteen rows were text the page refuses too, and were
+closed, and so were the thirty-two `PARTITIONSET` rows: the page's clause is
 only reachable in a composite-sharded database, which `OracleDocs.g4` records
 where the converter could drop the rule (its `fix:` notes on
-`alter_table_partitioning_clauses`' neighbours) and this server is not. The
-other 749 are a name Oracle looks up, a check of the parsed statement, or the
+`alter_table_partitioning_clauses`' neighbours) and this server is not. All
+696 here are a name Oracle looks up, a check of the parsed statement, or the
 server's own setup, and stay rows.
 
 ### Closed
@@ -209,7 +210,7 @@ from the grammar; the controls are named where a reader would ask.
 | `CREATE CLUSTER ... PARTITION BY RANGE(...)`, and every clause inside its partitions | 146 | `ORA-14179` at the `PARTITION` clause (45): a cluster is partitioned only when it is a hash cluster, so `CREATE CLUSTER ... HASHKEYS 10 PARTITION BY RANGE(...)` parses and answers `ORA-01031` when it runs (the clause is the page's, the check is not) |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 82 | `ORA-65125` at 34, the file name |
 | `SELECT`/`DELETE ... FROM EXTERNAL(... TYPE a ...)` (42), a materialized view's `INMEMORY (columns) INMEMORY` or `... NO INMEMORY` (8) | 50 | `ORA-00922` at 39 and 48, and at the query (65, 68, 80): `TYPE ORACLE_LOADER` parses, and the column clause's documented form is refused here: this server takes no inmemory column list for a materialized view, the page takes one |
-| `CREATE TABLE a ENABLE ... USING INDEX ...` | 59 | `ORA-02432` at 34: the table `a` defines no primary key; with one the clause parses (`ENABLE PRIMARY KEY USING INDEX zz` answers `ORA-01418`) |
+| `CREATE TABLE a ENABLE ... USING INDEX ...` | 47 | `ORA-02432` at 34, `USING`, and the message names the check: "cannot enable primary key - primary key not defined for table". The byte is the token after the `enable_disable_clause`, not `ENABLE`; the control `CREATE TABLE a (b NUMBER, PRIMARY KEY(b)) ENABLE PRIMARY KEY USING INDEX` parses, and `... USING INDEX bb` answers `ORA-03049` at the name, so the clause is read and the table's own element list fails the check |
 | `ALTER TYPE a ...` | 48 | `ORA-04043` at 0: the type `a` is not there. With a type, `ADD ATTRIBUTE`, `ADD ATTRIBUTE (...)`, `ADD MAP MEMBER FUNCTION ... RETURN NUMBER`, `ADD MEMBER PROCEDURE` and `INSTANTIABLE` parse |
 | a column, property, attribute or key named twice | 41 | `ORA-00957` at the second name |
 | `SHARING = { METADATA \| DATA \| NONE }` | 21 | `ORA-65021` at the clause: not an application root |
@@ -277,7 +278,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,453 rows, 1,116 of them where omni stops first and 3,477
+different byte: 5,262 rows, 1,021 of them where omni stops first and 3,839
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -287,7 +288,7 @@ point instead of the offending token.
 
 Four hundred and two rows carry no byte at all (`reject` alone), a stored unit
 compiled with errors or a statement the engine never answered, so there is
-nothing to match. Four hundred and fifty-eight carry `reject@0`: Oracle's
+nothing to match. Four hundred and forty carry `reject@0`: Oracle's
 answer at the start of the statement, which is "no such form" or a name it
 looks up before it reads the rest.
 
@@ -321,6 +322,36 @@ rejection on both sides, at another byte.
 | --- | --- | --- |
 | `CREATE TABLE a(SUPPLEMENTAL LOG ...)` | 48 | the ')' of a column list that holds no column, or the token inside or after the clause that is not the one it takes: a supplemental_logging_props clause is one of relational_properties (`CREATE-TABLE.bnf` lines 58-65 and 183), so Oracle reads it and then wants a column, as it refuses a list of constraints alone at its ')' (`ORA-03079`). `CREATE TABLE a OF a(SUPPLEMENTAL LOG GROUP a(a))` is the control: an object table's `object_properties` took the clause all along and Oracle accepts it |
 
+This change closed the derived analytic view's family, and the grammar that
+generated it was wrong. `SELECT.bnf` read `sub_av_clause` as `ANALYTIC VIEW
+USING analytic_view_name`, so the generator wrote `FROM ANALYTIC
+VIEW(ANALYTIC VIEW USING a)`. The page draws the clause as `USING [ schema. ]
+base_av_name [ hierarchies_clause ] [ filter_clauses ] [ add_meas_clause ]`
+and puts `ANALYTIC VIEW` on the inline view and on the WITH element instead
+(its diagrams, and its own transitory and inline analytic view examples on the
+SELECT page), and the pinned Oracle reads it that way: `ANALYTIC
+VIEW(ANALYTIC VIEW USING a)` is `ORA-02000`, "missing USING keyword", at the
+token inside the parens (28), while `ANALYTIC VIEW(USING a)` is read to its
+name lookup (`ORA-18307`) and `WITH a ANALYTIC VIEW AS(USING a)` to
+`ORA-18385`, a check of the parsed statement. So the family was a reading of
+the quote, not a lookup, and the quote was corrected: `sub_av_clause`,
+`hierarchies_clause` (whose list is entirely optional), `filter_clauses` (one
+FILTER FACT around a list of `hier_ids TO condition`), `add_meas_clause`
+(whose item is `cube_meas`, a measure name and a base or calculated clause)
+and `subav_factoring_clause`. `inline_analytic_view` keeps its parentheses,
+which both the server and the page's example write. `analytic_inline.go` reads
+the clause.
+
+All 103 rows the family was measured with are gone, at 28 on both sides. The
+corrected quote removed 221 rows and added 345: 321 of them agree (294 in an
+inline analytic view, 19 in a WITH element, 8 beside them) and 24 are
+near-misses inside the clause, where the two sides stop at different tokens.
+
+| Cause | Rows | What moved |
+| --- | --- | --- |
+| `... FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)` | 294 | agree: the clause starts at `USING`, is read in a SELECT and a DELETE, with an alias, an empty HIERARCHIES list, a single-hierarchy filter and a calculated or `AGGREGATE BY` measure |
+| `WITH a ANALYTIC VIEW AS(USING a) ...` | 19 | agree: the WITH element's `ANALYTIC VIEW` stands before `AS`, not inside the clause |
+
 The parameter family moved. `parameters.go` carries the 566 names
 `V$PARAMETER` lists on the pinned server and the 7,137 hidden names `X$KSPPI`
 adds (7,700 distinct), with the single-word values `V$PARAMETER_VALID_VALUES`
@@ -339,7 +370,7 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | --- | --- | --- |
 | `DELETE ... MATCH_RECOGNIZE (...)` | 252 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
 | `... PARTITION BY CONSISTENT HASH (...) ...` behind a `)` | 80 | the delimiter scan answers for the `)` before the statement parsers run, so the reading above never reaches Oracle's token: 60 are the `MODIFY PARTITIONSET` family below, and 20 are near-misses that put `a)` or a `SUBPARTITION BY RANGE a)` where `(a)` belongs |
-| rows whose cell is `reject@0` | 458 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
+| rows whose cell is `reject@0` | 440 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
 | rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 78 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
 | `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
@@ -348,8 +379,7 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | `ALTER DIMENSION ...` | 39 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 72 `ALTER DIMENSION` rows here, 30 more carry `reject@0` (a clause word Oracle has no form for) and 3 sit behind the scan's `)` and end-of-input answers |
 | `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 10 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see below) |
 | `... PARTITION BY RANGE(a)` on a `CREATE CLUSTER` | 323 | the clause's `(` (45): `ORA-14179`, because a cluster is partitioned only when it is a hash cluster. This is the check "Rows only omni accepts" measures (146 rows there), not a reading, and the near-misses that carry it stay |
-| `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | `ENABLE` (34): `ORA-02432`, the table defines no primary key. A check of the parsed statement, so the clause after it is not read |
-| `... FROM ANALYTIC VIEW (...)` | 103 | the first token inside the parens (28), in every form the page derives: an inline analytic view's `sub_av_clause` starts with `ANALYTIC` there, and Oracle refuses it. Whether the form takes a clause or a name is not settled by the answers recorded, so the reading waits on a recording |
+| `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | the token after the `enable_disable_clause` (34), which is `USING` here: `ORA-02432`, "cannot enable primary key - primary key not defined for table". Not a token the grammar cannot take: the check is of the table's element list, and where that token is the end of the statement the recording reads the check as an accept (`CREATE TABLE a ENABLE PRIMARY KEY` answers `ORA-02432` at 33 and agrees today). With a primary key defined the clause is read — `... (b NUMBER, PRIMARY KEY(b)) ENABLE PRIMARY KEY USING INDEX` parses — and a bare index name after `USING INDEX` is `ORA-03049` at the name. omni leaves the check to the engine, as `parser.go`'s `createTableEngineCheck` says and names ORA-02432 for, so the rows stay |
 | `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 48 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
 | `CREATE TABLE a XMLTYPE ...` | 73 | 15 for some texts and the token after the XMLType column for others: Oracle refuses the clause where it stands for a table with no column list, but reads `XMLTYPE a` before refusing when more follows it, so no single reading of the page orders them |
 

@@ -663,6 +663,22 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nALTER SESSION SET CURRENT_SCHEMA = other;\nALTER TABLE nokey ADD (gone NUMBER);\nDELETE FROM nokey WHERE gone = 1;",
 			change: backup,
 		},
+		{
+			name:   "a derived analytic view naming one the change makes",
+			sql:    "CREATE ANALYTIC VIEW new_av USING p DIMENSION BY (id KEY id REFERENCES id HIERARCHIES (h)) MEASURES (n);\nDELETE t FROM ANALYTIC VIEW(USING shop.new_av);",
+			change: backup,
+			want: []finding{
+				{1, "DELETE t FROM ANALYTIC VIEW(USING shop.new_av)", "Prior backup runs before the change, when `SHOP.NEW_AV` doesn't exist yet.\n\nCreate `SHOP.NEW_AV` in an earlier change, or turn off **Prior backup**.", []int{0}},
+			},
+		},
+		{
+			name:   "a renamed analytic view a backup reads",
+			sql:    "ALTER ANALYTIC VIEW old_av RENAME TO new_av;\nDELETE t FROM ANALYTIC VIEW(USING shop.new_av);",
+			change: backup,
+			want: []finding{
+				{1, "DELETE t FROM ANALYTIC VIEW(USING shop.new_av)", "Prior backup runs before the change, when `SHOP.NEW_AV` doesn't exist yet.\n\nCreate `SHOP.NEW_AV` in an earlier change, or turn off **Prior backup**.", []int{0}},
+			},
+		},
 	})
 }
 

@@ -187,6 +187,8 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.StorageClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.IndexColumn	ast	covered	CREATE INDEX idx ON t(a DESC)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.LockTableItem	ast	covered	LOCK TABLE t IN EXCLUSIVE MODE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.InlineAnalyticView	ast	covered	SELECT * FROM ANALYTIC VIEW(USING a) v	derived analytic view in a FROM clause	none	covered	keep_regression_guard
+*nodes.SubAVClause	ast	covered	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(h) FILTER FACT(h TO 1 = 1) ADD MEASURES(m AS(1)))	the sub_av_clause a derived analytic view names its base view in	none	covered	keep_regression_guard
 *nodes.InlineExternalTable	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.TableCollectionExpr	expression	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.JsonTableRef	ast	covered	SELECT * FROM JSON_TABLE(doc, '$' COLUMNS (id NUMBER PATH '$.id')) jt	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard

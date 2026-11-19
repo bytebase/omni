@@ -523,9 +523,12 @@ func (r *oracleRefReader) fromReferences(start, end, want, hi int) (int, []Range
 			continue
 		}
 		if expectingRef {
+			isInlineAV := r.opensInlineAnalyticView(i, hi)
 			next, ref, ok := r.rangeReference(i, hi)
 			if ok && next <= end {
-				ref = resolveOracleCTEReference(ref, r.ctes)
+				if !isInlineAV {
+					ref = resolveOracleCTEReference(ref, r.ctes)
+				}
 				ref = r.markUnsupportedTransform(ref, next, end, want)
 				refs = append(refs, ref)
 				i = next
@@ -711,8 +714,12 @@ func oracleRangeReferenceMap(refs []RangeReference) map[string]RangeReference {
 	}
 	result := make(map[string]RangeReference, len(refs))
 	for _, ref := range refs {
-		if ref.Name != "" {
-			result[strings.ToLower(ref.Name)] = ref
+		key := ref.Alias
+		if key == "" {
+			key = ref.Name
+		}
+		if key != "" {
+			result[strings.ToLower(key)] = ref
 		}
 	}
 	return result
@@ -724,6 +731,18 @@ func resolveOracleCTEReference(ref RangeReference, ctes map[string]RangeReferenc
 	}
 	cte, ok := ctes[strings.ToLower(ref.Name)]
 	if !ok {
+		return ref
+	}
+	if cte.Kind == RangeReferenceRelation {
+		alias := ref.Alias
+		if alias == "" || strings.EqualFold(alias, cte.Alias) {
+			alias = cte.Alias
+		}
+		ref.Schema = cte.Schema
+		ref.Name = cte.Name
+		ref.Alias = alias
+		ref.Columns = append([]string{}, cte.Columns...)
+		ref.BodyLoc = cte.BodyLoc
 		return ref
 	}
 	ref.Kind = RangeReferenceCTE
@@ -758,11 +777,17 @@ func (r *oracleRefReader) rangeReference(i, hi int) (int, RangeReference, bool) 
 	if oracleTokenIsIdentLikeStr(tokens[i], "EXTERNAL") && i+1 < hi && tokens[i+1].Type == '(' {
 		return r.inlineExternalReference(i, hi)
 	}
+	if oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && i+2 < hi && tokens[i+1].Type == kwVIEW && tokens[i+2].Type == '(' {
+		return r.inlineAnalyticViewReference(i, hi)
+	}
 	if (oracleTokenIsIdentLikeStr(tokens[i], "CONTAINERS") || oracleTokenIsIdentLikeStr(tokens[i], "SHARDS")) &&
 		i+1 < hi && tokens[i+1].Type == '(' {
 		return r.containersReference(i, hi)
 	}
 	if tokens[i].Type == '(' {
+		if next, ref, ok := r.parenthesizedInlineAnalyticViewReference(i, hi); ok {
+			return next, ref, true
+		}
 		return r.subqueryReference(i, hi)
 	}
 	if !isOracleCompletionIdent(tokens[i]) {
@@ -911,6 +936,378 @@ func (r *oracleRefReader) containersReference(i, hi int) (int, RangeReference, b
 	return next, ref, true
 }
 
+func (r *oracleRefReader) inlineAnalyticViewReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	closeIdx := r.closeOf(i+2, hi)
+	if closeIdx < 0 {
+		return i, RangeReference{}, false
+	}
+	if i+3 >= closeIdx || tokens[i+3].Type != kwUSING {
+		return closeIdx + 1, RangeReference{}, false
+	}
+	parts := oracleObjectNameParts(tokens[i+4 : closeIdx])
+	if len(parts) == 0 {
+		return closeIdx + 1, RangeReference{}, false
+	}
+	idx := closeIdx + 1
+	nextAlias, alias, hasAlias := r.inlineAVOptionalAlias(idx, hi, false)
+	if hasAlias {
+		idx = nextAlias
+	}
+	idx = r.skipFlashbackClause(idx, hi)
+	afterSample := r.skipSampleClause(idx, hi)
+	sampleSeen := afterSample > idx
+	idx = afterSample
+	if !hasAlias {
+		nextAlias, alias, hasAlias = r.inlineAVOptionalAlias(idx, hi, sampleSeen)
+		if hasAlias {
+			idx = nextAlias
+		}
+	}
+	name := parts[len(parts)-1].Str
+	aliasName := name
+	if hasAlias {
+		aliasName = alias.Str
+	}
+	ref := RangeReference{
+		Kind:    RangeReferenceRelation,
+		Name:    name,
+		Alias:   aliasName,
+		Columns: r.subAVAddedMeasures(i+4, closeIdx),
+		Loc:     nodes.Loc{Start: tokens[i].Loc, End: tokens[idx-1].End},
+		BodyLoc: nodes.Loc{Start: tokens[i+2].End, End: tokens[closeIdx].Loc},
+	}
+	if len(parts) > 1 {
+		ref.Schema = parts[len(parts)-2].Str
+	}
+	// MATCH_RECOGNIZE wraps the reference: its output takes the row
+	// pattern's alias, and no column of it is derived here.
+	if idx+1 < hi && oracleTokenIsIdentLikeStr(tokens[idx], "MATCH_RECOGNIZE") && tokens[idx+1].Type == '(' {
+		if groupClose := r.closeOf(idx+1, hi); groupClose >= 0 {
+			idx = groupClose + 1
+			if nextAlias, patternAlias, hasPatternAlias := parseOracleOptionalAlias(tokens[:hi], idx); hasPatternAlias {
+				ref.Alias = patternAlias.Str
+				idx = nextAlias
+			}
+			ref.Loc.End = tokens[idx-1].End
+			ref.Unsupported = true
+			ref.UnsupportedReason = "row_pattern"
+		}
+	}
+	return idx, ref, true
+}
+
+func (r *oracleRefReader) opensInlineAnalyticView(i, hi int) bool {
+	tokens := r.toks
+	for i < hi && tokens[i].Type == '(' {
+		i++
+	}
+	return i+2 < hi && oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && tokens[i+1].Type == kwVIEW && tokens[i+2].Type == '('
+}
+
+func (r *oracleRefReader) parenthesizedInlineAnalyticViewReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	inner := i
+	for inner < hi && tokens[inner].Type == '(' {
+		inner++
+	}
+	if inner == i || !r.opensInlineAnalyticView(inner, hi) {
+		return i, RangeReference{}, false
+	}
+	innerClose := r.closeOf(inner-1, hi)
+	if innerClose < 0 {
+		return i, RangeReference{}, false
+	}
+	endInner, ref, ok := r.inlineAnalyticViewReference(inner, innerClose)
+	if !ok || endInner != innerClose {
+		return i, RangeReference{}, false
+	}
+	cur := innerClose + 1
+	for w := inner - 1; w >= i; w-- {
+		bound := hi
+		if w > i {
+			bound = r.closeOf(w-1, hi)
+			if bound < 0 {
+				return i, RangeReference{}, false
+			}
+		}
+		if nextAlias, alias, hasAlias := r.inlineAVOptionalAlias(cur, bound, false); hasAlias {
+			ref.Alias = alias.Str
+			cur = nextAlias
+		}
+		if w > i {
+			if cur != bound {
+				return i, RangeReference{}, false
+			}
+			cur = bound + 1
+		}
+	}
+	ref.Loc = nodes.Loc{Start: tokens[i].Loc, End: tokens[cur-1].End}
+	return cur, ref, true
+}
+
+func (r *oracleRefReader) subAVAddedMeasures(lo, hi int) []string {
+	tokens := r.toks
+	if lo >= hi {
+		return nil
+	}
+	want := r.depth[lo]
+	for k := lo; k+2 < hi; k++ {
+		if r.depth[k] != want {
+			continue
+		}
+		if tokens[k].Type == '(' {
+			if c := r.closeOf(k, hi); c >= 0 {
+				k = c
+				continue
+			}
+			return nil
+		}
+		if tokens[k].Type == kwADD && oracleTokenIsIdentLikeStr(tokens[k+1], "MEASURES") && tokens[k+2].Type == '(' {
+			mClose := r.closeOf(k+2, hi)
+			if mClose < 0 {
+				return nil
+			}
+			var names []string
+			mDepth := r.depth[k+2] + 1
+			expectName := true
+			for m := k + 3; m < mClose; m++ {
+				if r.depth[m] != mDepth {
+					continue
+				}
+				if tokens[m].Type == ',' {
+					expectName = true
+					continue
+				}
+				if expectName && isOracleCompletionIdent(tokens[m]) {
+					names = append(names, tokens[m].Str)
+					expectName = false
+				}
+			}
+			return names
+		}
+	}
+	return nil
+}
+
+func (r *oracleRefReader) inlineAVOptionalAlias(idx, hi int, sampleSeen bool) (int, Token, bool) {
+	tokens := r.toks
+	if idx >= hi {
+		return idx, Token{}, false
+	}
+	if tokens[idx].Type == kwAS && idx+1 < hi && tokens[idx+1].Type == kwOF {
+		return idx, Token{}, false
+	}
+	if tokens[idx].Type == kwVERSIONS {
+		return idx, Token{}, false
+	}
+	if tokens[idx].Type == kwSAMPLE {
+		if sampleSeen || r.skipSampleClause(idx, hi) > idx {
+			return idx, Token{}, false
+		}
+	}
+	if tokens[idx].Type == tokIDENT {
+		switch strings.ToUpper(tokens[idx].Str) {
+		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",
+			"SIBLINGS", "APPLY", "SEARCH", "CYCLE", "VERSIONS", "PERIOD", "XML":
+			return idx, Token{}, false
+		}
+	}
+	return parseOracleOptionalAlias(tokens[:hi], idx)
+}
+
+func (r *oracleRefReader) skipSampleClause(idx, hi int) int {
+	tokens := r.toks
+	if idx >= hi || tokens[idx].Type != kwSAMPLE {
+		return idx
+	}
+	sIdx := idx + 1
+	if sIdx < hi && oracleTokenIsIdentLikeStr(tokens[sIdx], "BLOCK") {
+		sIdx++
+	}
+	if sIdx >= hi || tokens[sIdx].Type != '(' {
+		return idx
+	}
+	sClose := r.closeOf(sIdx, hi)
+	if sClose < 0 {
+		return idx
+	}
+	next := sClose + 1
+	if next+1 < hi && oracleTokenIsIdentLikeStr(tokens[next], "SEED") && tokens[next+1].Type == '(' {
+		if seedClose := r.closeOf(next+1, hi); seedClose >= 0 {
+			next = seedClose + 1
+		}
+	}
+	return next
+}
+
+func (r *oracleRefReader) skipFlashbackClause(idx, hi int) int {
+	tokens := r.toks
+	if idx < hi && tokens[idx].Type == kwVERSIONS {
+		cur := idx + 1
+		period := false
+		if cur+2 < hi && oracleTokenIsIdentLikeStr(tokens[cur], "PERIOD") && tokens[cur+1].Type == kwFOR && isOracleCompletionIdent(tokens[cur+2]) {
+			period = true
+			cur += 3
+		}
+		if cur >= hi || tokens[cur].Type != kwBETWEEN {
+			return idx
+		}
+		cur++
+		if !period {
+			if cur >= hi || (tokens[cur].Type != kwSCN && tokens[cur].Type != kwTIMESTAMP) {
+				return idx
+			}
+			cur++
+		}
+		lowEnd := r.skipFlashbackExpr(cur, hi, true)
+		if lowEnd == cur || lowEnd >= hi || tokens[lowEnd].Type != kwAND {
+			return idx
+		}
+		highEnd := r.skipFlashbackExpr(lowEnd+1, hi, false)
+		if highEnd == lowEnd+1 {
+			return idx
+		}
+		return highEnd
+	}
+	if idx+1 < hi && tokens[idx].Type == kwAS && tokens[idx+1].Type == kwOF {
+		cur := idx + 2
+		if cur+2 < hi && oracleTokenIsIdentLikeStr(tokens[cur], "PERIOD") && tokens[cur+1].Type == kwFOR && isOracleCompletionIdent(tokens[cur+2]) {
+			cur += 3
+		} else if cur < hi && (tokens[cur].Type == kwSCN || tokens[cur].Type == kwTIMESTAMP) {
+			cur++
+		} else {
+			return idx
+		}
+		end := r.skipFlashbackExpr(cur, hi, false)
+		if end == cur {
+			return idx
+		}
+		return end
+	}
+	return idx
+}
+
+func (r *oracleRefReader) skipFlashbackExpr(start, hi int, stopAtAnd bool) int {
+	tokens := r.toks
+	i := start
+	for {
+		for i < hi && (tokens[i].Type == '+' || tokens[i].Type == '-' || tokens[i].Type == kwPRIOR || tokens[i].Type == kwCONNECT_BY_ROOT || tokens[i].Type == kwNOT) {
+			i++
+		}
+		atomEnd := r.skipFlashbackAtom(i, hi)
+		if atomEnd == i {
+			return start
+		}
+		i = atomEnd
+		if i+1 < hi && oracleTokenIsIdentLikeStr(tokens[i], "AT") {
+			if oracleTokenIsIdentLikeStr(tokens[i+1], "LOCAL") {
+				i += 2
+			} else if i+2 < hi && oracleTokenIsIdentLikeStr(tokens[i+1], "TIME") && oracleTokenIsIdentLikeStr(tokens[i+2], "ZONE") {
+				if tzEnd := r.skipFlashbackAtom(i+3, hi); tzEnd > i+3 {
+					i = tzEnd
+				}
+			}
+		}
+		if i < hi && tokens[i].Type == kwIS {
+			j := i + 1
+			if j < hi && tokens[j].Type == kwNOT {
+				j++
+			}
+			if j < hi && (tokens[j].Type == kwNULL || isOracleCompletionIdent(tokens[j])) {
+				i = j + 1
+			}
+		}
+		if i >= hi || (stopAtAnd && tokens[i].Type == kwAND) {
+			return i
+		}
+		switch tokens[i].Type {
+		case '+', '-', '*', '/', tokCONCAT, tokEXPON, '=', tokNOTEQ, '<', '>', tokLESSEQ, tokGREATEQ, tokOP, kwOR, kwAND:
+			i++
+			continue
+		default:
+			return i
+		}
+	}
+}
+
+func (r *oracleRefReader) skipFlashbackAtom(i, hi int) int {
+	tokens := r.toks
+	if i >= hi {
+		return i
+	}
+	switch tokens[i].Type {
+	case '(':
+		if c := r.closeOf(i, hi); c >= 0 {
+			return c + 1
+		}
+		return i
+	case kwCASE:
+		depth := 1
+		j := i + 1
+		for j < hi && depth > 0 {
+			switch tokens[j].Type {
+			case '(':
+				if c := r.closeOf(j, hi); c >= 0 {
+					j = c + 1
+					continue
+				}
+				return i
+			case kwCASE:
+				depth++
+			case kwEND:
+				depth--
+			}
+			j++
+		}
+		if depth == 0 {
+			return j
+		}
+		return i
+	case kwDATE, kwTIMESTAMP:
+		if i+1 < hi && (tokens[i+1].Type == tokSCONST || tokens[i+1].Type == tokNCHARLIT) {
+			return i + 2
+		}
+	case kwINTERVAL:
+		if i+1 < hi && (tokens[i+1].Type == tokSCONST || tokens[i+1].Type == tokNCHARLIT) {
+			j := i + 2
+			if j < hi && isOracleCompletionIdent(tokens[j]) {
+				j++
+				if j < hi && tokens[j].Type == '(' {
+					if c := r.closeOf(j, hi); c >= 0 {
+						j = c + 1
+					}
+				}
+				if j+1 < hi && tokens[j].Type == kwTO && isOracleCompletionIdent(tokens[j+1]) {
+					j += 2
+					if j < hi && tokens[j].Type == '(' {
+						if c := r.closeOf(j, hi); c >= 0 {
+							j = c + 1
+						}
+					}
+				}
+			}
+			return j
+		}
+	case tokICONST, tokFCONST, tokSCONST, tokNCHARLIT, tokBIND, kwNULL,
+		kwSYSDATE, kwSYSTIMESTAMP, kwROWNUM, kwROWID, kwLEVEL, kwUSER, kwUID:
+		return i + 1
+	}
+	if isOracleCompletionIdent(tokens[i]) || isOracleFunctionKeyword(tokens[i].Type) {
+		j := i + 1
+		for j+1 < hi && tokens[j].Type == '.' && isOracleCompletionIdent(tokens[j+1]) {
+			j += 2
+		}
+		if j < hi && tokens[j].Type == '(' {
+			if c := r.closeOf(j, hi); c >= 0 {
+				j = c + 1
+			}
+		}
+		return j
+	}
+	return i
+}
+
 func (r *oracleRefReader) tableCollectionReference(i, hi int) (int, RangeReference, bool) {
 	tokens := r.toks
 	closeIdx := r.closeOf(i+1, hi)
@@ -984,7 +1381,11 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 			Loc:   nodes.Loc{Start: nameTok.Loc, End: nameTok.End},
 		}
 		i++
-		if i < len(tokens) && tokens[i].Type == '(' {
+		subAV := false
+		if i+1 < len(tokens) && oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && tokens[i+1].Type == kwVIEW {
+			subAV = true
+			i += 2
+		} else if i < len(tokens) && tokens[i].Type == '(' {
 			closeIdx := r.closeOf(i, len(tokens))
 			if closeIdx < 0 {
 				break
@@ -1004,7 +1405,19 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 		if closeIdx < 0 {
 			break
 		}
-		if len(ref.Columns) == 0 {
+		if subAV {
+			if i+1 < closeIdx && tokens[i+1].Type == kwUSING {
+				parts := oracleObjectNameParts(tokens[i+2 : closeIdx])
+				if len(parts) > 0 {
+					ref.Kind = RangeReferenceRelation
+					ref.Name = parts[len(parts)-1].Str
+					if len(parts) > 1 {
+						ref.Schema = parts[len(parts)-2].Str
+					}
+					ref.Columns = r.subAVAddedMeasures(i+2, closeIdx)
+				}
+			}
+		} else if len(ref.Columns) == 0 {
 			// seen grows after each CTE, so each body gets a reader, and
 			// columns read, of its own.
 			ref.Columns = r.reader(seen).selectListColumns(i+1, closeIdx)
@@ -1012,7 +1425,7 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 		ref.BodyLoc = nodes.Loc{Start: tokens[i].End, End: tokens[closeIdx].Loc}
 		ref.Loc.End = tokens[closeIdx].End
 		refs = append(refs, ref)
-		seen[strings.ToLower(ref.Name)] = ref
+		seen[strings.ToLower(ref.Alias)] = ref
 		i = closeIdx + 1
 		if i < len(tokens) && tokens[i].Type == ',' {
 			i++
@@ -1416,7 +1829,6 @@ func (r *oracleRefReader) starColumns(lo, hi, selectIdx int, qualifier string) [
 	refs := r.selectRefsInRange(selectIdx, r.armEnd(selectIdx, hi), r.depth[selectIdx], hi)
 	var names []string
 	for _, ref := range refs {
-		ref = resolveOracleCTEReference(ref, r.ctes)
 		if qualifier != "" && !strings.EqualFold(ref.Alias, qualifier) && !strings.EqualFold(ref.Name, qualifier) {
 			continue
 		}

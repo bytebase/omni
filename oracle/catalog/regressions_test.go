@@ -3035,3 +3035,36 @@ func TestReusedUniqueIndexKeepsConstraintName(t *testing.T) {
 		t.Fatalf("the index name was used as the constraint name:\n%s", definition)
 	}
 }
+
+// TestViewDependenciesNameTheDerivedAnalyticViewsBase holds a view over an
+// inline analytic view and one over a WITH analytic-view element to the
+// persistent analytic view each names: the change depends on it, as on any
+// other relation its query reads.
+func TestViewDependenciesNameTheDerivedAnalyticViewsBase(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C NUMBER);
+CREATE VIEW Z AS SELECT C FROM ANALYTIC VIEW(USING AV);
+CREATE VIEW W AS WITH A ANALYTIC VIEW AS (USING AV) SELECT C FROM A`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Z", "W"} {
+		var view *metadatapb.ViewMetadata
+		for _, candidate := range meta.Schemas[0].Views {
+			if candidate.Name == name {
+				view = candidate
+			}
+		}
+		if view == nil {
+			t.Fatalf("view %s missing", name)
+		}
+		found := false
+		for _, dependency := range view.DependencyColumns {
+			if dependency.Table == "AV" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("view %s: dependency on AV missing: %+v", name, view.DependencyColumns)
+		}
+	}
+}
