@@ -890,9 +890,7 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 		if rel == nil {
 			return
 		}
-		// Recursively drop dependents (e.g., views depending on this view).
-		c.dropDependents('r', rel.OID)
-		c.removeRelation(rel.Schema, rel.Name, rel)
+		c.cascadeDropRelation(rel)
 	case 'i':
 		idx := c.indexes[objOID]
 		if idx == nil {
@@ -938,25 +936,55 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 		}
 		if bt.Type == 'c' && bt.RelID != 0 {
 			if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
-				for _, relOID := range c.typeRelationDependents(bt) {
-					if depRel := c.relationByOID[relOID]; depRel != nil {
-						c.dropDependents('r', depRel.OID)
-						c.removeRelation(depRel.Schema, depRel.Name, depRel)
-					}
-				}
-				c.dropTypeDependents(bt)
-				c.removeRelation(rel.Schema, rel.Name, rel)
+				c.cascadeDropRelation(rel)
 			}
 			return
 		}
 		for _, relOID := range c.typeRelationDependents(bt) {
 			if depRel := c.relationByOID[relOID]; depRel != nil {
-				c.dropDependents('r', depRel.OID)
-				c.removeRelation(depRel.Schema, depRel.Name, depRel)
+				c.cascadeDropRelation(depRel)
 			}
 		}
 		c.dropTypeDependents(bt)
-		c.deleteUserType(bt)
+		if c.typeByOID[bt.OID] != nil {
+			c.deleteUserType(bt)
+		}
+	}
+}
+
+// cascadeDropRelation drops rel after recursively cascading through its
+// auto/internal child relations, normal dependents, and row-type dependents.
+func (c *Catalog) cascadeDropRelation(rel *Relation) {
+	c.cascadeDropRelationSeen(rel, map[uint32]bool{})
+}
+
+func (c *Catalog) cascadeDropRelationSeen(rel *Relation, seen map[uint32]bool) {
+	if rel == nil || c.relationByOID[rel.OID] == nil || seen[rel.OID] {
+		return
+	}
+	seen[rel.OID] = true
+	for _, d := range c.deps {
+		if d.ObjType == 'r' && d.RefType == 'r' && d.RefOID == rel.OID && (d.DepType == DepAuto || d.DepType == DepInternal) {
+			if child := c.relationByOID[d.ObjOID]; child != nil && child.OID != rel.OID {
+				c.cascadeDropRelationSeen(child, seen)
+			}
+		}
+	}
+	if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
+		c.dropDependents('r', rel.OID)
+	}
+	if rel.RowTypeOID != 0 {
+		if bt := c.typeByOID[rel.RowTypeOID]; bt != nil {
+			for _, depRelOID := range c.typeRelationDependents(bt) {
+				if depRel := c.relationByOID[depRelOID]; depRel != nil && depRel.OID != rel.OID {
+					c.cascadeDropRelationSeen(depRel, seen)
+				}
+			}
+			c.dropTypeDependents(bt)
+		}
+	}
+	if c.relationByOID[rel.OID] != nil {
+		c.removeRelation(rel.Schema, rel.Name, rel)
 	}
 }
 

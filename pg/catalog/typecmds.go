@@ -95,8 +95,8 @@ func (c *Catalog) DefineEnum(stmt *nodes.CreateEnumStmt) error {
 		labelMap[label] = ev
 	}
 
-	c.typeOwners[typeOID] = c.currentOwner()
-	c.typeOwners[arrayOID] = c.currentOwner()
+	c.recordTypeOwner(typeOID)
+	c.recordTypeOwner(arrayOID)
 	// Register the enum type.
 	enumType := &BuiltinType{
 		OID:       typeOID,
@@ -470,8 +470,8 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 	if bt := c.typeByOID[baseOID]; bt != nil {
 		domCategory = bt.Category
 	}
-	c.typeOwners[typeOID] = c.currentOwner()
-	c.typeOwners[arrayOID] = c.currentOwner()
+	c.recordTypeOwner(typeOID)
+	c.recordTypeOwner(arrayOID)
 	domType := &BuiltinType{
 		OID:       typeOID,
 		TypeName:  name,
@@ -834,8 +834,8 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
 
-	c.typeOwners[typeOID] = c.currentOwner()
-	c.typeOwners[arrayOID] = c.currentOwner()
+	c.recordTypeOwner(typeOID)
+	c.recordTypeOwner(arrayOID)
 	// Register the range type.
 	rangeType := &BuiltinType{
 		OID:       typeOID,
@@ -910,7 +910,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 	c.typeByOID[multirangeOID] = multirangeType
 	c.typeByName[typeKey{ns: schema.OID, name: multirangeName}] = multirangeType
-	c.typeOwners[multirangeOID] = c.currentOwner()
+	c.recordTypeOwner(multirangeOID)
 
 	multirangeArrayType := &BuiltinType{
 		OID:       multirangeArrayOID,
@@ -929,7 +929,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 	c.typeByOID[multirangeArrayOID] = multirangeArrayType
 	c.typeByName[typeKey{ns: schema.OID, name: multirangeArrayName}] = multirangeArrayType
-	c.typeOwners[multirangeArrayOID] = c.currentOwner()
+	c.recordTypeOwner(multirangeArrayOID)
 
 	// Store range metadata.
 	c.rangeTypes[typeOID] = &RangeType{
@@ -1013,7 +1013,7 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 		}
 		c.typeByOID[shellOID] = shellType
 		c.typeByName[typeKey{ns: schema.OID, name: name}] = shellType
-		c.typeOwners[shellOID] = c.currentOwner()
+		c.recordTypeOwner(shellOID)
 		return nil
 	}
 
@@ -1282,8 +1282,8 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	}
 	c.typeByOID[arrayOID] = arrayType
 	c.typeByName[typeKey{ns: schema.OID, name: arrayTypeName}] = arrayType
-	c.typeOwners[existing.OID] = c.currentOwner()
-	c.typeOwners[arrayOID] = c.currentOwner()
+	c.recordTypeOwner(existing.OID)
+	c.recordTypeOwner(arrayOID)
 
 	_ = defaultValue // Default value is stored on the type but not tracked further in pgddl.
 	_ = preferred    // Already set on the type above.

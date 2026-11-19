@@ -468,12 +468,22 @@ func (c *Catalog) AlterTablespaceOptions(stmt *nodes.AlterTableSpaceOptionsStmt)
 }
 
 // currentOwner is the role a new object belongs to. A catalog with no
-// session user is the server's bootstrap superuser, postgres.
+// session user is the server's bootstrap superuser, postgres; during snapshot
+// installation no default owner is invented for unattributed objects.
 func (c *Catalog) currentOwner() string {
+	if c.installingSnapshot {
+		return ""
+	}
 	if c.currentUser != "" {
 		return c.currentUser
 	}
 	return "postgres"
+}
+
+func (c *Catalog) recordTypeOwner(oid uint32) {
+	if owner := c.currentOwner(); owner != "" {
+		c.typeOwners[oid] = owner
+	}
 }
 
 // checkRole refuses a role name the catalog does not hold. A snapshot
@@ -875,19 +885,12 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		if c.relationByOID[x.rel.OID] == nil {
 			continue
 		}
+		if cascade {
+			c.cascadeDropRelation(x.rel)
+			continue
+		}
 		if hasNormalDependent(c.relationDependents(x.rel.OID, 0)) {
 			c.dropDependents('r', x.rel.OID)
-		}
-		if cascade && x.rel.RowTypeOID != 0 {
-			if bt := c.typeByOID[x.rel.RowTypeOID]; bt != nil {
-				for _, depRelOID := range c.typeRelationDependents(bt) {
-					if depRel := c.relationByOID[depRelOID]; depRel != nil && depRel.OID != x.rel.OID {
-						c.dropDependents('r', depRel.OID)
-						c.removeRelation(depRel.Schema, depRel.Name, depRel)
-					}
-				}
-				c.dropTypeDependents(bt)
-			}
 		}
 		if c.relationByOID[x.rel.OID] != nil {
 			c.removeRelation(x.schema, x.rel.Name, x.rel)
@@ -927,8 +930,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		if cascade {
 			for _, depRelOID := range c.typeRelationDependents(bt) {
 				if depRel := c.relationByOID[depRelOID]; depRel != nil {
-					c.dropDependents('r', depRel.OID)
-					c.removeRelation(depRel.Schema, depRel.Name, depRel)
+					c.cascadeDropRelation(depRel)
 				}
 			}
 			c.dropTypeDependents(bt)

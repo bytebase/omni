@@ -271,8 +271,7 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 					continue
 				}
 				if depRel := c.relationByOID[relOID]; depRel != nil {
-					c.dropDependents('r', depRel.OID)
-					c.removeRelation(depRel.Schema, depRel.Name, depRel)
+					c.cascadeDropRelation(depRel)
 				}
 			}
 			c.dropTypeDependents(t.bt)

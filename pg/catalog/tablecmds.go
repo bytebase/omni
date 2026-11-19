@@ -1043,30 +1043,11 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 		if c.relationByOID[t.rel.OID] == nil {
 			continue
 		}
-		// Check for normal dependents. The relation's own constraints,
-		// indexes and generated columns go with it.
-		// pg: src/backend/catalog/dependency.c — reportDependentObjects
-		if hasNormalDependent(c.relationDependents(t.rel.OID, 0)) {
-			if removeType == nodes.OBJECT_VIEW || removeType == nodes.OBJECT_MATVIEW {
-				c.dropViewDependents('r', t.rel.OID)
-			} else {
-				c.dropDependents('r', t.rel.OID)
-			}
+		if cascade {
+			c.cascadeDropRelation(t.rel)
+			continue
 		}
-		if cascade && t.rel.RowTypeOID != 0 {
-			if bt := c.typeByOID[t.rel.RowTypeOID]; bt != nil {
-				for _, depRelOID := range c.typeRelationDependents(bt) {
-					if depRel := c.relationByOID[depRelOID]; depRel != nil && depRel.OID != t.rel.OID {
-						c.dropDependents('r', depRel.OID)
-						c.removeRelation(depRel.Schema, depRel.Name, depRel)
-					}
-				}
-				c.dropTypeDependents(bt)
-			}
-		}
-		if c.relationByOID[t.rel.OID] != nil {
-			c.removeRelation(t.schema, t.name, t.rel)
-		}
+		c.removeRelation(t.schema, t.name, t.rel)
 	}
 	return nil
 }

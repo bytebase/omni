@@ -58,6 +58,8 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		return report, err
 	}
 	c.snapshot = true
+	c.installingSnapshot = true
+	defer func() { c.installingSnapshot = false }()
 	if meta.GetName() != "" {
 		c.databaseName = meta.GetName()
 	}
@@ -1316,10 +1318,9 @@ func (c *Catalog) setSnapshotTableOwner(o *metadataObject) {
 		return
 	}
 	owner := o.table.GetOwner()
-	if owner == "" {
-		return
+	if owner != "" {
+		c.roles[owner] = true
 	}
-	c.roles[owner] = true
 	rel := c.GetRelation(o.schema, o.name)
 	if rel == nil {
 		return

@@ -39,6 +39,9 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 		}
 		return errDuplicateSchema(schemaName)
 	}
+	if ownerName != "" && !strings.HasPrefix(ownerName, "pg_") {
+		c.roles[ownerName] = true
+	}
 	effectiveOwner := ownerName
 	if effectiveOwner == "" {
 		effectiveOwner = c.currentOwner()

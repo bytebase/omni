@@ -118,7 +118,8 @@ type Catalog struct {
 	// snapshot marks a catalog loaded from a live schema. A snapshot carries
 	// no tablespace or access-method objects, so a name it does not hold may
 	// still exist on the server the snapshot came from.
-	snapshot bool
+	snapshot           bool
+	installingSnapshot bool
 
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod

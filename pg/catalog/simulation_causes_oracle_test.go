@@ -1243,6 +1243,61 @@ func TestSimulationCausesOracle(t *testing.T) {
 				t.Fatalf("catalog refused %s with %s", stmt, code)
 			}
 		}
+
+		// #126: DROP TABLE ... CASCADE follows multi-hop row-type dependents.
+		c7 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE hop_a (x int)",
+			"CREATE TABLE hop_b (x hop_a)",
+			"CREATE TABLE hop_c (x hop_b)",
+			"DROP TABLE hop_a CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c7, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if c7.schemaByName["public"].Relations["hop_b"] != nil || c7.schemaByName["public"].Relations["hop_c"] != nil {
+			t.Fatal("DROP TABLE hop_a CASCADE left dependent row-type table behind")
+		}
+
+		// #127: CREATE SCHEMA ... AUTHORIZATION registers the named role in
+		// c.roles so CREATE ROLE, REASSIGN OWNED, and DROP OWNED recognize it.
+		c8 := New()
+		if code := simulationCatalogCode(t, c8, "CREATE SCHEMA auth_s AUTHORIZATION auth_role"); code != "0" {
+			t.Fatalf("CREATE SCHEMA AUTHORIZATION: %s", code)
+		}
+		if code := simulationCatalogCode(t, c8, "CREATE ROLE auth_role"); code != CodeDuplicateObject {
+			t.Fatalf("CREATE ROLE auth_role answered %s, want %s", code, CodeDuplicateObject)
+		}
+		if code := simulationCatalogCode(t, c8, "DROP OWNED BY auth_role"); code != "0" {
+			t.Fatalf("DROP OWNED BY auth_role: %s", code)
+		}
+		if code := simulationCatalogCode(t, c8, "DROP ROLE auth_role"); code != "0" {
+			t.Fatalf("DROP ROLE auth_role: %s", code)
+		}
+
+		// #128: LoadMetadata after SetSessionUser does not invent session-user
+		// ownership for snapshot objects whose Owner field is empty.
+		c9 := New()
+		c9.SetSessionUser("alice")
+		_, err = c9.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Schemas: []*metadata.SchemaMetadata{{
+				Name: "public",
+				Tables: []*metadata.TableMetadata{{
+					Name:    "unowned_snap_t",
+					Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}},
+				}},
+			}},
+		}, LoadMetadataOptions{Full: true})
+		if err != nil {
+			t.Fatalf("LoadMetadata unowned: %v", err)
+		}
+		if code := simulationCatalogCode(t, c9, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("DROP OWNED BY alice on unowned snapshot: %s", code)
+		}
+		if c9.schemaByName["public"].Relations["unowned_snap_t"] == nil {
+			t.Fatal("DROP OWNED BY alice deleted snapshot table with empty Owner")
+		}
 	})
 
 	for _, tc := range cases {
