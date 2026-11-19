@@ -160,6 +160,7 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 		Join:     joinOID,
 	}
 	c.operByOID[op.OID] = op
+	c.operatorOwners[op.OID] = c.currentOwner()
 	key := operKey{name: oprName, left: typeId1, right: typeId2}
 	c.operByKey[key] = append(c.operByKey[key], op)
 
@@ -236,6 +237,7 @@ func (c *Catalog) removeOperator(oid uint32) {
 		}
 	}
 	delete(c.operByOID, oid)
+	delete(c.operatorOwners, oid)
 	for key, ops := range c.operByKey {
 		n := ops[:0]
 		for _, item := range ops {

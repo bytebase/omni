@@ -109,6 +109,11 @@ type Catalog struct {
 	// typeOwners maps a user-defined type OID to its owner role. Composite
 	// types are owned through their backing relation instead.
 	typeOwners map[uint32]string
+	// operatorOwners maps a user-defined operator OID to its owner role.
+	operatorOwners map[uint32]string
+	// extensionCasts records the casts an extension script created, which
+	// carry no object OID of their own to fall in extensionMembers.
+	extensionCasts map[castKey]string
 	// roles are the role names the catalog knows. CREATE ROLE records one;
 	// a snapshot carries none, so an unknown role may still exist there.
 	roles map[string]bool
@@ -196,6 +201,8 @@ func New() *Catalog {
 		tablespaceOwners:   make(map[string]string),
 		databaseOwners:     make(map[string]string),
 		typeOwners:         make(map[uint32]string),
+		operatorOwners:     make(map[uint32]string),
+		extensionCasts:     make(map[castKey]string),
 		roles:              map[string]bool{"postgres": true},
 		accessMethods:      make(map[uint32]*AccessMethod),
 		accessMethodByName: make(map[string]*AccessMethod),

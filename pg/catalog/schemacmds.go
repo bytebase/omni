@@ -138,7 +138,13 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 				}
 			}
 			for _, ext := range exts {
-				c.removeExtensionMetadata(ext)
+				// Route the extension through the CASCADE path so objects that
+				// depend on its operator classes and casts go with it.
+				_ = c.removeExtensionObjects(&nodes.DropStmt{
+					RemoveType: int(nodes.OBJECT_EXTENSION),
+					Objects:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: ext.Name}}},
+					Behavior:   int(nodes.DROP_CASCADE),
+				})
 			}
 		}
 

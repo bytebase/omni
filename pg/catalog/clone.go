@@ -16,7 +16,6 @@ func (c *Catalog) Clone() *Catalog {
 	}
 
 	// --- Shared builtin indexes (immutable, pointer-safe) ---
-	clone.castIndex = c.castIndex
 	clone.operByOID = make(map[uint32]*BuiltinOperator, len(c.operByOID))
 	clone.operByKey = make(map[operKey][]*BuiltinOperator, len(c.operByKey))
 	opClones := make(map[uint32]*BuiltinOperator, len(c.operByOID))
@@ -423,6 +422,23 @@ func (c *Catalog) Clone() *Catalog {
 	clone.typeOwners = make(map[uint32]string, len(c.typeOwners))
 	for oid, owner := range c.typeOwners {
 		clone.typeOwners[oid] = owner
+	}
+	clone.operatorOwners = make(map[uint32]string, len(c.operatorOwners))
+	for oid, owner := range c.operatorOwners {
+		clone.operatorOwners[oid] = owner
+	}
+	clone.extensionCasts = make(map[castKey]string, len(c.extensionCasts))
+	for key, ext := range c.extensionCasts {
+		clone.extensionCasts[key] = ext
+	}
+	clone.castIndex = make(map[castKey]*BuiltinCast, len(c.castIndex))
+	for key, cast := range c.castIndex {
+		if key.source < FirstNormalObjectId && key.target < FirstNormalObjectId {
+			clone.castIndex[key] = cast // builtin: share pointer
+			continue
+		}
+		copied := *cast
+		clone.castIndex[key] = &copied
 	}
 
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))

@@ -199,7 +199,15 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 					typeOID: opClassTypeOID,
 				})
 			} else {
-				opClassRefs = append(opClassRefs, opClassRef{})
+				// No opclass named: PostgreSQL still picks the default one for
+				// the access method and column type, and depends on it.
+				var opClassTypeOID uint32
+				if elem.Name != "" {
+					if ci, ok := rel.colByName[elem.Name]; ok {
+						opClassTypeOID = rel.Columns[ci].TypeOID
+					}
+				}
+				opClassRefs = append(opClassRefs, opClassRef{typeOID: opClassTypeOID})
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
 			namedOpClass = namedOpClass || len(opClass) > 0
@@ -386,33 +394,61 @@ type opClassRef struct {
 //
 // pg: src/backend/commands/opclasscmds.c — GetIndexOpClass
 func (c *Catalog) resolveOpClassOID(ref opClassRef, amOID uint32) uint32 {
+	// An index with no opclass for a column takes the default one for its
+	// access method and type.
+	// pg: src/backend/commands/indexcmds.c — GetDefaultOpClass
 	if ref.name == "" {
-		return 0
-	}
-	var schemaOID uint32
-	if ref.schema != "" {
-		s := c.schemaByName[ref.schema]
-		if s == nil {
+		if ref.typeOID == 0 {
 			return 0
 		}
-		schemaOID = s.OID
+		if opc := c.opClassByKey[opClassKey{amOID: amOID, typeOID: ref.typeOID}]; opc != nil {
+			return opc.OID
+		}
+		return 0
 	}
 	var best, byType uint32
-	for oid, opc := range c.opClasses {
+	consider := func(oid uint32, opc *OpClass) {
 		if opc.Name != ref.name || opc.AMOID != amOID {
-			continue
-		}
-		if schemaOID != 0 && opc.Schema != schemaOID {
-			continue
+			return
 		}
 		if ref.typeOID != 0 && opc.TypeOID == ref.typeOID {
 			if byType == 0 || oid < byType {
 				byType = oid
 			}
-			continue
+			return
 		}
 		if best == 0 || oid < best {
 			best = oid
+		}
+	}
+	if ref.schema != "" {
+		s := c.schemaByName[ref.schema]
+		if s == nil {
+			return 0
+		}
+		for oid, opc := range c.opClasses {
+			if opc.Schema == s.OID {
+				consider(oid, opc)
+			}
+		}
+	} else {
+		// An unqualified name resolves in the first schema on the search path
+		// that holds it, as GetIndexOpClass does through OpclassnameGetOpcid.
+		for _, nsOID := range c.searchPathWithCatalog() {
+			var found uint32
+			for oid, opc := range c.opClasses {
+				if opc.Schema != nsOID {
+					continue
+				}
+				before := byType
+				consider(oid, opc)
+				if byType != before && (found == 0 || byType < found) {
+					found = byType
+				}
+			}
+			if found != 0 {
+				return found
+			}
 		}
 	}
 	if byType != 0 {

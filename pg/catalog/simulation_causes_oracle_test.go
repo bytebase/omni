@@ -1407,9 +1407,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatal("DROP OWNED CASCADE left the extension or its opclass index")
 		}
 
-		// #135: an unqualified operator-class name resolves against the index's
-		// own access method and column type, so a same-named class in another
-		// extension is not recorded as a dependent.
+		// #143 & #139: an index that names no opclass depends on the default one
+		// its access method resolves for the column type, and an unqualified
+		// name resolves through the search path.
 		c16 := New()
 		for _, stmt := range []string{
 			"CREATE EXTENSION btree_gin",
@@ -1420,8 +1420,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 				t.Fatalf("catalog refused %s with %s", stmt, code)
 			}
 		}
-		if code := simulationCatalogCode(t, c16, "DROP EXTENSION btree_gin"); code != "0" {
-			t.Fatalf("DROP EXTENSION btree_gin with an implicit opclass answered %s, want 0", code)
+		if code := simulationCatalogCode(t, c16, "DROP EXTENSION btree_gin"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION btree_gin over a default opclass answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c16, "DROP EXTENSION btree_gin CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION btree_gin CASCADE: %s", code)
+		}
+		if c16.schemaByName["public"].Indexes["opc_idx"] != nil {
+			t.Fatal("CASCADE left the index that used the extension's default opclass")
 		}
 
 		// #136: ALTER DATABASE naming a database a snapshot does not hold is
@@ -1483,6 +1489,81 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if code := simulationCatalogCode(t, c19, "DROP ROLE alice"); code != "0" {
 			t.Fatalf("DROP ROLE alice after DROP OWNED answered %s, want 0", code)
+		}
+
+		// #140: a user-defined operator records its owner and participates in
+		// the role lifecycle.
+		c20 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE FUNCTION op_cmp(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"SET ROLE alice",
+			"CREATE OPERATOR === (LEFTARG = int, RIGHTARG = int, PROCEDURE = op_cmp)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c20, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c20, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE alice with an operator answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c20, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("DROP OWNED BY alice: %s", code)
+		}
+		if ops := c20.operByKey[operKey{name: "===", left: INT4OID, right: INT4OID}]; len(ops) != 0 {
+			t.Fatalf("DROP OWNED left %d owned operators", len(ops))
+		}
+		if code := simulationCatalogCode(t, c20, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("DROP ROLE alice after DROP OWNED answered %s, want 0", code)
+		}
+
+		// #141: DROP SCHEMA ... CASCADE routes a contained extension through the
+		// extension's CASCADE path, so an external index on its opclass goes too.
+		c21 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA ext_s",
+			"CREATE EXTENSION pg_trgm SCHEMA ext_s",
+			"CREATE TABLE schema_cascade_t (t text)",
+			"CREATE INDEX schema_cascade_idx ON schema_cascade_t USING gist (t ext_s.gist_trgm_ops)",
+			"DROP SCHEMA ext_s CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c21, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if c21.extByName["pg_trgm"] != nil {
+			t.Fatal("DROP SCHEMA CASCADE left the extension registered")
+		}
+		if c21.schemaByName["public"].Indexes["schema_cascade_idx"] != nil {
+			t.Fatal("DROP SCHEMA CASCADE left the index that used the extension's opclass")
+		}
+
+		// #142: casts an extension created leave castIndex with the extension.
+		c22 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION citext",
+			"CREATE TABLE cast_t (c citext)",
+		} {
+			if code := simulationCatalogCode(t, c22, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		castsBefore := len(c22.castIndex)
+		if castsBefore == 0 {
+			t.Fatal("citext registered no casts")
+		}
+		if code := simulationCatalogCode(t, c22, "DROP TABLE cast_t"); code != "0" {
+			t.Fatalf("DROP TABLE cast_t: %s", code)
+		}
+		if code := simulationCatalogCode(t, c22, "DROP EXTENSION citext"); code != "0" {
+			t.Fatalf("DROP EXTENSION citext: %s", code)
+		}
+		if len(c22.castIndex) != len(BuiltinCasts) {
+			t.Fatalf("DROP EXTENSION left %d casts, want %d built-in", len(c22.castIndex), len(BuiltinCasts))
+		}
+		if code := simulationCatalogCode(t, c22, "CREATE EXTENSION citext"); code != "0" {
+			t.Fatalf("recreating citext: %s", code)
 		}
 
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous

@@ -575,6 +575,11 @@ func (c *Catalog) roleInUse(name string) bool {
 			return true
 		}
 	}
+	for _, owner := range c.operatorOwners {
+		if owner == name {
+			return true
+		}
+	}
 	for _, g := range c.grants {
 		if g.Grantee == name {
 			return true
@@ -1028,6 +1033,13 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			c.removeIndex(x.idx.Schema, x.idx.Name, x.idx)
 		}
 	}
+	var ownedOperators []uint32
+	for oid, owner := range c.operatorOwners {
+		if owners[owner] && c.operByOID[oid] != nil && oid >= FirstNormalObjectId {
+			ownedOperators = append(ownedOperators, oid)
+		}
+	}
+	sort.Slice(ownedOperators, func(i, j int) bool { return ownedOperators[i] < ownedOperators[j] })
 	var ownedEventTriggers []*EventTrigger
 	for _, evt := range c.eventTriggers {
 		if owners[evt.OwnerName] {
@@ -1035,6 +1047,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 	sort.Slice(ownedEventTriggers, func(i, j int) bool { return ownedEventTriggers[i].OID < ownedEventTriggers[j].OID })
+	for _, oid := range ownedOperators {
+		c.removeOperator(oid)
+	}
 	for _, evt := range ownedEventTriggers {
 		if c.eventTriggers[evt.OID] == evt {
 			c.removeEventTrigger(evt)
@@ -1156,6 +1171,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			c.typeOwners[oid] = newOwner
 		}
 	}
+	for oid, owner := range c.operatorOwners {
+		if owners[owner] {
+			c.operatorOwners[oid] = newOwner
+		}
+	}
 	for name, owner := range c.tablespaceOwners {
 		if owners[owner] {
 			c.tablespaceOwners[name] = newOwner
@@ -1257,6 +1277,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for oid, owner := range c.typeOwners {
 		if owner == oldName {
 			c.typeOwners[oid] = stmt.Newname
+		}
+	}
+	for oid, owner := range c.operatorOwners {
+		if owner == oldName {
+			c.operatorOwners[oid] = stmt.Newname
 		}
 	}
 	for name, owner := range c.tablespaceOwners {

@@ -79,6 +79,10 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	}
 	firstMember, firstGrant := c.oidGen.next, len(c.grants)
 	commentsBefore := maps.Clone(c.comments)
+	castsBefore := make(map[castKey]bool, len(c.castIndex))
+	for key := range c.castIndex {
+		castsBefore[key] = true
+	}
 
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
@@ -122,6 +126,11 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 	for key, text := range c.comments {
 		if before, ok := commentsBefore[key]; !ok || before != text {
 			c.extensionComments[key] = text
+		}
+	}
+	for key := range c.castIndex {
+		if !castsBefore[key] {
+			c.extensionCasts[key] = stmt.Extname
 		}
 	}
 
@@ -438,6 +447,13 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 	delete(c.extensions, ext.OID)
 	delete(c.extByName, ext.Name)
 	c.removeComments('e', ext.OID)
+	for key, extName := range c.extensionCasts {
+		if extName != ext.Name {
+			continue
+		}
+		delete(c.castIndex, key)
+		delete(c.extensionCasts, key)
+	}
 	memberOIDs := map[uint32]bool{}
 	for oid, extName := range c.extensionMembers {
 		if extName == ext.Name {
