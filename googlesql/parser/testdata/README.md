@@ -32,7 +32,7 @@ pipe and graph rows are different; see below.
 Most of what only omni accepts is BigQuery: scripting (`DECLARE`, `IF`,
 `CASE`, `BREAK`), and DDL Spanner's DDL parser refuses (`CREATE TABLE a` with
 no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`). Each
-of the 476 rows is measured below: the pinned grammar derives 473 of them, one
+of the 475 rows is measured below: the pinned grammar derives 473 of them, one
 was omni's and is closed, and two are Spanner DDL reference forms the grammar
 lags.
 
@@ -133,21 +133,21 @@ the grammar cannot derive that statement, and the emulator answered an empty
 select list — an analysis error, not a syntax error — which the judge reads as
 an acceptance.
 
-## Rows only omni accepts, measured (476)
+## Rows only omni accepts, measured (475)
 
 Every row whose cells were `accept`/`reject` was measured at the pin: the
 emulator's gRPC code (always `InvalidArgument`), the position it reports, and
 a control — the form beside it that the same server takes. The recognizer over
 the pinned grammar (`enginetest/grammar`'s, the one the rows are generated
-from) derives 473 of the 476, near-misses included, so omni's reading is the
-grammar's and the emulator's refusal is its dialect. The other three are
-`CREATE PROPERTY GRAPH g OPTIONS(…) NODE TABLES (T)`, which neither the grammar
-(`googlesql.tm:2666` ends the rule with `opt_options_list`) nor Spanner's graph
-DDL reference puts before the content, and the two `ALTER SEARCH INDEX … STORED
+from) derives 473 of the 475, near-misses included, so omni's reading is the
+grammar's and the emulator's refusal is its dialect. The other two are the
+`ALTER SEARCH INDEX … STORED
 COLUMN` rows, which Spanner's DDL reference quotes (`truth1/spanner/ddl.md:1006`)
 while both the pinned grammar and the emulator's own DDL parser lag it: that
-reference, not the grammar, is their authority. The first was omni's and is
-closed; the other two are recorded here.
+reference, not the grammar, is their authority. The `CREATE PROPERTY GRAPH g
+OPTIONS(…) NODE TABLES (T)` row, which neither the grammar (`googlesql.tm:2666`
+ends the rule with `opt_options_list`) nor Spanner's graph DDL reference puts
+before the content, was omni's and is closed.
 
 Positions are the emulator's own, 1-based columns on these single-line ASCII
 statements, so the byte is the column minus one. A query's position is the

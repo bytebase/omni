@@ -11,15 +11,16 @@ server wrote the same file.
 
 | Rows | Total | Agree | Only StarRocks accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 3,062 | 2,184 | 720 | 158 |
-| Near-misses | 8,196 | 5,606 | 152 | 2,438 |
+| One per alternative | 3,062 | 2,888 | 161 | 13 |
+| Near-misses | 8,196 | 8,168 | 15 | 13 |
 
-Most of what only omni accepts is a statement cut short or with a word
-dropped that omni's parser reads loosely: a bare `SHOW` and `SHOW <anything>`,
-`ALTER TABLE` clauses (here behind `ALTER SYSTEM`, the shortest statement
-that reaches them), partition and column definitions. Most of what only
-StarRocks accepts is a non-reserved keyword as a name (`SELECT ADMIN`),
-`USE 'a'`, `COLLATE`, privileges, and `LOAD` and `BACKUP` forms. 3
+Most of what only StarRocks accepts is a statement omni does not read at
+all: `PIPE` (20), resource groups (19), `CATALOG` (16), data cache rules (13),
+`TRANSLATE` (13), the SQL and backend blacklists (14), plan advisors (7),
+`REFRESH EXTERNAL TABLE` (6), `EXECUTE AS` (4) and `RESTORE SNAPSHOT` (3).
+Most of what only omni accepts is a form StarRocks refuses: a reserved word
+read as a name (`SELECT FLOOR`), `SELECT COUNT(DISTINCT)`, `GROUP BY
+ROLLUP()`, `SHOW … WHERE`, and `CREATE CATALOG a` with no `PROPERTIES`. 3
 alternatives get no row: `expressionSingleton`, another entry point,
 `hintMap`, which StarRocks reads apart from a hint comment, and `CONCAT`,
 which `||` is only under sql_mode `PIPES_AS_CONCAT`.
@@ -27,8 +28,11 @@ which `||` is only under sql_mode `PIPES_AS_CONCAT`.
 ## Suites
 
 Eight container tests compared `Parse` with a running StarRocks. Their 434
-cases are `suite:` rows named after them, judged by the same recording; all
-agree: `suite:conformance` (281, `TestStarRocksSyntaxConformance`),
+cases are `suite:` rows named after them, judged by the same recording; all but
+one agree: `suite:characters` holds `SELECT 1　AS x` with an ideographic space,
+which no rule of `StarRocksLex.g4` matches and omni reads as whitespace, so
+StarRocks refuses it. The suites: `suite:conformance` (281,
+`TestStarRocksSyntaxConformance`),
 `suite:explain-modifiers` (18), `suite:no-job-statements` (46), and
 `suite:pr2a`, `pr2b`, `pr3`, `pr4a` and `pr4b` (89, the parity matrices of
 the PRs that added those forms). A statement added to one is a row with `?` in

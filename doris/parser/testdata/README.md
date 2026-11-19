@@ -12,18 +12,23 @@ a fresh server wrote the same file.
 
 | Rows | Total | Agree | Only Doris accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| `DorisParser.g4`, one per alternative | 2,354 | 1,910 | 396 | 48 |
-| `DorisParser.g4`, near-misses | 5,961 | 4,668 | 67 | 1,226 |
-| `DorisLegacyParser.g4`, one per alternative | 1,767 | 1,463 | 251 | 53 |
-| `DorisLegacyParser.g4`, near-misses | 5,885 | 4,481 | 55 | 1,349 |
+| `DorisParser.g4`, one per alternative | 2,354 | 2,354 | 0 | 0 |
+| `DorisParser.g4`, near-misses | 5,961 | 5,961 | 0 | 0 |
+| `DorisLegacyParser.g4`, one per alternative | 1,767 | 1,767 | 0 | 0 |
+| `DorisLegacyParser.g4`, near-misses | 5,885 | 5,885 | 0 | 0 |
 
-Most of what only omni accepts is a statement cut short or with a word
-dropped that omni's parser reads loosely: a bare `SHOW`, `KILL` or `WARM UP`,
-`SHOW <anything>`, a `PAUSE JOB zzz`. 24 of `DorisParser.g4`'s alternatives
-get no row: its other entry points, `singleStatement` and
-`expressionWithEof`, and `selectHint`, which Doris reads apart from a hint
-comment. 7 of `DorisLegacyParser.g4`'s need a token its scanner never makes
-(`../../testdata/tokens.tsv`).
+Every row agrees: the 15,967 generated rows and the 346 `suite:` rows below.
+#1461 closed the last 201 of them, the tails the grammar derives and omni read
+loosely: `INTERVAL 1 a` with a unit that is not one, `opt_partition`'s
+argument lists, the identifier set `nonReserved`, `EXPLAIN`'s table, function
+and partition forms, `INSERT`'s `@BRANCH`, `DORIS_INTERNAL_TABLE_ID` and
+`[hints]` forms, `SELECT (*)`, and the four inverted-index objects and
+`CREATE STAGE`'s required `PROPERTIES`.
+
+24 of `DorisParser.g4`'s alternatives get no row: its other entry points,
+`singleStatement` and `expressionWithEof`, and `selectHint`, which Doris reads
+apart from a hint comment. 7 of `DorisLegacyParser.g4`'s need a token its
+scanner never makes (`../../testdata/tokens.tsv`).
 
 ## Suites
 

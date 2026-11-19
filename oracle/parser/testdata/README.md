@@ -163,7 +163,7 @@ missing `DATAFILE` the truncated text leaves.
 
 ## Rows only omni accepts, measured
 
-The other direction: the 796 rows whose cells were `accept` where the pinned
+The other direction: the 696 rows whose cells were `accept` where the pinned
 Oracle says `reject`. Each was measured the same way, at judge revision 3,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
@@ -173,9 +173,12 @@ here instead of closed. Fifteen rows are text the page refuses too, and are
 closed, and so are the thirty-two `PARTITIONSET` rows: the page's clause is
 only reachable in a composite-sharded database, which `OracleDocs.g4` records
 where the converter could drop the rule (its `fix:` notes on
-`alter_table_partitioning_clauses`' neighbours) and this server is not. The
-other 749 are a name Oracle looks up, a check of the parsed statement, or the
-server's own setup, and stay rows.
+`alter_table_partitioning_clauses`' neighbours) and this server is not.
+#1475 closed two more (an external table's `AS QUERY`) and #1480 its
+fifty-one `ALTER SYSTEM SET`, `ALTER SESSION SET` and `ALTER SYSTEM RESET`
+rows, whose parameter names `oracle/parser` now carries. The other 696 are a
+name Oracle looks up, a check of the parsed statement, or the server's own
+setup, and stay rows.
 
 ### Closed
 
@@ -277,7 +280,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,453 rows, 1,116 of them where omni stops first and 3,477
+different byte: 5,368 rows, 1,116 of them where omni stops first and 3,850
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -287,7 +290,7 @@ point instead of the offending token.
 
 Four hundred and two rows carry no byte at all (`reject` alone), a stored unit
 compiled with errors or a statement the engine never answered, so there is
-nothing to match. Four hundred and fifty-eight carry `reject@0`: Oracle's
+nothing to match. Four hundred and forty carry `reject@0`: Oracle's
 answer at the start of the statement, which is "no such form" or a name it
 looks up before it reads the rest.
 
