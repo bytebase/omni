@@ -327,6 +327,68 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// User-defined type ownership reaches DROP ROLE, DROP OWNED and REASSIGN.
+	t.Run("type ownership follows the role lifecycle", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"SET ROLE alice",
+			"CREATE TYPE mood AS ENUM ('sad')",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE after DROP OWNED with %s", code)
+		}
+	})
+
+	// DROP OWNED drops a function the role owns.
+	t.Run("DROP OWNED drops an owned function", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"SET ROLE alice",
+			"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED with %s", code)
+		}
+		if len(c.userProcs) != 0 {
+			t.Fatal("DROP OWNED kept the owned function")
+		}
+	})
+
+	// A composite type does not occupy a tablespace.
+	t.Run("a composite type does not occupy a tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"SET default_tablespace = ts",
+			"CREATE TYPE ct AS (a int)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLESPACE ts"); code != "0" {
+			t.Fatalf("catalog refused DROP TABLESPACE ts with %s", code)
+		}
+	})
+
 	// A failed ALTER TABLE restores the owner as well as the tablespace.
 	t.Run("a failed ALTER TABLE restores the owner", func(t *testing.T) {
 		c := New()

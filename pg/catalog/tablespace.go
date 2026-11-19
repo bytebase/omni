@@ -354,11 +354,14 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			delete(c.typeOwners, oid)
 			continue
 		}
+		ownedTypes = append(ownedTypes, oid)
+		if bt.Type == 'b' {
+			continue // the array goes with its element type
+		}
 		schema := c.schemas[bt.Namespace]
 		if schema == nil {
 			continue
 		}
-		ownedTypes = append(ownedTypes, oid)
 		typeObjects = append(typeObjects, &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{
 			&nodes.String{Str: schema.Name}, &nodes.String{Str: bt.TypeName},
 		}}})
