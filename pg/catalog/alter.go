@@ -263,6 +263,9 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 	}
 	schema, err := c.resolveTargetSchema(stmt.Relation.Schemaname)
 	if err != nil {
+		if stmt.Missing_ok && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 	parentIdx, err := c.findNamedIndex(schema, stmt.Relation.Relname)
@@ -942,6 +945,9 @@ func (c *Catalog) renameIndex(stmt *nodes.RenameStmt) error {
 
 	schema, err := c.resolveTargetSchema(schemaName)
 	if err != nil {
+		if stmt.MissingOk && missingObject(err) {
+			return nil
+		}
 		return err
 	}
 

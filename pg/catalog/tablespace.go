@@ -16,6 +16,24 @@ func (c *Catalog) checkTablespace(name string) error {
 	return errUndefinedObject("tablespace", name)
 }
 
+// checkTableAccessMethod refuses a table access method the catalog does not
+// hold, or one registered for indexes: CREATE TABLE ... USING takes only a
+// table access method.
+func (c *Catalog) checkTableAccessMethod(name string) error {
+	if name == "" {
+		return nil
+	}
+	am := c.accessMethodByName[name]
+	if am == nil {
+		return errUndefinedObject("access method", name)
+	}
+	if am.Type != 't' {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("access method %q is not of type TABLE", name)}
+	}
+	return nil
+}
+
 // DefineTablespace records a CREATE TABLESPACE, which stores nothing else.
 //
 // pg: src/backend/commands/tablespace.c — CreateTableSpace

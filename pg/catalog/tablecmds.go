@@ -444,27 +444,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// Create implicit sequences for SERIAL and identity columns.
-	var createdSeqs []*Sequence
-	for _, si := range serials {
-		if si.isIdentity {
-			cd := &colDefs[si.colIdx]
-			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, si.typeOID, cd.IdentityOptions)
-			if err != nil {
-				return err
-			}
-			cd.IdentitySequence = seqRV
-			cd.Default = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
-			createdSeqs = append(createdSeqs, seq)
-			continue
-		}
-		if _, exists := schema.Sequences[si.seqName]; exists {
-			return errDuplicateObject("sequence", si.seqName)
-		}
-		seq := c.createSequenceInternal(schema, si.seqName, si.typeOID)
-		createdSeqs = append(createdSeqs, seq)
-	}
-
 	// Resolve column types and check for duplicates.
 	colByName := make(map[string]int, len(colDefs))
 	columns := make([]*Column, len(colDefs))
@@ -510,6 +489,33 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		if _, ok := relationNamespaceKind(schema, relName); ok {
 			return errDuplicateTable(relName)
 		}
+	}
+	if err := c.checkTablespace(stmt.Tablespacename); err != nil {
+		return err
+	}
+	if err := c.checkTableAccessMethod(stmt.AccessMethod); err != nil {
+		return err
+	}
+
+	// Create implicit sequences for SERIAL and identity columns.
+	var createdSeqs []*Sequence
+	for _, si := range serials {
+		if si.isIdentity {
+			cd := &colDefs[si.colIdx]
+			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, si.typeOID, cd.IdentityOptions)
+			if err != nil {
+				return err
+			}
+			cd.IdentitySequence = seqRV
+			cd.Default = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
+			createdSeqs = append(createdSeqs, seq)
+			continue
+		}
+		if _, exists := schema.Sequences[si.seqName]; exists {
+			return errDuplicateObject("sequence", si.seqName)
+		}
+		seq := c.createSequenceInternal(schema, si.seqName, si.typeOID)
+		createdSeqs = append(createdSeqs, seq)
 	}
 
 	// Check column count limit.

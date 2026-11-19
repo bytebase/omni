@@ -547,3 +547,55 @@
 | DROP TABLESPACE pg_global
 < error
 | 42501 permission denied for tablespace pg_global
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE s (b int) TABLESPACE a
+< error
+| 42704 tablespace "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE s (b int) USING a
+< error
+| 42704 access method "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE s (b int) USING btree
+< error
+| 55000 access method "btree" is not of type TABLE
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE INDEX i ON a(b) TABLESPACE a
+< error
+| 42704 tablespace "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER INDEX IF EXISTS no_such.i SET (fillfactor = 80)
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER INDEX IF EXISTS no_such.i RENAME TO j
+< ok 0 -

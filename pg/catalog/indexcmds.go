@@ -273,6 +273,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		}
 		return errDuplicateObject("index", name)
 	}
+	if err := c.checkTablespace(stmt.TableSpace); err != nil {
+		return err
+	}
 
 	idx := &Index{
 		OID:              c.oidGen.Next(),

@@ -105,7 +105,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE INDEX using a table access method", "table", "CREATE INDEX ON a USING heap(b)", CodeInternalError},
 		{"DROP the default tablespace", "missing", "DROP TABLESPACE pg_default", CodeInsufficientPrivilege},
 		{"DROP the global tablespace", "missing", "DROP TABLESPACE pg_global", CodeInsufficientPrivilege},
+		{"CREATE TABLE into a missing tablespace", "missing", "CREATE TABLE s (b int) TABLESPACE a", CodeUndefinedObject},
+		{"CREATE TABLE using a missing access method", "missing", "CREATE TABLE s (b int) USING a", CodeUndefinedObject},
+		{"CREATE TABLE using an index access method", "missing", "CREATE TABLE s (b int) USING btree", CodeObjectNotInPrerequisiteState},
+		{"CREATE INDEX into a missing tablespace", "table", "CREATE INDEX i ON a(b) TABLESPACE a", CodeUndefinedObject},
+		{"ALTER INDEX IF EXISTS in a missing schema", "missing", "ALTER INDEX IF EXISTS no_such.i SET (fillfactor = 80)", "0"},
+		{"ALTER INDEX IF EXISTS RENAME in a missing schema", "missing", "ALTER INDEX IF EXISTS no_such.i RENAME TO j", "0"},
 	}
+
+	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
+	// identity column made behind.
+	t.Run("a failed CREATE TABLE leaves no implicit sequence", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, fixtures["index"]); code != "0" {
+			t.Fatalf("catalog refused fixture index with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "CREATE TABLE a (id serial)"); code != CodeDuplicateTable {
+			t.Fatalf("catalog answered %s, want %s", code, CodeDuplicateTable)
+		}
+		if c.schemaByName["public"].Sequences["a_id_seq"] != nil {
+			t.Fatal("a failed CREATE TABLE left a_id_seq behind")
+		}
+	})
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
