@@ -506,6 +506,35 @@ func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_GraphPredicateOperandsAreColumns pins the counterpart: a
+// graph predicate used in an ordinary relational expression is a comparison of
+// two columns, so both operands resolve — as a select item's sources and as a
+// WHERE predicate's columns.
+func TestGetQuerySpan_GraphPredicateOperandsAreColumns(t *testing.T) {
+	span, err := GetQuerySpan("SELECT a IS SOURCE b FROM t", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	cols := []string{}
+	for _, r := range span.Results {
+		for _, src := range r.SourceColumns {
+			cols = append(cols, src.Column)
+		}
+	}
+	sort.Strings(cols)
+	if !eqStrings(cols, []string{"a", "b"}) {
+		t.Errorf("select-item sources = %v, want [a b]", cols)
+	}
+
+	span, err = GetQuerySpan("SELECT 1 FROM t WHERE a IS LABELED !x AND a IS DESTINATION OF b", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if got := predicateColumnNames(span); !eqStrings(got, []string{"a", "b"}) {
+		t.Errorf("PredicateColumns = %v, want [a b]", got)
+	}
+}
+
 // TestGetQuerySpan_GraphVariablesAreNotColumns pins the other half of a graph
 // subquery's span: its element, path, LET and FOR variables, and its RETURN
 // items, are graph-local names rather than relational columns, so none of them
@@ -577,7 +606,8 @@ func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
 		{"SELECT EXISTS { RETURN 1 GROUP BY (SELECT id FROM secret) }", []string{"secret"}, 1},
 		{"SELECT EXISTS { TABLESAMPLE BERNOULLI(1 ROWS PARTITION BY (SELECT id FROM secret)) RETURN 1 }", []string{"secret"}, 1},
 		{"SELECT EXISTS { MATCH ({a: (SELECT id FROM secret)}) RETURN 1 }", []string{"secret"}, 1},
-		// A graph predicate's operands are walked: neither names a table here.
+		// A standalone graph predicate's operands are ordinary relational
+		// columns: neither names a table here.
 		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},
 	}
 	for _, tc := range cases {

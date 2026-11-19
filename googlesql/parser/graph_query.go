@@ -1116,7 +1116,7 @@ func (p *Parser) parseGraphQuantifier(primary ast.Node) (ast.Node, error) {
 	// the hint rule below from reading `-+ @1 -` as a hint between two edges.
 	switch n := primary.(type) {
 	case *ast.GraphEdgePattern:
-		n.Loc.End = closeTok.Loc.End
+		// The edge keeps its own range; the quantifier belongs to the wrapper.
 		return &ast.GraphPathPattern{
 			Factors: []ast.Node{n},
 			Loc:     ast.Loc{Start: n.Loc.Start, End: closeTok.Loc.End},

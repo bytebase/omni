@@ -2272,9 +2272,15 @@ func (ew *exprWalk) walk(node ast.Node) {
 
 	// --- Graph subqueries and graph expressions (parser-gql) ---
 	case *ast.GraphSubqueryExpr, *ast.GraphExistsExpr, *ast.GraphCallOp:
+		// A graph subquery is a boundary: the names it invents are not columns.
 		ew.walkGraph(node)
 	case *ast.GraphPredicate:
-		ew.walkGraph(node)
+		// A standalone graph predicate is an ordinary relational comparison —
+		// `SELECT a IS SOURCE b FROM t` reads both columns — so its operands are
+		// walked with the caller's callbacks. (Inside a graph subquery the boundary
+		// walker has none, so a pattern's predicate still invents nothing.)
+		ew.walk(e.Left)
+		ew.walk(e.Right)
 
 	// --- Leaves: literals, parameters, system vars, typed literals ---
 	default:
