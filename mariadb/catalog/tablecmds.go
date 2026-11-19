@@ -220,7 +220,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// MariaDB also rejects a malformed literal default ('not-a-date',
 		// 1067) after the drop; the catalog does not check those.
 		for _, colDef := range stmt.Columns {
-			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt)); err != nil {
+			if err := validateColumnDefSemantics(colDef, tableLevelIndexedColumns(stmt), db.Collation); err != nil {
 				return err
 			}
 		}
@@ -285,7 +285,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// column can be checked against the indexes that will cover it.
 	indexedCols := tableLevelIndexedColumns(stmt)
 	for i, colDef := range stmt.Columns {
-		if err := validateColumnDefSemantics(colDef, indexedCols); err != nil {
+		if err := validateColumnDefSemantics(colDef, indexedCols, tbl.Collation); err != nil {
 			return err
 		}
 		colKey := toLower(colDef.Name)
@@ -675,6 +675,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		// A type the server answers 1210 for is refused before the key is built.
 		if err := validateKeyTypeArguments(resolveConstraintIndexType(con)); err != nil {
+			return err
+		}
+		// A key part naming no column of the table is 1072, before the repeated
+		// name a key like `PRIMARY KEY (missing, missing)` carries is 1060:
+		// measured on mariadb:11.8.8.
+		if err := validateAddedKeyColumns(tbl, con.IndexColumns); err != nil {
 			return err
 		}
 

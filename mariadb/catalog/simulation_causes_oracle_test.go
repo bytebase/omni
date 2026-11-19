@@ -878,6 +878,36 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:        1176,
 			keepsSchema: true,
 		},
+		// The table the statement leaves decides SYSTEM_TIME partitioning, so a
+		// statement that also adds the versioning runs.
+		{
+			name:  "ADD SYSTEM VERSIONING with PARTITION BY SYSTEM_TIME",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SYSTEM VERSIONING PARTITION BY SYSTEM_TIME",
+			code:  0,
+		},
+		// A key part naming no column is 1072 before the repeated name is 1060,
+		// on a CREATE TABLE as much as on an ALTER.
+		{
+			name:   "CREATE TABLE with a key naming a missing column twice",
+			stmt:   "CREATE TABLE a (b INT, KEY k (missing, missing))",
+			code:   1072,
+			absent: "a",
+		},
+		{
+			name:   "CREATE TABLE with a primary key naming a missing column twice",
+			stmt:   "CREATE TABLE a (b INT, PRIMARY KEY (missing, missing))",
+			code:   1072,
+			absent: "a",
+		},
+		// ENUM compares its values with the column's collation, so a
+		// case-sensitive one lists 's' and 'S' as two.
+		{
+			name:     "ENUM of two spellings under a case-sensitive collation",
+			stmt:     "CREATE TABLE a (e ENUM('s', 'S') COLLATE utf8mb4_bin)",
+			code:     0,
+			contains: []string{"enum('s','S')"},
+		},
 		// A column the table already holds is 1060 before the key it would be
 		// is read, where the same statement over a free name is 1068.
 		{

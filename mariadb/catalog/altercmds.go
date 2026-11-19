@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
@@ -186,7 +187,11 @@ func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *node
 	// SYSTEM_TIME partitioning is a versioned table's: measured on
 	// mariadb:11.8.8, `ALTER TABLE a PARTITION BY SYSTEM_TIME` over a table
 	// that is not system-versioned answers 4124.
-	if repartition != nil && repartition.Type == nodes.PartitionSystemTime && !tbl.SystemVersioned {
+	// The table the statement leaves decides it: `ALTER TABLE t ADD SYSTEM
+	// VERSIONING PARTITION BY SYSTEM_TIME` runs, measured on mariadb:11.8.8, the
+	// other orders being 1064.
+	if repartition != nil && repartition.Type == nodes.PartitionSystemTime && !tbl.SystemVersioned &&
+		!alterAddsSystemVersioning(stmt.Commands) {
 		return errNotSystemVersioned(tbl.Name)
 	}
 	if tbl.Partitioning == nil && repartition == nil {
@@ -790,7 +795,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
 	}
-	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl)); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexedColumnsOf(tbl), tbl.Collation); err != nil {
 		return err
 	}
 	// 4029, after the name is known to be new: the column's own expression may
@@ -1229,7 +1234,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if indexed[toLower(oldName)] {
 		indexed[toLower(colDef.Name)] = true
 	}
-	if err := validateColumnDefSemantics(colDef, indexed); err != nil {
+	if err := validateColumnDefSemantics(colDef, indexed, tbl.Collation); err != nil {
 		return err
 	}
 	oldKey := toLower(oldName)
@@ -1495,6 +1500,30 @@ func addedConstraintExists(tbl *Table, con *nodes.Constraint, cols []string) boo
 	return name != "" && indexNameExists(tbl, name)
 }
 
+// isKeyIdentifierName reports whether a key part's name is one an identifier can
+// spell: a letter, digit, underscore or dollar, in any runes.
+func isKeyIdentifierName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, r := range name {
+		if r == utf8.RuneError {
+			return false
+		}
+		if r < 0x80 {
+			switch {
+			case r == '_' || r == '$',
+				r >= '0' && r <= '9',
+				r >= 'a' && r <= 'z',
+				r >= 'A' && r <= 'Z':
+				continue
+			}
+			return false
+		}
+	}
+	return true
+}
+
 // validateAddedKeyColumns refuses a key part that names a column the table
 // does not have: mariadb:11.8.8 answers 1072 for ADD KEY, FULLTEXT, SPATIAL,
 // UNIQUE and FOREIGN KEY alike. A functional part is an expression, and a
@@ -1507,6 +1536,13 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 		}
 		ref, ok := ic.Expr.(*nodes.ColumnRef)
 		if !ok || tbl.GetColumn(ref.Column) != nil {
+			continue
+		}
+		// A part of a definition that did not come from SQL may name something
+		// that is no identifier at all, as LoadMetadata's fallback for a key
+		// expression it could not parse does; it is not a column the statement
+		// failed to find.
+		if !isKeyIdentifierName(ref.Column) {
 			continue
 		}
 		return errKeyColumnDoesNotExist(ref.Column)
@@ -2737,7 +2773,7 @@ func validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	}
 	indexed := indexedColumnsOf(tbl)
 	for _, a := range added {
-		if err := validateColumnDefSemantics(a.def, indexed); err != nil {
+		if err := validateColumnDefSemantics(a.def, indexed, tbl.Collation); err != nil {
 			return err
 		}
 	}

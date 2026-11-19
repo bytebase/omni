@@ -47,11 +47,11 @@ func validateExpressionSemantics(node nodes.Node) error {
 // lowercased names of the columns a key outside the definition covers, which
 // decides whether a VIRTUAL generated column's value is materialized; it may
 // be nil.
-func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool) error {
+func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool, tableCollation string) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
-	if err := validateEnumSetValues(colDef); err != nil {
+	if err := validateEnumSetValues(colDef, tableCollation); err != nil {
 		return err
 	}
 	typeName := normalizedColumnDataType(colDef.TypeName)
@@ -415,22 +415,52 @@ func validateColumnExprColumns(tbl *Table, colDef *nodes.ColumnDef) error {
 // first spelling. Measured on mariadb:11.8.8: `CREATE TABLE t (e ENUM('s','S'))`
 // and `SET ('a','A')` answer it, for a column a CREATE TABLE declares and one an
 // ALTER adds.
-func validateEnumSetValues(colDef *nodes.ColumnDef) error {
+func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error {
 	kind := strings.ToUpper(colDef.TypeName.Name)
 	if kind != "ENUM" && kind != "SET" {
 		return nil
 	}
+	// MariaDB compares the values with the column's collation, so a
+	// case-sensitive one lists `('s','S')` twice over: measured on
+	// mariadb:11.8.8, `ENUM('s','S') COLLATE utf8mb4_bin`, `BINARY` and a
+	// table's `COLLATE utf8mb4_bin` are all accepted, where the default
+	// utf8mb4_uca1400_ai_ci answers 1291.
+	fold := !collationCaseSensitive(enumCollation(colDef, tableCollation))
 	seen := make(map[string]string, len(colDef.TypeName.EnumValues))
 	for _, value := range colDef.TypeName.EnumValues {
-		key := strings.ToLower(value)
+		key := value
+		if fold {
+			key = strings.ToLower(value)
+		}
 		if first, ok := seen[key]; ok {
-			// The message names the first spelling: `ENUM('s','S')` reports
-			// "duplicated value 's'".
+			// The message names the first spelling: `ENUM('s','S')` over a
+			// case-insensitive collation reports "duplicated value 's'".
 			return errDupEnumValue(colDef.Name, first, kind)
 		}
 		seen[key] = value
 	}
 	return nil
+}
+
+// enumCollation is the collation an ENUM or SET column's values are compared
+// with: the one it names, the binary one it takes from BINARY or CHARACTER SET
+// binary, and otherwise the table's.
+func enumCollation(colDef *nodes.ColumnDef, tableCollation string) string {
+	dt := colDef.TypeName
+	if dt.Collate != "" {
+		return dt.Collate
+	}
+	if dt.Binary || eqFoldStr(dt.Charset, "binary") {
+		return "binary"
+	}
+	return tableCollation
+}
+
+// collationCaseSensitive reports whether a collation tells two spellings apart
+// by case: MariaDB's binary ones name it, `binary`, `_bin` and `_cs`.
+func collationCaseSensitive(collation string) bool {
+	name := strings.ToLower(collation)
+	return name == "binary" || strings.HasSuffix(name, "_bin") || strings.HasSuffix(name, "_cs")
 }
 
 func hasColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {
