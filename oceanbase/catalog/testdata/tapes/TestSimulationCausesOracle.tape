@@ -400,3 +400,226 @@
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation
 < ok 3 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE n WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT b FROM a
+< error
+| 1060 42S21 Duplicate column group name 'all column group'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE n WITH COLUMN GROUP(a(a)) SELECT b FROM a
+< error
+| 1235 0A000 Not supported feature or function
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLEGROUP a
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLEGROUP = 'a'
+< error
+| 5151 42P01 tablegroup not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLEGROUP = ''
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLESPACE a
+< error
+| 3510 HY000 Tablespace does not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a TABLESPACE innodb_file_per_table
+< error
+| 3510 HY000 Tablespace does not exist
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(a) STORING(a)
+< error
+| 1072 42000 Key column 'a' doesn't exist in table
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY(b) STORING(a)
+< error
+| 1054 42S22 Unknown column
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD KEY idx_d(a) STORING(a)
+< error
+| 1061 42000 Duplicate key name 'idx_d'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)
+< error
+| 1215 HY000 Cannot add foreign key constraint
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY(b) REFERENCES a(zz)
+< error
+| 5031 HY000 Column not found
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(zz)
+< error
+| 5031 HY000 Column not found
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0

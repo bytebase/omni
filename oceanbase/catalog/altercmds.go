@@ -529,13 +529,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 	}
 	cols := extractColumnNames(con)
-	// A primary key's STORING is taken and dropped unread: on 4.3.5.6, ALTER TABLE t
-	// ADD PRIMARY KEY (a) STORING (nosuch) succeeds and the key reads back without it.
-	if con.Type != nodes.ConstrPrimaryKey {
-		if err := validateStoringColumns(tbl, con.IndexOptions); err != nil {
-			return err
-		}
-	}
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:
@@ -598,7 +591,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := validateKeyAndStoring(tbl, idxCols, con, false, false); err != nil {
 			return err
 		}
 		uqIdx := &Index{
@@ -694,7 +687,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := validateKeyAndStoring(tbl, idxCols, con, false, false); err != nil {
 			return err
 		}
 		keyIdx := &Index{
@@ -723,7 +716,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+		if err := validateKeyAndStoring(tbl, idxCols, con, true, false); err != nil {
 			return err
 		}
 		ftIdx := &Index{
@@ -753,7 +746,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+		if err := validateKeyAndStoring(tbl, idxCols, con, false, true); err != nil {
 			return err
 		}
 		spIdx := &Index{
@@ -769,6 +762,18 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	return nil
+}
+
+// validateKeyAndStoring validates a key's own columns before the columns it stores:
+// ALTER TABLE a ADD KEY (a) STORING (a) on a table without a is 1072 ("Key column
+// 'a' doesn't exist in table"), and ADD KEY (b) STORING (a) is 1054 for a
+// (TestSimulationCausesOracle). A key's name is read before either, so a name the
+// table has is 1061 first.
+func validateKeyAndStoring(tbl *Table, idxCols []*IndexColumn, con *nodes.Constraint, fulltext, spatial bool) error {
+	if err := validateIndexColumns(tbl, idxCols, fulltext, spatial); err != nil {
+		return err
+	}
+	return validateStoringColumns(tbl, con.IndexOptions)
 }
 
 // alterDropIndex removes an index (and any associated constraint) by name.
@@ -1038,7 +1043,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "avg_row_length":
 		tbl.AvgRowLength = opt.Value
 	case "tablespace":
-		tbl.Tablespace = opt.Value
+		// checkAlterTableOptions answers this before the commands run; kept here so a
+		// future path that reaches the option still answers the server.
+		return errNoTablespace()
 	case "pack_keys":
 		tbl.PackKeys = opt.Value
 	case "checksum":
