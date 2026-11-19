@@ -390,10 +390,23 @@ func (p *Parser) parseIdentifierOrFunction() (Expr, error) {
 			return special, nil
 		}
 		// Not the special form (e.g. a comma-argument call) — rewind and parse as
-		// an ordinary function call.
+		// an ordinary function call. When that fails too, the rejection is the
+		// reading that got further: `SUBSTRING(1.5 FROM 1.5 zzz)` reports the
+		// zzz, where Trino stops.
 		p.restore(cp)
+		ordinary, ordinaryErr := p.parseOrdinaryIdentifierOrFunction()
+		if ordinaryErr == nil {
+			return ordinary, nil
+		}
+		return nil, furtherError(err, ordinaryErr)
 	}
+	return p.parseOrdinaryIdentifierOrFunction()
+}
 
+// parseOrdinaryIdentifierOrFunction parses a primaryExpression that begins with
+// an identifier read as a name: a static method call `name::method(…)`, a
+// function call `name ( … )`, or a column reference with its dereferences.
+func (p *Parser) parseOrdinaryIdentifierOrFunction() (Expr, error) {
 	// Read the (possibly qualified) name. A '(' immediately after makes it a
 	// function call; otherwise it is a column reference / dotted name.
 	name, err := p.parseQualifiedName()
@@ -611,8 +624,10 @@ func (p *Parser) parseFunctionCall(name *ast.QualifiedName, processingMode strin
 	}
 	fc.Loc.End = closeTok.Loc.End
 
-	// filter?
-	if p.cur.Kind == kwFILTER {
+	// filter? — the clause is written `FILTER (WHERE …)`, so a FILTER that '('
+	// does not follow is the select item's alias (`SELECT a() FILTER WHERE x`
+	// is a call aliased FILTER and then a WHERE clause), as Trino reads it.
+	if p.cur.Kind == kwFILTER && p.peekNext().Kind == int('(') {
 		filter, end, err := p.parseFilter()
 		if err != nil {
 			return nil, err
@@ -621,10 +636,28 @@ func (p *Parser) parseFunctionCall(name *ast.QualifiedName, processingMode strin
 		fc.Loc.End = end
 	}
 
-	// (nullTreatment? over)? — nullTreatment is valid only with an OVER.
+	// (nullTreatment? over)? — the two are one block, so a nullTreatment takes
+	// the OVER with it: `SELECT a() IGNORE NULLS` has no OVER and is a
+	// SYNTAX_ERROR at the token where OVER belongs (`… IGNORE NULLS zzz` reports
+	// the zzz), as Trino reports it.
 	if nt, ok := p.peekNullTreatment(); ok {
 		fc.NullTreatment = nt
 		p.consumeNullTreatment()
+		if p.cur.Kind != kwOVER {
+			return nil, p.syntaxErrorAtCur()
+		}
+		over, overName, err := p.parseOver()
+		if err != nil {
+			return nil, err
+		}
+		fc.Over = over
+		fc.OverName = overName
+		if over != nil {
+			fc.Loc.End = over.Loc.End
+		} else if overName != nil {
+			fc.Loc.End = overName.Loc.End
+		}
+		return fc, nil
 	}
 	if p.cur.Kind == kwOVER {
 		// OVER is non-reserved: without a window name or '(' after it, it is an
@@ -687,9 +720,13 @@ func (p *Parser) parseFilter() (Expr, int, error) {
 	return cond, closeTok.Loc.End, nil
 }
 
-// parseOrderByItems parses `ORDER BY sortItem (, sortItem)*` (ORDER is current).
+// parseOrderByItems parses `ORDER BY sortItem (, sortItem)*`. ORDER is
+// required wherever this is reached — `WITHIN GROUP (BY …)` reports the BY, as
+// Trino reports it — so it is expected here rather than assumed.
 func (p *Parser) parseOrderByItems() ([]SortItem, error) {
-	p.advance() // consume ORDER
+	if _, err := p.expect(kwORDER); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(kwBY); err != nil {
 		return nil, err
 	}
@@ -1261,6 +1298,30 @@ func (p *Parser) parseTrim() (Expr, error) {
 		return nil, err
 	}
 
+	// A bare `FROM source` (no specification, no char) can only be reading 1 —
+	// reading 2's `source , char` needs a value expression first — so it is
+	// committed here. The grammar derives it, and Trino refuses it after the
+	// parse ("The 'trim' function must have specification, char or both
+	// arguments when it takes FROM", at the TRIM), so the refusal is deferred:
+	// a syntax error in the TRIM wins over it (`TRIM(FROM zzz 1.5)` reports the
+	// 1.5).
+	if p.cur.Kind == kwFROM {
+		p.advance() // consume FROM
+		source, err := p.parseValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		p.deferCheck(trimTok.Loc, "the 'trim' function must have specification, char or both arguments when it takes FROM")
+		return &TrimExpr{
+			Source: source,
+			Loc:    ast.Loc{Start: trimTok.Loc.Start, End: closeTok.Loc.End},
+		}, nil
+	}
+
 	// Reading 1 — `[spec] [char] FROM source`.
 	cp := p.checkpoint()
 	p.speculating++
@@ -1315,16 +1376,11 @@ func (p *Parser) tryTrimFromForm(start int) (Expr, bool) {
 		te.Spec = "BOTH"
 	}
 
-	// No spec present. A bare `FROM source` (no spec, no char) is a SYNTAX_ERROR
-	// in Trino 481 — `TRIM(FROM x)` is rejected even though the legacy grammar's
-	// `(trimsSpecification? trimChar? FROM)?` permits it (oracle-confirmed
-	// divergence). So FROM here is valid only after a char: parse a value
-	// expression first and require it to be followed by FROM or ')'.
+	// No spec present: parse a value expression and require it to be followed by
+	// FROM or ')' (a bare `FROM source` never reaches here; parseTrim commits to
+	// it before this reading is tried).
 	if te.Spec == "" {
 		if p.cur.Kind == kwFROM {
-			// Bare FROM with nothing before it — reject this reading (and, since
-			// the comma form also cannot start with FROM, the whole TRIM is an
-			// error, which the caller surfaces).
 			return nil, false
 		}
 		first, err := p.parseValueExpr()

@@ -543,9 +543,10 @@ func (p *Parser) parseAlterMaterializedViewStmt(startOffset int) (ast.Node, erro
 		stmt.NewName = newName
 		stmt.Loc.End = newName.Loc.End
 	case kwSET:
-		// D-MV3: IF EXISTS is not allowed on the SET forms.
+		// D-MV3: IF EXISTS is not allowed on the SET forms, and the SET is the
+		// token that cannot follow it, as Trino reports it.
 		if ifExists {
-			return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "IF EXISTS is not allowed on ALTER MATERIALIZED VIEW … SET"}
+			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "IF EXISTS is not allowed on ALTER MATERIALIZED VIEW … SET"}
 		}
 		p.advance() // consume SET
 		switch p.cur.Kind {

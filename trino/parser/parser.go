@@ -104,6 +104,13 @@ type Parser struct {
 	prepareTokens []ast.Loc
 	prepareWraps  map[*ParseError]int
 
+	// deferred is a check Trino's parser makes after the parse instead of in the
+	// grammar — a privilege name used as a role name, a TRIM that takes FROM
+	// with neither a specification nor a char. It is raised only once the whole
+	// statement has parsed, because a syntax error anywhere in it is reported
+	// first, as Trino reports it. nil for none.
+	deferred *ParseError
+
 	// noMatchAlias stops a relation inside NEAREST(...) from taking MATCH as an
 	// alias, where the grammar's MATCH keyword follows the relation.
 	noMatchAlias bool
@@ -248,23 +255,38 @@ func (p *Parser) expect(kind TokenKind) (Token, error) {
 	return Token{}, p.syntaxErrorAtCur()
 }
 
+// deferCheck records a check Trino's parser makes after the parse rather than in
+// the grammar, at loc, for parseSingle to raise once the statement has parsed
+// (see Parser.deferred). The first one recorded wins.
+func (p *Parser) deferCheck(loc ast.Loc, msg string) {
+	if p.deferred == nil {
+		p.deferred = &ParseError{Position: loc.Start, End: loc.End, Message: msg}
+	}
+}
+
 // syntaxErrorAtCur returns a *ParseError describing a syntax error at the
-// current token position. At EOF the message says "at end of input"; otherwise
-// "at or near X", where X is the token's source text or, for value-less tokens
-// (operators, EOF), its symbolic name.
+// current token position (see syntaxErrorAt).
 func (p *Parser) syntaxErrorAtCur() *ParseError {
+	return p.syntaxErrorAt(p.cur)
+}
+
+// syntaxErrorAt returns a *ParseError describing a syntax error at tok. At EOF
+// the message says "at end of input"; otherwise "at or near X", where X is the
+// token's source text or, for value-less tokens (operators, EOF), its symbolic
+// name.
+func (p *Parser) syntaxErrorAt(tok Token) *ParseError {
 	var msg string
-	if p.cur.Kind == tokEOF {
+	if tok.Kind == tokEOF {
 		msg = "syntax error at end of input"
 	} else {
-		text := p.cur.Str
+		text := tok.Str
 		if text == "" {
-			text = TokenName(p.cur.Kind)
+			text = TokenName(tok.Kind)
 		}
 		msg = "syntax error at or near " + text
 	}
 	return &ParseError{
-		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Position: tok.Loc.Start, End: tok.Loc.End,
 		Message: msg,
 	}
 }
@@ -419,7 +441,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwCATALOG:
 			return p.parseCreateCatalogStmt(p.cur.Loc.Start)
 		}
-		return p.unsupported("CREATE")
+		// Not an object Trino's statement rule takes: the rejection belongs to
+		// the object keyword, where Trino's parser stops (`CREATE a` reports
+		// the a).
+		return nil, p.syntaxErrorAt(p.createObjectToken())
 	case kwDROP:
 		// DROP ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
 		// DROP FUNCTION is the parser-routines node (function_def.go); every
@@ -445,7 +470,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwTABLE, kwSCHEMA, kwVIEW, kwMATERIALIZED:
 			return p.parseDropStmt(p.cur.Loc.Start)
 		}
-		return p.unsupported("DROP")
+		// Not an object Trino's statement rule takes: the rejection belongs to
+		// the token after DROP, where Trino's parser stops (`DROP a` reports
+		// the a).
+		return nil, p.syntaxErrorAt(p.peekNext())
 	case kwALTER:
 		// ALTER fans out on the object keyword (second token).
 		switch p.peekNext().Kind {
@@ -758,14 +786,22 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 			for p.cur.Kind != tokEOF {
 				p.advance()
 			}
-		} else if strictTrailing {
+		} else {
 			// The placeholder scan captured each expression subquery's body
 			// as raw text without parsing it, so the outer statement can
 			// succeed around a body Trino rejects: `SELECT (SELECT 1 FROM t
 			// a b)`. Strict mode parses every body now and drops the
 			// statement when one fails.
-			if errs := p.validateSubqueries(); len(errs) > 0 {
-				p.errors = append(p.errors, errs...)
+			if strictTrailing {
+				if errs := p.validateSubqueries(); len(errs) > 0 {
+					p.errors = append(p.errors, errs...)
+					node = nil
+				}
+			}
+			if node != nil && p.deferred != nil {
+				// A check Trino makes after its parse, reached only now: every
+				// syntax error in the statement is reported before it.
+				p.errors = append(p.errors, *p.deferred)
 				node = nil
 			}
 		}
