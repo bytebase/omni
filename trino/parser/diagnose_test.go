@@ -5,20 +5,20 @@ import (
 	"testing"
 )
 
-// TestDiagnose_CleanInputNoStubNoise verifies the wiring shape: Diagnose runs
-// Parse and surfaces ParseErrors as Diagnostics. The CREATE/DROP/ALTER dispatch
-// recognizes the leading keyword but routes an UNRECOGNIZED object keyword to
-// the `unsupported` stub (e.g. `CREATE INDEX` / `ALTER INDEX`, which Trino has
-// no statement form for and also rejects). That stub path is what this test
-// exercises. (Every real Trino DDL/DML/query/admin form is now implemented by
-// the parser-* nodes, so a valid statement no longer hits the stub.)
-func TestDiagnose_StubbedStatementProducesDiagnostic(t *testing.T) {
+// TestDiagnose_SyntaxErrorDiagnostic verifies the wiring shape: Diagnose runs
+// Parse and surfaces ParseErrors as Diagnostics, at their position. `CREATE
+// INDEX` is a statement Trino has no form for, so it is a syntax error at the
+// object keyword and not a "not yet supported" stub.
+func TestDiagnose_SyntaxErrorDiagnostic(t *testing.T) {
 	diags := Diagnose("CREATE INDEX i")
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}
-	if !strings.Contains(diags[0].Msg, "not yet supported") {
-		t.Errorf("Msg = %q, want 'not yet supported'", diags[0].Msg)
+	if !strings.Contains(diags[0].Msg, "syntax error at or near INDEX") {
+		t.Errorf("Msg = %q, want 'syntax error at or near INDEX'", diags[0].Msg)
+	}
+	if diags[0].Loc.Start != len("CREATE ") {
+		t.Errorf("Loc = %+v, want byte %d", diags[0].Loc, len("CREATE "))
 	}
 }
 

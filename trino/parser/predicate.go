@@ -208,8 +208,11 @@ func (p *Parser) parsePredicateSuffix(left Expr) (Expr, error) {
 			notTok := p.advance() // consume NOT
 			return p.parseNegatablePredicate(left, true, notTok.Loc)
 		default:
-			// Not a predicate NOT (e.g. `a NOT b` is malformed); leave it for the
-			// caller, which reports the error.
+			// Not a predicate NOT: a column constraint (`x varchar DEFAULT 'c'
+			// NOT NULL`) or a malformed `a NOT b`. Leave it for the caller, which
+			// either takes it or reports it. (Trino's prediction can report the
+			// token after it instead, along the negated-predicate path it
+			// abandons; see testdata/README.md.)
 			return left, nil
 		}
 	case kwBETWEEN, kwIN, kwLIKE:
@@ -505,7 +508,11 @@ func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 			Loc:   ast.Loc{Start: start, End: boolTok.Loc.End},
 		}, nil
 	default:
-		return nil, &ParseError{Position: isTok.Loc.Start, End: isTok.Loc.End, Message: "expected NULL, DISTINCT FROM, TRUE, FALSE, or UNKNOWN after IS"}
+		// The token after IS is the one the grammar cannot take (`SELECT 1.5 IS`
+		// reports the end of input, `IS TRUNCATE` the TRUNCATE), which is where
+		// Trino stops: "mismatched input '<EOF>'. Expecting: 'DISTINCT', 'FALSE',
+		// 'NOT', 'NULL', 'TRUE', 'UNKNOWN'".
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected NULL, DISTINCT FROM, TRUE, FALSE, or UNKNOWN after IS"}
 	}
 }
 

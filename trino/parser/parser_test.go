@@ -38,13 +38,13 @@ func TestParse_UnknownStatement(t *testing.T) {
 	}
 }
 
-// TestParse_KnownStatementUnsupported verifies that a statement whose leading
-// keyword IS in the dispatch switch but whose object keyword is unrecognized
-// (no Trino statement form) routes to the `unsupported` stub — a "not yet
-// supported" error rather than an "unknown statement" one. Every real Trino
-// DDL/DML/query/admin form is now implemented, so the stub is reached only by
-// such non-forms; `CREATE INDEX` (Trino has no CREATE INDEX) exercises it.
-func TestParse_KnownStatementUnsupported(t *testing.T) {
+// TestParse_UnknownCreateObjectKeyword verifies that a CREATE whose object
+// keyword is not one Trino's statement rule takes is a syntax error at that
+// keyword: `CREATE INDEX` (Trino has no CREATE INDEX) stops at the INDEX, where
+// Trino's parser stops ("mismatched input 'INDEX'. Expecting: 'BRANCH',
+// 'CATALOG', 'FUNCTION', 'MATERIALIZED', 'OR', 'ROLE', 'SCHEMA', 'TABLE',
+// 'VIEW'").
+func TestParse_UnknownCreateObjectKeyword(t *testing.T) {
 	file, errs := parseForTest("CREATE INDEX idx ON t (a)")
 	if file == nil {
 		t.Fatal("Parse: File is nil")
@@ -52,15 +52,18 @@ func TestParse_KnownStatementUnsupported(t *testing.T) {
 	if len(errs) != 1 {
 		t.Fatalf("parseForTest(\"CREATE INDEX ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
-	if !strings.Contains(errs[0].Message, "not yet supported") {
-		t.Errorf("error = %q, want it to mention 'not yet supported'", errs[0].Message)
+	if !strings.Contains(errs[0].Message, "syntax error at or near INDEX") {
+		t.Errorf("error = %q, want it to mention 'syntax error at or near INDEX'", errs[0].Message)
+	}
+	if errs[0].Position != len("CREATE ") {
+		t.Errorf("Position = %d, want %d", errs[0].Position, len("CREATE "))
 	}
 }
 
 // TestParse_MultiStatementErrorsCollected verifies that ParseBestEffort
-// collects errors from every segment, not just the first. Two unrecognized
-// object-keyword stubs (CREATE INDEX, ALTER INDEX) separated by ';' must yield
-// two errors.
+// collects errors from every segment, not just the first. Two statements Trino
+// has no form for (CREATE INDEX, ALTER INDEX) separated by ';' must yield two
+// errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
 	res := ParseBestEffort("CREATE INDEX i ON t (a); ALTER INDEX i RENAME TO j")
 	if got := len(res.Errors); got != 2 {

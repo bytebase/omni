@@ -298,10 +298,15 @@ func (p *Parser) parseCreateRoleStmt(start int) (ast.Node, error) {
 	}
 	stmt := &CreateRoleStmt{Name: name, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}
 
-	// Optional WITH ADMIN <grantor>.
-	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwADMIN {
+	// Optional WITH ADMIN <grantor>. Entered on WITH, as the grammar's block is:
+	// `CREATE ROLE a WITH a` is a rejection at the token after the WITH, where
+	// Trino reports it ("Expecting: 'ADMIN'"), not a trailing token after a
+	// complete statement.
+	if p.cur.Kind == kwWITH {
 		p.advance() // consume WITH
-		p.advance() // consume ADMIN
+		if _, err := p.expect(kwADMIN); err != nil {
+			return nil, err
+		}
 		grantor, err := p.parseGrantor()
 		if err != nil {
 			return nil, err
@@ -452,6 +457,16 @@ func (p *Parser) scanGrantFormIsPrivilege(isRevoke bool) bool {
 		if p.cur.Kind == kwALL && p.peekNext().Kind == kwPRIVILEGES {
 			p.advance() // ALL
 			p.advance() // PRIVILEGES
+			// `ALL PRIVILEGES` opens no role list, so the statement is the
+			// privilege form and the ON it requires is reported where it is
+			// missing (`GRANT ALL PRIVILEGES TO foo` reports the TO).
+			return true
+		} else if p.cur.Kind == kwCREATE && p.peekNext().Kind == kwBRANCH {
+			// CREATE BRANCH is one privilege name (`privilegeOrRole`'s last
+			// alternative), so the boundary is after both words: `GRANT CREATE
+			// BRANCH TO a` is the role form, whose role list names a privilege.
+			p.advance() // CREATE
+			p.advance() // BRANCH
 		} else {
 			p.advance() // the single-token item
 		}
@@ -504,9 +519,16 @@ func (p *Parser) parseGrantRoles(start int) (ast.Node, error) {
 	stmt.Grantees = grantees
 
 	// Optional WITH ADMIN OPTION.
-	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwADMIN {
+	//
+	// Entered on WITH, as the grammar's `(WITH ADMIN OPTION)?` block is: a WITH
+	// that begins neither is a rejection at the token after it
+	// (`GRANT bar TO foo WITH GRANT OPTION` reports the GRANT), not a trailing
+	// token after a complete statement.
+	if p.cur.Kind == kwWITH {
 		p.advance() // consume WITH
-		p.advance() // consume ADMIN
+		if _, err := p.expect(kwADMIN); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(kwOPTION); err != nil {
 			return nil, err
 		}
@@ -579,8 +601,8 @@ func (p *Parser) parseRevokeRoles(start int) (ast.Node, error) {
 }
 
 // parseRoleList parses `roles := identifier (COMMA identifier)*`. Each role is
-// a plain identifier; a reserved keyword is rejected here (so `GRANT SELECT TO
-// foo` fails, matching Trino).
+// a name; a privilege name parses too, and fails after the statement (see
+// parseRoleName).
 func (p *Parser) parseRoleList() ([]*ast.Identifier, error) {
 	first, err := p.parseRoleName()
 	if err != nil {
@@ -600,15 +622,38 @@ func (p *Parser) parseRoleList() ([]*ast.Identifier, error) {
 	return roles, nil
 }
 
-// parseRoleName parses one unquoted role name. A privilege keyword is not a
-// role name in Trino (AstBuilder rejects it), even though the grammar's
-// privilegeOrRole admits it syntactically.
+// parseRoleName parses one role name. The grammar's privilegeOrRole admits a
+// privilege keyword here, and Trino refuses it after the parse rather than
+// during it — `GRANT CREATE TO a` is a SYNTAX_ERROR, "May not use a privilege
+// name as a role name", at the name, but `GRANT CREATE TO a zzz` reports the
+// zzz — so the refusal is recorded here and made at the end of the statement
+// (see privilegeRolePos).
 func (p *Parser) parseRoleName() (*ast.Identifier, error) {
-	switch p.cur.Kind {
-	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE:
-		return nil, p.syntaxErrorAtCur()
+	// A privilege NAME is one of the five reserved privilege keywords, or the
+	// two-word CREATE BRANCH; an ordinary identifier is a role like any other
+	// (`GRANT mypriv TO a` grants the role mypriv).
+	if isPrivilegeKeyword(p.cur.Kind) {
+		p.deferCheck(p.cur.Loc, "may not use a privilege name as a role name")
+		start := p.cur.Loc.Start
+		if p.cur.Kind == kwCREATE && p.peekNext().Kind == kwBRANCH {
+			p.advance() // consume CREATE
+			branchTok := p.advance()
+			return &ast.Identifier{Value: "CREATE BRANCH", Loc: ast.Loc{Start: start, End: branchTok.Loc.End}}, nil
+		}
+		return identFromToken(p.advance()), nil
 	}
 	return p.parseIdentifier()
+}
+
+// isPrivilegeKeyword reports whether kind is one of the five reserved privilege
+// keywords (`privilegeOrRole`'s first five alternatives).
+func isPrivilegeKeyword(kind TokenKind) bool {
+	switch kind {
+	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwCREATE:
+		return true
+	default:
+		return false
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -648,10 +693,13 @@ func (p *Parser) parseGrantPrivileges(start int) (ast.Node, error) {
 	}
 	stmt.Grantee = grantee
 
-	// Optional WITH GRANT OPTION.
-	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwGRANT {
+	// Optional WITH GRANT OPTION. Entered on WITH, as the grammar's block is (see
+	// parseGrantRoles).
+	if p.cur.Kind == kwWITH {
 		p.advance() // consume WITH
-		p.advance() // consume GRANT
+		if _, err := p.expect(kwGRANT); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(kwOPTION); err != nil {
 			return nil, err
 		}
@@ -835,8 +883,9 @@ func (p *Parser) parseGrantTarget() (*GrantTarget, error) {
 // The entity-kind qualifier (D5) is `TABLE | SCHEMA | <non-reserved identifier>`
 // — the two legacy reserved keywords plus any identifier; other reserved
 // keywords (SELECT, FROM, …) are rejected. It is present iff a SECOND name unit
-// follows the first before the terminator (TO/FROM/'('/EOF). A dotted qualifier
-// (`ON a.b c`) is rejected — the qualifier is a single identifier.
+// follows the first before the terminator (TO/FROM/'('/EOF). A dotted first
+// unit (`ON a.b c`) is the object, not a qualifier: the c is left for the
+// caller's TO/FROM check, which reports it as Trino does.
 func (p *Parser) parseGrantEntity() (*ast.Identifier, *ast.QualifiedName, error) {
 	// The reserved keywords TABLE/SCHEMA can only be the qualifier (they are not
 	// valid identifiers, so parseQualifiedName would reject them as an object).
@@ -857,7 +906,10 @@ func (p *Parser) parseGrantEntity() (*ast.Identifier, *ast.QualifiedName, error)
 	}
 	if p.startsGrantEntityUnit() {
 		if len(first.Parts) != 1 {
-			return nil, nil, &ParseError{Position: first.Loc.Start, End: first.Loc.End, Message: "entity kind in GRANT/REVOKE ON clause must be a single identifier"}
+			// A dotted name is not an entity-kind word, so it is the object and
+			// the run of names ends: `ON a.b c` fails at the c, where Trino's
+			// parser stops ("Expecting: '.', 'TO'").
+			return nil, first, nil
 		}
 		object, err := p.parseQualifiedName()
 		if err != nil {

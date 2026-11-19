@@ -412,6 +412,10 @@ func ParseExpression(input string) (Expr, []ParseError) {
 		}
 		return expr, []ParseError{{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unexpected token after expression: " + text}}
 	}
+	if p.deferred != nil {
+		// A check Trino makes after its parse (see Parser.deferred).
+		return nil, []ParseError{*p.deferred}
+	}
 	return expr, nil
 }
 
@@ -757,9 +761,13 @@ func (p *Parser) parsePostfix(expr Expr) (Expr, error) {
 				return expr, nil
 			}
 			// A method name may be an identifier or any keyword; a dereference
-			// field must be an identifier.
+			// field must be an identifier. Without one the '.' commits nothing
+			// but the dereference, and the token after it is where the grammar
+			// stops: `SELECT 1.5.` reports the end of input and `SELECT 1.5.()`
+			// the '(', as Trino reports them.
 			if !isIdentifierStart(p.peekNext().Kind) && !isKeywordKind(p.peekNext().Kind) {
-				return expr, nil
+				p.advance() // consume '.'
+				return nil, p.syntaxErrorAtCur()
 			}
 			cp := p.checkpoint()
 			fieldIsIdentifier := isIdentifierStart(p.peekNext().Kind)
@@ -832,16 +840,26 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 		tok := p.advance()
 		return &Parameter{Loc: tok.Loc}, nil
 	case kwINTERVAL:
-		// An INTERVAL literal has a string body and a qualifier; otherwise INTERVAL
-		// is an ordinary identifier (it is non-reserved), e.g. `SELECT INTERVAL`
-		// or the type constructor `INTERVAL 'a'`.
+		// INTERVAL is non-reserved: `INTERVAL 'a'` is also an ordinary identifier
+		// carrying the string as its alias (`SELECT INTERVAL 'a' zzz` parses in
+		// Trino). The literal reading is the only one once a string body and an
+		// interval field follow, so it is committed there and its rejection is
+		// the statement's: Trino reports `INTERVAL 'a' SECOND(1 zzz)` at the
+		// zzz, inside the precision list.
+		if p.intervalLiteralFollows() {
+			return p.parseIntervalLiteral()
+		}
 		cp := p.checkpoint()
-		lit, err := p.parseIntervalLiteral()
-		if err == nil {
+		lit, litErr := p.parseIntervalLiteral()
+		if litErr == nil {
 			return lit, nil
 		}
 		p.restore(cp)
-		return p.parseIdentifierOrFunction()
+		ident, identErr := p.parseIdentifierOrFunction()
+		if identErr == nil {
+			return ident, nil
+		}
+		return nil, furtherError(litErr, identErr)
 	case int('('):
 		return p.parseParenOrSubqueryOrRow()
 	case kwARRAY:
@@ -864,6 +882,14 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 				return row, nil
 			}
 			p.restore(cp)
+			fn, fnErr := p.parseIdentifierOrFunction()
+			if fnErr == nil {
+				return fn, nil
+			}
+			// Neither reading parses: the rejection is the one that got further,
+			// the constructor (`ROW(1.5 a zzz)` reports the zzz, where Trino
+			// stops), not the rewind point.
+			return nil, furtherError(err, fnErr)
 		}
 		return p.parseIdentifierOrFunction()
 	case int('['):
@@ -1264,6 +1290,14 @@ func (p *Parser) tryParenLambda(startOffset int) (Expr, bool, error) {
 			params = append(params, identFromToken(p.advance()))
 		}
 	}
+	if len(params) == 0 && p.cur.Kind == int(')') && p.peekNext().Kind != tokArrow {
+		// `()` is only a lambda's parameter list — an empty parenthesized
+		// expression is not one — so the '->' is what the grammar lacks, and
+		// the token after the ')' is where Trino stops: `SELECT()` reports the
+		// end of input ("Expecting: '->'").
+		p.advance() // consume ')'
+		return nil, false, p.syntaxErrorAtCur()
+	}
 	if p.cur.Kind != int(')') || p.peekNext().Kind != tokArrow {
 		p.restore(cp)
 		return nil, false, nil
@@ -1573,4 +1607,44 @@ func (p *Parser) exprError() *ParseError {
 // exprErrorAt returns a *ParseError with a custom message at the current token.
 func (p *Parser) exprErrorAt(msg string) *ParseError {
 	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: msg}
+}
+
+// furtherError returns the nearer-to-the-end of two parse errors, the reading
+// that got further before it failed. Two readings of the same tokens (an
+// INTERVAL literal and an INTERVAL function call, say) are alternatives in the
+// grammar, and where neither parses the rejection names the token the longer
+// one stopped at, as Trino's parser reports it.
+func furtherError(a, b error) error {
+	pa, pb := errorPosition(a), errorPosition(b)
+	if pb > pa {
+		return b
+	}
+	return a
+}
+
+// errorPosition returns err's byte offset, or -1 for no position and for an
+// error that is not a *ParseError.
+func errorPosition(err error) int {
+	if pe, ok := err.(*ParseError); ok {
+		return pe.Position
+	}
+	return -1
+}
+
+// intervalLiteralFollows reports whether the cursor begins
+// `INTERVAL [+|-] 'string' field`, the shape only the interval literal can be
+// (see parsePrimaryAtom). It consumes nothing.
+func (p *Parser) intervalLiteralFollows() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // consume INTERVAL
+	if p.cur.Kind == int('+') || p.cur.Kind == int('-') {
+		p.advance()
+	}
+	if p.cur.Kind != tokString && p.cur.Kind != tokUnicodeString {
+		return false
+	}
+	p.advance() // consume the string body
+	_, ok := intervalFieldFromKind(p.cur.Kind)
+	return ok
 }
