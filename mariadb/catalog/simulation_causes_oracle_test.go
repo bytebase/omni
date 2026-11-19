@@ -1344,6 +1344,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT",
 			code:  1291,
 		},
+		// The collation a CONVERT TO CHARACTER SET DEFAULT leaves is the one an
+		// ENUM the same statement adds is read under, wherever in it they stand.
+		{
+			name:        "CONVERT TO CHARACTER SET DEFAULT with an ENUM added after it",
+			setup:       []string{"CREATE TABLE a (b INT) COLLATE utf8mb4_bin"},
+			stmt:        "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT, ADD e ENUM('s', 'S')",
+			code:        1291,
+			keepsSchema: true,
+		},
+		{
+			name:     "CONVERT TO CHARACTER SET DEFAULT with an ENUM added after it, listing two values",
+			setup:    []string{"CREATE TABLE a (b INT) COLLATE utf8mb4_bin"},
+			stmt:     "ALTER TABLE a CONVERT TO CHARACTER SET DEFAULT, ADD e ENUM('s', 't')",
+			code:     0,
+			contains: []string{"COLLATE=utf8mb4_general_ci"},
+		},
 		{
 			name:     "COLLATE DEFAULT on a binary-collated table",
 			setup:    []string{"CREATE TABLE a (e ENUM('s', 'S')) COLLATE utf8mb4_bin"},

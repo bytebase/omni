@@ -2985,7 +2985,7 @@ func (c *Catalog) alteredTableCharsetCollation(tbl *Table, cmds []*nodes.AlterTa
 			} else if dc := c.charsetCollation(charset); dc != "" {
 				collation = dc
 			}
-			charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation, true, true)
+			charset, collation = c.resolveCharsetDefault(tbl.Database, charset, collation, true, cmd.NewName != "")
 		}
 	}
 	return charset, collation
