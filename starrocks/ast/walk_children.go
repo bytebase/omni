@@ -71,7 +71,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, a)
 		}
 	case *Property:
-		// leaf node, no children
+		if n.Expr != nil {
+			Walk(v, n.Expr)
+		}
 
 	// Expression nodes (T1.3).
 	case *BinaryExpr:
@@ -561,6 +563,9 @@ func walkChildren(v Visitor, node Node) {
 	case *ExportStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
+		}
+		for _, prop := range n.KeyPartitions {
+			Walk(v, prop)
 		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)

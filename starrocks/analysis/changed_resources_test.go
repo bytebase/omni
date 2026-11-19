@@ -357,6 +357,16 @@ func TestChangedResourcesCreatePipe(t *testing.T) {
 	if len(got) != 2 || got[0] != "other" || got[1] != "other.dest" {
 		t.Errorf("qualified pipe resources = %v, want [other other.dest]", got)
 	}
+
+	// An EXPLAIN-prefixed insert body still creates the pipe on its target
+	// table and schedules its DML.
+	explained := changesFor(t, "CREATE PIPE p AS EXPLAIN INSERT INTO db.dest SELECT * FROM src;", "")
+	if explained.DMLCount != 1 || len(explained.DMLStatements) != 1 || explained.DMLStatements[0] != "INSERT INTO db.dest SELECT * FROM src;" {
+		t.Errorf("explained pipe DML = (%d, %v), want (1, [INSERT INTO db.dest SELECT * FROM src;])", explained.DMLCount, explained.DMLStatements)
+	}
+	if got := resourceNames(explained); len(got) != 1 || got[0] != "db.dest" {
+		t.Errorf("explained pipe resources = %v, want [db.dest]", got)
+	}
 }
 
 // queryStatement's outfile belongs to the body a plan advisor takes.

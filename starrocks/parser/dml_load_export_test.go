@@ -418,6 +418,29 @@ func TestExportWithPartition(t *testing.T) {
 	}
 }
 
+func TestExportWithKeyPartitions(t *testing.T) {
+	stmt := mustParseExport(t,
+		`EXPORT TABLE t PARTITION(k1 = 1, k2 = '2024-01-01') TO '/path/'`)
+	if len(stmt.KeyPartitions) != 2 {
+		t.Fatalf("KeyPartitions = %+v, want 2 entries", stmt.KeyPartitions)
+	}
+	if stmt.KeyPartitions[0].Key != "k1" || stmt.KeyPartitions[0].Value != "1" {
+		t.Errorf("KeyPartitions[0] = %+v, want k1=1", stmt.KeyPartitions[0])
+	}
+	if stmt.KeyPartitions[1].Key != "k2" || stmt.KeyPartitions[1].Value != "'2024-01-01'" {
+		t.Errorf("KeyPartitions[1] = %+v, want k2='2024-01-01'", stmt.KeyPartitions[1])
+	}
+	for _, bad := range []string{
+		`EXPORT TABLE t TEMPORARY PARTITION(k = 1) TO '/path/'`,
+		`EXPORT TABLE t PARTITIONS(k = 1) TO '/path/'`,
+		`EXPORT TABLE t PARTITION(k = FLOOR) TO '/path/'`,
+	} {
+		if _, errs := parseForTest(bad); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", bad)
+		}
+	}
+}
+
 func TestExportWithWhereRefused(t *testing.T) {
 	// exportStatement (StarRocks.g4:1873) has no WHERE clause; the fork's
 	// EXPORT TABLE ... WHERE is a syntax error on the pinned server.

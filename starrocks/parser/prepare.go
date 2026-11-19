@@ -76,14 +76,24 @@ func (p *Parser) parsePreparedString() (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	text, at := decodePreparedString(p.input[rel+1:end-1], p.cur.Loc.Start+1)
-	if !hasSinglePreparedSegment(text) {
+	nested := parseAll(text, true, p.depth)
+	if len(nested.Errors) > 0 {
+		e := nested.Errors[0]
+		pos := p.cur.Loc.Start
+		if e.Position >= 0 {
+			pos = at(e.Position)
+		}
+		errEnd := -1
+		if e.End >= 0 {
+			errEnd = at(e.End)
+		}
 		return nil, &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: "PREPARE FROM string must hold one statement",
+			Position: pos,
+			End:      errEnd,
+			Message:  e.Message,
 		}
 	}
-	nested := parseAll(text, true, p.depth)
-	if len(nested.Errors) > 0 || nested.File == nil || len(nested.File.Stmts) != 1 {
+	if !hasSinglePreparedSegment(text) || nested.File == nil || len(nested.File.Stmts) != 1 {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "PREPARE FROM string must hold one statement",

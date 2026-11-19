@@ -153,8 +153,12 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			pipeDatabase = pipeDB
 			changes.Resources = append(changes.Resources, ChangedResource{Database: pipeDB, DatabaseOnly: true})
 		}
-		if n.Insert != nil {
-			inner := ExtractChangedResources(n.Insert, pipeDatabase, text)
+		body := n.Insert
+		if exp, ok := body.(*ast.ExplainStmt); ok {
+			body = exp.Query
+		}
+		if body != nil {
+			inner := ExtractChangedResources(body, pipeDatabase, text)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
 			changes.DMLCount += inner.DMLCount

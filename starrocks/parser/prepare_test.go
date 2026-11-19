@@ -204,6 +204,21 @@ func TestPrepareStringTreeIsAtItsOwnBytes(t *testing.T) {
 			t.Errorf("Parse(%q) succeeded, want an error", bad)
 		}
 	}
+
+	// A syntax error inside an escaped PREPARE string keeps its diagnostic and
+	// maps its byte range back onto the outer statement.
+	const badEscaped = `PREPARE p FROM 'SELECT ''x'' AS c FORM secret'`
+	_, err := Parse(badEscaped)
+	errs := AllErrors(err)
+	if len(errs) == 0 {
+		t.Fatalf("Parse(%q) succeeded, want a syntax error", badEscaped)
+	}
+	pe := errs[0]
+	wantForm := strings.Index(badEscaped, "FORM")
+	if pe.Position != wantForm || pe.End != wantForm+len("FORM") {
+		t.Errorf("Parse(%q) error at {%d %d}, want {%d %d} (slicing %q)",
+			badEscaped, pe.Position, pe.End, wantForm, wantForm+len("FORM"), badEscaped[pe.Position:pe.End])
+	}
 }
 
 func TestWalkIndexAndRefreshCatalogProperties(t *testing.T) {

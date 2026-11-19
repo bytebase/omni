@@ -504,18 +504,36 @@ func (p *Parser) parseExport() (ast.Node, error) {
 			stmt.TempPartition = true
 			p.advance() // consume TEMPORARY
 		}
-		if p.cur.Kind == kwPARTITIONS {
-			p.advance() // consume PARTITIONS
-		} else if _, err := p.expect(kwPARTITION); err != nil {
-			return nil, err
+		// keyPartitions (:2274) is PARTITION '(' keyPartition (',' keyPartition)* ')':
+		// neither TEMPORARY nor PARTITIONS admits key=literal pairs.
+		keyed := false
+		if !stmt.TempPartition && p.cur.Kind == kwPARTITION && p.peekNext().Kind == int('(') {
+			mark := p.save()
+			p.advance() // consume PARTITION
+			p.advance() // consume '('
+			keyed = isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('=')
+			p.restore(mark)
 		}
-		// partitionNames (:2268) takes an identifierOrString, alone or in a
-		// list, so `PARTITION 'p'` and `PARTITION (p, 'q')` both read.
-		parts, err := p.parseIdentifierOrStringNameList()
-		if err != nil {
-			return nil, err
+		if keyed {
+			parts, err := p.parseInsertKeyPartition()
+			if err != nil {
+				return nil, err
+			}
+			stmt.KeyPartitions = parts
+		} else {
+			if p.cur.Kind == kwPARTITIONS {
+				p.advance() // consume PARTITIONS
+			} else if _, err := p.expect(kwPARTITION); err != nil {
+				return nil, err
+			}
+			// partitionNames (:2268) takes an identifierOrString, alone or in a
+			// list, so `PARTITION 'p'` and `PARTITION (p, 'q')` both read.
+			parts, err := p.parseIdentifierOrStringNameList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Partition = parts
 		}
-		stmt.Partition = parts
 	}
 
 	// columnAliases: '(' identifier (',' identifier)* ')'
