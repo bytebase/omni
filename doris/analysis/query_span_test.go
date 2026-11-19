@@ -1064,3 +1064,18 @@ func TestGetQuerySpan_LoadPropertyType(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_ExplainDescribeTarget(t *testing.T) {
+	// EXPLAIN a wraps a DescribeStmt, whose target is the table the statement
+	// reads; it must reach AccessTables like EXPLAIN SELECT * FROM a does.
+	for _, sql := range []string{"EXPLAIN a", "EXPLAIN a ALL", "EXPLAIN a PARTITION p"} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", sql, err)
+		}
+		sigs := toSigs(span.AccessTables)
+		if !containsSig(sigs, tableSig{Table: "a"}) {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %+v, want table a", sql, sigs)
+		}
+	}
+}

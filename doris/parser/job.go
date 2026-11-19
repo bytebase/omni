@@ -217,6 +217,7 @@ func (p *Parser) parseJobSchedule() (*ast.JobSchedule, error) {
 			sched.At = p.cur.Str
 		case kwCURRENT_TIMESTAMP:
 			sched.At = "CURRENT_TIMESTAMP"
+			sched.AtCurrentTimestamp = true
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}

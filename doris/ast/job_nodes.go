@@ -19,11 +19,12 @@ package ast
 //
 //	ON SCHEDULE { EVERY interval [STARTS timestamp] [ENDS timestamp] | AT timestamp }
 type JobSchedule struct {
-	Every  string // EVERY interval text (e.g. "1 HOUR"), empty when AT is used
-	At     string // AT timestamp string literal value, empty when EVERY is used
-	Starts string // optional STARTS timestamp string literal value
-	Ends   string // optional ENDS timestamp string literal value
-	Loc    Loc
+	Every              string // EVERY interval text (e.g. "1 HOUR"), empty when AT is used
+	At                 string // AT timestamp string literal value, empty when EVERY is used
+	AtCurrentTimestamp bool   // AT CURRENT_TIMESTAMP rather than a string literal
+	Starts             string // optional STARTS timestamp string literal value
+	Ends               string // optional ENDS timestamp string literal value
+	Loc                Loc
 }
 
 // Tag implements Node.

@@ -610,9 +610,10 @@ func (p *Parser) parseDropSQLBlockRule(startLoc ast.Loc) (ast.Node, error) {
 		stmt.IfExists = true
 	}
 
-	// identifierSeq: one or more names (DorisParser.g4:743).
+	// identifierSeq: one or more identifiers (DorisParser.g4:743), not
+	// strings.
 	for {
-		name, nameLoc, err := p.parseIdentifierOrString()
+		name, nameLoc, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}

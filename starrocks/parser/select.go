@@ -537,7 +537,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 
 	var alias string
 	var aliased bool
-	if !(p.cur.Kind == tokString && isBareDateColumn(expr)) {
+	if !(p.cur.Kind == tokString && p.isBareDateColumn(expr)) {
 		alias, aliased, err = p.parseOptionalAlias(true)
 		if err != nil {
 			return nil, err
@@ -554,10 +554,16 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 
 // isBareDateColumn reports whether expr is the bare DATE/DATETIME name whose
 // following string the engine reads as a rejected literal rather than an
-// alias. A qualified t.DATE is an ordinary column and takes the alias.
-func isBareDateColumn(expr ast.Node) bool {
+// alias. A qualified t.DATE or a quoted `DATE` is an ordinary column and takes
+// the alias.
+func (p *Parser) isBareDateColumn(expr ast.Node) bool {
 	name, ok := expr.(*ast.ColumnRef)
 	if !ok || name.Name == nil || len(name.Name.Parts) != 1 {
+		return false
+	}
+	loc := ast.NodeLoc(expr)
+	if loc.Start >= p.baseOffset && loc.End <= len(p.input)+p.baseOffset &&
+		strings.HasPrefix(p.input[loc.Start-p.baseOffset:loc.End-p.baseOffset], "`") {
 		return false
 	}
 	return strings.EqualFold(name.Name.Parts[0], "DATE") || strings.EqualFold(name.Name.Parts[0], "DATETIME")
