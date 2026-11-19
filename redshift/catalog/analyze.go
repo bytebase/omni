@@ -1840,7 +1840,7 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 	}
 
 	v, err := ac.resolveColumnRef(tableName, colName)
-	if err != nil && tableName == "" && ac.hierarchical && colName == "level" {
+	if err != nil && tableName == "" && !cr.Quoted && ac.hierarchical && colName == "level" {
 		// Redshift's hierarchical queries expose LEVEL as an integer
 		// pseudocolumn — the depth of the row in the hierarchy CONNECT BY
 		// builds — when no column of that name resolves. A real column, quoted

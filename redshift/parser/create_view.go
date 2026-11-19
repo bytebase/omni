@@ -516,6 +516,11 @@ func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.L
 			sortStyle := ""
 			if p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") {
 				sortStyle = strings.ToLower(p.advance().Str)
+				if p.collectMode() {
+					// The style goes on with SORTKEY, which alone is left.
+					p.addWordCandidate("SORTKEY")
+					return options, nil
+				}
 			}
 			if !p.acceptRedshiftKeyword("sortkey") {
 				return nil, p.syntaxErrorAtCur()

@@ -262,7 +262,10 @@ func (n *IntoClause) Tag() NodeTag { return T_IntoClause }
 // ColumnRef represents a column reference (foo.bar.baz).
 type ColumnRef struct {
 	Fields *List // field names (String nodes) or A_Star
-	Loc    Loc   // token location, or -1 if unknown
+	// Quoted records that a one-name reference was written as a delimited
+	// identifier, whose spelling the parser keeps as written.
+	Quoted bool
+	Loc    Loc // token location, or -1 if unknown
 }
 
 func (n *ColumnRef) Tag() NodeTag { return T_ColumnRef }

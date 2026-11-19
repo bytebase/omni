@@ -582,3 +582,20 @@ func TestCollectAlterRoleClauseContinuations(t *testing.T) {
 		}
 	}
 }
+
+// TestCollectSortedSortkeyLeader pins the style lead's continuation: after
+// COMPOUND or INTERLEAVED, SORTKEY is what follows.
+func TestCollectSortedSortkeyLeader(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE MATERIALIZED VIEW m COMPOUND ",
+		"CREATE MATERIALIZED VIEW m INTERLEAVED ",
+	} {
+		cs := Collect(sql, len(sql))
+		if cs == nil {
+			t.Fatalf("Collect(%q) returned nil", sql)
+		}
+		if !cs.HasWord("SORTKEY") {
+			t.Errorf("Collect(%q): SORTKEY is not offered: %v", sql, cs.Words)
+		}
+	}
+}

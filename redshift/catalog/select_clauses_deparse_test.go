@@ -874,3 +874,26 @@ CREATE MATERIALIZED VIEW mv USING "MyAM" BACKUP YES AS SELECT id FROM t;`)
 		t.Fatalf("plan = %v, want the view re-created", plan.Ops)
 	}
 }
+
+// TestViewQuotedLevelWithoutAColumn pins a quoted "level" naming no column: it
+// is a delimited identifier, so the analyzer refuses it rather than reading it
+// as the hierarchy's pseudocolumn.
+func TestViewQuotedLevelWithoutAColumn(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int);`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+	}
+	for _, stmt := range parseStmts(t, `CREATE VIEW v_bad_level AS SELECT "level" FROM t CONNECT BY id > 0;`) {
+		if err := c.ProcessUtility(stmt); err == nil {
+			t.Fatal(`SELECT "level" with no such column parsed, want an undefined-column error`)
+		}
+	}
+	// The unquoted word is the pseudocolumn.
+	for _, stmt := range parseStmts(t, `CREATE VIEW v_level_ok AS SELECT level FROM t CONNECT BY id > 0;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("create view: %v", err)
+		}
+	}
+}

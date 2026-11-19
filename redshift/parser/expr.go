@@ -2941,6 +2941,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	}
 
 	loc := p.pos()
+	quoted := p.isDelimitedIdentToken(p.cur)
 	name, err := p.parseColId()
 	if err != nil {
 		return nil, err
@@ -3060,6 +3061,7 @@ func (p *Parser) parseColumnRefOrFuncCall() (nodes.Node, error) {
 	// Simple column reference
 	return &nodes.ColumnRef{
 		Fields: &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}},
+		Quoted: quoted,
 	}, nil
 }
 
