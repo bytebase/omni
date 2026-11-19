@@ -601,6 +601,10 @@ func collectAccessTables(defaultDatabase string, stmt oracleast.StmtNode) (local
 			addResource(node.Name, tableLink(node))
 		case *oracleast.ContainersExpr:
 			addTarget(node.Name)
+		// A derived analytic view, inline in a FROM clause or declared in a
+		// WITH element, reads the persistent analytic view it names.
+		case *oracleast.SubAVClause:
+			addTarget(node.Using)
 		// A DML target is an ObjectName, not a TableRef, so it is named here.
 		case *oracleast.InsertStmt:
 			addTarget(node.Table)
@@ -761,6 +765,21 @@ func (q *querySpanExtractor) extractCTE(cte *oracleast.CTE) (*pseudoTable, error
 	}
 	name := cte.Name
 	columnNames := stringList(cte.Columns)
+
+	// A WITH subav_factoring_clause names a persistent analytic view, so its
+	// element is that view's span under the element's name.
+	if cte.SubAV != nil {
+		if cte.SubAV.Using == nil || cte.SubAV.Using.Name == "" {
+			return &pseudoTable{Name: name}, nil
+		}
+		tableSource, err := q.plsqlFindTableSchema(nil, q.databaseOf(cte.SubAV.Using), cte.SubAV.Using.Name)
+		if err != nil {
+			return nil, err
+		}
+		columns := cloneQuerySpanResults(tableSource.GetQuerySpanResult())
+		applyColumnAliases(columns, columnNames)
+		return &pseudoTable{Name: name, Columns: columns}, nil
+	}
 
 	selectStmt, ok := cte.Query.(*oracleast.SelectStmt)
 	if ok && selectStmt.Op != 0 && len(columnNames) > 0 {
@@ -939,6 +958,8 @@ func (q *querySpanExtractor) extractTableExpr(expr oracleast.TableExpr) (spanTab
 		return aliasTableSource(tableSource, expr.Alias), nil
 	case *oracleast.InlineExternalTable:
 		return extractInlineExternalTable(expr), nil
+	case *oracleast.InlineAnalyticView:
+		return q.extractInlineAnalyticView(expr)
 	case *oracleast.TableCollectionExpr:
 		return q.extractTableCollection(expr)
 	case *oracleast.PivotClause:
@@ -1627,6 +1648,28 @@ func extractJSONTableColumns(list *oracleast.List, sourceColumns ColumnSet) []Qu
 		})
 	}
 	return columns
+}
+
+// extractInlineAnalyticView reads a derived analytic view: its span is the
+// persistent analytic view it names under USING, under the reference's alias.
+func (q *querySpanExtractor) extractInlineAnalyticView(ref *oracleast.InlineAnalyticView) (spanTable, error) {
+	if ref.Clause == nil || ref.Clause.Using == nil || ref.Clause.Using.Name == "" {
+		return nil, nil
+	}
+	tableSource, err := q.plsqlFindTableSchema(nil, q.databaseOf(ref.Clause.Using), ref.Clause.Using.Name)
+	if err != nil {
+		return nil, err
+	}
+	return aliasTableSource(tableSource, ref.Alias), nil
+}
+
+// databaseOf is the database a name reads from: its own schema, or the
+// statement's default.
+func (q *querySpanExtractor) databaseOf(name *oracleast.ObjectName) string {
+	if name.Schema != "" {
+		return name.Schema
+	}
+	return q.defaultDatabase
 }
 
 func extractInlineExternalTable(ref *oracleast.InlineExternalTable) spanTable {

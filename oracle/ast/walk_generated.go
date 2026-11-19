@@ -1032,6 +1032,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Clause != nil {
 			Walk(v, n.Clause)
 		}
+		if n.Flashback != nil {
+			Walk(v, n.Flashback)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
 		if n.Alias != nil {
 			Walk(v, n.Alias)
 		}

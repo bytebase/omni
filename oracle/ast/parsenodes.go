@@ -1413,11 +1413,14 @@ type SubAVClause struct {
 func (n *SubAVClause) nodeTag() {}
 
 // InlineAnalyticView represents ANALYTIC VIEW ( sub_av_clause )
-// [ inline_av_alias ] in a FROM clause.
+// [ inline_av_alias ] in a FROM clause, and the clause's suffixes, which
+// query_table_expression names after it: a flashback query and SAMPLE.
 type InlineAnalyticView struct {
-	Clause *SubAVClause // the sub_av_clause in parentheses
-	Alias  *Alias       // optional inline_av_alias
-	Loc    Loc
+	Clause    *SubAVClause     // the sub_av_clause in parentheses
+	Flashback *FlashbackClause // optional flashback_query_clause
+	Sample    *SampleClause    // optional sample_clause
+	Alias     *Alias           // optional inline_av_alias
+	Loc       Loc
 }
 
 func (n *InlineAnalyticView) nodeTag()   {}

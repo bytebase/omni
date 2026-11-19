@@ -48,8 +48,35 @@ FROM ANALYTIC VIEW (
 			t.Fatalf("Options[%d] = %#v, want %s", i, ref.Clause.Options.Items[i], want)
 		}
 	}
+	// The filter's condition is parsed, not just recorded as text.
+	filter, ok := ref.Clause.Options.Items[1].(*ast.DDLOption)
+	if !ok || filter.Items == nil || filter.Items.Len() != 1 || filter.Items.Items[0] == nil {
+		t.Fatalf("filter clause = %#v, want its parsed condition", ref.Clause.Options.Items[1])
+	}
 	if ref.Alias == nil || ref.Alias.Name != "AV" {
 		t.Fatalf("Alias = %#v, want AV", ref.Alias)
+	}
+}
+
+// TestParseInlineAnalyticViewSuffixes reads the clauses a
+// query_table_expression names after its source: a flashback query and
+// SAMPLE, before the reference's alias.
+func TestParseInlineAnalyticViewSuffixes(t *testing.T) {
+	ref := func(sql string) *ast.InlineAnalyticView {
+		t.Helper()
+		stmt := ParseAndCheck(t, sql).Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt)
+		got, ok := stmt.FromClause.Items[0].(*ast.InlineAnalyticView)
+		if !ok {
+			t.Fatalf("FROM item = %T, want *ast.InlineAnalyticView", stmt.FromClause.Items[0])
+		}
+		return got
+	}
+
+	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) SAMPLE (10)`); got.Sample == nil {
+		t.Fatal("SAMPLE after an inline analytic view is not read")
+	}
+	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) AS OF SCN 1 av`); got.Flashback == nil || got.Alias == nil || got.Alias.Name != "AV" {
+		t.Fatalf("AS OF after an inline analytic view: flashback %#v, alias %#v", got.Flashback, got.Alias)
 	}
 }
 

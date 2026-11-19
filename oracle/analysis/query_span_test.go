@@ -125,6 +125,29 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 	require.Equal(t, column("DB", "EXT", "E"), span.Results[1].SourceColumns)
 }
 
+// TestResolveQuerySpanDerivedAnalyticView holds both forms of a derived
+// analytic view to the persistent analytic view each names: an inline one in
+// a FROM clause, and a WITH element, whose span is the base view's under the
+// element's name.
+func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
+	span := resolve(t, "SELECT * FROM ANALYTIC VIEW(USING V)")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, []string{"A", "S"}, []string{span.Results[0].Name, span.Results[1].Name})
+	require.Equal(t, column("DB", "T", "A"), span.Results[0].SourceColumns)
+	require.Equal(t, ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}, span.Results[1].SourceColumns)
+
+	span = resolve(t, "SELECT * FROM ANALYTIC VIEW(USING V) AV WHERE AV.A = 1")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, []string{"A", "S"}, []string{span.Results[0].Name, span.Results[1].Name})
+
+	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V) SELECT A FROM AV")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
+	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
+}
+
 func TestResolveQuerySpanDatabaseLink(t *testing.T) {
 	span := resolve(t, "SELECT * FROM RV@LINK")
 	require.Equal(t, ColumnSet{{Instance: "B", Server: "LINK", Database: "R", Table: "RV"}: true}, span.SourceColumns)

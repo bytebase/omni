@@ -55,6 +55,18 @@ func (p *Parser) parseInlineAnalyticViewRef(start int) (nodes.TableExpr, error) 
 		Clause: clause,
 		Loc:    nodes.Loc{Start: start},
 	}
+	// The suffixes query_table_expression names after its source, before
+	// the reference's own alias.
+	if p.cur.Type == kwVERSIONS || (p.cur.Type == kwAS && p.peekNext().Type == kwOF) {
+		if ref.Flashback, err = p.parseFlashbackClause(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Type == kwSAMPLE {
+		if ref.Sample, err = p.parseSampleClause(); err != nil {
+			return nil, err
+		}
+	}
 	if p.cur.Type == kwAS {
 		p.advance()
 		if ref.Alias, err = p.parseAlias(); err != nil {
@@ -152,6 +164,7 @@ func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 	if err := p.anExpect('('); err != nil {
 		return err
 	}
+	var conditions []nodes.Node
 	for {
 		// hier_ids: a comma between names belongs to the group, since a
 		// filter_clause's own comma follows its condition.
@@ -168,14 +181,14 @@ func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 			return err
 		}
 		exprStart := p.pos()
-		expr, parseErr := p.parseExpr()
-		_ = expr
+		condition, parseErr := p.parseExpr()
 		if parseErr != nil {
 			return parseErr
 		}
 		if p.pos() == exprStart {
 			return p.syntaxErrorAtCur()
 		}
+		conditions = append(conditions, condition)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -184,7 +197,9 @@ func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 	if err := p.anExpect(')'); err != nil {
 		return err
 	}
-	clause.Options = anAppendItems(clause.Options, &nodes.List{Items: []nodes.Node{p.anOption("FILTER FACT", optStart)}})
+	option := p.anOption("FILTER FACT", optStart)
+	option.Items = &nodes.List{Items: conditions}
+	clause.Options = anAppendItems(clause.Options, &nodes.List{Items: []nodes.Node{option}})
 	return nil
 }
 
