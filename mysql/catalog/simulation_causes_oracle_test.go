@@ -19,8 +19,11 @@ import (
 // partition action on a table that has no partitions, a type's display width, a
 // view body naming a column no relation has or expanding a star no table backs,
 // a CREATE TABLE with no column, a NOW()-family DEFAULT the column's type cannot
-// hold, and the columns MySQL gives another type from the text they were:
-// SERIAL, CHAR BYTE and CHAR COLLATE BINARY. Each case is answered by the pinned
+// hold, the columns MySQL gives another type from the text they were: SERIAL,
+// CHAR BYTE and CHAR COLLATE BINARY, and the keyword a DROP or ALTER wrote
+// before the constraint it names, DROP CHECK / ALTER CHECK beside DROP
+// CONSTRAINT / ALTER CONSTRAINT, which decides the code a missing one answers:
+// 3821 for CHECK and 3940 for CONSTRAINT. Each case is answered by the pinned
 // server and by the catalog, and both must agree with the code the case states.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
@@ -147,6 +150,63 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a",
 			code:  1072,
+		},
+		// The keyword a DROP or ALTER wrote before a constraint is what the
+		// engine answers a missing one with: 3821 for CHECK, 3940 for
+		// CONSTRAINT. It also says what the name may be: DROP CHECK takes a
+		// check alone, DROP CONSTRAINT any constraint, and DROP FOREIGN KEY a
+		// foreign key alone (measured on mysql:8.0.46).
+		{
+			name:  "DROP CHECK of a name no check constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a DROP CHECK nope",
+			code:  3821,
+		},
+		{
+			name:  "DROP CONSTRAINT of a name no constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a DROP CONSTRAINT nope",
+			code:  3940,
+		},
+		{
+			name: "DROP CHECK of a foreign key's name",
+			setup: []string{
+				"CREATE TABLE p (id INT PRIMARY KEY)",
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT fk1 FOREIGN KEY (c) REFERENCES p(id))",
+			},
+			stmt:     "ALTER TABLE a DROP CHECK fk1",
+			code:     3821,
+			contains: []string{"fk1"},
+		},
+		{
+			name: "DROP FOREIGN KEY of a check's name",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT ck1 CHECK (c > 0))",
+			},
+			stmt:     "ALTER TABLE a DROP FOREIGN KEY ck1",
+			code:     1091,
+			contains: []string{"ck1"},
+		},
+		{
+			name: "DROP CONSTRAINT of a check's name",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT ck1 CHECK (c > 0))",
+			},
+			stmt:  "ALTER TABLE a DROP CONSTRAINT ck1",
+			code:  0,
+			omits: []string{"ck1"},
+		},
+		{
+			name:  "ALTER CHECK of a name no check constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER CHECK nope ENFORCED",
+			code:  3821,
+		},
+		{
+			name:  "ALTER CONSTRAINT of a name no constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER CONSTRAINT nope NOT ENFORCED",
+			code:  3940,
 		},
 		{
 			name:  "ADD KEY of a name the table has over a missing column",

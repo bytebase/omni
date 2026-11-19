@@ -762,8 +762,8 @@ ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	alter_list_item/ADD_opt_c
 1091	1091	engine	one_table@table	alter_list_item/DROP_opt_column_ident_opt_restrict	ALTER TABLE utf8mb4 DROP utf8mb4;
 1091	1091	engine	one_table@table	alter_list_item/DROP_FOREIGN_KEY_SYM_ident	ALTER TABLE utf8mb4 DROP FOREIGN KEY utf8mb4;
 ok:dc1489ef790e	ok:dc1489ef790e	engine	one_table@table	alter_list_item/DROP_PRIMARY_SYM_KEY_SYM	ALTER TABLE utf8mb4 DROP PRIMARY KEY;
-1091	3821	engine	one_table@table	alter_list_item/DROP_CHECK_SYM_ident	ALTER TABLE utf8mb4 DROP CHECK utf8mb4;
-1091	3940	engine	one_table@table	alter_list_item/DROP_CONSTRAINT_ident	ALTER TABLE utf8mb4 DROP CONSTRAINT utf8mb4;
+3821	3821	engine	one_table@table	alter_list_item/DROP_CHECK_SYM_ident	ALTER TABLE utf8mb4 DROP CHECK utf8mb4;
+3940	3940	engine	one_table@table	alter_list_item/DROP_CONSTRAINT_ident	ALTER TABLE utf8mb4 DROP CONSTRAINT utf8mb4;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	alter_list_item/DISABLE_SYM_KEYS	ALTER TABLE utf8mb4 DISABLE KEYS;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	alter_list_item/ENABLE_SYM_KEYS	ALTER TABLE utf8mb4 ENABLE KEYS;
 1054	1054	engine	one_table@table	alter_list_item/ALTER_opt_column_ident_SET_SYM_DEFAULT_SYM_signed_literal_or_null	ALTER TABLE utf8mb4 ALTER utf8mb4 SET DEFAULT 's';
@@ -771,7 +771,7 @@ ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	alter_list_item/ENABLE_SY
 1054	1054	engine	one_table@table	alter_list_item/ALTER_opt_column_ident_DROP_DEFAULT_SYM	ALTER TABLE utf8mb4 ALTER utf8mb4 DROP DEFAULT;
 1054	1054	engine	one_table@table	alter_list_item/ALTER_opt_column_ident_SET_SYM_visibility	ALTER TABLE utf8mb4 ALTER utf8mb4 SET VISIBLE;
 1176	1176	engine	one_table@table	alter_list_item/ALTER_INDEX_SYM_ident_visibility	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4 VISIBLE;
-3940	3821	engine	one_table@table	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
+3821	3821	engine	one_table@table	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
 3940	3940	engine	one_table@table	alter_list_item/ALTER_CONSTRAINT_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CONSTRAINT utf8mb4 ENFORCED;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE utf8mb4 RENAME utf8mb4;
 1176	1176	engine	one_table@table	alter_list_item/RENAME_key_or_index_ident_TO_SYM_ident	ALTER TABLE utf8mb4 RENAME KEY utf8mb4 TO utf8mb4;
@@ -1174,8 +1174,8 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	alter_list_item/MODIFY_S
 ok:0b68ba4c8b5c	ok:0b68ba4c8b5c	engine	one_table@column	alter_list_item/DROP_opt_column_ident_opt_restrict	ALTER TABLE utf8mb4 DROP utf8mb4;
 1091	1091	engine	one_table@column	alter_list_item/DROP_FOREIGN_KEY_SYM_ident	ALTER TABLE utf8mb4 DROP FOREIGN KEY utf8mb4;
 ok:543f095efa3a	ok:543f095efa3a	engine	one_table@column	alter_list_item/DROP_PRIMARY_SYM_KEY_SYM	ALTER TABLE utf8mb4 DROP PRIMARY KEY;
-1091	3821	engine	one_table@column	alter_list_item/DROP_CHECK_SYM_ident	ALTER TABLE utf8mb4 DROP CHECK utf8mb4;
-1091	3940	engine	one_table@column	alter_list_item/DROP_CONSTRAINT_ident	ALTER TABLE utf8mb4 DROP CONSTRAINT utf8mb4;
+3821	3821	engine	one_table@column	alter_list_item/DROP_CHECK_SYM_ident	ALTER TABLE utf8mb4 DROP CHECK utf8mb4;
+3940	3940	engine	one_table@column	alter_list_item/DROP_CONSTRAINT_ident	ALTER TABLE utf8mb4 DROP CONSTRAINT utf8mb4;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	alter_list_item/DISABLE_SYM_KEYS	ALTER TABLE utf8mb4 DISABLE KEYS;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	alter_list_item/ENABLE_SYM_KEYS	ALTER TABLE utf8mb4 ENABLE KEYS;
 ok	1067	engine	one_table@column	alter_list_item/ALTER_opt_column_ident_SET_SYM_DEFAULT_SYM_signed_literal_or_null	ALTER TABLE utf8mb4 ALTER utf8mb4 SET DEFAULT 's';
@@ -1183,7 +1183,7 @@ ok	3767	engine	one_table@column	alter_list_item/ALTER_opt_column_ident_SET_SYM_D
 ok:8aabc3ea563b	ok:8aabc3ea563b	engine	one_table@column	alter_list_item/ALTER_opt_column_ident_DROP_DEFAULT_SYM	ALTER TABLE utf8mb4 ALTER utf8mb4 DROP DEFAULT;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	alter_list_item/ALTER_opt_column_ident_SET_SYM_visibility	ALTER TABLE utf8mb4 ALTER utf8mb4 SET VISIBLE;
 1176	1176	engine	one_table@column	alter_list_item/ALTER_INDEX_SYM_ident_visibility	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4 VISIBLE;
-3940	3821	engine	one_table@column	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
+3821	3821	engine	one_table@column	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
 3940	3940	engine	one_table@column	alter_list_item/ALTER_CONSTRAINT_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CONSTRAINT utf8mb4 ENFORCED;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE utf8mb4 RENAME utf8mb4;
 1176	1176	engine	one_table@column	alter_list_item/RENAME_key_or_index_ident_TO_SYM_ident	ALTER TABLE utf8mb4 RENAME KEY utf8mb4 TO utf8mb4;
@@ -1586,8 +1586,8 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/MODIFY_SY
 ok:cbf33806e902	ok:cbf33806e902	engine	one_table@index	alter_list_item/DROP_opt_column_ident_opt_restrict	ALTER TABLE utf8mb4 DROP utf8mb4;
 1091	1091	engine	one_table@index	alter_list_item/DROP_FOREIGN_KEY_SYM_ident	ALTER TABLE utf8mb4 DROP FOREIGN KEY utf8mb4;
 ok:aa2558744ce4	ok:aa2558744ce4	engine	one_table@index	alter_list_item/DROP_PRIMARY_SYM_KEY_SYM	ALTER TABLE utf8mb4 DROP PRIMARY KEY;
-1091	3821	engine	one_table@index	alter_list_item/DROP_CHECK_SYM_ident	ALTER TABLE utf8mb4 DROP CHECK utf8mb4;
-1091	3940	engine	one_table@index	alter_list_item/DROP_CONSTRAINT_ident	ALTER TABLE utf8mb4 DROP CONSTRAINT utf8mb4;
+3821	3821	engine	one_table@index	alter_list_item/DROP_CHECK_SYM_ident	ALTER TABLE utf8mb4 DROP CHECK utf8mb4;
+3940	3940	engine	one_table@index	alter_list_item/DROP_CONSTRAINT_ident	ALTER TABLE utf8mb4 DROP CONSTRAINT utf8mb4;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/DISABLE_SYM_KEYS	ALTER TABLE utf8mb4 DISABLE KEYS;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/ENABLE_SYM_KEYS	ALTER TABLE utf8mb4 ENABLE KEYS;
 ok	1067	engine	one_table@index	alter_list_item/ALTER_opt_column_ident_SET_SYM_DEFAULT_SYM_signed_literal_or_null	ALTER TABLE utf8mb4 ALTER utf8mb4 SET DEFAULT 's';
@@ -1595,7 +1595,7 @@ ok	3767	engine	one_table@index	alter_list_item/ALTER_opt_column_ident_SET_SYM_DE
 ok:cd133d04bc0c	ok:cd133d04bc0c	engine	one_table@index	alter_list_item/ALTER_opt_column_ident_DROP_DEFAULT_SYM	ALTER TABLE utf8mb4 ALTER utf8mb4 DROP DEFAULT;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/ALTER_opt_column_ident_SET_SYM_visibility	ALTER TABLE utf8mb4 ALTER utf8mb4 SET VISIBLE;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/ALTER_INDEX_SYM_ident_visibility	ALTER TABLE utf8mb4 ALTER INDEX utf8mb4 VISIBLE;
-3940	3821	engine	one_table@index	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
+3821	3821	engine	one_table@index	alter_list_item/ALTER_CHECK_SYM_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CHECK utf8mb4 ENFORCED;
 3940	3940	engine	one_table@index	alter_list_item/ALTER_CONSTRAINT_ident_constraint_enforcement	ALTER TABLE utf8mb4 ALTER CONSTRAINT utf8mb4 ENFORCED;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE utf8mb4 RENAME utf8mb4;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	alter_list_item/RENAME_key_or_index_ident_TO_SYM_ident	ALTER TABLE utf8mb4 RENAME KEY utf8mb4 TO utf8mb4;
