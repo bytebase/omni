@@ -345,6 +345,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 		}
 
+		// SERIAL stays NOT NULL even when its definition writes NULL.
+		if isSerial {
+			col.Nullable = false
+		}
+
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
 		if isSerial {
 			idxName := allocIndexName(tbl, colDef.Name)
@@ -1363,9 +1368,10 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 }
 
 // checkPartitionStructure checks the partitioning itself, before any unique key's
-// coverage. repartition is ALTER TABLE ... PARTITION BY, which takes RANGE() with no
-// partition list as automatic range partitioning: the engine gives it a default
-// split size instead of answering 1492.
+// coverage. repartition is ALTER TABLE ... PARTITION BY, which takes a RANGE with no
+// partition list, RANGE() and RANGE(b) alike, as automatic range partitioning: the
+// engine gives it a default split size instead of answering 1492
+// (TestSimulationCausesOracle).
 func checkPartitionStructure(tbl *Table, pc *nodes.PartitionClause, repartition bool) error {
 	if err := checkPartitionNames(tbl, pc); err != nil {
 		return err

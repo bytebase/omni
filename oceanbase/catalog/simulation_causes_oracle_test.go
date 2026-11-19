@@ -61,6 +61,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a PARTITION BY RANGE COLUMNS()",
 		},
 		{
+			name:  "repartition by an explicit range key with no list",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY RANGE(b)",
+		},
+		{
+			name:  "a SERIAL column with an explicit NULL",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a SERIAL NULL",
+			code:  5252,
+		},
+		{
+			name:  "a collation written in another case",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET utf8mb4 COLLATE UTF8MB4_GENERAL_CI",
+		},
+		{
 			name:  "repartition with a repeated partition name",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a PARTITION BY KEY()(PARTITION a, PARTITION a)",

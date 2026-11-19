@@ -71,10 +71,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 	if repartition != nil {
 		tbl.Partitioning = buildPartitionInfo(tbl, repartition)
-		// A RANGE or RANGE COLUMNS partitioning with no columns and no partition
-		// list is OceanBase's automatic range partitioning: 4.3.5.6 takes
-		// ALTER TABLE a PARTITION BY RANGE() and reads it back as
-		// `partition by range() size ('2048MB')`, the server's default split size.
+		// A RANGE partitioning with no partition list is automatic: 4.3.5.6 takes
+		// ALTER TABLE a PARTITION BY RANGE() and RANGE(b), and reads both back with
+		// `size ('2048MB')`, the server's default split size
+		// (TestSimulationCausesOracle).
 		if pi := tbl.Partitioning; (pi.Type == "RANGE" || pi.Type == "RANGE COLUMNS") && len(pi.Partitions) == 0 && pi.SplitSize == "" && pi.AutoSize == "" {
 			pi.SplitSize = defaultAutoSplitSize
 		}
@@ -949,7 +949,7 @@ func checkCharsetName(charset string) error {
 // SHOW COLLATION does not list is 1273 "Unknown collation". oceanBaseCollations
 // is that list, and TestCollationsMatchOceanBase holds it to the pin.
 func checkCollationName(collation string) error {
-	if _, ok := oceanBaseCollations[normalizeCollationName(collation)]; !ok {
+	if _, ok := oceanBaseCollations[strings.ToLower(normalizeCollationName(collation))]; !ok {
 		return &Error{Code: 1273, SQLState: "HY000", Message: fmt.Sprintf("Unknown collation: '%s'", collation)}
 	}
 	return nil
@@ -958,7 +958,7 @@ func checkCollationName(collation string) error {
 // checkCharsetCollationPair refuses a COLLATE that belongs to another character
 // set: OceanBase answers 1253 "COLLATION ... is not valid for CHARACTER SET".
 func checkCharsetCollationPair(charset, collation string) error {
-	declared := normalizeCollationName(collation)
+	declared := strings.ToLower(normalizeCollationName(collation))
 	want, ok := oceanBaseCollations[declared]
 	if ok && !strings.EqualFold(normalizeCharsetName(charset), want) {
 		return &Error{Code: 1253, SQLState: "42000", Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", collation, charset)}
@@ -1272,6 +1272,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 				}
 			}
 		}
+	}
+	// SERIAL stays NOT NULL even when its definition writes NULL.
+	if isSerialColumn(colDef) {
+		col.Nullable = false
 	}
 
 	return col
