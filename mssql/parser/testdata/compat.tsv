@@ -130,9 +130,9 @@ reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!insert	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECRET = 'a' zzz))
 reject	reject	engine	copyCredentialOption(Comma_SECRET_EqualsSign_stringLiteral)?/Comma_SECRET_EqualsSign_stringLiteral!swap	COPY INTO a FROM 'a' WITH(a =(IDENTITY = 'a', SECURITY = 'a'))
 accept	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
-accept	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-1	CREATE TABLE a(HEAP) AS SELECT *
+reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-1	CREATE TABLE a(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-2	CREATE TABLE a WITH HEAP) AS SELECT *
-accept	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-3	CREATE TABLE a WITH() AS SELECT *
+reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-3	CREATE TABLE a WITH() AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-4	CREATE TABLE a WITH(HEAP AS SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-5	CREATE TABLE a WITH(HEAP) SELECT *
 reject	reject	engine	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement!drop-6	CREATE TABLE a WITH(HEAP) AS *
@@ -17514,7 +17514,7 @@ accept	accept	engine	suite:lexer	SELECT /* a */ 1
 accept	accept	engine	suite:lexer	SELECT /* /* a */ */ 1
 reject	reject	engine	suite:lexer	SELECT /* a
 accept	accept	engine	suite:lexer	SELECT 1 /* a */ /* b */
-accept	reject	engine	suite:lexer	SELECT 1 --(* a *)
+reject	reject	engine	suite:lexer	SELECT 1 --(* a *)
 reject	reject	engine	suite:lexer	SELECT $(a)
 accept	accept	engine	suite:lexer	SELECT $IDENTITY FROM a
 accept	accept	engine	suite:lexer	SELECT $ROWGUID FROM a

@@ -92,57 +92,82 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,406 rows agree: 12,212 when the file was recorded, the rest closed family
+17,409 rows agree: 12,212 when the file was recorded, the rest closed family
 by family (#1034 to #1070, and then the batch's call by name, `ALTER
 AUTHORIZATION` and the refusals around it, `SELECT`'s table sources, ODBC
 escapes, graph `MATCH`, the security policies, sensitivity classifications and
 federation shapes, and then `ALTER TABLE`'s remaining clauses, DML targets,
 `WITH CHANGE_TRACKING_CONTEXT`, the `CREATE`/`DROP`/`ALTER` statement shapes,
 query-expression parentheses, `GROUP BY`'s `DISTRIBUTED_AGG`, `TSEQUAL`, the
-search-condition-only boolean operators, and the shapes a query expression's
-parentheses, a name's dot and a label's colon carry). 131 rows disagree. What
-is left, and why:
+search-condition-only boolean operators, the shapes a query expression's
+parentheses, a name's dot and a label's colon carry, and then the CTAS
+alternatives and a line comment's opening).
 
-- **Only omni accepts (111):**
-  - The judge has no PolyBase (`IsPolyBaseInstalled` is 0), so it refuses
-    every `CREATE EXTERNAL TABLE`, `FILE FORMAT` and `STREAM`, `COPY INTO`
-    and Synapse's `CREATE TABLE ... AS SELECT` (80). omni reads them by the
-    grammar and the docs rather than refuse a kind of statement outright.
-  - Federations (12, Azure SQL Database's): every `CREATE`, `ALTER` and `DROP
-    FEDERATION` met Msg 343 "Unknown object type 'FEDERATION'" on the pinned
-    server, so it has no answer for the statements themselves and only the
-    near-misses above are closed. omni reads them by `TSql160.g` for the
-    service that has them.
-  - Full-text `LANGUAGE x zzz` (10): a full-text statement's language term is
-    looked up while it is parsed (Msg 7678), so the server stops there and
-    never reads the words after it — `LANGUAGE 'a' 1 2 3` is accepted too.
-    omni reads those words by the grammar and refuses them. The same artifact
-    keeps `ALTER DATABASE a COLLATE a zzz` open (Msg 448, then 102).
-  - `SELECT PARSE(1 AS a)` and `TRY_PARSE` (6): these resolve their `AS` type
-    while parsing and refuse one outside the set they convert, so
-    `PARSE(1 AS nvarchar(10))` is Msg 10761 as `PARSE(1 AS a)` is. omni has no
-    table of the types they take.
-  - A CTE the statement does not use (4): `WITH a AS (SELECT 1) SELECT 1` is
-    Msg 422, "Common table expression defined but not used", which needs the
-    query's name resolution rather than its text.
-  - `GOTO a` (3): the label is looked up as the statement is read, and a batch
-    of one statement cannot declare the label it jumps to, so the judge reads
-    Msg 133 as a rejection. `BREAK` outside a `WHILE` (135) is the same kind of
-    check and is already recorded below.
-  - 2 single rows: a name of 129 characters, which SQL Server refuses as Msg
-    103 while `mssql/review`'s walk reports it as WT403 (the name-length check
-    is the review layer's, and moving it into the lexer is its own change), and
-    `SELECT 1 --(* a *)`, where the server's lexer refuses the four characters
-    `--(*` inside a line comment (Msg 102, near `--(*`) although `--( *`,
-    `-- (*` and `--a(*` are comments.
-- **Only SQL Server accepts (20):**
-  - `USE FEDERATION` (9): `USE` takes the next word as a database name and
-    looks it up while it parses, so `USE FEDERATION ROOT WITH zzz RESET` is
-    Msg 911 for the database `FEDERATION` and nothing after it is read — an
-    acceptance, like every other lookup. Closing these would make omni accept
-    the garbage.
-  - The pinned server's full-text statements answer Msg 7678 and 7609 for the
-    ten `LANGUAGE x zzz` rows above, whose words are read after the lookup
-    stops it: omni reads them by the grammar and refuses them.
-  - 1 single row: `ALTER DATABASE a COLLATE a zzz`, whose collation lookup
-    (Msg 448) stops the server before the words after it.
+128 rows disagree: 108 omni accepts and the pinned server refuses, and 20 the
+other way. Each of the 128 was measured on the pinned image and on the same
+release with the features below installed, and each was put to ScriptDOM — the
+pin's own reader of the grammar the rows come from — which tells a check of a
+parsed statement from a refusal of its text. Three are the grammar's and are
+closed; the other 125 are a feature the image lacks, a statement of another
+product, or a check made after the statement is read, and stay rows. The two
+sections below hold the measurement so that no one measures them again.
+
+A byte in them is the offset of the token the server's message names: SQL
+Server reports a line, not a byte, and each row is one line. A row that says
+"no byte" has a message that names what it refuses and reports no position.
+
+## Rows only omni accepts, measured (108)
+
+`TSql160.g4` is the grammar omni reads, so a statement the rule under the row
+derives stays accepted where this server refuses it: the row is recorded here
+instead of closed. Three rows are the grammar's, and are closed; the rest are
+the image's features, another product's statements, or checks of the parsed
+statement.
+
+### Closed (3)
+
+`TestOverAcceptsRefused` and `TestLineCommentOpening` hold each of these to the
+byte measured, and hold the form beside it to the parser too: the CTAS forms are
+the grammar's, which ScriptDOM parses, and `CREATE TABLE a(a INT)` is the plain
+form SQL Server takes.
+
+| Rows | Statement | SQL Server's answer | The rule it breaks |
+| --- | --- | --- | --- |
+| 1 | `CREATE TABLE a(HEAP) AS SELECT *` | Msg 173 at the column `HEAP` (15), which `(HEAP)` is read as | `ctasCreateTableStatement` is `( columnNameList )? withTableOptions As selectStatement` (TSql160.g:523-535) and neither part is optional, so a column list with no `WITH` is no CTAS, and no alternative beside it reaches `AS` with a column list. ScriptDOM refuses at `AS` (21), and omni now refuses at 21 |
+| 1 | `CREATE TABLE a WITH() AS SELECT *` | Msg 102 near `)` (20) | `withTableOptions` is one option at least (TSql160.g:26710-26723): SQL Server, ScriptDOM and omni all refuse at 20 |
+| 1 | `SELECT 1 --(* a *)` | Msg 102 near `--(*` (9) | a line comment opening with `(*` is no comment: ScriptDOM's lexer refuses the same four characters, and a comment that opens otherwise may hold them later (`SELECT 1 --x --(* a *)` parses). omni now refuses at 9 |
+
+### Measured (105)
+
+Each group's code was measured on both servers, and the control beside it — the
+form the server takes, or the same text with the feature it lacks — is what
+tells a check from the grammar.
+
+| Cause | Rows | The server's answer, and the control |
+| --- | --- | --- |
+| The image has no PolyBase (`IsPolyBaseInstalled` 0) | 28 | Msg 102 at `EXTERNAL` (7) for `CREATE EXTERNAL TABLE` and `DROP EXTERNAL TABLE` (5), and at `FORMAT_TYPE` (35) for `CREATE EXTERNAL FILE FORMAT`, whose head and `WITH (` are read: the option word is not. With `mssql-server-polybase` 16.0.4305.5 installed and `polybase enabled` 1 on this release, `CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)`, `DROP EXTERNAL TABLE a` and `CREATE EXTERNAL FILE FORMAT a WITH(FORMAT_TYPE = DELIMITEDTEXT)` all parse, and `CREATE EXTERNAL DATA SOURCE a WITH(LOCATION = 'a')` parses on the image as recorded |
+| An external option's value | 11 | Msg 46508 "Incorrect syntax on external DDL option 'SERDE_METHOD'" or 'DATA_COMPRESSION', no byte, with PolyBase installed: the option is read and its value checked. `SERDE_METHOD = 'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe'` and `DATA_COMPRESSION = 'org.apache.hadoop.io.compress.DefaultCodec'` parse |
+| The pin's file formats are five, not six | 1 | `FORMAT_TYPE = JSON` is Msg 102 at `JSON` (49) with PolyBase installed too; `DELIMITEDTEXT`, `RCFILE`, `ORC`, `PARQUET` and `DELTA` parse |
+| Synapse's `COPY INTO` | 23 | Msg 156 near `INTO` (5) on both servers, and Msg 319 near `WITH` (21) for the row whose `WITH (IDENTITY_INSERT = a)` is read as a CTE clause: this product reads `COPY` as no statement at all. ScriptDOM parses all of them, and refuses the `WITH` row for its option's value |
+| Synapse's `CREATE EXTERNAL STREAM` | 9 | Msg 102 at `EXTERNAL` (7), with PolyBase installed too: `EXTERNAL` is a word the shape takes only for the kinds this product has |
+| Synapse's CTAS options | 5 | Msg 102 at `HEAP` (20) for `CREATE TABLE a WITH(HEAP) AS SELECT *`, and Msg 173 at the column `a` (15) then Msg 319 near `WITH` (18) for `CREATE TABLE a(a) WITH(HEAP) AS SELECT *`. `CREATE TABLE a(a INT) WITH(DATA_COMPRESSION = PAGE)` parses and `CREATE TABLE a WITH(DATA_COMPRESSION = PAGE) AS SELECT *` answers Msg 156 near `AS` (45): the option list is read and the `AS SELECT` is not. ScriptDOM takes both texts and refuses each for the distribution option a CTAS requires |
+| Federations (Azure SQL Database's) | 12 | Msg 343 "Unknown object type 'FEDERATION'" at the object type word (7 for `CREATE`, 6 for `ALTER`, 5 for `DROP`), the answer `CREATE FOO a(a INT)` gets too: the word is looked up in the set of object types this product has, not read by a grammar |
+| `GOTO a` | 3 | Msg 133, no byte: the label is looked up as the statement is read, and a batch of one statement declares none. `GOTO a` after a line `a:` parses |
+| A CTE the statement does not use | 4 | Msg 422, no byte: `WITH a AS(SELECT *) SELECT * FROM a` parses |
+| The type `PARSE` and `TRY_PARSE` convert to | 10 | Msg 10761 naming the type, no byte: the two functions take the datetime and numeric types, so `PARSE(1 AS int)` and `PARSE('1' AS datetime)` parse while `PARSE(1 AS nvarchar(10))` is refused as `PARSE(1 AS a)` is |
+| `ALTER EXTERNAL LANGUAGE`'s environment variables | 1 | Msg 39133 naming the string, no byte: `ALTER EXTERNAL LANGUAGE a SET(CONTENT = 0x00)` and `... SET(CONTENT = 0x00, FILE_NAME = 'a')` parse |
+| A name of 129 characters | 1 | Msg 103 at 7, the name; 128 characters parse, and ScriptDOM's lexer refuses the 129 as well. omni reads a name of any length and `mssql/review` reports it as WT403 (`NameTooLong`): the limit is the review layer's, and moving it into the lexer would report the text as a syntax error instead, so it stays its own change |
+
+## Rows only SQL Server accepts, measured (20)
+
+The server accepts each of these by looking a name up while it parses, which the
+judge reads as an acceptance: in all but the last row the read stops there, and
+the words after the name are never read. omni refuses those words, and so does
+the grammar, so the rows stay and the server's acceptance is the row's
+`expected` cell rather than omni's answer.
+
+| Cause | Rows | The server's answer, and the control |
+| --- | --- | --- |
+| A full-text language term is looked up while it is parsed | 10 | Msg 7678 for the six rows whose term is a string or a name this server has no alias for, and Msg 7609 for the four whose term is an integer or a binary, since full-text search is not installed: both stop the read at the term (41 in `ALTER FULLTEXT INDEX`, 43 or 44 in `ALTER FULLTEXT STOPLIST`), so the `zzz` after it is never read. With `mssql-server-fts` installed, `ALTER FULLTEXT INDEX ON a ADD(a LANGUAGE 'English' zzz)` is Msg 102 at `zzz` (51) and `... LANGUAGE 'English'` parses, and `ALTER FULLTEXT STOPLIST a ADD 'a' LANGUAGE 'English' zzz;` is Msg 102 at `zzz` (53) and parses without it: the trailing word is the grammar's to refuse, and omni refuses it at 45, 43, 43, 46, 47, 45, 45, 48, 48 and 48. ScriptDOM refuses all ten as well — the four `ALTER FULLTEXT INDEX` rows at `zzz`, and the six stoplist rows at the stoplist name (24), where its reader wants the statement to end (a stoplist statement's rule ends in `requiredSemicolon`, TSql160.g:1720, which these rows do not have either) |
+| `USE` takes the next word as a database name and looks it up | 9 | Msg 911 naming `FEDERATION` (4) or `ROOT` (4), and nothing after it is read. The control is `USE a zzz`: with a database that exists the server reads on and answers Msg 102 at `zzz` (6). ScriptDOM refuses the nine at 14, 31, 25, 45, 24, 44, 41, 45 and 41 |
+| A collation is looked up while it is parsed | 1 | `ALTER DATABASE a COLLATE a zzz` answers Msg 448 for the collation *and* Msg 102 at `zzz` (27) in the same batch, and the judge reads the first error, a lookup, as an acceptance although the text is refused. `ALTER DATABASE a COLLATE Latin1_General_100_CI_AS zzz` answers Msg 102 at `zzz` (50), and the statement without the word parses. Closing this row means the judge reading the last error of a batch instead of the first, which is a change of the judge's reading and a pin bump of its own |
