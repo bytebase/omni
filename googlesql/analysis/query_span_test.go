@@ -614,6 +614,8 @@ func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
 		{"SELECT EXISTS { CALL f(TABLE secret) RETURN 1 }", []string{"secret"}, 1},
 		{"SELECT EXISTS { CALL f(t => TABLE secret) RETURN 1 }", []string{"secret"}, 1},
 		{"SELECT EXISTS { CALL f(TABLE secret WHERE (SELECT 1 FROM other) > 0) RETURN 1 }", []string{"other", "secret"}, 1},
+		// A table argument's PIVOT expression is walked too.
+		{"SELECT EXISTS { CALL f(TABLE g() PIVOT((SELECT id FROM secret) FOR x IN (1))) RETURN 1 }", []string{"secret"}, 1},
 		// A standalone graph predicate's operands are ordinary relational
 		// columns: neither names a table here.
 		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},

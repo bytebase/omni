@@ -2384,6 +2384,16 @@ func (ew *exprWalk) walkGraphTableClause(tc *ast.TableClause) {
 		} else {
 			ew.w.recordTable(tc.Table.Path, "")
 		}
+		// A PIVOT / UNPIVOT clause is walked for its subqueries only, which is
+		// already a boundary; a TABLESAMPLE's expressions are walked here so a
+		// PARTITION BY naming a graph-local variable adds no outer column.
+		ew.w.walkPivotExpressions(tc.Table.Pivot)
+		ew.w.walkUnpivotExpressions(tc.Table.Unpivot)
+		if sc := tc.Table.Sample; sc != nil {
+			ew.walk(sc.Size)
+			ew.walkList(sc.PartitionBy)
+			ew.walk(sc.Repeatable)
+		}
 	}
 	ew.walk(tc.Where)
 }
