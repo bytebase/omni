@@ -361,11 +361,18 @@ func (p *Parser) parseSetCharsetName() (string, int, error) {
 		return "", 0, p.syntaxErrorAtCur()
 	}
 	switch p.cur.Type {
-	case tokSCONST, kwBINARY, kwASCII:
+	case tokSCONST:
+		loc := p.cur.Loc
+		s, err := p.parseIntoString()
+		if err != nil {
+			return "", 0, err
+		}
+		return s, loc, nil
+	case kwBINARY, kwASCII:
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	case tokIDENT:
-		if !p.backtickQuotedAt(p.cur.Loc) && !isCharsetNameWord(p.cur.Str) {
+		if !p.isNameOB(p.cur) {
 			return "", 0, p.syntaxErrorAtCur()
 		}
 		tok := p.advance()
@@ -1909,15 +1916,24 @@ func (p *Parser) parseUseStmt() (*nodes.UseStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	firstEnd := p.prev.End
 
 	// database_with_catalog_factor takes `catalog.db` beside the plain name:
-	// `USE a.b` and `USE a . b` both parse.
+	// `relation_name '.' relation_name` or adjacent `id_dot_id`, so `USE a.b`,
+	// `USE a . b`, and `USE a.table` parse, while spaced `USE a . table` does
+	// not.
 	catalog := ""
 	if p.cur.Type == '.' {
+		dot := p.cur
 		p.advance()
+		reserved := reservedNamesAfterDot[p.cur.Type]
+		dbStart := p.cur.Loc
 		db, err := p.parseNameAfterDot()
 		if err != nil {
 			return nil, err
+		}
+		if reserved && !(dot.Loc == firstEnd && dbStart == dot.End) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		catalog, name = name, db
 	}

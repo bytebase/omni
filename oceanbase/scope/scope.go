@@ -40,11 +40,18 @@ type Entry struct {
 	Table *Table
 }
 
+type entryColKey struct {
+	entry int
+	col   string
+}
+
 // Scope tracks visible table references for column resolution.
 type Scope struct {
-	entries       []Entry
-	byName        map[string]int  // lowered name -> index into entries
-	coalescedCols map[string]bool // "tablename.colname" (lowered) -> hidden by USING/NATURAL
+	entries          []Entry
+	byName           map[string]int  // lowered name -> index into entries
+	dupNames         map[string]bool // lowered name -> registered more than once
+	coalescedCols    map[string]bool // "tablename.colname" (lowered) -> hidden by USING/NATURAL
+	coalescedEntries map[entryColKey]bool
 
 	// Indexes over entries[:indexed], extended when FirstEqualFold or
 	// FirstWithColumn needs them, so that resolving each column reference
@@ -57,14 +64,19 @@ type Scope struct {
 // New creates an empty scope.
 func New() *Scope {
 	return &Scope{
-		byName:        make(map[string]int),
-		coalescedCols: make(map[string]bool),
+		byName:           make(map[string]int),
+		dupNames:         make(map[string]bool),
+		coalescedCols:    make(map[string]bool),
+		coalescedEntries: make(map[entryColKey]bool),
 	}
 }
 
 // Add registers a table reference in the scope.
 func (s *Scope) Add(name string, table *Table) {
 	lower := strings.ToLower(name)
+	if _, exists := s.byName[lower]; exists {
+		s.dupNames[lower] = true
+	}
 	s.byName[lower] = len(s.entries)
 	s.entries = append(s.entries, Entry{Name: name, Table: table})
 }
@@ -81,10 +93,11 @@ func (s *Scope) ResolveColumn(colName string) (int, int, error) {
 			// A USING or NATURAL join lists its key once: the copy it hides is
 			// no second match, so `SELECT id FROM l JOIN r USING (id)` reads one
 			// column rather than an ambiguous name.
-			if s.coalescedCols[strings.ToLower(e.Name)+"."+strings.ToLower(c.Name)] {
+			colLower := strings.ToLower(c.Name)
+			if s.coalescedEntries[entryColKey{entry: i, col: colLower}] || s.coalescedCols[strings.ToLower(e.Name)+"."+colLower] {
 				continue
 			}
-			if strings.ToLower(c.Name) == lower {
+			if colLower == lower {
 				if foundIdx >= 0 {
 					return 0, 0, fmt.Errorf("column '%s' is ambiguous", colName)
 				}
@@ -103,6 +116,34 @@ func (s *Scope) ResolveColumn(colName string) (int, int, error) {
 // Returns (entry index, 1-based column position, error).
 func (s *Scope) ResolveQualifiedColumn(tableName, colName string) (int, int, error) {
 	lowerTable := strings.ToLower(tableName)
+	if s.dupNames[lowerTable] {
+		lowerCol := strings.ToLower(colName)
+		foundIdx := -1
+		foundPos := 0
+		tableFound := false
+		for i, e := range s.entries {
+			if strings.ToLower(e.Name) != lowerTable {
+				continue
+			}
+			tableFound = true
+			for j, c := range e.Table.Columns {
+				if strings.ToLower(c.Name) == lowerCol {
+					if foundIdx >= 0 {
+						return 0, 0, fmt.Errorf("column '%s.%s' is ambiguous", tableName, colName)
+					}
+					foundIdx = i
+					foundPos = j + 1
+				}
+			}
+		}
+		if !tableFound {
+			return 0, 0, fmt.Errorf("unknown table '%s'", tableName)
+		}
+		if foundIdx >= 0 {
+			return foundIdx, foundPos, nil
+		}
+		return 0, 0, fmt.Errorf("unknown column '%s.%s'", tableName, colName)
+	}
 	idx, ok := s.byName[lowerTable]
 	if !ok {
 		return 0, 0, fmt.Errorf("unknown table '%s'", tableName)
@@ -213,4 +254,14 @@ func (s *Scope) MarkCoalesced(tableName, colName string) {
 func (s *Scope) IsCoalesced(tableName, colName string) bool {
 	key := strings.ToLower(tableName) + "." + strings.ToLower(colName)
 	return s.coalescedCols[key]
+}
+
+// MarkCoalescedEntry marks a column on a specific entry index as hidden by USING/NATURAL.
+func (s *Scope) MarkCoalescedEntry(entryIdx int, colName string) {
+	s.coalescedEntries[entryColKey{entry: entryIdx, col: strings.ToLower(colName)}] = true
+}
+
+// IsCoalescedEntry reports whether the column on entryIdx is hidden by USING/NATURAL.
+func (s *Scope) IsCoalescedEntry(entryIdx int, colName string) bool {
+	return s.coalescedEntries[entryColKey{entry: entryIdx, col: strings.ToLower(colName)}]
 }

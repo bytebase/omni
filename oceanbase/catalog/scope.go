@@ -7,13 +7,19 @@ import (
 	"github.com/bytebase/omni/oceanbase/scope"
 )
 
+type rteColKey struct {
+	rteIdx int
+	col    string
+}
+
 // analyzerScope wraps scope.Scope and adds analyzer-specific features:
 // parent chain for correlated subqueries, and rteIdx mapping.
 type analyzerScope struct {
-	base   *scope.Scope
-	rteMap []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
-	cols   [][]*Column // parallel to base entries: entry index -> catalog Column pointers
-	parent *analyzerScope
+	base        *scope.Scope
+	rteMap      []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
+	rteEntryIdx map[int]int // RTE index -> entry index in base
+	cols        [][]*Column // parallel to base entries: entry index -> catalog Column pointers
+	parent      *analyzerScope
 
 	// firstByName maps each name an entry was registered under to the first
 	// such entry, for entries [0, indexed); see entryIndex.
@@ -25,13 +31,13 @@ type analyzerScope struct {
 	quals      []rteQualifier
 	hasUnknown bool
 
-	// fullJoinExprs maps `<entry>.<column>` to the expression a FULL join's
-	// merged key takes: COALESCE(left, right), nested as the joins nest.
-	fullJoinExprs map[string]AnalyzedExpr
+	// fullJoinExprs maps `(rteIdx, loweredColumn)` to the expression a FULL
+	// join's merged key takes: COALESCE(left, right), nested as the joins nest.
+	fullJoinExprs map[rteColKey]AnalyzedExpr
 
-	// fullJoinByColumn maps a lowered merged key's name to the entry whose star
-	// expansion and unqualified references carry the merged expression.
-	fullJoinByColumn map[string]string
+	// fullJoinByColumn maps a lowered merged key's name to the RTE index whose
+	// star expansion and unqualified references carry the merged expression.
+	fullJoinByColumn map[string]int
 
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
@@ -117,26 +123,40 @@ func newScopeWithParent(parent *analyzerScope) *analyzerScope {
 }
 
 // addFullJoinExpr records the expression a FULL join's merged column takes in
-// the star expansion of a scope entry.
-func (s *analyzerScope) addFullJoinExpr(entryName, column string, expr AnalyzedExpr) {
+// the star expansion of a scope entry (identified by rteIdx).
+func (s *analyzerScope) addFullJoinExpr(rteIdx int, column string, expr AnalyzedExpr) {
 	if s.fullJoinExprs == nil {
-		s.fullJoinExprs = map[string]AnalyzedExpr{}
+		s.fullJoinExprs = map[rteColKey]AnalyzedExpr{}
 	}
 	if s.fullJoinByColumn == nil {
-		s.fullJoinByColumn = map[string]string{}
+		s.fullJoinByColumn = map[string]int{}
 	}
-	s.fullJoinExprs[strings.ToLower(entryName)+"."+strings.ToLower(column)] = expr
-	s.fullJoinByColumn[strings.ToLower(column)] = strings.ToLower(entryName)
+	lowerCol := strings.ToLower(column)
+	s.fullJoinExprs[rteColKey{rteIdx: rteIdx, col: lowerCol}] = expr
+	s.fullJoinByColumn[lowerCol] = rteIdx
+}
+
+func (s *analyzerScope) setFullJoinColumn(column string, rteIdx int) {
+	if s.fullJoinByColumn == nil {
+		s.fullJoinByColumn = map[string]int{}
+	}
+	s.fullJoinByColumn[strings.ToLower(column)] = rteIdx
+}
+
+func (s *analyzerScope) clearFullJoinColumn(column string) {
+	if s.fullJoinByColumn != nil {
+		delete(s.fullJoinByColumn, strings.ToLower(column))
+	}
 }
 
 // fullJoinColumn returns the merged expression a FULL join gives an
 // unqualified key of that name, if the scope holds one.
 func (s *analyzerScope) fullJoinColumn(column string) (AnalyzedExpr, bool) {
-	entryName, ok := s.fullJoinByColumn[strings.ToLower(column)]
+	rteIdx, ok := s.fullJoinByColumn[strings.ToLower(column)]
 	if !ok {
 		return nil, false
 	}
-	return s.fullJoinExpr(entryName, column)
+	return s.fullJoinExpr(rteIdx, column)
 }
 
 // ancestor returns the scope levels queries out, or nil.
@@ -146,16 +166,6 @@ func (s *analyzerScope) ancestor(levels int) *analyzerScope {
 		cur = cur.parent
 	}
 	return cur
-}
-
-// rteEntryName returns the scope name of the relation an RTE index stands for.
-func (s *analyzerScope) rteEntryName(rteIdx int) (string, bool) {
-	for _, q := range s.quals {
-		if q.rteIdx == rteIdx {
-			return q.name, true
-		}
-	}
-	return "", false
 }
 
 // rebaseFullJoinColumn returns the merged FULL-join expression of a key that a
@@ -170,32 +180,38 @@ func (s *analyzerScope) rebaseFullJoinColumn(column string, levels, rteIdx int) 
 	if owner == nil {
 		return nil, false
 	}
-	entryName, ok := owner.rteEntryName(rteIdx)
+	merged, ok := owner.fullJoinExpr(rteIdx, column)
 	if !ok {
-		return nil, false
-	}
-	merged, ok := owner.fullJoinExpr(entryName, column)
-	if !ok {
-		return nil, false
+		// If an outer FULL join sits above another surviving branch, check
+		// fullJoinColumn only when rteIdx is the owner's surviving FULL key.
+		merged, ok = owner.fullJoinColumn(column)
+		if !ok || owner.fullJoinByColumn[strings.ToLower(column)] != rteIdx {
+			return nil, false
+		}
 	}
 	return rebaseAnalyzedLevels(merged, levels), true
 }
 
 // fullJoinExpr returns the expression a FULL join's merged column takes in the
-// star expansion of that entry and column, if the scope holds one.
-func (s *analyzerScope) fullJoinExpr(entryName, column string) (AnalyzedExpr, bool) {
-	expr, ok := s.fullJoinExprs[strings.ToLower(entryName)+"."+strings.ToLower(column)]
+// star expansion of that RTE and column, if the scope holds one.
+func (s *analyzerScope) fullJoinExpr(rteIdx int, column string) (AnalyzedExpr, bool) {
+	expr, ok := s.fullJoinExprs[rteColKey{rteIdx: rteIdx, col: strings.ToLower(column)}]
 	return expr, ok
 }
 
-// markCoalesced marks a column from a table as coalesced (hidden during star expansion).
-func (s *analyzerScope) markCoalesced(tableName, colName string) {
-	s.base.MarkCoalesced(tableName, colName)
+// markCoalescedRTE marks a column on an RTE as coalesced (hidden during star expansion).
+func (s *analyzerScope) markCoalescedRTE(rteIdx int, colName string) {
+	if entryIdx, ok := s.rteEntryIdx[rteIdx]; ok {
+		s.base.MarkCoalescedEntry(entryIdx, colName)
+	}
 }
 
-// isCoalesced returns true if the given table.column is coalesced away by USING/NATURAL.
-func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
-	return s.base.IsCoalesced(tableName, colName)
+// isCoalescedRTE returns true if the given RTE's column is coalesced away by USING/NATURAL.
+func (s *analyzerScope) isCoalescedRTE(rteIdx int, colName string) bool {
+	if entryIdx, ok := s.rteEntryIdx[rteIdx]; ok {
+		return s.base.IsCoalescedEntry(entryIdx, colName)
+	}
+	return false
 }
 
 type rteQualifier struct {
@@ -357,6 +373,10 @@ func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	entryIdx := len(s.cols)
 	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
 	s.rteMap = append(s.rteMap, rteIdx)
+	if s.rteEntryIdx == nil {
+		s.rteEntryIdx = make(map[int]int)
+	}
+	s.rteEntryIdx[rteIdx] = entryIdx
 	s.cols = append(s.cols, visible)
 	s.quals = append(s.quals, rteQualifier{
 		name:     name,
@@ -388,6 +408,13 @@ func (s *analyzerScope) resolveColumn(colName string) (int, int, error) {
 func (s *analyzerScope) resolveQualifiedColumn(tableName, colName string) (int, int, error) {
 	entryIdx, pos, err := s.base.ResolveQualifiedColumn(tableName, colName)
 	if err != nil {
+		if strings.Contains(err.Error(), "ambiguous") {
+			return 0, 0, &Error{
+				Code:     1052,
+				SQLState: "23000",
+				Message:  fmt.Sprintf("Column '%s' in field list is ambiguous", colName),
+			}
+		}
 		if strings.Contains(err.Error(), "unknown table") {
 			return 0, 0, &Error{
 				Code:     ErrUnknownTable,

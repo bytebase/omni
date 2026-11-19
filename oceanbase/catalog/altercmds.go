@@ -761,6 +761,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
+		if err := rejectRemoteRef(con.RefTable); err != nil {
+			return err
+		}
 		conName := con.Name
 		if conName == "" {
 			conName = c.madeUpConstraintName(tbl.Name, madeUpForeignKeyInfix, func(name string) bool {
@@ -1079,6 +1082,9 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newTable := cmd.NewTable
 	if newTable == nil {
 		newTable = &nodes.TableRef{Name: cmd.NewName}
+	}
+	if err := rejectRemoteRef(newTable); err != nil {
+		return err
 	}
 	newDB, err := c.resolveDatabase(newTable.Schema)
 	if err != nil {
@@ -1880,6 +1886,9 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 	// For DDL catalog purposes, exchange is primarily a data operation.
 	// We just validate both tables exist.
 	if cmd.ExchangeTable != nil {
+		if err := rejectRemoteRef(cmd.ExchangeTable); err != nil {
+			return err
+		}
 		exchDB := db
 		if cmd.ExchangeTable.Schema != "" {
 			exchDB = c.GetDatabase(cmd.ExchangeTable.Schema)

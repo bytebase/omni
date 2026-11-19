@@ -1,6 +1,7 @@
 package deparse
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oceanbase/ast"
@@ -302,6 +303,54 @@ func TestNestedCatalogAliasAndNullTreatmentPlace(t *testing.T) {
 			resolved := (&Resolver{Lookup: func(string) *ResolverTable {
 				return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "a", Position: 1}}}
 			}}).Resolve(list.Items[0].(*ast.SelectStmt))
+			if got := DeparseSelect(resolved); got != c.want {
+				t.Errorf("DeparseSelect(%q)\n got %s\nwant %s", c.input, got, c.want)
+			}
+		})
+	}
+}
+
+func TestRightNestedFullJoinAndSubqueryJoinAlias(t *testing.T) {
+	tables := map[string]*ResolverTable{
+		"l": {Name: "l", Columns: []ResolverColumn{{Name: "id", Position: 1}, {Name: "lx", Position: 2}}},
+		"m": {Name: "m", Columns: []ResolverColumn{{Name: "id", Position: 1}, {Name: "mx", Position: 2}}},
+		"r": {Name: "r", Columns: []ResolverColumn{{Name: "id", Position: 1}, {Name: "rx", Position: 2}}},
+	}
+	lookup := func(name string) *ResolverTable {
+		return tables[strings.ToLower(name)]
+	}
+
+	// Right-nested FULL JOIN preserves the inner COALESCE on both the projected
+	// key and the outer ON condition, and unaliased subqueries over JOINs do not panic.
+	for _, c := range []struct {
+		input string
+		want  string
+	}{
+		{
+			"SELECT * FROM l FULL JOIN (m FULL JOIN r USING (id)) USING (id)",
+			"select coalesce(`l`.`id`,coalesce(`m`.`id`,`r`.`id`)) AS `id`,`l`.`lx` AS `lx`,`m`.`mx` AS `mx`,`r`.`rx` AS `rx` from (`l` full join (`m` full join `r` on((`m`.`id` = `r`.`id`))) on((`l`.`id` = coalesce(`m`.`id`,`r`.`id`))))",
+		},
+		{
+			"SELECT id FROM (m FULL JOIN r USING (id)) JOIN l USING (id)",
+			"select coalesce(`m`.`id`,`r`.`id`) AS `id` from ((`m` full join `r` on((`m`.`id` = `r`.`id`))) join `l` on((coalesce(`m`.`id`,`r`.`id`) = `l`.`id`)))",
+		},
+		{
+			"SELECT (SELECT id) AS id FROM l FULL JOIN r USING (id)",
+			"select (select coalesce(`l`.`id`,`r`.`id`)) AS `id` from (`l` full join `r` on((`l`.`id` = `r`.`id`)))",
+		},
+		{
+			"SELECT (SELECT 1 FROM l FULL JOIN r USING (id))",
+			"select (select 1 from (`l` full join `r` on((`l`.`id` = `r`.`id`)))) AS `(SELECT 1 FROM l FULL JOIN r USING (id))`",
+		},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			list, err := parser.Parse(c.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", c.input, err)
+			}
+			sel := list.Items[0].(*ast.SelectStmt)
+			resolved := (&Resolver{Lookup: lookup}).Resolve(sel)
+			RewriteSelectStmt(resolved)
 			if got := DeparseSelect(resolved); got != c.want {
 				t.Errorf("DeparseSelect(%q)\n got %s\nwant %s", c.input, got, c.want)
 			}

@@ -1796,11 +1796,11 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 					stmt.AllExceptAllPrivileges = true
 				}
 			} else {
-				roles, err := p.parseRoleRefList()
+				items, err := p.parseRoleOrPrivList()
 				if err != nil {
 					return nil, err
 				}
-				stmt.AllExcept = roles
+				stmt.AllExcept = items
 			}
 		}
 	default:
@@ -1813,6 +1813,38 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseRoleOrPrivList parses grant_privileges' role_or_priv_list for SET ROLE
+// ALL EXCEPT, preserving role name casing while accepting privilege specifiers.
+func (p *Parser) parseRoleOrPrivList() ([]string, error) {
+	var items []string
+	for {
+		if p.cur.Type == kwCURRENT_USER {
+			return nil, &ParseError{
+				Message:  "expected role name",
+				Position: p.cur.Loc,
+			}
+		}
+		if !p.backtickQuotedAt(p.cur.Loc) && rolePrivilegeWords[strings.ToUpper(p.cur.Str)] {
+			elem, err := p.parsePrivOrRoleElem()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, elem.name)
+		} else {
+			role, err := p.parseUserName()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, role)
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	return items, nil
 }
 
 // parseRenameUserStmt parses RENAME USER old_user TO new_user [, old_user TO new_user] ...

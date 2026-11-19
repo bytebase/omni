@@ -83,6 +83,20 @@ func deparseSimpleQuery(b *strings.Builder, q *deparseScope) {
 		writeAnalyzedExpr(b, q.HavingQual, q)
 	}
 
+	if len(q.WindowClause) > 0 {
+		b.WriteString(" window ")
+		for i, wd := range q.WindowClause {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(backtickIDQ(wd.Name))
+			b.WriteString(" as ")
+			wCopy := *wd
+			wCopy.Name = ""
+			writeWindowDefQ(b, &wCopy, q)
+		}
+	}
+
 	if len(q.SortClause) > 0 {
 		b.WriteString(" order by ")
 		deparseOrderByQ(b, q)

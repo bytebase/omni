@@ -62,12 +62,12 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	}
 
 	// OceanBase's OVERWRITE, which insert_stmt writes after opt_priority and
-	// opt_ignore and before opt_into_single_table_insert.
-	if _, ok := p.match(kwOVERWRITE); ok {
-		if isReplace {
-			return nil, p.syntaxErrorAtCur()
+	// opt_ignore and before opt_into_single_table_insert. REPLACE has no
+	// OVERWRITE arm, so `REPLACE OVERWRITE ...` names a table called OVERWRITE.
+	if !isReplace {
+		if _, ok := p.match(kwOVERWRITE); ok {
+			stmt.Overwrite = true
 		}
-		stmt.Overwrite = true
 	}
 
 	// Optional INTO
@@ -220,8 +220,8 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 	}
 
-	// ON DUPLICATE KEY UPDATE (only for INSERT, not REPLACE)
-	if !isReplace && p.cur.Type == kwON {
+	// ON DUPLICATE KEY UPDATE (only for ordinary INSERT, neither REPLACE nor INSERT OVERWRITE)
+	if !isReplace && !stmt.Overwrite && p.cur.Type == kwON {
 		onDup, err := p.parseOnDuplicateKeyUpdate()
 		if err != nil {
 			return nil, err

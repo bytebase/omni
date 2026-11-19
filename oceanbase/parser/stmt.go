@@ -395,10 +395,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	external := false
 
 	// TEMPORARY, or EXTERNAL: special_table_type has one of the two and never
-	// both, and EXTERNAL stands before TABLE alone (CREATE EXTERNAL TABLE).
+	// both, and TEMPORARY stands before TABLE alone (CREATE TEMPORARY TABLE).
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwTABLE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 	} else if p.cur.Type == kwEXTERNAL {
 		p.advance()
 		external = true
@@ -477,7 +485,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwDATABASE, kwSCHEMA:
 		// CREATE DATABASE LINK is a statement of its own beside CREATE
 		// DATABASE.
-		if p.atDatabaseLink() {
+		if p.atCreateDatabaseLink() {
 			return p.parseCreateDblinkStmt(start)
 		}
 		return p.parseCreateDatabaseStmt(start)
@@ -769,6 +777,15 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	if p.cur.Type == kwTEMPORARY {
 		p.advance()
 		temporary = true
+		// opt_temporary stands only in drop_table_stmt (DROP TEMPORARY TABLE[S]).
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwTABLE)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		if p.cur.Type != kwTABLE {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	switch p.cur.Type {

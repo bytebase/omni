@@ -1177,16 +1177,23 @@ func (*RawExprQ) exprCollation() string     { return "" }
 // will care).
 //
 // pg: src/include/nodes/parsenodes.h — WindowDef
+type WindowOrderItemQ struct {
+	Expr       AnalyzedExpr
+	Descending bool
+}
+
 type WindowDefQ struct {
 	// Name is the window's identifier:
 	//   - For references: the name being referenced (`OVER w` → "w")
 	//   - For inline definitions: empty
 	//   - For declarations in WindowClause: the declared name
-	Name string
+	Name    string
+	RefName string
 
 	// PartitionBy and OrderBy are analyzed.
 	PartitionBy []AnalyzedExpr
 	OrderBy     []*SortGroupClauseQ
+	OrderExprs  []*WindowOrderItemQ
 
 	// FrameClause is the raw text of the ROWS / RANGE / GROUPS frame
 	// specification, e.g. "ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW".

@@ -40,7 +40,7 @@ type Resolver struct {
 // Resolve takes a SelectStmt and returns a new SelectStmt with all column
 // references fully qualified. The original AST is modified in-place.
 func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
-	return r.resolveWithCTEs(stmt, nil)
+	return r.resolveWithScope(stmt, nil, nil)
 }
 
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
@@ -82,7 +82,7 @@ func resolveOrderByOrdinals(orderBy []*ast.OrderByItem, leftmost *ast.SelectStmt
 // resolveParenSource resolves a parenthesized query expression: the inner query
 // (with the wrapper's CTEs visible), then any OUTER ORDER BY ordinals against
 // the inner's leftmost SELECT target list.
-func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) {
+func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable, parent *fromScope) {
 	mergedCTETables := cteTables
 	if len(stmt.CTEs) > 0 {
 		mergedCTETables = make(map[string]*ResolverTable)
@@ -95,14 +95,14 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+			cteResolver.resolveWithScope(cte.Select, mergedCTETables, parent)
 			if vt := buildCTEVirtualTable(cte); vt != nil {
 				mergedCTETables[strings.ToLower(cte.Name)] = vt
 			}
 		}
 	}
 
-	r.resolveWithCTEs(stmt.ParenSource, mergedCTETables)
+	r.resolveWithScope(stmt.ParenSource, mergedCTETables, parent)
 
 	if len(stmt.OrderBy) == 0 {
 		return
@@ -111,7 +111,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
 }
 
-func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
+func (r *Resolver) resolveWithScope(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable, parent *fromScope) *ast.SelectStmt {
 	if stmt == nil {
 		return nil
 	}
@@ -134,7 +134,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 					DefaultCharset: r.DefaultCharset,
 					Source:         r.Source,
 				}
-				cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+				cteResolver.resolveWithScope(cte.Select, mergedCTETables, parent)
 				vt := buildCTEVirtualTable(cte)
 				if vt != nil {
 					mergedCTETables[strings.ToLower(cte.Name)] = vt
@@ -142,10 +142,10 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			}
 		}
 		if stmt.Left != nil {
-			r.resolveWithCTEs(stmt.Left, mergedCTETables)
+			r.resolveWithScope(stmt.Left, mergedCTETables, parent)
 		}
 		if stmt.Right != nil {
-			r.resolveWithCTEs(stmt.Right, mergedCTETables)
+			r.resolveWithScope(stmt.Right, mergedCTETables, parent)
 		}
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
@@ -158,7 +158,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	// Parenthesized query expression: resolve the inner query (with the
 	// wrapper's CTEs visible) and the outer ORDER BY ordinals.
 	if stmt.ParenSource != nil {
-		r.resolveParenSource(stmt, cteTables)
+		r.resolveParenSource(stmt, cteTables, parent)
 		return stmt
 	}
 
@@ -183,7 +183,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			leftResolver.resolveWithCTEs(sel.Left, localCTETables)
+			leftResolver.resolveWithScope(sel.Left, localCTETables, parent)
 
 			// Step 2: Build virtual table from left branch's target list and add CTE to scope
 			vt := buildCTEVirtualTableFromSelect(cte.Name, cte.Columns, sel.Left)
@@ -197,7 +197,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			rightResolver.resolveWithCTEs(sel.Right, localCTETables)
+			rightResolver.resolveWithScope(sel.Right, localCTETables, parent)
 		} else {
 			// Non-recursive CTE: resolve entire SELECT, then build virtual table
 			cteResolver := &Resolver{
@@ -205,7 +205,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 				DefaultCharset: r.DefaultCharset,
 				Source:         r.Source,
 			}
-			cteResolver.resolveWithCTEs(cte.Select, localCTETables)
+			cteResolver.resolveWithScope(cte.Select, localCTETables, parent)
 
 			vt := buildCTEVirtualTable(cte)
 			if vt != nil {
@@ -219,7 +219,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	if len(localCTETables) > 0 {
 		r.Lookup = r.withCTELookup(localCTETables)
 	}
-	sc := r.buildScope(stmt.From)
+	sc := r.buildScope(stmt.From, parent, localCTETables)
 	r.Lookup = origLookup
 
 	// Resolve JOIN ON conditions (walk FROM clause) BEFORE target list resolution
@@ -228,6 +228,14 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 
 	// Resolve target list (may expand stars)
 	stmt.TargetList = r.resolveTargetList(stmt.TargetList, sc)
+	for _, te := range stmt.TargetList {
+		if rt, ok := te.(*ast.ResTarget); ok && rt.Name != "" {
+			if sc.selectAliases == nil {
+				sc.selectAliases = make(map[string]bool)
+			}
+			sc.selectAliases[strings.ToLower(rt.Name)] = true
+		}
+	}
 
 	// Resolve WHERE
 	if stmt.Where != nil {
@@ -235,6 +243,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	}
 
 	// Resolve GROUP BY
+	sc.inAliasClause = true
 	for _, item := range stmt.GroupBy {
 		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
@@ -243,6 +252,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	if stmt.Having != nil {
 		stmt.Having = r.resolveExpr(stmt.Having, sc)
 	}
+	sc.inAliasClause = false
 
 	// Resolve WINDOW clause
 	for _, wd := range stmt.WindowClause {
@@ -255,16 +265,20 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	}
 
 	// Resolve ORDER BY
+	sc.inAliasClause = true
 	for _, item := range stmt.OrderBy {
 		item.Expr = r.resolveExpr(item.Expr, sc)
 	}
+	sc.inAliasClause = false
 
 	return stmt
 }
 
 // buildScope constructs a scope from the FROM clause table expressions.
-func (r *Resolver) buildScope(from []ast.TableExpr) *fromScope {
+func (r *Resolver) buildScope(from []ast.TableExpr, parent *fromScope, cteTables map[string]*ResolverTable) *fromScope {
 	sc := newFromScope(from)
+	sc.parent = parent
+	sc.cteTables = cteTables
 	for _, tbl := range from {
 		r.addTableExprToScope(tbl, sc)
 	}
@@ -295,6 +309,7 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		if t.Alias != "" {
 			effectiveName = t.Alias
 		}
+		sc.localTables[strings.ToLower(effectiveName)] = true
 		sc.add(t, effectiveName, table)
 	case *ast.JoinClause:
 		r.addTableExprToScope(t.Left, sc)
@@ -305,7 +320,11 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 		// A derived table over a source whose columns are known only when the
 		// query runs has no columns to expand either.
 		if t.Select != nil {
-			r.Resolve(t.Select)
+			subParent := sc.parent
+			if t.Lateral {
+				subParent = sc
+			}
+			r.resolveSubquery(t.Select, subParent, sc.cteTables)
 			if t.Alias != "" && selectHasUnknownColumns(t.Select) {
 				sc.unknownColumns[strings.ToLower(t.Alias)] = true
 			}
@@ -373,9 +392,13 @@ func (r *Resolver) resolveTarget(target ast.ExprNode, sc *fromScope, position in
 		expr = target
 	}
 
-	// Check for qualified star: t1.*
+	// Check for qualified star: t1.* / db.t1.* / cat.db.t1.*
 	if col, ok := expr.(*ast.ColumnRef); ok && col.Star {
-		if sc.unknownColumns[strings.ToLower(col.Table)] {
+		if col.Catalog != "" {
+			return []ast.ExprNode{target}
+		}
+		lower := strings.ToLower(col.Table)
+		if sc.unknownColumns[lower] && !sc.localTables[lower] {
 			return []ast.ExprNode{target}
 		}
 		return r.expandQualifiedStar(col.Table, sc)
@@ -527,7 +550,7 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 			n.List[i] = r.resolveExpr(item, sc)
 		}
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveSubquery(n.Select, sc, sc.cteTables)
 		}
 		return n
 	case *ast.BetweenExpr:
@@ -601,12 +624,12 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 		return n
 	case *ast.ExistsExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveSubquery(n.Select, sc, sc.cteTables)
 		}
 		return n
 	case *ast.SubqueryExpr:
 		if n.Select != nil {
-			r.Resolve(n.Select)
+			r.resolveSubquery(n.Select, sc, sc.cteTables)
 		}
 		return n
 	case *ast.ResTarget:
@@ -618,45 +641,67 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 	}
 }
 
+func (r *Resolver) resolveSubquery(sel *ast.SelectStmt, parent *fromScope, cteTables map[string]*ResolverTable) {
+	sub := &Resolver{
+		Lookup:         r.Lookup,
+		DefaultCharset: r.DefaultCharset,
+		Source:         r.Source,
+	}
+	sub.resolveWithScope(sel, cteTables, parent)
+}
+
 // resolveColumnRef qualifies an unqualified column reference by finding which
-// table in scope contains the column.
+// table in scope (or an enclosing correlated scope) contains the column.
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
 	if col.Catalog != "" {
 		return col
 	}
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
-		// Check if this table name is in scope (might be an alias)
-		if sc.GetTable(col.Table) != nil {
-			// Find the effective name from scope (preserves case)
-			if entry, ok := sc.FirstEqualFold(col.Table); ok {
-				col.Table = entry.Name
+		for cur := sc; cur != nil; cur = cur.parent {
+			if cur.GetTable(col.Table) != nil {
+				if entry, ok := cur.FirstEqualFold(col.Table); ok {
+					col.Table = entry.Name
+				}
+				return col
+			}
+			if cur.unknownColumns[strings.ToLower(col.Table)] {
+				return col
 			}
 		}
 		return col
 	}
 
-	// A column a NATURAL or USING join joins on is the one copy the join
-	// keeps, which comes from its right input in a RIGHT join. A FULL join
-	// keeps COALESCE(left, right) instead, since either side may be the null
-	// one.
-	if c, ok := sc.coalesced[strings.ToLower(col.Column)]; ok {
-		if merged, ok := sc.fullKeys[c.key()]; ok {
-			return merged
+	lowerCol := strings.ToLower(col.Column)
+	for cur := sc; cur != nil; cur = cur.parent {
+		// A column a NATURAL or USING join joins on is the one copy the join
+		// keeps, which comes from its right input in a RIGHT join. A FULL join
+		// keeps COALESCE(left, right) instead, since either side may be the
+		// null one.
+		if c, ok := cur.coalesced[lowerCol]; ok {
+			if merged, ok := cur.fullKeys[c.key()]; ok {
+				return merged
+			}
+			col.Table = c.qualifier
+			return col
 		}
-		col.Table = c.qualifier
-		return col
+		if cur.unknownUsingCols[lowerCol] {
+			return col
+		}
+		if entry, ok := cur.FirstWithColumn(col.Column); ok {
+			col.Table = entry.Name
+			return col
+		}
+		// In GROUP BY / HAVING / ORDER BY, a local SELECT alias shadows outer
+		// correlated scopes; an inner scope with unknown columns may also own
+		// the column at runtime.
+		if cur == sc && sc.inAliasClause && sc.selectAliases[lowerCol] {
+			return col
+		}
+		if cur.hasUnknownColumns() {
+			return col
+		}
 	}
-
-	// Unqualified — qualify with the first table in scope holding the column.
-	// When more than one does, MySQL would raise ERROR 1052: Column 'x' in
-	// field list is ambiguous. TODO: return error
-	entry, ok := sc.FirstWithColumn(col.Column)
-	if !ok {
-		// Column not found — return as-is (could be a literal alias or error)
-		return col
-	}
-	col.Table = entry.Name
 	return col
 }
 
@@ -732,7 +777,11 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
 		}
 	}
 
-	// Change join type from NATURAL variant to standard variant
+	// Change join type from NATURAL variant to standard variant unless an input
+	// has unknown columns (remote/external), where no ON condition can be built.
+	if sc.hasUnknownColumns() && j.Condition == nil && itemHasUnknownColumns(j) {
+		return
+	}
 	switch j.Type {
 	case ast.JoinNatural:
 		j.Type = ast.JoinInner
@@ -749,10 +798,21 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
 
 // expandUsingCondition converts a USING condition into an ON condition with
 // fully qualified column references, then replaces the condition on the join.
-// When an input's columns are unknown, each side is qualified by the name of
-// its input if that is a table.
+// When an input's columns are unknown, keep USING intact and mark its columns
+// so unqualified references do not bind solely to the local side.
 func (r *Resolver) expandUsingCondition(j *ast.JoinClause, using *ast.UsingCondition, sc *fromScope) {
 	if len(using.Columns) == 0 {
+		return
+	}
+	if sc.hasUnknownColumns() && itemHasUnknownColumns(j) {
+		if sc.unknownUsingCols == nil {
+			sc.unknownUsingCols = make(map[string]bool)
+		}
+		for _, col := range using.Columns {
+			sc.unknownUsingCols[strings.ToLower(col)] = true
+		}
+		// Clear tableExprName qualification fallback in writeJoinClause by
+		// keeping UsingCondition only when one side is unknown.
 		return
 	}
 	if on, ok := sc.joinOn(j, using.Columns); ok {

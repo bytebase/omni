@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
@@ -327,30 +325,22 @@ func (p *Parser) parseCharsetName() (string, error) {
 		return "", p.syntaxErrorAtCur()
 	}
 	switch p.cur.Type {
-	case tokSCONST, kwBINARY, kwASCII:
+	case tokSCONST:
+		return p.parseIntoString()
+	case kwBINARY, kwASCII:
 		tok := p.advance()
 		return tok.Str, nil
 	case tokIDENT:
 		// A quoted name spells a name whatever it says; an unquoted one is a
-		// charset name only if OceanBase's lexer has no keyword for it.
-		if !p.backtickQuotedAt(p.cur.Loc) && !isCharsetNameWord(p.cur.Str) {
+		// charset name only if OceanBase's lexer has no keyword or introducer
+		// for it (NAME_OB).
+		if !p.isNameOB(p.cur) {
 			return "", p.syntaxErrorAtCur()
 		}
 		tok := p.advance()
 		return tok.Str, nil
 	}
 	return "", p.syntaxErrorAtCur()
-}
-
-// notCharsetNames are the words OceanBase lexes as keywords and this lexer does
-// not, so they reach parseCharsetName as ordinary names where the engine has no
-// charset_name arm for them. BINARY_FORMAT is one (sql_parser_mysql_mode.y,
-// v4.3.5_CE_BP6, line 25878): `SET NAMES BINARY_FORMAT` is a 1064.
-var notCharsetNames = wordSet(`binary_format`)
-
-// isCharsetNameWord reports whether word may be a charset_name.
-func isCharsetNameWord(word string) bool {
-	return !notCharsetNames[strings.ToLower(word)]
 }
 
 // parseCompressionName parses compression_name, which LOAD DATA's COMPRESSION

@@ -12924,3 +12924,64 @@ func TestRepeatedLobChunksAndNullTreatmentPlace(t *testing.T) {
 		t.Errorf("null treatment place lost:\n in-args  %s\n trailing %s", inArgs, trailing)
 	}
 }
+
+func TestParserGrammarTighteningsAndDblinkDisambiguation(t *testing.T) {
+	// Adjacent string literals on SERVER stay in Server rather than Cluster,
+	// while explicit CLUSTER still sets Cluster.
+	dblink := ParseAndCheck(t, "CREATE DATABASE LINK l1 CONNECT TO 'u' @t DATABASE d IDENTIFIED BY 'p1' 'p2' SERVER '127.0.0.1:' '2881' CLUSTER 'c1'").Items[0].(*ast.DatabaseLinkStmt)
+	if dblink.Password != "p1p2" || dblink.Server != "127.0.0.1:2881" || dblink.Cluster != "c1" {
+		t.Fatalf("unexpected DatabaseLinkStmt fields: %+v", dblink)
+	}
+	barePair := ParseAndCheck(t, "CREATE DATABASE LINK l2 CONNECT TO 'u' @t DATABASE d IDENTIFIED BY 'p' SERVER 's' 's'").Items[0].(*ast.DatabaseLinkStmt)
+	if barePair.Server != "ss" || barePair.Cluster != "" {
+		t.Fatalf("expected adjacent SERVER strings to fold with empty Cluster, got %+v", barePair)
+	}
+
+	// CREATE DATABASE link <options> must dispatch as CreateDatabaseStmt.
+	for _, sql := range []string{
+		"CREATE DATABASE link DEFAULT CHARACTER SET utf8mb4",
+		"CREATE DATABASE link CHARSET utf8mb4",
+		"CREATE DATABASE link COLLATE utf8mb4_bin",
+		"CREATE DATABASE link READ ONLY",
+	} {
+		if _, ok := ParseAndCheck(t, sql).Items[0].(*ast.CreateDatabaseStmt); !ok {
+			t.Errorf("%q did not parse as CreateDatabaseStmt", sql)
+		}
+	}
+
+	// Valid forms unlocked by fixes.
+	for _, sql := range []string{
+		"SET ROLE ALL EXCEPT SELECT, SUPER, CREATE VIEW",
+		"REPLACE OVERWRITE VALUES (1)",
+		"SELECT db.schema(), db.database(), db.replace(a, 'x', 'y') FROM t",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
+	// Grammar over-acceptances now rejected with 1064.
+	for _, sql := range []string{
+		"CREATE TEMPORARY RESTORE POINT rp1",
+		"CREATE TEMPORARY DATABASE LINK l1 CONNECT TO 'u' @t DATABASE d IDENTIFIED BY 'p' SERVER 'h'",
+		"DROP TEMPORARY RESTORE POINT rp1",
+		"DROP TEMPORARY DATABASE LINK l1",
+		"DROP TEMPORARY CATALOG cat1",
+		"CACHE INDEX t1 KEY PARTITION (ALL) IN c1",
+		"CACHE INDEX .t1 IN c1",
+		"LOAD INDEX INTO CACHE .t1",
+		"HANDLER t READ WHERE a = 1",
+		"HANDLER t READ LIMIT 1",
+		"ALTER TABLE t ADD c JSON JSON(c) STORE AS (CHUNK 1)",
+		"ALTER TABLE t ADD (CONSTRAINT c1 CHECK (a > 0))",
+		"CREATE FUNCTION f RETURNS `STRING` SONAME 'f.so'",
+		"SET NAMES TENANT",
+		"SET NAMES _utf8mb4",
+		"USE a . table",
+		"INSERT OVERWRITE INTO t SELECT 1 ON DUPLICATE KEY UPDATE a = 1",
+		"SELECT * FROM cat.db.tbl@link",
+		"SELECT * FROM db . table@link",
+		"SELECT a.b.c.d@link",
+		"SELECT c.d.t.table FROM c.d.t",
+	} {
+		ParseExpectError(t, sql)
+	}
+}

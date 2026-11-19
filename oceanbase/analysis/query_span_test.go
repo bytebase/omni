@@ -297,3 +297,40 @@ func TestRemoteAliasAndWildcardStayRemote(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoteUnknownDoesNotSwallowLocalLineage(t *testing.T) {
+	// Unqualified and qualified references over catalog tables resolve.
+	for _, sql := range []string{
+		"SELECT a FROM c1.db.t1",
+		"SELECT a FROM c1.db.t1 AS x",
+		"SELECT (SELECT a) FROM c1.db.t1",
+		"SELECT POSITION('b' IN a), ? FROM db.t1",
+	} {
+		span, err := resolve(t, sql)
+		require.NoError(t, err, sql)
+		require.Nil(t, span.NotFoundError, sql)
+	}
+
+	// Unknown remote/external relations must not wipe out local column lineage.
+	for _, sql := range []string{
+		"SELECT a FROM db.t1, other@remote_link",
+		"SELECT (SELECT a FROM other@remote_link LIMIT 1) AS a FROM db.t1",
+		"SELECT db.t1.a FROM db.t1, db.t1@remote_link",
+	} {
+		span, err := resolve(t, sql)
+		require.NoError(t, err, sql)
+		require.Nil(t, span.NotFoundError, sql)
+		require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span), sql)
+	}
+
+	// Qualified alias references (`db.x.a`, `c2.db.x.a`, `c1.db.t1.*` on aliased table) must not bind to the alias.
+	for _, sql := range []string{
+		"SELECT c2.db.x.a FROM c1.db.t1 AS x",
+		"SELECT db.x.a FROM c1.db.t1 AS x",
+		"SELECT c1.db.t1.* FROM c1.db.t1 AS x",
+	} {
+		span, err := resolve(t, sql)
+		require.NoError(t, err, sql)
+		require.NotNil(t, span.NotFoundError, sql)
+	}
+}

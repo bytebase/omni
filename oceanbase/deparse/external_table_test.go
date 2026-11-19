@@ -1,6 +1,7 @@
 package deparse
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oceanbase/ast"
@@ -134,5 +135,29 @@ func TestResolverRemoteTableAndNaturalFullUnknownColumns(t *testing.T) {
 	out := DeparseSelect(sel)
 	if _, err := parser.Parse(out); err != nil {
 		t.Fatalf("DeparseSelect(%q) produced unparseable SQL %q: %v", natFullSQL, out, err)
+	}
+
+	// NATURAL LEFT / RIGHT / INNER JOIN and USING with unknown-column inputs
+	// must also emit valid SQL and never expand c.db.orders.* from local orders.
+	for _, sql := range []string{
+		"SELECT * FROM SOURCE(TYPE = 's') AS s NATURAL LEFT JOIN orders",
+		"SELECT * FROM orders@remote NATURAL RIGHT JOIN orders",
+		"SELECT * FROM orders@remote FULL JOIN orders USING (id)",
+		"SELECT ext_cat.db.orders.* FROM ext_cat.db.orders AS ext_o, orders",
+	} {
+		parsed, err := parser.Parse(sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", sql, err)
+		}
+		stmt := parsed.Items[0].(*ast.SelectStmt)
+		(&Resolver{Lookup: lookup}).Resolve(stmt)
+		RewriteSelectStmt(stmt)
+		deparsed := DeparseSelect(stmt)
+		if _, err := parser.Parse(deparsed); err != nil {
+			t.Fatalf("DeparseSelect(%q) produced unparseable SQL %q: %v", sql, deparsed, err)
+		}
+		if strings.Contains(sql, "ext_cat.db.orders.*") && len(stmt.TargetList) != 1 {
+			t.Errorf("%q expanded four-part star against local orders: %q", sql, deparsed)
+		}
 	}
 }

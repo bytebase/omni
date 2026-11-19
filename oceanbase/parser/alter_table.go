@@ -683,11 +683,8 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	}
 	cmd.Column = col
 
-	// FIRST | AFTER col_name
+	// FIRST | AFTER | BEFORE col_name
 	if err := p.parseColumnPositioning(cmd); err != nil {
-		return nil, err
-	}
-	if err := p.parseLobStorageClause(cmd); err != nil {
 		return nil, err
 	}
 
@@ -706,6 +703,9 @@ func (p *Parser) parseLobStorageClause(cmd *nodes.AlterTableCmd) error {
 	p.advance() // consume JSON
 	if _, err := p.expect('('); err != nil {
 		return err
+	}
+	if !p.isNameOB(p.cur) {
+		return p.syntaxErrorAtCur()
 	}
 	column, _, err := p.parseIdent()
 	if err != nil {
@@ -728,23 +728,29 @@ func (p *Parser) parseLobStorageClause(cmd *nodes.AlterTableCmd) error {
 	if !p.isBareWord("CHUNK") {
 		return p.syntaxErrorAtCur()
 	}
-	p.advance()
-	if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
-		return p.syntaxErrorAtCur()
-	}
-	clause.Chunk = p.cur.Str
-	clause.Chunks = append(clause.Chunks, p.cur.Str)
-	p.advance()
-	// lob_storage_parameters is one or more parameters written next to each
-	// other; CHUNK is the only one the grammar has, and it may repeat.
-	for p.isBareWord("CHUNK") {
-		p.advance()
-		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
+	for {
+		p.advance() // consume CHUNK
+		var chunk string
+		switch p.cur.Type {
+		case tokICONST:
+			chunk = p.cur.Str
+			p.advance()
+		case tokSCONST:
+			var err error
+			chunk, err = p.parseIntoString()
+			if err != nil {
+				return err
+			}
+		default:
 			return p.syntaxErrorAtCur()
 		}
-		clause.Chunk = p.cur.Str
-		clause.Chunks = append(clause.Chunks, p.cur.Str)
-		p.advance()
+		clause.Chunk = chunk
+		clause.Chunks = append(clause.Chunks, chunk)
+		// lob_storage_parameters is one or more parameters written next to each
+		// other; CHUNK is the only one the grammar has, and it may repeat.
+		if !p.isBareWord("CHUNK") {
+			break
+		}
 	}
 	if _, err := p.expect(')'); err != nil {
 		return err
@@ -779,6 +785,9 @@ func (p *Parser) parseAlterAddIndexAction(cmd *nodes.AlterTableCmd) (*nodes.Alte
 		constr, err := p.parseTableConstraint(true)
 		if err != nil {
 			return nil, err
+		}
+		if constr.Type == nodes.ConstrCheck || constr.Type == nodes.ConstrForeignKey {
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Constraint = constr
 		cmd.Loc.End = p.prev.End

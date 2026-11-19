@@ -1281,11 +1281,19 @@ func writeSelectStmtAlias(b *strings.Builder, stmt *ast.SelectStmt) {
 	if stmt.TableSource != nil {
 		b.WriteString("TABLE ")
 		if t := stmt.TableSource.Table; t != nil {
+			if t.Catalog != "" {
+				b.WriteString(t.Catalog)
+				b.WriteString(".")
+			}
 			if t.Schema != "" {
 				b.WriteString(t.Schema)
 				b.WriteString(".")
 			}
 			b.WriteString(t.Name)
+			if t.Dblink != "" {
+				b.WriteString("@")
+				b.WriteString(t.Dblink)
+			}
 		}
 		writeOrderByLimitAlias(b, stmt.OrderBy, stmt.Limit)
 		return
@@ -1433,17 +1441,68 @@ func writeOrderByLimitAlias(b *strings.Builder, orderBy []*ast.OrderByItem, limi
 func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 	switch t := tbl.(type) {
 	case *ast.TableRef:
+		if t.Catalog != "" {
+			b.WriteString(t.Catalog)
+			b.WriteString(".")
+		}
+		if t.Schema != "" {
+			b.WriteString(t.Schema)
+			b.WriteString(".")
+		}
 		b.WriteString(t.Name)
+		if t.Dblink != "" {
+			b.WriteString("@")
+			b.WriteString(t.Dblink)
+		}
 		if t.Alias != "" {
 			b.WriteString(" ")
 			b.WriteString(t.Alias)
 		}
-	case *ast.ExternalTableRef, *ast.RbIterateExpr, *ast.UnnestExpr:
-		// These carry no ExprNode form, so their own writer is the text:
-		// the source as written, as a subquery's is.
-		writeTableExpr(b, tbl)
+	case *ast.JoinClause:
+		writeTableExprAlias(b, t.Left)
+		switch t.Type {
+		case ast.JoinLeft:
+			b.WriteString(" LEFT JOIN ")
+		case ast.JoinRight:
+			b.WriteString(" RIGHT JOIN ")
+		case ast.JoinCross:
+			b.WriteString(" CROSS JOIN ")
+		case ast.JoinStraight:
+			b.WriteString(" STRAIGHT_JOIN ")
+		case ast.JoinNatural:
+			b.WriteString(" NATURAL JOIN ")
+		case ast.JoinNaturalLeft:
+			b.WriteString(" NATURAL LEFT JOIN ")
+		case ast.JoinNaturalRight:
+			b.WriteString(" NATURAL RIGHT JOIN ")
+		case ast.JoinFull:
+			b.WriteString(" FULL JOIN ")
+		case ast.JoinNaturalFull:
+			b.WriteString(" NATURAL FULL JOIN ")
+		default:
+			b.WriteString(" JOIN ")
+		}
+		writeTableExprAlias(b, t.Right)
+		switch cond := t.Condition.(type) {
+		case *ast.OnCondition:
+			b.WriteString(" ON ")
+			writeExprAlias(b, cond.Expr)
+		case *ast.UsingCondition:
+			b.WriteString(" USING (")
+			for i, col := range cond.Columns {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(col)
+			}
+			b.WriteString(")")
+		}
 	default:
-		writeExprAlias(b, tbl.(ast.ExprNode))
+		if expr, ok := tbl.(ast.ExprNode); ok {
+			writeExprAlias(b, expr)
+		} else {
+			writeTableExpr(b, tbl)
+		}
 	}
 }
 
@@ -1452,6 +1511,9 @@ func writeTableExprAlias(b *strings.Builder, tbl ast.TableExpr) {
 func deparseDataTypeAlias(dt *ast.DataType) string {
 	if dt == nil {
 		return ""
+	}
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
 	}
 	name := strings.ToUpper(dt.Name)
 	switch strings.ToLower(dt.Name) {
@@ -1639,12 +1701,24 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 	case ast.JoinStraight:
 		joinType = "straight_join"
 	case ast.JoinNatural:
-		joinType = "join"
+		if j.Condition == nil && itemHasUnknownColumns(j) {
+			joinType = "natural join"
+		} else {
+			joinType = "join"
+		}
 	case ast.JoinNaturalLeft:
-		joinType = "left join"
+		if j.Condition == nil && itemHasUnknownColumns(j) {
+			joinType = "natural left join"
+		} else {
+			joinType = "left join"
+		}
 	case ast.JoinNaturalRight:
-		joinType = "left join"
-		left, right = right, left
+		if j.Condition == nil && itemHasUnknownColumns(j) {
+			joinType = "natural right join"
+		} else {
+			joinType = "left join"
+			left, right = right, left
+		}
 	case ast.JoinFull:
 		joinType = "full join"
 	case ast.JoinNaturalFull:
@@ -1679,10 +1753,10 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 				// Tables were swapped above, so swap names to match original SQL
 				leftName, rightName = rightName, leftName
 			}
-			if leftName == "" || rightName == "" {
-				// A side with no name to qualify its columns, such as an
-				// unaliased table function, keeps its USING: expanding it to ON
-				// would write `on((``.`c` = ...))`, which is no SQL.
+			if leftName == "" || rightName == "" || tableSideHasUnknownColumns(j.Left) || tableSideHasUnknownColumns(j.Right) {
+				// A side with no name to qualify its columns, or an unknown-column
+				// remote/external input where `*` and key merging stay unexpanded,
+				// keeps its USING rather than writing invalid or lossy ON SQL.
 				b.WriteString(" using(")
 				for i, col := range cond.Columns {
 					if i > 0 {
@@ -1723,6 +1797,19 @@ func tableExprName(tbl ast.TableExpr) string {
 		return t.Alias
 	default:
 		return ""
+	}
+}
+
+// tableSideHasUnknownColumns reports in O(1) for non-subquery operands whether a
+// direct USING side is a remote or external table whose USING must stay intact.
+func tableSideHasUnknownColumns(tbl ast.TableExpr) bool {
+	switch t := tbl.(type) {
+	case *ast.TableRef:
+		return t.Catalog != "" || t.Dblink != ""
+	case *ast.ExternalTableRef:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -2514,8 +2601,11 @@ func writeConvertExpr(b *strings.Builder, n *ast.ConvertExpr) {
 // The nested ARRAYs are counted and written into one builder, so the text is built once
 // however deep they go.
 func CastArrayType(dt *ast.DataType) string {
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
+	}
 	depth := 0
-	for dt.ArrayElem != nil && strings.EqualFold(dt.ArrayElem.Name, "array") {
+	for dt.ArrayElem != nil && !dt.ArrayElem.FromStringValue && strings.EqualFold(dt.ArrayElem.Name, "array") {
 		depth++
 		dt = dt.ArrayElem
 	}
@@ -2541,6 +2631,9 @@ func CollectionType(dt *ast.DataType) string {
 
 // castArrayLeaf writes an ARRAY whose element is no ARRAY.
 func castArrayLeaf(dt *ast.DataType) string {
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
+	}
 	if dt.ArrayElem == nil {
 		return "ARRAY"
 	}
@@ -2550,6 +2643,9 @@ func castArrayLeaf(dt *ast.DataType) string {
 // castArrayElement writes the element of an ARRAY, or a MAP's key or value. A
 // MAP writes both, so the text reads back: MAP(INT,VARCHAR(3)).
 func castArrayElement(element *ast.DataType) string {
+	if element.FromStringValue {
+		return quoteStringValue(element.Name)
+	}
 	text := strings.ToUpper(element.Name)
 	switch text {
 	case "ARRAY":
@@ -2597,6 +2693,9 @@ func castArrayElement(element *ast.DataType) string {
 func deparseDataType(dt *ast.DataType) string {
 	if dt == nil {
 		return ""
+	}
+	if dt.FromStringValue {
+		return quoteStringValue(dt.Name)
 	}
 	name := strings.ToLower(dt.Name)
 	switch name {
@@ -3065,6 +3164,9 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 		// name is a stored function and keeps the name it was called by.
 		canonical = "char"
 	}
+	if name == "SCHEMA" && n.Schema == "" {
+		canonical = "database"
+	}
 
 	// Schema-qualified name
 	if n.Schema != "" {
@@ -3197,6 +3299,16 @@ func writeWindowBody(b *strings.Builder, wd *ast.WindowDef) {
 
 // writeWindowFrame formats a window frame specification.
 // MySQL 8.0 format: ROWS/RANGE/GROUPS BETWEEN start AND end (all uppercase).
+// DeparseWindowFrame formats a window frame specification.
+func DeparseWindowFrame(f *ast.WindowFrame) string {
+	if f == nil {
+		return ""
+	}
+	var b strings.Builder
+	writeWindowFrame(&b, f)
+	return b.String()
+}
+
 func writeWindowFrame(b *strings.Builder, f *ast.WindowFrame) {
 	// Frame type
 	switch f.Type {

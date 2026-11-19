@@ -47,8 +47,16 @@ func StatementDisallowTruncate(stmts []ast.Node) []v1review.Finding {
 
 // qualifiedTableName returns the table as written: db.table when qualified.
 func qualifiedTableName(table *ast.TableRef) string {
-	if table.Schema != "" {
-		return table.Schema + "." + table.Name
+	var out string
+	if table.Catalog != "" {
+		out = table.Catalog + "."
 	}
-	return table.Name
+	if table.Schema != "" || table.Catalog != "" {
+		out += table.Schema + "."
+	}
+	out += table.Name
+	if table.Dblink != "" {
+		out += "@" + table.Dblink
+	}
+	return out
 }

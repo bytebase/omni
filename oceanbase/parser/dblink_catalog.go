@@ -190,10 +190,20 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
 	}
-	// user: a string, a name or an unreserved keyword.
-	user, _, err := p.parseIdentOrText()
-	if err != nil {
-		return nil, err
+	// user: a string (including adjacent string literals), a name or an unreserved keyword.
+	var user string
+	if p.cur.Type == tokSCONST {
+		var err error
+		user, err = p.parseIntoString()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		var err error
+		user, _, err = p.parseIdentOrText()
+		if err != nil {
+			return nil, err
+		}
 	}
 	stmt.User = user
 
@@ -228,10 +238,16 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 	if p.cur.Type != tokSCONST {
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt.Password = p.cur.Str
-	p.advance()
+	pwd, err := p.parseIntoString()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Password = pwd
 
-	// ip_port: SERVER [=] 'host:port' | HOST 'host:port'.
+	// ip_port: SERVER [=] 'host:port' | HOST 'host:port'. Adjacent string
+	// literals fold into one STRING_VALUE (as in LOAD DATA), which is also how
+	// compat.tsv's opt_cluster/CLUSTER_STRING_VALUE!drop-1 (`SERVER 's' 's'`)
+	// parses without misassigning the second string part to Cluster.
 	if p.cur.Type == kwSERVER {
 		p.advance()
 		p.match('=')
@@ -243,21 +259,23 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 	if p.cur.Type != tokSCONST {
 		return nil, p.syntaxErrorAtCur()
 	}
-	stmt.Server = p.cur.Str
-	p.advance()
+	server, err := p.parseIntoString()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Server = server
 
-	// opt_cluster: CLUSTER 'name', and the bare string the pinned server
-	// accepts in its place (compat.tsv, opt_cluster/CLUSTER_STRING_VALUE!drop-1).
-	hadClusterWord := false
+	// opt_cluster: CLUSTER 'name'.
 	if p.isBareWord("CLUSTER") {
 		p.advance()
-		hadClusterWord = true
-	}
-	if p.cur.Type == tokSCONST {
-		stmt.Cluster = p.cur.Str
-		p.advance()
-	} else if hadClusterWord {
-		return nil, p.syntaxErrorAtCur()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cluster, err := p.parseIntoString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Cluster = cluster
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -290,8 +308,9 @@ func (p *Parser) parseDropDblinkStmt(start int) (nodes.Node, error) {
 	return stmt, nil
 }
 
-// atDatabaseLink reports whether the tokens are DATABASE LINK, which switches
-// CREATE/DROP DATABASE from the database statement to the database link's.
+// atDatabaseLink reports whether the tokens are DATABASE LINK followed by
+// another token, which switches DROP DATABASE from the database statement to
+// DROP DATABASE LINK.
 func (p *Parser) atDatabaseLink() bool {
 	if p.cur.Type != kwDATABASE {
 		return false
@@ -309,6 +328,35 @@ func (p *Parser) atDatabaseLink() bool {
 	look := *p.lexer
 	tok := look.NextToken()
 	return tok.Type != tokEOF && tok.Type != ';'
+}
+
+// atCreateDatabaseLink disambiguates CREATE DATABASE LINK <dblink> ... from
+// CREATE DATABASE link <database_option_list> when an unquoted database is
+// named LINK and carries database options (DEFAULT, CHARACTER SET, CHARSET,
+// COLLATE, READ ONLY, ENCRYPTION, TABLEGROUP).
+func (p *Parser) atCreateDatabaseLink() bool {
+	if !p.atDatabaseLink() {
+		return false
+	}
+	look := *p.lexer
+	tok := look.NextToken()
+	switch tok.Type {
+	case kwDEFAULT, kwCHARACTER, kwCOLLATE, kwREAD:
+		return false
+	case kwCHARSET, kwENCRYPTION:
+		after := look.NextToken()
+		if !((after.Type == tokIDENT || after.Type >= 700) && !p.backtickQuotedAt(after.Loc) && strings.EqualFold(after.Str, "CONNECT")) {
+			return false
+		}
+	default:
+		if (tok.Type == tokIDENT || tok.Type >= 700) && !p.backtickQuotedAt(tok.Loc) && strings.EqualFold(tok.Str, "TABLEGROUP") {
+			after := look.NextToken()
+			if !((after.Type == tokIDENT || after.Type >= 700) && !p.backtickQuotedAt(after.Loc) && strings.EqualFold(after.Str, "CONNECT")) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // atExternalCatalog reports whether the tokens are CATALOG after CREATE

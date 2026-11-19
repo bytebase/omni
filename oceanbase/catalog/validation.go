@@ -48,7 +48,7 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	}
 	// data_type's STRING_VALUE arm is a quoted literal in the type's place, which
 	// the pinned server parses and refuses: 5874, invalid datatype.
-	if colDef.TypeName.FromStringValue {
+	if hasQuotedDataType(colDef.TypeName) {
 		return &Error{Code: 5874, SQLState: "HY000", Message: "invalid datatype"}
 	}
 	if err := checkCollectionElements(colDef.TypeName); err != nil {
@@ -413,6 +413,13 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 // are integers, BOOL, FLOAT and DOUBLE, VARCHAR, VECTOR and ARRAY: cast_array_test.go
 // measured them on casts, where it refuses ENUM, SET, DECIMAL and VARBINARY, and a
 // column's TINYTEXT[] is refused the same way (simulate.tsv).
+func hasQuotedDataType(dt *nodes.DataType) bool {
+	if dt == nil {
+		return false
+	}
+	return dt.FromStringValue || hasQuotedDataType(dt.ArrayElem) || hasQuotedDataType(dt.MapKey)
+}
+
 func checkCollectionElements(dt *nodes.DataType) error {
 	for dt != nil {
 		switch normalizedTypeName(dt.Name) {

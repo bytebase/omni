@@ -158,14 +158,13 @@ func alterNoFacts(c *ast.AlterTableCmd) bool {
 		ast.ATAddPartition, ast.ATDropPartition, ast.ATCoalescePartition, ast.ATReorganizePartition,
 		ast.ATExchangePartition, ast.ATTruncatePartition, ast.ATAnalyzePartition, ast.ATCheckPartition,
 		ast.ATOptimizePartition, ast.ATRebuildPartition, ast.ATRepairPartition, ast.ATDiscardPartitionTablespace,
-		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy,
+		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning,
 		ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAlterPartitionStorageCachePolicy, ast.ATAddSubpartition,
-		// REMOVE TTL drops a table's TTL, and ALTER INDEX ... PARALLEL changes
-		// only metadata the walk does not keep. REFRESH and an index's
-		// STORAGE_CACHE_POLICY are refused by the engine and the catalog, so
-		// they are no no-ops (alterCmd).
-		ast.ATRemoveTTL, ast.ATAlterIndexParallel:
+		// REMOVE TTL drops a table's TTL, which changes no name the walk keeps.
+		ast.ATRemoveTTL:
 		return true
+	case ast.ATPartitionBy:
+		return c.PartitionBy == nil || c.PartitionBy.SplitSize == ""
 	case ast.ATAddConstraint:
 		return c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck
 	}
@@ -176,11 +175,18 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 	rng := rangeOf(c.Loc)
 	switch c.Type {
 	case ast.ATAddColumn:
+		if b.w.oceanBase && c.LobStorage != nil {
+			b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses LOB storage parameters on ALTER TABLE ADD.")
+			return true
+		}
 		cols := c.Columns
 		if c.Column != nil {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
 		for _, col := range cols {
+			if b.columnFormFails(col, rangeOf(col.Loc), true) {
+				return true
+			}
 			if !b.addColumn(r, col, c.After, c.Before, rangeOf(col.Loc)) {
 				return false
 			}
@@ -196,18 +202,30 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 		// An index loses the column, and goes with its last one.
 		b.MayRemove(walk.Scope{Space: spaceIndex, Parent: tablePath(r.db, r.name)})
 	case ast.ATModifyColumn:
-		if c.Column == nil || !b.columnNeeds(r, c.Column.Name, rng) {
+		if c.Column == nil {
 			return false
 		}
-		b.after(r, c.After, rng)
+		if b.columnFormFails(c.Column, rng, true) {
+			return true
+		}
+		if !b.columnNeeds(r, c.Column.Name, rng) {
+			return false
+		}
+		b.before(r, c.After, c.Column.Name, rng)
 		b.before(r, c.Before, c.Column.Name, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
-		if c.Column == nil || !b.renameColumn(r, c.Name, c.Column.Name, rng) {
+		if c.Column == nil {
 			return false
 		}
-		b.after(r, c.After, rng)
-		b.before(r, c.Before, c.Column.Name, rng)
+		if b.columnFormFails(c.Column, rng, true) {
+			return true
+		}
+		if !b.renameColumn(r, c.Name, c.Column.Name, rng) {
+			return false
+		}
+		b.before(r, c.After, c.Name, rng)
+		b.before(r, c.Before, c.Name, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
@@ -248,15 +266,25 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.Set(own, walk.Absent, "")
 		case dropCheck:
 		case dropConstraint:
-			// The foreign key, unique key, or check of the name.
-			if k, ok := b.key(spaceForeignKey, c.Name); ok {
-				fk, own := fkKeys(r, k)
-				b.Set(fk, walk.Unknown, "")
-				b.Set(own, walk.Unknown, "")
-				b.Set(idxKey(r.db, r.name, k), walk.Unknown, "")
+			names := c.ConstraintNames
+			if len(names) == 0 && c.Name != "" {
+				names = []string{c.Name}
+			}
+			for _, name := range names {
+				if k, ok := b.key(spaceForeignKey, name); ok {
+					fk, own := fkKeys(r, k)
+					b.Set(fk, walk.Unknown, "")
+					b.Set(own, walk.Unknown, "")
+					b.Set(idxKey(r.db, r.name, k), walk.Unknown, "")
+				}
 			}
 		default:
 			return false
+		}
+	case ast.ATPartitionBy:
+		if b.w.oceanBase && c.PartitionBy != nil && c.PartitionBy.SplitSize != "" {
+			b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses partition SIZE on ALTER TABLE.")
+			return true
 		}
 	case ast.ATRenameIndex:
 		from, ok1 := b.key(spaceIndex, c.Name)
@@ -436,6 +464,38 @@ func (b *builder) before(r tableRef, before, replaced string, rng review.Range) 
 	if k, ok := b.key(spaceColumn, before); ok {
 		b.fail(rng, []walk.Key{colKey(r.db, r.name, k)}, review.ObjectNotFound, notFound("column", ident(before), r.written))
 	}
+}
+
+// columnFormFails fails OceanBase-parsed column attributes and types that the
+// engine unconditionally refuses before mutating schema state.
+func (b *builder) columnFormFails(col *ast.ColumnDef, rng review.Range, inAlter bool) bool {
+	if !b.w.oceanBase || col == nil {
+		return false
+	}
+	if inAlter && (col.HasID || (col.Generated != nil && col.Generated.HasID)) {
+		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses explicit column ID on ALTER TABLE.")
+		return true
+	}
+	if col.HasChunk {
+		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" has no column CHUNK attribute.")
+		return true
+	}
+	if col.HasOrigDefault {
+		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses ORIG_DEFAULT on column "+review.Code(ident(col.Name))+".")
+		return true
+	}
+	if hasStringDataType(col.TypeName) {
+		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses a quoted string literal as a column data type.")
+		return true
+	}
+	return false
+}
+
+func hasStringDataType(dt *ast.DataType) bool {
+	if dt == nil {
+		return false
+	}
+	return dt.FromStringValue || hasStringDataType(dt.ArrayElem) || hasStringDataType(dt.MapKey)
 }
 
 // columnNeeds checks that a column the subcommand names exists (1054).

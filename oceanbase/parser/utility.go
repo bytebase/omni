@@ -712,6 +712,9 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
+	default:
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// Optional WHERE clause
@@ -1470,17 +1473,17 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 
 	stmt := &nodes.CacheIndexStmt{Loc: nodes.Loc{Start: start}}
 
-	entry, err := p.parseCacheIndexTable()
+	entry, keyed, err := p.parseCacheIndexTable()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Tables = append(stmt.Tables, entry)
 
 	if p.cur.Type == kwPARTITION {
-		// The partition form takes one table and no index name: the grammar's
-		// tbl_index_list and its `normal_relation_factor PARTITION (...)` arm are
-		// disjoint, so `CACHE INDEX t i PARTITION (ALL) IN c` is a 1064.
-		if len(entry.Indexes) > 0 {
+		// The partition form takes one table and neither KEY/INDEX nor an index
+		// name: the grammar's tbl_index_list and its `normal_relation_factor
+		// PARTITION (...)` arm are disjoint.
+		if len(entry.Indexes) > 0 || keyed {
 			return nil, p.syntaxErrorAtCur()
 		}
 		parts, err := p.parseTblPartitionList()
@@ -1488,10 +1491,11 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 			return nil, err
 		}
 		entry.Partitions = parts
+		entry.Loc.End = p.prev.End
 	} else {
 		for p.cur.Type == ',' {
 			p.advance()
-			next, err := p.parseCacheIndexTable()
+			next, _, err := p.parseCacheIndexTable()
 			if err != nil {
 				return nil, err
 			}
@@ -1501,6 +1505,9 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 
 	if _, err := p.expect(kwIN); err != nil {
 		return nil, err
+	}
+	if p.cur.Type == '.' {
+		return nil, p.syntaxErrorAtCur()
 	}
 	cache, err := p.parseRelationFactor()
 	if err != nil {
@@ -1515,30 +1522,36 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	return stmt, nil
 }
 
-// parseCacheIndexTable parses one tbl_index: a table, an optional KEY or
-// INDEX, and an optional index name that follows with no parentheses.
-func (p *Parser) parseCacheIndexTable() (*nodes.LoadIndexTable, error) {
+// parseCacheIndexTable parses one tbl_index: a table (normal_relation_factor),
+// an optional KEY or INDEX, and an optional index name that follows with no
+// parentheses.
+func (p *Parser) parseCacheIndexTable() (*nodes.LoadIndexTable, bool, error) {
 	start := p.pos()
+	if p.cur.Type == '.' {
+		return nil, false, p.syntaxErrorAtCur()
+	}
 	ref, err := p.parseRelationFactor()
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	entry := &nodes.LoadIndexTable{Loc: nodes.Loc{Start: start}, Table: ref}
 
+	keyed := false
 	if p.cur.Type == kwKEY || p.cur.Type == kwINDEX {
 		p.advance()
+		keyed = true
 	}
 	// opt_index_name is a relation_name, so the next word is the index name
 	// unless it opens the next clause.
 	if p.isIdentToken() && p.cur.Type != kwIN && p.cur.Type != kwPARTITION {
 		name, _, err := p.parseIdent()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		entry.Indexes = []string{name}
 	}
 	entry.Loc.End = p.prev.End
-	return entry, nil
+	return entry, keyed, nil
 }
 
 // parseTblPartitionList parses PARTITION '(' tbl_partition_list ')', whose list
@@ -1589,6 +1602,9 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 
 	for {
 		tblStart := p.pos()
+		if p.cur.Type == '.' {
+			return nil, p.syntaxErrorAtCur()
+		}
 		ref, err := p.parseRelationFactor()
 		if err != nil {
 			return nil, err

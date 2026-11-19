@@ -236,11 +236,18 @@ func TestWalkThroughOceanBaseLowersEveryForm(t *testing.T) {
 
 func TestWalkThroughRejectedAlterActions(t *testing.T) {
 	shop := review.Target{Schema: oceanBaseSchema(), LowerCaseTableNames: 1}
-	// A column is no BEFORE target of its own move (1054).
+	// A column is no BEFORE or AFTER target of its own move (1054).
 	oneFindingOB(t, "ALTER TABLE t MODIFY a INT BEFORE a;", 0, "Column `a` doesn't exist in `t`.", shop)
+	oneFindingOB(t, "ALTER TABLE t MODIFY a INT AFTER a;", 0, "Column `a` doesn't exist in `t`.", shop)
+	oneFindingOB(t, "ALTER TABLE t CHANGE a b INT BEFORE a;", 0, "Column `a` doesn't exist in `t`.", shop)
+	oneFindingOB(t, "ALTER TABLE t CHANGE a b INT AFTER a;", 0, "Column `a` doesn't exist in `t`.", shop)
 	oneFindingOB(t, "ALTER TABLE t CHANGE a b INT BEFORE b;", 0, "Column `b` doesn't exist in `t`.", shop)
-	// REFRESH is an external table's and a storage cache policy is shared
-	// storage's: both are refused rather than followed as no-ops.
+	// REFRESH, storage cache policy, LOB storage, column ID/CHUNK/ORIG_DEFAULT,
+	// quoted data types, and view TABLE_ID are refused rather than mutating the ledger.
 	oneFindingOB(t, "ALTER TABLE t REFRESH;", 0, "OceanBase refreshes no metadata of table `t`.", shop)
 	oneFindingOB(t, "ALTER TABLE t ALTER INDEX i STORAGE_CACHE_POLICY(GLOBAL = 's');", 0, "OceanBase has no storage cache policy for an index.", shop)
+	oneFindingOB(t, "ALTER TABLE t ADD COLUMN c INT ID 1;", 0, "OceanBase refuses explicit column ID on ALTER TABLE.", shop)
+	oneFindingOB(t, "ALTER TABLE t ADD (c JSON) JSON(c) STORE AS (CHUNK 1);", 0, "OceanBase refuses LOB storage parameters on ALTER TABLE ADD.", shop)
+	oneFindingOB(t, "ALTER TABLE t ADD COLUMN c 'int';", 0, "OceanBase refuses a quoted string literal as a column data type.", shop)
+	oneFindingOB(t, "CREATE VIEW v2 TABLE_ID = 1 AS SELECT 1;", 0, "OceanBase refuses TABLE_ID on a view.", shop)
 }

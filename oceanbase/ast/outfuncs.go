@@ -436,6 +436,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		} else {
 			fmt.Fprintf(sb, "{FILE_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
 		}
+	case *LoadDataExtendedOption:
+		fmt.Fprintf(sb, "{LOAD_DATA_EXT_OPT :loc %d :kind %q :val %q}", n.Loc.Start, n.Kind, n.Value)
 	case *PartitionClause:
 		writePartitionClause(sb, n)
 	case *PartitionDef:

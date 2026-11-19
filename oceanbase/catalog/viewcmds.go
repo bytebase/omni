@@ -101,7 +101,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
 		return errDupColumn(name)
 	}
-	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	columnMetadata, err := c.inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     true,
 		Materialized:    materialized,
-		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
+		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, viewCols, analyzedQuery, stmt.Select),
 	}
 	return nil
 }
@@ -163,6 +163,9 @@ func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt,
 // log is written for an existing base table, not a view. The catalog models no
 // log of its own.
 func (c *Catalog) materializedViewLogTarget(ref *nodes.TableRef) error {
+	if err := rejectRemoteRef(ref); err != nil {
+		return err
+	}
 	db, err := c.resolveDatabase(ref.Schema)
 	if err != nil {
 		return err
@@ -249,6 +252,9 @@ func (c *Catalog) dropMaterializedViewLog(stmt *nodes.DropMaterializedViewLogStm
 // re-compile or toggle rewrite, which change no query the catalog holds, but
 // the target must be a materialized view the catalog has.
 func (c *Catalog) alterMaterializedView(stmt *nodes.AlterMaterializedViewStmt) error {
+	if err := rejectRemoteRef(stmt.Name); err != nil {
+		return err
+	}
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -284,14 +290,43 @@ func materializedViewAsView(stmt *nodes.CreateMaterializedViewStmt) *nodes.Creat
 // the ones the engine gives. A column list the statement wrote is the engine's too;
 // otherwise the names come from the body, and an analysis that did not finish
 // leaves them unknown.
-func viewColumnNamesUncertain(columns []string, q *Query, sel *nodes.SelectStmt) bool {
+func viewColumnNamesUncertain(columns, viewCols []string, q *Query, sel *nodes.SelectStmt) bool {
 	if len(columns) > 0 {
 		return false
+	}
+	if len(viewCols) == 0 || selectHasUnexpandedStar(sel) {
+		return true
 	}
 	if q != nil {
 		return q.namesUncertain
 	}
 	return selectDerivesNames(sel)
+}
+
+func selectHasUnexpandedStar(sel *nodes.SelectStmt) bool {
+	switch {
+	case sel == nil:
+		return false
+	case sel.SetOp != nodes.SetOpNone:
+		return selectHasUnexpandedStar(sel.Left)
+	case sel.ParenSource != nil:
+		return selectHasUnexpandedStar(sel.ParenSource)
+	}
+	for _, item := range sel.TargetList {
+		expr := item
+		if rt, ok := item.(*nodes.ResTarget); ok {
+			expr = rt.Val
+		}
+		switch e := expr.(type) {
+		case *nodes.StarExpr:
+			return true
+		case *nodes.ColumnRef:
+			if e.Star {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter
@@ -390,7 +425,7 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	if name, dup := duplicateViewColumn(stmt.Select, stmt.Columns, aliased); dup {
 		return errDupColumn(name)
 	}
-	columnMetadata, err := inferViewColumnMetadata(stmt.Select, viewCols, db)
+	columnMetadata, err := c.inferViewColumnMetadata(stmt.Select, viewCols, db)
 	if err != nil {
 		return err
 	}
@@ -407,15 +442,23 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		ColumnMetadata:  columnMetadata,
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
-		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
+		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, viewCols, analyzedQuery, stmt.Select),
 		IsUpdatable:     true,
 	}
 	return nil
 }
 
 type viewRelationInfo struct {
+	key      string
+	schema   string
+	hasAlias bool
 	table    *Table
 	optional bool
+}
+
+type viewRelationsScope struct {
+	rels       []viewRelationInfo
+	hasUnknown bool
 }
 
 type viewCollationDerivation int
@@ -433,7 +476,7 @@ type viewCollationInfo struct {
 	valid      bool
 }
 
-func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database) ([]ViewColumn, error) {
+func (c *Catalog) inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database) ([]ViewColumn, error) {
 	cols := make([]ViewColumn, len(names))
 	for i, name := range names {
 		cols[i].Name = name
@@ -441,9 +484,9 @@ func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database
 	if sel == nil {
 		return cols, nil
 	}
-	relations := map[string]viewRelationInfo{}
+	relations := &viewRelationsScope{}
 	for _, from := range sel.From {
-		collectViewRelations(from, db, false, relations)
+		c.collectViewRelations(from, db, false, relations)
 	}
 	for i, target := range sel.TargetList {
 		if i >= len(cols) {
@@ -467,13 +510,24 @@ func inferViewColumnMetadata(sel *nodes.SelectStmt, names []string, db *Database
 	return cols, nil
 }
 
-func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out map[string]viewRelationInfo) {
+func (c *Catalog) collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out *viewRelationsScope) {
 	switch n := te.(type) {
 	case *nodes.TableRef:
-		if db == nil {
+		if n.Catalog != "" || n.Dblink != "" {
+			out.hasUnknown = true
 			return
 		}
-		tbl := db.GetTable(n.Name)
+		targetDB := db
+		if n.Schema != "" {
+			if c == nil {
+				return
+			}
+			targetDB = c.GetDatabase(n.Schema)
+		}
+		if targetDB == nil {
+			return
+		}
+		tbl := targetDB.GetTable(n.Name)
 		if tbl == nil {
 			return
 		}
@@ -481,16 +535,24 @@ func collectViewRelations(te nodes.TableExpr, db *Database, optional bool, out m
 		if n.Alias != "" {
 			key = n.Alias
 		}
-		out[toLower(key)] = viewRelationInfo{table: tbl, optional: optional}
+		out.rels = append(out.rels, viewRelationInfo{
+			key:      toLower(key),
+			schema:   targetDB.Name,
+			hasAlias: n.Alias != "",
+			table:    tbl,
+			optional: optional,
+		})
+	case *nodes.ExternalTableRef:
+		out.hasUnknown = true
 	case *nodes.JoinClause:
 		// OceanBase reports a column of an outer join's optional side as it is in its
 		// table, where MySQL widens it to nullable.
-		collectViewRelations(n.Left, db, optional, out)
-		collectViewRelations(n.Right, db, optional, out)
+		c.collectViewRelations(n.Left, db, optional, out)
+		c.collectViewRelations(n.Right, db, optional, out)
 	}
 }
 
-func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelationInfo) bool {
+func inferViewExprNullable(expr nodes.ExprNode, relations *viewRelationsScope) bool {
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefNullable(e, relations)
@@ -554,21 +616,47 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 	}
 }
 
-func inferViewColumnRefNullable(cr *nodes.ColumnRef, relations map[string]viewRelationInfo) bool {
-	if cr == nil || cr.Star {
+func (s *viewRelationsScope) matchQualified(schema, table string) (viewRelationInfo, bool) {
+	if s == nil {
+		return viewRelationInfo{}, false
+	}
+	lowerTable := toLower(table)
+	var matched viewRelationInfo
+	found := false
+	for _, rel := range s.rels {
+		if rel.key != lowerTable {
+			continue
+		}
+		if schema != "" && (rel.hasAlias || !strings.EqualFold(rel.schema, schema)) {
+			continue
+		}
+		if found {
+			return viewRelationInfo{}, false
+		}
+		found = true
+		matched = rel
+	}
+	return matched, found
+}
+
+func inferViewColumnRefNullable(cr *nodes.ColumnRef, relations *viewRelationsScope) bool {
+	if cr == nil || cr.Star || cr.Catalog != "" {
 		return true
 	}
 	if cr.Table != "" {
-		if rel, ok := relations[toLower(cr.Table)]; ok {
+		if rel, ok := relations.matchQualified(cr.Schema, cr.Table); ok {
 			if col := rel.table.GetColumn(cr.Column); col != nil {
 				return rel.optional || col.Nullable
 			}
 		}
 		return true
 	}
+	if relations == nil || relations.hasUnknown {
+		return true
+	}
 	found := false
 	nullable := true
-	for _, rel := range relations {
+	for _, rel := range relations.rels {
 		col := rel.table.GetColumn(cr.Column)
 		if col == nil {
 			continue
@@ -582,7 +670,7 @@ func inferViewColumnRefNullable(cr *nodes.ColumnRef, relations map[string]viewRe
 	return nullable
 }
 
-func validateViewSelectCollations(sel *nodes.SelectStmt, relations map[string]viewRelationInfo) error {
+func validateViewSelectCollations(sel *nodes.SelectStmt, relations *viewRelationsScope) error {
 	if sel == nil {
 		return nil
 	}
@@ -610,7 +698,7 @@ func validateViewSelectCollations(sel *nodes.SelectStmt, relations map[string]vi
 	return nil
 }
 
-func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+func inferViewExprCollation(expr nodes.ExprNode, relations *viewRelationsScope) (viewCollationInfo, error) {
 	switch e := expr.(type) {
 	case *nodes.ColumnRef:
 		return inferViewColumnRefCollation(e, relations), nil
@@ -694,6 +782,13 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 			}
 		}
 		return viewCollationInfo{}, nil
+	case *nodes.RowExpr:
+		for _, item := range e.Items {
+			if _, err := inferViewExprCollation(item, relations); err != nil {
+				return viewCollationInfo{}, err
+			}
+		}
+		return viewCollationInfo{}, nil
 	case *nodes.BinaryExpr:
 		return inferViewBinaryCollation(e, relations)
 	case *nodes.UnaryExpr:
@@ -703,7 +798,7 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 	}
 }
 
-func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations *viewRelationsScope) (viewCollationInfo, error) {
 	name := strings.ToLower(fn.Name)
 	switch name {
 	case "concat", "concat_ws":
@@ -761,7 +856,7 @@ func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations map[string]viewRel
 	}
 }
 
-func inferViewBinaryCollation(expr *nodes.BinaryExpr, relations map[string]viewRelationInfo) (viewCollationInfo, error) {
+func inferViewBinaryCollation(expr *nodes.BinaryExpr, relations *viewRelationsScope) (viewCollationInfo, error) {
 	left, err := inferViewExprCollation(expr.Left, relations)
 	if err != nil {
 		return viewCollationInfo{}, err
@@ -780,19 +875,22 @@ func inferViewBinaryCollation(expr *nodes.BinaryExpr, relations map[string]viewR
 	return aggregateViewCollations(left, right, op)
 }
 
-func inferViewColumnRefCollation(cr *nodes.ColumnRef, relations map[string]viewRelationInfo) viewCollationInfo {
-	if cr == nil || cr.Star {
+func inferViewColumnRefCollation(cr *nodes.ColumnRef, relations *viewRelationsScope) viewCollationInfo {
+	if cr == nil || cr.Star || cr.Catalog != "" {
 		return viewCollationInfo{}
 	}
 	if cr.Table != "" {
-		if rel, ok := relations[toLower(cr.Table)]; ok {
+		if rel, ok := relations.matchQualified(cr.Schema, cr.Table); ok {
 			return viewColumnCollation(rel.table.GetColumn(cr.Column))
 		}
 		return viewCollationInfo{}
 	}
+	if relations == nil || relations.hasUnknown {
+		return viewCollationInfo{}
+	}
 	var out viewCollationInfo
 	found := false
-	for _, rel := range relations {
+	for _, rel := range relations.rels {
 		ci := viewColumnCollation(rel.table.GetColumn(cr.Column))
 		if !ci.valid {
 			continue

@@ -102,6 +102,15 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	// Step 6: Detect aggregates in target list and having
 	q.HasAggs = detectAggregates(q)
 
+	// Step 6.5: WINDOW clause
+	for _, wd := range stmt.WindowClause {
+		analyzedWin, err := analyzeWindowDef(c, wd, scope, true)
+		if err != nil {
+			return nil, err
+		}
+		q.WindowClause = append(q.WindowClause, analyzedWin)
+	}
+
 	// Step 7: ORDER BY
 	if len(stmt.OrderBy) > 0 {
 		if err := c.analyzeOrderBy(stmt.OrderBy, q, scope); err != nil {
@@ -285,26 +294,50 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	// extending an input's buffer where it can.
 	colNames := joinColumnNames(leftBuf, leftCols, rightBuf, rightCols, usingCols)
 
-	// Mark right-side USING columns as coalesced for star expansion.
+	// Mark the non-surviving side's USING columns as coalesced for star
+	// expansion: left on a RIGHT join, right on all other joins.
 	if len(usingCols) > 0 {
-		markCoalescedColumns(right, q, scope, usingCols)
+		if joinType == JoinRight {
+			markCoalescedColumns(left, q, scope, usingCols)
+		} else {
+			markCoalescedColumns(right, q, scope, usingCols)
+		}
 	}
 
 	// A FULL join merges its key into one column either side may fill, so the
 	// star expansion of the surviving column is COALESCE(left, right). Either
 	// operand may sit under a nested join whose own FULL keys are already
-	// recorded, which then supply that side's expression.
-	if joinType == JoinFull && len(usingCols) > 0 {
-		for _, col := range usingCols {
-			leftEntry, leftExpr, ok := fullJoinKeySource(q, scope, left, col)
-			if !ok {
-				continue
+	// recorded, which then supply that side's expression. When an outer
+	// non-FULL USING/NATURAL join combines inputs, update fullJoinByColumn to
+	// match the outer join's surviving side (clearing it if plain).
+	if len(usingCols) > 0 {
+		if joinType == JoinFull {
+			for _, col := range usingCols {
+				leftRTE, leftExpr, ok := fullJoinKeySource(q, scope, left, col)
+				if !ok {
+					continue
+				}
+				_, rightExpr, ok := fullJoinKeySource(q, scope, right, col)
+				if !ok {
+					continue
+				}
+				scope.addFullJoinExpr(leftRTE, col, &CoalesceExprQ{Args: []AnalyzedExpr{leftExpr, rightExpr}})
 			}
-			_, rightExpr, ok := fullJoinKeySource(q, scope, right, col)
-			if !ok {
-				continue
+		} else {
+			surviving := left
+			if joinType == JoinRight {
+				surviving = right
 			}
-			scope.addFullJoinExpr(leftEntry, col, &CoalesceExprQ{Args: []AnalyzedExpr{leftExpr, rightExpr}})
+			for _, col := range usingCols {
+				survRTE, _, ok := fullJoinKeySource(q, scope, surviving, col)
+				if ok {
+					if _, hasMerged := scope.fullJoinExpr(survRTE, col); hasMerged {
+						scope.setFullJoinColumn(col, survRTE)
+						continue
+					}
+				}
+				scope.clearFullJoinColumn(col)
+			}
 		}
 	}
 
@@ -336,17 +369,17 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 // FULL join's own COALESCE when it recorded one, the plain variable otherwise.
 // It follows the input that lists the column first: a RIGHT join's right input,
 // any other join's left.
-func fullJoinKeySource(q *Query, scope *analyzerScope, node JoinNode, column string) (string, AnalyzedExpr, bool) {
+func fullJoinKeySource(q *Query, scope *analyzerScope, node JoinNode, column string) (int, AnalyzedExpr, bool) {
 	switch n := node.(type) {
 	case *RangeTableRefQ:
 		rte := q.RangeTable[n.RTIndex]
 		for i, name := range rte.ColNames {
 			if strings.EqualFold(name, column) {
 				var expr AnalyzedExpr = &VarExprQ{RangeIdx: n.RTIndex, AttNum: i + 1}
-				if merged, ok := scope.fullJoinExpr(rte.ERef, column); ok {
+				if merged, ok := scope.fullJoinExpr(n.RTIndex, column); ok {
 					expr = merged
 				}
-				return rte.ERef, expr, true
+				return n.RTIndex, expr, true
 			}
 		}
 	case *JoinExprNodeQ:
@@ -354,12 +387,12 @@ func fullJoinKeySource(q *Query, scope *analyzerScope, node JoinNode, column str
 		if n.JoinType == JoinRight {
 			first, second = second, first
 		}
-		if entry, expr, ok := fullJoinKeySource(q, scope, first, column); ok {
-			return entry, expr, true
+		if rteIdx, expr, ok := fullJoinKeySource(q, scope, first, column); ok {
+			return rteIdx, expr, true
 		}
 		return fullJoinKeySource(q, scope, second, column)
 	}
-	return "", nil, false
+	return 0, nil, false
 }
 
 // joinKeyVar returns the variable a join's input contributes for the named
@@ -461,10 +494,9 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 	switch n := node.(type) {
 	case *RangeTableRefQ:
 		rte := q.RangeTable[n.RTIndex]
-		scopeName := strings.ToLower(rte.ERef)
 		for _, colName := range rte.ColNames {
 			if usingSet[strings.ToLower(colName)] {
-				scope.markCoalesced(scopeName, colName)
+				scope.markCoalescedRTE(n.RTIndex, colName)
 			}
 		}
 	case *JoinExprNodeQ:
@@ -699,6 +731,27 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 					q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
 					continue
 				}
+				if _, isCoalesce := analyzed.(*CoalesceExprQ); isCoalesce {
+					targetIdx := 0
+					for _, te := range q.TargetList {
+						if exprEqual(te.Expr, analyzed) {
+							targetIdx = te.ResNo
+							break
+						}
+					}
+					if targetIdx == 0 {
+						te := &TargetEntryQ{
+							Expr:    analyzed,
+							ResNo:   len(q.TargetList) + 1,
+							ResName: n.Column,
+							ResJunk: true,
+						}
+						q.TargetList = append(q.TargetList, te)
+						targetIdx = te.ResNo
+					}
+					q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: targetIdx})
+					continue
+				}
 				return fmt.Errorf("GROUP BY column reference resolved to unexpected type %T", analyzed)
 			}
 			targetIdx := findMatchingTarget(q.TargetList, varExpr)
@@ -903,22 +956,6 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 				Descending: desc,
 				NullsFirst: nullsFirst,
 			})
-		case *nodes.GroupingSet:
-			// A grouping set is a GROUP BY item of its own: analyze it and keep it
-			// as a junk target entry the GROUP BY clause points at, so a stored
-			// view writes ROLLUP (...) rather than the expressions it groups by.
-			analyzed, err := analyzeExpr(c, n, scope)
-			if err != nil {
-				return err
-			}
-			te := &TargetEntryQ{
-				Expr:    analyzed,
-				ResNo:   len(q.TargetList) + 1,
-				ResName: "grouping set",
-				ResJunk: true,
-			}
-			q.TargetList = append(q.TargetList, te)
-			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
 		case *nodes.ColumnRef:
 			// Resolve the column ref, then find matching target entry.
 			analyzed, err := analyzeExpr(c, n, scope)
@@ -932,6 +969,27 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 						return errOrderByAliasLiteral
 					}
 					q.SortClause = append(q.SortClause, &SortGroupClauseQ{TargetIdx: te.ResNo, Descending: desc, NullsFirst: nullsFirst})
+					continue
+				}
+				if _, isCoalesce := analyzed.(*CoalesceExprQ); isCoalesce {
+					targetIdx := 0
+					for _, te := range q.TargetList {
+						if exprEqual(te.Expr, analyzed) {
+							targetIdx = te.ResNo
+							break
+						}
+					}
+					if targetIdx == 0 {
+						te := &TargetEntryQ{
+							Expr:    analyzed,
+							ResNo:   len(q.TargetList) + 1,
+							ResName: n.Column,
+							ResJunk: true,
+						}
+						q.TargetList = append(q.TargetList, te)
+						targetIdx = te.ResNo
+					}
+					q.SortClause = append(q.SortClause, &SortGroupClauseQ{TargetIdx: targetIdx, Descending: desc, NullsFirst: nullsFirst})
 					continue
 				}
 				return fmt.Errorf("ORDER BY column reference resolved to unexpected type %T", analyzed)

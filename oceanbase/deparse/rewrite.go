@@ -242,6 +242,10 @@ func FoldBetween(node ast.ExprNode) ast.ExprNode {
 		n.Operand = FoldBetween(n.Operand)
 	case *ast.ParenExpr:
 		n.Expr = FoldBetween(n.Expr)
+	case *ast.OdbcEscapeExpr:
+		n.Expr = FoldBetween(n.Expr)
+	case *ast.QuantifiedExpr:
+		n.Expr = FoldBetween(n.Expr)
 	case *ast.IsExpr:
 		n.Expr = FoldBetween(n.Expr)
 	case *ast.CaseExpr:

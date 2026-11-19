@@ -272,14 +272,18 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 }
 
 func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *deparseScope) {
-	if w.Name != "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && w.FrameClause == "" {
+	if w.Name != "" && w.RefName == "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && len(w.OrderExprs) == 0 && w.FrameClause == "" {
 		b.WriteString(backtickIDQ(w.Name))
 		return
 	}
 
 	b.WriteByte('(')
-	if w.Name != "" {
-		b.WriteString(backtickIDQ(w.Name) + " ")
+	ref := w.RefName
+	if ref == "" {
+		ref = w.Name
+	}
+	if ref != "" {
+		b.WriteString(backtickIDQ(ref) + " ")
 	}
 
 	needSpace := false
@@ -293,7 +297,22 @@ func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *deparseScope) {
 		}
 		needSpace = true
 	}
-	if len(w.OrderBy) > 0 {
+	if len(w.OrderExprs) > 0 {
+		if needSpace {
+			b.WriteByte(' ')
+		}
+		b.WriteString("order by ")
+		for i, item := range w.OrderExprs {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeAnalyzedExpr(b, item.Expr, q)
+			if item.Descending {
+				b.WriteString(" desc")
+			}
+		}
+		needSpace = true
+	} else if len(w.OrderBy) > 0 {
 		if needSpace {
 			b.WriteByte(' ')
 		}

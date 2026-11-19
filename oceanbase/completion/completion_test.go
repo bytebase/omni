@@ -3077,3 +3077,29 @@ func TestComplete_AfterExternal(t *testing.T) {
 		}
 	}
 }
+
+func TestComplete_RemoteRefsDoNotLeakLocalColumns(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	mustExec(t, cat, "CREATE TABLE orders (id INT, secret_col INT)")
+
+	for _, tc := range []struct {
+		sql    string
+		cursor int
+	}{
+		{"INSERT INTO orders@remote_link (", len("INSERT INTO orders@remote_link (")},
+		{"INSERT INTO ext_cat.testdb.orders (", len("INSERT INTO ext_cat.testdb.orders (")},
+		{"UPDATE orders@remote_link SET ", len("UPDATE orders@remote_link SET ")},
+		{"UPDATE ext_cat.testdb.orders SET ", len("UPDATE ext_cat.testdb.orders SET ")},
+		{"SELECT  FROM 's'(FORMAT(TYPE = 'csv'))", len("SELECT ")},
+		{"SELECT  FROM FILES(LOCATION 's')", len("SELECT ")},
+		{"SELECT  FROM 'oss://bucket/orders.parquet'", len("SELECT ")},
+		{"SELECT  FROM SOURCE(TYPE = 's'", len("SELECT ")},
+	} {
+		candidates := Complete(tc.sql, tc.cursor, cat)
+		if containsCandidate(candidates, "secret_col", CandidateColumn) {
+			t.Errorf("%q leaked local column secret_col: %v", tc.sql, candidates)
+		}
+	}
+}

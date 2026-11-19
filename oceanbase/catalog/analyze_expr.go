@@ -93,6 +93,16 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 			items = append(items, analyzed)
 		}
 		return &GroupingSetExprQ{Kind: n.Kind, Args: items}, nil
+	case *nodes.RowExpr:
+		items := make([]AnalyzedExpr, 0, len(n.Items))
+		for _, item := range n.Items {
+			analyzed, err := analyzeExpr(c, item, scope)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, analyzed)
+		}
+		return &RowExprQ{Args: items}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:
@@ -115,23 +125,20 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 	}
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
-		// An unqualified column of a relation whose schema is unknown resolves
-		// when that relation is the only one that can hold it, in this scope or
-		// the queries around it: `SELECT (SELECT a) FROM cat.db.t` reads the
-		// remote relation's a through the correlation.
-		if idx, levels, ok := scope.soleUnknownColumnInChain(); ok {
-			return &VarExprQ{RangeIdx: idx, Name: ref.Column, LevelsUp: levels}, nil
+		// Check same-scope SELECT aliases first in GROUP BY / HAVING / ORDER BY
+		// before attributing an unresolved name to an unknown remote relation,
+		// and compare nesting distance when an enclosing scope holds either.
+		aliasTE, aliasLevels := scope.selectAlias(ref.Column)
+		if aliasTE != nil && aliasLevels == 0 {
+			return aliasTE.Expr, nil
 		}
-		if te, levels := scope.selectAlias(ref.Column); te != nil {
-			if levels > 0 {
-				// The alias belongs to a query around this one, so its expression
-				// counts range tables and correlation levels from there. Rebasing it
-				// here would have to raise every reference it holds by the scopes
-				// crossed, and leave the ones inside its own subqueries alone, so the
-				// name resolves and the query is simply not analyzed.
-				return nil, errOuterAlias
+		if idx, unkLevels, ok := scope.soleUnknownColumnInChain(); ok {
+			if aliasTE == nil || unkLevels <= aliasLevels {
+				return &VarExprQ{RangeIdx: idx, Name: ref.Column, LevelsUp: unkLevels}, nil
 			}
-			return te.Expr, nil
+		}
+		if aliasTE != nil {
+			return nil, errOuterAlias
 		}
 		return nil, err
 	}
@@ -208,7 +215,59 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 			result.ResultType = dataTypeToResolvedType(fc.JSONQuery.Returning)
 		}
 	}
+	if fc.Over != nil {
+		over, err := analyzeWindowDef(c, fc.Over, scope, false)
+		if err != nil {
+			return nil, err
+		}
+		result.Over = over
+	}
 	return result, nil
+}
+
+func analyzeWindowDef(c *Catalog, wd *nodes.WindowDef, scope *analyzerScope, isDecl bool) (*WindowDefQ, error) {
+	if wd == nil {
+		return nil, nil
+	}
+	out := &WindowDefQ{
+		Name:    wd.Name,
+		RefName: wd.RefName,
+	}
+	if !isDecl && out.Name == "" && out.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
+		out.Name = out.RefName
+		out.RefName = ""
+	}
+	for _, expr := range wd.PartitionBy {
+		a, err := analyzeExpr(c, expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		out.PartitionBy = append(out.PartitionBy, a)
+	}
+	for _, item := range wd.OrderBy {
+		a, err := analyzeExpr(c, item.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		out.OrderExprs = append(out.OrderExprs, &WindowOrderItemQ{
+			Expr:       a,
+			Descending: item.Desc,
+		})
+	}
+	if wd.Frame != nil {
+		if wd.Frame.Start != nil && wd.Frame.Start.Offset != nil {
+			if _, err := analyzeExpr(c, wd.Frame.Start.Offset, scope); err != nil {
+				return nil, err
+			}
+		}
+		if wd.Frame.End != nil && wd.Frame.End.Offset != nil {
+			if _, err := analyzeExpr(c, wd.Frame.End.Offset, scope); err != nil {
+				return nil, err
+			}
+		}
+		out.FrameClause = deparse.DeparseWindowFrame(wd.Frame)
+	}
+	return out, nil
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be

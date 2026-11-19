@@ -32,6 +32,11 @@ func ValidateQuery(nodes []ast.Node) (readOnly bool, returnsData bool) {
 			// SHOW is always allowed.
 		case *ast.SetStmt, *ast.SetPasswordStmt, *ast.SetDefaultRoleStmt, *ast.SetRoleStmt, *ast.SetResourceGroupStmt, *ast.SetTransactionStmt:
 			hasExecute = true
+		case *ast.CatalogStmt:
+			if stmt.Action != "SET" {
+				return false, false
+			}
+			hasExecute = true
 		default:
 			return false, false
 		}

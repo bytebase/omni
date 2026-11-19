@@ -150,7 +150,16 @@ func columnDropSteps(sql string, stmts []statement) columnDrops {
 			// any does.
 			st.kind = barrier
 		case *ast.UseStmt:
-			st.kind, st.database = uses, v.Database
+			st.kind = uses
+			if v.Catalog == "" {
+				st.database = v.Database
+			}
+		case *ast.CatalogStmt:
+			if v.Action == "SET" {
+				st.kind = uses
+			} else {
+				st.kind = barrier
+			}
 		case *ast.CreateViewStmt, *ast.CreateMaterializedViewStmt, *ast.AlterViewStmt, *ast.AlterMaterializedViewStmt,
 			*ast.DropViewStmt, *ast.CreateMaterializedViewLogStmt, *ast.AlterMaterializedViewLogStmt, *ast.DropMaterializedViewLogStmt,
 			*ast.CreateTriggerStmt, *ast.DropTriggerStmt,
@@ -455,7 +464,7 @@ func (w *tableState) moveTemporary(from, to *ast.TableRef) {
 // nameKey returns a reference's name as the target's database compares
 // it, and whether the reference names that database.
 func (w *tableState) nameKey(ref *ast.TableRef) (string, bool) {
-	if ref == nil || ref.Schema == "" && w.moved || ref.Schema != "" && !w.x.same(ref.Schema, w.x.schema.GetName()) {
+	if ref == nil || ref.Catalog != "" || ref.Dblink != "" || ref.Schema == "" && w.moved || ref.Schema != "" && !w.x.same(ref.Schema, w.x.schema.GetName()) {
 		return "", false
 	}
 	if w.x.caseSensitive {

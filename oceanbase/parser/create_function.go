@@ -55,6 +55,9 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 		return nil, err
 	}
 	retStart := p.pos()
+	if p.backtickQuotedAt(retStart) {
+		return nil, &ParseError{Message: "unsupported return type", Position: retStart}
+	}
 	retType, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err

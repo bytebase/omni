@@ -363,7 +363,7 @@ func (m changeMade) madeColumnOn(x schemaIndex, ref *ast.TableRef, column string
 // table of the target's database: a reference without a database means
 // the target's.
 func (x schemaIndex) sameRelation(a, b *ast.TableRef) bool {
-	if a == nil || b == nil || !x.same(a.Name, b.Name) {
+	if a == nil || b == nil || a.Catalog != "" || b.Catalog != "" || a.Dblink != "" || b.Dblink != "" || !x.same(a.Name, b.Name) {
 		return false
 	}
 	db := func(ref *ast.TableRef) string {
@@ -378,6 +378,9 @@ func (x schemaIndex) sameRelation(a, b *ast.TableRef) bool {
 // inDatabase reports whether a reference means a table of the target's
 // database.
 func (x schemaIndex) inDatabase(ref *ast.TableRef) bool {
+	if ref == nil || ref.Catalog != "" || ref.Dblink != "" {
+		return false
+	}
 	return ref.Schema == "" || x.same(ref.Schema, x.schema.GetName())
 }
 

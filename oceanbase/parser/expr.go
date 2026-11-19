@@ -816,6 +816,18 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
+		// function_name lists DATABASE, SCHEMA, REPEAT, RIGHT and REPLACE
+		// explicitly, so `db.schema()` and `db.replace(...)` are qualified
+		// function calls even though those keywords also appear in
+		// reservedNamesAfterDot.
+		if p.peekNext().Type == '(' {
+			switch p.cur.Type {
+			case kwDATABASE, kwSCHEMA, kwREPEAT, kwRIGHT, kwREPLACE:
+				tok := p.advance()
+				return p.parseFuncCall(start, name, tok.Str)
+			}
+		}
+
 		// r.K and r.K.K: a reserved word is a name after a dot (column_ref).
 		if reservedNamesAfterDot[p.cur.Type] {
 			return p.parseColumnRefReservedTail(start, name)
@@ -896,19 +908,29 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 					return ref, nil
 				}
 				off := p.pos()
-				name4, err := p.parseNameAfterDot()
+				name4, _, err := p.parseIdent()
 				if err != nil {
 					return nil, err
 				}
-				// The fourth part is a column_name, which is NAME_OB, so a
-				// number there is a 1064: `SELECT t.1.2.3 FROM t` is one.
+				// The fourth part is a column_name, which is NAME_OB |
+				// unreserved_keyword, so a number or reserved word there is a
+				// 1064: `SELECT t.1.2.3 FROM t` and `SELECT c.d.t.key FROM c.d.t`
+				// are 1064s, and simple_expr has no four-part `@link` arm.
 				if c := p.byteAt(off); c >= '0' && c <= '9' {
 					return nil, p.syntaxErrorAtCur()
 				}
+				if !p.backtickQuotedAt(off) {
+					if kw, ok := keywords[strings.ToLower(name4)]; ok && isReserved(kw) {
+						return nil, p.syntaxErrorAtCur()
+					}
+				}
 				ref.Catalog, ref.Schema, ref.Table, ref.Column = name, name2, name3, name4
 				ref.Loc.End = p.prev.End
+				return ref, nil
 			}
-			if p.isUserVariable() {
+			name2Digit := p.byteAt(name2Start) >= '0' && p.byteAt(name2Start) <= '9'
+			name3Digit := p.byteAt(name3Start) >= '0' && p.byteAt(name3Start) <= '9'
+			if p.isUserVariable() && !reserved && !name2Digit && !name3Digit {
 				return p.parseRemoteSequence(ref)
 			}
 			return ref, nil
@@ -921,7 +943,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			Column: name2,
 		}
 		// simple_expr's remote sequence arms: `t.col@link`, `db.t.col@link`.
-		if p.isUserVariable() {
+		if p.isUserVariable() && !(p.byteAt(name2Start) >= '0' && p.byteAt(name2Start) <= '9') {
 			return p.parseRemoteSequence(ref)
 		}
 		return ref, nil

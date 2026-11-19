@@ -263,6 +263,10 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	// Bytebase passes as gh-ost's DatabaseName whatever database the ALTER
 	// names (backend/component/ghost, NewMigrationContext): an ALTER of
 	// another database's table would change the task database's instead.
+	if v.Table.Catalog != "" || v.Table.Dblink != "" {
+		r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "gh-ost migrates "+review.Code(ident(v.Table.Name))+" of this change's database, not "+review.Code(table(v.Table))+" as the "+review.Code("ALTER")+" names it.")
+		return
+	}
 	if db := t.Schema.GetName(); v.Table.Schema != "" && db != "" && !x.same(v.Table.Schema, db) {
 		r.report(review.UnsupportedChange, stmts[0].index, rangeOf(stmts[0].loc), "gh-ost migrates "+review.Code(ident(v.Table.Name))+" of this change's database, not "+review.Code(table(v.Table))+" as the "+review.Code("ALTER")+" names it.\n\nRun the change against the database that holds the table.")
 		return

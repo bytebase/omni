@@ -517,10 +517,32 @@ func TestRemoteQualifiedDDLIsRefused(t *testing.T) {
 		"DROP INDEX i ON cat.db.t",
 		"CREATE TABLE cat.db.t (a INT)",
 		"RENAME TABLE cat.db.t TO t2",
+		"CREATE TABLE u LIKE cat.testdb.t",
+		"CREATE TABLE u (LIKE t@link)",
+		"ALTER TABLE t RENAME TO cat.testdb.u",
+		"ALTER TABLE t RENAME TO u@link",
+		"CREATE MATERIALIZED VIEW LOG ON cat.testdb.t",
+		"ALTER MATERIALIZED VIEW cat.testdb.mv PARALLEL 2",
+		"CREATE TABLE fk_child (a INT, FOREIGN KEY (a) REFERENCES cat.testdb.t(a))",
+		"ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES t@link(a)",
 	} {
-		results, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+		results, err := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+		if err != nil || len(results) == 0 {
+			t.Fatalf("%q: Exec error %v", sql, err)
+		}
 		if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1235 {
 			t.Errorf("%q: expected error 1235, got %v", sql, results[0].Error)
+		}
+	}
+
+	// Nested quoted collection element types are refused with 5874.
+	for _, sql := range []string{
+		"CREATE TABLE bad_arr (a ARRAY('int'))",
+		"ALTER TABLE t ADD COLUMN bad_col ARRAY('int')",
+	} {
+		results, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+		if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 5874 {
+			t.Errorf("%q: expected error 5874, got %v", sql, results[0].Error)
 		}
 	}
 

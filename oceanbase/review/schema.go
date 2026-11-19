@@ -36,7 +36,7 @@ func (x schemaIndex) same(a, b string) bool {
 // database: one it names, or, when moved is set, the current database a
 // USE earlier in the change may have changed.
 func (x schemaIndex) table(ref *ast.TableRef, moved bool) *metadata.TableMetadata {
-	if x.schema == nil || ref == nil {
+	if x.schema == nil || ref == nil || ref.Catalog != "" || ref.Dblink != "" {
 		return nil
 	}
 	if ref.Schema == "" && moved || ref.Schema != "" && !x.same(ref.Schema, x.schema.GetName()) {
@@ -123,23 +123,33 @@ func uniqueIndex(t *metadata.TableMetadata, name string) (unique, found bool) {
 	return false, false
 }
 
-// beforeUse returns the position of the change's first USE, the number of
-// statements when it has none: what runs from there may mean another
-// database by a name without one.
+func switchesContext(node ast.Node) bool {
+	switch v := node.(type) {
+	case *ast.UseStmt:
+		return true
+	case *ast.CatalogStmt:
+		return v.Action == "SET"
+	}
+	return false
+}
+
+// beforeUse returns the position of the change's first USE or SET CATALOG, the
+// number of statements when it has none: what runs from there may mean another
+// database or catalog by a name without one.
 func beforeUse(stmts []statement) int {
 	for i := range stmts {
-		if _, ok := stmts[i].node.(*ast.UseStmt); ok {
+		if switchesContext(stmts[i].node) {
 			return i
 		}
 	}
 	return len(stmts)
 }
 
-// usesDatabase reports whether a statement before the given one is USE,
-// which moves the database unqualified names mean.
+// usesDatabase reports whether a statement before the given one is USE or SET
+// CATALOG, which moves the database or catalog unqualified names mean.
 func usesDatabase(stmts []statement, before int) bool {
 	for i := 0; i < before && i < len(stmts); i++ {
-		if _, ok := stmts[i].node.(*ast.UseStmt); ok {
+		if switchesContext(stmts[i].node) {
 			return true
 		}
 	}

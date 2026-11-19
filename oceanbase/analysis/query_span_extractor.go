@@ -87,14 +87,26 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 		joined[strings.ToLower(name)] = true
 	}
 	var columns []QuerySpanResult
+	emittedJoined := make(map[string]bool, len(names))
 	for _, field := range first {
-		if !joined[strings.ToLower(field.Name)] {
+		lower := strings.ToLower(field.Name)
+		if !joined[lower] {
 			continue
 		}
+		emittedJoined[lower] = true
 		if other, ok := querySpanResultNamed(second, field.Name); ok {
 			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
 		}
 		columns = append(columns, field)
+	}
+	// If the first side is an unknown-columns source (remote/external), still
+	// expose the USING columns known from the second side at the leading position.
+	for _, field := range second {
+		lower := strings.ToLower(field.Name)
+		if joined[lower] && !emittedJoined[lower] {
+			field.IsPlainField = false
+			columns = append(columns, field)
+		}
 	}
 	for _, side := range [][]QuerySpanResult{first, second} {
 		for _, field := range side {
@@ -135,80 +147,79 @@ func querySpanResultNamed(results []QuerySpanResult, name string) (QuerySpanResu
 	return QuerySpanResult{}, false
 }
 
-func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName, tableName string) ([]QuerySpanResult, bool) {
-	findInTableSource := func(tableSource tableSource) ([]QuerySpanResult, bool) {
-		byAlias := tableName != "" && tableSource.HasAlias() && strings.EqualFold(tableName, tableSource.GetEffectiveName())
-		if !byAlias {
-			if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
-				return nil, false
-			}
-			if catalogName == "" && tableSource.GetCatalogName() != "" {
-				return nil, false
-			}
+func (q *querySpanExtractor) matchesSourceQualifiers(catalogName, databaseName, tableName string, tableSource tableSource) bool {
+	if tableSource.HasAlias() {
+		// An aliased relation cannot be qualified by catalog or database.
+		if catalogName != "" || databaseName != "" {
+			return false
+		}
+		if tableName == "" {
+			return true
 		}
 		if q.ignoreCaseSensitive {
-			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
-				return nil, false
-			}
-			if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
-				return nil, false
-			}
-		} else {
-			if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
-				return nil, false
-			}
-			if tableName != "" && tableName != tableSource.GetTableName() {
-				return nil, false
-			}
+			return strings.EqualFold(tableName, tableSource.GetEffectiveName())
+		}
+		return tableName == tableSource.GetEffectiveName()
+	}
+	if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
+		return false
+	}
+	if q.ignoreCaseSensitive {
+		if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
+			return false
+		}
+		if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
+			return false
+		}
+	} else {
+		if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
+			return false
+		}
+		if tableName != "" && tableName != tableSource.GetTableName() {
+			return false
+		}
+	}
+	return true
+}
+
+func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName, tableName string) ([]QuerySpanResult, bool) {
+	findInTableSource := func(tableSource tableSource, allowUnknown bool) ([]QuerySpanResult, bool) {
+		_, isUnknown := tableSource.(*unknownColumnsTable)
+		if isUnknown != allowUnknown {
+			return nil, false
+		}
+		if !q.matchesSourceQualifiers(catalogName, databaseName, tableName, tableSource) {
+			return nil, false
 		}
 		return tableSource.GetQuerySpanResult(), true
 	}
 
-	// The subquery's own FROM first, then enclosing queries, nearest first.
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i]); ok {
-			return querySpanResult, true
+	// Search known local relations first, then unknown remote/external relations.
+	for _, allowUnknown := range []bool{false, true} {
+		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+			if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i], allowUnknown); ok {
+				return querySpanResult, true
+			}
 		}
-	}
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.outerTableSources[i]); ok {
-			return querySpanResult, true
+		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+			if querySpanResult, ok := findInTableSource(q.outerTableSources[i], allowUnknown); ok {
+				return querySpanResult, true
+			}
 		}
 	}
 	return nil, false
 }
 
 func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tableName, fieldName string) (QuerySpanResult, error) {
-	findInTableSource := func(tableSource tableSource) (QuerySpanResult, bool) {
-		// A catalog-qualified reference names a relation of another catalog, and
-		// a reference without one names no such relation: neither binds to the
-		// other, whatever the database and table are called. An alias names the
-		// relation itself, so no catalog travels with it.
-		byAlias := tableName != "" && tableSource.HasAlias() && strings.EqualFold(tableName, tableSource.GetEffectiveName())
-		if !byAlias {
-			if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
-				return QuerySpanResult{}, false
-			}
-			if catalogName == "" && tableSource.GetCatalogName() != "" {
-				return QuerySpanResult{}, false
-			}
+	findInTableSource := func(tableSource tableSource, allowUnknown bool) (QuerySpanResult, bool) {
+		_, isUnknown := tableSource.(*unknownColumnsTable)
+		if isUnknown != allowUnknown {
+			return QuerySpanResult{}, false
 		}
-		if q.ignoreCaseSensitive {
-			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
-				return QuerySpanResult{}, false
-			}
-			if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
-				return QuerySpanResult{}, false
-			}
-		} else {
-			if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
-				return QuerySpanResult{}, false
-			}
-			if tableName != "" && tableName != tableSource.GetTableName() {
-				return QuerySpanResult{}, false
-			}
+		if !q.matchesSourceQualifiers(catalogName, databaseName, tableName, tableSource) {
+			return QuerySpanResult{}, false
 		}
-		if _, ok := tableSource.(*unknownColumnsTable); ok {
+		if isUnknown {
 			return QuerySpanResult{Name: fieldName}, true
 		}
 		for _, column := range tableSource.GetQuerySpanResult() {
@@ -219,21 +230,23 @@ func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tab
 		return QuerySpanResult{}, false
 	}
 
-	// A column resolves in the subquery's own FROM first, then in enclosing
-	// queries, nearest first, as a correlated reference.
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.tableSourceFrom[i]); ok {
-			return source, nil
+	// Resolve against known relations across the scope chain first so remote or
+	// external unknown-column tables never swallow local column lineage.
+	for _, allowUnknown := range []bool{false, true} {
+		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.tableSourceFrom[i], allowUnknown); ok {
+				return source, nil
+			}
 		}
-	}
-	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.priorTableInFrom[i]); ok {
-			return source, nil
+		for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.priorTableInFrom[i], allowUnknown); ok {
+				return source, nil
+			}
 		}
-	}
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.outerTableSources[i]); ok {
-			return source, nil
+		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.outerTableSources[i], allowUnknown); ok {
+				return source, nil
+			}
 		}
 	}
 
@@ -550,6 +563,9 @@ func (q *querySpanExtractor) extractTableStmt(stmt *ast.TableStmt) (*pseudoTable
 	if stmt.Into != nil {
 		return nil, errors.New("meet unsupported table statement with into")
 	}
+	if stmt.Table.Catalog != "" || stmt.Table.Dblink != "" {
+		return &pseudoTable{}, nil
+	}
 	tableSource, err := q.findTableSchema(stmt.Table.Schema, stmt.Table.Name)
 	if err != nil {
 		return nil, err
@@ -735,12 +751,12 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if t.Dblink != "" || t.Catalog != "" {
 			// Its columns are known only when the query runs, so the source has a
 			// name and no known ones: any column reference to it resolves, as it
-			// does for an external table's.
-			name := t.Name
+			// does for an external table's. Once aliased, qualifiers no longer
+			// apply to the relation.
 			if t.Alias != "" {
-				name = t.Alias
+				return &unknownColumnsTable{pseudoTable{Name: t.Alias, Aliased: true}}, nil
 			}
-			return &unknownColumnsTable{pseudoTable{Name: name, DBName: t.Schema, CatalogName: t.Catalog, Aliased: t.Alias != ""}}, nil
+			return &unknownColumnsTable{pseudoTable{Name: t.Name, DBName: t.Schema, CatalogName: t.Catalog}}, nil
 		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
@@ -751,6 +767,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		}
 		return &pseudoTable{
 			Name:    t.Alias,
+			Aliased: true,
 			Columns: tableSource.GetQuerySpanResult(),
 		}, nil
 	case *ast.SubqueryExpr:
@@ -1245,6 +1262,14 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 			return QuerySpanResult{}, err
 		}
 		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.PositionExpr:
+		sourceColumns, err := q.mergeExprSources(e.Substr, e.Str)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.ParamMarkerExpr:
+		return QuerySpanResult{Name: "?", SourceColumns: ColumnSet{}, IsPlainField: false}, nil
 	default:
 		return QuerySpanResult{}, fmt.Errorf("unsupported omni MySQL expression %T", expr)
 	}
@@ -1313,6 +1338,9 @@ func (q *querySpanExtractor) exprName(expr ast.ExprNode) string {
 	switch e := expr.(type) {
 	case *ast.ColumnRef:
 		var parts []string
+		if e.Catalog != "" {
+			parts = append(parts, e.Catalog)
+		}
 		if e.Schema != "" {
 			parts = append(parts, e.Schema)
 		}
@@ -1494,6 +1522,10 @@ func exprNodeLoc(node ast.Node) (ast.Loc, bool) {
 	case *ast.RemoteSequenceExpr:
 		return n.Loc, true
 	case *ast.GroupingSet:
+		return n.Loc, true
+	case *ast.PositionExpr:
+		return n.Loc, true
+	case *ast.ParamMarkerExpr:
 		return n.Loc, true
 	default:
 		return ast.Loc{}, false
@@ -1781,6 +1813,9 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 			}
 		}
 	case *ast.CreateViewStmt:
+		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+	case *ast.AlterViewStmt:
 		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
 		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
 	case *ast.CreateMaterializedViewStmt:
@@ -2084,6 +2119,9 @@ func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, defaultDat
 		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
 	case *ast.WeightStringExpr:
 		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.PositionExpr:
+		collectAccessTablesFromExpr(result, e.Substr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Str, defaultDatabase)
 	default:
 	}
 }

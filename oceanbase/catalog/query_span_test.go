@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // ---------------------------------------------------------------------------
 // Lineage types and walker — test-only reference implementation.
@@ -678,5 +681,74 @@ func TestCorrelatedFullJoinKeyKeepsCoalesce(t *testing.T) {
 	if got, want := DeparseQuery(vq),
 		"select (select coalesce(`l`.`id`, `r`.`id`) as `id`) as `id` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
 		t.Errorf("DeparseQuery(v_corr_key) =\n  %s\nwant\n  %s", got, want)
+	}
+	// View.Definition must also qualify the correlated key rather than leaving bare `id`.
+	if def := c.GetDatabase("testdb").Views["v_corr_key"].Definition; !strings.Contains(def, "coalesce(`l`.`id`,`r`.`id`)") {
+		t.Errorf("v_corr_key.Definition lost correlated coalesce: %s", def)
+	}
+}
+
+func TestRemoteViewMetadataAndMixedFullJoins(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE t (
+			a VARCHAR(10) NOT NULL COLLATE utf8mb4_general_ci,
+			b VARCHAR(10) NOT NULL COLLATE utf8mb4_unicode_ci
+		);
+		-- Remote relations (catalog or dblink) must not inherit local t's NOT NULL or collations.
+		CREATE VIEW v_remote_alias AS SELECT x.a FROM cat.db.t AS x WHERE x.a = x.b;
+		CREATE VIEW v_remote_both AS SELECT cat.other.t.a FROM t, cat.other.t WHERE cat.other.t.a = cat.other.t.b;
+		CREATE VIEW v_remote_star AS SELECT * FROM cat.db.t;
+		CREATE VIEW v_over_remote_star AS SELECT unknown_col FROM v_remote_star;
+	`)
+
+	db := c.GetDatabase("testdb")
+	for _, name := range []string{"v_remote_alias", "v_remote_both"} {
+		v := db.Views[name]
+		if v == nil || len(v.ColumnMetadata) != 1 {
+			t.Fatalf("%s missing metadata: %+v", name, v)
+		}
+		if !v.ColumnMetadata[0].Nullable || v.ColumnMetadata[0].Collation != "" {
+			t.Errorf("%s inherited local table metadata: %+v", name, v.ColumnMetadata[0])
+		}
+	}
+
+	// Mixed local + remote star must not silently drop remote columns in AnalyzedQuery.
+	wtExec(t, c, `CREATE VIEW v_mixed_star AS SELECT * FROM t, cat.db.remote_u`)
+	if db.Views["v_mixed_star"].AnalyzedQuery != nil {
+		t.Errorf("expected nil AnalyzedQuery on mixed local+remote star, got %s", DeparseQuery(db.Views["v_mixed_star"].AnalyzedQuery))
+	}
+
+	// SELECT alias in ORDER BY / HAVING must win over soleUnknownColumnInChain.
+	wtExec(t, c, `CREATE VIEW v_remote_order_alias AS SELECT 1 AS x FROM cat.db.u ORDER BY x`)
+	if q := db.Views["v_remote_order_alias"].AnalyzedQuery; q != nil {
+		if got := DeparseQuery(q); strings.Contains(got, "`u`.`x`") {
+			t.Errorf("DeparseQuery hijacked SELECT alias x into remote column: %s", got)
+		}
+	}
+
+	// Outer LEFT JOIN over inner FULL JOIN resolves unqualified key to surviving left side,
+	// and GROUP BY / ORDER BY over FULL JOIN key analyze cleanly.
+	wtExec(t, c, `
+		CREATE TABLE ja (id INT, ax INT);
+		CREATE TABLE jb (id INT, bx INT);
+		CREATE TABLE jc (id INT, cx INT);
+		CREATE VIEW v_left_over_full AS SELECT id FROM ja LEFT JOIN (jb FULL JOIN jc USING (id)) USING (id);
+		CREATE VIEW v_full_group_order AS SELECT COUNT(*) AS cnt FROM jb FULL JOIN jc USING (id) GROUP BY id ORDER BY id;
+		CREATE VIEW v_right_then_full AS SELECT * FROM (ja RIGHT JOIN jb USING (id)) FULL JOIN jc USING (id);
+		CREATE VIEW v_row_grouping_set AS SELECT id, ax FROM ja GROUP BY GROUPING SETS ((id, ax), ());
+	`)
+	if got, want := DeparseQuery(db.Views["v_left_over_full"].AnalyzedQuery),
+		"select `ja`.`id` from `testdb`.`ja` left join `testdb`.`jb` full join `testdb`.`jc` using (`id`) using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_left_over_full) =\n  %s\nwant\n  %s", got, want)
+	}
+	if db.Views["v_full_group_order"].AnalyzedQuery == nil {
+		t.Fatal("expected v_full_group_order to analyze")
+	}
+	if got := DeparseQuery(db.Views["v_right_then_full"].AnalyzedQuery); !strings.Contains(got, "coalesce(`jb`.`id`, `jc`.`id`)") {
+		t.Errorf("v_right_then_full lost COALESCE(jb.id, jc.id): %s", got)
+	}
+	if db.Views["v_row_grouping_set"].AnalyzedQuery == nil {
+		t.Fatal("expected v_row_grouping_set to analyze")
 	}
 }

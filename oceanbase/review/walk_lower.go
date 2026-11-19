@@ -510,6 +510,9 @@ func (b *builder) constraintName(c *ast.Constraint) (string, string) {
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 	columns := make(map[string]bool)
 	for _, c := range v.Columns {
+		if b.columnFormFails(c, rangeOf(c.Loc), false) {
+			return true
+		}
 		k, ok := b.key(spaceColumn, c.Name)
 		if !ok {
 			continue
