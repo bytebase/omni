@@ -535,6 +535,10 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 // https://docs.snowflake.com/en/sql-reference/functions/system_dbt_get_last_successful_run_target
 // https://docs.snowflake.com/en/sql-reference/functions/system_locate_dbt_archive
 func validImportCall(call *ast.FuncCallExpr) bool {
+	if call.Star || call.Distinct || len(call.OrderBy) > 0 || call.Over != nil {
+		// The page writes a plain call; no aggregate or window modifier.
+		return false
+	}
 	max := 1
 	switch strings.ToUpper(call.Name.Name.Name) {
 	case "SYSTEM$DBT_GET_LAST_SUCCESSFUL_RUN_TARGET", "SYSTEM$DBT_GET_LAST_FAILED_RUN_TARGET", "SYSTEM$DBT_GET_LAST_RUN_TARGET":
