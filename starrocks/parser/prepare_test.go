@@ -134,3 +134,26 @@ func TestPrepareStringKeepsItsTree(t *testing.T) {
 		t.Errorf("From = %v, want the one table", sel.From)
 	}
 }
+
+func TestPrepareStringTreeIsAtItsOwnBytes(t *testing.T) {
+	// An unescaped literal is parsed where it stands, so a table the prepared
+	// SELECT reads sits at its own bytes in the statement.
+	const sql = `PREPARE p FROM 'SELECT * FROM secret'`
+	stmt := parseOne(t, sql).(*ast.PrepareStmt)
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+	want := strings.Index(sql, "secret")
+	if got := ast.NodeLoc(sel.From[0]); got.Start != want || got.End != want+len("secret") {
+		t.Errorf("table Loc = %+v, want {%d %d}", got, want, want+len("secret"))
+	}
+	if got := sql[ast.NodeLoc(sel).Start:ast.NodeLoc(sel).End]; got != "SELECT * FROM secret" {
+		t.Errorf("the tree slices %q, want the prepared statement", got)
+	}
+	// An escaped literal keeps its text and no tree, which cannot be placed.
+	stmt = parseOne(t, `PREPARE p FROM 'SELECT ''x'' FROM secret'`).(*ast.PrepareStmt)
+	if stmt.Query != nil {
+		t.Errorf("Query = %T for an escaped literal, want none", stmt.Query)
+	}
+}

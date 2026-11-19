@@ -32,7 +32,8 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 		// prepareSql admits SINGLE_QUOTED_TEXT only, and the server refuses
 		// `PREPARE p FROM "SELECT 1"`. The quote is the source byte at the
 		// token's start, which the token does not keep.
-		if start := p.cur.Loc.Start - p.baseOffset; start < 0 || start >= len(p.input) || p.input[start] != '\'' {
+		rel := p.cur.Loc.Start - p.baseOffset
+		if rel < 0 || rel >= len(p.input) || p.input[rel] != '\'' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		// The string is SQL too: the server parses its text, refuses
@@ -40,21 +41,19 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 		// and a comment for holding no statement, and
 		// `PREPARE p FROM 'SELECT 1; SELECT 2'` with "only single statement is
 		// supported". The nested parse starts at this parser's nesting depth,
-		// so a string of wrappers cannot stack deeper than the input limit.
-		// Positions in the string are not the statement's, so the error
-		// carries none.
-		nested := parseAll(p.cur.Str, true, p.depth)
-		if len(nested.Errors) > 0 || nested.File == nil || len(nested.File.Stmts) != 1 {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "PREPARE FROM string must hold one statement",
-			}
+		// so a string of wrappers cannot stack deeper than the limit.
+		//
+		// A literal written without escapes is parsed where it stands, so the
+		// tree's Locs are the statement's and a query span reports the tables
+		// it reads at their own bytes. An escaped literal's decoded text does
+		// not map onto the source byte for byte, and rewriting a tree's Locs is
+		// not a thing this parser does, so that form keeps the text and no
+		// tree.
+		node, err := p.parsePreparedString()
+		if err != nil {
+			return nil, err
 		}
-		// The tree is kept as well as the text: a query span reads a prepared
-		// statement's tables off the tree, and an analyst must see the reads
-		// `PREPARE p FROM 'SELECT * FROM t'` makes. Its Locs are offsets into
-		// the string's decoded text, not the statement's.
-		stmt.Query = nested.File.Stmts[0]
+		stmt.Query = node
 		stmt.SQL = p.cur.Str
 		stmt.Loc = startLoc.Merge(p.cur.Loc)
 		p.advance()
@@ -67,6 +66,37 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Query = query
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(query))
 	return stmt, nil
+}
+
+// parsePreparedString parses the statement inside PREPARE's string literal,
+// which cur holds. It returns no node for a literal whose escapes keep its text
+// from mapping onto the source; the text is still validated, by the decoded
+// parse.
+func (p *Parser) parsePreparedString() (ast.Node, error) {
+	rel := p.cur.Loc.Start - p.baseOffset
+	end := p.cur.Loc.End - p.baseOffset
+	if end > len(p.input) || end-rel < 2 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	raw := p.input[rel+1 : end-1]
+	if strings.ContainsAny(raw, "\\'") || raw != p.cur.Str {
+		nested := parseAll(p.cur.Str, true, p.depth)
+		if len(nested.Errors) > 0 || nested.File == nil || len(nested.File.Stmts) != 1 {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "PREPARE FROM string must hold one statement",
+			}
+		}
+		return nil, nil
+	}
+	node, errs := parseSingle(raw, p.cur.Loc.Start+1, true, p.depth, false)
+	if len(errs) > 0 || node == nil {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "PREPARE FROM string must hold one statement",
+		}
+	}
+	return node, nil
 }
 
 // parseExecute parses executeStatement (StarRocks.g4:2291):
