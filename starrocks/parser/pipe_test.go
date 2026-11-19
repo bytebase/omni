@@ -586,3 +586,34 @@ func TestPlanAdvisorBodyIsAQuery(t *testing.T) {
 		t.Error("a WITH DELETE body parsed, want a syntax error")
 	}
 }
+
+func TestIncompleteExponentIsAnIdentifier(t *testing.T) {
+	// DOUBLE_VALUE needs exponent digits, so `1e` and `1E` are
+	// DIGIT_IDENTIFIERs; the server takes both.
+	for _, sql := range []string{`SELECT 1e`, `SELECT 1E`, `SELECT * FROM 1e`} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+	// With digits after it the letter is an exponent, as before.
+	file, errs := parseForTest(`SELECT 1e2`)
+	if len(errs) != 0 {
+		t.Fatalf("SELECT 1e2: %v", errs)
+	}
+	if lit, ok := file.Stmts[0].(*ast.SelectStmt).Items[0].Expr.(*ast.Literal); !ok || lit.Kind != ast.LitFloat {
+		t.Errorf("1e2 = %T, want a float", file.Stmts[0].(*ast.SelectStmt).Items[0].Expr)
+	}
+}
+
+func TestExportPartitionNamesTakeStrings(t *testing.T) {
+	// partitionNames (:2268) is identifierOrString, alone or in a list.
+	for _, sql := range []string{
+		`EXPORT TABLE t PARTITION 'p' TO '/x'`,
+		`EXPORT TABLE t PARTITION ('p') TO '/x'`,
+		`EXPORT TABLE t PARTITION (p, 'q') TO '/x'`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+}

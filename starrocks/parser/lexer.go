@@ -432,15 +432,21 @@ func (l *Lexer) scanNumber() Token {
 		}
 	}
 
-	// Optional exponent
+	// Optional exponent. DOUBLE_VALUE needs its digits, so an 'e' with none
+	// after it is not one: the letter belongs to a DIGIT_IDENTIFIER
+	// ('1e' is a name on the pinned server), which the caller reads once this
+	// leaves it in place.
 	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
-		isFloat = true
-		l.pos++
-		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
-			l.pos++
+		end := l.pos + 1
+		if end < len(l.input) && (l.input[end] == '+' || l.input[end] == '-') {
+			end++
 		}
-		for l.pos < len(l.input) && l.input[l.pos] >= '0' && l.input[l.pos] <= '9' {
-			l.pos++
+		if digits := end; digits < len(l.input) && l.input[digits] >= '0' && l.input[digits] <= '9' {
+			for digits < len(l.input) && l.input[digits] >= '0' && l.input[digits] <= '9' {
+				digits++
+			}
+			isFloat = true
+			l.pos = digits
 		}
 	}
 

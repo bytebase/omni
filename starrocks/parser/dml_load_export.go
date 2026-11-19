@@ -509,7 +509,9 @@ func (p *Parser) parseExport() (ast.Node, error) {
 		} else if _, err := p.expect(kwPARTITION); err != nil {
 			return nil, err
 		}
-		parts, err := p.parsePartitionNameList()
+		// partitionNames (:2268) takes an identifierOrString, alone or in a
+		// list, so `PARTITION 'p'` and `PARTITION (p, 'q')` both read.
+		parts, err := p.parseIdentifierOrStringNameList()
 		if err != nil {
 			return nil, err
 		}
@@ -579,6 +581,35 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseIdentifierOrStringNameList parses partitionNames' name list: an
+// identifierOrString, alone or as '(' identifierOrString (',' ...)* ')'.
+func (p *Parser) parseIdentifierOrStringNameList() ([]string, error) {
+	if p.cur.Kind != int('(') {
+		name, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		return []string{name}, nil
+	}
+	p.advance() // consume '('
+	var names []string
+	for {
+		name, _, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return names, nil
 }
 
 // parseParenIdentifiers parses '(' identifier (',' identifier)* ')', the form
