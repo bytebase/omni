@@ -35,6 +35,9 @@ func (c *Catalog) effectiveIndexTablespace(name string, rel *Relation) string {
 	if name != "" {
 		return name
 	}
+	if rel != nil && rel.Persistence == 't' {
+		return rel.Tablespace
+	}
 	if c.defaultTablespace != "" {
 		return c.defaultTablespace
 	}
@@ -101,6 +104,11 @@ func (c *Catalog) checkTableAccessMethod(name string) error {
 // pg: src/backend/commands/tablespace.c — CreateTableSpace
 func (c *Catalog) DefineTablespace(stmt *nodes.CreateTableSpaceStmt) error {
 	name := stmt.Tablespacename
+	if stmt.Owner != nil {
+		if err := c.checkRole(c.ownerRoleName(stmt.Owner)); err != nil {
+			return err
+		}
+	}
 	if strings.HasPrefix(name, "pg_") {
 		return &Error{Code: CodeReservedName,
 			Message: fmt.Sprintf("unacceptable tablespace name %q", name)}
@@ -382,11 +390,14 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 			continue
 		}
 		name := c.ownerRoleName(rs)
-		if !c.roles[name] {
+		if err := c.checkRole(name); err != nil {
 			if stmt.MissingOk {
 				continue
 			}
-			return errUndefinedObject("role", name)
+			return err
+		}
+		if !c.roles[name] {
+			continue // a snapshot may know a role the catalog does not
 		}
 		if name == c.currentOwner() || name == c.sessionUser {
 			return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be dropped"}

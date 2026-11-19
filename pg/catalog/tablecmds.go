@@ -497,6 +497,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 	effectiveTablespace := c.effectiveTablespace(stmt.Tablespacename)
+	if stmt.Tablespacename == "" && rv.Relpersistence == 't' {
+		effectiveTablespace = ""
+	}
 	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}

@@ -86,6 +86,9 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		return errDuplicateTable(mvName)
 	}
 	effectiveTablespace := c.effectiveTablespace(into.TableSpaceName)
+	if into.TableSpaceName == "" && rv.Relpersistence == 't' {
+		effectiveTablespace = ""
+	}
 	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
