@@ -6,13 +6,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -31,13 +34,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -56,13 +62,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -81,13 +90,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -106,13 +118,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -131,13 +146,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -156,13 +174,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -181,13 +202,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -206,13 +230,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -234,13 +261,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -259,13 +289,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -284,13 +317,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -309,13 +345,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -334,13 +373,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -359,13 +401,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -383,13 +428,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -407,13 +455,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -431,13 +482,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -455,13 +509,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -480,13 +537,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -505,13 +565,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -530,13 +593,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -554,13 +620,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -578,13 +647,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -603,13 +675,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -626,13 +701,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -649,13 +727,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -674,13 +755,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -699,13 +783,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -724,13 +811,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -749,13 +839,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -774,13 +867,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -799,13 +895,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -824,13 +923,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -848,13 +950,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -872,13 +977,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -896,13 +1004,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -919,13 +1030,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -944,13 +1058,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -969,13 +1086,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -994,13 +1114,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1019,13 +1142,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1043,13 +1169,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1066,13 +1195,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1088,13 +1220,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1111,13 +1246,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1133,13 +1271,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1158,13 +1299,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1185,13 +1329,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1210,13 +1357,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1235,13 +1385,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1263,13 +1416,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1290,13 +1446,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1315,13 +1474,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1340,13 +1502,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1365,13 +1530,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1393,13 +1561,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1418,13 +1589,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1443,13 +1617,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1467,13 +1644,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1492,13 +1672,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1517,13 +1700,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1542,13 +1728,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1569,13 +1758,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1594,13 +1786,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1619,13 +1814,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1643,13 +1841,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1668,13 +1869,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1693,13 +1897,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1718,13 +1925,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1743,13 +1953,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1768,13 +1981,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1793,13 +2009,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1818,13 +2037,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1843,13 +2065,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1867,13 +2092,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1892,13 +2120,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1916,13 +2147,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1941,13 +2175,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1964,13 +2201,16 @@
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -1989,13 +2229,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2014,13 +2257,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2038,13 +2284,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2063,13 +2312,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2087,13 +2339,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2112,13 +2367,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2136,13 +2394,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2176,13 +2437,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2201,13 +2465,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2229,13 +2496,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2257,13 +2527,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2285,13 +2558,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2313,13 +2589,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2339,13 +2618,345 @@
 > exec ^
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
 < ok 0 0
 > exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE z (c INT, FOREIGN KEY (c) REFERENCES a)
+< error
+| 1239 42000 Incorrect foreign key definition for 'fk_1': Key reference and table reference don't match
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE z (c INT, FOREIGN KEY (c) REFERENCES a (b))
+< ok 0 0
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE z (e ENUM('binary', 'binary'))
+< error
+| 1291 HY000 Column 'e' has duplicated value 'binary' in ENUM
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE z (e SET('binary', 'binary'))
+< error
+| 1291 HY000 Column 'e' has duplicated value 'binary' in SET
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE z (e ENUM('x', 'y'))
+< ok 0 0
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE z (expires INT) TTL=expires + INTERVAL 1 DAY
+< error
+| 8148 HY000 Field 'expires' is of a not supported type for TTL config, expect DATETIME, DATE or TIMESTAMP
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE z (expires INT) TTL=nope + INTERVAL 1 DAY
+< error
+| 1054 42S22 Unknown column 'nope' in 'TTL config'
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE z (expires DATETIME) TTL=expires + INTERVAL 1 DAY
+< ok 0 0
+> exec
+| ALTER TABLE a NOCACHE
+< error
+| 1146 42S02 Table 'test.a' doesn't exist
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1 AS x
+< ok 0 0
+> exec
+| ALTER TABLE a ADD e INT DEFAULT NEXTVAL(v)
+< error
+| 1347 HY000 'test.v' is not SEQUENCE
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE s
+< ok 0 0
+> exec
+| ALTER TABLE a ADD e INT DEFAULT NEXTVAL(s)
+< error
+| 8230 HY000 Unsupported using sequence as default value in add column 'e'
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD e INT DEFAULT NEXTVAL(nope)
+< error
+| 1146 42S02 Table 'test.nope' doesn't exist
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE SEQUENCE s
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER c SET DEFAULT (NEXTVAL(s))
+< ok 0 0
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2380,13 +2991,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2421,13 +3035,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2462,13 +3079,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2487,13 +3107,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2512,13 +3135,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2550,13 +3176,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v
@@ -2575,13 +3204,16 @@
 | ALTER TABLE a NOCACHE
 < ok 0 0
 > exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
 | DROP TABLE IF EXISTS a
 < ok 0 0
 > exec
 | DROP TABLE IF EXISTS s
-< ok 0 0
-> exec
-| DROP TABLE IF EXISTS z
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS v

@@ -169,6 +169,10 @@ const (
 	// ErrPartitionFieldNotFound is 1488, a partition clause naming a column the
 	// table does not have (measured on v8.5.5, 2026-11-19).
 	ErrPartitionFieldNotFound = 1488
+	// ErrSequenceDefaultInAddColumn is 8230: a sequence cannot back an ADD
+	// COLUMN's default, though it can back a CREATE TABLE's or a SET DEFAULT
+	// (measured on v8.5.5, 2026-11-19).
+	ErrSequenceDefaultInAddColumn = 8230
 	// ErrCacheTableUnsupported is 8242, a cached table an operation cannot
 	// touch: every DDL statement but NOCACHE, and CACHE itself on a
 	// partitioned table (measured on v8.5.5, 2026-11-19).
@@ -242,6 +246,7 @@ var sqlStateMap = map[int]string{
 	ErrFKKeyRefMismatch:                    "42000",
 	ErrPartitionFieldNotFound:              "HY000",
 	ErrCacheTableUnsupported:               "HY000",
+	ErrSequenceDefaultInAddColumn:          "HY000",
 }
 
 func sqlState(code int) string {

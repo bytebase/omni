@@ -802,9 +802,12 @@ func checkColumnSequenceDefault(tbl *Table, colDef *nodes.ColumnDef) error {
 		return nil
 	}
 	if db.Sequences[toLower(ref.Column)] != nil {
-		return nil
+		// A sequence backs a CREATE TABLE's default and a SET DEFAULT, but not
+		// an ADD COLUMN's: v8.5.5 answers 8230 (read on v8.5.5).
+		return &Error{Code: ErrSequenceDefaultInAddColumn, SQLState: sqlState(ErrSequenceDefaultInAddColumn),
+			Message: fmt.Sprintf("Unsupported using sequence as default value in add column '%s'", colDef.Name)}
 	}
-	if db.GetTable(ref.Column) != nil {
+	if db.GetTable(ref.Column) != nil || db.Views[toLower(ref.Column)] != nil {
 		return errWrongObjectKind(db.Name, ref.Column, "SEQUENCE")
 	}
 	return errNoSuchTable(db.Name, ref.Column)

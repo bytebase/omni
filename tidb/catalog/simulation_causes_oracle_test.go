@@ -33,10 +33,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 	// A cached table cannot be dropped at all (8242, read on v8.5.5), so the
 	// CACHE case's table is uncached first, on failure too.
 	reset := func(tb testing.TB) {
-		for _, stmt := range []string{"ALTER TABLE a NOCACHE", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "DROP TABLE IF EXISTS `dual`"} {
-			if stmt == "ALTER TABLE a NOCACHE" {
-				// Only a cached table has anything to uncache, and the table may
-				// not exist at all.
+		// A sequence and a table of these names both turn up, so the two drops
+		// are best-effort: one of them always names nothing, or the wrong kind
+		// of object.
+		bestEffort := map[string]bool{"ALTER TABLE a NOCACHE": true, "DROP SEQUENCE IF EXISTS s": true}
+		for _, stmt := range []string{"ALTER TABLE a NOCACHE", "DROP SEQUENCE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS s", "DROP VIEW IF EXISTS v", "DROP TABLE IF EXISTS `dual`"} {
+			if bestEffort[stmt] {
 				_, _ = conn.db.ExecContext(ctx, stmt)
 				continue
 			}
@@ -664,6 +666,79 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "NOCACHE of a cached table",
 			setup: []string{oneTable, "ALTER TABLE a CACHE"},
 			stmt:  "ALTER TABLE a NOCACHE",
+			code:  0,
+		},
+		// The rules the ALTER path gained hold at CREATE TABLE too: a
+		// table-level FOREIGN KEY with no referenced column list (1239), a
+		// duplicated ENUM or SET member (1291), and a TTL config whose column
+		// is missing (1054) or of a type it cannot use (8148).
+		{
+			name:  "CREATE TABLE with a FOREIGN KEY and no referenced column list",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (c INT, FOREIGN KEY (c) REFERENCES a)",
+			code:  1239,
+		},
+		{
+			name:  "CREATE TABLE with a FOREIGN KEY and a referenced column list",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (c INT, FOREIGN KEY (c) REFERENCES a (b))",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE with a duplicated ENUM member",
+			stmt: "CREATE TABLE z (e ENUM('binary', 'binary'))",
+			code: 1291,
+		},
+		{
+			name: "CREATE TABLE with a duplicated SET member",
+			stmt: "CREATE TABLE z (e SET('binary', 'binary'))",
+			code: 1291,
+		},
+		{
+			name: "CREATE TABLE with distinct ENUM members",
+			stmt: "CREATE TABLE z (e ENUM('x', 'y'))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with a TTL over a column of a type it cannot use",
+			stmt: "CREATE TABLE z (expires INT) TTL=expires + INTERVAL 1 DAY",
+			code: 8148,
+		},
+		{
+			name: "CREATE TABLE with a TTL over a column the table does not have",
+			stmt: "CREATE TABLE z (expires INT) TTL=nope + INTERVAL 1 DAY",
+			code: 1054,
+		},
+		{
+			name: "CREATE TABLE with a TTL over a DATETIME column",
+			stmt: "CREATE TABLE z (expires DATETIME) TTL=expires + INTERVAL 1 DAY",
+			code: 0,
+		},
+		{
+			// A view of the name is an object, and not a sequence.
+			name:  "ADD a column whose DEFAULT names a view as a sequence",
+			setup: []string{oneTable, "CREATE VIEW v AS SELECT 1 AS x"},
+			stmt:  "ALTER TABLE a ADD e INT DEFAULT NEXTVAL(v)",
+			code:  1347,
+		},
+		{
+			// A sequence cannot back an ADD COLUMN's default, though it can back
+			// a CREATE TABLE's or a SET DEFAULT.
+			name:  "ADD a column whose DEFAULT names a sequence",
+			setup: []string{oneTable, "CREATE SEQUENCE s"},
+			stmt:  "ALTER TABLE a ADD e INT DEFAULT NEXTVAL(s)",
+			code:  8230,
+		},
+		{
+			name:  "ADD a column whose DEFAULT names nothing as a sequence",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT DEFAULT NEXTVAL(nope)",
+			code:  1146,
+		},
+		{
+			name:  "SET DEFAULT naming a sequence",
+			setup: []string{oneTable, "CREATE SEQUENCE s"},
+			stmt:  "ALTER TABLE a ALTER c SET DEFAULT (NEXTVAL(s))",
 			code:  0,
 		},
 		{

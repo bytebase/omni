@@ -1152,18 +1152,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		if err != nil {
 			return err
 		}
-		// TiDB resolves the TTL column before it records the config: a name
-		// the table does not have is 1054 ("in 'TTL config'") and a column
-		// whose type is not a temporal one is 8148 (read on v8.5.5).
-		ttlCol := tbl.GetColumn(col)
-		if ttlCol == nil {
-			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
-				Message: fmt.Sprintf("Unknown column '%s' in 'TTL config'", col)}
-		}
-		switch toLower(ttlCol.DataType) {
-		case "datetime", "date", "timestamp":
-		default:
-			return errTTLColumnType(col)
+		// TiDB resolves the TTL column before it records the config.
+		if err := checkTTLColumn(tbl, col); err != nil {
+			return err
 		}
 		if tbl.TTLColumn == "" {
 			// A table that gets its first TTL from ALTER TABLE has it
@@ -1179,6 +1170,22 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.TTLJobInterval = opt.Value
 	}
 	return nil
+}
+
+// checkTTLColumn resolves the column a TTL config names: a name the table does
+// not have is 1054 ("in 'TTL config'") and a column whose type is not a
+// DATETIME, DATE or TIMESTAMP one is 8148 (both read on v8.5.5).
+func checkTTLColumn(tbl *Table, col string) error {
+	ttlCol := tbl.GetColumn(col)
+	if ttlCol == nil {
+		return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+			Message: fmt.Sprintf("Unknown column '%s' in 'TTL config'", col)}
+	}
+	switch toLower(ttlCol.DataType) {
+	case "datetime", "date", "timestamp":
+		return nil
+	}
+	return errTTLColumnType(col)
 }
 
 // alterColumnDefault sets or drops the default on an existing column.
