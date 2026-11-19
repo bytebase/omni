@@ -131,6 +131,9 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 					p.restore(mark)
 				}
 				if keyPartitions {
+					if temporaryPartition {
+						return nil, p.syntaxErrorAtCur()
+					}
 					parts, err := p.parseInsertKeyPartition()
 					if err != nil {
 						return nil, err
