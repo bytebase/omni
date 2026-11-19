@@ -193,6 +193,48 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// CURRENT_USER in OWNER TO is the effective role, not the marker.
+	t.Run("OWNER TO CURRENT_USER records the effective role", func(t *testing.T) {
+		c := New()
+		c.SetSessionUser("alice")
+		for _, stmt := range []string{
+			"CREATE TABLE a (b int)",
+			"ALTER TABLE a OWNER TO CURRENT_USER",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.OwnerName != "alice" {
+			t.Fatalf("OWNER TO CURRENT_USER recorded %q", rel.OwnerName)
+		}
+	})
+
+	// default_tablespace reaches indexes cloned by LIKE ... INCLUDING INDEXES.
+	t.Run("default_tablespace reaches cloned indexes", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"SET default_tablespace = ts",
+			"CREATE TABLE src (b int)",
+			"CREATE INDEX src_b_idx ON src(b)",
+			"CREATE TABLE dst (LIKE src INCLUDING INDEXES)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		dst := c.schemaByName["public"].Relations["dst"]
+		if dst == nil {
+			t.Fatal("dst was not created")
+		}
+		for _, idx := range c.indexesByRel[dst.OID] {
+			if idx.Tablespace != "ts" {
+				t.Fatalf("cloned index %s has tablespace %q, want ts", idx.Name, idx.Tablespace)
+			}
+		}
+	})
+
 	// default_tablespace places a relation with no TABLESPACE clause.
 	t.Run("default_tablespace places new relations", func(t *testing.T) {
 		c := New()

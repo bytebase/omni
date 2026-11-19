@@ -762,6 +762,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if err := c.DefineRelation(stmt, 'r'); err != nil {
 			return err
 		}
+		c.setSnapshotTableOwner(o)
 		c.ownSerialSequences(o)
 		return nil
 	case metadataView:
@@ -1277,6 +1278,27 @@ func (c *Catalog) replaceWithStandIn(o *metadataObject, err error, report *LoadM
 
 var errNoStandIn = errors.New("no stand-in for this kind of object")
 
+// setSnapshotTableOwner records the owner a snapshot reports for a table,
+// on the table and its indexes. A snapshot is installed as the session user,
+// which is not the owner the server reported.
+func (c *Catalog) setSnapshotTableOwner(o *metadataObject) {
+	if o.table == nil {
+		return
+	}
+	owner := o.table.GetOwner()
+	if owner == "" {
+		return
+	}
+	rel := c.GetRelation(o.schema, o.name)
+	if rel == nil {
+		return
+	}
+	rel.OwnerName = owner
+	for _, idx := range c.indexesByRel[rel.OID] {
+		idx.OwnerName = owner
+	}
+}
+
 // installStandIn installs o's stand-in, or returns errNoStandIn for a kind
 // without one. A function's stand-in keeps its argument types, so it cannot
 // win calls meant for another overload.
@@ -1296,6 +1318,7 @@ func (c *Catalog) installStandIn(o *metadataObject) error {
 		if err := c.DefineRelation(standInTableStmt(o.schema, o.name, tableColumnNames(o.table)), 'r'); err != nil {
 			return err
 		}
+		c.setSnapshotTableOwner(o)
 		c.ownSerialSequences(o)
 		return nil
 	case metadataView:

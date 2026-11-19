@@ -174,6 +174,22 @@ func (c *Catalog) currentOwner() string {
 	return "postgres"
 }
 
+// ownerRoleName resolves a role spec to the role name an object's owner is
+// recorded under.
+func (c *Catalog) ownerRoleName(rs *nodes.RoleSpec) string {
+	name := roleSpecName(rs)
+	switch name {
+	case "CURRENT_USER", "CURRENT_ROLE":
+		return c.currentOwner()
+	case "SESSION_USER":
+		if c.sessionUser != "" {
+			return c.sessionUser
+		}
+		return c.currentOwner()
+	}
+	return name
+}
+
 // moveAllOwners reads the OWNED BY list of a bulk move. Nil means every
 // owner.
 func (c *Catalog) moveAllOwners(roles *nodes.List) map[string]bool {
@@ -186,12 +202,7 @@ func (c *Catalog) moveAllOwners(roles *nodes.List) map[string]bool {
 		if !ok {
 			continue
 		}
-		name := roleSpecName(rs)
-		switch name {
-		case "CURRENT_USER", "SESSION_USER":
-			name = c.currentOwner()
-		}
-		owners[name] = true
+		owners[c.ownerRoleName(rs)] = true
 	}
 	return owners
 }

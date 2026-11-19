@@ -1780,6 +1780,8 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			Name:             idxName,
 			Schema:           schema,
 			RelOID:           dst.OID,
+			Tablespace:       normalizeTablespace(c.effectiveTablespace("")),
+			OwnerName:        dst.OwnerName,
 			Columns:          dstAttnums,
 			IsUnique:         idx.IsUnique,
 			IsPrimary:        idx.IsPrimary,
