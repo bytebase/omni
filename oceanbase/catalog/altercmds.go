@@ -558,8 +558,12 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	// The column a BEFORE names is looked up before anything is replaced or
-	// removed: an ALTER that fails must leave the table as it was.
+	// removed: an ALTER that fails must leave the table as it was. Naming the
+	// column being replaced is no target, since it is the one that goes.
 	if cmd.Before != "" {
+		if toLower(cmd.Before) == oldKey {
+			return errNoSuchColumn(cmd.Before, tbl.Name)
+		}
 		if _, ok := tbl.colByName[toLower(cmd.Before)]; !ok {
 			return errNoSuchColumn(cmd.Before, tbl.Name)
 		}

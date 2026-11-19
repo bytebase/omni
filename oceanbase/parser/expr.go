@@ -1241,10 +1241,18 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 		// metric words and no other expression.
 		if fc.Name == "VECTOR_DISTANCE" || fc.Name == "VECTOR_SIMILARITY" {
 			if len(fc.Args) == 3 {
-				ref, ok := fc.Args[2].(*nodes.ColumnRef)
+				arg := fc.Args[2]
+				ref, ok := arg.(*nodes.ColumnRef)
 				if !ok || ref.Table != "" || ref.Schema != "" || !vectorMetricNames[strings.ToLower(ref.Column)] {
 					return nil, p.syntaxErrorAtCur()
 				}
+				// The metric is one of the grammar's own words, so a quoted
+				// spelling is no metric.
+				if p.backtickQuotedAt(ref.Loc.Start) {
+					return nil, p.syntaxErrorAtCur()
+				}
+				// It is a keyword argument, not a column of the table.
+				fc.Args[2] = &nodes.KeywordArg{Loc: ref.Loc, Keyword: strings.ToUpper(ref.Column)}
 			}
 		}
 		// The histograms fix an INTNUM in one argument position, so a
