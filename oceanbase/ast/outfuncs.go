@@ -2250,7 +2250,11 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.RowsIdentifiedBy != "" {
 		fmt.Fprintf(sb, " :rows_identified_by %q", n.RowsIdentifiedBy)
 	}
-	if len(n.Columns) > 0 {
+	// opt_field_or_var_spec's empty list keeps its parentheses in the tree, so
+	// `INTO TABLE t()` is distinguishable from `INTO TABLE t`.
+	if n.Columns != nil && len(n.Columns) == 0 {
+		sb.WriteString(" :columns ()")
+	} else if len(n.Columns) > 0 {
 		sb.WriteString(" :columns ")
 		for i, c := range n.Columns {
 			if i > 0 {
@@ -3307,6 +3311,13 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	}
 	if n.HasID {
 		fmt.Fprintf(sb, " :id %d", n.ID)
+	}
+	if n.HasChunk {
+		fmt.Fprintf(sb, " :chunk %q", n.Chunk)
+	}
+	if n.HasOrigDefault {
+		sb.WriteString(" :orig_default ")
+		writeNode(sb, n.OrigDefault)
 	}
 	if n.DefaultValue != nil {
 		sb.WriteString(" :default ")

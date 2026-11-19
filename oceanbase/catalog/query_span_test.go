@@ -496,3 +496,59 @@ func TestRemoteCatalogQualifiedColumnResolution(t *testing.T) {
 		t.Fatalf("expected c1.d.t.a to bind to RangeIdx 1, got %+v", mixedQ.TargetList[0].Expr)
 	}
 }
+
+func TestFullJoinNestedLeftOperandCoalesces(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE m (id INT, mx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_nested_join AS SELECT * FROM (l JOIN m USING(id)) FULL JOIN r USING(id);
+		CREATE VIEW v_nested_full AS SELECT * FROM (l FULL JOIN m USING(id)) FULL JOIN r USING(id);
+	`)
+
+	db := c.GetDatabase("testdb")
+
+	// The surviving id under an inner join is l.id; the outer FULL join makes it
+	// COALESCE(l.id, r.id) so an r-only row keeps r.id.
+	if got, want := DeparseQuery(db.Views["v_nested_join"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, `r`.`id`) as `id`, `l`.`lx`, `m`.`mx`, `r`.`rx` from `testdb`.`l` join `testdb`.`m` using (`id`) full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_nested_join) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	// A nested FULL join nests the coalesce, and the lineage reaches every side.
+	if got, want := DeparseQuery(db.Views["v_nested_full"].AnalyzedQuery),
+		"select coalesce(coalesce(`l`.`id`, `m`.`id`), `r`.`id`) as `id`, `l`.`lx`, `m`.`mx`, `r`.`rx` from `testdb`.`l` full join `testdb`.`m` using (`id`) full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_nested_full) =\n  %s\nwant\n  %s", got, want)
+	}
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id FROM v_nested_full"))
+	assertNoError(t, err)
+	assertLineage(t, collectColumnLineage(c, q.ExpandMergeViews(c)), []resultLineage{
+		{Name: "id", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "l", Column: "id"},
+			{DB: "testdb", Table: "m", Column: "id"},
+			{DB: "testdb", Table: "r", Column: "id"},
+		}},
+	})
+}
+
+func TestCorrelatedUnqualifiedRemoteColumn(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE VIEW v_correlated AS SELECT (SELECT a) AS a FROM cat.db.t")
+
+	vq := c.GetDatabase("testdb").Views["v_correlated"].AnalyzedQuery
+	if vq == nil {
+		t.Fatal("expected v_correlated to have AnalyzedQuery")
+	}
+	sub, ok := vq.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target = %T, want *SubLinkExprQ", vq.TargetList[0].Expr)
+	}
+	v, ok := sub.Subquery.TargetList[0].Expr.(*VarExprQ)
+	if !ok || v.LevelsUp != 1 || v.Name != "a" {
+		t.Fatalf("inner target = %+v, want a with LevelsUp 1", sub.Subquery.TargetList[0].Expr)
+	}
+	if got, want := DeparseQuery(vq), "select (select `cat`.`db`.`t`.`a` as `a`) as `a` from `cat`.`db`.`t`"; got != want {
+		t.Errorf("DeparseQuery(v_correlated) =\n  %s\nwant\n  %s", got, want)
+	}
+}

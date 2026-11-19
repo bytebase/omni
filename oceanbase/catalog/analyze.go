@@ -291,15 +291,23 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	}
 
 	// A FULL join merges its key into one column either side may fill, so the
-	// star expansion of the surviving left column is COALESCE(left, right).
+	// star expansion of the surviving column is COALESCE(left, right). The
+	// surviving left column may sit under a nested join, whose own FULL keys
+	// are already recorded.
 	if joinType == JoinFull && len(usingCols) > 0 {
-		if leftRef, ok := left.(*RangeTableRefQ); ok {
-			leftName := q.RangeTable[leftRef.RTIndex].ERef
-			for _, col := range usingCols {
-				if rightVar, ok := joinKeyVar(q, right, col); ok {
-					scope.addFullJoinKey(leftName, col, rightVar)
-				}
+		for _, col := range usingCols {
+			rightVar, ok := joinKeyVar(q, right, col)
+			if !ok {
+				continue
 			}
+			entryName, leftExpr, ok := fullJoinKeySource(q, left, col)
+			if !ok {
+				continue
+			}
+			if prior, ok := scope.fullJoinExpr(entryName, col); ok {
+				leftExpr = prior
+			}
+			scope.addFullJoinExpr(entryName, col, &CoalesceExprQ{Args: []AnalyzedExpr{leftExpr, rightVar}})
 		}
 	}
 
@@ -324,6 +332,32 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	}
 
 	return joinExpr, colNames, nil
+}
+
+// fullJoinKeySource returns the scope entry whose star expansion holds a join
+// operand's surviving column and the expression that column has there, which a
+// nested FULL join has already wrapped in COALESCE. It follows the input that
+// lists the column first: a RIGHT join's right input, any other join's left.
+func fullJoinKeySource(q *Query, node JoinNode, column string) (string, AnalyzedExpr, bool) {
+	switch n := node.(type) {
+	case *RangeTableRefQ:
+		rte := q.RangeTable[n.RTIndex]
+		for i, name := range rte.ColNames {
+			if strings.EqualFold(name, column) {
+				return rte.ERef, &VarExprQ{RangeIdx: n.RTIndex, AttNum: i + 1}, true
+			}
+		}
+	case *JoinExprNodeQ:
+		first, second := n.Left, n.Right
+		if n.JoinType == JoinRight {
+			first, second = second, first
+		}
+		if entry, expr, ok := fullJoinKeySource(q, first, column); ok {
+			return entry, expr, true
+		}
+		return fullJoinKeySource(q, second, column)
+	}
+	return "", nil, false
 }
 
 // joinKeyVar returns the variable a join's input contributes for the named

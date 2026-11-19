@@ -792,6 +792,8 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 	// Check for qualified name: name.name or name.name.name
 	if p.cur.Type == '.' {
+		firstEnd := p.prev.End
+		dot1 := p.cur
 		p.advance()
 
 		// Completion: after "table.", offer columnref
@@ -816,10 +818,15 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			return p.parseColumnRefReservedTail(start, name)
 		}
 
+		name2Start := p.cur.Loc
 		name2, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
 		}
+		name2End := p.prev.End
+		// id_dot_id is one token of OceanBase's lexer: `a.a`, with nothing
+		// between the names or the dot.
+		idDotID := dot1.Loc == firstEnd && name2Start == dot1.End
 
 		// name.name( — schema.func()
 		if p.cur.Type == '(' {
@@ -828,6 +835,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 
 		// Check for third part: schema.table.col or schema.table.*
 		if p.cur.Type == '.' {
+			dot2 := p.cur
 			p.advance()
 
 			// Completion: after "schema.table.", offer columnref
@@ -847,6 +855,7 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				}, nil
 			}
 			reserved := reservedNamesAfterDot[p.cur.Type]
+			name3Start := p.cur.Loc
 			name3, err := p.parseNameAfterDot()
 			if err != nil {
 				return nil, err
@@ -862,10 +871,20 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			}
 			// column_ref's four-part arms: id_dot_id_dot_id '.' column_name and
 			// id_dot_id_dot_id '.' '*', where the first name is the catalog.
-			// ID_DOT_ID_DOT_ID is one token of OceanBase's lexer, so the three
-			// names must be written with nothing between them: `select d . t .
-			// key . a` is a 1064.
-			if p.cur.Type == '.' && !strings.ContainsAny(p.inputText(start, p.prev.End), " \t\n\r") {
+			//
+			// Ref: id_dot_id_dot_id in sql_parser_mysql_mode.y (v4.3.5_CE_BP6,
+			// lines 24405-24421): a single ID_DOT_ID_DOT_ID token (a.a.a), or a
+			// left ID_DOT_ID followed by a relation_name (a.a . a), or a
+			// relation_name followed by a right ID_DOT_ID (a . a.a). The dot
+			// before the column of the four-part arm is a token of its own, so
+			// `SELECT a.a . a . a` is one: only a prefix that matches none of
+			// the three arms is a 1064, like `select d . t . key . a`.
+			// id_dot_id_dot_id is built here only from names; a reserved word
+			// after a dot is the column_ref's r.K form, which has no four-part
+			// arm.
+			idDotIDDotID := dot2.Loc == name2End && name3Start == dot2.End
+			threePartAdjacent := idDotID || idDotIDDotID
+			if p.cur.Type == '.' && threePartAdjacent && !reserved {
 				p.advance()
 				if p.cur.Type == '*' {
 					p.advance()

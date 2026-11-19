@@ -116,9 +116,11 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
 		// An unqualified column of a relation whose schema is unknown resolves
-		// when that relation is the only source: nothing else can hold it.
-		if idx, ok := scope.soleUnknownColumnRTE(); ok {
-			return &VarExprQ{RangeIdx: idx, Name: ref.Column}, nil
+		// when that relation is the only one that can hold it, in this scope or
+		// the queries around it: `SELECT (SELECT a) FROM cat.db.t` reads the
+		// remote relation's a through the correlation.
+		if idx, levels, ok := scope.soleUnknownColumnInChain(); ok {
+			return &VarExprQ{RangeIdx: idx, Name: ref.Column, LevelsUp: levels}, nil
 		}
 		if te, levels := scope.selectAlias(ref.Column); te != nil {
 			if levels > 0 {

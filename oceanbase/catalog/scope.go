@@ -25,10 +25,9 @@ type analyzerScope struct {
 	quals      []rteQualifier
 	hasUnknown bool
 
-	// fullJoinKeys maps `<entry>.<column>` to the right side's variable for a
-	// FULL join's merged key: the star expansion of that column is
-	// COALESCE(left, right), since either side may be null.
-	fullJoinKeys map[string]*VarExprQ
+	// fullJoinExprs maps `<entry>.<column>` to the expression a FULL join's
+	// merged key takes: COALESCE(left, right), nested as the joins nest.
+	fullJoinExprs map[string]AnalyzedExpr
 
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
@@ -113,20 +112,20 @@ func newScopeWithParent(parent *analyzerScope) *analyzerScope {
 	}
 }
 
-// addFullJoinKey records that a FULL join merges the named column of a scope
-// entry with right's variable.
-func (s *analyzerScope) addFullJoinKey(entryName, column string, right *VarExprQ) {
-	if s.fullJoinKeys == nil {
-		s.fullJoinKeys = map[string]*VarExprQ{}
+// addFullJoinExpr records the expression a FULL join's merged column takes in
+// the star expansion of a scope entry.
+func (s *analyzerScope) addFullJoinExpr(entryName, column string, expr AnalyzedExpr) {
+	if s.fullJoinExprs == nil {
+		s.fullJoinExprs = map[string]AnalyzedExpr{}
 	}
-	s.fullJoinKeys[strings.ToLower(entryName)+"."+strings.ToLower(column)] = right
+	s.fullJoinExprs[strings.ToLower(entryName)+"."+strings.ToLower(column)] = expr
 }
 
-// fullJoinKey returns the right side of a FULL join's merged column, if the
-// scope holds one for that entry and column.
-func (s *analyzerScope) fullJoinKey(entryName, column string) (*VarExprQ, bool) {
-	right, ok := s.fullJoinKeys[strings.ToLower(entryName)+"."+strings.ToLower(column)]
-	return right, ok
+// fullJoinExpr returns the expression a FULL join's merged column takes in the
+// star expansion of that entry and column, if the scope holds one.
+func (s *analyzerScope) fullJoinExpr(entryName, column string) (AnalyzedExpr, bool) {
+	expr, ok := s.fullJoinExprs[strings.ToLower(entryName)+"."+strings.ToLower(column)]
+	return expr, ok
 }
 
 // markCoalesced marks a column from a table as coalesced (hidden during star expansion).
@@ -181,6 +180,20 @@ func (s *analyzerScope) soleUnknownColumnRTE() (int, bool) {
 		return s.quals[0].rteIdx, true
 	}
 	return 0, false
+}
+
+// soleUnknownColumnInChain returns the RTE index of the only relation whose
+// columns are unknown, searching this scope and then the queries around it, and
+// how many scopes out it sits. `SELECT (SELECT a) FROM cat.db.t` reads the
+// remote relation's a through the correlation, so an unqualified name no scope
+// resolves belongs to it.
+func (s *analyzerScope) soleUnknownColumnInChain() (int, int, bool) {
+	for cur, levels := s, 0; cur != nil; cur, levels = cur.parent, levels+1 {
+		if idx, ok := cur.soleUnknownColumnRTE(); ok {
+			return idx, levels, true
+		}
+	}
+	return 0, 0, false
 }
 
 func (s *analyzerScope) hasUnknownInChain() bool {

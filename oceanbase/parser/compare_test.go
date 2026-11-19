@@ -12762,3 +12762,45 @@ func TestTailReviewParserAndOutfuncs(t *testing.T) {
 	ParseExpectError(t, "SELECT LEAD(a, 2 IGNORE NULLS) OVER ()")
 	ParseExpectError(t, "SELECT FIRST_VALUE(a IGNORE NULLS) RESPECT NULLS OVER ()")
 }
+
+func TestReviewTailAttributesAndColumnRefForms(t *testing.T) {
+	// A column definition's CHUNK and ORIG_DEFAULT are retained and serialized.
+	chunk := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c INT CHUNK 1").Items[0])
+	if !strings.Contains(chunk, ":chunk \"1\"") {
+		t.Errorf("CHUNK attribute missing from NodeToString: %s", chunk)
+	}
+	orig := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c INT ORIG_DEFAULT 1").Items[0])
+	if !strings.Contains(orig, ":orig_default") {
+		t.Errorf("ORIG_DEFAULT attribute missing from NodeToString: %s", orig)
+	}
+	if plain := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c INT").Items[0]); plain == chunk || plain == orig {
+		t.Errorf("attributes collapsed into the plain definition: %s", plain)
+	}
+
+	// LOAD DATA's explicit empty field list keeps its parentheses.
+	empty := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t()").Items[0])
+	if !strings.Contains(empty, ":columns ()") {
+		t.Errorf("empty field list missing from NodeToString: %s", empty)
+	}
+	if none := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t").Items[0]); none == empty {
+		t.Errorf("empty field list is indistinguishable from none: %s", none)
+	}
+
+	// A four-part column reference's three-name prefix matches one of the three
+	// id_dot_id_dot_id arms; only the dot before the column is free-standing.
+	for _, c := range []struct {
+		sql      string
+		accepted bool
+	}{
+		{"SELECT a.a.a.a", true},
+		{"SELECT a.a . a . a", true},
+		{"SELECT a . a.a . a", true},
+		{"SELECT a.a.a.*", true},
+		{"SELECT d . t . key . a FROM t", false},
+		{"SELECT a . a . a . a", false},
+	} {
+		if _, err := Parse(c.sql); (err == nil) != c.accepted {
+			t.Errorf("Parse(%q): accepted=%v, want %v (%v)", c.sql, err == nil, c.accepted, err)
+		}
+	}
+}

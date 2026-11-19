@@ -140,8 +140,8 @@ func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int, 
 		// either side may be the null one. Qualified l.* retains l's own column.
 		coalescedFull := false
 		if unqualifiedStar {
-			if right, ok := scope.fullJoinKey(e.name, col.Name); ok {
-				expr = &CoalesceExprQ{Args: []AnalyzedExpr{expr, right}}
+			if merged, ok := scope.fullJoinExpr(e.name, col.Name); ok {
+				expr = merged
 				coalescedFull = true
 			}
 		}

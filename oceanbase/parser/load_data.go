@@ -584,11 +584,13 @@ func (p *Parser) parseColumnOrUserVarList() ([]nodes.ExprNode, error) {
 		return nil, nil
 	}
 	p.advance()
-	var out []nodes.ExprNode
-	// opt_field_or_var_spec carries the empty list `()` as an arm of its own.
+	out := make([]nodes.ExprNode, 0, 4)
+	// opt_field_or_var_spec carries the empty list `()` as an arm of its own, so
+	// the slice is non-nil: `LOAD DATA ... INTO TABLE t()` keeps the clause
+	// apart from the statement that writes none.
 	if p.cur.Type == ')' {
 		p.advance()
-		return nil, nil
+		return out, nil
 	}
 	for {
 		if p.isUserVariable() {
