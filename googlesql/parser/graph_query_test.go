@@ -1489,3 +1489,59 @@ func TestGraphSamplePartitionByIsKept(t *testing.T) {
 		t.Errorf("method/unit = %q/%q, want BERNOULLI/ROWS", sample.Method, sample.Unit)
 	}
 }
+
+func TestGraphCallOpTVFArguments(t *testing.T) {
+	// graph_call_operator_core's target is the grammar's `tvf`, so a non-expression
+	// argument (`TABLE t`) parses.
+	c, ok := firstLinearOp(t, "SELECT EXISTS { CALL f(TABLE t) YIELD a }").(*ast.GraphCallOp)
+	if !ok {
+		t.Fatal("operator is not *ast.GraphCallOp")
+	}
+	if c.Call == nil || len(c.Call.Args) != 1 {
+		t.Fatalf("Call = %v, want one argument", c.Call)
+	}
+	if _, ok := c.Call.Args[0].(*ast.TableClause); !ok {
+		t.Errorf("argument is %T, want *ast.TableClause", c.Call.Args[0])
+	}
+}
+
+func TestGraphSetOpPropagationMode(t *testing.T) {
+	cases := []struct {
+		sql  string
+		mode string
+	}{
+		{"SELECT EXISTS { RETURN 1 UNION ALL RETURN 2 }", ""},
+		{"SELECT EXISTS { RETURN 1 FULL UNION ALL RETURN 2 }", "FULL"},
+		{"SELECT EXISTS { RETURN 1 FULL OUTER UNION ALL RETURN 2 }", "FULL"},
+		{"SELECT EXISTS { RETURN 1 OUTER UNION DISTINCT RETURN 2 }", "OUTER"},
+		{"SELECT EXISTS { RETURN 1 INNER INTERSECT ALL RETURN 2 }", "INNER"},
+		{"SELECT EXISTS { RETURN 1 LEFT OUTER EXCEPT ALL RETURN 2 }", "LEFT"},
+	}
+	for _, tc := range cases {
+		e, ok := onlyItemExpr(t, tc.sql).(*ast.GraphSubqueryExpr)
+		if !ok {
+			t.Fatalf("%q: expression is %T, want *ast.GraphSubqueryExpr", tc.sql, onlyItemExpr(t, tc.sql))
+		}
+		setOp, ok := e.Blocks[0].(*ast.GraphSetOp)
+		if !ok {
+			t.Fatalf("%q: Blocks[0] is %T, want *ast.GraphSetOp", tc.sql, e.Blocks[0])
+		}
+		if len(setOp.Metas) != 1 {
+			t.Fatalf("%q: %d metadata entries, want 1", tc.sql, len(setOp.Metas))
+		}
+		if setOp.Metas[0].OuterMode != tc.mode {
+			t.Errorf("%q: OuterMode = %q, want %q", tc.sql, setOp.Metas[0].OuterMode, tc.mode)
+		}
+	}
+}
+
+func TestGraphSubqueryGraphNameIsPathExpression(t *testing.T) {
+	// braced_graph_subquery takes path_expression: dotted parts only, no dashed
+	// BigQuery table name.
+	if _, errs := parseForTest("SELECT ARRAY { GRAPH a.b RETURN 1 }"); len(errs) != 0 {
+		t.Errorf("GRAPH a.b: unexpected errors: %v", errs)
+	}
+	if _, errs := parseForTest("SELECT ARRAY { GRAPH a-b RETURN 1 }"); len(errs) == 0 {
+		t.Error("GRAPH a-b: accepted a dashed name where the grammar takes path_expression")
+	}
+}

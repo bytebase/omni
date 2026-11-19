@@ -4418,7 +4418,11 @@ func (n *GraphSetOp) Tag() NodeTag { return T_GraphSetOp }
 type GraphSetOpMeta struct {
 	Op         string // "UNION" | "EXCEPT" | "INTERSECT"
 	Quantifier string // "ALL" | "DISTINCT"
-	Loc        Loc
+	// OuterMode is the optional corresponding-outer propagation mode before the
+	// operator (opt_corresponding_outer_mode): "FULL" | "OUTER" | "LEFT" |
+	// "INNER", or "" when absent.
+	OuterMode string
+	Loc       Loc
 }
 
 // GraphLinearQuery is a graph_linear_query_operation:

@@ -123,7 +123,26 @@ func (p *Parser) parseGraphSetOpChain(first *ast.GraphLinearQuery) (ast.Node, er
 // graph_set_operation_metadata (query_set_operation_type all_or_distinct): one
 // of UNION / EXCEPT / INTERSECT.
 func (p *Parser) atGraphSetOpMeta() bool {
+	// graph_set_operation_metadata is
+	// opt_corresponding_outer_mode query_set_operation_type all_or_distinct, so a
+	// leading FULL/OUTER/LEFT/INNER belongs to it when a set operator follows. The
+	// words are also join keywords, so the same lookahead the query set operation
+	// uses decides it here.
+	if atSetOpKeyword(p.cur.Type) {
+		return true
+	}
 	switch p.cur.Type {
+	case kwFULL, kwLEFT:
+		return p.setOpFollowsOuterMode()
+	case kwOUTER, kwINNER:
+		return atSetOpKeyword(p.peekNext().Type)
+	}
+	return false
+}
+
+// atSetOpKeyword reports whether tokenType is a query_set_operation_type.
+func atSetOpKeyword(tokenType int) bool {
+	switch tokenType {
 	case kwUNION, kwEXCEPT, kwINTERSECT:
 		return true
 	}
@@ -134,8 +153,22 @@ func (p *Parser) atGraphSetOpMeta() bool {
 // query_set_operation_type all_or_distinct. Both the operation type
 // (UNION|EXCEPT|INTERSECT) and the quantifier (ALL|DISTINCT) are REQUIRED.
 func (p *Parser) parseGraphSetOpMeta() (*ast.GraphSetOpMeta, error) {
+	meta := &ast.GraphSetOpMeta{Loc: p.cur.Loc}
+	// opt_corresponding_outer_mode: FULL [OUTER] | OUTER | LEFT [OUTER] | INNER.
+	switch p.cur.Type {
+	case kwFULL, kwLEFT:
+		modeTok := p.advance()
+		meta.OuterMode = upperTokenName(modeTok.Type)
+		if p.cur.Type == kwOUTER {
+			p.advance()
+			meta.Loc.End = p.prev.Loc.End
+		}
+	case kwOUTER, kwINNER:
+		modeTok := p.advance()
+		meta.OuterMode = upperTokenName(modeTok.Type)
+	}
 	opTok := p.advance() // UNION | EXCEPT | INTERSECT (atGraphSetOpMeta gated)
-	meta := &ast.GraphSetOpMeta{Op: TokenName(opTok.Type), Loc: opTok.Loc}
+	meta.Op = TokenName(opTok.Type)
 	switch p.cur.Type {
 	case kwALL:
 		meta.Quantifier = "ALL"
@@ -1847,7 +1880,10 @@ func (p *Parser) parseGraphSubqueryGraph() (*ast.PathExpr, error) {
 		return nil, nil
 	}
 	p.advance() // GRAPH
-	return p.parseTablePath()
+	// braced_graph_subquery takes a plain path_expression — dotted identifier
+	// components only — so a dashed name (`GRAPH a-b`) is not folded here the way
+	// BigQuery's table paths are.
+	return p.parsePathExpr()
 }
 
 // parseGraphExistsBraced parses the braced alternatives of exists_graph_subquery
@@ -1992,14 +2028,13 @@ func (p *Parser) parseGraphCallOp(optional bool) (ast.Node, error) {
 		op.Loc.End = sub.Loc.End
 		return op, nil
 	}
-	// A named table-valued function, then its optional YIELD list.
-	tvf, err := p.parseNameOrCall()
+	// A named table-valued function, then its optional YIELD list. graph_call_
+	// operator_core takes the grammar's `tvf`, whose arguments admit TABLE /
+	// MODEL / CONNECTION / INPUT TABLE, so this is the shared TVF parser rather
+	// than an ordinary scalar call.
+	fc, err := p.parseTVF()
 	if err != nil {
 		return nil, err
-	}
-	fc, ok := tvf.(*ast.FuncCall)
-	if !ok {
-		return nil, p.syntaxErrorAtCur()
 	}
 	op.Call = fc
 	op.Loc.End = fc.Loc.End
