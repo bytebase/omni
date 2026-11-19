@@ -291,6 +291,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	var idxTablespaces map[*Index]string
 	var relOwners map[*Relation]string
 	var idxOwners map[*Index]string
+	var seqOwners map[*Sequence]string
 	restore := func() {}
 	if needsRollback {
 		rels := []*Relation{rel}
@@ -303,12 +304,18 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		relOwners = map[*Relation]string{}
 		idxTablespaces = map[*Index]string{}
 		idxOwners = map[*Index]string{}
+		seqOwners = map[*Sequence]string{}
 		for _, r := range rels {
 			relTablespaces[r] = r.Tablespace
 			relOwners[r] = r.OwnerName
 			for _, idx := range c.indexesByRel[r.OID] {
 				idxTablespaces[idx] = idx.Tablespace
 				idxOwners[idx] = idx.OwnerName
+			}
+			for _, seq := range c.sequenceByOID {
+				if seq.OwnerRelOID == r.OID {
+					seqOwners[seq] = seq.OwnerName
+				}
 			}
 		}
 		restore = func() {
@@ -323,6 +330,9 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			}
 			for idx, owner := range idxOwners {
 				idx.OwnerName = owner
+			}
+			for seq, owner := range seqOwners {
+				seq.OwnerName = owner
 			}
 		}
 	}

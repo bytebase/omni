@@ -265,6 +265,11 @@ func (c *Catalog) roleInUse(name string) bool {
 			}
 		}
 	}
+	for _, proc := range c.userProcs {
+		if proc.OwnerName == name {
+			return true
+		}
+	}
 	return false
 }
 
@@ -318,6 +323,15 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			c.removeSequence(schema, seq)
 		}
 	}
+	var procs []*UserProc
+	for _, proc := range c.userProcs {
+		if owners[proc.OwnerName] {
+			procs = append(procs, proc)
+		}
+	}
+	for _, proc := range procs {
+		c.removeFunction(proc.OID, proc.Name)
+	}
 	kept := c.grants[:0]
 	for _, g := range c.grants {
 		if !owners[g.Grantee] {
@@ -356,6 +370,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			if owners[seq.OwnerName] {
 				seq.OwnerName = newOwner
 			}
+		}
+	}
+	for _, proc := range c.userProcs {
+		if owners[proc.OwnerName] {
+			proc.OwnerName = newOwner
 		}
 	}
 	return nil
@@ -411,6 +430,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 			if seq.OwnerName == oldName {
 				seq.OwnerName = stmt.Newname
 			}
+		}
+	}
+	for _, proc := range c.userProcs {
+		if proc.OwnerName == oldName {
+			proc.OwnerName = stmt.Newname
 		}
 	}
 	return nil

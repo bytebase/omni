@@ -1786,7 +1786,7 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 
 		cloneTablespace := idx.Tablespace
 		if cloneTablespace == "" {
-			cloneTablespace = normalizeTablespace(c.effectiveTablespace(""))
+			cloneTablespace = normalizeTablespace(c.effectiveIndexTablespace("", dst))
 		}
 		newIdx := &Index{
 			OID:              c.oidGen.Next(),

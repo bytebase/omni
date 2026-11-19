@@ -13,6 +13,7 @@ type UserProc struct {
 	OID          uint32
 	Name         string
 	Schema       *Schema
+	OwnerName    string
 	Kind         byte // 'f' or 'p'
 	ArgTypes     []uint32
 	RetType      uint32
@@ -598,6 +599,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		OID:          procOID,
 		Name:         name,
 		Schema:       schema,
+		OwnerName:    c.currentOwner(),
 		Kind:         kind,
 		ArgTypes:     argOIDs,
 		RetType:      retOID,
