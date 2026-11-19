@@ -50,9 +50,9 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (table_list)
-	if p.cur.Kind == kwON {
-		p.advance() // consume ON
+	// Optional ON or EXCLUDE (table_list)
+	if p.cur.Kind == kwON || p.cur.Kind == kwEXCLUDE {
+		p.advance() // consume ON / EXCLUDE
 		tables, loc, err := p.parseBackupTableList()
 		if err != nil {
 			return nil, err
@@ -942,4 +942,39 @@ func (p *Parser) utilAdminRawText(start int) string {
 		return ""
 	}
 	return p.input[start-p.baseOffset : end-p.baseOffset]
+}
+
+// parseReplayCommand parses PLAN REPLAYER:
+//
+//	PLAN REPLAYER DUMP query
+//	PLAN REPLAYER PLAY 'path'
+//
+// (DorisParser.g4:1087-1092). PLAN has been consumed; cur is REPLAYER.
+func (p *Parser) parseReplayCommand(startLoc ast.Loc) (ast.Node, error) {
+	if _, err := p.expect(kwREPLAYER); err != nil {
+		return nil, err
+	}
+	stmt := &ast.ReplayStmt{Loc: startLoc}
+	switch p.cur.Kind {
+	case kwDUMP:
+		stmt.Type = "DUMP"
+		p.advance() // consume DUMP
+		query, err := p.parseStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Query = query
+		stmt.Loc.End = p.prev.Loc.End
+	case kwPLAY:
+		stmt.Type = "PLAY"
+		p.advance() // consume PLAY
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.File = p.advance().Str
+		stmt.Loc.End = p.prev.Loc.End
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	return stmt, nil
 }

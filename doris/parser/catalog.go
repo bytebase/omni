@@ -185,6 +185,36 @@ func (p *Parser) parseDropCatalog() (ast.Node, error) {
 	// Consume CATALOG
 	p.advance()
 
+	// DROP CATALOG RECYCLE BIN WHERE 'type' = id (DorisParser.g4:214), before
+	// a catalog name is read.
+	if p.cur.Kind == kwRECYCLE {
+		p.advance() // consume RECYCLE
+		if _, err := p.expect(kwBIN); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwWHERE); err != nil {
+			return nil, err
+		}
+		typeTok := p.cur
+		if typeTok.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		idTok := p.cur
+		if idTok.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return &ast.DropCatalogRecycleBinStmt{
+			IDType: typeTok.Str,
+			ID:     p.sourceText(idTok.Loc),
+			Loc:    startLoc.Merge(idTok.Loc),
+		}, nil
+	}
+
 	stmt := &ast.DropCatalogStmt{}
 
 	// Optional IF EXISTS
@@ -257,4 +287,60 @@ func (p *Parser) parsePropertyClause() ([]*ast.Property, error) {
 	}
 
 	return p.parsePropertyItems(p.parseStringProperty)
+}
+
+// parseRefreshTarget parses REFRESH TABLE or REFRESH DATABASE.
+//
+//	REFRESH TABLE name
+//	REFRESH DATABASE name [PROPERTIES(...)]
+//
+// (DorisParser.g4:735-747; the CUP parser's refresh_stmt). REFRESH has been
+// consumed; cur is TABLE or DATABASE.
+func (p *Parser) parseRefreshTarget(startLoc ast.Loc, kind string) (ast.Node, error) {
+	p.advance() // consume TABLE or DATABASE
+
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.RefreshStmt{Kind: kind, Name: name, Loc: startLoc.Merge(ast.NodeLoc(name))}
+
+	if kind == "DATABASE" && p.cur.Kind == kwPROPERTIES {
+		// The engine takes the string property list here, not the grammar's
+		// wider propertyItem: REFRESH DATABASE a PROPERTIES(a = a) is refused.
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		if len(props) > 0 {
+			stmt.Loc.End = ast.NodeLoc(props[len(props)-1]).End
+		}
+	}
+	return stmt, nil
+}
+
+// parseRefreshLDAP parses REFRESH LDAP (ALL | FOR name).
+//
+// (DorisParser.g4:740; the CUP parser's refresh_stmt). REFRESH has been
+// consumed; cur is LDAP.
+func (p *Parser) parseRefreshLDAP(startLoc ast.Loc) (ast.Node, error) {
+	ldapTok := p.advance() // consume LDAP
+	stmt := &ast.RefreshStmt{Kind: "LDAP", Loc: startLoc.Merge(ldapTok.Loc)}
+	switch p.cur.Kind {
+	case kwALL:
+		stmt.All = true
+		stmt.Loc.End = p.advance().Loc.End
+	case kwFOR:
+		p.advance() // consume FOR
+		name, nameLoc, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.For = name
+		stmt.Loc.End = nameLoc.End
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	return stmt, nil
 }

@@ -1080,9 +1080,8 @@ var keywordMap = map[string]TokenKind{
 
 // nonReservedKeywords is the set of keywords that can be used as unquoted
 // identifiers. Seeded from the nonReserved rule in DorisParser.g4 (lines 1906-2257).
-// Note: COMMENT_START (/*), LEFT_BRACE ({), RIGHT_BRACE (}) and HINT_START/HINT_END
-// appear in the nonReserved grammar rule but are operators/punctuation, not keywords
-// handled here.
+// The punctuation tokens in that rule (HINT_END, LEFT_BRACE, RIGHT_BRACE) are
+// handled by isIdentifierToken rather than this map, which holds keywords only.
 var nonReservedKeywords = map[TokenKind]bool{
 	kwACTIONS:                true,
 	kwAFTER:                  true,
@@ -1229,7 +1228,6 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwIMMEDIATE:              true,
 	kwINCREMENTAL:            true,
 	kwINDEXES:                true,
-	kwINSERT:                 true,
 	kwINVERTED:               true,
 	kwIP_TRIE:                true,
 	kwIPV4:                   true,
@@ -1265,8 +1263,6 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwMATCH_PHRASE_EDGE:      true,
 	kwMATCH_PHRASE_PREFIX:    true,
 	kwMATCH_REGEXP:           true,
-	kwMATCH_NAME:             true,
-	kwMATCH_NAME_GLOB:        true,
 	kwMATERIALIZED:           true,
 	kwMAX:                    true,
 	kwMEMO:                   true,

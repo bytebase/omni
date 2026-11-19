@@ -16,6 +16,13 @@ import (
 //
 // The TRUNCATE keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseTruncateTable() (ast.Node, error) {
+	// opt_common_hints needs an ident_list between /*+ and */, and the engine
+	// refuses TRUNCATE TABLE a /*+ */ and TRUNCATE TABLE a /*+ a. The parser
+	// skips hint spans everywhere, so check the truncate statement's own text.
+	if hasMalformedCommonHint(p.input) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	truncateTok := p.advance() // consume TRUNCATE
 
 	// Required TABLE keyword
@@ -37,8 +44,8 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 
 	// Optional PARTITION(p1, p2, ...) or PARTITIONS(...)
 	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList()
+		keyword := p.advance().Kind // consume PARTITION / PARTITIONS
+		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS)
 		if err != nil {
 			return nil, err
 		}
@@ -849,7 +856,7 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	// Optional PARTITION(p1, p2, ...)
 	if p.cur.Kind == kwPARTITION {
 		p.advance() // consume PARTITION
-		parts, err := p.parsePartitionNameList()
+		parts, err := p.parsePartitionNameList(false)
 		if err != nil {
 			return nil, err
 		}
@@ -898,4 +905,21 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// hasMalformedCommonHint reports whether input holds a /*+ ... */ hint with
+// no body or no closing */. It is the opt_common_hints rule's ident_list.
+func hasMalformedCommonHint(input string) bool {
+	for {
+		i := strings.Index(input, "/*+")
+		if i < 0 {
+			return false
+		}
+		rest := input[i+3:]
+		j := strings.Index(rest, "*/")
+		if j < 0 || strings.TrimSpace(rest[:j]) == "" {
+			return true
+		}
+		input = rest[j+2:]
+	}
 }

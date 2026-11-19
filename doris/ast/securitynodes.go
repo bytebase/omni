@@ -36,9 +36,12 @@ var _ Node = (*CreateRowPolicyStmt)(nil)
 //
 //	DROP ROW POLICY name ON table_name
 type DropRowPolicyStmt struct {
-	Name string
-	On   *ObjectName
-	Loc  Loc
+	Name     string
+	IfExists bool
+	On       *ObjectName
+	For      string // optional FOR user or role name
+	ForRole  bool   // the FOR name is a role
+	Loc      Loc
 }
 
 // Tag implements Node.

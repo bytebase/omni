@@ -29,3 +29,14 @@ type RollbackStmt struct {
 }
 
 func (n *RollbackStmt) Tag() NodeTag { return T_RollbackStmt }
+
+// StartTransactionStmt represents START TRANSACTION [WITH CONSISTENT SNAPSHOT].
+type StartTransactionStmt struct {
+	ConsistentSnapshot bool // WITH CONSISTENT SNAPSHOT
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *StartTransactionStmt) Tag() NodeTag { return T_StartTransactionStmt }
+
+var _ Node = (*StartTransactionStmt)(nil)

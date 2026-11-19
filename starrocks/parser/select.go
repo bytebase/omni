@@ -583,7 +583,12 @@ func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool, error) {
 	}
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
-	// that does NOT start a clause.
+	// that does NOT start a clause. A SELECT item also takes a bare string
+	// literal as its alias (selectItem identifier|string), except after a bare
+	// DATE/DATETIME: the engine refuses SELECT DATE 'a'.
+	if stringOK && p.cur.Kind == tokString && p.prev.Kind != kwDATE && p.prev.Kind != kwDATETIME {
+		return p.advance().Str, true, nil
+	}
 	if p.isAliasIdentToken() {
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {

@@ -73,9 +73,13 @@ func (p *Parser) parseCreateRowPolicy(startLoc ast.Loc) (ast.Node, error) {
 		}
 	}
 
-	// TO user_or_role
+	// TO user_or_role, where a role is written TO ROLE name
+	// (DorisParser.g4:175).
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
+	}
+	if p.cur.Kind == kwROLE {
+		p.advance() // consume ROLE
 	}
 	toName, toLoc, err := p.parseIdentifierOrString()
 	if err != nil {
@@ -90,6 +94,10 @@ func (p *Parser) parseCreateRowPolicy(startLoc ast.Loc) (ast.Node, error) {
 		raw, loc, err := p.consumeParenGroup()
 		if err != nil {
 			return nil, err
+		}
+		// booleanExpression is not optional, and the engine refuses USING().
+		if strings.TrimSpace(raw[1:len(raw)-1]) == "" {
+			return nil, &ParseError{Position: loc.Start, End: loc.End, Message: "expected expression in USING"}
 		}
 		stmt.Using = raw
 		endLoc = loc
@@ -111,6 +119,14 @@ func (p *Parser) parseDropRowPolicy(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.DropRowPolicyStmt{}
 
+	if p.cur.Kind == kwIF {
+		p.advance() // consume IF
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
+
 	// Policy name
 	name, _, err := p.parseIdentifier()
 	if err != nil {
@@ -127,8 +143,24 @@ func (p *Parser) parseDropRowPolicy(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	stmt.On = onTable
+	endLoc := ast.NodeLoc(onTable)
 
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(onTable))
+	// Optional FOR (userIdentify | ROLE roleName)
+	if p.cur.Kind == kwFOR {
+		p.advance() // consume FOR
+		if p.cur.Kind == kwROLE {
+			p.advance() // consume ROLE
+			stmt.ForRole = true
+		}
+		name, nameLoc, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.For = name
+		endLoc = nameLoc
+	}
+
+	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
 }
 

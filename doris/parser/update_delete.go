@@ -29,7 +29,11 @@ func (p *Parser) parseUpdateStmt(updateStart int) (*ast.UpdateStmt, error) {
 	stmt.Target = target
 
 	// optional AS alias (or bare alias) — but not SET/FROM/WHERE
-	stmt.TargetAlias = p.parseDMLTargetAlias()
+	alias, err := p.parseDMLTargetAlias()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TargetAlias = alias
 
 	// SET clause (required)
 	if _, err := p.expect(kwSET); err != nil {
@@ -102,9 +106,16 @@ func (p *Parser) parseAssignment() (*ast.Assignment, error) {
 		return nil, err
 	}
 
-	val, err := p.parseExpr()
-	if err != nil {
-		return nil, err
+	// updateAssignment takes expression or DEFAULT (DorisParser.g4:1537).
+	var val ast.Node
+	if p.cur.Kind == kwDEFAULT {
+		tok := p.advance()
+		val = &ast.Literal{Kind: ast.LitKeyword, Value: "DEFAULT", Loc: tok.Loc}
+	} else {
+		val, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ast.Assignment{
@@ -143,18 +154,29 @@ func (p *Parser) parseDeleteStmt(deleteStart int) (*ast.DeleteStmt, error) {
 	}
 	stmt.Target = target
 
-	// optional AS alias (or bare alias) — but not PARTITION/PARTITIONS/USING/WHERE
-	stmt.TargetAlias = p.parseDMLTargetAlias()
-
-	// optional PARTITION(p1, p2, ...) or PARTITIONS (p1, p2, ...)
+	// partitionSpec? comes before tableAlias (DorisParser.g4:137), so
+	// DELETE FROM a PARTITION(p) zzz is a delete of a with alias zzz.
+	if p.cur.Kind == kwTEMPORARY {
+		p.advance() // consume TEMPORARY
+		if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList()
+		keyword := p.advance().Kind // consume PARTITION / PARTITIONS
+		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS)
 		if err != nil {
 			return nil, err
 		}
 		stmt.Partition = partitions
 	}
+
+	// optional AS alias (or bare alias) — but not USING/WHERE
+	alias, err := p.parseDMLTargetAlias()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TargetAlias = alias
 
 	// optional USING clause
 	if p.cur.Kind == kwUSING {
@@ -184,31 +206,31 @@ func (p *Parser) parseDeleteStmt(deleteStart int) (*ast.DeleteStmt, error) {
 // It uses the same logic as parseOptionalAlias but additionally excludes
 // PARTITION, PARTITIONS, USING, and WHERE which can appear as non-reserved
 // keywords but are structural keywords in DML clauses.
-func (p *Parser) parseDMLTargetAlias() string {
+func (p *Parser) parseDMLTargetAlias() (string, error) {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return ""
+			return "", err
 		}
-		return name
+		return name, nil
 	}
 
 	// Implicit alias: skip DML structural keywords
 	if isDMLClauseKeyword(p.cur.Kind) {
-		return ""
+		return "", nil
 	}
 
 	if p.isAliasIdentToken() {
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return ""
+			return "", err
 		}
-		return name
+		return name, nil
 	}
 
-	return ""
+	return "", nil
 }
 
 // isDMLClauseKeyword returns true for keywords that start DML clauses and
@@ -225,12 +247,19 @@ func isDMLClauseKeyword(t int) bool {
 // parsePartitionNameList parses (p1 [, p2 ...]) — the partition name list.
 // The opening '(' is optional in Doris for single-partition DELETE syntax
 // (PARTITION p1) but PARTITIONS always uses '(p1, p2, ...)'. We handle both.
-func (p *Parser) parsePartitionNameList() ([]string, error) {
+func (p *Parser) parsePartitionNameList(plural bool) ([]string, error) {
 	var names []string
 
 	if p.cur.Kind == int('(') {
-		// Parenthesized list: (p1, p2, ...)
+		// Parenthesized list: (p1, p2, ...) or (*)
 		p.advance() // consume '('
+		if p.cur.Kind == int('*') {
+			p.advance() // consume '*'
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+			return []string{"*"}, nil
+		}
 
 		name, _, err := p.parseIdentifier()
 		if err != nil {
@@ -251,6 +280,11 @@ func (p *Parser) parsePartitionNameList() ([]string, error) {
 			return nil, err
 		}
 	} else {
+		// PARTITIONS takes its names in parentheses; only PARTITION may
+		// name one without them (DorisParser.g4:1663).
+		if plural {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// Bare single name: PARTITION p1
 		name, _, err := p.parseIdentifier()
 		if err != nil {

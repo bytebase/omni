@@ -146,6 +146,8 @@ var _ Node = (*ResumeJobStmt)(nil)
 type CancelTaskStmt struct {
 	For    *ObjectName // FOR job_name
 	TaskID int64       // task id
+	Like   string      // optional wildWhere LIKE
+	Where  Node        // optional wildWhere WHERE
 	Loc    Loc
 }
 

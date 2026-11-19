@@ -69,9 +69,12 @@ func (p *Parser) parseCreateIndex(startLoc ast.Loc) (ast.Node, error) {
 		case kwUSING:
 			p.advance()
 			typeTok := p.cur
-			// Index type is one of: BITMAP, NGRAM_BF, INVERTED, ANN (all non-reserved).
-			// Accept any non-reserved keyword or plain identifier as an index type name.
-			if !isIdentifierToken(typeTok.Kind) {
+			// index_type is BITMAP, NGRAM_BF or INVERTED (DorisParser.g4:837);
+			// ANN is the engine's fourth name, which index_test pins. Any
+			// other identifier is a syntax error.
+			switch typeTok.Kind {
+			case kwBITMAP, kwNGRAM_BF, kwINVERTED, kwANN:
+			default:
 				return nil, p.syntaxErrorAtCur()
 			}
 			// Normalize to lowercase for case-insensitive comparison.
@@ -242,3 +245,99 @@ func (p *Parser) parseIdentifierList() ([]string, error) {
 // parseProperties parses a PROPERTIES("key"="value", ...) clause.
 // cur must be kwPROPERTIES on entry; it is consumed here.
 // parseProperties is defined in database.go and shared by index.go.
+
+// parseCreateInvertedIndex parses:
+//
+//	CREATE INVERTED INDEX {ANALYZER | TOKENIZER | TOKEN_FILTER | CHAR_FILTER}
+//	  [IF NOT EXISTS] name [PROPERTIES(...)]
+//
+// (DorisParser.g4:167-185). CREATE has been consumed; cur is INVERTED.
+func (p *Parser) parseCreateInvertedIndex(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume INVERTED
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
+
+	kind, err := p.parseInvertedIndexKind()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &ast.CreateInvertedIndexStmt{Kind: kind}
+	if p.cur.Kind == kwIF {
+		p.advance() // consume IF
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfNotExists = true
+	}
+
+	name, nameLoc, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	endLoc := nameLoc
+
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseFullProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		if len(props) > 0 {
+			endLoc = ast.NodeLoc(props[len(props)-1])
+		}
+	}
+
+	stmt.Loc = startLoc.Merge(endLoc)
+	return stmt, nil
+}
+
+// parseDropInvertedIndex parses:
+//
+//	DROP INVERTED INDEX {ANALYZER | TOKENIZER | TOKEN_FILTER | CHAR_FILTER}
+//	  [IF EXISTS] name
+//
+// (DorisParser.g4:214-219). DROP has been consumed; cur is INVERTED.
+func (p *Parser) parseDropInvertedIndex(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume INVERTED
+	if _, err := p.expect(kwINDEX); err != nil {
+		return nil, err
+	}
+
+	kind, err := p.parseInvertedIndexKind()
+	if err != nil {
+		return nil, err
+	}
+
+	stmt := &ast.DropInvertedIndexStmt{Kind: kind}
+	if p.cur.Kind == kwIF {
+		p.advance() // consume IF
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
+
+	name, nameLoc, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	stmt.Loc = startLoc.Merge(nameLoc)
+	return stmt, nil
+}
+
+// parseInvertedIndexKind reads ANALYZER, TOKENIZER, TOKEN_FILTER or CHAR_FILTER.
+func (p *Parser) parseInvertedIndexKind() (string, error) {
+	switch p.cur.Kind {
+	case kwANALYZER, kwTOKENIZER, kwTOKEN_FILTER, kwCHAR_FILTER:
+		return strings.ToUpper(p.advance().Str), nil
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+}
