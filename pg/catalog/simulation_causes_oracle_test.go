@@ -437,6 +437,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// An invalid tablespace is refused before an earlier subcommand runs.
+	t.Run("an invalid tablespace leaves no earlier ALTER mutation", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, "CREATE TABLE a (b int)"); code != "0" {
+			t.Fatalf("catalog refused CREATE TABLE with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "ALTER TABLE a ADD COLUMN c int, SET TABLESPACE missing"); code != CodeUndefinedObject {
+			t.Fatalf("catalog answered %s, want %s", code, CodeUndefinedObject)
+		}
+		rel := c.schemaByName["public"].Relations["a"]
+		if rel == nil {
+			t.Fatal("the table is gone")
+		}
+		if _, exists := rel.colByName["c"]; exists {
+			t.Fatal("a failed ALTER TABLE left column c behind")
+		}
+	})
+
 	// A failed ALTER TABLE restores the owner as well as the tablespace.
 	t.Run("a failed ALTER TABLE restores the owner", func(t *testing.T) {
 		c := New()
