@@ -73,7 +73,12 @@ const (
 	ErrNoTablesUsed = 1096
 	// ErrTableMustHaveColumns is 4028, which mysql:8.0.46 answers for a CREATE
 	// TABLE that lists no column at all.
-	ErrTableMustHaveColumns = 4028
+	ErrTableMustHaveColumns        = 4028
+	ErrPartitionFieldNotFound      = 1488
+	ErrPartitionSubpartMix         = 1500
+	ErrDupPartitionField           = 1652
+	ErrSpatialColumnNotGeometrical = 1687
+	ErrSRSMissingAttribute         = 3708
 )
 
 var sqlStateMap = map[int]string{
@@ -126,6 +131,8 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
 	ErrTableMustHaveColumns:              "HY000",
+	ErrSpatialColumnNotGeometrical:       "42000",
+	ErrSRSMissingAttribute:               "SR006",
 }
 
 func sqlState(code int) string {
@@ -233,6 +240,47 @@ func errInvalidYearColumnLength() error {
 func errNoSuchColumn(name, context string) error {
 	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
 		Message: fmt.Sprintf("Unknown column '%s' in '%s'", name, context)}
+}
+
+// errPartitionFieldNotFound is 1488, a column a KEY partitioning names and the
+// table does not hold. MySQL words it without the name.
+func errPartitionFieldNotFound() error {
+	return &Error{Code: ErrPartitionFieldNotFound, SQLState: sqlState(ErrPartitionFieldNotFound),
+		Message: "Field in list of fields for partition function not found in table"}
+}
+
+// errDupPartitionField is 1652, the same column named twice in one partition
+// function.
+func errDupPartitionField(name string) error {
+	return &Error{Code: ErrDupPartitionField, SQLState: sqlState(ErrDupPartitionField),
+		Message: fmt.Sprintf("Duplicate partition field name '%s'", name)}
+}
+
+// errPartitionSubpartMix is 1500, a HASH or KEY partitioning that also writes a
+// SUBPARTITION BY: MySQL mixes subpartitioning with RANGE and LIST only.
+func errPartitionSubpartMix() error {
+	return &Error{Code: ErrPartitionSubpartMix, SQLState: sqlState(ErrPartitionSubpartMix),
+		Message: "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning"}
+}
+
+// errPartitionsMustBeDefined is 1492, a RANGE or LIST partitioning that defines
+// no partition.
+func errPartitionsMustBeDefined() error {
+	return &Error{Code: 1492, SQLState: sqlState(1492),
+		Message: "Partitions must be defined for RANGE/LIST partitioning"}
+}
+
+// errSpatialNotGeometrical is 1687, a SPATIAL key over a column of another type.
+func errSpatialNotGeometrical() error {
+	return &Error{Code: ErrSpatialColumnNotGeometrical, SQLState: sqlState(ErrSpatialColumnNotGeometrical),
+		Message: "A SPATIAL index may only contain a geometrical type column"}
+}
+
+// errSRSMandatoryAttribute is 3708, a CREATE SPATIAL REFERENCE SYSTEM that
+// leaves out the attribute MySQL requires.
+func errSRSMandatoryAttribute(name string) error {
+	return &Error{Code: ErrSRSMissingAttribute, SQLState: sqlState(ErrSRSMissingAttribute),
+		Message: fmt.Sprintf("Missing mandatory attribute %s.", name)}
 }
 
 func errUnknownTable(db, name string) error {

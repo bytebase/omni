@@ -2760,12 +2760,18 @@ func (s *DropLogfileGroupStmt) stmtNode() {}
 
 // CreateSpatialRefSysStmt represents a CREATE SPATIAL REFERENCE SYSTEM statement.
 type CreateSpatialRefSysStmt struct {
-	Loc          Loc
-	OrReplace    bool   // OR REPLACE
-	IfNotExists  bool   // IF NOT EXISTS
-	SRID         int64  // spatial reference system ID
-	Name         string // NAME 'srs_name'
-	Definition   string // DEFINITION 'definition'
+	Loc         Loc
+	OrReplace   bool   // OR REPLACE
+	IfNotExists bool   // IF NOT EXISTS
+	SRID        int64  // spatial reference system ID
+	Name        string // NAME 'srs_name'
+	Definition  string // DEFINITION 'definition'
+	// HasName and HasDefinition report that the statement wrote the attribute, which
+	// an empty literal does: `NAME ''` is present, where a NAME the statement leaves
+	// out is absent. The server answers the two differently, and the strings alone
+	// cannot tell them apart.
+	HasName      bool
+	HasDefinition bool
 	Organization string // ORGANIZATION 'org_name'
 	OrgSRID      int64  // IDENTIFIED BY srid (under ORGANIZATION)
 	Description  string // DESCRIPTION 'description'
