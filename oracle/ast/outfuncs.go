@@ -195,6 +195,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeContainersExpr(sb, n)
 	case *InlineExternalTable:
 		writeInlineExternalTable(sb, n)
+	case *InlineAnalyticView:
+		writeInlineAnalyticView(sb, n)
+	case *SubAVClause:
+		writeSubAVClause(sb, n)
 
 	// Clause nodes
 	case *HierarchicalClause:
@@ -1516,6 +1520,10 @@ func writeCTE(sb *strings.Builder, n *CTE) {
 		sb.WriteString(" :query ")
 		writeNode(sb, n.Query)
 	}
+	if n.SubAV != nil {
+		sb.WriteString(" :subav ")
+		writeNode(sb, n.SubAV)
+	}
 	if n.Search != nil {
 		sb.WriteString(" :search ")
 		writeNode(sb, n.Search)
@@ -1918,6 +1926,45 @@ func writeContainersExpr(sb *strings.Builder, n *ContainersExpr) {
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSubAVClause(sb *strings.Builder, n *SubAVClause) {
+	sb.WriteString("{SUBAVCLAUSE")
+	if n.Using != nil {
+		sb.WriteString(" :using ")
+		writeNode(sb, n.Using)
+	}
+	if n.Options != nil {
+		sb.WriteString(" :options ")
+		writeNode(sb, n.Options)
+	}
+	if n.OpaqueMeasure {
+		sb.WriteString(" :opaqueMeasure true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeInlineAnalyticView(sb *strings.Builder, n *InlineAnalyticView) {
+	sb.WriteString("{INLINEANALYTICVIEW")
+	if n.Clause != nil {
+		sb.WriteString(" :clause ")
+		writeNode(sb, n.Clause)
+	}
+	if n.Alias != nil {
+		sb.WriteString(" :alias ")
+		writeNode(sb, n.Alias)
+	}
+	if n.Sample != nil {
+		sb.WriteString(" :sample ")
+		writeNode(sb, n.Sample)
+	}
+	if n.Flashback != nil {
+		sb.WriteString(" :flashback ")
+		writeNode(sb, n.Flashback)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
