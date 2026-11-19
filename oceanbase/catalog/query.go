@@ -64,6 +64,8 @@
 // translated equivalent.
 package catalog
 
+import "strings"
+
 // =============================================================================
 // Section 1 — Top-level Query
 // =============================================================================
@@ -1108,9 +1110,156 @@ type OdbcEscapeExprQ struct {
 	Arg  AnalyzedExpr
 }
 
-func (*OdbcEscapeExprQ) analyzedExprTag()          {}
-func (o *OdbcEscapeExprQ) exprType() *ResolvedType { return o.Arg.exprType() }
-func (*OdbcEscapeExprQ) exprCollation() string     { return "" }
+func (*OdbcEscapeExprQ) analyzedExprTag() {}
+func (o *OdbcEscapeExprQ) exprType() *ResolvedType {
+	if rt := odbcTemporalEscapeType(o.Name, o.Arg); rt != nil {
+		return rt
+	}
+	if o.Arg == nil {
+		return nil
+	}
+	return o.Arg.exprType()
+}
+func (o *OdbcEscapeExprQ) exprCollation() string {
+	if odbcTemporalEscapeType(o.Name, o.Arg) != nil || o.Arg == nil {
+		return ""
+	}
+	return o.Arg.exprCollation()
+}
+
+func odbcTemporalEscapeKind(name string) (string, *ResolvedType) {
+	switch strings.ToLower(name) {
+	case "d":
+		return "DATE", &ResolvedType{BaseType: BaseTypeDate}
+	case "t":
+		return "TIME", &ResolvedType{BaseType: BaseTypeTime}
+	case "ts":
+		return "TIMESTAMP", &ResolvedType{BaseType: BaseTypeTimestamp}
+	default:
+		return "", nil
+	}
+}
+
+func odbcTemporalEscapeType(name string, arg AnalyzedExpr) *ResolvedType {
+	kind, rt := odbcTemporalEscapeKind(name)
+	if rt == nil {
+		return nil
+	}
+	cst, ok := arg.(*ConstExprQ)
+	if !ok || !cst.IsString || !odbcTemporalValid(kind, cst.Value) {
+		return nil
+	}
+	return rt
+}
+
+// odbcTemporalValid reports whether v parses as an ODBC temporal literal of
+// kind ("DATE", "TIME", or "TIMESTAMP"); invalid strings fall back to ordinary
+// string evaluation in OceanBase MySQL mode.
+func odbcTemporalValid(kind, v string) bool {
+	v = strings.TrimSpace(v)
+	atoi := func(s string) (int, bool) {
+		if s == "" {
+			return 0, false
+		}
+		n := 0
+		for i := 0; i < len(s); i++ {
+			if s[i] < '0' || s[i] > '9' {
+				return 0, false
+			}
+			n = n*10 + int(s[i]-'0')
+		}
+		return n, true
+	}
+	digits := func(s string) bool { _, ok := atoi(s); return ok }
+	num := func(s string) int { n, _ := atoi(s); return n }
+	fields := func(part string, seps string) ([]int, []int, bool) {
+		var vals, widths []int
+		cur, w := 0, 0
+		for i := 0; i < len(part); i++ {
+			c := part[i]
+			switch {
+			case c >= '0' && c <= '9':
+				cur, w = cur*10+int(c-'0'), w+1
+				if w > 4 {
+					return nil, nil, false
+				}
+			case w > 0 && strings.IndexByte(seps, c) >= 0:
+				vals, widths = append(vals, cur), append(widths, w)
+				cur, w = 0, 0
+			default:
+				return nil, nil, false
+			}
+		}
+		if w == 0 {
+			return nil, nil, false
+		}
+		return append(vals, cur), append(widths, w), true
+	}
+	dateOK := func(y, m, d int) bool {
+		if m < 1 || m > 12 || d < 1 {
+			return false
+		}
+		days := [13]int{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}[m]
+		if m == 2 && y%4 == 0 && (y%100 != 0 || y%400 == 0) {
+			days = 29
+		}
+		return d <= days
+	}
+	date := func(d string) bool {
+		if digits(d) {
+			switch len(d) {
+			case 6:
+				return dateOK(2000+num(d[:2]), num(d[2:4]), num(d[4:]))
+			case 8:
+				return dateOK(num(d[:4]), num(d[4:6]), num(d[6:]))
+			}
+			return false
+		}
+		f, w, ok := fields(d, "-/.:_")
+		return ok && len(f) == 3 && w[1] <= 2 && w[2] <= 2 && dateOK(f[0], f[1], f[2])
+	}
+	frac := func(t string) (string, bool) {
+		if i := strings.IndexByte(t, '.'); i >= 0 {
+			if !digits(t[i+1:]) {
+				return "", false
+			}
+			return t[:i], true
+		}
+		return t, true
+	}
+	clock := func(t string, maxHour int) bool {
+		t, ok := frac(t)
+		if !ok {
+			return false
+		}
+		f, w, ok := fields(t, ":")
+		if !ok || len(f) < 2 || len(f) > 3 || w[1] > 2 || (len(f) == 3 && w[2] > 2) {
+			return false
+		}
+		sec := 0
+		if len(f) == 3 {
+			sec = f[2]
+		}
+		return f[0] <= maxHour && f[1] <= 59 && sec <= 59
+	}
+	switch kind {
+	case "DATE":
+		return date(v)
+	case "TIME":
+		t := strings.TrimPrefix(v, "-")
+		if d, ok := frac(t); ok && digits(d) && len(d) == 6 {
+			return num(d[:2]) <= 23 && num(d[2:4]) <= 59 && num(d[4:]) <= 59
+		}
+		return clock(t, 838)
+	default:
+		if digits(v) && (len(v) == 12 || len(v) == 14) {
+			d, t := v[:len(v)-6], v[len(v)-6:]
+			return date(d) && num(t[:2]) <= 23 && num(t[2:4]) <= 59 && num(t[4:]) <= 59
+		}
+		i := strings.IndexAny(v, " T")
+		return i > 0 && date(v[:i]) && clock(strings.TrimSpace(v[i+1:]), 23)
+	}
+}
 
 // ----------------------------------------------------------------------------
 // RawExprQ — an expression the IR keeps as written.

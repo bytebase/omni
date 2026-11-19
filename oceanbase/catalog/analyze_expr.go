@@ -28,6 +28,17 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
+	case *nodes.TemporalLit:
+		var rt *ResolvedType
+		switch strings.ToUpper(n.Type) {
+		case "DATE":
+			rt = &ResolvedType{BaseType: BaseTypeDate}
+		case "TIME":
+			rt = &ResolvedType{BaseType: BaseTypeTime}
+		case "TIMESTAMP":
+			rt = &ResolvedType{BaseType: BaseTypeTimestamp}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), ResultType: rt}, nil
 	case *nodes.ParamMarkerExpr:
 		// A `?` parameter marker cannot appear in a view definition — the only
 		// thing this analyzer processes — and the engine rejects such a view.

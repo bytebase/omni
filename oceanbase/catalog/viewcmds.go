@@ -766,9 +766,13 @@ func inferViewExprCollation(expr nodes.ExprNode, relations *viewRelationsScope) 
 	case *nodes.ParenExpr:
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.OdbcEscapeExpr:
-		// The escape's word says how its expression is read, and its result
-		// carries that expression's character set. The payload is checked too,
-		// so an illegal collation inside the braces is refused.
+		// Temporal escapes (`{d '...'}`, `{t '...'}`, `{ts '...'}`) convert a valid
+		// string literal into a temporal value with no string charset or collation;
+		// transparent escapes (`{fn ...}`, etc.) and non-temporal fallbacks carry
+		// the inner expression's metadata and collation checks.
+		if isOdbcTemporalEscapeExpr(e) {
+			return viewCollationInfo{}, nil
+		}
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.QuantifiedExpr:
 		return inferViewExprCollation(e.Expr, relations)
@@ -796,6 +800,26 @@ func inferViewExprCollation(expr nodes.ExprNode, relations *viewRelationsScope) 
 	default:
 		return viewCollationInfo{}, nil
 	}
+}
+
+func isOdbcTemporalEscapeExpr(e *nodes.OdbcEscapeExpr) bool {
+	if e == nil {
+		return false
+	}
+	kind, rt := odbcTemporalEscapeKind(e.Name)
+	if rt == nil {
+		return false
+	}
+	inner := e.Expr
+	for {
+		pe, ok := inner.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		inner = pe.Expr
+	}
+	lit, ok := inner.(*nodes.StringLit)
+	return ok && odbcTemporalValid(kind, lit.Value)
 }
 
 func inferViewFuncCollation(fn *nodes.FuncCallExpr, relations *viewRelationsScope) (viewCollationInfo, error) {

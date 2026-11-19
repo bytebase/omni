@@ -82,6 +82,7 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 	if tp == RightOuterJoin || tp == NaturalRightOuterJoin {
 		first, second = second, first
 	}
+	isFullJoin := tp == FullOuterJoin || tp == NaturalFullOuterJoin
 	joined := make(map[string]bool)
 	for _, name := range names {
 		joined[strings.ToLower(name)] = true
@@ -96,6 +97,9 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 		emittedJoined[lower] = true
 		if other, ok := querySpanResultNamed(second, field.Name); ok {
 			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
+		}
+		if isFullJoin {
+			field.IsPlainField = false
 		}
 		columns = append(columns, field)
 	}

@@ -584,8 +584,19 @@ func TestOrderByOrdinalCountsVisibleTargets(t *testing.T) {
 func TestOdbcEscapeViewMetadata(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, `
-		CREATE TABLE t (s VARCHAR(10) NULL);
+		CREATE TABLE t (
+			s VARCHAR(10) NULL,
+			u VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin
+		);
 		CREATE VIEW v_escape AS SELECT {fn CONCAT(t.s, 'x')} AS e FROM t;
+		CREATE VIEW v_temporal AS SELECT
+			{d '2026-01-01'} AS d1,
+			{D ('2026-01-01')} AS d2,
+			{t '12:30:45'} AS t1,
+			{ts '2026-01-01 12:30:45'} AS ts1,
+			({d _latin1'2026-01-01'} = t.u) AS cmp,
+			{d 'not-a-date'} AS fallback_str
+		FROM t;
 	`)
 
 	v := c.GetDatabase("testdb").Views["v_escape"]
@@ -606,6 +617,31 @@ func TestOdbcEscapeViewMetadata(t *testing.T) {
 	}
 	if col.Collation == "" {
 		t.Errorf("v_escape column %q recorded no collation", col.Name)
+	}
+
+	vt := c.GetDatabase("testdb").Views["v_temporal"]
+	if vt == nil || len(vt.ColumnMetadata) != 6 {
+		t.Fatalf("v_temporal metadata = %+v, want 6 columns", vt)
+	}
+	for i, name := range []string{"d1", "d2", "t1", "ts1"} {
+		mc := vt.ColumnMetadata[i]
+		if mc.Nullable || mc.Charset != "" || mc.Collation != "" {
+			t.Errorf("temporal escape column %q inherited string metadata: %+v", name, mc)
+		}
+	}
+	if fb := vt.ColumnMetadata[5]; fb.Charset == "" || fb.Collation == "" {
+		t.Errorf("invalid temporal escape fallback lost string metadata: %+v", fb)
+	}
+
+	wantTypes := []MySQLBaseType{BaseTypeDate, BaseTypeDate, BaseTypeTime, BaseTypeTimestamp}
+	for i, want := range wantTypes {
+		rt := vt.AnalyzedQuery.TargetList[i].Expr.exprType()
+		if rt == nil || rt.BaseType != want {
+			t.Errorf("target[%d] exprType = %+v, want BaseType %v", i, rt, want)
+		}
+		if coll := vt.AnalyzedQuery.TargetList[i].Expr.exprCollation(); coll != "" {
+			t.Errorf("target[%d] exprCollation = %q, want empty", i, coll)
+		}
 	}
 }
 

@@ -119,6 +119,10 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 		{"SELECT * FROM (SELECT b, a FROM t1) AS x RIGHT JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a plain", "d<-db.t2.d plain", "b<-db.t1.b plain"}, ""},
 		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL RIGHT JOIN t2", []string{"a<-db.t1.a,db.t2.a plain", "d<-db.t2.d plain", "b<-db.t1.b plain"}, ""},
 		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL LEFT JOIN t2", []string{"a<-db.t1.a,db.t2.a plain", "b<-db.t1.b plain", "d<-db.t2.d plain"}, ""},
+		// FULL JOIN merged keys evaluate COALESCE(left, right) and are not plain fields.
+		{"SELECT * FROM t1 FULL JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a", "b<-db.t1.b plain", "c<-db.t1.c plain", "d<-db.t2.d plain"}, ""},
+		{"SELECT * FROM (SELECT b, a FROM t1) AS x NATURAL FULL JOIN t2", []string{"a<-db.t1.a,db.t2.a", "b<-db.t1.b plain", "d<-db.t2.d plain"}, ""},
+		{"SELECT a, t1.a, t2.a FROM t1 FULL JOIN t2 USING (a)", []string{"a<-db.t1.a,db.t2.a", "a<-db.t1.a plain", "a<-db.t2.a plain"}, ""},
 		// A subquery's own tables come before the enclosing query's.
 		{"SELECT (SELECT a FROM t2 LIMIT 1) AS x FROM t1", []string{"x<-db.t2.a plain"}, ""},
 		{"SELECT (SELECT y.a FROM t2 AS y LIMIT 1) AS x FROM t1 AS y", []string{"x<-db.t2.a plain"}, ""},
