@@ -26,7 +26,10 @@ func (c *Catalog) effectiveTablespace(name string) string {
 	if name != "" {
 		return name
 	}
-	return c.defaultTablespace
+	if c.defaultTablespace == "" || c.snapshot || c.tablespaces[c.defaultTablespace] {
+		return c.defaultTablespace
+	}
+	return ""
 }
 
 // effectiveIndexTablespace is effectiveTablespace for an index: with no
@@ -38,8 +41,8 @@ func (c *Catalog) effectiveIndexTablespace(name string, rel *Relation) string {
 	if rel != nil && rel.Persistence == 't' {
 		return rel.Tablespace
 	}
-	if c.defaultTablespace != "" {
-		return c.defaultTablespace
+	if fallback := c.effectiveTablespace(""); fallback != "" {
+		return fallback
 	}
 	if rel != nil {
 		return rel.Tablespace
@@ -159,6 +162,9 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 // pg: src/backend/commands/tablespace.c — RenameTableSpace
 func (c *Catalog) RenameTablespace(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
+	if err := c.checkTablespace(oldName); err != nil {
+		return err
+	}
 	if strings.HasPrefix(stmt.Newname, "pg_") {
 		return &Error{Code: CodeReservedName,
 			Message: fmt.Sprintf("unacceptable tablespace name %q", stmt.Newname)}
@@ -166,9 +172,6 @@ func (c *Catalog) RenameTablespace(stmt *nodes.RenameStmt) error {
 	if oldName == "pg_default" || oldName == "pg_global" {
 		return &Error{Code: CodeInsufficientPrivilege,
 			Message: fmt.Sprintf("permission denied for tablespace %s", oldName)}
-	}
-	if err := c.checkTablespace(oldName); err != nil {
-		return err
 	}
 	if c.tablespaces[stmt.Newname] {
 		return errDuplicateObject("tablespace", stmt.Newname)
@@ -366,12 +369,6 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			c.removeSequence(schema, seq)
 		}
 	}
-	for name, owner := range c.tablespaceOwners {
-		if owners[owner] {
-			delete(c.tablespaces, name)
-			delete(c.tablespaceOwners, name)
-		}
-	}
 	var procs []*UserProc
 	for _, proc := range c.userProcs {
 		if owners[proc.OwnerName] {
@@ -472,11 +469,6 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			c.typeOwners[oid] = newOwner
 		}
 	}
-	for name, owner := range c.tablespaceOwners {
-		if owners[owner] {
-			c.tablespaceOwners[name] = newOwner
-		}
-	}
 	for i := range c.grants {
 		if owners[c.grants[i].Grantee] {
 			c.grants[i].Grantee = newOwner
@@ -509,6 +501,10 @@ func (c *Catalog) checkedRoleSet(roles *nodes.List) (map[string]bool, error) {
 // RenameRole renames a role and every object it owns.
 func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
+	if strings.HasPrefix(oldName, "pg_") || strings.HasPrefix(stmt.Newname, "pg_") {
+		return &Error{Code: CodeReservedName,
+			Message: fmt.Sprintf("unacceptable role name %q", stmt.Newname)}
+	}
 	if oldName == c.currentOwner() || oldName == c.sessionUser {
 		return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be renamed"}
 	}
