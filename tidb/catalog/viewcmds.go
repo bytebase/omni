@@ -164,11 +164,20 @@ func viewBlockStar(sel *nodes.SelectStmt, source string) error {
 		if rt, ok := field.(*nodes.ResTarget); ok {
 			expr = rt.Val
 		}
-		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star && !relations[toLower(e.Table)] {
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star && !relations[starQualifier(e)] {
 			return errStarNamesNoTable(e.Table)
 		}
 	}
 	return nil
+}
+
+// starQualifier is the name a qualified star asks for: its table, qualified by
+// its schema when the star wrote one.
+func starQualifier(e *nodes.ColumnRef) string {
+	if e.Schema == "" {
+		return toLower(e.Table)
+	}
+	return toLower(e.Schema) + "." + toLower(e.Table)
 }
 
 // blockRelationNames is the names a qualified star may carry in the block: each
@@ -179,10 +188,17 @@ func blockRelationNames(sel *nodes.SelectStmt) map[string]bool {
 	add = func(te nodes.TableExpr) {
 		switch e := te.(type) {
 		case *nodes.TableRef:
+			// An alias hides the name; without one the reference answers to its
+			// table name, and to the schema-qualified name too.
 			if e.Alias != "" {
 				names[toLower(e.Alias)] = true
-			} else if e.Name != "" {
+				return
+			}
+			if e.Name != "" {
 				names[toLower(e.Name)] = true
+			}
+			if e.Schema != "" && e.Name != "" {
+				names[toLower(e.Schema)+"."+toLower(e.Name)] = true
 			}
 		case *nodes.SubqueryExpr:
 			if e.Alias != "" {

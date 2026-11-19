@@ -242,6 +242,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1051,
 		},
 		{
+			name:  "CREATE VIEW whose qualified star names its relation in another schema",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT other.a.* FROM a",
+			code:  1051,
+		},
+		{
 			name:  "CREATE VIEW whose qualified star names its relation's alias",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT t.* FROM a AS t",

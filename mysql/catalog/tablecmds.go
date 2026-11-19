@@ -804,10 +804,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 // tableHasVisibleColumn reports whether the table keeps a column a SELECT * and
 // a reader may see. my_row_id is invisible, so a table the generated invisible
-// primary key alone fills has none.
+// primary key alone fills has none, and neither has one whose only other column
+// is a functional index's hidden system column.
 func tableHasVisibleColumn(tbl *Table) bool {
 	for _, col := range tbl.Columns {
-		if col != nil && !col.Invisible {
+		if col != nil && !col.Invisible && col.Hidden == ColumnHiddenNone {
 			return true
 		}
 	}

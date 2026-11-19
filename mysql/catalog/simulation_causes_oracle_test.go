@@ -887,6 +887,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1051,
 		},
 		{
+			name:  "CREATE VIEW whose qualified star names its relation in another schema",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT other.a.* FROM a",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names a JSON_TABLE alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT jt.* FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$')) AS jt",
+			code:  0,
+		},
+		{
 			name:  "CREATE VIEW whose qualified star names its relation's alias",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT t.* FROM a AS t",
@@ -983,6 +995,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{
 			name:  "ALTER COLUMN SET INVISIBLE on the last visible column",
 			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			// A functional index's hidden system column is not a visible one.
+			name:  "ALTER COLUMN SET INVISIBLE beside a functional index",
+			setup: []string{"CREATE TABLE z (a VARCHAR(10), INDEX ((LOWER(a))))"},
 			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
 			code:  4028,
 		},
