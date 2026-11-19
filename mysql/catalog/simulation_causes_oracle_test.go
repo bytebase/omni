@@ -865,6 +865,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			// A non-recursive CTE does not see itself, so this inner c reads the
+			// outer one, whose body expands an empty star.
+			name:  "CREATE VIEW whose non-recursive CTE names itself",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *), d AS (WITH c AS (SELECT * FROM c) SELECT * FROM c) SELECT * FROM d",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose recursive CTE names itself",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH RECURSIVE c AS (SELECT 1 AS x) SELECT * FROM c",
+			code:  0,
+		},
+		{
 			// A CTE does not see a sibling declared after it, so the name reads
 			// the real table c2 and the later CTE stays unreached.
 			name:  "CREATE VIEW whose CTE reads a later sibling's name",

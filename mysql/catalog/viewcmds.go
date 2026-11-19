@@ -220,10 +220,13 @@ func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, 
 		v.edges[owner][cte] = true
 	}
 	for i, cte := range block.CTEs {
-		// A CTE reads the declarations of the enclosing blocks, the siblings
-		// written before it and itself, not the siblings written after it
-		// (mysql:8.0.46).
-		mine := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs[:i+1]...)
+		// A CTE reads the declarations of the enclosing blocks and the siblings
+		// written before it, not the ones after it, and not itself unless the
+		// WITH says RECURSIVE (mysql:8.0.46).
+		mine := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs[:i]...)
+		if cte.Recursive {
+			mine = append(mine, cte)
+		}
 		v.walk(cte.Select, mine, cte, source)
 	}
 	for _, child := range children {
