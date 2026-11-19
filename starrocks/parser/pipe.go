@@ -72,15 +72,35 @@ func (p *Parser) parseCreatePipe(startLoc ast.Loc, orReplace bool) (ast.Node, er
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}
-	if p.cur.Kind != kwINSERT {
+	// The body is insertStatement (:2190), which takes an explainDesc prefix:
+	// `CREATE PIPE p AS EXPLAIN INSERT INTO t SELECT 1` is accepted on the
+	// pinned server. Whatever the prefix, the body must wrap an insert.
+	var insert ast.Node
+	switch p.cur.Kind {
+	case kwEXPLAIN, kwDESC, kwDESCRIBE:
+		explained, err := p.parseExplain()
+		if err != nil {
+			return nil, err
+		}
+		exp, ok := explained.(*ast.ExplainStmt)
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if _, ok := exp.Query.(*ast.InsertStmt); !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		insert = exp
+	case kwINSERT:
+		node, err := p.parseInsert()
+		if err != nil {
+			return nil, err
+		}
+		insert = node
+	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	insert, err := p.parseInsert()
-	if err != nil {
-		return nil, err
-	}
 	stmt.Insert = insert
-	endLoc = insert.Loc
+	endLoc = ast.NodeLoc(insert)
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
