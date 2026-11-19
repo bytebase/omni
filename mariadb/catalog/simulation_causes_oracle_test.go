@@ -1252,7 +1252,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{
 			name:   "CREATE OR REPLACE TABLE with a duplicated ENUM drops the old table",
 			setup:  []string{"CREATE TABLE a (b INT)"},
-			stmt:   "CREATE OR REPLACE TABLE a (e ENUM('s', 's'))",
+			stmt:   "CREATE OR REPLACE TABLE a (e ENUM('s', 'S'))",
 			code:   1291,
 			absent: "a",
 		},

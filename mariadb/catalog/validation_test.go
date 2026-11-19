@@ -3,6 +3,8 @@ package catalog
 import (
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
 // TestEnumDuplicateValueMessage holds 1291's message to the server's: the value
@@ -32,5 +34,29 @@ func TestEnumDuplicateValueMessage(t *testing.T) {
 	execAlterClauses(t, c, "CREATE DATABASE d; USE d; SET sql_mode = ''; CREATE TABLE t (e ENUM('s', 's'));")
 	if c.GetDatabase("d").GetTable("t") == nil {
 		t.Fatal("non-strict sql_mode rejected ENUM('s', 's')")
+	}
+}
+
+// TestDiscardTablespaceFollowedByCopyAlterRollsBack ensures that even when a
+// caller hands alterTable a multi-command AST pairing ATDiscardTablespace with
+// a copy command (which the SQL parser already rejects as 1064), the statement
+// answers 1814 and rolls back TablespaceDiscarded and Engine.
+func TestDiscardTablespaceFollowedByCopyAlterRollsBack(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT PRIMARY KEY);")
+	err := c.alterTable(&nodes.AlterTableStmt{
+		Table: &nodes.TableRef{Name: "t"},
+		Commands: []*nodes.AlterTableCmd{
+			{Type: nodes.ATDiscardTablespace},
+			{Type: nodes.ATTableOption, Option: &nodes.TableOption{Name: "ENGINE", Value: "MyISAM"}},
+		},
+	})
+	catErr, ok := err.(*Error)
+	if !ok || catErr.Code != 1814 {
+		t.Fatalf("expected 1814, got %v", err)
+	}
+	tbl := c.GetDatabase("d").GetTable("t")
+	if tbl.TablespaceDiscarded || tbl.Engine != "" {
+		t.Fatalf("failed multi-command ALTER mutated table: discarded=%v engine=%q", tbl.TablespaceDiscarded, tbl.Engine)
 	}
 }

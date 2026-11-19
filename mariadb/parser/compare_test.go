@@ -4213,6 +4213,16 @@ func TestParseAlterTableDiscardTablespace(t *testing.T) {
 			t.Errorf("Type = %d, want ATImportTablespace", cmd.Type)
 		}
 	})
+
+	// DISCARD TABLESPACE and IMPORT TABLESPACE are standalone alter_commands
+	// arms in MariaDB 11.8 sql_yacc.yy, not alter_list_items.
+	for _, sql := range []string{
+		"ALTER TABLE t DISCARD TABLESPACE, ALGORITHM=COPY, ADD c INT",
+		"ALTER TABLE t ADD c INT, DISCARD TABLESPACE",
+		"ALTER TABLE t IMPORT TABLESPACE, ADD c INT",
+	} {
+		ParseExpectError(t, sql)
+	}
 }
 
 func TestParseAlterTableValidation(t *testing.T) {

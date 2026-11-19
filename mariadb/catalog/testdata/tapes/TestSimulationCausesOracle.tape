@@ -5331,7 +5331,7 @@
 | CREATE TABLE a (b INT)
 < ok 0 0
 > exec
-| CREATE OR REPLACE TABLE a (e ENUM('s', 's'))
+| CREATE OR REPLACE TABLE a (e ENUM('s', 'S'))
 < error
 | 1291 HY000 Column 'e' has duplicated value 's' in ENUM
 > query

@@ -215,8 +215,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// precision out of range, M < D, NOT NULL DEFAULT NULL, ON UPDATE on
 		// a non-temporal column) MariaDB rejects while parsing, and the old
 		// table survives. What fails once the definition is put together (no
-		// column, a duplicate column or key, a second primary key, a foreign
-		// key) fails after the old table is dropped, and so it does here.
+		// column, a duplicate column or key, a duplicated ENUM/SET member, a
+		// second primary key, a foreign key) fails after the old table is
+		// dropped, and so it does here. Measured on mariadb:11.8.8:
+		// `CREATE OR REPLACE TABLE a (e ENUM('s', 'S'))` over an existing a
+		// answers 1291 and leaves a gone (recorded in TestSimulationCausesOracle).
 		// MariaDB also rejects a malformed literal default ('not-a-date',
 		// 1067) after the drop; the catalog does not check those.
 		for _, colDef := range stmt.Columns {
@@ -292,6 +295,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if _, exists := tbl.colByName[colKey]; exists {
 			return errDupColumn(colDef.Name)
 		}
+		// Checked after dropReplacedTable: MariaDB 11.8.8 drops the replaced
+		// table before mysql_prepare_create_table raises 1291 for a duplicated
+		// ENUM/SET member (`CREATE OR REPLACE TABLE a (e ENUM('s', 'S'))` leaves
+		// a absent on the pinned server; see TestSimulationCausesOracle).
 		if err := c.validateEnumSetValues(colDef, c.effectiveColumnCollation(colDef, tbl.Collation)); err != nil {
 			return err
 		}

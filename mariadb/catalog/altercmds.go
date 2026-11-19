@@ -122,24 +122,34 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 // answer 1814 over one without. Those ALTERs are left to run.
 func refuseCopyAlterOnDiscarded(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	for _, cmd := range cmds {
-		switch cmd.Type {
-		case nodes.ATForce, nodes.ATOrderBy:
+		if err := refuseCopyAlterOnDiscardedCmd(tbl, cmd); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func refuseCopyAlterOnDiscardedCmd(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if cmd == nil {
+		return nil
+	}
+	switch cmd.Type {
+	case nodes.ATForce, nodes.ATOrderBy:
+		return errTablespaceDiscarded(tbl.Name)
+	case nodes.ATAlgorithm:
+		// ALGORITHM=COPY asks for the copy by name, where INPLACE and DEFAULT
+		// leave the choice to the server: measured on mariadb:11.8.8 over a
+		// discarded table, COPY is 1814 and the other two run.
+		if eqFoldStr(cmd.Name, "COPY") {
 			return errTablespaceDiscarded(tbl.Name)
-		case nodes.ATAlgorithm:
-			// ALGORITHM=COPY asks for the copy by name, where INPLACE and DEFAULT
-			// leave the choice to the server: measured on mariadb:11.8.8 over a
-			// discarded table, COPY is 1814 and the other two run.
-			if eqFoldStr(cmd.Name, "COPY") {
-				return errTablespaceDiscarded(tbl.Name)
-			}
-		case nodes.ATTableOption:
-			if cmd.Option == nil {
-				continue
-			}
-			switch toLower(cmd.Option.Name) {
-			case "engine", "row_format":
-				return errTablespaceDiscarded(tbl.Name)
-			}
+		}
+	case nodes.ATTableOption:
+		if cmd.Option == nil {
+			return nil
+		}
+		switch toLower(cmd.Option.Name) {
+		case "engine", "row_format":
+			return errTablespaceDiscarded(tbl.Name)
 		}
 	}
 	return nil
@@ -536,6 +546,11 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 // holds the CHECK names the statement gives explicitly, which the unnamed ones
 // are named around.
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, dropsPK bool, droppedColumns map[string]bool, declaredChecks map[string]bool, targetCharset, targetCollation string) error {
+	if tbl.TablespaceDiscarded {
+		if err := refuseCopyAlterOnDiscardedCmd(tbl, cmd); err != nil {
+			return err
+		}
+	}
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd, targetCharset, targetCollation)
