@@ -289,6 +289,13 @@ func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
 		unaliasedParenCtx := collectCompletionMarked(t, "SELECT | FROM (ANALYTIC VIEW(USING hr.sales_av))")
 		requireLocalReferenceNames(t, unaliasedParenCtx.Scope, []string{"sales_av"})
 
+		mrCtx := collectCompletionMarked(t, "SELECT mr.| FROM ANALYTIC VIEW(USING hr.sales_av) MATCH_RECOGNIZE (ORDER BY id PATTERN (p) DEFINE p AS p.n > 0) mr")
+		requireLocalReferenceNames(t, mrCtx.Scope, []string{"mr"})
+		mrRef := requireLocalRangeReference(t, mrCtx.Scope, "mr")
+		if !mrRef.Unsupported || mrRef.UnsupportedReason != "row_pattern" {
+			t.Fatalf("MATCH_RECOGNIZE ref = %+v, want an unsupported row_pattern transform", mrRef)
+		}
+
 		for _, sql := range []string{
 			"SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) AS OF SCN 1 av, departments d",
 			"SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) VERSIONS BETWEEN SCN MINVALUE AND MAXVALUE av, departments d",

@@ -62,8 +62,44 @@ FROM ANALYTIC VIEW (
 	if measure, ok := measures.Items.Items[0].(*ast.ResTarget); !ok || measure.Name != "LAG_SALES" {
 		t.Fatalf("measure = %#v, want LAG_SALES", measures.Items.Items[0])
 	}
+	// LAG(sales) OVER (HIERARCHY time_hier OFFSET 1) is an
+	// analytic_view_expression no page here derives, so the clause says its
+	// tree holds none of the calls it makes.
+	if !ref.Clause.OpaqueMeasure {
+		t.Fatalf("OpaqueMeasure = false, want true for the analytic view expression: %s", ast.NodeToString(ref.Clause))
+	}
 	if ref.Alias == nil || ref.Alias.Name != "AV" {
 		t.Fatalf("Alias = %#v, want AV", ref.Alias)
+	}
+}
+
+// TestParseInlineAnalyticViewCalculatedMeasureExpr holds the calculated
+// measure's expression in the tree where it is an expression this grammar
+// reads, so a consumer that judges calls sees them.
+func TestParseInlineAnalyticViewCalculatedMeasureExpr(t *testing.T) {
+	sql := `SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(m AS(pkg.f() + 1)))`
+	stmt := ParseAndCheck(t, sql).Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt)
+	ref, ok := stmt.FromClause.Items[0].(*ast.InlineAnalyticView)
+	if !ok {
+		t.Fatalf("FROM item = %T, want *ast.InlineAnalyticView", stmt.FromClause.Items[0])
+	}
+	if ref.Clause.OpaqueMeasure {
+		t.Fatalf("OpaqueMeasure = true for an expression the grammar reads")
+	}
+	option, ok := ref.Clause.Options.Items[0].(*ast.DDLOption)
+	if !ok || option.Key != "ADD MEASURES" {
+		t.Fatalf("option = %#v, want ADD MEASURES", ref.Clause.Options.Items[0])
+	}
+	measure, ok := option.Items.Items[0].(*ast.ResTarget)
+	if !ok || measure.Name != "M" {
+		t.Fatalf("measure = %#v, want M", option.Items.Items[0])
+	}
+	expr, ok := measure.Expr.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("measure expr = %T, want *ast.BinaryExpr: %s", measure.Expr, ast.NodeToString(measure))
+	}
+	if call, ok := expr.Left.(*ast.FuncCallExpr); !ok || call.FuncName == nil || call.FuncName.Name != "F" {
+		t.Fatalf("measure call = %#v, want pkg.f()", expr.Left)
 	}
 }
 

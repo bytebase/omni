@@ -1941,6 +1941,9 @@ func writeSubAVClause(sb *strings.Builder, n *SubAVClause) {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
 	}
+	if n.OpaqueMeasure {
+		sb.WriteString(" :opaqueMeasure true")
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

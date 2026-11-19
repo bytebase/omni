@@ -1407,7 +1407,12 @@ func (n *InlineExternalTable) tableExpr() {}
 type SubAVClause struct {
 	Using   *ObjectName // USING [ schema. ] base_av_name
 	Options *List       // hierarchies_clause, filter_clauses, add_meas_clause (*DDLOption)
-	Loc     Loc
+	// OpaqueMeasure is set when a calculated measure's expression is an
+	// analytic_view_expression this grammar reads whole, such as LAG(sales)
+	// OVER (HIERARCHY time_hier OFFSET 1): the tree then holds no call the
+	// expression makes, and a consumer that judges calls reads this flag.
+	OpaqueMeasure bool
+	Loc           Loc
 }
 
 func (n *SubAVClause) nodeTag() {}

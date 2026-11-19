@@ -507,8 +507,13 @@ var walkForms = []walktest.Form{
 	{SQL: "INSERT ALL INTO nokey (a) VALUES (1) INTO p (id) VALUES (2) SELECT * FROM dual;"},
 	{SQL: "SELECT upper(note), count(*) FROM p GROUP BY note;"},
 	{SQL: "SELECT av.sales FROM ANALYTIC VIEW (USING sales_av) av;"},
+	// A derived analytic view's own columns: its ADD MEASURES names and a
+	// base measure's fact column, which the synced relation lacks.
+	{SQL: "SELECT av.lag_sales, lag_sales FROM ANALYTIC VIEW (USING sales_av ADD MEASURES(lag_sales AS(1))) av;"},
+	{SQL: "WITH av ANALYTIC VIEW AS (USING sales_av ADD MEASURES(lag_sales AS(1))) SELECT lag_sales FROM av;"},
 	// Ends the walk after its checks: it may run code of a schema.
 	{SQL: "SELECT f(1) FROM dual;", Last: true},
+	{SQL: "SELECT m FROM ANALYTIC VIEW(USING av ADD MEASURES(m AS(pkg.f())));", Last: true},
 	{SQL: "INSERT INTO pv VALUES (1, 'a');", Last: true},
 	{SQL: "CREATE TABLE x AS SELECT f(1) a FROM dual;", Last: true},
 	{SQL: "CREATE INDEX i ON nokey (f(a));", Last: true},

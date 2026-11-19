@@ -235,6 +235,30 @@ func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 	return nil
 }
 
+// parseCalculatedMeasureExpr reads a calculated measure's ( expression ).
+// An expression this grammar reads is kept, so a consumer that judges calls
+// sees them; an analytic_view_expression no page here derives (LAG(sales)
+// OVER (HIERARCHY time_hier OFFSET 1)) is read whole and answered with
+// parsed false.
+func (p *Parser) parseCalculatedMeasureExpr() (nodes.ExprNode, bool, error) {
+	snap := p.snapshot()
+	if err := p.anExpect('('); err != nil {
+		return nil, false, err
+	}
+	if p.cur.Type == ')' {
+		return nil, false, p.syntaxErrorAtCur()
+	}
+	if expr, err := p.parseExpr(); err == nil && p.cur.Type == ')' {
+		p.advance()
+		return expr, true, nil
+	}
+	p.restore(snap)
+	if err := p.skipAnalyticViewExpression(); err != nil {
+		return nil, false, err
+	}
+	return nil, false, nil
+}
+
 // parseSubAVAddMeasures reads add_meas_clause, whose items are cube_meas.
 // On the pinned Oracle 23.26.3 an added base measure requires AGGREGATE BY
 // after its optional FACT column (ADD MEASURES(a), ADD MEASURES(a FACT a),
@@ -257,14 +281,19 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 			return err
 		}
 		measures = append(measures, &nodes.ResTarget{Name: measure, Loc: nodes.Loc{Start: measureStart, End: p.prev.End}})
+		measureTarget := measures[len(measures)-1].(*nodes.ResTarget)
 		switch {
 		case p.cur.Type == kwAS:
 			p.advance()
-			// The calculated measure's expression has a grammar of its own:
-			// its parentheses are read whole, and must not be empty.
-			if err := p.skipAnalyticViewExpression(); err != nil {
+			expr, parsed, err := p.parseCalculatedMeasureExpr()
+			if err != nil {
 				return err
 			}
+			measureTarget.Expr = expr
+			if parsed {
+				measureTarget.Loc.End = p.prev.End
+			}
+			clause.OpaqueMeasure = clause.OpaqueMeasure || !parsed
 		default:
 			if p.isKeywordStr("FACT") {
 				p.advance()

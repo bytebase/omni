@@ -980,6 +980,20 @@ func (r *oracleRefReader) inlineAnalyticViewReference(i, hi int) (int, RangeRefe
 	if len(parts) > 1 {
 		ref.Schema = parts[len(parts)-2].Str
 	}
+	// MATCH_RECOGNIZE wraps the reference: its output takes the row
+	// pattern's alias, and no column of it is derived here.
+	if idx+1 < hi && oracleTokenIsIdentLikeStr(tokens[idx], "MATCH_RECOGNIZE") && tokens[idx+1].Type == '(' {
+		if groupClose := r.closeOf(idx+1, hi); groupClose >= 0 {
+			idx = groupClose + 1
+			if nextAlias, patternAlias, hasPatternAlias := parseOracleOptionalAlias(tokens[:hi], idx); hasPatternAlias {
+				ref.Alias = patternAlias.Str
+				idx = nextAlias
+			}
+			ref.Loc.End = tokens[idx-1].End
+			ref.Unsupported = true
+			ref.UnsupportedReason = "row_pattern"
+		}
+	}
 	return idx, ref, true
 }
 
