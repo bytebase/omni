@@ -553,6 +553,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	rowTypeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
 
+	storedTablespace := normalizeTablespace(effectiveTablespace)
+	if relkind != 'r' && relkind != 'p' && relkind != 'm' {
+		storedTablespace = ""
+	}
 	rel := &Relation{
 		OID:        relOID,
 		Name:       relName,
@@ -565,7 +569,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		InhParents: parentOIDs,
 		InhCount:   len(parentOIDs),
 		OfTypeOID:  ofTypeOID,
-		Tablespace: normalizeTablespace(effectiveTablespace),
+		Tablespace: storedTablespace,
 		OwnerName:  c.currentOwner(),
 	}
 
