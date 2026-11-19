@@ -1173,16 +1173,22 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 	for _, bt := range c.typeByOID {
-		if bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'm' || bt.Type == 'c' {
+		if bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'c' {
 			continue
 		}
 		if !inOwnedExt(bt.OID) && !(cascade && ownedSchemaOIDs[bt.Namespace]) {
 			continue
 		}
-		if !seenPrimaryType[bt.OID] {
-			seenPrimaryType[bt.OID] = true
-			types = append(types, bt)
-			for _, famOID := range c.typeFamilyOIDs(bt) {
+		primary := bt
+		if bt.Type == 'm' {
+			if rng := c.owningRangeType(bt.OID); rng != nil {
+				primary = rng
+			}
+		}
+		if !seenPrimaryType[primary.OID] {
+			seenPrimaryType[primary.OID] = true
+			types = append(types, primary)
+			for _, famOID := range c.typeFamilyOIDs(primary) {
 				ownedTypeOIDs[famOID] = true
 			}
 		}
@@ -1396,7 +1402,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 			}
 			for _, bt := range c.typeByOID {
-				if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'm' && bt.Type != 'c' && !ownedTypeOIDs[bt.OID] {
+				if bt.Namespace == s.OID && bt.OID >= FirstNormalObjectId && bt.Elem == 0 && bt.Type != 'c' && !ownedTypeOIDs[bt.OID] {
 					return errDependentObjects("schema", s.Name)
 				}
 			}

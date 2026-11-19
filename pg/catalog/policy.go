@@ -65,32 +65,38 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 			Message: "only WITH CHECK expression allowed for INSERT"}
 	}
 
+	// Analyze and boolean-coerce USING/CHECK expressions before mutating catalog state.
+	var usingAnalyzed, checkAnalyzed AnalyzedExpr
+	var usingExpr, checkExpr string
+	if stmt.Qual != nil {
+		var err error
+		usingAnalyzed, usingExpr, err = c.analyzePolicyExpr(stmt.Qual, rel)
+		if err != nil {
+			return err
+		}
+	}
+	if stmt.WithCheck != nil {
+		var err error
+		checkAnalyzed, checkExpr, err = c.analyzePolicyExpr(stmt.WithCheck, rel)
+		if err != nil {
+			return err
+		}
+	}
+
 	roles := c.extractPolicyRoles(stmt.Roles)
 	c.recordPolicyRoles(roles)
 
 	policy := &Policy{
-		OID:        c.oidGen.Next(),
-		Name:       stmt.PolicyName,
-		RelOID:     rel.OID,
-		CmdType:    cmdType,
-		Permissive: stmt.Permissive,
-		Roles:      roles,
-	}
-
-	// Analyze USING/CHECK expressions using Tier 2 pipeline, then deparse.
-	if stmt.Qual != nil {
-		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
-			policy.UsingAnalyzed = analyzed
-			rte := c.buildRelationRTE(rel)
-			policy.UsingExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-		}
-	}
-	if stmt.WithCheck != nil {
-		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.WithCheck, rel); err == nil && analyzed != nil {
-			policy.CheckAnalyzed = analyzed
-			rte := c.buildRelationRTE(rel)
-			policy.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-		}
+		OID:           c.oidGen.Next(),
+		Name:          stmt.PolicyName,
+		RelOID:        rel.OID,
+		CmdType:       cmdType,
+		Permissive:    stmt.Permissive,
+		Roles:         roles,
+		UsingExpr:     usingExpr,
+		CheckExpr:     checkExpr,
+		UsingAnalyzed: usingAnalyzed,
+		CheckAnalyzed: checkAnalyzed,
 	}
 
 	c.policies[policy.OID] = policy
@@ -144,28 +150,35 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 			Message: "only WITH CHECK expression allowed for INSERT"}
 	}
 
-	// Update fields if provided.
+	// Stage and validate USING/WITH CHECK expressions before mutating the policy.
+	var newUsingAnalyzed, newCheckAnalyzed AnalyzedExpr
+	var newUsingExpr, newCheckExpr string
+	if stmt.Qual != nil {
+		var err error
+		newUsingAnalyzed, newUsingExpr, err = c.analyzePolicyExpr(stmt.Qual, rel)
+		if err != nil {
+			return err
+		}
+	}
+	if stmt.WithCheck != nil {
+		var err error
+		newCheckAnalyzed, newCheckExpr, err = c.analyzePolicyExpr(stmt.WithCheck, rel)
+		if err != nil {
+			return err
+		}
+	}
+
 	if stmt.Roles != nil {
 		policy.Roles = c.extractPolicyRoles(stmt.Roles)
 		c.recordPolicyRoles(policy.Roles)
 	}
 	if stmt.Qual != nil {
-		policy.UsingAnalyzed = nil
-		policy.UsingExpr = ""
-		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
-			policy.UsingAnalyzed = analyzed
-			rte := c.buildRelationRTE(rel)
-			policy.UsingExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-		}
+		policy.UsingAnalyzed = newUsingAnalyzed
+		policy.UsingExpr = newUsingExpr
 	}
 	if stmt.WithCheck != nil {
-		policy.CheckAnalyzed = nil
-		policy.CheckExpr = ""
-		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.WithCheck, rel); err == nil && analyzed != nil {
-			policy.CheckAnalyzed = analyzed
-			rte := c.buildRelationRTE(rel)
-			policy.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
-		}
+		policy.CheckAnalyzed = newCheckAnalyzed
+		policy.CheckExpr = newCheckExpr
 	}
 	if stmt.Qual != nil || stmt.WithCheck != nil {
 		c.removeDepsOf('p', policy.OID)
@@ -179,6 +192,19 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 	}
 
 	return nil
+}
+
+func (c *Catalog) analyzePolicyExpr(expr nodes.Node, rel *Relation) (AnalyzedExpr, string, error) {
+	analyzed, err := c.AnalyzeStandaloneExpr(expr, rel)
+	if err != nil {
+		return nil, "", err
+	}
+	coerced, err := c.coerceToBoolean(analyzed, "POLICY")
+	if err != nil {
+		return nil, "", err
+	}
+	rte := c.buildRelationRTE(rel)
+	return coerced, c.DeparseExpr(coerced, []*RangeTableEntry{rte}, false), nil
 }
 
 // extractRoleNames converts a list of RoleSpec nodes to role name strings.

@@ -2359,10 +2359,16 @@ func (c *Catalog) atExecDetachPartition(parent *Relation, pc *nodes.PartitionCmd
 			con.ConParentID = 0
 		}
 	}
+	// Remove row triggers cloned from the detached parent.
+	// pg: src/backend/commands/tablecmds.c — DetachPartitionFinalize (RemoveTriggerById)
+	var clonedTrigs []*Trigger
 	for _, trig := range c.triggersByRel[part.OID] {
 		if parentTrig := c.triggers[trig.ParentTriggerOID]; parentTrig != nil && parentTrig.RelOID == parent.OID {
-			trig.ParentTriggerOID = 0
+			clonedTrigs = append(clonedTrigs, trig)
 		}
+	}
+	for _, trig := range clonedTrigs {
+		c.removeTrigger(trig)
 	}
 
 	// Remove inheritance entry between part and parent.

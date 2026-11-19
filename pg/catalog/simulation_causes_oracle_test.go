@@ -2971,6 +2971,102 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if ch1 := c88.schemaByName["public"].Relations["pt_ch1"]; ch1 != nil && len(c88.triggersByRel[ch1.OID]) != 0 {
 			t.Fatal("failed parent CREATE TRIGGER cloned trigger onto earlier sibling partition")
 		}
+
+		// CREATE OR REPLACE TRIGGER on a partitioned parent updates an existing
+		// child trigger in place (preserving OID and comment), and DETACH PARTITION
+		// removes cloned triggers so a subsequent reattach succeeds.
+		c89 := New()
+		for _, stmt := range []string{
+			"CREATE FUNCTION pt_rep_fn() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'",
+			"CREATE TABLE pt_rep (a int) PARTITION BY LIST (a)",
+			"CREATE TABLE pt_rep_c PARTITION OF pt_rep FOR VALUES IN (1)",
+			"CREATE TRIGGER rep_tr BEFORE INSERT ON pt_rep_c FOR EACH ROW EXECUTE FUNCTION pt_rep_fn()",
+			"COMMENT ON TRIGGER rep_tr ON pt_rep_c IS 'keep me'",
+		} {
+			if code := simulationCatalogCode(t, c89, stmt); code != "0" {
+				t.Fatalf("trigger replace setup %s: %s", stmt, code)
+			}
+		}
+		repChild := c89.schemaByName["public"].Relations["pt_rep_c"]
+		origChildTrigOID := c89.triggersByRel[repChild.OID][0].OID
+		if code := simulationCatalogCode(t, c89, "CREATE OR REPLACE TRIGGER rep_tr AFTER INSERT ON pt_rep FOR EACH ROW EXECUTE FUNCTION pt_rep_fn()"); code != "0" {
+			t.Fatalf("CREATE OR REPLACE TRIGGER on parent: %s", code)
+		}
+		if len(c89.triggersByRel[repChild.OID]) != 1 || c89.triggersByRel[repChild.OID][0].OID != origChildTrigOID {
+			t.Fatal("recursive OR REPLACE TRIGGER did not preserve child trigger OID")
+		}
+		if cmt, ok := c89.GetComment('g', origChildTrigOID, 0); !ok || cmt != "keep me" {
+			t.Fatalf("recursive OR REPLACE TRIGGER lost child trigger comment: %q (%v)", cmt, ok)
+		}
+		if code := simulationCatalogCode(t, c89, "CREATE OR REPLACE TRIGGER rep_tr BEFORE INSERT ON pt_rep_c FOR EACH ROW EXECUTE FUNCTION pt_rep_fn()"); code != CodeDuplicateObject {
+			t.Fatalf("direct OR REPLACE TRIGGER on child partition answered %s, want %s", code, CodeDuplicateObject)
+		}
+		for _, stmt := range []string{
+			"ALTER TABLE pt_rep DETACH PARTITION pt_rep_c",
+			"ALTER TABLE pt_rep ATTACH PARTITION pt_rep_c FOR VALUES IN (1)",
+		} {
+			if code := simulationCatalogCode(t, c89, stmt); code != "0" {
+				t.Fatalf("DETACH + re-ATTACH with cloned trigger failed on %s: %s", stmt, code)
+			}
+		}
+
+		// DROP SCHEMA CASCADE removes stranded multirange companions and their
+		// owning range type in another schema.
+		c90 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA mr_old",
+			"CREATE SCHEMA mr_new",
+			"CREATE TYPE mr_old.r AS RANGE (SUBTYPE = int4)",
+			"ALTER TYPE mr_old.r SET SCHEMA mr_new",
+			"DROP SCHEMA mr_old CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c90, stmt); code != "0" {
+				t.Fatalf("stranded multirange DROP SCHEMA CASCADE %s: %s", stmt, code)
+			}
+		}
+		if c90.typeByName[typeKey{ns: c90.schemaByName["mr_new"].OID, name: "r"}] != nil {
+			t.Fatal("DROP SCHEMA CASCADE of stranded multirange left owning range type alive")
+		}
+		for _, bt := range c90.typeByOID {
+			if bt.OID >= FirstNormalObjectId {
+				t.Fatalf("DROP SCHEMA CASCADE left user type %s (OID %d)", bt.TypeName, bt.OID)
+			}
+		}
+
+		// DROP TABLE RESTRICT honors user casts referencing the table's row type.
+		c91 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE cast_rel (a int)",
+			"CREATE CAST (cast_rel AS text) WITH INOUT",
+		} {
+			if code := simulationCatalogCode(t, c91, stmt); code != "0" {
+				t.Fatalf("table rowtype cast setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c91, "DROP TABLE cast_rel RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP TABLE RESTRICT with row-type cast answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c91, "DROP TABLE cast_rel CASCADE"); code != "0" {
+			t.Fatalf("DROP TABLE CASCADE with row-type cast: %s", code)
+		}
+
+		// Failed ALTER POLICY preserves existing predicate and expression dependencies.
+		c92 := New()
+		for _, stmt := range []string{
+			"CREATE FUNCTION pol_guard_fn(int) RETURNS bool LANGUAGE sql AS 'SELECT true'",
+			"CREATE TABLE pol_guard_t (a int)",
+			"CREATE POLICY pol_g ON pol_guard_t AS RESTRICTIVE USING (pol_guard_fn(a))",
+		} {
+			if code := simulationCatalogCode(t, c92, stmt); code != "0" {
+				t.Fatalf("policy guard setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c92, "ALTER POLICY pol_g ON pol_guard_t USING (missing_col > 0)"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER POLICY with missing column answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if code := simulationCatalogCode(t, c92, "DROP FUNCTION pol_guard_fn(int) RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("failed ALTER POLICY erased existing function dependency (got %s)", code)
+		}
 	})
 
 	for _, tc := range cases {

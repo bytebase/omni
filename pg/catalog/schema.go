@@ -82,15 +82,42 @@ func (c *Catalog) removeFunctionsInSchema(s *Schema) {
 	}
 }
 
+// owningRangeType finds the range BuiltinType whose companion multirange is multirangeOID.
+func (c *Catalog) owningRangeType(multirangeOID uint32) *BuiltinType {
+	for rangeOID, rt := range c.rangeTypes {
+		if rt.MultirangeOID == multirangeOID {
+			return c.typeByOID[rangeOID]
+		}
+	}
+	return nil
+}
+
 // removeTypesInSchema removes all user-created types in the given schema,
-// cascading to any remaining dependents.
+// cascading to any remaining dependents (including range types whose companion
+// multirange still resides in s).
 func (c *Catalog) removeTypesInSchema(s *Schema) {
 	var types []*BuiltinType
+	seen := map[uint32]bool{}
+	var orphanMultiranges []*BuiltinType
 	for _, bt := range c.typeByOID {
-		if bt.Namespace != s.OID || bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'm' || bt.Type == 'c' {
+		if bt.Namespace != s.OID || bt.OID < FirstNormalObjectId || bt.Elem != 0 || bt.Type == 'c' {
 			continue
 		}
-		types = append(types, bt)
+		if bt.Type == 'm' {
+			if rng := c.owningRangeType(bt.OID); rng != nil {
+				if !seen[rng.OID] {
+					seen[rng.OID] = true
+					types = append(types, rng)
+				}
+			} else {
+				orphanMultiranges = append(orphanMultiranges, bt)
+			}
+			continue
+		}
+		if !seen[bt.OID] {
+			seen[bt.OID] = true
+			types = append(types, bt)
+		}
 	}
 	sort.Slice(types, func(i, j int) bool { return types[i].OID < types[j].OID })
 	for _, bt := range types {
@@ -105,6 +132,13 @@ func (c *Catalog) removeTypesInSchema(s *Schema) {
 		c.dropTypeDependents(bt)
 		if c.typeByOID[bt.OID] != nil {
 			c.deleteUserType(bt)
+		}
+	}
+	sort.Slice(orphanMultiranges, func(i, j int) bool { return orphanMultiranges[i].OID < orphanMultiranges[j].OID })
+	for _, mr := range orphanMultiranges {
+		if c.typeByOID[mr.OID] != nil {
+			c.dropTypeDependents(mr)
+			c.deleteUserType(mr)
 		}
 	}
 }

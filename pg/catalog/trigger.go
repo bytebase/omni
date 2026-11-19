@@ -76,6 +76,10 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	orReplace := stmt.Replace
 	isConstraint := stmt.IsConstraint
 
+	if orReplace && isConstraint {
+		return &Error{Code: CodeFeatureNotSupported, Message: "CREATE OR REPLACE CONSTRAINT TRIGGER is not supported"}
+	}
+
 	// Parse trigger arguments.
 	// pg: src/backend/commands/trigger.c — CreateTrigger (trigger args)
 	var trigArgs []string
@@ -256,6 +260,12 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 			if !orReplace {
 				return errDuplicateObject("trigger", trigName)
 			}
+			if trig.ParentTriggerOID != 0 {
+				return &Error{
+					Code:    CodeDuplicateObject,
+					Message: fmt.Sprintf("trigger %q for relation %q is an internal or a child trigger", trigName, rel.Name),
+				}
+			}
 			if trig.IsConstraint {
 				return errInvalidObjectDefinition(fmt.Sprintf(
 					"cannot replace trigger %q because it is a constraint trigger", trigName))
@@ -300,33 +310,50 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		return errInvalidObjectDefinition(fmt.Sprintf("OLD TABLE name and NEW TABLE name cannot be the same"))
 	}
 
+	var trigOID uint32
+	var trig *Trigger
 	if existingOnRel != nil {
-		c.removeTrigger(existingOnRel)
+		trigOID = existingOnRel.OID
+		c.removeDepsOf('g', trigOID)
+		existingOnRel.FuncOID = funcBP.OID
+		existingOnRel.Timing = timing
+		existingOnRel.Events = events
+		existingOnRel.ForEachRow = forEachRow
+		existingOnRel.WhenExpr = whenExpr
+		existingOnRel.Columns = cols
+		existingOnRel.Enabled = 'O'
+		existingOnRel.OldTransitionName = oldTransName
+		existingOnRel.NewTransitionName = newTransName
+		existingOnRel.IsConstraint = isConstraint
+		existingOnRel.Deferrable = stmt.Deferrable
+		existingOnRel.Initdeferred = stmt.Initdeferred
+		existingOnRel.ConstraintRelOID = constraintRelOID
+		existingOnRel.Args = trigArgs
+		trig = existingOnRel
+	} else {
+		trigOID = c.oidGen.Next()
+		trig = &Trigger{
+			OID:               trigOID,
+			Name:              trigName,
+			RelOID:            rel.OID,
+			FuncOID:           funcBP.OID,
+			Timing:            timing,
+			Events:            events,
+			ForEachRow:        forEachRow,
+			WhenExpr:          whenExpr,
+			Columns:           cols,
+			Enabled:           'O',
+			OldTransitionName: oldTransName,
+			NewTransitionName: newTransName,
+			IsConstraint:      isConstraint,
+			Deferrable:        stmt.Deferrable,
+			Initdeferred:      stmt.Initdeferred,
+			ConstraintRelOID:  constraintRelOID,
+			Args:              trigArgs,
+		}
+		c.triggers[trigOID] = trig
+		c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
 	}
-
-	trigOID := c.oidGen.Next()
-	trig := &Trigger{
-		OID:               trigOID,
-		Name:              trigName,
-		RelOID:            rel.OID,
-		FuncOID:           funcBP.OID,
-		Timing:            timing,
-		Events:            events,
-		ForEachRow:        forEachRow,
-		WhenExpr:          whenExpr,
-		Columns:           cols,
-		Enabled:           'O',
-		OldTransitionName: oldTransName,
-		NewTransitionName: newTransName,
-		IsConstraint:      isConstraint,
-		Deferrable:        stmt.Deferrable,
-		Initdeferred:      stmt.Initdeferred,
-		ConstraintRelOID:  constraintRelOID,
-		Args:              trigArgs,
-	}
-
-	c.triggers[trigOID] = trig
-	c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
 
 	// pg: src/backend/commands/trigger.c:1074 — trigger auto-drops with table
 	c.recordDependency('g', trigOID, 0, 'r', rel.OID, 0, DepAuto)
@@ -416,12 +443,6 @@ func (c *Catalog) cloneSingleTriggerToPartitions(parent *Relation, trig *Trigger
 		if partition == nil {
 			continue
 		}
-		for _, existing := range c.triggersByRel[partition.OID] {
-			if existing.Name == trig.Name {
-				c.removeTrigger(existing)
-				break
-			}
-		}
 		var partCols []int16
 		if trig.Columns != nil {
 			partCols = c.mapColumnAttnums(parent, partition, trig.Columns)
@@ -431,24 +452,50 @@ func (c *Catalog) cloneSingleTriggerToPartitions(parent *Relation, trig *Trigger
 			partArgs = make([]string, len(trig.Args))
 			copy(partArgs, trig.Args)
 		}
-		partTrig := &Trigger{
-			OID:               c.oidGen.Next(),
-			Name:              trig.Name,
-			RelOID:            partition.OID,
-			FuncOID:           trig.FuncOID,
-			Timing:            trig.Timing,
-			Events:            trig.Events,
-			ForEachRow:        true,
-			WhenExpr:          trig.WhenExpr,
-			Columns:           partCols,
-			Enabled:           trig.Enabled,
-			OldTransitionName: trig.OldTransitionName,
-			NewTransitionName: trig.NewTransitionName,
-			Args:              partArgs,
-			ParentTriggerOID:  trig.OID,
+		var existing *Trigger
+		for _, t := range c.triggersByRel[partition.OID] {
+			if t.Name == trig.Name {
+				existing = t
+				break
+			}
 		}
-		c.triggers[partTrig.OID] = partTrig
-		c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
+		var partTrig *Trigger
+		if existing != nil {
+			// pg: CreateTriggerFiringOn updates the existing pg_trigger tuple in place,
+			// preserving its OID, comments, and extension membership.
+			c.removeDepsOf('g', existing.OID)
+			existing.FuncOID = trig.FuncOID
+			existing.Timing = trig.Timing
+			existing.Events = trig.Events
+			existing.ForEachRow = true
+			existing.WhenExpr = trig.WhenExpr
+			existing.Columns = partCols
+			existing.Enabled = trig.Enabled
+			existing.OldTransitionName = trig.OldTransitionName
+			existing.NewTransitionName = trig.NewTransitionName
+			existing.Args = partArgs
+			existing.ParentTriggerOID = trig.OID
+			partTrig = existing
+		} else {
+			partTrig = &Trigger{
+				OID:               c.oidGen.Next(),
+				Name:              trig.Name,
+				RelOID:            partition.OID,
+				FuncOID:           trig.FuncOID,
+				Timing:            trig.Timing,
+				Events:            trig.Events,
+				ForEachRow:        true,
+				WhenExpr:          trig.WhenExpr,
+				Columns:           partCols,
+				Enabled:           trig.Enabled,
+				OldTransitionName: trig.OldTransitionName,
+				NewTransitionName: trig.NewTransitionName,
+				Args:              partArgs,
+				ParentTriggerOID:  trig.OID,
+			}
+			c.triggers[partTrig.OID] = partTrig
+			c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
+		}
 		c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, 0, DepAuto)
 		var colDeps, extDeps []DepEntry
 		for _, d := range c.deps {

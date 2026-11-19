@@ -1068,6 +1068,12 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 					}
 				}
 			}
+			for _, cast := range c.castIndex {
+				if (t.rel.RowTypeOID != 0 && (cast.Source == t.rel.RowTypeOID || cast.Target == t.rel.RowTypeOID)) ||
+					(t.rel.ArrayOID != 0 && (cast.Source == t.rel.ArrayOID || cast.Target == t.rel.ArrayOID)) {
+					return errDependentObjects(kind, t.name)
+				}
+			}
 		}
 	}
 
