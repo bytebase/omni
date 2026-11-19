@@ -20,6 +20,10 @@ type analyzerScope struct {
 	firstByName map[string]int
 	indexed     int
 
+	// unknownColumns maps a relation's effective name to its RTE index for
+	// relations whose columns are not known locally.
+	unknownColumns map[string]int
+
 	// markedJoins maps a join to the lowered USING column names every base
 	// table under it is already marked coalesced for (markCoalescedInNode).
 	markedJoins map[*JoinExprNodeQ]map[string]bool
@@ -114,6 +118,23 @@ func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
 }
 
 // add registers a table reference in the scope.
+// addUnknownColumns registers an entry whose relation's columns are not known
+// locally: a column reference to it resolves when it is written, since only the
+// schema is unavailable and not the column.
+func (s *analyzerScope) addUnknownColumns(name string, rteIdx int) {
+	if s.unknownColumns == nil {
+		s.unknownColumns = map[string]int{}
+	}
+	s.unknownColumns[strings.ToLower(name)] = rteIdx
+}
+
+// unknownColumnRTE returns the RTE index of a named relation whose columns are
+// unknown, if the scope holds one.
+func (s *analyzerScope) unknownColumnRTE(tableName string) (int, bool) {
+	idx, ok := s.unknownColumns[strings.ToLower(tableName)]
+	return idx, ok
+}
+
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	visible := make([]*Column, 0, len(columns))
 	for _, c := range columns {

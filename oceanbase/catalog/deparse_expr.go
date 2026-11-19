@@ -74,8 +74,12 @@ func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *deparseScope) {
 		return
 	}
 	colName := "?"
-	if v.AttNum >= 1 && v.AttNum <= len(rte.ColNames) {
+	switch {
+	case v.AttNum >= 1 && v.AttNum <= len(rte.ColNames):
 		colName = rte.ColNames[v.AttNum-1]
+	case v.AttNum == 0 && v.Name != "":
+		// A column of a relation whose schema is unknown keeps the name written.
+		colName = v.Name
 	}
 	b.WriteString(backtickIDQ(rte.ERef))
 	b.WriteString(".")

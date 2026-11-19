@@ -694,6 +694,11 @@ type VarExprQ struct {
 	// algorithms port without arithmetic shifts.
 	AttNum int
 
+	// Name is the column's name as written, set only for a column of a relation
+	// whose schema is not known locally (AttNum is 0 then): a table another
+	// catalog holds, or one a database link reads.
+	Name string
+
 	// LevelsUp distinguishes correlated subquery references:
 	//   0 = column from this query level
 	//   1 = column from immediate enclosing query

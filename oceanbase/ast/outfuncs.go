@@ -770,6 +770,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	sb.WriteString("{INSERT")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Overwrite {
+		sb.WriteString(" :overwrite true")
+	}
 	if n.IsReplace {
 		sb.WriteString(" :replace true")
 	}
@@ -3256,6 +3259,9 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.AutoIncrement {
 		sb.WriteString(" :auto_increment true")
 	}
+	if n.HasID {
+		fmt.Fprintf(sb, " :id %d", n.ID)
+	}
 	if n.DefaultValue != nil {
 		sb.WriteString(" :default ")
 		writeNode(sb, n.DefaultValue)
@@ -3300,6 +3306,9 @@ func writeGeneratedColumn(sb *strings.Builder, n *GeneratedColumn) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Stored {
 		sb.WriteString(" :stored true")
+	}
+	if n.HasID {
+		fmt.Fprintf(sb, " :id %d", n.ID)
 	}
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")

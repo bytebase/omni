@@ -108,6 +108,11 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 	if ref.Table != "" {
 		rteIdx, attNum, levelsUp, err := scope.resolveQualifiedColumnFull(ref.Table, ref.Column)
 		if err != nil {
+			// A relation whose schema is unknown resolves any column written for
+			// it: only its column list is unavailable, not its columns.
+			if idx, ok := scope.unknownColumnRTE(ref.Table); ok {
+				return &VarExprQ{RangeIdx: idx, Name: ref.Column}, nil
+			}
 			return nil, err
 		}
 		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
