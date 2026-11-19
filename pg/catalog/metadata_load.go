@@ -58,7 +58,15 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		return report, err
 	}
 	c.snapshot = true
+	if meta.GetName() != "" {
+		c.databaseName = meta.GetName()
+	}
 	if dbOwner := meta.GetOwner(); dbOwner != "" {
+		dbKey := c.databaseName
+		if dbKey == "" {
+			dbKey = "\x00current"
+		}
+		c.databaseOwners[dbKey] = dbOwner
 		c.roles[dbOwner] = true
 	}
 	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {

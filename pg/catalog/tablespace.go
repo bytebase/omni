@@ -170,6 +170,8 @@ func (c *Catalog) ExecAlterOwnerStmt(stmt *nodes.AlterOwnerStmt) error {
 	switch nodes.ObjectType(stmt.ObjectType) {
 	case nodes.OBJECT_TABLESPACE:
 		return c.AlterTablespaceOwner(stmt)
+	case nodes.OBJECT_DATABASE:
+		return c.alterDatabaseOwner(stmt)
 	case nodes.OBJECT_SCHEMA:
 		return c.alterSchemaOwner(stmt)
 	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
@@ -195,6 +197,23 @@ func (c *Catalog) AlterTablespaceOwner(stmt *nodes.AlterOwnerStmt) error {
 		return err
 	}
 	c.tablespaceOwners[name] = owner
+	return nil
+}
+
+func (c *Catalog) alterDatabaseOwner(stmt *nodes.AlterOwnerStmt) error {
+	name := extractSimpleObjectName(stmt.Object)
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	if name != "" && (name == c.databaseName || c.databaseOwners[name] != "") {
+		c.databaseOwners[name] = owner
+	} else if c.databaseOwners["\x00current"] != "" && c.databaseName == "" {
+		c.databaseOwners["\x00current"] = owner
+	}
 	return nil
 }
 
@@ -549,6 +568,11 @@ func (c *Catalog) roleInUse(name string) bool {
 		}
 	}
 	for _, owner := range c.tablespaceOwners {
+		if owner == name {
+			return true
+		}
+	}
+	for _, owner := range c.databaseOwners {
 		if owner == name {
 			return true
 		}
@@ -1042,6 +1066,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			c.tablespaceOwners[name] = newOwner
 		}
 	}
+	for name, owner := range c.databaseOwners {
+		if owners[owner] {
+			c.databaseOwners[name] = newOwner
+		}
+	}
 	return nil
 }
 
@@ -1128,6 +1157,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for name, owner := range c.tablespaceOwners {
 		if owner == oldName {
 			c.tablespaceOwners[name] = stmt.Newname
+		}
+	}
+	for name, owner := range c.databaseOwners {
+		if owner == oldName {
+			c.databaseOwners[name] = stmt.Newname
 		}
 	}
 	for i := range c.grants {

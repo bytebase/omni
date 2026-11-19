@@ -880,3 +880,15 @@
 < error
 | 0A000 cannot change owner of sequence "s_tbl_id_seq"
 | detail: Sequence "s_tbl_id_seq" is linked to table "s_tbl".
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE p (b int) PARTITION BY RANGE (b);
+| CREATE INDEX p_idx ON p (b);
+| ALTER TABLE p SET TABLESPACE pg_default;
+| ALTER INDEX p_idx SET TABLESPACE pg_default
+< ok 0 -

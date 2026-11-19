@@ -133,6 +133,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"SET default_tablespace to a missing tablespace", "missing", "SET default_tablespace = missing", CodeInvalidParameterValue},
 		{"CREATE partitioned table under SET default_tablespace = pg_default", "missing", "SET default_tablespace = pg_default;\nCREATE TABLE p (b int) PARTITION BY RANGE (b)", CodeFeatureNotSupported},
 		{"ALTER SEQUENCE OWNER TO another role on a serial sequence", "missing", "DROP ROLE IF EXISTS alice;\nCREATE ROLE alice;\nCREATE TABLE s_tbl (id serial);\nALTER SEQUENCE s_tbl_id_seq OWNER TO alice", CodeFeatureNotSupported},
+		{"ALTER partitioned table and index SET TABLESPACE pg_default", "missing", "CREATE TABLE p (b int) PARTITION BY RANGE (b);\nCREATE INDEX p_idx ON p (b);\nALTER TABLE p SET TABLESPACE pg_default;\nALTER INDEX p_idx SET TABLESPACE pg_default", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -1193,6 +1194,54 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if code := simulationCatalogCode(t, c4, "DROP ROLE alice"); code != "0" {
 			t.Fatalf("snapshot DROP ROLE alice after DROP OWNED answered %s, want 0", code)
+		}
+
+		// #122: snapshot database owner blocks DROP ROLE, survives DROP OWNED,
+		// and follows RENAME and REASSIGN OWNED.
+		c5 := New()
+		_, err = c5.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Name:    "appdb",
+			Owner:   "db_alice",
+			Schemas: []*metadata.SchemaMetadata{{Name: "public"}},
+		}, LoadMetadataOptions{Full: true})
+		if err != nil {
+			t.Fatalf("LoadMetadata db owner: %v", err)
+		}
+		if code := simulationCatalogCode(t, c5, "CREATE ROLE bob"); code != "0" {
+			t.Fatalf("CREATE ROLE bob: %s", code)
+		}
+		if code := simulationCatalogCode(t, c5, "DROP OWNED BY db_alice"); code != "0" {
+			t.Fatalf("DROP OWNED BY db_alice: %s", code)
+		}
+		if code := simulationCatalogCode(t, c5, "DROP ROLE db_alice"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE db_alice answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c5, "ALTER ROLE db_alice RENAME TO db_carol"); code != "0" {
+			t.Fatalf("RENAME db_alice: %s", code)
+		}
+		if code := simulationCatalogCode(t, c5, "DROP ROLE db_carol"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE db_carol answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c5, "REASSIGN OWNED BY db_carol TO bob"); code != "0" {
+			t.Fatalf("REASSIGN db_carol: %s", code)
+		}
+		if code := simulationCatalogCode(t, c5, "DROP ROLE db_carol"); code != "0" {
+			t.Fatalf("DROP ROLE db_carol after REASSIGN answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c5, "DROP ROLE bob"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE bob answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		// #125: non-index CHECK constraints on storage-free foreign tables do
+		// not validate default_tablespace.
+		c6 := New()
+		for _, stmt := range []string{
+			"SET default_tablespace = pg_global",
+			"CREATE FOREIGN TABLE ft_chk (a int CHECK (a > 0)) SERVER srv",
+		} {
+			if code := simulationCatalogCode(t, c6, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
 		}
 	})
 

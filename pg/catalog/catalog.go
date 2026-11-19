@@ -104,6 +104,8 @@ type Catalog struct {
 	// TABLESPACE names.
 	tablespaces      map[string]bool
 	tablespaceOwners map[string]string
+	databaseName     string
+	databaseOwners   map[string]string
 	// typeOwners maps a user-defined type OID to its owner role. Composite
 	// types are owned through their backing relation instead.
 	typeOwners map[uint32]string
@@ -191,6 +193,7 @@ func New() *Catalog {
 		extensionComments:  make(map[commentKey]string),
 		tablespaces:        map[string]bool{"pg_default": true, "pg_global": true},
 		tablespaceOwners:   make(map[string]string),
+		databaseOwners:     make(map[string]string),
 		typeOwners:         make(map[uint32]string),
 		roles:              map[string]bool{"postgres": true},
 		accessMethods:      make(map[uint32]*AccessMethod),

@@ -525,6 +525,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Constraint indexes and cloned partition indexes may take a tablespace;
 	// refuse one the catalog cannot place before any implicit sequence is made.
 	for _, def := range constraintDefs {
+		if (def.Type != ConstraintPK && def.Type != ConstraintUnique && def.Type != ConstraintExclude) || def.IndexName != "" {
+			continue
+		}
 		idxSpace := def.IndexSpace
 		if idxSpace == "" && rv.Relpersistence != 't' {
 			idxSpace = c.effectiveTablespace("")
