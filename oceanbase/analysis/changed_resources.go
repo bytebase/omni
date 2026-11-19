@@ -98,9 +98,11 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		}
 
 	case *ast.LoadDataStmt:
+		// LOAD DATA ... REPLACE overwrites the row a duplicate key names, where a
+		// plain load only adds rows.
 		if n.Table != nil {
 			db, table := tableRef(n.Table, database)
-			addTable(db, table, false)
+			addTable(db, table, n.Replace)
 		}
 
 	case *ast.AlterTableStmt:

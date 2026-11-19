@@ -176,7 +176,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			cols = append([]*ast.ColumnDef{c.Column}, cols...)
 		}
 		for _, col := range cols {
-			if !b.addColumn(r, col, c.After, rangeOf(col.Loc)) {
+			if !b.addColumn(r, col, c.After, c.Before, rangeOf(col.Loc)) {
 				return false
 			}
 		}
@@ -195,12 +195,14 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			return false
 		}
 		b.after(r, c.After, rng)
+		b.after(r, c.Before, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATChangeColumn:
 		if c.Column == nil || !b.renameColumn(r, c.Name, c.Column.Name, rng) {
 			return false
 		}
 		b.after(r, c.After, rng)
+		b.after(r, c.Before, rng)
 		b.alterColumnKeys(r, c.Column, rng)
 	case ast.ATRenameColumn:
 		return b.renameColumn(r, c.Name, c.NewName, rng)
@@ -264,7 +266,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 			b.leave(fk)
 			b.arrive(tk)
 		}
-	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible:
+	case ast.ATAlterIndexVisible, ast.ATAlterIndexInvisible, ast.ATAlterIndexParallel:
 		k, ok := b.key(spaceIndex, c.Name)
 		if !ok {
 			return false
@@ -389,7 +391,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 
 // addColumn follows ADD COLUMN: the column must be new (1060), and a
 // column AFTER names must exist (1054).
-func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng review.Range) bool {
+func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after, before string, rng review.Range) bool {
 	k, ok := b.key(spaceColumn, col.Name)
 	if !ok {
 		return false
@@ -397,6 +399,7 @@ func (b *builder) addColumn(r tableRef, col *ast.ColumnDef, after string, rng re
 	ck := colKey(r.db, r.name, k)
 	b.need(ck, walk.Absent, nil, rng, "", alreadyExists("column", ident(col.Name), r.written)) // 1060
 	b.after(r, after, rng)
+	b.after(r, before, rng)
 	b.Set(ck, walk.Present, "")
 	b.alterColumnKeys(r, col, rng)
 	return true
