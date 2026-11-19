@@ -1295,6 +1295,17 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code: 0,
 		},
 		{
+			// Declaring the columns does not keep the body from being read.
+			name: "CREATE TABLE with columns AS SELECT a column no table has",
+			stmt: "CREATE TABLE z (a INT) AS SELECT nosuchcol",
+			code: 1054,
+		},
+		{
+			name: "CREATE TABLE with columns AS SELECT a body it takes",
+			stmt: "CREATE TABLE z (a INT) AS SELECT 1",
+			code: 0,
+		},
+		{
 			// An event's schedule sees no table, so a column reference names
 			// nothing: 1054, before the event's own name is looked up.
 			name:  "an event schedule naming a column",
@@ -1306,6 +1317,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "an event schedule it takes",
 			setup: []string{oneTable},
 			stmt:  "CREATE DEFINER = root EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO COMMIT",
+			code:  0,
+		},
+		{
+			// ALTER EVENT reads the schedule the same way, before the event.
+			name:  "ALTER EVENT's schedule naming a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER EVENT e ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "ALTER EVENT's schedule over an event that is not there",
+			setup: []string{oneTable},
+			stmt:  "ALTER EVENT nosuchevent ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "ALTER EVENT's schedule it takes",
+			setup: []string{oneTable, "CREATE EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO COMMIT"},
+			stmt:  "ALTER EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY DO COMMIT",
 			code:  0,
 		},
 		{
@@ -1321,6 +1351,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a COMPRESSION 's'",
 			code:  1478,
+		},
+		{
+			// An empty COMPRESSION is the one value InnoDB takes: it is the
+			// option written with no value, not a value the engine refuses.
+			name:  "an empty COMPRESSION on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION=''",
+			code:  0,
 		},
 		{
 			// The row option is judged after the statement's other commands.

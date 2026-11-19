@@ -94,15 +94,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	// there, `CREATE TABLE z SELECT nosuch` is 1054 `Unknown column 'nosuch' in
 	// 'field list'`, and a star with no table to expand is 1096 (`SELECT *` and
 	// `SELECT * FROM DUAL` alike). Both are a view body's refusals, so the body
-	// is read as one (analyzeViewBody). The catalog does not model the table a
-	// body makes yet, so one it reads installs nothing.
-	if stmt.Select != nil && len(stmt.Columns) == 0 {
+	// is read as one (analyzeViewBody), whether or not the statement declares its
+	// columns: `CREATE TABLE z (a INT) AS SELECT nosuch` is the same 1054. The
+	// catalog does not model the table a body makes without declared columns, so
+	// one that reads installs nothing.
+	if stmt.Select != nil {
 		if declared {
 			if _, err := c.analyzeViewBody(stmt.Select, source); err != nil {
 				return err
 			}
 		}
-		return nil
+		if len(stmt.Columns) == 0 {
+			return nil
+		}
 	}
 
 	tbl := &Table{
