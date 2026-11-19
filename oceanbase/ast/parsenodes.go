@@ -338,6 +338,9 @@ type AlterTableCmd struct {
 	Parallel *ParallelOption
 	// ConstraintNames is DROP CONSTRAINT's and DROP CHECK's '(' name_list ')'.
 	ConstraintNames []string
+	// LobStorage is lob_storage_clause, which follows an ALTER TABLE ADD's column
+	// list: JSON (column) STORE AS (CHUNK n).
+	LobStorage *LobStorageClause
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -382,6 +385,20 @@ type CreateIndexStmt struct {
 func (s *CreateIndexStmt) nodeTag()  {}
 func (s *CreateIndexStmt) stmtNode() {}
 
+// LobStorageClause is lob_storage_clause, which OceanBase writes after an ALTER
+// TABLE ADD's column list: `JSON (column) STORE AS (CHUNK n)`.
+//
+// Ref: lob_storage_clause, lob_storage_parameters, lob_storage_parameter and
+// lob_chunk_size in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+// 25494-25534).
+type LobStorageClause struct {
+	Loc    Loc
+	Column string // column_name
+	Chunk  string // lob_chunk_size's CHUNK value, as written
+}
+
+func (c *LobStorageClause) nodeTag() {}
+
 // IndexColumn represents a column in an index definition.
 type IndexColumn struct {
 	Loc        Loc
@@ -389,6 +406,10 @@ type IndexColumn struct {
 	Functional bool     // true when parsed from functional key-part syntax: (expr)
 	Length     int      // prefix length
 	Desc       bool     // DESC ordering
+	// ColumnID and HasColumnID are opt_column_id's `ID n`, which pins the index
+	// column's storage id.
+	ColumnID    int64
+	HasColumnID bool
 }
 
 func (c *IndexColumn) nodeTag() {}
@@ -431,6 +452,10 @@ type CreateViewStmt struct {
 	Select      *SelectStmt
 	SelectText  string // raw SQL text of the AS select_statement portion
 	CheckOption string // CASCADED, LOCAL
+	// TableID and HasTableID are opt_table_id's `TABLE_ID = n`, which pins the
+	// view's id: the server parses it and refuses to run it.
+	TableID    int64
+	HasTableID bool
 }
 
 func (s *CreateViewStmt) nodeTag()  {}
@@ -3548,6 +3573,10 @@ type AlterViewStmt struct {
 	Select      *SelectStmt
 	SelectText  string // raw SQL text of the AS select_statement portion
 	CheckOption string // CASCADED, LOCAL
+	// TableID and HasTableID are opt_table_id's `TABLE_ID = n`, which pins the
+	// view's id: the server parses it and refuses to run it.
+	TableID    int64
+	HasTableID bool
 }
 
 func (s *AlterViewStmt) nodeTag()  {}

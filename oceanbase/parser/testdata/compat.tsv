@@ -4700,7 +4700,7 @@ reject	reject	engine	data_type/VARBINARY_string_length_i!drop-2	ALTER TABLE a AD
 reject	reject	engine	data_type/VARBINARY_string_length_i!drop-3	ALTER TABLE a ADD a VARBINARY()
 reject	reject	engine	data_type/VARBINARY_string_length_i!drop-4	ALTER TABLE a ADD a VARBINARY(1
 reject	reject	engine	data_type/VARBINARY_string_length_i!insert	ALTER TABLE a ADD a VARBINARY(1) zzz
-reject	accept	engine	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
+accept	accept	engine	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
 reject	reject	engine	data_type/STRING_VALUE!insert	ALTER TABLE a ADD a 's' zzz
 accept	accept	engine	data_type/BIT_opt_bit_length_i	ALTER TABLE a ADD a BIT
 reject	reject	engine	data_type/BIT_opt_bit_length_i!insert	ALTER TABLE a ADD a BIT zzz
@@ -7244,7 +7244,7 @@ reject	reject	engine	opt_column_list/(_column_name_list_)!truncate	CREATE VIEW a
 reject	reject	engine	opt_column_list/(_column_name_list_)!insert	CREATE VIEW a(a) zzz AS SELECT a
 accept	accept	engine	opt_column_list/%empty	CREATE VIEW a AS SELECT a
 reject	reject	engine	opt_column_list/%empty!insert	CREATE VIEW a zzz AS SELECT a
-reject	accept	engine	opt_table_id/TABLE_ID_COMP_EQ_INTNUM	CREATE VIEW a TABLE_ID = 1 AS SELECT a
+accept	accept	engine	opt_table_id/TABLE_ID_COMP_EQ_INTNUM	CREATE VIEW a TABLE_ID = 1 AS SELECT a
 reject	reject	engine	opt_table_id/TABLE_ID_COMP_EQ_INTNUM!drop-1	CREATE VIEW a = 1 AS SELECT a
 reject	reject	engine	opt_table_id/TABLE_ID_COMP_EQ_INTNUM!drop-2	CREATE VIEW a TABLE_ID 1 AS SELECT a
 reject	reject	engine	opt_table_id/TABLE_ID_COMP_EQ_INTNUM!drop-3	CREATE VIEW a TABLE_ID = AS SELECT a
@@ -7380,7 +7380,7 @@ accept	accept	engine	index_expr/expr	ALTER TABLE a ADD KEY((a))
 reject	reject	engine	index_expr/expr!truncate	ALTER TABLE a ADD KEY((
 reject	reject	engine	index_expr/expr!insert	ALTER TABLE a ADD KEY((a zzz))
 accept	accept	engine	opt_column_id/%empty	ALTER TABLE a ADD KEY(a)
-reject	accept	engine	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
+accept	accept	engine	opt_column_id/ID_INTNUM	ALTER TABLE a ADD KEY(a ID 1)
 reject	reject	engine	opt_column_id/ID_INTNUM!drop-1	ALTER TABLE a ADD KEY(a 1)
 reject	reject	engine	opt_column_id/ID_INTNUM!drop-2	ALTER TABLE a ADD KEY(a ID)
 reject	reject	engine	opt_column_id/ID_INTNUM!truncate	ALTER TABLE a ADD KEY(a ID
@@ -7388,7 +7388,7 @@ reject	reject	engine	opt_column_id/ID_INTNUM!insert	ALTER TABLE a ADD KEY(a ID 1
 reject	reject	engine	opt_column_id/ID_INTNUM!swap	ALTER TABLE a ADD KEY(a IDC 1)
 accept	accept	engine	opt_sort_column_key_length/(_INTNUM_)	ALTER TABLE a ADD KEY(a(1))
 reject	reject	engine	opt_sort_column_key_length/(_INTNUM_)!drop-1	ALTER TABLE a ADD KEY(a 1))
-accept	reject	engine	opt_sort_column_key_length/(_INTNUM_)!drop-2	ALTER TABLE a ADD KEY(a())
+reject	reject	engine	opt_sort_column_key_length/(_INTNUM_)!drop-2	ALTER TABLE a ADD KEY(a())
 reject	reject	engine	opt_sort_column_key_length/(_INTNUM_)!drop-3	ALTER TABLE a ADD KEY(a(1)
 reject	reject	engine	opt_sort_column_key_length/(_INTNUM_)!truncate	ALTER TABLE a ADD KEY(a(1
 reject	reject	engine	opt_sort_column_key_length/(_INTNUM_)!insert	ALTER TABLE a ADD KEY(a(1) zzz)
@@ -13701,7 +13701,7 @@ reject	reject	engine	alter_table_actions/standalone_alter_action!drop-1	ALTER TA
 reject	reject	engine	alter_table_actions/standalone_alter_action!swap	ALTER TABLE a DUAL PARTITION a
 accept	accept	engine	alter_table_actions/%empty	ALTER TABLE a
 accept	accept	engine	alter_table_action_list/alter_table_action	ALTER TABLE a NOPARALLEL
-reject	accept	engine	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
+accept	accept	engine	alter_table_action_list/alter_table_actions_,_alter_table_action	ALTER TABLE a, NOPARALLEL
 reject	reject	engine	alter_table_action_list/alter_table_actions_,_alter_table_action!drop-2	ALTER TABLE a,
 reject	reject	engine	alter_table_action_list/alter_table_actions_,_alter_table_action!insert	ALTER TABLE a, NOPARALLEL zzz
 reject	reject	engine	alter_table_action_list/alter_table_actions_,_alter_table_action!swap	ALTER TABLE a, NORMAL
@@ -14244,7 +14244,7 @@ reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)!drop-2	A
 reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)!drop-5	ALTER TABLE a ADD(a TINYINT
 reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)!insert	ALTER TABLE a ADD(a TINYINT) zzz
 reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)!swap	ALTER TABLE a ADDDATE(a TINYINT)
-reject	accept	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+accept	accept	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause!drop-1	ALTER TABLE a COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause!drop-3	ALTER TABLE a ADD COLUMN a TINYINT) JSON(a) STORE AS(CHUNK 1)
 reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause!drop-4	ALTER TABLE a ADD COLUMN(TINYINT) JSON(a) STORE AS(CHUNK 1)
@@ -14262,7 +14262,7 @@ reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_l
 reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause!drop-16	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1
 reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause!insert	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1) zzz
 reject	reject	engine	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause!swap	ALTER TABLE a ADDDATE COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
-reject	accept	engine	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+accept	accept	engine	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause!drop-1	ALTER TABLE a(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause!drop-2	ALTER TABLE a ADD a TINYINT) JSON(a) STORE AS(CHUNK 1)
 reject	reject	engine	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause!drop-3	ALTER TABLE a ADD(TINYINT) JSON(a) STORE AS(CHUNK 1)

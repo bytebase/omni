@@ -105,6 +105,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Parallel != nil {
 			Walk(v, n.Parallel)
 		}
+		if n.LobStorage != nil {
+			Walk(v, n.LobStorage)
+		}
 	case *AlterTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)

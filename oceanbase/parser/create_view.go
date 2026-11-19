@@ -86,6 +86,19 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	}
 	stmt.Name = ref
 
+	// opt_table_id: TABLE_ID [=] n, before AS.
+	if p.isBareWord("TABLE_ID") {
+		p.advance()
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.TableID, stmt.HasTableID = p.cur.Ival, true
+		p.advance()
+	}
+
 	// Optional column list
 	if p.cur.Type == '(' {
 		cols, err := p.parseParenIdentList()

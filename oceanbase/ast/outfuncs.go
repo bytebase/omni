@@ -1113,6 +1113,9 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	if n.OrReplace {
 		sb.WriteString(" :or_replace true")
 	}
+	if n.HasTableID {
+		fmt.Fprintf(sb, " :table_id %d", n.TableID)
+	}
 	if n.Algorithm != "" {
 		fmt.Fprintf(sb, " :algorithm %s", n.Algorithm)
 	}

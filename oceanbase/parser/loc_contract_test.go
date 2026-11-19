@@ -281,6 +281,7 @@ var locSpanCases = []struct {
 	{"DatabaseLinkStmt", "DROP DATABASE LINK link1", "DROP DATABASE LINK link1", 0},
 	{"DumpMemoryStmt", "DUMP ENTITY ALL", "DUMP ENTITY ALL", 0},
 	{"FileOption", "SELECT a INTO OUTFILE 's' SINGLE TRUE", "SINGLE TRUE", 0},
+	{"LobStorageClause", "ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)", "JSON(a) STORE AS(CHUNK 1)", 0},
 	{"GroupingSet", "SELECT a GROUP BY ROLLUP(a)", "ROLLUP(a)", 0},
 	{"OdbcEscapeExpr", "SELECT {fn CONCAT(a, b)}", "{fn CONCAT(a, b)}", 0},
 	{"QuantifiedExpr", "SELECT a = ALL(a)", "ALL(a)", 0},

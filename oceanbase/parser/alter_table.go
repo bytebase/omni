@@ -82,6 +82,17 @@ func (p *Parser) parseAlterTableBody(stmt *nodes.AlterTableStmt) (*nodes.AlterTa
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// alter_table_action_list reads `alter_table_actions ',' alter_table_action`
+	// with an empty actions arm, so one comma may lead the first action:
+	// `ALTER TABLE a, NOPARALLEL` is one table option.
+	if p.cur.Type == ',' {
+		p.advance()
+		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+			// A comma with no action after it is no action list.
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	// Parse comma-separated alter operations
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
@@ -657,6 +668,9 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		if err := p.parseLobStorageClause(cmd); err != nil {
+			return nil, err
+		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
@@ -671,9 +685,69 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	if err := p.parseColumnPositioning(cmd); err != nil {
 		return nil, err
 	}
+	if err := p.parseLobStorageClause(cmd); err != nil {
+		return nil, err
+	}
 
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
+}
+
+// parseLobStorageClause reads lob_storage_clause where an ALTER TABLE ADD may
+// write it: JSON '(' column_name ')' STORE AS '(' lob_storage_parameters ')',
+// whose parameters are lob_chunk_size, `CHUNK n` or `CHUNK 'string'`.
+func (p *Parser) parseLobStorageClause(cmd *nodes.AlterTableCmd) error {
+	if !p.isBareWord("JSON") {
+		return nil
+	}
+	start := p.pos()
+	p.advance() // consume JSON
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	column, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	if !p.isBareWord("STORE") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect(kwAS); err != nil {
+		return err
+	}
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	clause := &nodes.LobStorageClause{Loc: nodes.Loc{Start: start}, Column: column}
+	if !p.isBareWord("CHUNK") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
+		return p.syntaxErrorAtCur()
+	}
+	clause.Chunk = p.cur.Str
+	p.advance()
+	// lob_storage_parameters is one or more parameters written next to each
+	// other; CHUNK is the only one the grammar has.
+	for p.isBareWord("CHUNK") {
+		p.advance()
+		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		clause.Chunk = p.cur.Str
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	clause.Loc.End = p.prev.End
+	cmd.LobStorage = clause
+	return nil
 }
 
 // parenOpensAddIndex reports whether the '(' at p.cur opens one of

@@ -685,9 +685,10 @@ func TestParseDataTypes(t *testing.T) {
 
 // TestParseDataTypeError tests that invalid data type inputs produce errors.
 func TestParseDataTypeError(t *testing.T) {
+	// A string literal is parsed: data_type's STRING_VALUE arm is OceanBase's
+	// "wrong or unsupported data type", which the resolver refuses later.
 	inputs := []string{
 		"123",
-		"'string'",
 		"(",
 	}
 	for _, input := range inputs {
