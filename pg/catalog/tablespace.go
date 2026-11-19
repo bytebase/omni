@@ -224,29 +224,96 @@ func (c *Catalog) roleInUse(name string) bool {
 	return false
 }
 
-// DropOwned releases the ownership a DROP OWNED BY names. The catalog keeps
-// the objects, but a later DROP ROLE no longer sees them as dependents.
+// DropOwned drops the relations and indexes a DROP OWNED BY names.
 func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	if stmt.Roles == nil {
 		return nil
 	}
+	owners := c.roleSet(stmt.Roles)
+	for _, schema := range c.schemas {
+		var rels []*Relation
+		for _, rel := range schema.Relations {
+			if owners[rel.OwnerName] {
+				rels = append(rels, rel)
+			}
+		}
+		for _, rel := range rels {
+			c.removeRelation(schema, rel.Name, rel)
+		}
+		var indexes []*Index
+		for _, idx := range schema.Indexes {
+			if owners[idx.OwnerName] {
+				indexes = append(indexes, idx)
+			}
+		}
+		for _, idx := range indexes {
+			c.removeIndex(schema, idx.Name, idx)
+		}
+	}
+	return nil
+}
+
+// ReassignOwned moves the objects a REASSIGN OWNED BY names to another role.
+func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
+	if stmt.Newrole == nil {
+		return nil
+	}
+	newOwner := c.ownerRoleName(stmt.Newrole)
+	if err := c.checkRole(newOwner); err != nil {
+		return err
+	}
+	owners := c.roleSet(stmt.Roles)
+	for _, schema := range c.schemas {
+		for _, rel := range schema.Relations {
+			if owners[rel.OwnerName] {
+				rel.OwnerName = newOwner
+			}
+		}
+		for _, idx := range schema.Indexes {
+			if owners[idx.OwnerName] {
+				idx.OwnerName = newOwner
+			}
+		}
+	}
+	return nil
+}
+
+// roleSet reads a RoleSpec list as role names.
+func (c *Catalog) roleSet(roles *nodes.List) map[string]bool {
 	owners := map[string]bool{}
-	for _, item := range stmt.Roles.Items {
+	if roles == nil {
+		return owners
+	}
+	for _, item := range roles.Items {
 		rs, ok := item.(*nodes.RoleSpec)
 		if !ok {
 			continue
 		}
 		owners[c.ownerRoleName(rs)] = true
 	}
+	return owners
+}
+
+// RenameRole renames a role and every object it owns.
+func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
+	oldName := stmt.Subname
+	if !c.roles[oldName] {
+		return errUndefinedObject("role", oldName)
+	}
+	if c.roles[stmt.Newname] {
+		return errDuplicateObject("role", stmt.Newname)
+	}
+	delete(c.roles, oldName)
+	c.roles[stmt.Newname] = true
 	for _, schema := range c.schemas {
 		for _, rel := range schema.Relations {
-			if owners[rel.OwnerName] {
-				rel.OwnerName = ""
+			if rel.OwnerName == oldName {
+				rel.OwnerName = stmt.Newname
 			}
 		}
 		for _, idx := range schema.Indexes {
-			if owners[idx.OwnerName] {
-				idx.OwnerName = ""
+			if idx.OwnerName == oldName {
+				idx.OwnerName = stmt.Newname
 			}
 		}
 	}
@@ -270,6 +337,9 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 				continue
 			}
 			return errUndefinedObject("role", name)
+		}
+		if name == c.currentOwner() || name == c.sessionUser {
+			return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be dropped"}
 		}
 		if c.roleInUse(name) {
 			return errDependentObjects("role", name)

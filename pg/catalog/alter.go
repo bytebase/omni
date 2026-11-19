@@ -787,6 +787,8 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameType(stmt)
 	case nodes.OBJECT_TABLESPACE:
 		return c.RenameTablespace(stmt)
+	case nodes.OBJECT_ROLE:
+		return c.RenameRole(stmt)
 	case nodes.OBJECT_INDEX:
 		return c.renameIndex(stmt)
 	case nodes.OBJECT_SEQUENCE:

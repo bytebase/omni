@@ -249,8 +249,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.DropOwnedStmt:
 		return c.DropOwned(s)
 	case *nodes.ReassignOwnedStmt:
-		// REASSIGN OWNED: no-op for pgddl
-		return nil
+		return c.ReassignOwned(s)
 	case *nodes.SecLabelStmt:
 		// SECURITY LABEL: no-op for pgddl
 		return nil

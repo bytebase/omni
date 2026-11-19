@@ -496,6 +496,48 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// DROP OWNED drops the owned relation, REASSIGN moves it, and a role
+	// rename follows both the registry and the objects it owns.
+	t.Run("role ownership changes follow DROP OWNED, REASSIGN and RENAME", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE TABLE a (b int)",
+			"ALTER TABLE a OWNER TO alice",
+			"REASSIGN OWNED BY alice TO bob",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.OwnerName != "bob" {
+			t.Fatal("REASSIGN OWNED did not move the table")
+		}
+		if code := simulationCatalogCode(t, c, "ALTER ROLE bob RENAME TO carol"); code != "0" {
+			t.Fatalf("catalog refused ALTER ROLE RENAME with %s", code)
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.OwnerName != "carol" {
+			t.Fatal("ALTER ROLE RENAME did not move the table")
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY carol"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED with %s", code)
+		}
+		if c.schemaByName["public"].Relations["a"] != nil {
+			t.Fatal("DROP OWNED kept the owned table")
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE carol"); code != "0" {
+			t.Fatalf("catalog refused DROP ROLE after DROP OWNED with %s", code)
+		}
+	})
+
+	t.Run("the current role cannot be dropped", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, "DROP ROLE postgres"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("catalog answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
+		}
+	})
+
 	// A multi-role DROP resolves every role before removing any.
 	t.Run("a failed DROP ROLE leaves the earlier roles", func(t *testing.T) {
 		c := New()
