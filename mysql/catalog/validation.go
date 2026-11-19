@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -747,16 +748,28 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 	}
 }
 
-// validateCreateSpatialRefSys refuses a CREATE SPATIAL REFERENCE SYSTEM that leaves
-// out an attribute MySQL requires: NAME first, then DEFINITION, each answered 3708
-// with the attribute it names (mysql:8.0.46). The catalog holds no spatial reference
-// system, so a statement that writes both is a no-op.
+// validateCreateSpatialRefSys refuses a CREATE SPATIAL REFERENCE SYSTEM the server
+// will not take: SRID 0 (3714), a NAME it does not write (3708) or writes empty or
+// padded (3710), a DEFINITION it does not write (3708) or writes empty (3517). A
+// definition it writes in full is not read: the catalog does not parse the WKT, so
+// it takes the statement. Measured on mysql:8.0.46.
 func validateCreateSpatialRefSys(stmt *nodes.CreateSpatialRefSysStmt) error {
-	if stmt.Name == "" {
+	if stmt.SRID == 0 {
+		return &Error{Code: 3714, SQLState: "SR000", Message: "SRID 0 is not modifiable."}
+	}
+	if !stmt.HasName {
 		return errSRSMandatoryAttribute("NAME")
 	}
-	if stmt.Definition == "" {
+	if stmt.Name == "" || strings.TrimSpace(stmt.Name) != stmt.Name {
+		return &Error{Code: 3710, SQLState: "SR006",
+			Message: "The spatial reference system name can't be an empty string or start or end with whitespace."}
+	}
+	if !stmt.HasDefinition {
 		return errSRSMandatoryAttribute("DEFINITION")
+	}
+	if stmt.Definition == "" {
+		return &Error{Code: 3517, SQLState: "SR002",
+			Message: fmt.Sprintf("Can't parse the spatial reference system definition of SRID %d.", stmt.SRID)}
 	}
 	return nil
 }

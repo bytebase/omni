@@ -926,6 +926,32 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 5000 ORGANIZATION 's' IDENTIFIED BY 1",
 			code:  3708,
 		},
+		{
+			// An attribute the statement writes with an empty literal is present,
+			// and MySQL judges its value instead of calling it missing.
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with an empty NAME",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME ''",
+			code:  3710,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with a NAME that starts with a space",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME ' s'",
+			code:  3710,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with an empty DEFINITION",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME 's' DEFINITION ''",
+			code:  3517,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM on SRID 0",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 0 NAME 's' DEFINITION 's'",
+			code:  3714,
+		},
 		// A view body's star is resolved before the view's own name: a `*`
 		// with no FROM expands from nothing and is 1096, even over a table a,
 		// where the name alone would be 1050.

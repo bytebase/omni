@@ -131,6 +131,8 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
 	ErrTableMustHaveColumns:              "HY000",
+	ErrSpatialColumnNotGeometrical:       "42000",
+	ErrSRSMissingAttribute:               "SR006",
 }
 
 func sqlState(code int) string {

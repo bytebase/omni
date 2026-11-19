@@ -1302,7 +1302,19 @@ func canonicalBitLiteral(bits string) string {
 	return "b'" + bits + "'"
 }
 
+// validatePartitionClause judges a partitioning a CREATE TABLE writes: the clause
+// itself, and then every unique key of the table it leaves covering it.
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := validatePartitionClauseShape(tbl, pc); err != nil {
+		return err
+	}
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+}
+
+// validatePartitionClauseShape runs the checks the clause makes on its own, without
+// the unique keys that must cover it: what it defines (1492), what it mixes (1500),
+// the columns it names (1652, 1488, 1054) and its bounds (1481, 1493, 1491).
+func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return errPartitionsMustBeDefined()
 	}
@@ -1360,7 +1372,7 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+	return nil
 }
 
 // partitionClauseHasSubpartitions reports whether the clause writes a SUBPARTITION

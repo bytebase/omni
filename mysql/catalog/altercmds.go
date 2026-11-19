@@ -55,11 +55,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
-		// The partitioning clause is judged in the order MySQL judges it: what it
-		// says about the table's columns (1500, 1652, 1488, 1054) and then whether
-		// every unique key covers them (1503), all before the statement's commands
-		// run.
-		if err := validatePartitionClause(tbl, repartition); err != nil {
+		// What the clause says about the table's columns is judged here, in the order
+		// MySQL judges it (1492, 1500, 1652, 1488, 1054). The unique keys that must
+		// cover it are judged after the commands, by validateAlteredUniqueKeys, since
+		// they are the keys the statement leaves: a statement that drops one of them
+		// leaves a table the clause covers.
+		if err := validatePartitionClauseShape(tbl, repartition); err != nil {
 			return err
 		}
 	}
@@ -85,8 +86,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if repartition != nil {
 		// The catalog applies the partitioning the statement wrote, as the engine
 		// does: MySQL keeps a table partitioned once ALTER TABLE ... PARTITION BY
-		// has run, so the table a later statement reads is the partitioned one.
-		tbl.Partitioning = buildPartitionInfo(tbl, repartition, false)
+		// has run, so the table a later statement reads is the partitioned one. true
+		// is what an executed CREATE TABLE passes: the clause is authored input, not
+		// a snapshot's.
+		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
 	return nil
 }
