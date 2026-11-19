@@ -45,7 +45,7 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 	// Optional PARTITION(p1, p2, ...) or PARTITIONS(...)
 	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
 		keyword := p.advance().Kind // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS)
+		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS, false)
 		if err != nil {
 			return nil, err
 		}
@@ -856,7 +856,7 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	// Optional PARTITION(p1, p2, ...)
 	if p.cur.Kind == kwPARTITION {
 		p.advance() // consume PARTITION
-		parts, err := p.parsePartitionNameList(false)
+		parts, err := p.parsePartitionNameList(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -907,8 +907,9 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	return stmt, nil
 }
 
-// hasMalformedCommonHint reports whether input holds a /*+ ... */ hint with
-// no body or no closing */. It is the opt_common_hints rule's ident_list.
+// hasMalformedCommonHint reports whether input holds a /*+ ... */ hint whose
+// body is not the opt_common_hints rule's ident_list: it is empty, unclosed,
+// or not a comma-separated identifier sequence (TRUNCATE TABLE a /*+ 1 */).
 func hasMalformedCommonHint(input string) bool {
 	for {
 		i := strings.Index(input, "/*+")
@@ -917,9 +918,33 @@ func hasMalformedCommonHint(input string) bool {
 		}
 		rest := input[i+3:]
 		j := strings.Index(rest, "*/")
-		if j < 0 || strings.TrimSpace(rest[:j]) == "" {
+		if j < 0 || !validCommonHintBody(rest[:j]) {
 			return true
 		}
 		input = rest[j+2:]
 	}
+}
+
+// validCommonHintBody reads an ident_list: identifier (COMMA identifier)*.
+func validCommonHintBody(body string) bool {
+	lx := NewLexer(body)
+	expectIdent, sawIdent := true, false
+	for {
+		tok := lx.NextToken()
+		if tok.Kind == tokEOF {
+			break
+		}
+		if expectIdent {
+			if tok.Kind != tokIdent && tok.Kind != tokQuotedIdent && tok.Kind < 700 {
+				return false
+			}
+			sawIdent, expectIdent = true, false
+			continue
+		}
+		if tok.Kind != int(',') {
+			return false
+		}
+		expectIdent = true
+	}
+	return sawIdent && !expectIdent && len(lx.Errors()) == 0
 }

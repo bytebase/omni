@@ -164,7 +164,7 @@ func (p *Parser) parseDeleteStmt(deleteStart int) (*ast.DeleteStmt, error) {
 	}
 	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
 		keyword := p.advance().Kind // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS)
+		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS, true)
 		if err != nil {
 			return nil, err
 		}
@@ -247,13 +247,14 @@ func isDMLClauseKeyword(t int) bool {
 // parsePartitionNameList parses (p1 [, p2 ...]) — the partition name list.
 // The opening '(' is optional in Doris for single-partition DELETE syntax
 // (PARTITION p1) but PARTITIONS always uses '(p1, p2, ...)'. We handle both.
-func (p *Parser) parsePartitionNameList(plural bool) ([]string, error) {
+func (p *Parser) parsePartitionNameList(plural, allowStar bool) ([]string, error) {
 	var names []string
 
 	if p.cur.Kind == int('(') {
-		// Parenthesized list: (p1, p2, ...) or (*)
+		// Parenthesized list: (p1, p2, ...); DELETE's partitionSpec also
+		// takes (*).
 		p.advance() // consume '('
-		if p.cur.Kind == int('*') {
+		if allowStar && p.cur.Kind == int('*') {
 			p.advance() // consume '*'
 			if _, err := p.expect(int(')')); err != nil {
 				return nil, err

@@ -959,7 +959,28 @@ func (p *Parser) parseReplayCommand(startLoc ast.Loc) (ast.Node, error) {
 	case kwDUMP:
 		stmt.Type = "DUMP"
 		p.advance() // consume DUMP
-		query, err := p.parseStmt()
+		// replayType is DUMP query (DorisParser.g4:1090), so only a query
+		// production follows, never a DML statement.
+		var query ast.Node
+		var err error
+		switch p.cur.Kind {
+		case kwSELECT:
+			var sel *ast.SelectStmt
+			sel, err = p.parseSelectStmt()
+			query = sel
+		case kwWITH:
+			query, err = p.parseWithSelect()
+		case kwVALUES:
+			query, err = p.parseValuesStmt()
+		case int('('):
+			query, err = p.parseParenQueryStmt()
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err != nil {
+			return nil, err
+		}
+		query, err = p.parseQueryTail(query)
 		if err != nil {
 			return nil, err
 		}

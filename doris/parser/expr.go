@@ -1538,28 +1538,24 @@ func (p *Parser) finishArrayLiteral(start int) (ast.Node, error) {
 		return nil, err
 	}
 	// The first element is optional in the grammar (DorisParser.g4:1674), so
-	// [, NULL] is an array whose first slot is empty.
+	// [, NULL, 1] is an array whose first slot is empty and whose remaining
+	// items are NULL and 1.
+	leadingComma := false
 	if p.cur.Kind == int(',') {
 		p.advance() // consume ','
-		el, err := p.parseCollectionConstant()
-		if err != nil {
-			return nil, err
-		}
-		lit.Elements = append(lit.Elements, el)
+		leadingComma = true
 	}
-	if p.cur.Kind != int(']') {
-		el, err := p.parseCollectionConstant()
-		if err != nil {
-			return nil, err
-		}
-		lit.Elements = append(lit.Elements, el)
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			el, err = p.parseCollectionConstant()
+	if p.cur.Kind != int(']') || leadingComma {
+		for {
+			el, err := p.parseCollectionConstant()
 			if err != nil {
 				return nil, err
 			}
 			lit.Elements = append(lit.Elements, el)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
 		}
 	}
 	closeTok, err := p.expect(int(']'))

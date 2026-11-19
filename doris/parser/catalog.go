@@ -314,7 +314,9 @@ func (p *Parser) parseRefreshTarget(startLoc ast.Loc, kind string) (ast.Node, er
 		}
 		stmt.Properties = props
 		if len(props) > 0 {
-			stmt.Loc.End = ast.NodeLoc(props[len(props)-1]).End
+			// parseProperties consumed PROPERTIES through its closing ')',
+			// so the statement span ends there too.
+			stmt.Loc.End = p.prev.Loc.End
 		}
 	}
 	return stmt, nil
