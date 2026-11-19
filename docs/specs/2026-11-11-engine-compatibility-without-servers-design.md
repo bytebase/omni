@@ -513,8 +513,8 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,070 | 4,665 | 402 | 3 |
-| Near-misses | 15,337 | 15,067 | 76 | 194 |
+| One per alternative | 5,070 | 4,902 | 165 | 3 |
+| Near-misses | 15,337 | 15,191 | 34 | 112 |
 
 - **314 disagreements,** down from the 2,679 first recorded (2026-11-13), 1,118 before the first round and 675 after it. That round closed: mock tablespace, server, logfile group and instance statements (79), outlines, snapshots, limiting and sensitive rules (64), privileges and roles in `GRANT` and `REVOKE` (51), `SHOW` (34), column groups (33), `GET DIAGNOSTICS` (28), transactions, locks, savepoints and XA (24), subpartition actions and name lists (24), `ALGORITHM`, `LOCK`, `ROW_FORMAT` and `INSERT_METHOD` values (21), `ANALYZE` (20), column attributes (17), `RANGE`'s empty and automatic partitioning (15), collection and other types (13), and 20 by other changes. Before it: names with a leading dot or a reserved word after a dot (585), `ALTER SYSTEM` (417), table options (109), `tbl_name`'s clauses (109), tenants and resources (104), tablegroups and sequences (85), `AUDIT` (71), `EXPLAIN` (43), and 38 more.
 - **What is left,** by what the statement is:
@@ -676,8 +676,8 @@ After step 0 the engines are independent. Order:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 3,163 | 3,162 | 0 | 1 |
-| Near-misses | 9,119 | 9,093 | 26 | 0 |
+| One per alternative | 3,162 | 3,161 | 0 | 1 |
+| Near-misses | 9,120 | 9,109 | 11 | 0 |
 
 - **12 disagreements,** down from 1,123 first recorded and 244 after the first pass (#916 to #948, 2026-11-13). The second pass (2026-11-14), one rule family each: column, index, partition and database options (#974, 28), utility statements' required words (#976, 21), a bare `@` and a bare `INTERVAL` (#965, 20), routine characteristics (#1015, 9), `ANALYZE ... HISTOGRAM`'s words (#995, 8), views' `CHECK OPTION` and `DEFINER` (#979, 7), locking clause lists, `NATURAL INNER JOIN` and index hints (#1009, 7), `WEIGHT_STRING`'s four numbers and `CAST ... AT TIME ZONE` (#969, 6), `DESC`'s forms and `INTO` (#994, 6), resource groups (#1007, 4), `udf_type` (#1006, 4), a UDF argument's alias (#998, 3), `EXECUTE ... USING` (#1019, 3), `RESET`'s list (#985, 1) and a CTE named twice (#996, 1). The stored-program scope work closed 89 more (#971, #989, #1001, #1011), and #1478 closed the collation lookups.
 - **What is left,** by what the statement is:
@@ -875,9 +875,9 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Same verdict | Same byte | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 1,353 | 1,202 | 1,195 | 128 | 23 |
-| Near-misses | 3,487 | 3,427 | 2,911 | 55 | 5 |
-| Hand rows: ten parser corpora (`suite:`) | 980 | 980 | 953 | 0 | 0 |
+| One per alternative | 1,353 | 1,353 | 1,349 | 0 | 0 |
+| Near-misses | 3,487 | 3,487 | 3,432 | 0 | 0 |
+| Hand rows: ten parser corpora (`suite:`) | 980 | 980 | 965 | 0 | 0 |
 
 - **74 rows disagree,** and the verdict agrees on every one: the 74 reject on both sides at a different byte. omni reports the first token its grammar cannot take; Trino's byte is the token ANTLR's prediction stopped at, which is that token only when prediction and descent agree: `IN (…)` and a quantified comparison told apart deep inside `predicate` (15), `MATCH_RECOGNIZE`'s optional leading clauses (15), a name with too many parts whose check carries no location or the statement's (12), `EXTRACT`'s field and `U&'…' UESCAPE` (4), `AS <function definition>`'s dollar string (4), `frameBound` (3), a `NOT` before a negated predicate (2), a `;` inside a routine body (2), and 17 one-offs (`trino/parser/testdata/README.md`).
 - **`SYNTAX_ERROR` is read by name, not by the parser's exception.** Trino raises it after the parse for checks that read only the text, such as a name with too many parts, and omni's parser makes them on purpose. No generated row reaches one.
@@ -894,9 +894,9 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,510 | 5,149 | 188 | 173 |
-| Near-misses | 11,960 | 11,721 | 59 | 180 |
-| `suite:lexer` | 67 | 62 | 2 | 3 |
+| One per alternative | 5,510 | 5,405 | 0 | 105 |
+| Near-misses | 11,960 | 11,938 | 20 | 2 |
+| `suite:lexer` | 67 | 66 | 0 | 1 |
 
 - **ScriptDOM reads most words as identifiers** and checks their text in actions and predicates. The converter writes an identifier as its words where `Match`, a `TryMatch` chain or a `NextTokenMatches` predicate names them, the last as a copy of the rule it gates; an option a helper reads by its text stays an identifier, sampled `a`, which SQL Server refuses.
 - **The verdict is `SET PARSEONLY ON`'s** (`compat.ParseOnlyVerdict`, `mssql/parser/testdata/README.md`): the server parses and neither compiles nor runs, so every error is a rejection, the parser's checks beyond the grammar included (135, 173, 195). A lookup of what the server holds is an acceptance, and a variable the row does not declare is declared before it and the row asked again, since a batch declares it.
@@ -919,8 +919,8 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative, of both grammars | 4,123 | 3,859 | 245 | 19 |
-| Near-misses | 11,844 | 11,731 | 52 | 61 |
+| One per alternative, of both grammars | 4,121 | 4,121 | 0 | 0 |
+| Near-misses | 11,846 | 11,846 | 0 | 0 |
 | Hand rows: the container test's cases (`suite:conformance`) | 339 | 339 | 0 | 0 |
 
 - **No row disagrees** (3,445 at the recording, 201 before #1461). #1023 to #1075 read the families with the most rows by the grammars: `SHOW`, `ADMIN`, `ALTER`, `CANCEL`/`KILL`, function signatures and data types, `LOAD`, workload policies, `GRANT`/`REVOKE`, `FROM` clauses, `ANALYZE` and statistics, routine loads, materialized views, `CREATE TABLE` and `SET`. #1461 closed the last 201: `EXPLAIN`'s table, function and partition forms, `INSERT`'s `@BRANCH`, `DORIS_INTERNAL_TABLE_ID` and `[hints]` forms, `SELECT (*)`, `INTERVAL 1 a` with a unit that is not one, `opt_partition`'s argument lists, and the identifier set `nonReserved`.
@@ -931,8 +931,8 @@ The docs judged the 8,075 rows in under a second:
 
 | Statements | Total | Agree | Only engine accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 3,062 | 2,729 | 315 | 18 |
-| Near-misses | 8,196 | 8,081 | 52 | 63 |
+| One per alternative | 3,062 | 2,888 | 161 | 13 |
+| Near-misses | 8,196 | 8,168 | 15 | 13 |
 | Hand rows: eight container tests' cases (`suite:`) | 434 | 434 | 0 | 0 |
 
 - **202 generated rows disagree, and 1 `suite:characters` row** (3,468 at the recording), after the same passes as Doris's, each ported where StarRocks's grammar has the statement. 177 StarRocks takes and omni refuses, most a statement omni does not read at all: `PIPE` (20), resource groups (19), `CATALOG` (16), data cache rules (13), `TRANSLATE` (13), the SQL and backend blacklists (14), plan advisors (7), `REFRESH EXTERNAL TABLE` (6), `EXECUTE AS` (4), `RESTORE SNAPSHOT` (3), `BACKUP … SNAPSHOT` (1), and 61 more with no group over ten (`ALTER ROLE … SET COMMENT`, `DROP FILE`, `CLEAR DATACACHE`). The 26 omni takes are mostly a word StarRocks reserves and omni reads as a name (`SELECT FLOOR`, `SELECT COUNT(DISTINCT)`, `GROUP BY ROLLUP()`), `SHOW … WHERE`, and `CREATE CATALOG a` with no `PROPERTIES`.
@@ -952,13 +952,13 @@ The docs judged the 8,075 rows in under a second:
 - **The grammar leaves out what no quoted page defines:** a clause such as `storage_clause` where it is optional, and a definition that needs one. The pages list what they left out.
 - The generated rows found 40 statements on which `Parse` never returned, fixed before the recording (#983).
 
-**Oracle, worked down.** By 2026-11-14 (#1079 to #1173), at judge revision 2:
+**Oracle, worked down.** By 2026-11-19, at judge revision 3:
 
 | Statements | Total | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 14,474 | 13,026 | 641 | 122 | 685 |
-| Near-misses | 31,254 | 25,198 | 5,635 | 322 | 99 |
-| Hand rows | 990 | 860 | 103 | 23 | 4 |
+| One per alternative | 14,474 | 13,274 | 575 | 4 | 621 |
+| Near-misses | 31,254 | 26,383 | 4,690 | 108 | 73 |
+| Hand rows | 1,010 | 888 | 103 | 17 | 2 |
 
 - **What the judge cannot answer is not asked** (#1079). The pinned server refuses `CREATE DATABASE` (ORA-01501), `CREATE CONTROLFILE` (01503) and traditional `AUDIT` (46401) before it parses them, and `PARTITIONSET` in `ALTER TABLE` and `CREATE TABLE` where it meets it (02577, 02518): `docsgrammar` does not convert those pages, and leaves those clauses out where optional. The quoted `register_logfile_clause` put `RECOVER` before `REGISTER`; it reads as the page's diagram now.
 - **The judge was revised twice** (`Suite.JudgeRevision`, part of the pin compat.tsv records, so raising it rejudges every row as a pin bump does). Oracle lexes some statements whole before it parses them (`ALTER MATERIALIZED VIEW`, `CREATE TABLE`, `GRANT`), so a probe answered ORA-00911 at the tail says nothing there, and the first answer's code decides (#1085); an error past the last token is a missing token unless Oracle checks it of the parsed statement (#1106); and the statement parsers' own codes (14051, 02248, ...) are syntax errors (#1137). The rejudges (#1134, #1148) turned 2,819 acceptances into rejections: `ALTER TABLE a`, `GRANT a a TO a`, `ALTER MATERIALIZED VIEW a PARAMETERS`.
