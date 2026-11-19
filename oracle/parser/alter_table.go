@@ -469,8 +469,8 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		// alter_table_partitionset both start with PARTITIONSET, and a
 		// partitionset belongs to a composite-sharded table: Oracle 23ai
 		// refuses the word itself (ORA-02577 at PARTITIONSET) before it reads
-		// the clause, as it refuses consistent_hash_partitions at CONSISTENT
-		// (ORA-14151), so the refusal is Oracle's here whatever follows.
+		// the clause, as it refuses consistent_hash_partitions at what follows
+		// HASH (ORA-14151), so the refusal is Oracle's here whatever follows.
 		return nil, p.syntaxErrorAtCur()
 	case p.cur.Type == kwPARTITION:
 		// modify_to_partitioned

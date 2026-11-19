@@ -279,7 +279,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,781 rows, 1,384 of them where omni stops first and 3,995
+different byte: 5,501 rows, 1,167 of them where omni stops first and 3,932
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -293,8 +293,8 @@ nothing to match. Four hundred and fifty-eight carry `reject@0`: Oracle's
 answer at the start of the statement, which is "no such form" or a name it
 looks up before it reads the rest.
 
-This change moved 567 rows to Oracle's byte. No `suite:` row is among them:
-those statements are the corpora's, whose cells move only with the corpus.
+#1473 moved 567 rows to Oracle's byte. No `suite:` row is among them: those
+statements are the corpora's, whose cells move only with the corpus.
 
 | Cause | Rows | Where Oracle stops |
 | --- | --- | --- |
@@ -302,19 +302,40 @@ those statements are the corpora's, whose cells move only with the corpus.
 | `ALTER TABLE a MODIFY PARTITIONSET ...` | 163 | `PARTITIONSET` (21): `ORA-02577`, before the clause is read |
 | `CREATE MATERIALIZED VIEW a PARTITION RANGE(a) ...` | 9 | the word where `BY` belongs (37): a materialized view's properties enter the clause on `PARTITION` |
 
-The remaining rows are spread thin: 4,289 name no family below. These are the
+This change moved 280 more, and closed 2 rows omni accepted where Oracle
+refuses (`... ORGANIZATION EXTERNAL(TYPE a) AS QUERY`). Both are readings
+the grammar had not made: Oracle reads two words, or the table's column
+list, before it refuses. One row Oracle accepts, `CREATE TABLE a
+ORGANIZATION EXTERNAL(TYPE a` (its type is looked up), still rejects, now at
+Oracle's byte 13 rather than 43, so it stays in "Rows only Oracle accepts".
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `... PARTITION BY CONSISTENT HASH (...) ...` | 217 | the token after `HASH`: Oracle reads `CONSISTENT HASH` and answers `ORA-14151` there outside a sharded database, before the columns. omni refused at `CONSISTENT` without reading them. 209 rows name `HASH`; 8 are near-misses that drop it |
+| `CREATE TABLE a ORGANIZATION EXTERNAL (...)` | 63 | the table's name (13): Oracle reads the access driver type, then answers `ORA-00906` because the table has no column list, before the rest of the clause. A clause that does not start with `TYPE` is refused inside it, at its own token |
+
+The remaining rows are spread thin: 4,208 name no family below. These are the
 largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
 | --- | --- | --- |
 | `DELETE ... MATCH_RECOGNIZE (...)` | 252 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
-| `... PARTITION BY CONSISTENT HASH (...) ...` | 289 | the `(` after `HASH`: omni reads no consistent-hash partitioning in these clauses and refuses at `CONSISTENT`, which is a reading, not a position |
+| `... PARTITION BY CONSISTENT HASH (...) ...` behind a `)` | 80 | the delimiter scan answers for the `)` before the statement parsers run, so the reading above never reaches Oracle's token: 60 are the `MODIFY PARTITIONSET` family below, and 20 are near-misses that put `a)` or a `SUBPARTITION BY RANGE a)` where `(a)` belongs |
 | rows whose cell is `reject@0` | 458 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
 | rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 78 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
 | `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
-| `CREATE TABLE a ORGANIZATION EXTERNAL (...)` | 62 | `ORGANIZATION` (13): Oracle needs the column list first, and omni reads the clause and refuses later |
-| `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): the delimiter scan answers for the `)` before the statement parsers run |
+| `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): a near-miss puts a `)` where a `(` belongs, and the delimiter scan answers for it before the statement parsers run |
+| `CREATE TABLE a ORGANIZATION EXTERNAL ...` behind a `)` | 2 | the clause is read and refused at the table's name, but the statement carries a stray `)` the scan answers first: `... EXTERNAL TYPE a)` and `... EXTERNAL(TYPE a LOCATION 's'))` |
+
+The scan's stray `)` answer is still not deferred. Asked with these readings
+in place, returning the parsers' answer for a `)` the scan refuses moves 732
+rows to Oracle's byte, but 133 to another wrong byte and 15 where omni agreed
+that would stop agreeing: `CREATE VECTOR INDEX a ON a a)`, a LOB storage
+option, `ALTER TABLE a ADD PERIOD FOR a)`, identity options and the
+`INSERT`/`MERGE` `VALUES 1)` rows, where omni's grammar stops at the token
+before the `)` and Oracle reads it. Those 15 are the ones #1473 measured, so
+the deferral waits on their readings.
 
 What is left of those is near-misses whose own token is Oracle's answer
 (`ALTER MATERIALIZED VIEW a TRUNCATE a`, `ALTER SESSION SET a = 1`, a LOB
