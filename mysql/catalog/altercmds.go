@@ -54,6 +54,16 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 
 	repartition := alterRepartition(stmt.Commands)
+	if repartition != nil {
+		// What the clause says about the table's columns is judged here, in the order
+		// MySQL judges it (1492, 1500, 1652, 1488, 1054). The unique keys that must
+		// cover it are judged after the commands, by validateAlteredUniqueKeys, since
+		// they are the keys the statement leaves: a statement that drops one of them
+		// leaves a table the clause covers.
+		if err := validatePartitionClauseShape(tbl, repartition); err != nil {
+			return err
+		}
+	}
 	if tbl.Partitioning == nil && repartition == nil {
 		return c.alterTableCommands(db, tbl, key, stmt)
 	}
@@ -73,10 +83,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		undoAlter(db, key, tbl, snapshot)
 		return err
 	}
-	if repartition != nil && tbl.Partitioning != nil {
-		// The catalog does not apply a repartition, so the partitioning it keeps no
-		// longer says which columns a unique key needs.
-		tbl.Partitioning.keyColumns = nil
+	if repartition != nil {
+		// The catalog applies the partitioning the statement wrote, as the engine
+		// does: MySQL keeps a table partitioned once ALTER TABLE ... PARTITION BY
+		// has run, so the table a later statement reads is the partitioned one. true
+		// is what an executed CREATE TABLE passes: the clause is authored input, not
+		// a snapshot's.
+		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
 	return nil
 }
@@ -251,7 +264,7 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 					}
 				}
 			case nodes.ConstrUnique, nodes.ConstrIndex:
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con))); err != nil {
 					return err
 				}
 			case nodes.ConstrFulltextIndex:
@@ -349,6 +362,15 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 		if cmd.Type == nodes.ATAddPartition || cmd.Type == nodes.ATReorganizePartition {
 			if err := validatePartitionDefinitions(cmd.PartitionDefs, c.noEngineSubstitution()); err != nil {
 				return err
+			}
+		}
+		// A RANGE or LIST PARTITION BY that defines no partition answers 1492 the
+		// same way: `ALTER TABLE missing PARTITION BY RANGE(b)` is 1492, not 1146,
+		// while the forms that read a column answer 1146 first (mysql:8.0.46).
+		if cmd.Type == nodes.ATPartitionBy && cmd.PartitionBy != nil {
+			pc := cmd.PartitionBy
+			if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
+				return errPartitionsMustBeDefined()
 			}
 		}
 	}
@@ -1022,14 +1044,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
+		if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 			return err
 		}
 		keyIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
-			IndexType: resolveConstraintIndexType(con),
+			Spatial:   spatial,
+			IndexType: storedIndexType(resolveConstraintIndexType(con)),
 			Visible:   true,
 		}
 		// The CREATE TABLE path reads these; this one used to drop them, so an index

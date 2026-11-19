@@ -2447,24 +2447,27 @@ func (p *Parser) parseATStoreIn() error {
 // ---------------------------------------------------------------------------
 
 // parseATTablePartitioning reads table_partitioning_clauses from PARTITION
-// BY or PARTITIONSET BY:
+// BY:
 //
 //	{ range_partitions | list_partitions | hash_partitions
 //	| composite_range_partitions | composite_list_partitions
 //	| composite_hash_partitions | reference_partitioning
 //	| system_partitioning | consistent_hash_partitions
-//	| consistent_hash_with_subpartitions | partitionset_clauses }
+//	| consistent_hash_with_subpartitions }
+//
+// partitionset_clauses and the consistent_hash_* clauses belong to
+// composite-sharded and sharded tables: Oracle refuses them at PARTITIONSET
+// (ORA-02577) and at what follows HASH (ORA-14151) before it reads the
+// clause, so the switch reports those words. PARTITIONSET reaches the syntax
+// error at the end of this switch.
 //
 // ALTER MATERIALIZED VIEW LOG and other statements that take these
-// clauses can call it with the current token on PARTITION or PARTITIONSET.
+// clauses can call it with the current token on PARTITION.
 func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 	if err := p.enterNesting(); err != nil {
 		return err
 	}
 	defer p.leaveNesting()
-	if p.atWord("PARTITIONSET") {
-		return p.parseATPartitionsetClauses(opts)
-	}
 	start := p.pos()
 	if err := p.atExpect(kwPARTITION); err != nil {
 		return err
@@ -2565,8 +2568,14 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 		p.atOption(opts, start)
 		return nil
 	case p.atWord("CONSISTENT"):
-		// consistent_hash_partitions belong to sharded tables; Oracle
-		// refuses them elsewhere (ORA-14151) before it reads further.
+		// consistent_hash_partitions and consistent_hash_with_subpartitions
+		// belong to sharded tables: Oracle reads CONSISTENT HASH and refuses
+		// the form elsewhere (ORA-14151) at what follows HASH, before it
+		// reads the columns.
+		p.advance() // CONSISTENT
+		if err := p.atExpectWord("HASH"); err != nil {
+			return err
+		}
 		return p.syntaxErrorAtCur()
 	}
 	return p.syntaxErrorAtCur()
@@ -2777,91 +2786,4 @@ func (p *Parser) parseATHashPartitions() error {
 		p.advance()
 	}
 	return p.atExpect(')')
-}
-
-// parseATPartitionsetClauses reads range_partitionset_clause or
-// list_partitionset_clause (PARTITIONSET BY ...). Partitionsets belong to
-// sharded tables, which Oracle refuses outside a sharded database
-// (ORA-02577) whatever follows, so omni reads the clause by the page alone.
-func (p *Parser) parseATPartitionsetClauses(opts *nodes.List) error {
-	start := p.pos()
-	p.advance() // PARTITIONSET
-	if err := p.atExpect(kwBY); err != nil {
-		return err
-	}
-	if err := p.atOneOf("RANGE", "LIST"); err != nil {
-		return err
-	}
-	if err := p.parseATNameList(); err != nil {
-		return err
-	}
-	if err := p.atExpect(kwPARTITION); err != nil {
-		return err
-	}
-	if err := p.atExpect(kwBY); err != nil {
-		return err
-	}
-	if err := p.atExpectWord("CONSISTENT"); err != nil {
-		return err
-	}
-	if err := p.atExpectWord("HASH"); err != nil {
-		return err
-	}
-	if err := p.parseATNameList(); err != nil {
-		return err
-	}
-	sub := atMethodAny
-	if p.cur.Type == kwSUBPARTITION {
-		if err := p.parseATSubpartitionBy(&sub); err != nil {
-			return err
-		}
-	}
-	if err := p.atExpectWord("PARTITIONS"); err != nil {
-		return err
-	}
-	if err := p.atExpectWord("AUTO"); err != nil {
-		return err
-	}
-	if err := p.atExpect('('); err != nil {
-		return err
-	}
-	for {
-		if err := p.atExpectWord("PARTITIONSET"); err != nil {
-			return err
-		}
-		if err := p.parseATName(); err != nil {
-			return err
-		}
-		if err := p.parseATValuesClause(); err != nil {
-			return err
-		}
-		if p.cur.Type == kwTABLESPACE {
-			p.advance()
-			if err := p.atExpect(kwSET); err != nil {
-				return err
-			}
-			if err := p.parseATName(); err != nil {
-				return err
-			}
-		}
-		if p.atWord("LOB") {
-			if err := p.parseATLobStorage(); err != nil {
-				return err
-			}
-		}
-		if p.cur.Type == kwSUBPARTITION && p.atNextWord("TEMPLATE") {
-			if err := p.parseATSubpartitionTemplate(sub); err != nil {
-				return err
-			}
-		}
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
-	}
-	if err := p.atExpect(')'); err != nil {
-		return err
-	}
-	p.atOption(opts, start)
-	return nil
 }

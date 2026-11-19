@@ -273,6 +273,8 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.alterEvent(s)
 	case *nodes.DropEventStmt:
 		return c.dropEvent(s)
+	case *nodes.CreateSpatialRefSysStmt:
+		return validateCreateSpatialRefSys(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
 	case *nodes.CreateUserStmt, *nodes.AlterUserStmt, *nodes.DropUserStmt,

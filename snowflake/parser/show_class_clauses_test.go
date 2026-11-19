@@ -115,6 +115,9 @@ func TestShowClassClauses(t *testing.T) {
 		"SHOW SHARED CONTENT IN APPLICATION PACKAGE p",
 		// FOR METRIC follows IN <semantic_view_name> only.
 		"SHOW SEMANTIC DIMENSIONS IN SCHEMA s FOR METRIC m",
+		// SCHEMA is a limited keyword in a SHOW command, so SCHEMA.a is not
+		// a schema name.
+		"SHOW AGENTS IN SCHEMA.a",
 		"SHOW SEMANTIC DIMENSIONS FOR METRIC m",
 		// Each clause belongs to its class and scope.
 		"SHOW TABLES IN APPLICATION PACKAGE p FOR VERSION v",

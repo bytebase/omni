@@ -85,6 +85,16 @@ func (p *Parser) parsePartitionClause(stmt *nodes.CreateTableStmt, hasColumns bo
 		return p.parseCreateTableReferencePartitioning(clause, hasColumns)
 	case p.isKeywordStr("SYSTEM"):
 		return p.parseCreateTableSystemPartitioning(clause)
+	case p.isKeywordStr("CONSISTENT"):
+		// consistent_hash_partitions and consistent_hash_with_subpartitions
+		// belong to sharded tables: Oracle reads CONSISTENT HASH and refuses
+		// the form elsewhere (ORA-14151) at what follows HASH, before it
+		// reads the columns.
+		p.advance() // CONSISTENT
+		if err := p.expectCreateTableToken(kwHASH); err != nil {
+			return nil, err
+		}
+		return nil, p.syntaxErrorAtCur()
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

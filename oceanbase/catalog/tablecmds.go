@@ -26,6 +26,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := checkKeyOptions(stmt.Constraints); err != nil {
 		return err
 	}
+	// A CREATE TABLE ... SELECT resolves its query before it reads the column
+	// groups: CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a is 1054, a column the
+	// query cannot find, and only a query that resolves reaches the group's 1235 or
+	// 1060 (TestSimulationCausesOracle).
+	tableName := stmt.Table.Name
+	key := toLower(tableName)
+	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
+		return err
+	}
+
 	// OceanBase reads the column groups before the name, so a group it refuses
 	// beats 1050 and IF NOT EXISTS (TestOracle_OceanBaseColumnGroups).
 	var groups ColumnGroups
@@ -33,12 +43,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if groups, err = readColumnGroups(stmt.ColumnGroup); err != nil {
 			return err
 		}
-	}
-
-	tableName := stmt.Table.Name
-	key := toLower(tableName)
-	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
-		return err
 	}
 
 	// The name is checked last: OceanBase reads the whole definition first, so
@@ -1580,10 +1584,21 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	if refTbl == nil {
 		return errFKNoRefTable()
 	}
-	for _, colName := range con.Columns {
-		if tbl.GetColumn(colName) == nil {
-			return errFKNoSuchColumn()
+	for i, colName := range con.Columns {
+		if tbl.GetColumn(colName) != nil {
+			continue
 		}
+		// A self-referencing foreign key that names the column it cannot find on
+		// both sides is 1215, where one side alone is 5031: ADD FOREIGN KEY (a)
+		// REFERENCES a (a) and (zz) REFERENCES a (zz) are 1215, while (a)
+		// REFERENCES a (zz) and (zz) REFERENCES a (b) are 5031
+		// (TestSimulationCausesOracle). The table has to be this one, named the way
+		// refTbl above was found: another database's table of the same name is not
+		// self-referencing.
+		if refDB == db && toLower(con.RefTable) == toLower(tbl.Name) && i < len(con.RefColumns) && toLower(con.RefColumns[i]) == toLower(colName) {
+			return errCannotAddForeign()
+		}
+		return errFKNoSuchColumn()
 	}
 	for _, colName := range con.RefColumns {
 		if refTbl.GetColumn(colName) == nil {
