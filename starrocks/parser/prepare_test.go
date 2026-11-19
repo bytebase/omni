@@ -151,9 +151,20 @@ func TestPrepareStringTreeIsAtItsOwnBytes(t *testing.T) {
 	if got := sql[ast.NodeLoc(sel).Start:ast.NodeLoc(sel).End]; got != "SELECT * FROM secret" {
 		t.Errorf("the tree slices %q, want the prepared statement", got)
 	}
-	// An escaped literal keeps its text and no tree, which cannot be placed.
-	stmt = parseOne(t, `PREPARE p FROM 'SELECT ''x'' FROM secret'`).(*ast.PrepareStmt)
-	if stmt.Query != nil {
-		t.Errorf("Query = %T for an escaped literal, want none", stmt.Query)
+	// An escaped literal's decoded text is not the statement byte for byte, so
+	// its tree is placed through the escape table: the table is still at the
+	// bytes that spell it, and a node after an escape keeps its own.
+	const escaped = `PREPARE p FROM 'SELECT ''x'' FROM secret'`
+	stmt = parseOne(t, escaped).(*ast.PrepareStmt)
+	sel, ok = stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T for an escaped literal, want *ast.SelectStmt", stmt.Query)
+	}
+	want = strings.Index(escaped, "secret")
+	if got := ast.NodeLoc(sel.From[0]); got.Start != want || got.End != want+len("secret") {
+		t.Errorf("table Loc = %+v, want {%d %d}", got, want, want+len("secret"))
+	}
+	if got := escaped[ast.NodeLoc(sel).Start:ast.NodeLoc(sel).End]; got != `SELECT ''x'' FROM secret` {
+		t.Errorf("the tree slices %q, want the prepared statement", got)
 	}
 }

@@ -143,6 +143,17 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			changes.InsertCount += inner.InsertCount
 		}
 
+	case *ast.CreatePipeStmt:
+		// The pipe's body is the statement that writes, on the schedule the
+		// pipe keeps; the wrapper only names and describes it.
+		if n.Insert != nil {
+			inner := ExtractChangedResources(n.Insert, database, text)
+			changes.Resources = append(changes.Resources, inner.Resources...)
+			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
+			changes.DMLCount += inner.DMLCount
+			changes.InsertCount += inner.InsertCount
+		}
+
 	case *ast.SubmitTaskStmt:
 		// The submitted statement is the one that writes; the task wrapper
 		// only schedules it. A qualified task name selects its database for

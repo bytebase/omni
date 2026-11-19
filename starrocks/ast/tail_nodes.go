@@ -279,10 +279,8 @@ var _ Node = (*TranslateStmt)(nil)
 //
 // prepareSql (:2300) is a statement or a string literal. Query holds the
 // parsed statement, which for a string literal is the tree its text makes: the
-// string is SQL too. SQL holds the string literal's text. A string written
-// without escapes is parsed where it stands, so that tree's Locs are the
-// statement's; an escaped one keeps its text and no tree, since its decoded
-// text does not map onto the source.
+// string is SQL too, and its escapes are re-encoded so the tree's Locs are the
+// statement's. SQL holds the string literal's text.
 type PrepareStmt struct {
 	Name  *ObjectName
 	Query Node

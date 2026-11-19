@@ -152,6 +152,18 @@ func (p *Parser) parseAlterPlanAdvisor(startLoc ast.Loc) (ast.Node, error) {
 		if !isQueryBody(query) {
 			return nil, p.syntaxErrorAtCur()
 		}
+		// queryStatement's outfile is part of the body: `ADD SELECT 1 INTO
+		// OUTFILE '/x'` is accepted, and a plan writes nothing.
+		if p.cur.Kind == kwINTO {
+			if queryHasInto(query) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			into, err := p.parseIntoOutfileClause()
+			if err != nil {
+				return nil, err
+			}
+			attachInto(query, into)
+		}
 		stmt.Query = query
 		stmt.Loc = startLoc.Merge(ast.NodeLoc(query))
 	case kwDROP:

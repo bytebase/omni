@@ -3,6 +3,7 @@ package analysis
 import (
 	"testing"
 
+	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
 )
 
@@ -324,5 +325,43 @@ func TestExtractChangedResourcesSwapWith(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A pipe's body is the statement that writes, so the ledger sees its insert.
+func TestChangedResourcesCreatePipe(t *testing.T) {
+	const sql = `CREATE PIPE p AS INSERT INTO db.dest SELECT * FROM src`
+	file, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	changes := ExtractChangedResources(file.Stmts[0], "", sql)
+	// The body inserts no VALUES rows, so it is one DML statement rather than
+	// a row count.
+	if changes.DMLCount != 1 {
+		t.Errorf("DMLCount = %d, want 1", changes.DMLCount)
+	}
+	found := false
+	for _, r := range changes.Resources {
+		if r.Table == "dest" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Resources = %+v, want dest", changes.Resources)
+	}
+}
+
+// queryStatement's outfile belongs to the body a plan advisor takes.
+func TestPlanAdvisorKeepsTheOutfile(t *testing.T) {
+	const sql = `ALTER PLAN ADVISOR ADD SELECT 1 INTO OUTFILE '/x'`
+	file, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	stmt := file.Stmts[0].(*ast.AlterPlanAdvisorStmt)
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok || sel.Into == nil || sel.Into.Path != "/x" {
+		t.Errorf("Query = %#v, want a SELECT with INTO OUTFILE '/x'", stmt.Query)
 	}
 }

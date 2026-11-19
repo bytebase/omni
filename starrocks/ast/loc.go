@@ -431,6 +431,429 @@ func NodeLoc(n Node) Loc {
 	}
 }
 
+// SetNodeLoc sets n's Loc, the counterpart of NodeLoc. The parser uses it for a
+// statement it read at other bytes and now reports at its own: a PREPARE
+// string's body, whose decoded text does not stand in the statement byte for
+// byte. Like NodeLoc it knows every node that carries one.
+func SetNodeLoc(n Node, loc Loc) {
+	switch v := n.(type) {
+	case *File:
+		v.Loc = loc
+	case *ObjectName:
+		v.Loc = loc
+	case *TypeName:
+		v.Loc = loc
+	case *CreateIndexStmt:
+		v.Loc = loc
+	case *DropIndexStmt:
+		v.Loc = loc
+	case *BuildIndexStmt:
+		v.Loc = loc
+	case *CreateDatabaseStmt:
+		v.Loc = loc
+	case *AlterDatabaseStmt:
+		v.Loc = loc
+	case *DropDatabaseStmt:
+		v.Loc = loc
+	case *DropTableStmt:
+		v.Loc = loc
+	case *CreateFunctionStmt:
+		v.Loc = loc
+	case *DropFunctionStmt:
+		v.Loc = loc
+	case *Property:
+		v.Loc = loc
+	case *BinaryExpr:
+		v.Loc = loc
+	case *UnaryExpr:
+		v.Loc = loc
+	case *CollateExpr:
+		v.Loc = loc
+	case *MatchExpr:
+		v.Loc = loc
+	case *DereferenceExpr:
+		v.Loc = loc
+	case *RowExpr:
+		v.Loc = loc
+	case *IsExpr:
+		v.Loc = loc
+	case *BetweenExpr:
+		v.Loc = loc
+	case *InExpr:
+		v.Loc = loc
+	case *LikeExpr:
+		v.Loc = loc
+	case *RegexpExpr:
+		v.Loc = loc
+	case *FuncCallExpr:
+		v.Loc = loc
+	case *CastExpr:
+		v.Loc = loc
+	case *ExtractExpr:
+		v.Loc = loc
+	case *VariableRef:
+		v.Loc = loc
+	case *LambdaExpr:
+		v.Loc = loc
+	case *CaseExpr:
+		v.Loc = loc
+	case *WhenClause:
+		v.Loc = loc
+	case *SubqueryExpr:
+		v.Loc = loc
+	case *ColumnRef:
+		v.Loc = loc
+	case *Literal:
+		v.Loc = loc
+	case *MapLiteral:
+		v.Loc = loc
+	case *MapEntry:
+		v.Loc = loc
+	case *ElementAtExpr:
+		v.Loc = loc
+	case *GroupingSetsExpr:
+		v.Loc = loc
+	case *ArrayLiteral:
+		v.Loc = loc
+	case *ParenExpr:
+		v.Loc = loc
+	case *ExistsExpr:
+		v.Loc = loc
+	case *IntervalExpr:
+		v.Loc = loc
+	case *OrderByItem:
+		v.Loc = loc
+	case *WithClause:
+		v.Loc = loc
+	case *CTE:
+		v.Loc = loc
+	case *SelectStmt:
+		v.Loc = loc
+	case *SelectItem:
+		v.Loc = loc
+	case *TableRef:
+		v.Loc = loc
+	case *InlineTable:
+		v.Loc = loc
+	case *TableFunctionRef:
+		v.Loc = loc
+	case *JoinClause:
+		v.Loc = loc
+	case *SetOpStmt:
+		v.Loc = loc
+	case *ParenSelect:
+		v.Loc = loc
+	case *IntoOutfileClause:
+		v.Loc = loc
+	case *CreateTableStmt:
+		v.Loc = loc
+	case *ColumnDef:
+		v.Loc = loc
+	case *IndexDef:
+		v.Loc = loc
+	case *TableConstraint:
+		v.Loc = loc
+	case *KeyDesc:
+		v.Loc = loc
+	case *PartitionDesc:
+		v.Loc = loc
+	case *PartitionItem:
+		v.Loc = loc
+	case *DistributionDesc:
+		v.Loc = loc
+	case *RollupDef:
+		v.Loc = loc
+	case *RawQuery:
+		v.Loc = loc
+	case *AlterTableStmt:
+		v.Loc = loc
+	case *AlterTableAction:
+		v.Loc = loc
+	case *ViewColumn:
+		v.Loc = loc
+	case *CreateViewStmt:
+		v.Loc = loc
+	case *AlterViewStmt:
+		v.Loc = loc
+	case *DropViewStmt:
+		v.Loc = loc
+	case *InsertStmt:
+		v.Loc = loc
+	case *Assignment:
+		v.Loc = loc
+	case *UpdateStmt:
+		v.Loc = loc
+	case *DeleteStmt:
+		v.Loc = loc
+	case *DataCacheSelectStmt:
+		v.Loc = loc
+	case *TruncateTableStmt:
+		v.Loc = loc
+	case *LoadDataDesc:
+		v.Loc = loc
+	case *LoadDataStmt:
+		v.Loc = loc
+	case *AlterLoadStmt:
+		v.Loc = loc
+	case *ExportStmt:
+		v.Loc = loc
+	case *CreateRoutineLoadStmt:
+		v.Loc = loc
+	case *AlterRoutineLoadStmt:
+		v.Loc = loc
+	case *PauseRoutineLoadStmt:
+		v.Loc = loc
+	case *ResumeRoutineLoadStmt:
+		v.Loc = loc
+	case *StopRoutineLoadStmt:
+		v.Loc = loc
+	case *ShowRoutineLoadStmt:
+		v.Loc = loc
+	case *ShowRoutineLoadTaskStmt:
+		v.Loc = loc
+	case *SyncStmt:
+		v.Loc = loc
+	case *MTMVRefreshTrigger:
+		v.Loc = loc
+	case *CreateMTMVStmt:
+		v.Loc = loc
+	case *AlterMTMVStmt:
+		v.Loc = loc
+	case *DropMTMVStmt:
+		v.Loc = loc
+	case *RefreshMTMVStmt:
+		v.Loc = loc
+	case *PauseMTMVJobStmt:
+		v.Loc = loc
+	case *ResumeMTMVJobStmt:
+		v.Loc = loc
+	case *CancelMTMVTaskStmt:
+		v.Loc = loc
+	case *CreateCatalogStmt:
+		v.Loc = loc
+	case *AlterCatalogStmt:
+		v.Loc = loc
+	case *DropCatalogStmt:
+		v.Loc = loc
+	case *RefreshCatalogStmt:
+		v.Loc = loc
+	case *CreateStorageVolumeStmt:
+		v.Loc = loc
+	case *AlterStorageVolumeStmt:
+		v.Loc = loc
+	case *AlterStorageVolumeClause:
+		v.Loc = loc
+	case *DropStorageVolumeStmt:
+		v.Loc = loc
+	case *DescStorageVolumeStmt:
+		v.Loc = loc
+	case *CreateWarehouseStmt:
+		v.Loc = loc
+	case *DropWarehouseStmt:
+		v.Loc = loc
+	case *SuspendWarehouseStmt:
+		v.Loc = loc
+	case *ResumeWarehouseStmt:
+		v.Loc = loc
+	case *CreateStoragePolicyStmt:
+		v.Loc = loc
+	case *AlterStoragePolicyStmt:
+		v.Loc = loc
+	case *DropStoragePolicyStmt:
+		v.Loc = loc
+	case *CreateRepositoryStmt:
+		v.Loc = loc
+	case *AlterRepositoryStmt:
+		v.Loc = loc
+	case *DropRepositoryStmt:
+		v.Loc = loc
+	case *CreateFileStmt:
+		v.Loc = loc
+	case *DropFileStmt:
+		v.Loc = loc
+	case *CreateResourceStmt:
+		v.Loc = loc
+	case *AlterResourceStmt:
+		v.Loc = loc
+	case *DropResourceStmt:
+		v.Loc = loc
+	case *CreateRowPolicyStmt:
+		v.Loc = loc
+	case *DropRowPolicyStmt:
+		v.Loc = loc
+	case *CreateEncryptKeyStmt:
+		v.Loc = loc
+	case *DropEncryptKeyStmt:
+		v.Loc = loc
+	case *DictionaryColumn:
+		v.Loc = loc
+	case *CreateDictionaryStmt:
+		v.Loc = loc
+	case *AlterDictionaryStmt:
+		v.Loc = loc
+	case *DropDictionaryStmt:
+		v.Loc = loc
+	case *RefreshDictionaryStmt:
+		v.Loc = loc
+	case *CreateRoleStmt:
+		v.Loc = loc
+	case *AlterRoleStmt:
+		v.Loc = loc
+	case *DropRoleStmt:
+		v.Loc = loc
+	case *UserIdentity:
+		v.Loc = loc
+	case *CreateUserStmt:
+		v.Loc = loc
+	case *AlterUserStmt:
+		v.Loc = loc
+	case *DropUserStmt:
+		v.Loc = loc
+	case *SetPasswordStmt:
+		v.Loc = loc
+	case *GrantStmt:
+		v.Loc = loc
+	case *RevokeStmt:
+		v.Loc = loc
+	case *BeginStmt:
+		v.Loc = loc
+	case *CommitStmt:
+		v.Loc = loc
+	case *RollbackStmt:
+		v.Loc = loc
+	case *ShowStmt:
+		v.Loc = loc
+	case *DescribeStmt:
+		v.Loc = loc
+	case *ExplainStmt:
+		v.Loc = loc
+	case *OptimizerTraceStmt:
+		v.Loc = loc
+	case *UseStmt:
+		v.Loc = loc
+	case *SetStmt:
+		v.Loc = loc
+	case *SetItem:
+		v.Loc = loc
+	case *UnsetStmt:
+		v.Loc = loc
+	case *HelpStmt:
+		v.Loc = loc
+	case *AdminStmt:
+		v.Loc = loc
+	case *SystemAlterStmt:
+		v.Loc = loc
+	case *CancelDecommissionStmt:
+		v.Loc = loc
+	case *BackupStmt:
+		v.Loc = loc
+	case *RestoreStmt:
+		v.Loc = loc
+	case *KillStmt:
+		v.Loc = loc
+	case *LockTablesStmt:
+		v.Loc = loc
+	case *LockItem:
+		v.Loc = loc
+	case *UnlockTablesStmt:
+		v.Loc = loc
+	case *InstallPluginStmt:
+		v.Loc = loc
+	case *UninstallPluginStmt:
+		v.Loc = loc
+	case *WarmUpStmt:
+		v.Loc = loc
+	case *CleanStmt:
+		v.Loc = loc
+	case *CancelStmt:
+		v.Loc = loc
+	case *RecoverStmt:
+		v.Loc = loc
+	case *JobSchedule:
+		v.Loc = loc
+	case *CreateJobStmt:
+		v.Loc = loc
+	case *AlterJobStmt:
+		v.Loc = loc
+	case *DropJobStmt:
+		v.Loc = loc
+	case *PauseJobStmt:
+		v.Loc = loc
+	case *ResumeJobStmt:
+		v.Loc = loc
+	case *CancelTaskStmt:
+		v.Loc = loc
+	case *ShowJobStmt:
+		v.Loc = loc
+	case *ShowJobTaskStmt:
+		v.Loc = loc
+	case *TaskSchedule:
+		v.Loc = loc
+	case *SubmitTaskStmt:
+		v.Loc = loc
+	case *DropTaskStmt:
+		v.Loc = loc
+	case *ShowConstraintsStmt:
+		v.Loc = loc
+	case *AnalyzeStmt:
+		v.Loc = loc
+	case *ShowAnalyzeStmt:
+		v.Loc = loc
+	case *ShowStatsStmt:
+		v.Loc = loc
+	case *DropStatsStmt:
+		v.Loc = loc
+	case *KillAnalyzeStmt:
+		v.Loc = loc
+	case *ProcedureParam:
+		v.Loc = loc
+	case *CreateProcedureStmt:
+		v.Loc = loc
+	case *DropProcedureStmt:
+		v.Loc = loc
+	case *RefreshExternalTableStmt:
+		v.Loc = loc
+	case *ExternalCatalogRef:
+		v.Loc = loc
+	case *CreateResourceGroupStmt:
+		v.Loc = loc
+	case *DropResourceGroupStmt:
+		v.Loc = loc
+	case *AlterResourceGroupStmt:
+		v.Loc = loc
+	case *CreateDataCacheRuleStmt:
+		v.Loc = loc
+	case *DropDataCacheRuleStmt:
+		v.Loc = loc
+	case *ClearDataCacheRulesStmt:
+		v.Loc = loc
+	case *CreatePipeStmt:
+		v.Loc = loc
+	case *DropPipeStmt:
+		v.Loc = loc
+	case *AlterPipeStmt:
+		v.Loc = loc
+	case *DescPipeStmt:
+		v.Loc = loc
+	case *AlterPlanAdvisorStmt:
+		v.Loc = loc
+	case *TruncatePlanAdvisorStmt:
+		v.Loc = loc
+	case *TranslateStmt:
+		v.Loc = loc
+	case *PrepareStmt:
+		v.Loc = loc
+	case *ExecuteStmt:
+		v.Loc = loc
+	case *DeallocateStmt:
+		v.Loc = loc
+	case *ExecuteAsStmt:
+		v.Loc = loc
+	case *BlacklistStmt:
+		v.Loc = loc
+	}
+}
+
 // SpanNodes returns the smallest Loc that covers every node in nodes.
 // Nil entries and nodes whose Loc is invalid are skipped. Returns NoLoc()
 // when no node has a valid Loc (including the empty-args case).

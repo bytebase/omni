@@ -69,38 +69,71 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 }
 
 // parsePreparedString parses the statement inside PREPARE's string literal,
-// which cur holds. It returns no node for a literal whose escapes keep its text
-// from mapping onto the source; the text is still validated, by the decoded
-// parse.
+// which cur holds, and reports it at the literal's own bytes.
+//
+// The literal's text is not the statement's text when it holds escapes, so the
+// decoded text is parsed and every node's Loc is then mapped back through the
+// escape table: the tree answers where in the statement each table, column and
+// operator stands, which is what a query span and a highlighter need.
 func (p *Parser) parsePreparedString() (ast.Node, error) {
 	rel := p.cur.Loc.Start - p.baseOffset
 	end := p.cur.Loc.End - p.baseOffset
-	if end > len(p.input) || end-rel < 2 {
+	if rel < 0 || end > len(p.input) || end-rel < 2 || p.input[rel] != '\'' || p.input[end-1] != '\'' {
 		return nil, p.syntaxErrorAtCur()
 	}
-	raw := p.input[rel+1 : end-1]
-	if strings.ContainsAny(raw, "\\'") || raw != p.cur.Str {
-		nested := parseAll(p.cur.Str, true, p.depth)
-		if len(nested.Errors) > 0 || nested.File == nil || len(nested.File.Stmts) != 1 {
-			return nil, &ParseError{
-				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: "PREPARE FROM string must hold one statement",
-			}
-		}
-		return nil, nil
-	}
-	node, errs := parseSingle(raw, p.cur.Loc.Start+1, true, p.depth, false)
+	text, at := decodePreparedString(p.input[rel+1:end-1], p.cur.Loc.Start+1)
+	node, errs := parseSingle(text, 0, true, p.depth, false)
 	if len(errs) > 0 || node == nil {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "PREPARE FROM string must hold one statement",
 		}
 	}
+	ast.Inspect(node, func(n ast.Node) bool {
+		loc := ast.NodeLoc(n)
+		if loc.IsValid() {
+			ast.SetNodeLoc(n, ast.Loc{Start: at(loc.Start), End: at(loc.End)})
+		}
+		return true
+	})
 	return node, nil
 }
 
-// parseExecute parses executeStatement (StarRocks.g4:2291):
-//
+// decodePreparedString decodes a single-quoted literal's content and returns,
+// for every byte of the result, the byte of the source it came from, base being
+// the source offset of the content. A doubled quote decodes to one quote at the
+// offset of the pair, and a backslash escape to the character after it.
+func decodePreparedString(raw string, base int) (string, func(int) int) {
+	var b strings.Builder
+	b.Grow(len(raw))
+	// starts[i] is the source offset of decoded byte i; starts[len] is the end.
+	starts := make([]int, 0, len(raw)+1)
+	for i := 0; i < len(raw); i++ {
+		switch {
+		case raw[i] == '\\' && i+1 < len(raw):
+			starts = append(starts, base+i)
+			b.WriteByte(raw[i+1])
+			i++
+		case raw[i] == '\'' && i+1 < len(raw) && raw[i+1] == '\'':
+			starts = append(starts, base+i)
+			b.WriteByte('\'')
+			i++
+		default:
+			starts = append(starts, base+i)
+			b.WriteByte(raw[i])
+		}
+	}
+	starts = append(starts, base+len(raw))
+	return b.String(), func(pos int) int {
+		if pos < 0 {
+			return -1
+		}
+		if pos >= len(starts) {
+			return starts[len(starts)-1]
+		}
+		return starts[pos]
+	}
+} // parseExecute parses executeStatement (StarRocks.g4:2291):
 //	EXECUTE identifier [USING '@'identifierOrString [',' '@'identifierOrString]*]
 //
 // On entry EXECUTE has NOT been consumed.
