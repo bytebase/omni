@@ -5440,6 +5440,46 @@
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW v AS SELECT T.* FROM a AS t
+< error
+| 1051 42S02 Unknown table 'T'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW v AS SELECT jt.* FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$')) AS jt
 < ok 0 0
 > exec

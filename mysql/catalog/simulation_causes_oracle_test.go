@@ -893,6 +893,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1051,
 		},
 		{
+			// The pin runs with lower_case_table_names=0: a name and an alias are
+			// compared as written.
+			name:  "CREATE VIEW whose qualified star differs in case from its alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT T.* FROM a AS t",
+			code:  1051,
+		},
+		{
 			name:  "CREATE VIEW whose qualified star names a JSON_TABLE alias",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT jt.* FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$')) AS jt",

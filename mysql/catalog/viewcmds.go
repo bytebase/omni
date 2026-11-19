@@ -299,12 +299,14 @@ func viewBlockStar(sel *nodes.SelectStmt, source string) error {
 }
 
 // starQualifier is the name a qualified star asks for: its table, qualified by
-// its schema when the star wrote one.
+// its schema when the star wrote one. A relation's name and alias are compared
+// as written: the pinned server runs with lower_case_table_names=0, where
+// `SELECT T.* FROM a AS t` is 1051 (mysql:8.0.46).
 func starQualifier(e *nodes.ColumnRef) string {
 	if e.Schema == "" {
-		return toLower(e.Table)
+		return e.Table
 	}
-	return toLower(e.Schema) + "." + toLower(e.Table)
+	return e.Schema + "." + e.Table
 }
 
 // blockRelationNames is the names a qualified star may carry in the block: each
@@ -318,22 +320,22 @@ func blockRelationNames(sel *nodes.SelectStmt) map[string]bool {
 			// An alias hides the name; without one the reference answers to its
 			// table name, and to the schema-qualified name too.
 			if e.Alias != "" {
-				names[toLower(e.Alias)] = true
+				names[e.Alias] = true
 				return
 			}
 			if e.Name != "" {
-				names[toLower(e.Name)] = true
+				names[e.Name] = true
 			}
 			if e.Schema != "" && e.Name != "" {
-				names[toLower(e.Schema)+"."+toLower(e.Name)] = true
+				names[e.Schema+"."+e.Name] = true
 			}
 		case *nodes.SubqueryExpr:
 			if e.Alias != "" {
-				names[toLower(e.Alias)] = true
+				names[e.Alias] = true
 			}
 		case *nodes.JsonTableExpr:
 			if e.Alias != "" {
-				names[toLower(e.Alias)] = true
+				names[e.Alias] = true
 			}
 		case *nodes.JoinClause:
 			add(e.Left)
