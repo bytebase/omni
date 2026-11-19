@@ -270,6 +270,11 @@ func (c *Catalog) roleInUse(name string) bool {
 			return true
 		}
 	}
+	for _, owner := range c.typeOwners {
+		if owner == name {
+			return true
+		}
+	}
 	return false
 }
 
@@ -330,7 +335,45 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 	for _, proc := range procs {
+		if deps := c.findNormalDependents('f', proc.OID); len(deps) > 0 {
+			if stmt.Behavior != nodes.DROP_CASCADE {
+				return errDependentObjects("function", proc.Name)
+			}
+			c.dropDependents('f', proc.OID)
+		}
 		c.removeFunction(proc.OID, proc.Name)
+	}
+	var typeObjects []nodes.Node
+	var ownedTypes []uint32
+	for oid, owner := range c.typeOwners {
+		if !owners[owner] {
+			continue
+		}
+		bt := c.typeByOID[oid]
+		if bt == nil {
+			delete(c.typeOwners, oid)
+			continue
+		}
+		schema := c.schemas[bt.Namespace]
+		if schema == nil {
+			continue
+		}
+		ownedTypes = append(ownedTypes, oid)
+		typeObjects = append(typeObjects, &nodes.TypeName{Names: &nodes.List{Items: []nodes.Node{
+			&nodes.String{Str: schema.Name}, &nodes.String{Str: bt.TypeName},
+		}}})
+	}
+	if len(typeObjects) > 0 {
+		if err := c.removeTypeObjects(&nodes.DropStmt{
+			RemoveType: int(nodes.OBJECT_TYPE),
+			Objects:    &nodes.List{Items: typeObjects},
+			Behavior:   int(stmt.Behavior),
+		}); err != nil {
+			return err
+		}
+	}
+	for _, oid := range ownedTypes {
+		delete(c.typeOwners, oid)
 	}
 	kept := c.grants[:0]
 	for _, g := range c.grants {
@@ -375,6 +418,11 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 	for _, proc := range c.userProcs {
 		if owners[proc.OwnerName] {
 			proc.OwnerName = newOwner
+		}
+	}
+	for oid, owner := range c.typeOwners {
+		if owners[owner] {
+			c.typeOwners[oid] = newOwner
 		}
 	}
 	return nil
@@ -435,6 +483,11 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for _, proc := range c.userProcs {
 		if proc.OwnerName == oldName {
 			proc.OwnerName = stmt.Newname
+		}
+	}
+	for oid, owner := range c.typeOwners {
+		if owner == oldName {
+			c.typeOwners[oid] = stmt.Newname
 		}
 	}
 	return nil

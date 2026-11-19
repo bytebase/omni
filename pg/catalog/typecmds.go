@@ -95,6 +95,8 @@ func (c *Catalog) DefineEnum(stmt *nodes.CreateEnumStmt) error {
 		labelMap[label] = ev
 	}
 
+	c.typeOwners[typeOID] = c.currentOwner()
+	c.typeOwners[arrayOID] = c.currentOwner()
 	// Register the enum type.
 	enumType := &BuiltinType{
 		OID:       typeOID,
@@ -468,6 +470,8 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 	if bt := c.typeByOID[baseOID]; bt != nil {
 		domCategory = bt.Category
 	}
+	c.typeOwners[typeOID] = c.currentOwner()
+	c.typeOwners[arrayOID] = c.currentOwner()
 	domType := &BuiltinType{
 		OID:       typeOID,
 		TypeName:  name,
@@ -830,6 +834,8 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
 
+	c.typeOwners[typeOID] = c.currentOwner()
+	c.typeOwners[arrayOID] = c.currentOwner()
 	// Register the range type.
 	rangeType := &BuiltinType{
 		OID:       typeOID,
@@ -1020,22 +1026,22 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	// Parse parameters.
 	// pg: src/backend/commands/typecmds.c — DefineType (foreach loop, line 282-339)
 	var (
-		internalLength int16 = -1    // default: variable-length
-		inputName      string        // required
-		outputName     string        // required
+		internalLength int16  = -1 // default: variable-length
+		inputName      string      // required
+		outputName     string      // required
 		receiveName    string
 		sendName       string
 		typmodinName   string
 		typmodoutName  string
 		analyzeFnName  string
-		category       byte   = 'U'  // TYPCATEGORY_USER
+		category       byte = 'U' // TYPCATEGORY_USER
 		preferred      bool
-		delimiter      byte   = ','  // DEFAULT_TYPDELIM
+		delimiter      byte = ',' // DEFAULT_TYPDELIM
 		elemType       uint32
 		defaultValue   string
 		byValue        bool
-		alignment      byte   = 'i'  // TYPALIGN_INT
-		storage        byte   = 'p'  // TYPSTORAGE_PLAIN
+		alignment      byte = 'i' // TYPALIGN_INT
+		storage        byte = 'p' // TYPSTORAGE_PLAIN
 		collation      uint32
 	)
 
@@ -1290,4 +1296,3 @@ func (c *Catalog) findProcByName(name string) uint32 {
 	}
 	return 0
 }
-

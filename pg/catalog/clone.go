@@ -388,6 +388,10 @@ func (c *Catalog) Clone() *Catalog {
 	for name := range c.roles {
 		clone.roles[name] = true
 	}
+	clone.typeOwners = make(map[uint32]string, len(c.typeOwners))
+	for oid, owner := range c.typeOwners {
+		clone.typeOwners[oid] = owner
+	}
 
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))
 	clone.accessMethodByName = make(map[string]*AccessMethod, len(c.accessMethodByName))
