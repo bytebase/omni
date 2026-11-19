@@ -387,21 +387,22 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	if err != nil {
 		return nil, err
 	}
+	// USING ICEBERG is the docs' other alternative: it takes LOCATION,
+	// PARTITIONED BY and TABLE PROPERTIES, and neither PostgreSQL's reloptions
+	// nor a table space. ICEBERG is the unquoted keyword there, so a quoted
+	// "iceberg" is a table access method's name.
+	iceberg := p.cur.Type == USING && p.redshiftTokIsWord(p.peekNext(), "iceberg")
 	accessMethod, err := p.parseOptAccessMethod()
 	if err != nil {
 		return nil, err
 	}
-	// USING ICEBERG is the docs' other alternative: it takes LOCATION,
-	// PARTITIONED BY and TABLE PROPERTIES, and neither PostgreSQL's reloptions
-	// nor a table space.
-	iceberg := strings.EqualFold(accessMethod, "iceberg")
 	var options *nodes.List
 	if !iceberg {
 		if options, err = p.parseOptReloptions(); err != nil {
 			return nil, err
 		}
 	}
-	options, err = p.parseRedshiftMaterializedViewOptionsInto(options, accessMethod)
+	options, err = p.parseRedshiftMaterializedViewOptionsInto(options, iceberg)
 	if err != nil {
 		return nil, err
 	}
@@ -429,8 +430,8 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 // USING ICEBERG form takes.
 //
 // Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
-func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, accessMethod string) (*nodes.List, error) {
-	if strings.EqualFold(accessMethod, "iceberg") {
+func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, iceberg bool) (*nodes.List, error) {
+	if iceberg {
 		// The Iceberg form is the docs' other alternative: it takes LOCATION,
 		// PARTITIONED BY and TABLE PROPERTIES in that order, and none of the
 		// ordinary clauses below.
@@ -456,13 +457,20 @@ func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.L
 	// still open: BACKUP, DISTSTYLE, DISTKEY, SORTKEY, AUTO REFRESH, in order.
 	stage := -1
 	for {
-		if p.collectMode() || p.cursorAfterCur() {
+		if p.collectMode() {
+			// The cursor is past the clause leads: offer what a stage allows.
 			p.addRedshiftMatViewTableOptionCandidates(stage)
 			return options, nil
 		}
 		switch {
 		case stage <= 0 && p.redshiftKeywordIs("backup"):
 			p.advance()
+			if p.collectMode() {
+				// BACKUP takes YES or NO, and the cursor is after the word.
+				p.addWordCandidate("YES")
+				p.addWordCandidate("NO")
+				return options, nil
+			}
 			// BACKUP takes YES or NO, and neither is a name.
 			if !p.redshiftKeywordIs("yes") && !p.redshiftKeywordIs("no") {
 				return nil, p.syntaxErrorAtCur()
@@ -472,6 +480,13 @@ func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.L
 			stage = 1
 		case stage <= 1 && p.redshiftKeywordIs("diststyle"):
 			p.advance()
+			if p.collectMode() {
+				// DISTSTYLE takes EVEN, ALL or KEY.
+				p.addWordCandidate("EVEN")
+				p.addWordCandidate("ALL")
+				p.addWordCandidate("KEY")
+				return options, nil
+			}
 			// DISTSTYLE takes EVEN, ALL or KEY, and none of them is a name.
 			var style string
 			switch {
@@ -516,6 +531,12 @@ func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.L
 			p.advance()
 			if _, err := p.expect(REFRESH); err != nil {
 				return nil, err
+			}
+			if p.collectMode() {
+				// AUTO REFRESH takes YES or NO.
+				p.addWordCandidate("YES")
+				p.addWordCandidate("NO")
+				return options, nil
 			}
 			enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
 			if err != nil {

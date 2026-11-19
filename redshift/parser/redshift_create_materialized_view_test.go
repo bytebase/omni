@@ -200,6 +200,9 @@ func TestRedshiftCreateMaterializedViewIcebergRejectsOtherTransforms(t *testing.
 // the keywords: a quoted "auto" or "diststyle" is no clause.
 func TestRedshiftCreateMaterializedViewQuotedOptionWords(t *testing.T) {
 	for _, sql := range []string{
+		// ICEBERG is the unquoted keyword, so a quoted "iceberg" is a table
+		// access method's name and takes no Iceberg clause.
+		`CREATE MATERIALIZED VIEW m USING "iceberg" LOCATION 'x' AS SELECT 1`,
 		// Each option takes its own alternatives.
 		"CREATE MATERIALIZED VIEW m BACKUP MAYBE AS SELECT 1",
 		"CREATE MATERIALIZED VIEW m DISTSTYLE NO AS SELECT 1",
@@ -241,6 +244,10 @@ func TestCollectMatViewTableOptions(t *testing.T) {
 	}{
 		{"CREATE MATERIALIZED VIEW m ", []string{"BACKUP", "DISTSTYLE", "DISTKEY", "SORTKEY", "AUTO REFRESH"}, nil},
 		{"CREATE MATERIALIZED VIEW m BACKUP YES ", []string{"DISTSTYLE", "AUTO REFRESH"}, []string{"BACKUP"}},
+		// After a clause lead, its own continuation comes before the rest.
+		{"CREATE MATERIALIZED VIEW m BACKUP ", []string{"YES", "NO"}, nil},
+		{"CREATE MATERIALIZED VIEW m DISTSTYLE ", []string{"EVEN", "ALL", "KEY"}, nil},
+		{"CREATE MATERIALIZED VIEW m AUTO REFRESH ", []string{"YES", "NO"}, nil},
 		{"CREATE MATERIALIZED VIEW m DISTSTYLE KEY DISTKEY (a) SORTKEY (b) ", []string{"AUTO REFRESH"}, []string{"BACKUP", "DISTKEY"}},
 	} {
 		cs := Collect(tc.sql, len(tc.sql))

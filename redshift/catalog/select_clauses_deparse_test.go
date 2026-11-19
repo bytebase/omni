@@ -744,6 +744,10 @@ CREATE MATERIALIZED VIEW base_mv BACKUP YES AS SELECT id FROM t;`)
 	for _, op := range plan.Ops {
 		if op.Type == OpComment && strings.Contains(op.SQL, "INDEX") && strings.Contains(op.SQL, "the index") {
 			found = true
+			// The index is schema-qualified by its own name.
+			if !strings.Contains(op.SQL, `"public"."idx_base"`) {
+				t.Fatalf("index comment = %q, want the index's own qualified name", op.SQL)
+			}
 		}
 	}
 	if !found {

@@ -579,7 +579,8 @@ func buildTriggerCommentOps(c *Catalog, rel *Relation, trig *Trigger) []Migratio
 // buildIndexCommentOps puts back the comments an index had, which its
 // re-creation has no diff entry to say.
 func buildIndexCommentOps(c *Catalog, rel *Relation, idx *Index) []MigrationOp {
-	desc := rel.Schema.Name + "." + rel.Name
+	// An index is schema-qualified by its own name, not by the relation's.
+	desc := rel.Schema.Name + "." + idx.Name
 	var keys []commentKey
 	for key, text := range c.comments {
 		if key.ObjType != 'i' || key.ObjOID != idx.OID || text == "" {
@@ -590,7 +591,7 @@ func buildIndexCommentOps(c *Catalog, rel *Relation, idx *Index) []MigrationOp {
 	sort.Slice(keys, func(i, j int) bool { return keys[i].SubID < keys[j].SubID })
 	var ops []MigrationOp
 	for _, key := range keys {
-		sql := formatCommentSQL(c, 'i', desc+"."+idx.Name, key.SubID, c.comments[key])
+		sql := formatCommentSQL(c, 'i', desc, key.SubID, c.comments[key])
 		if sql == "" {
 			continue
 		}
