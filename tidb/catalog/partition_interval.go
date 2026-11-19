@@ -22,6 +22,24 @@ import (
 // maxIntervalPartitions is TiDB's limit on a table's partitions, past which it answers 1499.
 const maxIntervalPartitions = 8192
 
+// firstColumnRef returns the first column reference in expr, or "" when expr
+// names none. A constant expression's column references are what TiDB's 1054
+// "Unknown column ... in 'expression'" answers for.
+func firstColumnRef(expr nodes.ExprNode) string {
+	if expr == nil {
+		return ""
+	}
+	name := ""
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+			name = ref.Column
+			return false
+		}
+		return true
+	})
+	return name
+}
+
 func errIntervalUnsupported(format string, args ...any) error {
 	return &Error{Code: 8200, SQLState: "HY000", Message: fmt.Sprintf(format, args...)}
 }
@@ -33,13 +51,23 @@ func applyPartitionInterval(tbl *Table, pc *nodes.PartitionClause, pi *Partition
 	if iv.First == nil || iv.Last == nil {
 		return errIntervalUnsupported("Unsupported INTERVAL partitioning, currently requires FIRST and LAST partitions to be defined")
 	}
+	// FIRST and LAST name bounds, which are constant expressions: a column in
+	// one is 1054 "Unknown column '<name>' in 'expression'" (read on v8.5.5).
+	// The INTERVAL step itself is not this rule's: a column there is refused as
+	// 8200 "Unsupported INTERVAL, should be a positive number".
+	for _, bound := range []nodes.ExprNode{iv.First, iv.Last} {
+		if name := firstColumnRef(bound); name != "" {
+			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+				Message: fmt.Sprintf("Unknown column '%s' in 'expression'", name)}
+		}
+	}
 	if len(pc.Columns) > 1 {
 		return errIntervalUnsupported("Unsupported INTERVAL partitioning, does not allow RANGE COLUMNS with more than one column")
 	}
 	var col *Column
 	if len(pc.Columns) == 1 {
 		if col = tbl.GetColumn(pc.Columns[0]); col == nil {
-			return &Error{Code: 1488, SQLState: "HY000", Message: "Field in list of fields for partition function not found in table"}
+			return &Error{Code: ErrPartitionFieldNotFound, SQLState: sqlState(ErrPartitionFieldNotFound), Message: "Field in list of fields for partition function not found in table"}
 		}
 	}
 	gen, known, err := generateIntervalPartitions(iv, col, tbl, pc)

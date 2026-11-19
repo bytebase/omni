@@ -572,6 +572,11 @@ func showTableOptions(tbl *Table, charset, collate string) string {
 	if tbl.PlacementPolicy != "" {
 		fmt.Fprintf(&b, " /*T![placement] PLACEMENT POLICY=%s */", quoteIdent(tbl.PlacementPolicy))
 	}
+	// CACHE goes last, after COMMENT and PLACEMENT POLICY, as v8.5.5 writes it
+	// (read on 2026-11-19). NOCACHE writes nothing.
+	if tbl.Cached {
+		b.WriteString(" /* CACHED ON */")
+	}
 	return b.String()
 }
 

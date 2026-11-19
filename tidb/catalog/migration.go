@@ -36,6 +36,16 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		return plan
 	}
 	g := &generator{plan: plan}
+	// TiDB refuses every DDL statement against a cached table (8242, measured
+	// on v8.5.5), DROP TABLE included, so a table cached in the source is
+	// uncached before anything else and one cached in the target is cached
+	// again once the plan is done. A table cached on both sides therefore
+	// brackets the rest of its changes.
+	for i := range diff.Tables {
+		if e := &diff.Tables[i]; e.From != nil && e.From.Cached {
+			g.add(OpAlterTable, e.From, alterTable(e.From, "NOCACHE"), "")
+		}
+	}
 	g.dropForeignKeys(diff, to)
 	g.dropViews(diff)
 	for i := range diff.Tables {
@@ -61,6 +71,11 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 	g.views(diff)
 	g.addForeignKeys(diff)
+	for i := range diff.Tables {
+		if e := &diff.Tables[i]; e.To != nil && e.To.Cached {
+			g.add(OpAlterTable, e.To, alterTable(e.To, "CACHE"), "")
+		}
+	}
 	return plan
 }
 

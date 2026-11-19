@@ -652,6 +652,9 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 // KEY, DROP key_or_index ident, DROP CHECK ident, DROP CONSTRAINT ident. KEY
 // is required after PRIMARY and FOREIGN, and only a column takes RESTRICT or
 // CASCADE. No arm takes IF EXISTS, which is MariaDB syntax.
+//
+// The keyword each arm read goes on the command, since DROP CHECK and DROP
+// CONSTRAINT are one action the engine answers with different codes.
 func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
 	p.advance() // consume DROP
 
@@ -685,6 +688,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		}
 		cmd.Type = nodes.ATDropConstraint
 		cmd.Name = "PRIMARY"
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordPrimaryKey
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 
@@ -713,6 +717,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordForeignKey
 		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -731,6 +736,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// DROP CHECK symbol
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordCheck
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -743,6 +749,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// DROP CONSTRAINT symbol
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordConstraint
 		// Completion: after DROP CONSTRAINT, offer constraint_ref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -902,12 +909,18 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// The enforcement is required, not optional: MySQL 8.0.46 answers 1064
 	// for `ALTER TABLE t ALTER CHECK ident` and for
 	// `ALTER TABLE t ALTER CONSTRAINT ident` with nothing after the name.
-	// CHECK and CONSTRAINT are the same clause spelled two ways.
+	// CHECK and CONSTRAINT are the same clause spelled two ways, and the
+	// keyword is recorded because the engine names the spelling it read when
+	// the constraint is not there: 3821 for CHECK, 3940 for CONSTRAINT.
 	//
 	// Ref: `ALTER check_constraint_keyword ident constraint_enforcement` in
 	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
 	// empty arm.
 	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordCheck
+		if p.cur.Type == kwCONSTRAINT {
+			cmd.ConstraintKeyword = nodes.ConstraintKeywordConstraint
+		}
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {

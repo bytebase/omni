@@ -194,7 +194,7 @@ func TestWTTiDBPolicy_RefValidation(t *testing.T) {
 
 // TestWTTiDBPolicy_DropInUseRejected verifies that DROP PLACEMENT
 // POLICY is rejected when any table or database still references it.
-// Mirrors TiDB error 8240.
+// Mirrors TiDB error 8241.
 func TestWTTiDBPolicy_DropInUseRejected(t *testing.T) {
 	c := New()
 	wtExecRaw(t, c, "CREATE PLACEMENT POLICY p1 PRIMARY_REGION = 'us'")
