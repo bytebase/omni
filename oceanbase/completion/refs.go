@@ -13,6 +13,9 @@ type TableRef struct {
 	Database string // database/schema qualifier
 	Table    string // table name
 	Alias    string // AS alias
+	// Remote is set for a reference another catalog holds or a database link
+	// reads: its columns are not the local catalog's, so completion offers none.
+	Remote bool
 }
 
 // extractTableRefs returns the table references visible at the cursor. It reads
@@ -196,7 +199,12 @@ func extractRefsFromTableExpr(te ast.TableExpr) []TableRef {
 	switch v := te.(type) {
 	case *ast.TableRef:
 		if v.Name != "" {
-			return []TableRef{{Database: v.Schema, Table: v.Name, Alias: v.Alias}}
+			return []TableRef{{
+				Database: v.Schema,
+				Table:    v.Name,
+				Alias:    v.Alias,
+				Remote:   v.Catalog != "" || v.Dblink != "",
+			}}
 		}
 	case *ast.JoinClause:
 		var refs []TableRef

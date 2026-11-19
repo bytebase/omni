@@ -223,10 +223,26 @@ func TestQuotedCollateRoundTrips(t *testing.T) {
 		t.Fatalf("Parse: %v", err)
 	}
 	sel := list.Items[0].(*ast.SelectStmt)
-	if got, want := DeparseSelect(sel), "select (`a` collate 'x y') AS `a COLLATE x y` from `t`"; got != want {
+	if got, want := DeparseSelect(sel), "select (`a` collate 'x y') AS `a COLLATE 'x y'` from `t`"; got != want {
 		t.Fatalf("DeparseSelect(%q) = %s, want %s", input, got, want)
 	}
 	if _, err := parser.Parse("SELECT a COLLATE 'x y' FROM t"); err != nil {
 		t.Fatalf("re-parse: %v", err)
+	}
+}
+
+// TestOrderByPositionIncludesCatalog pins that an ORDER BY naming a four-part
+// column matches the target with the same catalog, not a same-named column of
+// another catalog.
+func TestOrderByPositionIncludesCatalog(t *testing.T) {
+	list, err := parser.Parse("SELECT c1.d.t.a, c2.d.t.a FROM c1.d.t, c2.d.t ORDER BY c2.d.t.a")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*ast.SelectStmt)
+	RewriteSelectStmt(sel)
+	lit, ok := sel.OrderBy[0].Expr.(*ast.IntLit)
+	if !ok || lit.Value != 2 {
+		t.Fatalf("ORDER BY rewrote to %#v, want position 2", sel.OrderBy[0].Expr)
 	}
 }

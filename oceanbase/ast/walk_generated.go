@@ -757,6 +757,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+		for _, item := range n.ExtendedOptions {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Columns {
 			Walk(v, item)
 		}

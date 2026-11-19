@@ -337,6 +337,7 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 	for {
 		switch {
 		case p.cur.Type == kwLOGFILE:
+			start := p.pos()
 			p.advance()
 			p.match('=')
 			// STRING_VALUE, which the lexer folds adjacent quoted strings into:
@@ -346,7 +347,13 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 				return err
 			}
 			stmt.LogFile, stmt.HasLogFile = value, true
+			stmt.ExtendedOptions = append(stmt.ExtendedOptions, &nodes.LoadDataExtendedOption{
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
+				Kind:  "LOGFILE",
+				Value: value,
+			})
 		case p.isBareWord("REJECT") && p.peekNext().Type == kwLIMIT:
+			start := p.pos()
 			p.advance() // consume REJECT
 			p.advance() // consume LIMIT
 			p.match('=')
@@ -355,8 +362,15 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 			}
 			stmt.RejectLimit = int(p.cur.Ival)
 			stmt.HasRejectLimit = true
+			limit := p.cur.Str
 			p.advance()
+			stmt.ExtendedOptions = append(stmt.ExtendedOptions, &nodes.LoadDataExtendedOption{
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
+				Kind:  "REJECT LIMIT",
+				Value: limit,
+			})
 		case p.isBareWord("BADFILE"):
+			start := p.pos()
 			p.advance()
 			p.match('=')
 			value, err := p.parseIntoString()
@@ -364,6 +378,11 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 				return err
 			}
 			stmt.BadFile, stmt.HasBadFile = value, true
+			stmt.ExtendedOptions = append(stmt.ExtendedOptions, &nodes.LoadDataExtendedOption{
+				Loc:   nodes.Loc{Start: start, End: p.prev.End},
+				Kind:  "BADFILE",
+				Value: value,
+			})
 		default:
 			return nil
 		}

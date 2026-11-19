@@ -571,7 +571,8 @@ func selectItemPosition(expr ast.ExprNode, items []ast.ExprNode) int {
 			item = rt.Val
 		}
 		if col, ok := item.(*ast.ColumnRef); ok && !col.Star &&
-			strings.EqualFold(col.Column, ref.Column) && strings.EqualFold(col.Table, ref.Table) && strings.EqualFold(col.Schema, ref.Schema) {
+			strings.EqualFold(col.Column, ref.Column) && strings.EqualFold(col.Table, ref.Table) &&
+			strings.EqualFold(col.Schema, ref.Schema) && strings.EqualFold(col.Catalog, ref.Catalog) {
 			return i + 1
 		}
 	}

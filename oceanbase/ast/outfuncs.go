@@ -2307,6 +2307,16 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.HasBadFile {
 		fmt.Fprintf(sb, " :badfile %q", n.BadFile)
 	}
+	if len(n.ExtendedOptions) > 0 {
+		sb.WriteString(" :extended_options (")
+		for i, opt := range n.ExtendedOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			fmt.Fprintf(sb, "%s=%q", strings.ReplaceAll(opt.Kind, " ", "_"), opt.Value)
+		}
+		sb.WriteString(")")
+	}
 	sb.WriteString("}")
 }
 

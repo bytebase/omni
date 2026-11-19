@@ -12895,3 +12895,14 @@ func TestQuotedLeakOptionIsNoDumpMemory(t *testing.T) {
 		ParseExpectError(t, sql)
 	}
 }
+
+func TestRepeatedLoadDataOptionsAreKept(t *testing.T) {
+	got := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t LOGFILE 'a' LOGFILE 'b'").Items[0])
+	if !strings.Contains(got, `LOGFILE="a" LOGFILE="b"`) {
+		t.Errorf("repeated LOGFILE occurrences lost: %s", got)
+	}
+	one := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t LOGFILE 'b'").Items[0])
+	if one == got {
+		t.Errorf("one LOGFILE and two have the same tree: %s", one)
+	}
+}

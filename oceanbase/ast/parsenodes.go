@@ -2346,12 +2346,16 @@ type LoadDataStmt struct {
 	// error log file, the rejected-rows limit and the bad-rows file. A limit of
 	// 0 with HasRejectLimit set is REJECT LIMIT 0, and an empty path with
 	// HasLogFile set is LOGFILE ''.
-	LogFile            string
-	HasLogFile         bool
-	HasRejectLimit     bool
-	RejectLimit        int
-	BadFile            string
-	HasBadFile         bool
+	LogFile        string
+	HasLogFile     bool
+	HasRejectLimit bool
+	RejectLimit    int
+	BadFile        string
+	HasBadFile     bool
+	// ExtendedOptions holds load_data_extended_option_list in the order it was
+	// written. A statement may repeat an option, and the list is what keeps
+	// every occurrence; the scalar fields above keep the last one.
+	ExtendedOptions    []*LoadDataExtendedOption
 	RowsIdentifiedBy   string // ROWS IDENTIFIED BY '<tagname>' (XML only)
 	Columns            []ExprNode
 	SetList            []*Assignment
@@ -2363,6 +2367,19 @@ type LoadDataStmt struct {
 	FieldsEscapedBy    string
 	IgnoreRows         int
 }
+
+// LoadDataExtendedOption is one load_data_extended_option of LOAD DATA, in the
+// order written: LOGFILE [=] 'file', BADFILE [=] 'file', or REJECT LIMIT n.
+//
+// Ref: load_data_extended_option in sql_parser_mysql_mode.y (v4.3.5_CE_BP6,
+// lines 5455-5472).
+type LoadDataExtendedOption struct {
+	Loc   Loc
+	Kind  string // "LOGFILE", "BADFILE" or "REJECT LIMIT"
+	Value string // the path, or the limit's number as written
+}
+
+func (o *LoadDataExtendedOption) nodeTag() {}
 
 func (s *LoadDataStmt) nodeTag()  {}
 func (s *LoadDataStmt) stmtNode() {}

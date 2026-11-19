@@ -1176,7 +1176,11 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
 		writeExprAlias(b, n.Expr)
 		b.WriteString(" COLLATE ")
-		b.WriteString(n.Collation)
+		if n.Quoted {
+			b.WriteString(quoteStringValue(n.Collation))
+		} else {
+			b.WriteString(n.Collation)
+		}
 	case *ast.IntervalExpr:
 		// MySQL 8.0 auto-alias: "INTERVAL 1 DAY" — uppercase keywords.
 		b.WriteString("INTERVAL ")

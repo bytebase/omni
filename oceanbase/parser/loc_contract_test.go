@@ -250,6 +250,7 @@ var locSpanCases = []struct {
 	{"LoadDataStmt", "LOAD DATA INFILE '/tmp/x.csv' INTO TABLE t1", "LOAD DATA INFILE '/tmp/x.csv' INTO TABLE t1", 0},
 	{"LoadIndexIntoCacheStmt", "LOAD INDEX INTO CACHE t1", "LOAD INDEX INTO CACHE t1", 0},
 	{"LoadIndexTable", "LOAD INDEX INTO CACHE t1", "t1", 0},
+	{"LoadDataExtendedOption", "LOAD DATA INFILE '/tmp/x.csv' INTO TABLE t1 LOGFILE 'a'", "LOGFILE 'a'", 0},
 	{"LockInstanceStmt", "LOCK INSTANCE FOR BACKUP", "LOCK INSTANCE FOR BACKUP", 0},
 	{"LockTable", "LOCK TABLE t READ", "t READ", 0},
 	{"LockTablesStmt", "LOCK TABLE t READ", "LOCK TABLE t READ", 0},
