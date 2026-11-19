@@ -124,6 +124,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE TABLESPACE with a reserved name", "missing", "CREATE TABLESPACE pg_fast LOCATION '/tmp'", CodeReservedName},
 		{"CREATE INDEX with a missing tablespace and a table access method", "table", "CREATE INDEX i ON a USING heap(b) TABLESPACE a", CodeUndefinedObject},
 		{"ALTER TABLE ALL IN TABLESPACE OWNED BY a missing role", "missing", "ALTER TABLE ALL IN TABLESPACE pg_default OWNED BY a SET TABLESPACE pg_default", CodeUndefinedObject},
+		{"ALTER TABLE OWNER TO a missing role", "table", "ALTER TABLE a OWNER TO missing_role", CodeUndefinedObject},
+		{"ALTER INDEX RENAME to the table's own name", "table", "ALTER INDEX a RENAME TO a", CodeDuplicateTable},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -176,6 +178,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	t.Run("indexes follow the table owner", func(t *testing.T) {
 		c := New()
 		for _, stmt := range []string{
+			"CREATE ROLE alice",
 			"CREATE TABLE a (b int)",
 			"CREATE INDEX a_b_idx ON a(b)",
 			"ALTER TABLE a OWNER TO alice",
@@ -470,6 +473,26 @@ func TestSimulationCausesOracle(t *testing.T) {
 			if idx.Tablespace != "ts" {
 				t.Fatalf("partition index %s has tablespace %q, want ts", idx.Name, idx.Tablespace)
 			}
+		}
+	})
+
+	// A role that still owns a relation cannot be dropped.
+	t.Run("a role that owns a relation cannot be dropped", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE TABLE a (b int)",
+			"ALTER TABLE a OWNER TO alice",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("catalog answered %s, want %s", code, CodeDependentObjects)
+		}
+		if !c.roles["alice"] {
+			t.Fatal("a failed DROP ROLE removed alice")
 		}
 	})
 

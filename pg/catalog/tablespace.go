@@ -207,6 +207,23 @@ func (c *Catalog) DefineRole(stmt *nodes.CreateRoleStmt) error {
 	return nil
 }
 
+// roleInUse reports a relation or index the current schemas hold for a role.
+func (c *Catalog) roleInUse(name string) bool {
+	for _, schema := range c.schemas {
+		for _, rel := range schema.Relations {
+			if rel.OwnerName == name {
+				return true
+			}
+		}
+		for _, idx := range schema.Indexes {
+			if idx.OwnerName == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // RemoveRoles forgets DROP ROLE.
 func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 	if stmt.Roles == nil {
@@ -224,6 +241,9 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 				continue
 			}
 			return errUndefinedObject("role", name)
+		}
+		if c.roleInUse(name) {
+			return errDependentObjects("role", name)
 		}
 		names = append(names, name)
 	}

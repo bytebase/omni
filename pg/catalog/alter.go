@@ -236,22 +236,36 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. The one
 	// mutation this catalog cannot rebuild from another field is a stored
 	// tablespace, so it is restored if a later subcommand fails.
-	relTablespaces := map[*Relation]string{}
-	idxTablespaces := map[*Index]string{}
-	for _, s := range c.schemas {
-		for _, r := range s.Relations {
-			relTablespaces[r] = r.Tablespace
-		}
-		for _, idx := range s.Indexes {
-			idxTablespaces[idx] = idx.Tablespace
+	movesTablespace := false
+	for _, p := range pending {
+		if nodes.AlterTableType(p.cmd.Subtype) == nodes.AT_SetTableSpace {
+			movesTablespace = true
+			break
 		}
 	}
-	restoreTablespaces := func() {
-		for r, ts := range relTablespaces {
-			r.Tablespace = ts
+	var relTablespaces map[*Relation]string
+	var idxTablespaces map[*Index]string
+	restoreTablespaces := func() {}
+	if movesTablespace {
+		relTablespaces = map[*Relation]string{rel: rel.Tablespace}
+		for _, childOID := range c.findChildRelations(rel.OID) {
+			if child := c.relationByOID[childOID]; child != nil {
+				relTablespaces[child] = child.Tablespace
+			}
 		}
-		for idx, ts := range idxTablespaces {
-			idx.Tablespace = ts
+		idxTablespaces = map[*Index]string{}
+		for r := range relTablespaces {
+			for _, idx := range c.indexesByRel[r.OID] {
+				idxTablespaces[idx] = idx.Tablespace
+			}
+		}
+		restoreTablespaces = func() {
+			for r, ts := range relTablespaces {
+				r.Tablespace = ts
+			}
+			for idx, ts := range idxTablespaces {
+				idx.Tablespace = ts
+			}
 		}
 	}
 
@@ -567,7 +581,11 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_ChangeOwner:
 		if atc.Newowner != nil {
-			rel.OwnerName = c.ownerRoleName(atc.Newowner)
+			owner := c.ownerRoleName(atc.Newowner)
+			if err := c.checkRole(owner); err != nil {
+				return err
+			}
+			rel.OwnerName = owner
 			for _, idx := range c.indexesByRel[rel.OID] {
 				idx.OwnerName = rel.OwnerName
 			}
@@ -997,6 +1015,14 @@ func (c *Catalog) renameIndex(stmt *nodes.RenameStmt) error {
 
 	idx, err := c.findNamedIndex(schema, idxName)
 	if err != nil {
+		// PostgreSQL checks the rename target's name before it reports that
+		// the source is another kind: ALTER INDEX a RENAME TO a on table a
+		// is 42P07, not 42809.
+		if !missingObject(err) && newName != "" {
+			if _, held := relationNamespaceKind(schema, newName); held {
+				return errDuplicateTable(newName)
+			}
+		}
 		if stmt.MissingOk && missingObject(err) {
 			return nil
 		}

@@ -716,3 +716,21 @@
 | ALTER TABLE ALL IN TABLESPACE pg_default OWNED BY a SET TABLESPACE pg_default
 < error
 | 42704 role "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| ALTER TABLE a OWNER TO missing_role
+< error
+| 42704 role "missing_role" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| ALTER INDEX a RENAME TO a
+< error
+| 42P07 relation "a" already exists
