@@ -591,6 +591,19 @@ func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error
 	return stmt, nil
 }
 
+// sessionEndsWithEmptyOutline reports whether an ALTER SESSION SET's last
+// setting is one of the two outline settings, written with '=' and no value.
+func sessionEndsWithEmptyOutline(stmt *nodes.AlterSessionStmt) bool {
+	if stmt.Action != "SET" || stmt.SetParams == nil || stmt.SetParams.Len() == 0 {
+		return false
+	}
+	last, ok := stmt.SetParams.Items[stmt.SetParams.Len()-1].(*nodes.SetParam)
+	if !ok || last.Value != nil {
+		return false
+	}
+	return last.Name == "USE_PRIVATE_OUTLINES" || last.Name == "USE_STORED_OUTLINES"
+}
+
 // nextSelection returns the branch choices of the selection that follows
 // the one whose undecided $IF directives decided records in order, or nil
 // when none is left: the last $IF that can pass over one more undecided
@@ -830,7 +843,14 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 
 func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 	switch p.prev.Type {
-	case '(', ',', '.', '=', '+', '-', '/', tokASSIGN, tokASSOC, tokCONCAT:
+	case '=', tokASSIGN, tokASSOC:
+		// ALTER SESSION SET USE_PRIVATE_OUTLINES = ends the statement: the
+		// outline settings take no value (see parseAlterSessionSetParam).
+		if session, ok := stmt.(*nodes.AlterSessionStmt); ok && sessionEndsWithEmptyOutline(session) {
+			return false
+		}
+		return true
+	case '(', ',', '.', '+', '-', '/', tokCONCAT:
 		return true
 	}
 

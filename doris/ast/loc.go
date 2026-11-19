@@ -402,6 +402,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CreateProcedureStmt:
 		return v.Loc
+	case *AlterProcedureStmt:
+		return v.Loc
 	case *CallProcedureStmt:
 		return v.Loc
 	case *DropProcedureStmt:

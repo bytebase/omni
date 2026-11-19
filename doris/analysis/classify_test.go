@@ -54,6 +54,9 @@ func TestClassify(t *testing.T) {
 		{"ALTER TABLE t ADD COLUMN c INT", QueryTypeDDL},
 		{"alter table t drop column c", QueryTypeDDL},
 		{"DROP TABLE t", QueryTypeDDL},
+		// REPLACE leads a procedure statement alone (DorisParser.g4:43), so
+		// the keyword alone says DDL.
+		{"REPLACE PROCEDURE a()", QueryTypeDDL},
 		{"drop view v", QueryTypeDDL},
 		{"GRANT SELECT ON t TO u", QueryTypeDDL},
 		{"REVOKE INSERT ON t FROM u", QueryTypeDDL},
@@ -167,5 +170,33 @@ func TestClassifyStatementLoadProperty(t *testing.T) {
 		if got := ClassifyStatement(sql); got != QueryTypeDML {
 			t.Errorf("ClassifyStatement(%q) = %s, want DML", sql, got)
 		}
+	}
+}
+
+// COPY INTO loads a table from a stage, so the tree answers DML where the
+// keyword fallback does; the procedure statements are DDL, and SHOW CREATE
+// PROCEDURE is the info-schema read every SHOW is.
+func TestClassifyStatementCopyAndProcedures(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		want      QueryType
+	}{
+		{"COPY INTO t FROM @stage", QueryTypeDML},
+		{"COPY INTO t(c) FROM (SELECT a FROM @stage)", QueryTypeDML},
+		{"ALTER PROCEDURE a()", QueryTypeDDL},
+		{"CREATE PROCEDURE a()", QueryTypeDDL},
+		{"REPLACE PROCEDURE a()", QueryTypeDDL},
+		{"DROP PROC a", QueryTypeDDL},
+		{"SHOW CREATE PROCEDURE a", QueryTypeSelectInfoSchema},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			if got := ClassifyStatement(tc.statement); got != tc.want {
+				t.Errorf("ClassifyStatement(%q) = %s, want %s", tc.statement, got, tc.want)
+			}
+			// The keyword fallback answers the same, REPLACE included.
+			if got := Classify(tc.statement); got != tc.want {
+				t.Errorf("Classify(%q) = %s, want %s", tc.statement, got, tc.want)
+			}
+		})
 	}
 }

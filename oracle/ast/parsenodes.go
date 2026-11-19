@@ -1767,16 +1767,18 @@ func (n *AlterTableCmd) nodeTag() {}
 // DropStmt represents a DROP statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/DROP-TABLE.html
 type DropStmt struct {
-	ObjectType   ObjectType // what to drop
-	Names        *List      // object names (list of *ObjectName)
-	IfExists     bool       // IF EXISTS
-	Cascade      bool       // CASCADE CONSTRAINTS
-	Purge        bool       // PURGE (for tables)
-	Online       bool       // ONLINE (for DROP INDEX)
-	Force        bool       // FORCE (for DROP INDEX/INDEXTYPE/OPERATOR)
-	Validate     bool       // VALIDATE (for DROP TYPE)
-	Invalidation string     // "DEFERRED" or "IMMEDIATE" (for DROP INDEX)
-	Loc          Loc        // start location
+	ObjectType    ObjectType // what to drop
+	Names         *List      // object names (list of *ObjectName)
+	IfExists      bool       // IF EXISTS
+	Cascade       bool       // CASCADE CONSTRAINTS
+	Purge         bool       // PURGE (for tables)
+	Online        bool       // ONLINE (for DROP INDEX)
+	Force         bool       // FORCE (for DROP INDEX/INDEXTYPE/OPERATOR)
+	Validate      bool       // VALIDATE (for DROP TYPE)
+	Invalidation  string     // "DEFERRED" or "IMMEDIATE" (for DROP INDEX)
+	PreserveTable bool       // PRESERVE TABLE (for DROP MATERIALIZED VIEW)
+	ForPDB        string     // FOR PLUGGABLE DATABASE pdb_name (for DROP RESTORE POINT)
+	Loc           Loc        // start location
 }
 
 func (n *DropStmt) nodeTag()  {}
@@ -2867,6 +2869,7 @@ func (n *FlashbackDatabaseStmt) stmtNode() {}
 type PurgeStmt struct {
 	ObjectType ObjectType  // TABLE, INDEX, RECYCLEBIN, DBA_RECYCLEBIN
 	Name       *ObjectName // object name
+	User       string      // USER user: the schema whose objects in the tablespace are purged
 	Loc        Loc         // start location
 }
 

@@ -479,7 +479,7 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 				if err := p.expectWords("POINT"); err != nil {
 					return nil, err
 				}
-				return p.parseDropSimpleStmt(nodes.OBJECT_RESTORE_POINT, start)
+				return p.parseDropRestorePointStmt(start)
 			case "LOGICAL":
 				p.advance() // consume LOGICAL
 				if err := p.expectWords("PARTITION", "TRACKING"); err != nil {
@@ -948,8 +948,10 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 		p.advance()
 	}
 
-	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | NEIGHBOR PARTITIONS }:
-	// Oracle takes INMEMORY GRAPH without NEIGHBOR.
+	// ORGANIZATION { INMEMORY [ NEIGHBOR ] GRAPH | [ NEIGHBOR ] PARTITIONS }:
+	// Oracle takes INMEMORY GRAPH without NEIGHBOR, and PARTITIONS without it
+	// too (measured on the pinned server, where the page shows NEIGHBOR
+	// PARTITIONS alone).
 	if err := p.ixWord("ORGANIZATION"); err != nil {
 		return nil, err
 	}
@@ -968,6 +970,9 @@ func (p *Parser) parseCreateVectorIndexStmt(start int, ifNotExists bool) (*nodes
 		if err := p.ixWord("PARTITIONS"); err != nil {
 			return nil, err
 		}
+		stmt.Organization = "NEIGHBOR_PARTITIONS"
+	case p.isKeywordStr("PARTITIONS"):
+		p.advance()
 		stmt.Organization = "NEIGHBOR_PARTITIONS"
 	default:
 		return nil, p.syntaxErrorAtCur()

@@ -514,11 +514,30 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
+	}
+	// SERIAL implies a unique key, as it does on the CREATE TABLE path.
+	if isSerial {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 
 	// Process column-level constraints that produce indexes/constraints.
@@ -765,6 +784,27 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
+	}
+
+	// SERIAL implies a unique key here too: a replacement keeps the keys the
+	// old definition had and adds the new one's, so MODIFY of a SERIAL column
+	// leaves two unique keys. Measured on mysql:8.0.46.
+	if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 
 	// Handle repositioning.
@@ -1346,6 +1386,18 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
+		// CREATE TABLE path; addSingleColumn and alterReplaceColumn both add
+		// its unique key. An explicit NULL
+		// modifier stays: mysql:8.0.46 stores `ADD a SERIAL NULL` as a
+		// nullable auto_increment column (IS_NULLABLE YES), unlike
+		// `INT NULL AUTO_INCREMENT`.
+		if strings.EqualFold(colDef.TypeName.Name, "serial") {
+			col.DataType = "bigint"
+			col.ColumnType = "bigint unsigned"
+			col.AutoIncrement = true
+			col.Nullable = false
+		}
 		if isNationalStringType(colDef.TypeName.Name) {
 			col.Charset = "utf8mb3"
 		}
@@ -1359,6 +1411,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 			}
+		}
+		// A string type with CHARACTER SET binary is the binary type: MySQL
+		// stores `ADD a CHAR BYTE` and `ADD a CHAR COLLATE BINARY` as
+		// `a` binary(1), measured on mysql:8.0.46.
+		if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			col = convertToBinaryType(col, colDef.TypeName)
 		}
 	}
 

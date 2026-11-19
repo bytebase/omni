@@ -197,6 +197,128 @@ func TestSplit_UnclosedBlock(t *testing.T) {
 	}
 }
 
+// A procedure's free text is opaque (DorisParser.g4:43 leaves it to `.*?`),
+// so Parse reads it up to the boundary Split draws: an unclosed BEGIN in it
+// takes the statements after it, a block it closes leaves them their own, and a
+// ';' inside its parentheses separates nothing (SEMICOLON is otherwise only a
+// statement delimiter, DorisParser.g4:29-33).
+func TestProcedureTextFollowsSplit(t *testing.T) {
+	// A BEGIN in the free text opens a block only where a statement can begin,
+	// since it is also a column name: ALTER PROCEDURE a() zzz BEGIN x; is the
+	// text zzz and a column named BEGIN.
+	for _, sql := range []string{
+		"ALTER PROCEDURE a() BEGIN SELECT 1; END; SELECT 1;",
+		"CREATE PROCEDURE p(IN x INT, OUT y VARCHAR(50)) BEGIN SELECT 1; END; SELECT 1;",
+		"CREATE PROCEDURE p() COMMENT 'c' BEGIN SELECT 1; END; SELECT 1;",
+		"ALTER PROCEDURE a() COMMENT 'c' BEGIN SELECT 1; END; SELECT 2;",
+		"ALTER PROCEDURE a(x VARCHAR(50)) BEGIN SELECT 1; END; SELECT 2;",
+		"ALTER PROCEDURE a() BEGIN TRANSACTION; SELECT 1;",
+		"ALTER PROCEDURE a(); SELECT 1;",
+		"CREATE PROCEDURE a(x;y); SELECT 1;",
+		"ALTER PROCEDURE a(x;y) zzz; SELECT 1;",
+		"REPLACE PROC a(x;y); SELECT 1;",
+		"ALTER PROCEDURE a(BEGIN x); SELECT 1;",
+		// The `.*?` closes at the first ')', so a '(' inside it nests nothing.
+		"ALTER PROCEDURE a((x); SELECT 1;",
+		// A hint span is read past here as the parser reads past it.
+		"/*+ hint */ CREATE PROCEDURE a(x;y); SELECT 1;",
+		"CREATE PROCEDURE /*+ hint */ a(x;y); SELECT 1;",
+	} {
+		segments := Split(sql)
+		if len(segments) == 0 {
+			t.Errorf("Split(%q) found no segment", sql)
+		}
+		for _, segment := range segments {
+			if _, err := Parse(segment.Text); err != nil {
+				t.Errorf("Parse(Split(%q) segment %q) = %v, want it accepted", sql, segment.Text, err)
+			}
+		}
+	}
+
+	// ALTER and REPLACE reach a procedure only through PROCEDURE or PROC, and
+	// the name is multipartIdentifier (identifier ('.' identifier)*) whose first
+	// part a reserved keyword cannot be, so other statements keep their
+	// separators even when their text leaves a parenthesis open. So does a
+	// procedure's own parenthesis when it never closes.
+	for _, sql := range []string{
+		"ALTER TABLE t ADD COLUMN c DECIMAL(10; SELECT 1;",
+		"ALTER PROCEDURE a zzz (; SELECT 1;",
+		"ALTER PROCEDURE a. (; SELECT 1;",
+		"ALTER PROCEDURE SELECT (; SELECT 1;",
+		"ALTER PROCEDURE a(x; SELECT 1;",
+		// END CASE with no CASE open closes what it can, here the block, so
+		// the statement after it keeps its own segment.
+		"BEGIN SELECT 1; END CASE; SELECT 2;",
+	} {
+		if got := Split(sql); len(got) != 2 {
+			t.Errorf("Split(%q) = %+v, want 2 segments", sql, got)
+		}
+	}
+}
+
+// END IF, END LOOP and END CASE close their own statement, not the block, so a
+// procedure with control flow in its body stays one statement, as it does for
+// Parse.
+func TestSplitControlFlowEndInBody(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE p() BEGIN IF a THEN b; END IF; END; SELECT 1;",
+		"CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; END; SELECT 1;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END; SELECT 1;",
+		"ALTER PROCEDURE a() BEGIN WHILE b DO SET a = 1; END WHILE; END; SELECT 1;",
+		// An expression's CASE ends at a bare END, which closes the CASE and
+		// not the block, and a CASE branch holding a BEGIN gets its END back.
+		"REPLACE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END; SELECT 3; END; SELECT 4;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN BEGIN SELECT 1; END; END CASE; END; SELECT 2;",
+		// CASE, BEGIN and END after a dot are field names, not constructs.
+		"CREATE PROCEDURE p() BEGIN SELECT t.case FROM t; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT t.begin FROM t; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT t.end FROM t; END; SELECT 2;",
+		// So are BEGIN and END standing inside a statement, since both are
+		// non-reserved words Doris reads as identifiers.
+		"CREATE PROCEDURE p() BEGIN SELECT begin FROM t; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT end FROM t; END; SELECT 2;",
+		// A BEGIN a control-flow statement puts before its body still opens a
+		// block, and a named terminator inside a CASE closes its own statement.
+		"CREATE PROCEDURE p() BEGIN IF a THEN BEGIN SELECT 1; END; END IF; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN LOOP BEGIN SELECT 1; END; END LOOP; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN lbl: BEGIN SELECT 1; END; END; SELECT 2;",
+		// NULL and CURRENT_DATE end an operand, so the CASE's END closes it.
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN NULL END; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN CURRENT_DATE END; END; SELECT 2;",
+		// A unary operator and a predicate operator leave an operand due too.
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN ! end THEN CASE WHEN 1 THEN 2 END ELSE 3 END; END; SELECT 9;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 'x' REGEXP end THEN CASE WHEN 1 THEN 2 END ELSE 3 END; END; SELECT 9;",
+		// A declaration's own body opens after what it ends with, and a type
+		// parenthesis closes the parameter list early.
+		"CREATE PROCEDURE p() BEGIN DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN SELECT 1; END; SELECT 2; END; SELECT 3;",
+		"CREATE PROCEDURE p(x VARCHAR(50), y INT) BEGIN SELECT 1; END; SELECT 2;",
+		// BEGIN after a statement's first word names a column.
+		"ALTER PROCEDURE a() SELECT begin FROM t; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN IF b THEN SET x = 1; END IF; END CASE; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN LOOP SET x = 1; END LOOP; END CASE; END; SELECT 2;",
+		// An END naming a column inside a CASE branch, and an expression CASE
+		// whose item is aliased LOOP: the END closes the CASE the word after it
+		// is not the terminator of.
+		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SELECT end FROM t; END CASE; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END loop; END; SELECT 2;",
+		// A CASE nested in an expression's branch is an expression too, and
+		// begin and end stand in it as column names.
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN CASE WHEN 2 THEN 3 END END; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN begin ELSE 2 END; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN end THEN CASE WHEN 1 THEN 2 END ELSE 3 END; END; SELECT 9;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END + 1; END; SELECT 2;",
+	} {
+		segments := Split(sql)
+		if len(segments) != 2 {
+			t.Errorf("Split(%q) = %d segments, want 2", sql, len(segments))
+			continue
+		}
+		if _, err := Parse(segments[0].Text); err != nil {
+			t.Errorf("Parse(%q) = %v, want it accepted", segments[0].Text, err)
+		}
+	}
+}
+
 func TestSplit_TrailingWhitespaceAfterSemi(t *testing.T) {
 	// Whitespace-only content after the last `;` should NOT produce a
 	// trailing segment (filtered by Empty()).

@@ -211,6 +211,15 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 	return Token{}, p.syntaxErrorAtCur()
 }
 
+// textBetween returns the source text between two byte offsets, or "" for
+// offsets outside the text the parser was given.
+func (p *Parser) textBetween(start, end int) string {
+	if start < p.baseOffset || end < start || end > len(p.input)+p.baseOffset {
+		return ""
+	}
+	return p.input[start-p.baseOffset : end-p.baseOffset]
+}
+
 // syntaxErrorAtCur returns a *ParseError describing a syntax error at
 // the current token position.
 func (p *Parser) syntaxErrorAtCur() *ParseError {
@@ -358,8 +367,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
 			return p.parseCreateMTMV(createTok.Loc)
-		case kwPROCEDURE:
-			return p.parseCreateProcedure(createTok.Loc, false)
+		case kwPROCEDURE, kwPROC:
+			return p.parseCreateProcedure(createTok.Loc, false, false)
 		case kwFUNCTION, kwAGGREGATE, kwALIAS, kwGLOBAL, kwTABLES, kwSESSION, kwLOCAL:
 			// CREATE SESSION and CREATE LOCAL lead only a function.
 			return p.parseCreateFunction(createTok.Loc)
@@ -369,8 +378,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			if _, err := p.expect(kwREPLACE); err != nil {
 				return nil, err
 			}
-			if p.cur.Kind == kwPROCEDURE {
-				return p.parseCreateProcedure(createTok.Loc, true)
+			if p.cur.Kind == kwPROCEDURE || p.cur.Kind == kwPROC {
+				return p.parseCreateProcedure(createTok.Loc, true, false)
 			}
 			return p.parseCreateView(createTok.Loc, true)
 		case kwSTORAGE:
@@ -452,6 +461,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterSystemStmt(alterTok.Loc)
 		case kwJOB:
 			return p.parseAlterJob(p.prev.Loc)
+		case kwPROCEDURE, kwPROC:
+			return p.parseAlterProcedure(alterTok.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -524,7 +535,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwANALYZE:
 			p.advance() // consume ANALYZE
 			return p.parseDropStats(dropTok.Loc, "ANALYZE JOB")
-		case kwPROCEDURE:
+		case kwPROCEDURE, kwPROC:
 			return p.parseDropProcedure(dropTok.Loc)
 		case kwFUNCTION, kwGLOBAL, kwSESSION, kwLOCAL:
 			return p.parseDropFunction(dropTok.Loc)
@@ -570,6 +581,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwMERGE:
 		mergeTok := p.advance() // consume MERGE; cur is now INTO
 		return p.parseMergeStmt(mergeTok.Loc)
+	case kwREPLACE:
+		// REPLACE (PROCEDURE | PROC) ... (DorisParser.g4:43). The CUP parser's
+		// REPLACE INTO statement is not in the ANTLR grammar, so a REPLACE
+		// that does not name a procedure is a syntax error.
+		replaceTok := p.advance() // consume REPLACE
+		return p.parseCreateProcedure(replaceTok.Loc, false, true)
 	case kwCALL:
 		return p.parseCallProcedure()
 

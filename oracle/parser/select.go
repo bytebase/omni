@@ -1296,6 +1296,12 @@ func (p *Parser) isTableAliasCandidate() bool {
 	if p.cur.Type == kwPIVOT && !p.pivotClauseAhead() || p.cur.Type == kwUNPIVOT && !p.unpivotClauseAhead() {
 		return true
 	}
+	// NATURAL names an alias where no join follows: FROM t NATURAL parses on
+	// Oracle 23ai, and so does DELETE a FROM t NATURAL, where the natural
+	// join is only the one that JOIN, INNER, LEFT, RIGHT or FULL continues.
+	if p.cur.Type == kwNATURAL && !p.naturalJoinAhead() {
+		return true
+	}
 	if p.cur.Type == tokIDENT {
 		switch strings.ToUpper(p.cur.Str) {
 		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",

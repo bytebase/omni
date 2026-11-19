@@ -107,6 +107,60 @@ category word (byte 11), as `COMMENT.bnf` says.
   owns after each statement that ran. The judge cannot kill a process there,
   so a statement Oracle never answers fails the recording.
 
+## Rows only Oracle accepts, measured
+
+The 129 rows whose cells are `reject` where Oracle says `accept` were each
+measured on the pinned server at judge revision 3: #1438, #1436 and #1445
+measured the families they name, #1450 the rest of its own, and a follow-up
+after #1450 measured what was left. None is a form omni can read: Oracle
+answers a name it looks up, a kind of object that does not take the clause, or
+a check of the parsed statement, and never reaches the tokens the row was
+generated from. A byte is `DBMS_SQL.LAST_ERROR_POSITION`.
+
+| Cause | Rows | Oracle's answer |
+| --- | --- | --- |
+| `suite:reference` | 16 | refused, or `INVALID` (`PLS-00589`); only `PLS-001xx` counts as syntax |
+| `ALTER MATERIALIZED VIEW ... SUBPARTITIONS 1 ...` | 12 | `ORA-14156` at `SUBPARTITIONS` (52) |
+| `GRANT`/`REVOKE` to and from program units | 32 | `ORA-28700`, `ORA-28701` at 0: no role list is read |
+| `GRANT a TO a, a zzz`, `... BY a`, `... IDENTIFIED BY a,` | 4 | `ORA-01700` at 14, `ORA-03001` at 13, `ORA-00989` at 28 |
+| `ALTER TABLE ... UPGRADE [NOT] INCLUDING DATA` | 5 | `ORA-01735` at 0 on `t`; no column property is read |
+| `MODIFY [SUB]PARTITION a LOB(a(RETENTION)` | 3 | `ORA-03059` at `LOB` (25, 37, 40) |
+| `ALTER TABLE a MODIFY (PARTITION PARTITION)` | 1 | `ORA-00904` at `PARTITION` (21) on `t` |
+| `ALTER TABLE a ADD (a NUMBER, a` | 1 | `ORA-00957` at 28 (a column named twice) |
+| `CREATE MATERIALIZED VIEW LOG ON a ...` | 4 | `ORA-00942` at 0 (3); `ORA-14017` at the end of the truncated bound (1) |
+| `CREATE MATERIALIZED VIEW a ...` | 5 | `ORA-02538` for `TABLESPACE SET` (2); `ORA-14030` or `ORA-14017` (2); `ORA-00904`/`ORA-22912` at the nested column (1) |
+| `CREATE TABLE a (PARTITION ...)` | 5 | `ORA-00902` at 25: `PARTITION` is a column, the next word its datatype |
+| `CREATE TABLE a PARTITION BY RANGE (a) (PARTITION VALUES LESS THAN (1,` | 1 | `ORA-14017` at 66 |
+| `CREATE TABLE ... LOB (a) STORE AS ...` on a hash partition | 2 | `ORA-22877` at 74, 76 |
+| `CREATE TABLE a COLUMN a IS OF (a)` | 1 | `ORA-03001` at 32 |
+| `CREATE TABLE a INMEMORY INMEMORY NO` | 1 | `ORA-64350` at 33 (one in-memory clause) |
+| `CREATE TABLE a ORGANIZATION EXTERNAL (TYPE a` | 1 | `ORA-29829` at 13 (no such implementation type) |
+| `CREATE TABLESPACE SET a USING TEMPLATE (` | 4 | `ORA-02199` at the end (3); `ORA-25147` at 75 (1) |
+| `CREATE SCHEMA AUTHORIZATION a ...` | 3 | `ORA-02421` at 0 (no such user) |
+| `CREATE TYPE BODY`/`FUNCTION`/`PACKAGE`/`PROCEDURE` `a.name` | 6 | `ORA-01435` at 0 (no such user) |
+| `ADMINISTER KEY MANAGEMENT ...` | 5 | `ORA-46603`, `ORA-46601` at the command word (2); `ORA-01031` at 0 (3) |
+| `ALTER DISKGROUP a REBALANCE ...` | 2 | `ORA-15260` at 0 (permission on the disk group) |
+| `CREATE LIBRARY a IS 's' SHARING =` | 1 | `ORA-24344` at 0 (compiled with errors) |
+| `CREATE AUDIT POLICY a ACTIONS COMPONENT =` | 1 | `ORA-46373` at 0 (no audit option) |
+| `CREATE MLE MODULE a LANGUAGE JAVASCRIPT AS` | 1 | `ORA-04125` at 0 (empty module) |
+| `DROP CONTEXT` | 1 | `ORA-01804` at 12, the end (time zone files) |
+| `LOCK TABLE a PARTITION (1)` / `SUBPARTITION (1)` | 2 | `ORA-00942` at 11; on a partitioned table `ORA-14108`, `ORA-14173` at the number |
+| `SELECT`/`DELETE` ... `EXTERNAL ((a NUMBER, a` | 2 | `ORA-00957` at 34 |
+| `CREATE CLUSTER a (a NUMBER, a` | 1 | `ORA-00957` at 27 |
+| `CREATE VECTOR INDEX a ON a (a) INCLUDE (a` | 1 | `ORA-00957` at 38 |
+| `CREATE PROPERTY GRAPH a ... EDGE TABLES (a` | 1 | `ORA-42404` at 53 (a graph table named twice) |
+| `MERGE INTO a` / `MERGE INTO USING s ...` | 2 | `ORA-38107` at 0 (no `USING`); `ORA-00942` at 11 |
+| `SELECT * FOR UPDATE WAIT` | 1 | `ORA-30020` at 24, the end |
+| `ASSOCIATE STATISTICS ... USING a` | 1 | `ORA-29820` at 0 (no statistics type) |
+
+Two families are left as rows for another reason. `TABLESPACE SET` in a
+materialized view or its log answers `ORA-02538` at the clause (byte 0 in the
+log's), which is this server's setup: it has no sharding and cannot create a
+tablespace set (`CREATE TABLESPACE SET ... ORA-02537`). The tablespace-set
+template rows do not set the clause at all, so their `ORA-02199` is the
+missing `DATAFILE` the truncated text leaves.
+
+
 ## Tapes
 
 Every other test that asked Oracle replays a tape through
