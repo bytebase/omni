@@ -3,12 +3,14 @@ package catalog
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 // TestSimulationCausesOracle holds the refusals testdata/simulate.tsv records to
@@ -24,7 +26,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2", "DROP EVENT IF EXISTS e"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -1237,6 +1239,157 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE z (a INT INVISIBLE) AS SELECT 1 AS b;",
 			code: 0,
 		},
+		{
+			// MySQL resolves a collation name while it parses, so a name it does
+			// not have is 1273 before the table is looked up: utf8mb4 is a
+			// character set and no collation.
+			name:  "COLLATE a character set name as a collation",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4",
+			code:  1273,
+		},
+		{
+			name:  "COLLATE an unknown collation on a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD c2 INT COLLATE utf8mb4",
+			code:  1273,
+		},
+		{
+			// The lookup answers before the trailing token a statement reads past
+			// the name: this text does not parse, and MySQL still answers 1273.
+			name:  "an unknown collation before a syntax error",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4 zzz",
+			code:  1273,
+		},
+		{
+			// A collation the server does have is read, and the trailing zzz is
+			// the 1064 it is.
+			name:  "a known collation before a syntax error",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4_bin zzz",
+			code:  1064,
+		},
+		{
+			// A CTAS body is read after the table's own name: a table that is not
+			// there leaves the body's column to answer 1054.
+			name: "CREATE TABLE AS SELECT a column no table has",
+			stmt: "CREATE TABLE z SELECT nosuchcol",
+			code: 1054,
+		},
+		{
+			// A star with no table to expand is 1096, as it is in a view body.
+			name: "CREATE TABLE AS SELECT a star with no table",
+			stmt: "CREATE TABLE z AS SELECT *",
+			code: 1096,
+		},
+		{
+			name:  "CREATE TABLE AS SELECT over the table it makes",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a SELECT nosuchcol",
+			code:  1050,
+		},
+		{
+			name: "CREATE TABLE AS SELECT a body it takes",
+			stmt: "CREATE TABLE z AS SELECT 1 AS b",
+			code: 0,
+		},
+		{
+			// Declaring the columns does not keep the body from being read.
+			name: "CREATE TABLE with columns AS SELECT a column no table has",
+			stmt: "CREATE TABLE z (a INT) AS SELECT nosuchcol",
+			code: 1054,
+		},
+		{
+			name: "CREATE TABLE with columns AS SELECT a body it takes",
+			stmt: "CREATE TABLE z (a INT) AS SELECT 1",
+			code: 0,
+		},
+		{
+			// An event's schedule sees no table, so a column reference names
+			// nothing: 1054, before the event's own name is looked up.
+			name:  "an event schedule naming a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE EVENT e ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "an event schedule it takes",
+			setup: []string{oneTable},
+			stmt:  "CREATE DEFINER = root EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO COMMIT",
+			code:  0,
+		},
+		{
+			// ALTER EVENT reads the schedule the same way, before the event.
+			name:  "ALTER EVENT's schedule naming a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER EVENT e ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "ALTER EVENT's schedule over an event that is not there",
+			setup: []string{oneTable},
+			stmt:  "ALTER EVENT nosuchevent ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "ALTER EVENT's schedule it takes",
+			setup: []string{oneTable, "CREATE EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO COMMIT"},
+			stmt:  "ALTER EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY DO COMMIT",
+			code:  0,
+		},
+		{
+			// InnoDB refuses ROW_FORMAT FIXED and COMPRESSION, and a table that
+			// names no engine is InnoDB's.
+			name:  "ROW_FORMAT FIXED on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED",
+			code:  1478,
+		},
+		{
+			name:  "COMPRESSION on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION 's'",
+			code:  1478,
+		},
+		{
+			// An empty COMPRESSION is a value InnoDB takes: it is the option
+			// written with no value, not a value the engine refuses.
+			name:  "an empty COMPRESSION on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION=''",
+			code:  0,
+		},
+		{
+			// ZLIB, LZ4 and NONE are InnoDB's page compression and its off
+			// switch, so the option is refused on the value and not on the name.
+			name:  "COMPRESSION ZLIB on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION='ZLIB'",
+			code:  0,
+		},
+		{
+			name:  "COMPRESSION none on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION='none'",
+			code:  0,
+		},
+		{
+			// The row option is judged after the statement's other commands.
+			name:  "ROW_FORMAT FIXED beside a key on a column that is not there",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED, ADD KEY(zzz)",
+			code:  1072,
+		},
+		{
+			// The engine is the one the statement leaves, so MyISAM takes it and
+			// MySQL stores the table it makes.
+			name:     "ROW_FORMAT FIXED on MyISAM",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ENGINE=MyISAM, ROW_FORMAT FIXED",
+			code:     0,
+			contains: []string{"ENGINE=MyISAM"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1349,6 +1502,13 @@ func simulationEngineRefusal(t *testing.T, stmt string, err error) (int, string)
 func simulationCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, string) {
 	t.Helper()
 	results, err := c.Exec(stmt, nil)
+	var syntax *mysqlparser.ParseError
+	if errors.As(err, &syntax) {
+		// A statement the parser refuses is the code it recorded, 1064 for a
+		// syntax error: see mysql/catalog/simulate_test.go's parseCode.
+		code, _ := strconv.Atoi(parseCode(syntax))
+		return code, syntax.Message
+	}
 	if err != nil {
 		t.Fatalf("Exec(%q): %v", stmt, err)
 	}
