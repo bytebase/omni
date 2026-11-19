@@ -1539,6 +1539,8 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			Name:             partIdxName,
 			Schema:           schema,
 			RelOID:           partition.OID,
+			Tablespace:       idx.Tablespace,
+			OwnerName:        partition.OwnerName,
 			Columns:          partAttnums,
 			IsUnique:         idx.IsUnique,
 			IsPrimary:        idx.IsPrimary,

@@ -29,6 +29,21 @@ func (c *Catalog) effectiveTablespace(name string) string {
 	return c.defaultTablespace
 }
 
+// effectiveIndexTablespace is effectiveTablespace for an index: with no
+// clause and no session default, an index takes its table's tablespace.
+func (c *Catalog) effectiveIndexTablespace(name string, rel *Relation) string {
+	if name != "" {
+		return name
+	}
+	if c.defaultTablespace != "" {
+		return c.defaultTablespace
+	}
+	if rel != nil {
+		return rel.Tablespace
+	}
+	return ""
+}
+
 // normalizeTablespace stores the default tablespace as "", the way a
 // relation created without a TABLESPACE clause holds it.
 func normalizeTablespace(name string) string {
@@ -197,6 +212,7 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 	if stmt.Roles == nil {
 		return nil
 	}
+	var names []string
 	for _, item := range stmt.Roles.Items {
 		rs, ok := item.(*nodes.RoleSpec)
 		if !ok {
@@ -209,6 +225,9 @@ func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 			}
 			return errUndefinedObject("role", name)
 		}
+		names = append(names, name)
+	}
+	for _, name := range names {
 		delete(c.roles, name)
 	}
 	return nil

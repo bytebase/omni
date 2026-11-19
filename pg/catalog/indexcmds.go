@@ -51,7 +51,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		return errWrongObjectType(rv.Relname, "a table or materialized view")
 	}
 
-	effectiveTablespace := c.effectiveTablespace(stmt.TableSpace)
+	effectiveTablespace := c.effectiveIndexTablespace(stmt.TableSpace, rel)
 	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}

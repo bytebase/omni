@@ -120,7 +120,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 	}
 
-	effectiveTablespace := c.effectiveTablespace(def.IndexSpace)
+	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
 	if existingIdx == nil {
 		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 			return err
@@ -605,7 +605,7 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 
 	// Create backing index.
-	effectiveTablespace := c.effectiveTablespace(def.IndexSpace)
+	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
 	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}

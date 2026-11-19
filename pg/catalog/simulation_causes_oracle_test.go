@@ -432,6 +432,61 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// An index with no tablespace follows its table's tablespace.
+	t.Run("an index follows its table's tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE a (b int) TABLESPACE ts",
+			"CREATE INDEX a_b_idx ON a(b)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if idx := c.schemaByName["public"].Indexes["a_b_idx"]; idx == nil || idx.Tablespace != "ts" {
+			t.Fatal("the index did not take its table's tablespace")
+		}
+	})
+
+	// A partition's cloned index keeps the parent index's tablespace.
+	t.Run("a partition index keeps the parent index's tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE p (b int) PARTITION BY RANGE (b) TABLESPACE ts",
+			"CREATE INDEX p_b_idx ON p(b)",
+			"CREATE TABLE c PARTITION OF p FOR VALUES FROM (0) TO (10)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		part := c.schemaByName["public"].Relations["c"]
+		if part == nil {
+			t.Fatal("partition c was not created")
+		}
+		for _, idx := range c.indexesByRel[part.OID] {
+			if idx.Tablespace != "ts" {
+				t.Fatalf("partition index %s has tablespace %q, want ts", idx.Name, idx.Tablespace)
+			}
+		}
+	})
+
+	// A multi-role DROP resolves every role before removing any.
+	t.Run("a failed DROP ROLE leaves the earlier roles", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, "CREATE ROLE alice"); code != "0" {
+			t.Fatalf("catalog refused CREATE ROLE with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP ROLE alice, missing"); code != CodeUndefinedObject {
+			t.Fatalf("catalog answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if !c.roles["alice"] {
+			t.Fatal("a failed DROP ROLE removed alice")
+		}
+	})
+
 	// A failed constraint tablespace check leaves the column as it was.
 	t.Run("a failed primary key tablespace check keeps the column nullable", func(t *testing.T) {
 		c := New()

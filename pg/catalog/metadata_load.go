@@ -50,7 +50,6 @@ type LoadMetadataReport struct {
 // View bodies are analyzed as they install, so set the search path and session
 // user before loading. The error is non-nil only when ctx is done.
 func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchemaMetadata, opts LoadMetadataOptions) (*LoadMetadataReport, error) {
-	c.snapshot = true
 	report := &LoadMetadataReport{
 		Degraded: make(map[string]error),
 		Missing:  make(map[string]error),
@@ -58,6 +57,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
+	c.snapshot = true
 	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
 		if err := c.installGroup(ctx, group, opts.Full, report); err != nil {
 			return report, err
