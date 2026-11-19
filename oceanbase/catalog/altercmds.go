@@ -186,7 +186,8 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 				for _, name := range cmd.ConstraintNames {
 					key := toLower(name)
 					if !tableHasConstraint(tbl, name) || seen[key] {
-						return errCantDropKey(name)
+						// Both list forms answer 3821 for a name no constraint has.
+						return errCheckConstraintNotFound(name)
 					}
 					seen[key] = true
 				}

@@ -103,7 +103,12 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
 		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
-		*ast.MethodOptStmt:
+		*ast.MethodOptStmt,
+		// A catalog's own statements and PURGE change no table, column or index
+		// the walk keeps: the first manage catalogs, the second empties the
+		// recycle bin.
+		*ast.CatalogStmt, *ast.PurgeStmt, *ast.FlashbackStmt, *ast.RestorePointStmt, *ast.DatabaseLinkStmt,
+		*ast.DumpMemoryStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// RENAME USER and SET PASSWORD join the other user statements:

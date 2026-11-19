@@ -119,6 +119,11 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 	}
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
+		// An unqualified column of a relation whose schema is unknown resolves
+		// when that relation is the only source: nothing else can hold it.
+		if idx, ok := scope.soleUnknownColumnRTE(); ok {
+			return &VarExprQ{RangeIdx: idx, Name: ref.Column}, nil
+		}
 		if te, levels := scope.selectAlias(ref.Column); te != nil {
 			if levels > 0 {
 				// The alias belongs to a query around this one, so its expression

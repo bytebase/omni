@@ -2987,20 +2987,19 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 				b.WriteString(",")
 			}
 			writeExpr(b, arg)
+			// LEAD and LAG write RESPECT/IGNORE NULLS after their first argument,
+			// `lead(a ignore nulls, 2)`.
+			if i == 0 && (name == "LEAD" || name == "LAG") && n.NullTreatment != "" {
+				b.WriteString(" ")
+				b.WriteString(strings.ToLower(n.NullTreatment))
+				b.WriteString(" nulls")
+			}
 		}
 		if n.Using != "" {
 			// OceanBase 4.3.5 keeps CHAR's charset in a stored view:
 			// char(65 using 'utf8mb4').
 			b.WriteString(" using ")
 			b.WriteString(strings.ToLower(n.Using))
-		}
-		// LEAD and LAG write RESPECT/IGNORE NULLS inside their parameter list,
-		// `lead(a ignore nulls, 2)`; every other window function writes it after
-		// the ')'.
-		if (name == "LEAD" || name == "LAG") && n.NullTreatment != "" {
-			b.WriteString(" ")
-			b.WriteString(strings.ToLower(n.NullTreatment))
-			b.WriteString(" nulls")
 		}
 		b.WriteString(")")
 	}

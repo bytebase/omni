@@ -149,6 +149,19 @@ func (s *analyzerScope) addUnknownColumns(name string, rteIdx int) {
 	s.unknownColumns[strings.ToLower(name)] = rteIdx
 }
 
+// soleUnknownColumnRTE returns the RTE index of a relation whose columns are
+// unknown when it is the only scope entry: an unqualified column then belongs to
+// it, and any other entry would make the name ambiguous.
+func (s *analyzerScope) soleUnknownColumnRTE() (int, bool) {
+	if len(s.unknownColumns) != 1 || len(s.base.AllEntries()) != 1 {
+		return 0, false
+	}
+	for _, idx := range s.unknownColumns {
+		return idx, true
+	}
+	return 0, false
+}
+
 // unknownColumnRTE returns the RTE index of a named relation whose columns are
 // unknown, if the scope holds one.
 func (s *analyzerScope) unknownColumnRTE(tableName string) (int, bool) {

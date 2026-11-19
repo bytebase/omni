@@ -1066,8 +1066,8 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	algorithm_opt/INSTANT	ALT
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/NONE	ALTER TABLE a LOCK NONE
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1091	3821	engine	one_table@table	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1091	3821	engine	one_table@table	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+3821	3821	engine	one_table@table	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+3821	3821	engine	one_table@table	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1505	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1505	1505	engine	one_table@table	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
@@ -1635,8 +1635,8 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	algorithm_opt/INSTANT	AL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/NONE	ALTER TABLE a LOCK NONE
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1091	3821	engine	one_table@column	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1091	3821	engine	one_table@column	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+3821	3821	engine	one_table@column	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+3821	3821	engine	one_table@column	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1505	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1505	1505	engine	one_table@column	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
@@ -2204,8 +2204,8 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	algorithm_opt/INSTANT	ALT
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/NONE	ALTER TABLE a LOCK NONE
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/SHARED	ALTER TABLE a LOCK SHARED
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	lock_opt/EXCLUSIVE	ALTER TABLE a LOCK EXCLUSIVE
-1091	3821	engine	one_table@index	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
-1091	3821	engine	one_table@index	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
+3821	3821	engine	one_table@index	alter_constraint_option/DROP_CONSTRAINT_(_name_list_)	ALTER TABLE a DROP CONSTRAINT(a)
+3821	3821	engine	one_table@index	alter_constraint_option/DROP_CHECK_(_name_list_)	ALTER TABLE a DROP CHECK(a)
 1505	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list	ALTER TABLE a DROP SUBPARTITION a
 1091	1091	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!drop-3	ALTER TABLE a DROP SUBPARTITION
 1505	1505	engine	one_table@index	alter_partition_option/DROP_SUBPARTITION_drop_partition_name_list!insert	ALTER TABLE a DROP SUBPARTITION a zzz
