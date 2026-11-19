@@ -24,6 +24,10 @@ const (
 	ErrDupKeyName                        = 1061
 	ErrDupEntry                          = 1062
 	ErrNonUniqueTable                    = 1066
+	ErrKeyDoesNotExist                   = 1176
+	ErrIncorrectUsage                    = 1221
+	ErrInvalidEncryption                 = 3184
+	ErrStartTransactionInAlter           = 3979
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
 	ErrIncorrectTableDefinition          = 1075
@@ -66,6 +70,7 @@ const (
 	ErrInvalidYearColumnLength           = 1818
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
+	ErrCheckNotBoolean                   = 3812
 	ErrCheckConstraintDupName            = 3822
 
 	// ErrNoTablesUsed is 1096, which mysql:8.0.46 answers for a SELECT whose
@@ -81,6 +86,17 @@ const (
 	ErrSRSMissingAttribute         = 3708
 )
 
+const (
+	// ErrCheckConstraintNotFound is 3821, which mysql:8.0.46 answers when a
+	// DROP CHECK or ALTER CHECK names no check constraint of the table:
+	// "Check constraint '%s' is not found in the table." The CONSTRAINT
+	// spelling of the same name answers ErrConstraintDoesNotExist instead.
+	ErrCheckConstraintNotFound = 3821
+	// ErrConstraintDoesNotExist is 3940, which mysql:8.0.46 answers when a
+	// DROP CONSTRAINT or ALTER CONSTRAINT names no constraint of the table.
+	ErrConstraintDoesNotExist = 3940
+)
+
 var sqlStateMap = map[int]string{
 	ErrDupDatabase:                       "HY000",
 	ErrUnknownDatabase:                   "42000",
@@ -91,6 +107,10 @@ var sqlStateMap = map[int]string{
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
 	ErrNonUniqueTable:                    "42000",
+	ErrKeyDoesNotExist:                   "42000",
+	ErrIncorrectUsage:                    "HY000",
+	ErrInvalidEncryption:                 "HY000",
+	ErrStartTransactionInAlter:           "HY000",
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
 	ErrIncorrectTableDefinition:          "42000",
@@ -129,7 +149,10 @@ var sqlStateMap = map[int]string{
 	ErrInvalidYearColumnLength:           "HY000",
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
+	ErrCheckNotBoolean:                   "HY000",
 	ErrCheckConstraintDupName:            "HY000",
+	ErrCheckConstraintNotFound:           "HY000",
+	ErrConstraintDoesNotExist:            "HY000",
 	ErrTableMustHaveColumns:              "HY000",
 	ErrSpatialColumnNotGeometrical:       "42000",
 	ErrSRSMissingAttribute:               "SR006",
@@ -301,6 +324,50 @@ func errNonUniqueTable(name string) error {
 		Message: fmt.Sprintf("Not unique table/alias: '%s'", name)}
 }
 
+// errKeyDoesNotExist is 1176, an ALTER INDEX, RENAME KEY or DROP KEY naming a
+// key the table does not hold. mysql:8.0.46 words it "Key '%s' doesn't exist in
+// table '%s'"; 1061 is a name collision instead.
+func errKeyDoesNotExist(name, table string) error {
+	return &Error{Code: ErrKeyDoesNotExist, SQLState: sqlState(ErrKeyDoesNotExist),
+		Message: fmt.Sprintf("Key '%s' doesn't exist in table '%s'", name, table)}
+}
+
+// errIncorrectSRIDUsage is 1221 for a SRID clause on a column whose type is not
+// a geometry, answered while the statement is prepared.
+func errIncorrectSRIDUsage() error {
+	return &Error{Code: ErrIncorrectUsage, SQLState: sqlState(ErrIncorrectUsage),
+		Message: "Incorrect usage of SRID and non-geometry column"}
+}
+
+// errIncorrectValidationUsage is 1221 for WITH VALIDATION or WITHOUT VALIDATION
+// outside EXCHANGE PARTITION, answered while the statement is prepared.
+func errIncorrectValidationUsage() error {
+	return &Error{Code: ErrIncorrectUsage, SQLState: sqlState(ErrIncorrectUsage),
+		Message: "Incorrect usage of ALTER and WITH VALIDATION"}
+}
+
+// errInvalidEncryptionOption is 3184, an ENCRYPTION value other than 'Y' or
+// 'N' on ALTER TABLE.
+func errInvalidEncryptionOption() error {
+	return &Error{Code: ErrInvalidEncryption, SQLState: sqlState(ErrInvalidEncryption),
+		Message: "Invalid encryption option."}
+}
+
+// errStartTransactionInAlter is 3979, START TRANSACTION as an ALTER TABLE
+// option; MySQL answers it before the table it names is looked up.
+func errStartTransactionInAlter() error {
+	return &Error{Code: ErrStartTransactionInAlter, SQLState: sqlState(ErrStartTransactionInAlter),
+		Message: "START TRANSACTION clause cannot be used with ALTER TABLE command."}
+}
+
+// errCheckNotBoolean is 3812 for a CHECK expression whose top level is not a
+// boolean: mysql:8.0.46 refuses a bare column, literal, arithmetic or CAST and
+// names the constraint the statement would create.
+func errCheckNotBoolean(name string) error {
+	return &Error{Code: ErrCheckNotBoolean, SQLState: sqlState(ErrCheckNotBoolean),
+		Message: fmt.Sprintf("An expression of non-boolean type specified to a check constraint '%s'.", name)}
+}
+
 // errUnknownStorageEngine is 1286, an ENGINE option naming an engine the pinned
 // server does not ship.
 func errUnknownStorageEngine(name string) error {
@@ -366,6 +433,21 @@ func errFKCannotDropParent(table, fkName, refTable string) error {
 func errCantDropKey(name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
+}
+
+// errCheckConstraintNotFound is 3821, the answer a DROP CHECK or ALTER CHECK
+// gets when the name is no check constraint of the table, whatever else it
+// names.
+func errCheckConstraintNotFound(name string) error {
+	return &Error{Code: ErrCheckConstraintNotFound, SQLState: sqlState(ErrCheckConstraintNotFound),
+		Message: fmt.Sprintf("Check constraint '%s' is not found in the table.", name)}
+}
+
+// errConstraintDoesNotExist is 3940, the answer a DROP CONSTRAINT or ALTER
+// CONSTRAINT gets when the table holds no constraint of that name.
+func errConstraintDoesNotExist(name string) error {
+	return &Error{Code: ErrConstraintDoesNotExist, SQLState: sqlState(ErrConstraintDoesNotExist),
+		Message: fmt.Sprintf("Constraint '%s' does not exist.", name)}
 }
 
 func errCantRemoveAllFields() error {

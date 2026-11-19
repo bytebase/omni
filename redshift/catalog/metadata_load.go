@@ -393,7 +393,7 @@ func (r *metadataResolver) collectSelectQualifications(searchPath []string, sel 
 			local[cte.Ctename] = true
 		}
 	}
-	for _, n := range []nodes.Node{sel.WhereClause, sel.HavingClause, sel.QualifyClause, sel.LimitOffset, sel.LimitCount} {
+	for _, n := range []nodes.Node{sel.WhereClause, sel.StartWith, sel.ConnectBy, sel.HavingClause, sel.QualifyClause, sel.LimitOffset, sel.LimitCount} {
 		if n != nil {
 			r.collectQualifications(searchPath, n, local, edits)
 		}

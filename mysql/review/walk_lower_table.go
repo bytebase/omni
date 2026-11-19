@@ -176,7 +176,7 @@ func (b *builder) alterCmd(r tableRef, c *ast.AlterTableCmd) bool {
 	case ast.ATDropIndex:
 		return b.dropIndexName(r, c.Name, rng)
 	case ast.ATDropConstraint:
-		switch dropKindOf(b.w.sql, c) {
+		switch dropKindOf(c) {
 		case dropPrimaryKey:
 			return b.dropIndexName(r, "PRIMARY", rng)
 		case dropForeignKey:
@@ -281,7 +281,7 @@ func (b *builder) alterTextFails(v *ast.AlterTableStmt, r tableRef) bool {
 				return true
 			}
 		case ast.ATDropConstraint:
-			switch dropKindOf(b.w.sql, c) {
+			switch dropKindOf(c) {
 			case dropPrimaryKey:
 				if twice("drop index", spaceIndex, "PRIMARY", rng, "This statement drops the primary key twice.") {
 					return true

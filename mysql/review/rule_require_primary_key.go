@@ -67,7 +67,7 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 					renames = true
 				// DROP PRIMARY KEY, or DROP INDEX `PRIMARY`; a check or foreign
 				// key quoted as PRIMARY is not the primary key.
-				case dropped == nil && dropKindOf(sql, cmd) == dropPrimaryKey:
+				case dropped == nil && dropKindOf(cmd) == dropPrimaryKey:
 					dropped = cmd
 				}
 			}

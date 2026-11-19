@@ -12,8 +12,8 @@ grammar, and asks the judge again on every run.
 
 | Rows | Total | Agree | Only the docs accept | Only omni accepts | Undocumented |
 | --- | --- | --- | --- | --- | --- |
-| One per alternative | 2,245 | 2,205 | 40 | 0 | 0 |
-| Near-misses | 5,830 | 142 | 3 | 0 | 5,685 |
+| One per alternative | 2,245 | 2,244 | 1 | 0 | 0 |
+| Near-misses | 5,830 | 145 | 0 | 0 | 5,685 |
 
 - **The grammar** is AWS's SQL command reference
   (https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html): the
@@ -54,14 +54,17 @@ Redshift has no server CI can start, so every row is judged by the docs.
   derive is `undocumented`, never `reject`: docs say what is valid, not what
   Redshift refuses. It passes whatever omni says, so omni is never pushed to
   reject a form users write.
-- **43 rows disagree, all statements the docs accept and omni rejects.**
-  `CREATE MATERIALIZED VIEW` holds 15, `SELECT` 12 (`EXCLUDE`, `CONNECT BY`,
-  `GROUP BY ALL`, in both `SELECT` and `SELECT INTO`), `ANALYZE COMPRESSION` 3,
-  `ALTER ROLE` 2, `ALTER TABLE ... PARTITION` 2, `ALTER USER` 2, `VACUUM` 2,
-  and one each of `ALTER MATERIALIZED VIEW`, `CREATE GROUP`, `CREATE TABLE`'s
-  identity column, `DROP DATABASE FORCE` and the docs' `GRANT_OPTION`
-  notation, which is not SQL: their page writes `GRANT_OPTION` as one token,
-  and only `GRANT OPTION` is read.
+- **One row disagrees: a statement the docs accept and omni rejects.** It is
+  `REVOKE`'s `GRANT_OPTION` notation row: the docs write `GRANT_OPTION` as one
+  token, which is their notation and not SQL, so omni reads only
+  `GRANT OPTION` and keeps rejecting it. The 42 rows that disagreed before were
+  `CREATE MATERIALIZED VIEW` (15: `AUTO REFRESH YES INTERVAL`, the Iceberg form's
+  `USING ICEBERG LOCATION|PARTITIONED BY`, table properties and partition
+  transforms), `SELECT` and `SELECT INTO` (12: `EXCLUDE`, `START WITH` /
+  `CONNECT BY`, `GROUP BY ALL`), `ANALYZE COMPRESSION(a)` (3), `ALTER ROLE`,
+  `ALTER TABLE ... PARTITION`, `ALTER USER` and `VACUUM` (2 each), and one each
+  of `ALTER MATERIALIZED VIEW`'s interval, `CREATE GROUP`'s repeated `WITH`,
+  `CREATE TABLE`'s identity seed and step, and `DROP DATABASE ... FORCE`.
 
 ## What the judge cannot decide
 

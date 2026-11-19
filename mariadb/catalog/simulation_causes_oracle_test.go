@@ -1157,6 +1157,21 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD a SERIAL KEY KEY",
 			code:  1060,
 		},
+		// RENAME KEY over a key the table does not hold is 1176, not the 1061
+		// a duplicate name answers.
+		{
+			name:  "RENAME KEY over a key the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a RENAME KEY zzz TO yyy",
+			code:  1176,
+		},
+		// A key that lists the same column twice is 1060.
+		{
+			name:  "ADD KEY over the same column twice",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT)"},
+			stmt:  "ALTER TABLE a ADD KEY(a, a)",
+			code:  1060,
+		},
 	}
 
 	for _, tc := range cases {

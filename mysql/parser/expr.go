@@ -187,10 +187,12 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 			// MySQL 8.0 answers 1064 for `x COLLATE BINARY` (the reserved
 			// word), unlike the column option's collation_name, which has a
 			// BINARY_SYM arm. Measured on mysql:8.0.
+			collPos := p.pos()
 			collation, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
 			}
+			p.checkCollation(collation, collPos)
 			left = &nodes.CollateExpr{
 				Loc:       nodes.Loc{Start: start, End: p.prev.End},
 				Expr:      left,
@@ -2202,7 +2204,7 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 }
 
 // parseUDFArgAlias reads a udf_expr's select_alias, `[AS] ident` or `[AS]
-// 'text'`, and returns nil when none follows. An alias may be empty: `f(a AS '')`.
+// 'text'`, and returns nil when none follows. An alias may be empty: `f(a AS ”)`.
 // Ref: udf_expr and select_alias in MySQL 8.0 sql/sql_yacc.yy.
 func (p *Parser) parseUDFArgAlias() (*string, error) {
 	_, as := p.match(kwAS)
