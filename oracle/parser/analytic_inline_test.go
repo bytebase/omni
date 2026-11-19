@@ -101,6 +101,12 @@ func TestParseInlineAnalyticViewSuffixes(t *testing.T) {
 	if _, ok := mr.Source.(*ast.InlineAnalyticView); !ok {
 		t.Fatalf("MATCH_RECOGNIZE source = %T, want *ast.InlineAnalyticView", mr.Source)
 	}
+	if got := ref(`SELECT * FROM (ANALYTIC VIEW(USING a)) av`); got.Alias == nil || got.Alias.Name != "AV" {
+		t.Fatalf("parenthesized inline analytic view alias = %#v, want AV", got.Alias)
+	}
+	if got := ref(`SELECT * FROM ((ANALYTIC VIEW(USING a))) AS av`); got.Alias == nil || got.Alias.Name != "AV" {
+		t.Fatalf("nested parenthesized inline analytic view alias = %#v, want AV", got.Alias)
+	}
 	ParseShouldFail(t, `DELETE a FROM ANALYTIC VIEW(USING a) SAMPLE (10)`)
 }
 

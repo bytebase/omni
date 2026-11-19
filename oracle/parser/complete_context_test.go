@@ -277,6 +277,15 @@ func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
 			t.Fatalf("inline analytic view base object = %q.%q, want hr.sales_av", ref.Schema, ref.Name)
 		}
 
+		for _, sql := range []string{
+			"SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) AS OF SCN 1 av, departments d",
+			"SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) VERSIONS BETWEEN SCN MINVALUE AND MAXVALUE av, departments d",
+			"SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) AS OF PERIOD FOR valid_time DATE '2026-01-01' av, departments d",
+		} {
+			flashCtx := collectCompletionMarked(t, sql)
+			requireLocalReferenceNames(t, flashCtx.Scope, []string{"av", "d"})
+		}
+
 		withCtx := collectCompletionMarked(t, "WITH my_av ANALYTIC VIEW AS (USING sales_av), other AS (SELECT c1 FROM t) SELECT | FROM my_av, other")
 		requireLocalReferenceNames(t, withCtx.Scope, []string{"my_av", "other"})
 		otherRef := requireLocalRangeReference(t, withCtx.Scope, "other")

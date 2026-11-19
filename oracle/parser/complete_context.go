@@ -928,43 +928,254 @@ func (r *oracleRefReader) inlineAnalyticViewReference(i, hi int) (int, RangeRefe
 		return closeIdx + 1, RangeReference{}, false
 	}
 	idx := closeIdx + 1
-	if idx < hi && tokens[idx].Type == kwSAMPLE {
-		sIdx := idx + 1
-		if sIdx < hi && oracleTokenIsIdentLikeStr(tokens[sIdx], "BLOCK") {
-			sIdx++
-		}
-		if sIdx < hi && tokens[sIdx].Type == '(' {
-			if sClose := r.closeOf(sIdx, hi); sClose >= 0 {
-				idx = sClose + 1
-				if idx+1 < hi && oracleTokenIsIdentLikeStr(tokens[idx], "SEED") && tokens[idx+1].Type == '(' {
-					if seedClose := r.closeOf(idx+1, hi); seedClose >= 0 {
-						idx = seedClose + 1
-					}
-				}
-			}
+	nextAlias, alias, hasAlias := r.inlineAVOptionalAlias(idx, hi, false)
+	if hasAlias {
+		idx = nextAlias
+	}
+	idx = r.skipFlashbackClause(idx, hi)
+	afterSample := r.skipSampleClause(idx, hi)
+	sampleSeen := afterSample > idx
+	idx = afterSample
+	if !hasAlias {
+		nextAlias, alias, hasAlias = r.inlineAVOptionalAlias(idx, hi, sampleSeen)
+		if hasAlias {
+			idx = nextAlias
 		}
 	}
-	next, alias, hasAlias := parseOracleOptionalAlias(tokens[:hi], idx)
 	name := parts[len(parts)-1].Str
 	aliasName := name
-	locEnd := tokens[idx-1].End
 	if hasAlias {
 		aliasName = alias.Str
-		locEnd = alias.End
-	} else {
-		next = idx
 	}
 	ref := RangeReference{
 		Kind:    RangeReferenceRelation,
 		Name:    name,
 		Alias:   aliasName,
-		Loc:     nodes.Loc{Start: tokens[i].Loc, End: locEnd},
+		Loc:     nodes.Loc{Start: tokens[i].Loc, End: tokens[idx-1].End},
 		BodyLoc: nodes.Loc{Start: tokens[i+2].End, End: tokens[closeIdx].Loc},
 	}
 	if len(parts) > 1 {
 		ref.Schema = parts[len(parts)-2].Str
 	}
-	return next, ref, true
+	return idx, ref, true
+}
+
+func (r *oracleRefReader) inlineAVOptionalAlias(idx, hi int, sampleSeen bool) (int, Token, bool) {
+	tokens := r.toks
+	if idx >= hi {
+		return idx, Token{}, false
+	}
+	if tokens[idx].Type == kwAS && idx+1 < hi && tokens[idx+1].Type == kwOF {
+		return idx, Token{}, false
+	}
+	if tokens[idx].Type == kwVERSIONS {
+		return idx, Token{}, false
+	}
+	if tokens[idx].Type == kwSAMPLE {
+		if sampleSeen || r.skipSampleClause(idx, hi) > idx {
+			return idx, Token{}, false
+		}
+	}
+	if tokens[idx].Type == tokIDENT {
+		switch strings.ToUpper(tokens[idx].Str) {
+		case "WINDOW", "QUALIFY", "MATCH_RECOGNIZE", "CONTAINERS", "SHARDS",
+			"SIBLINGS", "APPLY", "SEARCH", "CYCLE", "VERSIONS", "PERIOD", "XML":
+			return idx, Token{}, false
+		}
+	}
+	return parseOracleOptionalAlias(tokens[:hi], idx)
+}
+
+func (r *oracleRefReader) skipSampleClause(idx, hi int) int {
+	tokens := r.toks
+	if idx >= hi || tokens[idx].Type != kwSAMPLE {
+		return idx
+	}
+	sIdx := idx + 1
+	if sIdx < hi && oracleTokenIsIdentLikeStr(tokens[sIdx], "BLOCK") {
+		sIdx++
+	}
+	if sIdx >= hi || tokens[sIdx].Type != '(' {
+		return idx
+	}
+	sClose := r.closeOf(sIdx, hi)
+	if sClose < 0 {
+		return idx
+	}
+	next := sClose + 1
+	if next+1 < hi && oracleTokenIsIdentLikeStr(tokens[next], "SEED") && tokens[next+1].Type == '(' {
+		if seedClose := r.closeOf(next+1, hi); seedClose >= 0 {
+			next = seedClose + 1
+		}
+	}
+	return next
+}
+
+func (r *oracleRefReader) skipFlashbackClause(idx, hi int) int {
+	tokens := r.toks
+	if idx < hi && tokens[idx].Type == kwVERSIONS {
+		cur := idx + 1
+		period := false
+		if cur+2 < hi && oracleTokenIsIdentLikeStr(tokens[cur], "PERIOD") && tokens[cur+1].Type == kwFOR && isOracleCompletionIdent(tokens[cur+2]) {
+			period = true
+			cur += 3
+		}
+		if cur >= hi || tokens[cur].Type != kwBETWEEN {
+			return idx
+		}
+		cur++
+		if !period {
+			if cur >= hi || (tokens[cur].Type != kwSCN && tokens[cur].Type != kwTIMESTAMP) {
+				return idx
+			}
+			cur++
+		}
+		lowEnd := r.skipFlashbackExpr(cur, hi, true)
+		if lowEnd == cur || lowEnd >= hi || tokens[lowEnd].Type != kwAND {
+			return idx
+		}
+		highEnd := r.skipFlashbackExpr(lowEnd+1, hi, false)
+		if highEnd == lowEnd+1 {
+			return idx
+		}
+		return highEnd
+	}
+	if idx+1 < hi && tokens[idx].Type == kwAS && tokens[idx+1].Type == kwOF {
+		cur := idx + 2
+		if cur+2 < hi && oracleTokenIsIdentLikeStr(tokens[cur], "PERIOD") && tokens[cur+1].Type == kwFOR && isOracleCompletionIdent(tokens[cur+2]) {
+			cur += 3
+		} else if cur < hi && (tokens[cur].Type == kwSCN || tokens[cur].Type == kwTIMESTAMP) {
+			cur++
+		} else {
+			return idx
+		}
+		end := r.skipFlashbackExpr(cur, hi, false)
+		if end == cur {
+			return idx
+		}
+		return end
+	}
+	return idx
+}
+
+func (r *oracleRefReader) skipFlashbackExpr(start, hi int, stopAtAnd bool) int {
+	tokens := r.toks
+	i := start
+	for {
+		for i < hi && (tokens[i].Type == '+' || tokens[i].Type == '-' || tokens[i].Type == kwPRIOR || tokens[i].Type == kwCONNECT_BY_ROOT || tokens[i].Type == kwNOT) {
+			i++
+		}
+		atomEnd := r.skipFlashbackAtom(i, hi)
+		if atomEnd == i {
+			return start
+		}
+		i = atomEnd
+		if i+1 < hi && oracleTokenIsIdentLikeStr(tokens[i], "AT") {
+			if oracleTokenIsIdentLikeStr(tokens[i+1], "LOCAL") {
+				i += 2
+			} else if i+2 < hi && oracleTokenIsIdentLikeStr(tokens[i+1], "TIME") && oracleTokenIsIdentLikeStr(tokens[i+2], "ZONE") {
+				if tzEnd := r.skipFlashbackAtom(i+3, hi); tzEnd > i+3 {
+					i = tzEnd
+				}
+			}
+		}
+		if i < hi && tokens[i].Type == kwIS {
+			j := i + 1
+			if j < hi && tokens[j].Type == kwNOT {
+				j++
+			}
+			if j < hi && (tokens[j].Type == kwNULL || isOracleCompletionIdent(tokens[j])) {
+				i = j + 1
+			}
+		}
+		if i >= hi || (stopAtAnd && tokens[i].Type == kwAND) {
+			return i
+		}
+		switch tokens[i].Type {
+		case '+', '-', '*', '/', tokCONCAT, tokEXPON, '=', tokNOTEQ, '<', '>', tokLESSEQ, tokGREATEQ, tokOP, kwOR, kwAND:
+			i++
+			continue
+		default:
+			return i
+		}
+	}
+}
+
+func (r *oracleRefReader) skipFlashbackAtom(i, hi int) int {
+	tokens := r.toks
+	if i >= hi {
+		return i
+	}
+	switch tokens[i].Type {
+	case '(':
+		if c := r.closeOf(i, hi); c >= 0 {
+			return c + 1
+		}
+		return i
+	case kwCASE:
+		depth := 1
+		j := i + 1
+		for j < hi && depth > 0 {
+			switch tokens[j].Type {
+			case '(':
+				if c := r.closeOf(j, hi); c >= 0 {
+					j = c + 1
+					continue
+				}
+				return i
+			case kwCASE:
+				depth++
+			case kwEND:
+				depth--
+			}
+			j++
+		}
+		if depth == 0 {
+			return j
+		}
+		return i
+	case kwDATE, kwTIMESTAMP:
+		if i+1 < hi && (tokens[i+1].Type == tokSCONST || tokens[i+1].Type == tokNCHARLIT) {
+			return i + 2
+		}
+	case kwINTERVAL:
+		if i+1 < hi && (tokens[i+1].Type == tokSCONST || tokens[i+1].Type == tokNCHARLIT) {
+			j := i + 2
+			if j < hi && isOracleCompletionIdent(tokens[j]) {
+				j++
+				if j < hi && tokens[j].Type == '(' {
+					if c := r.closeOf(j, hi); c >= 0 {
+						j = c + 1
+					}
+				}
+				if j+1 < hi && tokens[j].Type == kwTO && isOracleCompletionIdent(tokens[j+1]) {
+					j += 2
+					if j < hi && tokens[j].Type == '(' {
+						if c := r.closeOf(j, hi); c >= 0 {
+							j = c + 1
+						}
+					}
+				}
+			}
+			return j
+		}
+	case tokICONST, tokFCONST, tokSCONST, tokNCHARLIT, tokBIND, kwNULL,
+		kwSYSDATE, kwSYSTIMESTAMP, kwROWNUM, kwROWID, kwLEVEL, kwUSER, kwUID:
+		return i + 1
+	}
+	if isOracleCompletionIdent(tokens[i]) || isOracleFunctionKeyword(tokens[i].Type) {
+		j := i + 1
+		for j+1 < hi && tokens[j].Type == '.' && isOracleCompletionIdent(tokens[j+1]) {
+			j += 2
+		}
+		if j < hi && tokens[j].Type == '(' {
+			if c := r.closeOf(j, hi); c >= 0 {
+				j = c + 1
+			}
+		}
+		return j
+	}
+	return i
 }
 
 func (r *oracleRefReader) tableCollectionReference(i, hi int) (int, RangeReference, bool) {

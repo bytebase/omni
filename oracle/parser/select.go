@@ -1443,6 +1443,22 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 			aliasable.Alias = alias
 		}
 	}
+	if av, ok := tref.(*nodes.InlineAnalyticView); ok {
+		if p.cur.Type == kwAS {
+			p.advance()
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			av.Alias = alias
+		} else if p.isTableAliasCandidate() {
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			av.Alias = alias
+		}
+	}
 
 	switch n := tref.(type) {
 	case *nodes.JoinClause:
