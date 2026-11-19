@@ -128,6 +128,69 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef, indexed map[string]bool
 	return nil
 }
 
+// errUninitializedField is 4029, an expression that reads a column the statement has
+// not built yet: the column it defines itself, or a generated column defined after it.
+func errUninitializedField(field, uninitialized string) error {
+	return &Error{Code: 4029, SQLState: "01000",
+		Message: fmt.Sprintf("Expression for field `%s` is referring to uninitialized field `%s`", field, uninitialized)}
+}
+
+// columnExprRefs returns the columns a generated or default expression reads. The
+// server reads both the same way here, whichever spelling wrote the default:
+// `ADD a INT DEFAULT a`, `DEFAULT(a)` and `AS(a)` all answer 4029.
+func columnExprRefs(colDef *nodes.ColumnDef) []string {
+	var refs []string
+	add := func(expr nodes.ExprNode) {
+		refs = append(refs, generatedColumnRefs(expr)...)
+	}
+	add(colDef.DefaultValue)
+	if colDef.Generated != nil {
+		add(colDef.Generated.Expr)
+	}
+	for _, cc := range colDef.Constraints {
+		if cc.Type == nodes.ColConstrDefault {
+			add(cc.Expr)
+		}
+	}
+	return refs
+}
+
+// validateColumnSelfReference refuses a column whose own generated or default
+// expression reads it: 4029, "Expression for field `a` is referring to uninitialized
+// field `a`", measured on mariadb:11.8.8 for `CREATE TABLE z (a INT AS(a))`,
+// `ALTER TABLE t ADD a INT DEFAULT a` and `ALTER TABLE t ALTER a SET DEFAULT a`. A
+// column name the table already holds is 1060 first, and a name the table does not
+// hold at all is 1054, so this runs where the column is built.
+func validateColumnSelfReference(colDef *nodes.ColumnDef) error {
+	key := toLower(colDef.Name)
+	for _, ref := range columnExprRefs(colDef) {
+		if toLower(ref) == key {
+			return errUninitializedField(colDef.Name, colDef.Name)
+		}
+	}
+	return nil
+}
+
+// validateColumnGeneratedOrder refuses a column whose generated expression reads a
+// generated column defined after it in the same CREATE TABLE: 4029 naming the field
+// read, measured on mariadb:11.8.8 for `CREATE TABLE z (a INT AS(b), b INT AS(a))`.
+// A plain column defined later is initialized by the time the value is computed, so
+// `CREATE TABLE z (a INT AS(b), b INT)` runs, as does `CREATE TABLE z (a INT DEFAULT
+// b, b INT)`: the order is judged for a generated expression only.
+func validateColumnGeneratedOrder(colDef *nodes.ColumnDef, later []*nodes.ColumnDef) error {
+	if colDef.Generated == nil {
+		return nil
+	}
+	for _, ref := range generatedColumnRefs(colDef.Generated.Expr) {
+		for _, other := range later {
+			if other.Generated != nil && toLower(other.Name) == toLower(ref) {
+				return errUninitializedField(colDef.Name, other.Name)
+			}
+		}
+	}
+	return nil
+}
+
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {
 	for _, cc := range colDef.Constraints {
 		if cc.Type == nodes.ColConstrPrimaryKey {

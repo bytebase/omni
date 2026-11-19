@@ -1809,6 +1809,9 @@ func (p *Parser) parseConstraintIndexOptions(constr *nodes.Constraint) error {
 			return nil
 		}
 		constr.IndexOptions = append(constr.IndexOptions, opt)
+		if fulltext {
+			p.noteFulltextParser(opt)
+		}
 	}
 }
 

@@ -176,7 +176,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	var syntax *parser.ParseError
 	switch {
 	case errors.As(err, &syntax):
-		return simulate.Omni{Code: "1064", Why: err.Error()}
+		return simulate.Omni{Code: parseCode(syntax), Why: err.Error()}
 	case err != nil:
 		return simulate.Omni{Code: simulate.NoCode, Why: err.Error()}
 	}
@@ -212,6 +212,17 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 		return simulate.Omni{Same: true}
 	}
 	return simulate.Omni{Why: "the catalog stores\n" + got + "\nwhere MariaDB's stored form prints\n" + wanted}
+}
+
+// parseCode is the outcome of a statement the parser refuses: the code the parser
+// records for a name MariaDB looks up while it parses, as 1253 is for a collation of
+// another character set and 1128 for a FULLTEXT parser the server does not ship, and
+// 1064 for a syntax error.
+func parseCode(pe *parser.ParseError) string {
+	if pe.Code != 0 {
+		return strconv.Itoa(pe.Code)
+	}
+	return "1064"
 }
 
 // simulationPrint prints the fixture database's tables and views as the
