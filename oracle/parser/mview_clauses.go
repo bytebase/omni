@@ -492,7 +492,11 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 			if err := p.parseMviewJSONStorage(); err != nil {
 				return err
 			}
-		case p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY:
+		case p.cur.Type == kwPARTITION:
+			// PARTITION is takeable here whatever follows it: the clause is
+			// `PARTITION BY …`, so a token that is not BY is where the
+			// grammar stops (`PARTITION RANGE(a)…` is refused at the RANGE,
+			// as Oracle refuses it), and parsePartitionClause reports it.
 			if p.isMviewReferencePartitioningStart() {
 				// Oracle refuses reference partitioning on a materialized
 				// view after its constraint (ORA-14655).

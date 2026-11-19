@@ -4,7 +4,7 @@
 1146	1146	engine	one_table@missing	simple_statement/alter_view_stmt	ALTER VIEW utf8mb4 AS SELECT utf8mb4;
 1146	1146	engine	one_table@missing	simple_statement/alter_view_stmt!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1146	1146	engine	one_table@missing	simple_statement/create_index_stmt	CREATE INDEX utf8mb4 ON utf8mb4(utf8mb4);
-ok	3708	engine	one_table@missing	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@missing	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
 4028	4028	engine	one_table@missing	simple_statement/create_table_stmt	CREATE TABLE utf8mb4;
 1146	1146	engine	one_table@missing	simple_statement/drop_index_stmt	DROP INDEX utf8mb4 ON utf8mb4;
 1051	1051	engine	one_table@missing	simple_statement/drop_table_stmt	DROP TABLE utf8mb4;
@@ -16,11 +16,11 @@ ok:9b76765effba	ok:9b76765effba	engine	one_table@missing	create_table_stmt/CREAT
 1146	1066	engine	one_table@missing	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@missing	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@missing	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	3708	engine	one_table@missing	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
-ok	3708	engine	one_table@missing	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
-ok	3708	engine	one_table@missing	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
-ok	3708	engine	one_table@missing	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
-ok	3708	engine	one_table@missing	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
+3708	3708	engine	one_table@missing	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
+3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
+3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
+3708	3708	engine	one_table@missing	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
 1146	1146	engine	one_table@missing	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1146	1146	engine	one_table@missing	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@missing	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
@@ -33,10 +33,10 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_with_opt_locking_clauses!insert	CREATE TABLE utf8mb4 AS SELECT utf8mb4 zzz;
 1146	1146	engine	one_table@missing	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
 1146	1146	engine	one_table@missing	part_type_def/opt_linear_HASH_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY HASH(utf8mb4);
-1146	1492	engine	one_table@missing	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
-1146	1492	engine	one_table@missing	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
-1146	1492	engine	one_table@missing	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
-1146	1492	engine	one_table@missing	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
+1492	1492	engine	one_table@missing	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
+1492	1492	engine	one_table@missing	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
+1492	1492	engine	one_table@missing	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
+1492	1492	engine	one_table@missing	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
 1146	1146	engine	one_table@missing	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
 1146	1146	engine	one_table@missing	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
 1146	1146	engine	one_table@missing	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
@@ -416,7 +416,7 @@ ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	simple_statement/alter_ta
 1347	1347	engine	one_table@table	simple_statement/alter_view_stmt	ALTER VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@table	simple_statement/alter_view_stmt!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1072	1072	engine	one_table@table	simple_statement/create_index_stmt	CREATE INDEX utf8mb4 ON utf8mb4(utf8mb4);
-ok	3708	engine	one_table@table	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@table	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
 1050	1050	engine	one_table@table	simple_statement/create_table_stmt	CREATE TABLE utf8mb4;
 1091	1091	engine	one_table@table	simple_statement/drop_index_stmt	DROP INDEX utf8mb4 ON utf8mb4;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	simple_statement/drop_table_stmt	DROP TABLE utf8mb4;
@@ -428,11 +428,11 @@ ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	simple_statement/truncate
 1050	1066	engine	one_table@table	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@table	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@table	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	3708	engine	one_table@table	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
-ok	3708	engine	one_table@table	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
-ok	3708	engine	one_table@table	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
-ok	3708	engine	one_table@table	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
-ok	3708	engine	one_table@table	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
+3708	3708	engine	one_table@table	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@table	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
+3708	3708	engine	one_table@table	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
+3708	3708	engine	one_table@table	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
+3708	3708	engine	one_table@table	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
 1072	1072	engine	one_table@table	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1072	1072	engine	one_table@table	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@table	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
@@ -443,22 +443,22 @@ ok	3708	engine	one_table@table	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEX
 1050	1050	engine	one_table@table	opt_duplicate_as_qe/as_create_query_expression!insert	CREATE TABLE utf8mb4 SELECT utf8mb4 zzz;
 1050	1050	engine	one_table@table	as_create_query_expression/AS_query_expression_with_opt_locking_clauses	CREATE TABLE utf8mb4 AS SELECT utf8mb4;
 1050	1050	engine	one_table@table	as_create_query_expression/AS_query_expression_with_opt_locking_clauses!insert	CREATE TABLE utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:42441a7335dd	engine	one_table@table	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
-1503	1054	engine	one_table@table	part_type_def/opt_linear_HASH_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY HASH(utf8mb4);
-1503	1492	engine	one_table@table	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
-1503	1492	engine	one_table@table	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
-1503	1492	engine	one_table@table	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
-1503	1492	engine	one_table@table	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
-ok	ok:9ca8eccf21cd	engine	one_table@table	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
-ok	ok:41b7bd3c5359	engine	one_table@table	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
-ok	ok:3b1dcd43b6fa	engine	one_table@table	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
-1503	1500	engine	one_table@table	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_HASH_SYM_(_bit_expr_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4);
-1503	1500	engine	one_table@table	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_KEY_SYM_opt_key_algo_(_name_list_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY KEY(utf8mb4);
-1503	1488	engine	one_table@table	opt_name_list/%empty!insert	ALTER TABLE utf8mb4 PARTITION BY KEY(zzz);
-1503	1488	engine	one_table@table	opt_name_list/name_list	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4);
-1503	1652	engine	one_table@table	name_list/name_list_,_ident	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4, utf8mb4);
-1503	1500	engine	one_table@table	opt_num_subparts/SUBPARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4) SUBPARTITIONS 1;
-ok	ok:83f9bbe53d65	engine	one_table@table	opt_part_defs/(_part_def_list_)	ALTER TABLE utf8mb4 PARTITION BY KEY()(PARTITION utf8mb4);
+ok:42441a7335dd	ok:42441a7335dd	engine	one_table@table	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
+1054	1054	engine	one_table@table	part_type_def/opt_linear_HASH_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY HASH(utf8mb4);
+1492	1492	engine	one_table@table	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
+1492	1492	engine	one_table@table	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
+1492	1492	engine	one_table@table	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
+1492	1492	engine	one_table@table	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
+ok:9ca8eccf21cd	ok:9ca8eccf21cd	engine	one_table@table	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
+ok:41b7bd3c5359	ok:41b7bd3c5359	engine	one_table@table	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
+ok:3b1dcd43b6fa	ok:3b1dcd43b6fa	engine	one_table@table	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
+1500	1500	engine	one_table@table	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_HASH_SYM_(_bit_expr_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4);
+1500	1500	engine	one_table@table	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_KEY_SYM_opt_key_algo_(_name_list_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY KEY(utf8mb4);
+1488	1488	engine	one_table@table	opt_name_list/%empty!insert	ALTER TABLE utf8mb4 PARTITION BY KEY(zzz);
+1488	1488	engine	one_table@table	opt_name_list/name_list	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4);
+1652	1652	engine	one_table@table	name_list/name_list_,_ident	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4, utf8mb4);
+1500	1500	engine	one_table@table	opt_num_subparts/SUBPARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4) SUBPARTITIONS 1;
+ok:83f9bbe53d65	ok:83f9bbe53d65	engine	one_table@table	opt_part_defs/(_part_def_list_)	ALTER TABLE utf8mb4 PARTITION BY KEY()(PARTITION utf8mb4);
 1505	1505	engine	one_table@table	part_def_list/part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4);
 1505	1505	engine	one_table@table	part_def_list/part_def_list_,_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4, PARTITION utf8mb4);
 1505	1505	engine	one_table@table	opt_part_values/VALUES_LESS_SYM_THAN_SYM_part_func_max	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN MAXVALUE);
@@ -828,7 +828,7 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	simple_statement/alter_t
 1347	1347	engine	one_table@column	simple_statement/alter_view_stmt	ALTER VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@column	simple_statement/alter_view_stmt!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	simple_statement/create_index_stmt	CREATE INDEX utf8mb4 ON utf8mb4(utf8mb4);
-ok	3708	engine	one_table@column	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@column	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
 1050	1050	engine	one_table@column	simple_statement/create_table_stmt	CREATE TABLE utf8mb4;
 1091	1091	engine	one_table@column	simple_statement/drop_index_stmt	DROP INDEX utf8mb4 ON utf8mb4;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	simple_statement/drop_table_stmt	DROP TABLE utf8mb4;
@@ -840,13 +840,13 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	simple_statement/truncat
 1050	1066	engine	one_table@column	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@column	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@column	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	3708	engine	one_table@column	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
-ok	3708	engine	one_table@column	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
-ok	3708	engine	one_table@column	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
-ok	3708	engine	one_table@column	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
-ok	3708	engine	one_table@column	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
+3708	3708	engine	one_table@column	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@column	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
+3708	3708	engine	one_table@column	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
+3708	3708	engine	one_table@column	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
+3708	3708	engine	one_table@column	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
 1283	1283	engine	one_table@column	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
-1252	1687	engine	one_table@column	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
+1687	1687	engine	one_table@column	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@column	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
 1050	1050	engine	one_table@column	opt_create_partitioning_etc/partition_clause_opt_duplicate_as_qe	CREATE TABLE utf8mb4 PARTITION BY KEY();
 1050	1050	engine	one_table@column	opt_duplicate_as_qe/duplicate_as_create_query_expression	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4;
@@ -855,22 +855,22 @@ ok	3708	engine	one_table@column	srs_attributes/srs_attributes_DESCRIPTION_SYM_TE
 1050	1050	engine	one_table@column	opt_duplicate_as_qe/as_create_query_expression!insert	CREATE TABLE utf8mb4 SELECT utf8mb4 zzz;
 1050	1050	engine	one_table@column	as_create_query_expression/AS_query_expression_with_opt_locking_clauses	CREATE TABLE utf8mb4 AS SELECT utf8mb4;
 1050	1050	engine	one_table@column	as_create_query_expression/AS_query_expression_with_opt_locking_clauses!insert	CREATE TABLE utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:45be1e2f1406	engine	one_table@column	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
+ok:45be1e2f1406	ok:45be1e2f1406	engine	one_table@column	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
 1503	1503	engine	one_table@column	part_type_def/opt_linear_HASH_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY HASH(utf8mb4);
-1503	1492	engine	one_table@column	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
-1503	1492	engine	one_table@column	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
-1503	1492	engine	one_table@column	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
-1503	1492	engine	one_table@column	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
-ok	ok:898e4969e663	engine	one_table@column	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
-ok	ok:bbafc901929d	engine	one_table@column	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
-ok	ok:10977364c59d	engine	one_table@column	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
-1503	1500	engine	one_table@column	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_HASH_SYM_(_bit_expr_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4);
-1503	1500	engine	one_table@column	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_KEY_SYM_opt_key_algo_(_name_list_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY KEY(utf8mb4);
-1503	1488	engine	one_table@column	opt_name_list/%empty!insert	ALTER TABLE utf8mb4 PARTITION BY KEY(zzz);
+1492	1492	engine	one_table@column	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
+1492	1492	engine	one_table@column	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
+1492	1492	engine	one_table@column	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
+1492	1492	engine	one_table@column	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
+ok:898e4969e663	ok:898e4969e663	engine	one_table@column	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
+ok:bbafc901929d	ok:bbafc901929d	engine	one_table@column	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
+ok:10977364c59d	ok:10977364c59d	engine	one_table@column	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
+1500	1500	engine	one_table@column	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_HASH_SYM_(_bit_expr_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4);
+1500	1500	engine	one_table@column	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_KEY_SYM_opt_key_algo_(_name_list_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY KEY(utf8mb4);
+1488	1488	engine	one_table@column	opt_name_list/%empty!insert	ALTER TABLE utf8mb4 PARTITION BY KEY(zzz);
 1503	1503	engine	one_table@column	opt_name_list/name_list	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4);
-1503	1652	engine	one_table@column	name_list/name_list_,_ident	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4, utf8mb4);
-1503	1500	engine	one_table@column	opt_num_subparts/SUBPARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4) SUBPARTITIONS 1;
-ok	ok:e546f31bbab4	engine	one_table@column	opt_part_defs/(_part_def_list_)	ALTER TABLE utf8mb4 PARTITION BY KEY()(PARTITION utf8mb4);
+1652	1652	engine	one_table@column	name_list/name_list_,_ident	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4, utf8mb4);
+1500	1500	engine	one_table@column	opt_num_subparts/SUBPARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4) SUBPARTITIONS 1;
+ok:e546f31bbab4	ok:e546f31bbab4	engine	one_table@column	opt_part_defs/(_part_def_list_)	ALTER TABLE utf8mb4 PARTITION BY KEY()(PARTITION utf8mb4);
 1505	1505	engine	one_table@column	part_def_list/part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4);
 1505	1505	engine	one_table@column	part_def_list/part_def_list_,_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4, PARTITION utf8mb4);
 1505	1505	engine	one_table@column	opt_part_values/VALUES_LESS_SYM_THAN_SYM_part_func_max	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN MAXVALUE);
@@ -941,7 +941,7 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	merge_insert_types/LAST_
 1060	1060	engine	one_table@column	opt_references/references	ALTER TABLE utf8mb4 ADD utf8mb4 INT REFERENCES utf8mb4;
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	table_constraint_def/key_or_index_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD KEY(utf8mb4);
 1283	1283	engine	one_table@column	table_constraint_def/FULLTEXT_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4);
-1252	1687	engine	one_table@column	table_constraint_def/SPATIAL_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4);
+1687	1687	engine	one_table@column	table_constraint_def/SPATIAL_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4);
 ok:ae90a2db1cb7	ok:ae90a2db1cb7	engine	one_table@column	table_constraint_def/opt_constraint_name_constraint_key_type_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD UNIQUE(utf8mb4);
 ok	1239	engine	one_table@column	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4) REFERENCES utf8mb4;
 ok	3812	engine	one_table@column	table_constraint_def/opt_constraint_name_check_constraint_opt_constraint_enforcement	ALTER TABLE utf8mb4 ADD CHECK(utf8mb4);
@@ -1103,10 +1103,10 @@ ok:ae90a2db1cb7	ok:ae90a2db1cb7	engine	one_table@column	opt_unique/UNIQUE_SYM	CR
 1283	1283	engine	one_table@column	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1283	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1283	1283	engine	one_table@column	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1252	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
-1252	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
-1252	1687	engine	one_table@column	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
-1252	1687	engine	one_table@column	spatial_index_options/spatial_index_options_spatial_index_option!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE
+1687	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
+1687	1687	engine	one_table@column	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
+1687	1687	engine	one_table@column	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
+1687	1687	engine	one_table@column	spatial_index_options/spatial_index_options_spatial_index_option!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	opt_index_options/index_options	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) VISIBLE;
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	opt_index_options/index_options!truncate	ALTER TABLE utf8mb4 ADD KEY(utf8mb4)
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	index_options/index_options_index_option	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) VISIBLE VISIBLE;
@@ -1121,7 +1121,7 @@ ok:1a69a21f43dd	ok:1a69a21f43dd	engine	one_table@column	opt_index_name_and_type/
 ok:1a69a21f43dd	ok:1a69a21f43dd	engine	one_table@column	opt_index_type_clause/index_type_clause	CREATE INDEX utf8mb4 USING BTREE ON utf8mb4(utf8mb4);
 ok:1a69a21f43dd	ok:1a69a21f43dd	engine	one_table@column	index_type_clause/TYPE_SYM_index_type	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) TYPE BTREE;
 1060	1060	engine	one_table@column	visibility/INVISIBLE_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT INVISIBLE;
-ok	1687	engine	one_table@column	index_type/RTREE_SYM	ALTER TABLE utf8mb4 ADD KEY USING RTREE(utf8mb4);
+1687	1687	engine	one_table@column	index_type/RTREE_SYM	ALTER TABLE utf8mb4 ADD KEY USING RTREE(utf8mb4);
 ok:1531910b8b84	ok:1531910b8b84	engine	one_table@column	index_type/HASH_SYM	ALTER TABLE utf8mb4 ADD KEY USING HASH(utf8mb4);
 ok	1060	engine	one_table@column	key_list/key_list_,_key_part	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4, utf8mb4) REFERENCES utf8mb4;
 ok	1089	engine	one_table@column	key_part/ident_(_NUM_)_opt_ordering_direction	ALTER TABLE utf8mb4 ADD KEY(utf8mb4(1));
@@ -1240,7 +1240,7 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	simple_statement/alter_ta
 1347	1347	engine	one_table@index	simple_statement/alter_view_stmt	ALTER VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@index	simple_statement/alter_view_stmt!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1061	1061	engine	one_table@index	simple_statement/create_index_stmt	CREATE INDEX utf8mb4 ON utf8mb4(utf8mb4);
-ok	3708	engine	one_table@index	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@index	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
 1050	1050	engine	one_table@index	simple_statement/create_table_stmt	CREATE TABLE utf8mb4;
 ok:87f84bd8df32	ok:87f84bd8df32	engine	one_table@index	simple_statement/drop_index_stmt	DROP INDEX utf8mb4 ON utf8mb4;
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	simple_statement/drop_table_stmt	DROP TABLE utf8mb4;
@@ -1252,11 +1252,11 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	simple_statement/truncate
 1050	1066	engine	one_table@index	create_table_stmt/CREATE_opt_temporary_TABLE_SYM_opt_if_not_exists_table_ident_(_LIKE_table_ident_)	CREATE TABLE utf8mb4(LIKE utf8mb4);
 1054	1054	engine	one_table@index	create/CREATE_view_or_trigger_or_sp_or_event	CREATE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@index	create/CREATE_view_or_trigger_or_sp_or_event!insert	CREATE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
-ok	3708	engine	one_table@index	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
-ok	3708	engine	one_table@index	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
-ok	3708	engine	one_table@index	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
-ok	3708	engine	one_table@index	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
-ok	3708	engine	one_table@index	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
+3708	3708	engine	one_table@index	create_srs_stmt/CREATE_OR_SYM_REPLACE_SYM_SPATIAL_SYM_REFERENCE_SYM_SYSTEM_SYM_real_ulonglong_num_srs_attributes	CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 1;
+3708	3708	engine	one_table@index	srs_attributes/srs_attributes_NAME_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 NAME 's';
+3708	3708	engine	one_table@index	srs_attributes/srs_attributes_DEFINITION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DEFINITION 's';
+3708	3708	engine	one_table@index	srs_attributes/srs_attributes_ORGANIZATION_SYM_TEXT_STRING_sys_nonewline_IDENTIFIED_SYM_BY_real_ulonglong_num	CREATE SPATIAL REFERENCE SYSTEM 1 ORGANIZATION 's' IDENTIFIED BY 1;
+3708	3708	engine	one_table@index	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEXT_STRING_sys_nonewline	CREATE SPATIAL REFERENCE SYSTEM 1 DESCRIPTION 's';
 1061	1061	engine	one_table@index	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1061	1061	engine	one_table@index	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@index	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
@@ -1267,22 +1267,22 @@ ok	3708	engine	one_table@index	srs_attributes/srs_attributes_DESCRIPTION_SYM_TEX
 1050	1050	engine	one_table@index	opt_duplicate_as_qe/as_create_query_expression!insert	CREATE TABLE utf8mb4 SELECT utf8mb4 zzz;
 1050	1050	engine	one_table@index	as_create_query_expression/AS_query_expression_with_opt_locking_clauses	CREATE TABLE utf8mb4 AS SELECT utf8mb4;
 1050	1050	engine	one_table@index	as_create_query_expression/AS_query_expression_with_opt_locking_clauses!insert	CREATE TABLE utf8mb4 AS SELECT utf8mb4 zzz;
-ok	ok:1228e9c915e4	engine	one_table@index	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
+ok:1228e9c915e4	ok:1228e9c915e4	engine	one_table@index	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
 1503	1503	engine	one_table@index	part_type_def/opt_linear_HASH_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY HASH(utf8mb4);
-1503	1492	engine	one_table@index	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
-1503	1492	engine	one_table@index	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
-1503	1492	engine	one_table@index	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
-1503	1492	engine	one_table@index	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
-ok	ok:4f74a1d2528e	engine	one_table@index	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
-ok	ok:48a5fb0b16aa	engine	one_table@index	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
-ok	ok:bdfcd2589635	engine	one_table@index	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
-1503	1500	engine	one_table@index	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_HASH_SYM_(_bit_expr_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4);
-1503	1500	engine	one_table@index	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_KEY_SYM_opt_key_algo_(_name_list_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY KEY(utf8mb4);
-1503	1488	engine	one_table@index	opt_name_list/%empty!insert	ALTER TABLE utf8mb4 PARTITION BY KEY(zzz);
+1492	1492	engine	one_table@index	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
+1492	1492	engine	one_table@index	part_type_def/RANGE_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY RANGE COLUMNS(utf8mb4);
+1492	1492	engine	one_table@index	part_type_def/LIST_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY LIST(utf8mb4);
+1492	1492	engine	one_table@index	part_type_def/LIST_SYM_COLUMNS_(_name_list_)	ALTER TABLE utf8mb4 PARTITION BY LIST COLUMNS(utf8mb4);
+ok:4f74a1d2528e	ok:4f74a1d2528e	engine	one_table@index	opt_linear/LINEAR_SYM	ALTER TABLE utf8mb4 PARTITION BY LINEAR KEY();
+ok:48a5fb0b16aa	ok:48a5fb0b16aa	engine	one_table@index	opt_key_algo/ALGORITHM_SYM_EQ_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY ALGORITHM = 1();
+ok:bdfcd2589635	ok:bdfcd2589635	engine	one_table@index	opt_num_parts/PARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() PARTITIONS 1;
+1500	1500	engine	one_table@index	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_HASH_SYM_(_bit_expr_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4);
+1500	1500	engine	one_table@index	opt_sub_part/SUBPARTITION_SYM_BY_opt_linear_KEY_SYM_opt_key_algo_(_name_list_)_opt_num_subparts	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY KEY(utf8mb4);
+1488	1488	engine	one_table@index	opt_name_list/%empty!insert	ALTER TABLE utf8mb4 PARTITION BY KEY(zzz);
 1503	1503	engine	one_table@index	opt_name_list/name_list	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4);
-1503	1652	engine	one_table@index	name_list/name_list_,_ident	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4, utf8mb4);
-1503	1500	engine	one_table@index	opt_num_subparts/SUBPARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4) SUBPARTITIONS 1;
-ok	ok:36e43bbe7d5f	engine	one_table@index	opt_part_defs/(_part_def_list_)	ALTER TABLE utf8mb4 PARTITION BY KEY()(PARTITION utf8mb4);
+1652	1652	engine	one_table@index	name_list/name_list_,_ident	ALTER TABLE utf8mb4 PARTITION BY KEY(utf8mb4, utf8mb4);
+1500	1500	engine	one_table@index	opt_num_subparts/SUBPARTITIONS_SYM_real_ulong_num	ALTER TABLE utf8mb4 PARTITION BY KEY() SUBPARTITION BY HASH(utf8mb4) SUBPARTITIONS 1;
+ok:36e43bbe7d5f	ok:36e43bbe7d5f	engine	one_table@index	opt_part_defs/(_part_def_list_)	ALTER TABLE utf8mb4 PARTITION BY KEY()(PARTITION utf8mb4);
 1505	1505	engine	one_table@index	part_def_list/part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4);
 1505	1505	engine	one_table@index	part_def_list/part_def_list_,_part_definition	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4, PARTITION utf8mb4);
 1505	1505	engine	one_table@index	opt_part_values/VALUES_LESS_SYM_THAN_SYM_part_func_max	ALTER TABLE utf8mb4 ADD PARTITION(PARTITION utf8mb4 VALUES LESS THAN MAXVALUE);
@@ -1353,7 +1353,7 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	merge_insert_types/LAST_S
 1060	1060	engine	one_table@index	opt_references/references	ALTER TABLE utf8mb4 ADD utf8mb4 INT REFERENCES utf8mb4;
 ok:21269654382f	ok:21269654382f	engine	one_table@index	table_constraint_def/key_or_index_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD KEY(utf8mb4);
 1283	1283	engine	one_table@index	table_constraint_def/FULLTEXT_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_fulltext_index_options	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4);
-1252	1687	engine	one_table@index	table_constraint_def/SPATIAL_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4);
+1687	1687	engine	one_table@index	table_constraint_def/SPATIAL_SYM_opt_key_or_index_opt_ident_(_key_list_with_expression_)_opt_spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4);
 ok:0447423567e9	ok:0447423567e9	engine	one_table@index	table_constraint_def/opt_constraint_name_constraint_key_type_opt_index_name_and_type_(_key_list_with_expression_)_opt_index_options	ALTER TABLE utf8mb4 ADD UNIQUE(utf8mb4);
 ok	1239	engine	one_table@index	table_constraint_def/opt_constraint_name_FOREIGN_KEY_SYM_opt_ident_(_key_list_)_references	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4) REFERENCES utf8mb4;
 ok	3812	engine	one_table@index	table_constraint_def/opt_constraint_name_check_constraint_opt_constraint_enforcement	ALTER TABLE utf8mb4 ADD CHECK(utf8mb4);
@@ -1515,10 +1515,10 @@ ok:87f84bd8df32	ok:87f84bd8df32	engine	one_table@index	key_or_index/INDEX_SYM	AL
 1283	1283	engine	one_table@index	opt_fulltext_index_options/fulltext_index_options!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4)
 1283	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE VISIBLE;
 1283	1283	engine	one_table@index	fulltext_index_options/fulltext_index_options_fulltext_index_option!truncate	ALTER TABLE utf8mb4 ADD FULLTEXT(utf8mb4) VISIBLE
-1252	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
-1252	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
-1252	1687	engine	one_table@index	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
-1252	1687	engine	one_table@index	spatial_index_options/spatial_index_options_spatial_index_option!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE
+1687	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE;
+1687	1687	engine	one_table@index	opt_spatial_index_options/spatial_index_options!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4)
+1687	1687	engine	one_table@index	spatial_index_options/spatial_index_options_spatial_index_option	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE VISIBLE;
+1687	1687	engine	one_table@index	spatial_index_options/spatial_index_options_spatial_index_option!truncate	ALTER TABLE utf8mb4 ADD SPATIAL(utf8mb4) VISIBLE
 ok:21269654382f	ok:21269654382f	engine	one_table@index	opt_index_options/index_options	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) VISIBLE;
 ok:21269654382f	ok:21269654382f	engine	one_table@index	opt_index_options/index_options!truncate	ALTER TABLE utf8mb4 ADD KEY(utf8mb4)
 ok:21269654382f	ok:21269654382f	engine	one_table@index	index_options/index_options_index_option	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) VISIBLE VISIBLE;
@@ -1533,7 +1533,7 @@ ok:81db003e7deb	ok:81db003e7deb	engine	one_table@index	opt_index_name_and_type/o
 1061	1061	engine	one_table@index	opt_index_type_clause/index_type_clause	CREATE INDEX utf8mb4 USING BTREE ON utf8mb4(utf8mb4);
 ok:fbd115ac9d66	ok:fbd115ac9d66	engine	one_table@index	index_type_clause/TYPE_SYM_index_type	ALTER TABLE utf8mb4 ADD KEY(utf8mb4) TYPE BTREE;
 1060	1060	engine	one_table@index	visibility/INVISIBLE_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT INVISIBLE;
-ok	1687	engine	one_table@index	index_type/RTREE_SYM	ALTER TABLE utf8mb4 ADD KEY USING RTREE(utf8mb4);
+1687	1687	engine	one_table@index	index_type/RTREE_SYM	ALTER TABLE utf8mb4 ADD KEY USING RTREE(utf8mb4);
 ok:21269654382f	ok:21269654382f	engine	one_table@index	index_type/HASH_SYM	ALTER TABLE utf8mb4 ADD KEY USING HASH(utf8mb4);
 ok	1060	engine	one_table@index	key_list/key_list_,_key_part	ALTER TABLE utf8mb4 ADD FOREIGN KEY(utf8mb4, utf8mb4) REFERENCES utf8mb4;
 ok	1089	engine	one_table@index	key_part/ident_(_NUM_)_opt_ordering_direction	ALTER TABLE utf8mb4 ADD KEY(utf8mb4(1));

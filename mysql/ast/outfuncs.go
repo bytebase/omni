@@ -4460,10 +4460,10 @@ func writeCreateSpatialRefSysStmt(sb *strings.Builder, n *CreateSpatialRefSysStm
 		sb.WriteString(" :if_not_exists true")
 	}
 	fmt.Fprintf(sb, " :srid %d", n.SRID)
-	if n.Name != "" {
+	if n.HasName {
 		fmt.Fprintf(sb, " :name %q", n.Name)
 	}
-	if n.Definition != "" {
+	if n.HasDefinition {
 		fmt.Fprintf(sb, " :definition %q", n.Definition)
 	}
 	if n.Organization != "" {
