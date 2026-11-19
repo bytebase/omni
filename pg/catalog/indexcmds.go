@@ -274,7 +274,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		}
 		return errDuplicateObject("index", name)
 	}
-	if err := c.checkTablespace(stmt.TableSpace); err != nil {
+	if err := c.checkRelationTablespace(stmt.TableSpace); err != nil {
 		return err
 	}
 
@@ -287,7 +287,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		IsUnique:         stmt.Unique,
 		IsPrimary:        stmt.Primary,
 		AccessMethod:     accessMethod,
-		Tablespace:       stmt.TableSpace,
+		Tablespace:       normalizeTablespace(stmt.TableSpace),
 		NKeyColumns:      nKeyColumns,
 		WhereClause:      whereClause,
 		IndOption:        indOption,

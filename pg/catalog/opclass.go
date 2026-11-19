@@ -41,7 +41,7 @@ type OpClass struct {
 
 // opClassKey identifies a default operator class by (amOID, typeOID).
 type opClassKey struct {
-	amOID  uint32
+	amOID   uint32
 	typeOID uint32
 }
 
@@ -87,6 +87,10 @@ func (c *Catalog) CreateOpFamily(stmt *nodes.CreateOpFamilyStmt) error {
 	if am == nil {
 		return errUndefinedObject("access method", stmt.Amname)
 	}
+	if am.Type != 'i' {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("access method %q is not of type INDEX", stmt.Amname)}
+	}
 
 	// Resolve schema and name.
 	schemaName, famName := qualifiedName(stmt.Opfamilyname)
@@ -114,6 +118,10 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 	am := c.accessMethodByName[stmt.Amname]
 	if am == nil {
 		return errUndefinedObject("access method", stmt.Amname)
+	}
+	if am.Type != 'i' {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("access method %q is not of type INDEX", stmt.Amname)}
 	}
 
 	// Resolve indexed data type.
@@ -186,6 +194,10 @@ func (c *Catalog) AlterOpFamily(stmt *nodes.AlterOpFamilyStmt) error {
 	am := c.accessMethodByName[stmt.Amname]
 	if am == nil {
 		return errUndefinedObject("access method", stmt.Amname)
+	}
+	if am.Type != 'i' {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("access method %q is not of type INDEX", stmt.Amname)}
 	}
 
 	// Verify family exists.

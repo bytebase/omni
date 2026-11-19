@@ -113,6 +113,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"ALTER INDEX IF EXISTS RENAME in a missing schema", "missing", "ALTER INDEX IF EXISTS no_such.i RENAME TO j", "0"},
 		{"ALTER INDEX SET TABLESPACE to a missing tablespace", "table", "ALTER INDEX a_d_idx SET TABLESPACE a", CodeUndefinedObject},
 		{"DROP TABLE IF EXISTS a valid table and an index", "index", "DROP TABLE IF EXISTS t, a", CodeWrongObjectType},
+		{"CREATE TABLE IF NOT EXISTS on an index", "index", "CREATE TABLE IF NOT EXISTS a()", "0"},
+		{"CREATE TABLE IF NOT EXISTS PARTITION OF an index", "index", "CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT", "0"},
+		{"CREATE TABLE in pg_global", "missing", "CREATE TABLE s (b int) TABLESPACE pg_global", CodeInvalidParameterValue},
+		{"CREATE INDEX in pg_global", "table", "CREATE INDEX i ON a(b) TABLESPACE pg_global", CodeInvalidParameterValue},
+		{"ALTER TABLE ALL IN TABLESPACE to pg_global", "missing", "ALTER TABLE ALL IN TABLESPACE pg_default SET TABLESPACE pg_global", CodeInvalidParameterValue},
+		{"CREATE OPERATOR FAMILY using a table access method", "missing", "CREATE OPERATOR FAMILY f USING heap", CodeObjectNotInPrerequisiteState},
+		{"CREATE OPERATOR CLASS using a table access method", "missing", "CREATE OPERATOR CLASS c FOR TYPE int USING heap AS STORAGE int", CodeObjectNotInPrerequisiteState},
+		{"ALTER OPERATOR FAMILY using a table access method", "missing", "ALTER OPERATOR FAMILY f USING heap ADD OPERATOR 1 < (int, int)", CodeObjectNotInPrerequisiteState},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -157,6 +165,83 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if c.schemaByName["public"].Relations["t"] == nil {
 			t.Fatal("a failed DROP removed t")
+		}
+	})
+
+	// A bulk move touches only the object class it names, and treats the
+	// empty tablespace as pg_default.
+	t.Run("bulk moves touch only their object class", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLESPACE ts2 LOCATION '/tmp/ts2'",
+			"CREATE TABLE a (b int) TABLESPACE ts",
+			"CREATE INDEX a_b_idx ON a(b) TABLESPACE ts",
+			"CREATE TABLE d (b int)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "ALTER INDEX ALL IN TABLESPACE ts SET TABLESPACE pg_default"); code != "0" {
+			t.Fatalf("catalog refused the index move with %s", code)
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.Tablespace != "ts" {
+			t.Fatalf("the index move changed the table's tablespace")
+		}
+		if idx := c.schemaByName["public"].Indexes["a_b_idx"]; idx == nil || idx.Tablespace != "" {
+			t.Fatalf("the index move did not set the default tablespace")
+		}
+		if code := simulationCatalogCode(t, c, "ALTER TABLE ALL IN TABLESPACE pg_default SET TABLESPACE ts2"); code != "0" {
+			t.Fatalf("catalog refused the table move with %s", code)
+		}
+		if rel := c.schemaByName["public"].Relations["d"]; rel == nil || rel.Tablespace != "ts2" {
+			t.Fatalf("the table move missed a table in the default tablespace")
+		}
+	})
+
+	// A constraint's backing index keeps the tablespace the constraint named.
+	t.Run("a constraint index keeps its tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE a (b int, UNIQUE (b) USING INDEX TABLESPACE ts)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		found := false
+		for _, idx := range c.schemaByName["public"].Indexes {
+			if idx.Tablespace == "ts" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("the constraint index did not keep its tablespace")
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLESPACE ts"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("catalog answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
+		}
+	})
+
+	// Renaming a tablespace updates the objects stored in it.
+	t.Run("renaming a tablespace updates its objects", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE old LOCATION '/tmp/old'",
+			"CREATE TABLE a (b int) TABLESPACE old",
+			"ALTER TABLESPACE old RENAME TO new",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.Tablespace != "new" {
+			t.Fatal("the tablespace rename did not move the table with it")
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLESPACE new"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("catalog answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
 		}
 	})
 

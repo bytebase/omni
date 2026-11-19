@@ -131,11 +131,15 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 
 	idx := existingIdx
 	if idx == nil {
+		if err := c.checkRelationTablespace(def.IndexSpace); err != nil {
+			return err
+		}
 		idxName := name
 		if idxName == "" {
 			idxName = generateIndexName(rel.Name, def.Columns, isPrimary)
 		}
 		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
+		idx.Tablespace = normalizeTablespace(def.IndexSpace)
 	} else {
 		idx.IsUnique = true
 		idx.IsPrimary = isPrimary
@@ -596,6 +600,9 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 
 	// Create backing index.
+	if err := c.checkRelationTablespace(def.IndexSpace); err != nil {
+		return err
+	}
 	idxName := name
 	indOption := make([]int16, len(attnums))
 	idx := &Index{
@@ -608,6 +615,7 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		IsPrimary:     false,
 		ConstraintOID: conOID,
 		AccessMethod:  accessMethod,
+		Tablespace:    normalizeTablespace(def.IndexSpace),
 		NKeyColumns:   len(attnums),
 		IndOption:     indOption,
 	}

@@ -297,6 +297,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	def.Deferrable = con.Deferrable
 	def.Deferred = con.Initdeferred
 	def.SkipValidation = con.SkipValidation
+	def.IndexSpace = con.Indexspace
 
 	switch ct {
 	case ConstraintPK, ConstraintUnique:

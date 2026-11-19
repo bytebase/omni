@@ -286,10 +286,10 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 		}
 		switch nodes.AlterTableType(atc.Subtype) {
 		case nodes.AT_SetTableSpace:
-			if err := c.checkTablespace(atc.Name); err != nil {
+			if err := c.checkRelationTablespace(atc.Name); err != nil {
 				return err
 			}
-			parentIdx.Tablespace = atc.Name
+			parentIdx.Tablespace = normalizeTablespace(atc.Name)
 		case nodes.AT_AttachPartition:
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
 			if !ok {
@@ -661,10 +661,10 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropExpression(rel, atc.Name, atc.Missing_ok)
 
 	case nodes.AT_SetTableSpace:
-		if err := c.checkTablespace(atc.Name); err != nil {
+		if err := c.checkRelationTablespace(atc.Name); err != nil {
 			return err
 		}
-		rel.Tablespace = atc.Name
+		rel.Tablespace = normalizeTablespace(atc.Name)
 		return nil
 
 	case nodes.AT_SetLogged:
@@ -734,6 +734,8 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameSchema(stmt)
 	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
 		return c.renameType(stmt)
+	case nodes.OBJECT_TABLESPACE:
+		return c.RenameTablespace(stmt)
 	case nodes.OBJECT_INDEX:
 		return c.renameIndex(stmt)
 	case nodes.OBJECT_SEQUENCE:

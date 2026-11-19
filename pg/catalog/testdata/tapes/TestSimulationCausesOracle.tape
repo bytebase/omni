@@ -618,3 +618,73 @@
 < error
 | 42809 "a" is not a table
 | hint: Use DROP INDEX to remove an index.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE IF NOT EXISTS a()
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE IF NOT EXISTS a PARTITION OF a DEFAULT
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE s (b int) TABLESPACE pg_global
+< error
+| 22023 only shared relations can be placed in pg_global tablespace
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE INDEX i ON a(b) TABLESPACE pg_global
+< error
+| 22023 only shared relations can be placed in pg_global tablespace
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER TABLE ALL IN TABLESPACE pg_default SET TABLESPACE pg_global
+< error
+| 22023 cannot move relations in to or out of pg_global tablespace
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE OPERATOR FAMILY f USING heap
+< error
+| 55000 access method "heap" is not of type INDEX
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE OPERATOR CLASS c FOR TYPE int USING heap AS STORAGE int
+< error
+| 55000 access method "heap" is not of type INDEX
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER OPERATOR FAMILY f USING heap ADD OPERATOR 1 < (int, int)
+< error
+| 55000 access method "heap" is not of type INDEX

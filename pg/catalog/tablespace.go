@@ -16,6 +16,37 @@ func (c *Catalog) checkTablespace(name string) error {
 	return errUndefinedObject("tablespace", name)
 }
 
+// normalizeTablespace stores the default tablespace as "", the way a
+// relation created without a TABLESPACE clause holds it.
+func normalizeTablespace(name string) string {
+	if name == "pg_default" {
+		return ""
+	}
+	return name
+}
+
+// checkRelationTablespace refuses a tablespace an ordinary relation cannot be
+// placed in. pg_global holds shared system relations only, even though the
+// tablespace itself exists.
+func (c *Catalog) checkRelationTablespace(name string) error {
+	if err := c.checkTablespace(name); err != nil {
+		return err
+	}
+	if name == "pg_global" {
+		return errInvalidParameterValue("only shared relations can be placed in pg_global tablespace")
+	}
+	return nil
+}
+
+// tablespaceMatches reports whether an object's stored tablespace is the one
+// a bulk move names. The empty value is the default, pg_default.
+func tablespaceMatches(stored, name string) bool {
+	if name == "pg_default" {
+		return stored == "" || stored == "pg_default"
+	}
+	return stored == name
+}
+
 // checkTableAccessMethod refuses a table access method the catalog does not
 // hold, or one registered for indexes: CREATE TABLE ... USING takes only a
 // table access method.
@@ -71,6 +102,38 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 	return nil
 }
 
+// RenameTablespace renames a tablespace and every object stored in it.
+//
+// pg: src/backend/commands/tablespace.c — RenameTableSpace
+func (c *Catalog) RenameTablespace(stmt *nodes.RenameStmt) error {
+	oldName := stmt.Subname
+	if oldName == "pg_default" || oldName == "pg_global" {
+		return &Error{Code: CodeInsufficientPrivilege,
+			Message: fmt.Sprintf("permission denied for tablespace %s", oldName)}
+	}
+	if !c.tablespaces[oldName] {
+		return errUndefinedObject("tablespace", oldName)
+	}
+	if c.tablespaces[stmt.Newname] {
+		return errDuplicateObject("tablespace", stmt.Newname)
+	}
+	delete(c.tablespaces, oldName)
+	c.tablespaces[stmt.Newname] = true
+	for _, schema := range c.schemas {
+		for _, rel := range schema.Relations {
+			if rel.Tablespace == oldName {
+				rel.Tablespace = stmt.Newname
+			}
+		}
+		for _, idx := range schema.Indexes {
+			if idx.Tablespace == oldName {
+				idx.Tablespace = stmt.Newname
+			}
+		}
+	}
+	return nil
+}
+
 // AlterTablespaceOptions checks the tablespace an ALTER TABLESPACE names.
 //
 // pg: src/backend/commands/tablespace.c — AlterTableSpaceOptions
@@ -91,15 +154,29 @@ func (c *Catalog) MoveAllTablespaces(stmt *nodes.AlterTableMoveAllStmt) error {
 	if err := c.checkTablespace(stmt.OrigTablespacename); err != nil {
 		return err
 	}
+	if stmt.NewTablespacename == "pg_global" || stmt.OrigTablespacename == "pg_global" {
+		return errInvalidParameterValue("cannot move relations in to or out of pg_global tablespace")
+	}
+	target := normalizeTablespace(stmt.NewTablespacename)
 	for _, schema := range c.schemas {
-		for _, rel := range schema.Relations {
-			if rel.Tablespace == stmt.OrigTablespacename {
-				rel.Tablespace = stmt.NewTablespacename
+		switch nodes.ObjectType(stmt.ObjType) {
+		case nodes.OBJECT_TABLE:
+			for _, rel := range schema.Relations {
+				if (rel.RelKind == 'r' || rel.RelKind == 'p' || rel.RelKind == 'f') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) {
+					rel.Tablespace = target
+				}
 			}
-		}
-		for _, idx := range schema.Indexes {
-			if idx.Tablespace == stmt.OrigTablespacename {
-				idx.Tablespace = stmt.NewTablespacename
+		case nodes.OBJECT_MATVIEW:
+			for _, rel := range schema.Relations {
+				if rel.RelKind == 'm' && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) {
+					rel.Tablespace = target
+				}
+			}
+		case nodes.OBJECT_INDEX:
+			for _, idx := range schema.Indexes {
+				if tablespaceMatches(idx.Tablespace, stmt.OrigTablespacename) {
+					idx.Tablespace = target
+				}
 			}
 		}
 	}

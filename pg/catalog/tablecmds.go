@@ -177,6 +177,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		ofTypeOID = oid
 	}
 
+	// IF NOT EXISTS skips a name an index or sequence holds before the
+	// parents are resolved, as PostgreSQL does for a partition target.
+	if stmt.IfNotExists {
+		if _, ok := relationNamespaceKind(schema, relName); ok {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
+			return nil
+		}
+	}
+
 	// Merge inherited columns (INHERITS clause).
 	// pg: src/backend/commands/tablecmds.c — MergeAttributes
 	var parentOIDs []uint32
@@ -487,7 +496,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			return errDuplicateTable(relName)
 		}
 	}
-	if err := c.checkTablespace(stmt.Tablespacename); err != nil {
+	if err := c.checkRelationTablespace(stmt.Tablespacename); err != nil {
 		return err
 	}
 	if err := c.checkTableAccessMethod(stmt.AccessMethod); err != nil {
@@ -538,7 +547,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		InhParents: parentOIDs,
 		InhCount:   len(parentOIDs),
 		OfTypeOID:  ofTypeOID,
-		Tablespace: stmt.Tablespacename,
+		Tablespace: normalizeTablespace(stmt.Tablespacename),
 	}
 
 	// Parse persistence from RangeVar.
