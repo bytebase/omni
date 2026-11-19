@@ -950,6 +950,9 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !explicitType && len(funcs) > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		pd.Columns = cols
 		pd.FuncExprs = funcs
 		if !explicitType && !pd.Auto {
@@ -1484,6 +1487,9 @@ func (p *Parser) parseListValueList() ([]string, int, bool, error) {
 			break
 		}
 		p.advance()
+		if p.strictCTAS && p.cur.Kind == int(')') {
+			return nil, 0, false, p.syntaxErrorAtCur()
+		}
 	}
 	if len(vals) == 0 {
 		return nil, 0, false, p.syntaxErrorAtCur()
@@ -1581,10 +1587,10 @@ func (p *Parser) parseDistributedBy() (*ast.DistributionDesc, error) {
 	// server refuses it.
 	if p.cur.Kind == kwBUCKETS {
 		p.advance() // consume BUCKETS
-		if p.cur.Kind != tokInt {
+		if p.cur.Kind != tokInt || p.strictCTAS && !isDecimalInteger(p.cur.Str) {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: fmt.Sprintf("expected an integer after BUCKETS, got %q", p.cur.Str),
+				Message: fmt.Sprintf("expected a decimal integer after BUCKETS, got %q", p.cur.Str),
 			}
 		}
 		dd.Buckets = int(p.cur.Ival)
