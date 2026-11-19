@@ -1674,9 +1674,11 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 	// ROLLUP and CUBE take an expression list (groupingElement, StarRocks.g4:
 	// 2151), so an empty one is a syntax error in GROUP BY — the pinned server
 	// refuses `GROUP BY ROLLUP()` and `GROUP BY CUBE()` while it takes
-	// `SELECT ROLLUP()` as an ordinary call.
+	// `SELECT ROLLUP()` as an ordinary call, and a backticked `ROLLUP` is an
+	// identifier, so `GROUP BY `ROLLUP`()` is an ordinary call too.
 	for _, item := range items {
-		if fc, ok := item.(*ast.FuncCallExpr); ok && len(fc.Args) == 0 && len(fc.Name.Parts) == 1 {
+		if fc, ok := item.(*ast.FuncCallExpr); ok && len(fc.Args) == 0 && len(fc.Name.Parts) == 1 &&
+			!p.isQuotedName(fc.Name) {
 			switch strings.ToUpper(fc.Name.Parts[0]) {
 			case "ROLLUP", "CUBE":
 				return nil, &ParseError{

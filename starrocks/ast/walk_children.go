@@ -769,13 +769,20 @@ func walkChildren(v Visitor, node Node) {
 
 	// DDL — FILE nodes (T5.3).
 	case *CreateFileStmt:
+		if n.Catalog != nil {
+			Walk(v, n.Catalog)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
 	case *DropFileStmt:
+		if n.Catalog != nil {
+			Walk(v, n.Catalog)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
+
 	// Workload management DDL nodes (T5.4).
 	case *CreateResourceStmt:
 		for _, prop := range n.Properties {

@@ -501,6 +501,7 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	if p.cur.Kind == kwTEMPORARY || p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
 		if p.cur.Kind == kwTEMPORARY {
+			stmt.TempPartition = true
 			p.advance() // consume TEMPORARY
 		}
 		if p.cur.Kind == kwPARTITIONS {

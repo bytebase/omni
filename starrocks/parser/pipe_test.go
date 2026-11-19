@@ -176,16 +176,20 @@ func TestBackupCatalogListTakesNoAlias(t *testing.T) {
 	}
 }
 
-func TestFileCatalogKeepsItsQualifiedName(t *testing.T) {
-	// createFileStatement takes a qualifiedName, so a catalog and a database
-	// both survive: `IN catalog.db` is not truncated to db.
-	stmt := parseOne(t, `CREATE FILE 'x' IN catalog.db PROPERTIES('k' = 'v')`).(*ast.CreateFileStmt)
-	if stmt.Database != "catalog.db" {
-		t.Errorf("Database = %q, want catalog.db", stmt.Database)
+func TestFileCatalogKeepsItsParts(t *testing.T) {
+	// createFileStatement takes a qualifiedName, so its parts survive: `a.b`
+	// is two parts and `a.b` in backticks is one, as the server reads them.
+	stmt := parseOne(t, `CREATE FILE 'x' IN a.b PROPERTIES('k' = 'v')`).(*ast.CreateFileStmt)
+	if stmt.Catalog == nil || len(stmt.Catalog.Parts) != 2 || stmt.Catalog.Parts[1] != "b" {
+		t.Errorf("Catalog = %v, want the two parts a and b", stmt.Catalog)
 	}
-	dropped := parseOne(t, `DROP FILE 'x' FROM catalog.db PROPERTIES('k' = 'v')`).(*ast.DropFileStmt)
-	if dropped.Database != "catalog.db" {
-		t.Errorf("Database = %q, want catalog.db", dropped.Database)
+	stmt = parseOne(t, "CREATE FILE 'x' IN `a.b` PROPERTIES('k' = 'v')").(*ast.CreateFileStmt)
+	if stmt.Catalog == nil || len(stmt.Catalog.Parts) != 1 || stmt.Catalog.Parts[0] != "a.b" {
+		t.Errorf("Catalog = %v, want the one part a.b", stmt.Catalog)
+	}
+	dropped := parseOne(t, `DROP FILE 'x' FROM a.b PROPERTIES('k' = 'v')`).(*ast.DropFileStmt)
+	if dropped.Catalog == nil || len(dropped.Catalog.Parts) != 2 {
+		t.Errorf("Catalog = %v, want the two parts a and b", dropped.Catalog)
 	}
 }
 
@@ -496,5 +500,55 @@ func TestDataCachePriorityIsAnInt32Magnitude(t *testing.T) {
 	}
 	if _, errs := parseForTest(`CREATE DATACACHE RULE *.*.* PRIORITY = - 2147483648`); len(errs) == 0 {
 		t.Error("PRIORITY = - 2147483648 parsed, want a syntax error")
+	}
+}
+
+func TestExportTemporaryPartition(t *testing.T) {
+	// tableDesc (:2250) takes partitionNames (:2268), whose TEMPORARY modifier
+	// names another partition namespace; the server takes the form.
+	stmt := parseOne(t, `EXPORT TABLE t TEMPORARY PARTITION p TO '/x'`).(*ast.ExportStmt)
+	if !stmt.TempPartition || len(stmt.Partition) != 1 {
+		t.Errorf("stmt = %+v, want a temporary partition", stmt)
+	}
+	stmt = parseOne(t, `EXPORT TABLE t PARTITION p TO '/x'`).(*ast.ExportStmt)
+	if stmt.TempPartition {
+		t.Error("TempPartition = true, want false")
+	}
+}
+
+func TestGroupByQuotedRollup(t *testing.T) {
+	// A backticked ROLLUP is an identifier, so an empty argument list is an
+	// ordinary call; the server takes `GROUP BY `ROLLUP`()`.
+	for _, sql := range []string{"SELECT a FROM t GROUP BY `ROLLUP`()", "SELECT a FROM t GROUP BY `CUBE`()"} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+	for _, sql := range []string{`SELECT a FROM t GROUP BY ROLLUP()`, `SELECT a FROM t GROUP BY CUBE()`} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+func TestSnapshotScopesAreExclusive(t *testing.T) {
+	// A DATABASE clause and an external-catalog scope exclude each other, and
+	// so do a DATABASE clause and a database-qualified label.
+	for _, sql := range []string{
+		`BACKUP EXTERNAL CATALOG(a) DATABASE db SNAPSHOT s TO r`,
+		`BACKUP DATABASE db SNAPSHOT db.s TO r`,
+		`RESTORE SNAPSHOT db.s FROM r DATABASE d`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		`BACKUP DATABASE db SNAPSHOT s TO r`,
+		`RESTORE SNAPSHOT s FROM r DATABASE d`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
 	}
 }

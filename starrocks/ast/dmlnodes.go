@@ -218,6 +218,7 @@ var _ Node = (*AlterLoadStmt)(nil)
 type ExportStmt struct {
 	Target           *ObjectName // table to export
 	Partition        []string    // optional partitionNames
+	TempPartition    bool        // TEMPORARY before PARTITION
 	ColumnAliases    []string    // optional columnAliases
 	Path             string      // TO 'path'
 	Mode             string      // WITH SYNC MODE / WITH ASYNC MODE

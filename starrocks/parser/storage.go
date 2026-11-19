@@ -260,7 +260,7 @@ func (p *Parser) parseCreateFile(startLoc ast.Loc) (ast.Node, error) {
 	if catalog, loc, ok, err := p.parseFileCatalog(); err != nil {
 		return nil, err
 	} else if ok {
-		stmt.Database = catalog
+		stmt.Catalog = catalog
 		endLoc = loc
 	}
 
@@ -300,7 +300,7 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 	if catalog, loc, ok, err := p.parseFileCatalog(); err != nil {
 		return nil, err
 	} else if ok {
-		stmt.Database = catalog
+		stmt.Catalog = catalog
 		endLoc = loc
 	}
 
@@ -323,18 +323,18 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 
 // parseFileCatalog reads the optional {FROM | IN} catalog=qualifiedName of
 // createFileStatement and dropFileStatement (StarRocks.g4:1899, :1903). The
-// catalog is the qualified name's last part; ok is false when neither FROM nor
-// IN is next.
-func (p *Parser) parseFileCatalog() (string, ast.Loc, bool, error) {
+// name keeps its parts, so `a.b` and “ `a.b` “ stay different catalogs; ok is
+// false when neither FROM nor IN is next.
+func (p *Parser) parseFileCatalog() (*ast.ObjectName, ast.Loc, bool, error) {
 	if p.cur.Kind != kwFROM && p.cur.Kind != kwIN {
-		return "", ast.NoLoc(), false, nil
+		return nil, ast.NoLoc(), false, nil
 	}
 	p.advance() // consume FROM / IN
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
-		return "", ast.NoLoc(), false, err
+		return nil, ast.NoLoc(), false, err
 	}
-	return name.String(), name.Loc, true, nil
+	return name, name.Loc, true, nil
 }
 
 // ---------------------------------------------------------------------------

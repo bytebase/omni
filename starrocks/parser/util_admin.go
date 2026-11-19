@@ -41,6 +41,16 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.LabelParts = labelName.Parts
 	endLoc := ast.NodeLoc(labelName)
 
+	// "Specifying dbName before snapshot name is forbidden if the DbName is
+	// specified in backup statement": the DATABASE clause and a qualified
+	// label name the same thing twice.
+	if stmt.Database != "" && len(labelName.Parts) > 1 {
+		return nil, &ParseError{
+			Position: labelName.Loc.Start, End: labelName.Loc.End,
+			Message: "the snapshot label and the DATABASE clause both name a database",
+		}
+	}
+
 	// TO repo_name
 	if _, err := p.expect(kwTO); err != nil {
 		return nil, err
@@ -313,6 +323,12 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	if stmt.Database != "" && len(labelName.Parts) > 1 {
+		return nil, &ParseError{
+			Position: labelName.Loc.Start, End: labelName.Loc.End,
+			Message: "the snapshot label and the DATABASE clause both name a database",
+		}
+	}
 	if scopeLoc.IsValid() {
 		endLoc = scopeLoc
 	}
@@ -432,6 +448,14 @@ func (p *Parser) parseBackupScope(all *bool, catalogs *[]*ast.ExternalCatalogRef
 		endLoc = closeTok.Loc
 	}
 	if p.cur.Kind == kwDATABASE {
+		// The database is one scope: "Can not sepcify database name for
+		// external catalog Backup/Restore."
+		if *all || len(*catalogs) > 0 {
+			return ast.NoLoc(), &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "an external catalog snapshot takes no DATABASE clause",
+			}
+		}
 		p.advance() // consume DATABASE
 		name, nameLoc, err := p.parseIdentifier()
 		if err != nil {

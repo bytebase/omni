@@ -709,7 +709,7 @@ var _ Node = (*DropRepositoryStmt)(nil)
 //	CREATE FILE file_name [IN db] PROPERTIES(...)
 type CreateFileStmt struct {
 	Name       string
-	Database   string // optional IN db_name
+	Catalog    *ObjectName // optional {FROM | IN} catalog=qualifiedName
 	Properties []*Property
 	Loc        Loc
 }
@@ -724,7 +724,7 @@ var _ Node = (*CreateFileStmt)(nil)
 //	DROP FILE file_name [FROM db] PROPERTIES(...)
 type DropFileStmt struct {
 	Name       string
-	Database   string // optional FROM db_name
+	Catalog    *ObjectName // optional {FROM | IN} catalog=qualifiedName
 	Properties []*Property
 	Loc        Loc
 }
