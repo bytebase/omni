@@ -504,8 +504,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		return &Error{Code: CodeFeatureNotSupported,
 			Message: "cannot specify default tablespace for partitioned relations"}
 	}
-	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
-		return err
+	if relkind == 'r' || relkind == 'p' || relkind == 'm' {
+		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+			return err
+		}
 	}
 	if err := c.checkTableAccessMethod(stmt.AccessMethod); err != nil {
 		return err
@@ -638,7 +640,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	}
 
 	// A partition with no TABLESPACE of its own takes its parent's.
-	if stmt.Tablespacename == "" && isPartition && len(parentOIDs) > 0 {
+	if stmt.Tablespacename == "" && c.defaultTablespace == "" && isPartition && len(parentOIDs) > 0 {
 		if parent := c.relationByOID[parentOIDs[0]]; parent != nil {
 			rel.Tablespace = parent.Tablespace
 		}

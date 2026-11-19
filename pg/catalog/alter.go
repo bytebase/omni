@@ -144,11 +144,27 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		return c.AlterIndexStmt(stmt)
 	}
 	if nodes.ObjectType(stmt.ObjType) == nodes.OBJECT_SEQUENCE {
-		_, err := c.findSequence(schemaName, relName)
-		if err != nil && stmt.Missing_ok && missingObject(err) {
-			return nil
+		seq, err := c.findSequence(schemaName, relName)
+		if err != nil {
+			if stmt.Missing_ok && missingObject(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		if stmt.Cmds != nil {
+			for _, item := range stmt.Cmds.Items {
+				atc, ok := item.(*nodes.AlterTableCmd)
+				if !ok || nodes.AlterTableType(atc.Subtype) != nodes.AT_ChangeOwner || atc.Newowner == nil {
+					continue
+				}
+				owner := c.ownerRoleName(atc.Newowner)
+				if err := c.checkRole(owner); err != nil {
+					return err
+				}
+				seq.OwnerName = owner
+			}
+		}
+		return nil
 	}
 
 	schema, rel, err := c.findRelation(schemaName, relName)

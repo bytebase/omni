@@ -120,6 +120,11 @@ func (c *Catalog) DefineTablespace(stmt *nodes.CreateTableSpaceStmt) error {
 		return errDuplicateObject("tablespace", name)
 	}
 	c.tablespaces[name] = true
+	owner := c.currentOwner()
+	if stmt.Owner != nil {
+		owner = c.ownerRoleName(stmt.Owner)
+	}
+	c.tablespaceOwners[name] = owner
 	return nil
 }
 
@@ -145,6 +150,7 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 			Message: fmt.Sprintf("tablespace %q is not empty", name)}
 	}
 	delete(c.tablespaces, name)
+	delete(c.tablespaceOwners, name)
 	return nil
 }
 
@@ -169,6 +175,10 @@ func (c *Catalog) RenameTablespace(stmt *nodes.RenameStmt) error {
 	}
 	delete(c.tablespaces, oldName)
 	c.tablespaces[stmt.Newname] = true
+	if owner, ok := c.tablespaceOwners[oldName]; ok {
+		delete(c.tablespaceOwners, oldName)
+		c.tablespaceOwners[stmt.Newname] = owner
+	}
 	for _, schema := range c.schemas {
 		for _, rel := range schema.Relations {
 			if rel.Tablespace == oldName {
@@ -275,6 +285,16 @@ func (c *Catalog) roleInUse(name string) bool {
 			return true
 		}
 	}
+	for _, g := range c.grants {
+		if g.Grantee == name {
+			return true
+		}
+	}
+	for _, owner := range c.tablespaceOwners {
+		if owner == name {
+			return true
+		}
+	}
 	return false
 }
 
@@ -287,28 +307,46 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	if err != nil {
 		return err
 	}
+	type ownedRel struct {
+		schema *Schema
+		rel    *Relation
+	}
+	var rels []ownedRel
+	ownedRelOIDs := map[uint32]bool{}
 	for _, schema := range c.schemas {
-		var rels []*Relation
 		for _, rel := range schema.Relations {
 			if owners[rel.OwnerName] {
-				rels = append(rels, rel)
+				rels = append(rels, ownedRel{schema: schema, rel: rel})
+				ownedRelOIDs[rel.OID] = true
 			}
 		}
-		for _, rel := range rels {
-			if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
-				if stmt.Behavior != nodes.DROP_CASCADE {
-					kind := "table"
-					if rel.RelKind == 'v' {
-						kind = "view"
-					} else if rel.RelKind == 'm' {
-						kind = "materialized view"
-					}
-					return errDependentObjects(kind, rel.Name)
+	}
+	for _, x := range rels {
+		for _, dep := range c.relationDependents(x.rel.OID, 0) {
+			if !dep.Normal {
+				continue
+			}
+			if dep.ObjType == 'r' && ownedRelOIDs[dep.ObjOID] {
+				continue
+			}
+			if stmt.Behavior != nodes.DROP_CASCADE {
+				kind := "table"
+				if x.rel.RelKind == 'v' {
+					kind = "view"
+				} else if x.rel.RelKind == 'm' {
+					kind = "materialized view"
 				}
-				c.dropDependents('r', rel.OID)
+				return errDependentObjects(kind, x.rel.Name)
 			}
-			c.removeRelation(schema, rel.Name, rel)
 		}
+	}
+	for _, x := range rels {
+		if hasNormalDependent(c.relationDependents(x.rel.OID, 0)) {
+			c.dropDependents('r', x.rel.OID)
+		}
+		c.removeRelation(x.schema, x.rel.Name, x.rel)
+	}
+	for _, schema := range c.schemas {
 		var indexes []*Index
 		for _, idx := range schema.Indexes {
 			if owners[idx.OwnerName] {
@@ -326,6 +364,12 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 		for _, seq := range seqs {
 			c.removeSequence(schema, seq)
+		}
+	}
+	for name, owner := range c.tablespaceOwners {
+		if owners[owner] {
+			delete(c.tablespaces, name)
+			delete(c.tablespaceOwners, name)
 		}
 	}
 	var procs []*UserProc
@@ -428,6 +472,16 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			c.typeOwners[oid] = newOwner
 		}
 	}
+	for name, owner := range c.tablespaceOwners {
+		if owners[owner] {
+			c.tablespaceOwners[name] = newOwner
+		}
+	}
+	for i := range c.grants {
+		if owners[c.grants[i].Grantee] {
+			c.grants[i].Grantee = newOwner
+		}
+	}
 	return nil
 }
 
@@ -491,6 +545,16 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for oid, owner := range c.typeOwners {
 		if owner == oldName {
 			c.typeOwners[oid] = stmt.Newname
+		}
+	}
+	for name, owner := range c.tablespaceOwners {
+		if owner == oldName {
+			c.tablespaceOwners[name] = stmt.Newname
+		}
+	}
+	for i := range c.grants {
+		if c.grants[i].Grantee == oldName {
+			c.grants[i].Grantee = stmt.Newname
 		}
 	}
 	return nil

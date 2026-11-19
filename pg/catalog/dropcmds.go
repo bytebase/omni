@@ -274,11 +274,13 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 				delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
 			}
 			delete(c.typeByOID, bt.Array)
+			delete(c.typeOwners, bt.Array)
 		}
 
 		// Remove the type itself.
 		delete(c.typeByName, typeKey{ns: bt.Namespace, name: bt.TypeName})
 		delete(c.typeByOID, bt.OID)
+		delete(c.typeOwners, bt.OID)
 		c.removeComments('t', bt.OID)
 		c.removeDepsOf('t', bt.OID)
 		c.removeDepsOn('t', bt.OID)
