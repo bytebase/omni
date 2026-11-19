@@ -1310,6 +1310,23 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:        1031,
 			keepsSchema: true,
 		},
+		// Expressions written in an ALTER bind against the final table's column
+		// names rather than pre-rename names: RENAME COLUMN rewrites only stored
+		// expressions from earlier statements.
+		{
+			name:        "added CHECK naming a column renamed later in the same ALTER",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ADD e INT CHECK (c > 0), RENAME COLUMN c TO z",
+			code:        1054,
+			keepsSchema: true,
+		},
+		{
+			name:     "added CHECK naming the post-rename column of the same ALTER",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD e INT CHECK (z > 0), RENAME COLUMN c TO z",
+			code:     0,
+			contains: []string{"CHECK (`z` > 0)"},
+		},
 	}
 
 	for _, tc := range cases {

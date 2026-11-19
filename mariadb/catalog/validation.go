@@ -386,7 +386,11 @@ func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
 // statement leaves: measured on mariadb:11.8.8,
 // `ALTER TABLE t ADD a INT CHECK (a > b), ADD b INT CHECK (b < a)` and
 // `ALTER TABLE t ADD CHECK (b > 0), ADD b INT` run over a table with neither
-// column, where a name no column of the result has is 1054.
+// column, where a name no column of the result has is 1054. A same-ALTER
+// rename rewrites only expressions that existed before the statement began:
+// `ALTER TABLE a ADD e INT CHECK (c > 0), RENAME COLUMN c TO z` answers 1054
+// for c while `ADD e INT CHECK (z > 0), RENAME COLUMN c TO z` runs (recorded in
+// TestSimulationCausesOracle).
 func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, skippedColumns map[*nodes.ColumnDef]bool, skippedKeys map[*nodes.Constraint]bool) error {
 	for _, cmd := range cmds {
 		if cmd == nil {
