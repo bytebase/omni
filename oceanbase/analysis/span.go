@@ -147,6 +147,9 @@ func mergeColumnSet(m, n ColumnSet) (ColumnSet, bool) {
 type tableSource interface {
 	GetTableName() string
 	GetDatabaseName() string
+	// GetCatalogName returns the catalog a relation of another catalog names,
+	// and "" for a relation of the database the catalog models.
+	GetCatalogName() string
 	// GetQuerySpanResult returns the relation's columns. A pseudoTable and a
 	// physicalView return their own slice, which callers must copy before
 	// modifying.
@@ -158,12 +161,16 @@ type pseudoTable struct {
 	Name string
 	// DBName is the database a relation of another catalog or a database link
 	// names, which a column reference to it is qualified with.
-	DBName  string
-	Columns []QuerySpanResult
+	DBName string
+	// CatalogName is the catalog of a relation this catalog does not model, so
+	// a reference qualified with it never binds to a local table of that name.
+	CatalogName string
+	Columns     []QuerySpanResult
 }
 
 func (p *pseudoTable) GetTableName() string                  { return p.Name }
 func (p *pseudoTable) GetDatabaseName() string               { return p.DBName }
+func (p *pseudoTable) GetCatalogName() string                { return p.CatalogName }
 func (p *pseudoTable) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // unknownColumnsTable is a relation whose columns are known only when the query
@@ -181,6 +188,7 @@ type physicalView struct {
 
 func (p *physicalView) GetTableName() string                  { return p.Name }
 func (p *physicalView) GetDatabaseName() string               { return p.Database }
+func (p *physicalView) GetCatalogName() string                { return "" }
 func (p *physicalView) GetQuerySpanResult() []QuerySpanResult { return p.Columns }
 
 // physicalTable is a catalog table; each column is its own plain source.
@@ -193,6 +201,7 @@ type physicalTable struct {
 
 func (p *physicalTable) GetTableName() string    { return p.Name }
 func (p *physicalTable) GetDatabaseName() string { return p.Database }
+func (p *physicalTable) GetCatalogName() string  { return "" }
 
 func (p *physicalTable) GetQuerySpanResult() []QuerySpanResult {
 	result := make([]QuerySpanResult, 0, len(p.Columns))

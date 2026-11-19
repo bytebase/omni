@@ -169,8 +169,17 @@ func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName st
 	return nil, false
 }
 
-func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (QuerySpanResult, error) {
+func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tableName, fieldName string) (QuerySpanResult, error) {
 	findInTableSource := func(tableSource tableSource) (QuerySpanResult, bool) {
+		// A catalog-qualified reference names a relation of another catalog, and
+		// a reference without one names no such relation: neither binds to the
+		// other, whatever the database and table are called.
+		if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
+			return QuerySpanResult{}, false
+		}
+		if catalogName == "" && tableSource.GetCatalogName() != "" {
+			return QuerySpanResult{}, false
+		}
 		if q.ignoreCaseSensitive {
 			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
 				return QuerySpanResult{}, false
@@ -718,7 +727,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 			if t.Alias != "" {
 				name = t.Alias
 			}
-			return &unknownColumnsTable{pseudoTable{Name: name, DBName: t.Schema}}, nil
+			return &unknownColumnsTable{pseudoTable{Name: name, DBName: t.Schema, CatalogName: t.Catalog}}, nil
 		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
@@ -1012,7 +1021,7 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		}
 		// A column of a view, derived table or CTE is plain only if that
 		// query's column is.
-		source, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
+		source, err := q.getFieldColumnSource(e.Catalog, e.Schema, e.Table, e.Column)
 		if err != nil {
 			return QuerySpanResult{}, err
 		}

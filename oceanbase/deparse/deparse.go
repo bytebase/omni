@@ -774,6 +774,23 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 	}
 }
 
+// writeColumnRefAlias writes a column reference as the source text of an
+// auto-alias reads it: unquoted, and qualified only as far as it was written.
+func writeColumnRefAlias(b *strings.Builder, n *ast.ColumnRef) {
+	for _, part := range []string{n.Catalog, n.Schema, n.Table} {
+		if part == "" {
+			continue
+		}
+		b.WriteString(part)
+		b.WriteString(".")
+	}
+	if n.Star {
+		b.WriteString("*")
+		return
+	}
+	b.WriteString(n.Column)
+}
+
 // deparseExprAlias generates a human-readable expression text for use as an auto-alias.
 // Unlike deparseExpr, this preserves the original expression text style matching MySQL 8.0's
 // auto-alias behavior: function names stay uppercase, spaces after commas, CASE/CAST
@@ -1164,11 +1181,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		writeExprAlias(b, n.Expr)
 		b.WriteString(")")
 	case *ast.RemoteSequenceExpr:
-		b.WriteString(deparseColumnRef(n.Ref))
+		// The alias is the expression's source-style text, which is unquoted
+		// like every other alias this writer builds.
+		writeColumnRefAlias(b, n.Ref)
 		b.WriteString(formatDblink(n.Dblink))
 	case *ast.OdbcEscapeExpr:
 		b.WriteString("{")
-		b.WriteString(quoteIdent(n.Name))
+		b.WriteString(n.Name)
 		b.WriteString(" ")
 		writeExprAlias(b, n.Expr)
 		b.WriteString("}")

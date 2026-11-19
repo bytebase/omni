@@ -263,3 +263,19 @@ func TestFlashbackAccessResources(t *testing.T) {
 		})
 	}
 }
+
+// TestRemoteCatalogColumnDoesNotBindLocally pins that a four-part reference to
+// another catalog never resolves to a same-named local table that is also in
+// FROM.
+func TestRemoteCatalogColumnDoesNotBindLocally(t *testing.T) {
+	span, err := resolve(t, "SELECT c1.db.t1.a FROM c1.db.t1, db.t1")
+	require.NoError(t, err)
+	// The remote relation's columns are known only when the query runs, so the
+	// reference reads no local column.
+	require.Equal(t, []string{"a<-"}, renderResults(span))
+
+	// The local reference, without a catalog, keeps the local table's column.
+	span, err = resolve(t, "SELECT t1.a FROM c1.db.t1, db.t1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"a<-db.t1.a plain"}, renderResults(span))
+}

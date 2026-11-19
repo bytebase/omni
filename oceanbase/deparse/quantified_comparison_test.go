@@ -246,3 +246,32 @@ func TestOrderByPositionIncludesCatalog(t *testing.T) {
 		t.Fatalf("ORDER BY rewrote to %#v, want position 2", sel.OrderBy[0].Expr)
 	}
 }
+
+// TestRemoteSequenceAndEscapeAliases pins that the rebuilt aliases of the new
+// wrappers carry their source-style, unquoted text.
+func TestRemoteSequenceAndEscapeAliases(t *testing.T) {
+	lookup := func(string) *ResolverTable {
+		return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "seq", Position: 1}}}
+	}
+	for _, c := range []struct{ input, want string }{
+		{
+			"SELECT t.seq@link FROM t",
+			"select `t`.`seq`@link AS `t.seq@link` from `t`",
+		},
+		{
+			"SELECT {fn CONCAT(t.seq, 'x')} FROM t",
+			"select {`fn` concat(`t`.`seq`,'x')} AS `{fn CONCAT(t.seq, 'x')}` from `t`",
+		},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			list, err := parser.Parse(c.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", c.input, err)
+			}
+			resolved := (&Resolver{Lookup: lookup}).Resolve(list.Items[0].(*ast.SelectStmt))
+			if got := DeparseSelect(resolved); got != c.want {
+				t.Errorf("DeparseSelect(%q)\n got %s\nwant %s", c.input, got, c.want)
+			}
+		})
+	}
+}
