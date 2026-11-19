@@ -13,8 +13,8 @@ a minute; a second recording on a fresh server wrote the same file.
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
 | One per alternative | 5,510 | 5,405 | 0 | 105 |
-| Near-misses | 11,960 | 11,938 | 20 | 4 |
-| `suite:lexer` | 67 | 66 | 0 | 2 |
+| Near-misses | 11,960 | 11,938 | 20 | 2 |
+| `suite:lexer` | 67 | 66 | 0 | 1 |
 
 SQL Server accepts 3,034 of the 5,510 alternatives. Five more alternatives get
 no row: they name a token neither keyword table gives a text

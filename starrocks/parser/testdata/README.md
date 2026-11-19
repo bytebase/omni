@@ -28,14 +28,14 @@ which `||` is only under sql_mode `PIPES_AS_CONCAT`.
 ## Suites
 
 Eight container tests compared `Parse` with a running StarRocks. Their 434
-cases are `suite:` rows named after them, judged by the same recording; all but
-one agree: `suite:characters` holds `SELECT 1　AS x` with an ideographic space,
-which no rule of `StarRocksLex.g4` matches and omni reads as whitespace, so
-StarRocks refuses it. The suites: `suite:conformance` (281,
-`TestStarRocksSyntaxConformance`),
+cases are `suite:` rows named after them, judged by the same recording; all 434
+agree: `suite:conformance` (281, `TestStarRocksSyntaxConformance`),
 `suite:explain-modifiers` (18), `suite:no-job-statements` (46), and
 `suite:pr2a`, `pr2b`, `pr3`, `pr4a` and `pr4b` (89, the parity matrices of
-the PRs that added those forms). A statement added to one is a row with `?` in
+the PRs that added those forms). The 15 `suite:characters` rows, the
+characters no rule of `StarRocksLex.g4` matches, are a group of their own: one
+disagrees, `SELECT 1　AS x` with an ideographic space, which StarRocks refuses
+and omni reads as whitespace. A statement added to one is a row with `?` in
 both verdict cells, judged by a recording:
 
 ```text

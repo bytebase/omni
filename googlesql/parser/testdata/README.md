@@ -32,9 +32,8 @@ pipe and graph rows are different; see below.
 Most of what only omni accepts is BigQuery: scripting (`DECLARE`, `IF`,
 `CASE`, `BREAK`), and DDL Spanner's DDL parser refuses (`CREATE TABLE a` with
 no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`). Each
-of the 475 rows is measured below: the pinned grammar derives 473 of them, one
-was omni's and is closed, and two are Spanner DDL reference forms the grammar
-lags.
+of the 475 rows is measured below: the pinned grammar derives 473 of them, and
+two are Spanner DDL reference forms the grammar lags.
 
 ## Most of those families are not parse verdicts either
 
