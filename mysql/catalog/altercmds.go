@@ -64,8 +64,25 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 	}
+	// A ROW_FORMAT FIXED or COMPRESSION the statement writes is the engine's to
+	// take, and InnoDB refuses it with 1478 — after the statement's other
+	// commands, which answer first: `ROW_FORMAT FIXED, ADD KEY(zzz)` is 1072.
+	// MySQL leaves the table as it found it, so hold a copy to put back when the
+	// row option is what the statement fails on.
+	rowOption := refusedRowOption(tbl, stmt.Commands)
+	var rowOptionSnapshot Table
+	if rowOption != "" {
+		rowOptionSnapshot = cloneTable(tbl)
+	}
+	afterCommands := func(err error) error {
+		if err != nil || rowOption == "" {
+			return err
+		}
+		undoAlter(db, key, tbl, rowOptionSnapshot)
+		return errUnsupportedRowOption(rowOption)
+	}
 	if tbl.Partitioning == nil && repartition == nil {
-		return c.alterTableCommands(db, tbl, key, stmt)
+		return afterCommands(c.alterTableCommands(db, tbl, key, stmt))
 	}
 	// A unique key on a partitioned table must cover the partitioning columns. MySQL
 	// checks the table the statement leaves, after every other error (1060, 1061 and
@@ -76,7 +93,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		before[idx] = true
 	}
 	snapshot := cloneTable(tbl)
-	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+	if err := afterCommands(c.alterTableCommands(db, tbl, key, stmt)); err != nil {
 		return err
 	}
 	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
@@ -92,6 +109,55 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
 	return nil
+}
+
+// refusedRowOption names the option the statement writes that the engine it
+// leaves does not take: InnoDB answers 1478, "Table storage engine 'InnoDB' does
+// not support the create option 'ROW_TYPE'" for ROW_FORMAT FIXED and "... does
+// not support the create option 'COMPRESSION'" for any COMPRESSION value
+// (mysql:8.0.46). The engine is the one the statement leaves, so `ROW_FORMAT
+// FIXED ENGINE=MyISAM` runs, and a statement writing both is refused for
+// COMPRESSION whichever order it writes them in.
+func refusedRowOption(tbl *Table, commands []*nodes.AlterTableCmd) string {
+	engine, rowFormat, compression := tbl.Engine, "", ""
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		switch {
+		case engineOptionName(cmd.Option.Name):
+			engine = storedEngineName(cmd.Option.Value)
+		case eqFoldStr(cmd.Option.Name, "ROW_FORMAT"):
+			rowFormat = cmd.Option.Value
+		case eqFoldStr(cmd.Option.Name, "COMPRESSION"):
+			compression = cmd.Option.Value
+		}
+	}
+	if !engineRefusesRowOptions(engine) {
+		return ""
+	}
+	if compression != "" {
+		return "COMPRESSION"
+	}
+	if strings.EqualFold(strings.TrimSpace(rowFormat), "FIXED") {
+		return "ROW_TYPE"
+	}
+	return ""
+}
+
+// engineRefusesRowOptions reports whether the engine refuses the two options
+// above. Only InnoDB does on mysql:8.0.46: MyISAM, MEMORY, CSV, ARCHIVE and
+// MRG_MyISAM take both, and a table that names no engine is InnoDB's. An engine
+// the pin was not asked about is left alone rather than refused unmeasured.
+func engineRefusesRowOptions(engine string) bool {
+	return engine == "" || strings.EqualFold(engine, "InnoDB")
+}
+
+// errUnsupportedRowOption is the 1478 an engine that does not take a row option
+// answers with; option is the word MySQL names, ROW_TYPE or COMPRESSION.
+func errUnsupportedRowOption(option string) error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: fmt.Sprintf("Table storage engine 'InnoDB' does not support the create option '%s'", option)}
 }
 
 // validateTableEngineReplaceable refuses an ENGINE the table cannot take:

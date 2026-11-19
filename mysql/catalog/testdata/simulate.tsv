@@ -25,12 +25,12 @@ ok:9b76765effba	ok:9b76765effba	engine	one_table@missing	create_table_stmt/CREAT
 1146	1146	engine	one_table@missing	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@missing	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
 4028	4028	engine	one_table@missing	opt_create_partitioning_etc/partition_clause_opt_duplicate_as_qe	CREATE TABLE utf8mb4 PARTITION BY KEY();
-ok	1054	engine	one_table@missing	opt_duplicate_as_qe/duplicate_as_create_query_expression	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4;
-ok	1054	engine	one_table@missing	opt_duplicate_as_qe/duplicate_as_create_query_expression!insert	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4 zzz;
-ok	1054	engine	one_table@missing	opt_duplicate_as_qe/as_create_query_expression	CREATE TABLE utf8mb4 SELECT utf8mb4;
-ok	1054	engine	one_table@missing	opt_duplicate_as_qe/as_create_query_expression!insert	CREATE TABLE utf8mb4 SELECT utf8mb4 zzz;
-ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_with_opt_locking_clauses	CREATE TABLE utf8mb4 AS SELECT utf8mb4;
-ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_with_opt_locking_clauses!insert	CREATE TABLE utf8mb4 AS SELECT utf8mb4 zzz;
+1054	1054	engine	one_table@missing	opt_duplicate_as_qe/duplicate_as_create_query_expression	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4;
+1054	1054	engine	one_table@missing	opt_duplicate_as_qe/duplicate_as_create_query_expression!insert	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4 zzz;
+1054	1054	engine	one_table@missing	opt_duplicate_as_qe/as_create_query_expression	CREATE TABLE utf8mb4 SELECT utf8mb4;
+1054	1054	engine	one_table@missing	opt_duplicate_as_qe/as_create_query_expression!insert	CREATE TABLE utf8mb4 SELECT utf8mb4 zzz;
+1054	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_with_opt_locking_clauses	CREATE TABLE utf8mb4 AS SELECT utf8mb4;
+1054	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_with_opt_locking_clauses!insert	CREATE TABLE utf8mb4 AS SELECT utf8mb4 zzz;
 1146	1146	engine	one_table@missing	partition_clause/PARTITION_SYM_BY_part_type_def_opt_num_parts_opt_sub_part_opt_part_defs	ALTER TABLE utf8mb4 PARTITION BY KEY();
 1146	1146	engine	one_table@missing	part_type_def/opt_linear_HASH_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY HASH(utf8mb4);
 1492	1492	engine	one_table@missing	part_type_def/RANGE_SYM_(_bit_expr_)	ALTER TABLE utf8mb4 PARTITION BY RANGE(utf8mb4);
@@ -92,8 +92,8 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 1146	1146	engine	one_table@missing	create_table_option/ROW_FORMAT_SYM_opt_equal_row_types	ALTER TABLE utf8mb4 ROW_FORMAT DEFAULT;
 1146	1146	engine	one_table@missing	create_table_option/UNION_SYM_opt_equal_(_opt_table_list_)	ALTER TABLE utf8mb4 UNION();
 1146	1146	engine	one_table@missing	create_table_option/default_charset	ALTER TABLE utf8mb4 CHARSET utf8mb4;
-1146	1273	engine	one_table@missing	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
-1064	1273	engine	one_table@missing	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@missing	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
+1273	1273	engine	one_table@missing	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
 1146	1146	engine	one_table@missing	create_table_option/INSERT_METHOD_opt_equal_merge_insert_types	ALTER TABLE utf8mb4 INSERT_METHOD NO;
 1146	1146	engine	one_table@missing	create_table_option/DATA_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 DATA DIRECTORY 's';
 1146	1146	engine	one_table@missing	create_table_option/INDEX_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 INDEX DIRECTORY 's';
@@ -224,8 +224,8 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 1146	1146	engine	one_table@missing	column_attribute/UNIQUE_SYM_KEY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE KEY;
 1146	1146	engine	one_table@missing	column_attribute/UNIQUE_SYM_KEY_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE
 1146	1146	engine	one_table@missing	column_attribute/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE utf8mb4 ADD utf8mb4 INT COMMENT 's';
-1146	1273	engine	one_table@missing	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
-1064	1273	engine	one_table@missing	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@missing	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
+1273	1273	engine	one_table@missing	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 1146	1146	engine	one_table@missing	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
 1146	1146	engine	one_table@missing	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 1146	1221	engine	one_table@missing	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
@@ -392,7 +392,7 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 1146	1146	engine	one_table@missing	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
 1146	1146	engine	one_table@missing	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
 4028	4028	engine	one_table@missing	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
-ok	1054	engine	one_table@missing	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
+1054	1054	engine	one_table@missing	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
 1146	1146	engine	one_table@missing	signed_literal/+_NUM_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT + 1;
 1146	1146	engine	one_table@missing	signed_literal/+_NUM_literal!drop-1	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT 1;
 1146	1146	engine	one_table@missing	signed_literal/-_NUM_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT - 1;
@@ -402,7 +402,7 @@ ok	1054	engine	one_table@missing	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNOR
 1054	1054	engine	one_table@missing	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@missing	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 ok	ok:75c7b3d9b21b	engine	one_table@missing	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-ok	1054	engine	one_table@missing	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	one_table@missing	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@missing	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@missing	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1146	1146	engine	one_table@missing	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -490,7 +490,7 @@ ok:7dda86aa066d	ok:7dda86aa066d	engine	one_table@table	create_table_option/MIN_R
 ok:2d01c12eca1d	ok:2d01c12eca1d	engine	one_table@table	create_table_option/AVG_ROW_LENGTH_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 AVG_ROW_LENGTH 1;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/PASSWORD_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 PASSWORD 's';
 ok:a7145c8e27a5	ok:a7145c8e27a5	engine	one_table@table	create_table_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMMENT 's';
-ok	1478	engine	one_table@table	create_table_option/COMPRESSION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMPRESSION 's';
+1478	1478	engine	one_table@table	create_table_option/COMPRESSION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMPRESSION 's';
 ok	3184	engine	one_table@table	create_table_option/ENCRYPTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 ENCRYPTION 's';
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/AUTO_INC_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 AUTO_INCREMENT 1;
 ok:ccd34cf71069	ok:ccd34cf71069	engine	one_table@table	create_table_option/PACK_KEYS_SYM_opt_equal_ternary_option	ALTER TABLE utf8mb4 PACK_KEYS 1;
@@ -504,8 +504,8 @@ ok:de6ee176d9bf	ok:de6ee176d9bf	engine	one_table@table	create_table_option/DELAY
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/ROW_FORMAT_SYM_opt_equal_row_types	ALTER TABLE utf8mb4 ROW_FORMAT DEFAULT;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/UNION_SYM_opt_equal_(_opt_table_list_)	ALTER TABLE utf8mb4 UNION();
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/default_charset	ALTER TABLE utf8mb4 CHARSET utf8mb4;
-ok	1273	engine	one_table@table	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
-1064	1273	engine	one_table@table	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@table	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
+1273	1273	engine	one_table@table	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/INSERT_METHOD_opt_equal_merge_insert_types	ALTER TABLE utf8mb4 INSERT_METHOD NO;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/DATA_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 DATA DIRECTORY 's';
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	create_table_option/INDEX_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 INDEX DIRECTORY 's';
@@ -516,7 +516,7 @@ ok:9260977b6324	ok:9260977b6324	engine	one_table@table	create_table_option/CONNE
 ok:98dd92d0b855	ok:98dd92d0b855	engine	one_table@table	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 KEY_BLOCK_SIZE 1;
 ok	3979	engine	one_table@table	create_table_option/START_SYM_TRANSACTION_SYM	ALTER TABLE utf8mb4 START TRANSACTION;
 ok	4025	engine	one_table@table	create_table_option/option_autoextend_size	ALTER TABLE utf8mb4 AUTOEXTEND_SIZE 1;
-ok	1478	engine	one_table@table	row_types/FIXED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT FIXED;
+1478	1478	engine	one_table@table	row_types/FIXED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT FIXED;
 ok:780bf4ba9684	ok:780bf4ba9684	engine	one_table@table	row_types/DYNAMIC_SYM	ALTER TABLE utf8mb4 ROW_FORMAT DYNAMIC;
 ok:63b1a4e3f88f	ok:63b1a4e3f88f	engine	one_table@table	row_types/COMPRESSED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT COMPRESSED;
 ok:916879844666	ok:916879844666	engine	one_table@table	row_types/REDUNDANT_SYM	ALTER TABLE utf8mb4 ROW_FORMAT REDUNDANT;
@@ -636,8 +636,8 @@ ok:c30ccce9f411	ok:c30ccce9f411	engine	one_table@table	column_attribute/UNIQUE_S
 ok:c30ccce9f411	ok:c30ccce9f411	engine	one_table@table	column_attribute/UNIQUE_SYM_KEY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE KEY;
 ok:c30ccce9f411	ok:c30ccce9f411	engine	one_table@table	column_attribute/UNIQUE_SYM_KEY_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE
 ok:28713c908468	ok:28713c908468	engine	one_table@table	column_attribute/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE utf8mb4 ADD utf8mb4 INT COMMENT 's';
-ok	1273	engine	one_table@table	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
-1064	1273	engine	one_table@table	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@table	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
+1273	1273	engine	one_table@table	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 ok	1221	engine	one_table@table	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
@@ -814,7 +814,7 @@ ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	signed_literal_or_null/nu
 1054	1054	engine	one_table@table	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@table	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 ok	ok:5873bd311d71	engine	one_table@table	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-ok	1054	engine	one_table@table	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	one_table@table	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@table	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@table	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@table	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -902,7 +902,7 @@ ok:4203dcee4806	ok:4203dcee4806	engine	one_table@column	create_table_option/MIN_
 ok:a2d1ce9202fa	ok:a2d1ce9202fa	engine	one_table@column	create_table_option/AVG_ROW_LENGTH_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 AVG_ROW_LENGTH 1;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/PASSWORD_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 PASSWORD 's';
 ok:efd25ac2c5fe	ok:efd25ac2c5fe	engine	one_table@column	create_table_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMMENT 's';
-ok	1478	engine	one_table@column	create_table_option/COMPRESSION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMPRESSION 's';
+1478	1478	engine	one_table@column	create_table_option/COMPRESSION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMPRESSION 's';
 ok	3184	engine	one_table@column	create_table_option/ENCRYPTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 ENCRYPTION 's';
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/AUTO_INC_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 AUTO_INCREMENT 1;
 ok:f59bbddb09bf	ok:f59bbddb09bf	engine	one_table@column	create_table_option/PACK_KEYS_SYM_opt_equal_ternary_option	ALTER TABLE utf8mb4 PACK_KEYS 1;
@@ -916,8 +916,8 @@ ok:57e9aa0a8902	ok:57e9aa0a8902	engine	one_table@column	create_table_option/DELA
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/ROW_FORMAT_SYM_opt_equal_row_types	ALTER TABLE utf8mb4 ROW_FORMAT DEFAULT;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/UNION_SYM_opt_equal_(_opt_table_list_)	ALTER TABLE utf8mb4 UNION();
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/default_charset	ALTER TABLE utf8mb4 CHARSET utf8mb4;
-ok	1273	engine	one_table@column	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
-1064	1273	engine	one_table@column	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@column	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
+1273	1273	engine	one_table@column	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/INSERT_METHOD_opt_equal_merge_insert_types	ALTER TABLE utf8mb4 INSERT_METHOD NO;
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/DATA_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 DATA DIRECTORY 's';
 ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	create_table_option/INDEX_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 INDEX DIRECTORY 's';
@@ -928,7 +928,7 @@ ok:cb11ad065c6b	ok:cb11ad065c6b	engine	one_table@column	create_table_option/CONN
 ok:9c564b5d43ea	ok:9c564b5d43ea	engine	one_table@column	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 KEY_BLOCK_SIZE 1;
 ok	3979	engine	one_table@column	create_table_option/START_SYM_TRANSACTION_SYM	ALTER TABLE utf8mb4 START TRANSACTION;
 ok	4025	engine	one_table@column	create_table_option/option_autoextend_size	ALTER TABLE utf8mb4 AUTOEXTEND_SIZE 1;
-ok	1478	engine	one_table@column	row_types/FIXED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT FIXED;
+1478	1478	engine	one_table@column	row_types/FIXED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT FIXED;
 ok:fe1c59ea18c9	ok:fe1c59ea18c9	engine	one_table@column	row_types/DYNAMIC_SYM	ALTER TABLE utf8mb4 ROW_FORMAT DYNAMIC;
 ok:3b97ae73e0c6	ok:3b97ae73e0c6	engine	one_table@column	row_types/COMPRESSED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT COMPRESSED;
 ok:01d877aa748f	ok:01d877aa748f	engine	one_table@column	row_types/REDUNDANT_SYM	ALTER TABLE utf8mb4 ROW_FORMAT REDUNDANT;
@@ -1048,8 +1048,8 @@ ok	3812	engine	one_table@column	opt_constraint_enforcement/constraint_enforcemen
 1060	1060	engine	one_table@column	column_attribute/UNIQUE_SYM_KEY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE KEY;
 1060	1060	engine	one_table@column	column_attribute/UNIQUE_SYM_KEY_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE
 1060	1060	engine	one_table@column	column_attribute/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE utf8mb4 ADD utf8mb4 INT COMMENT 's';
-1060	1273	engine	one_table@column	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
-1064	1273	engine	one_table@column	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@column	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
+1273	1273	engine	one_table@column	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 1060	1060	engine	one_table@column	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
 1060	1060	engine	one_table@column	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 1060	1221	engine	one_table@column	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
@@ -1226,7 +1226,7 @@ ok:c57a3972de72	ok:c57a3972de72	engine	one_table@column	opt_table/TABLE_SYM	TRUN
 1054	1054	engine	one_table@column	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@column	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 ok	ok:c57a3972de72	engine	one_table@column	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-ok	1054	engine	one_table@column	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	one_table@column	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@column	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@column	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@column	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;
@@ -1314,7 +1314,7 @@ ok:7f50b04fe151	ok:7f50b04fe151	engine	one_table@index	create_table_option/MIN_R
 ok:fb55495f1162	ok:fb55495f1162	engine	one_table@index	create_table_option/AVG_ROW_LENGTH_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 AVG_ROW_LENGTH 1;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/PASSWORD_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 PASSWORD 's';
 ok:26513fa9b9b7	ok:26513fa9b9b7	engine	one_table@index	create_table_option/COMMENT_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMMENT 's';
-ok	1478	engine	one_table@index	create_table_option/COMPRESSION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMPRESSION 's';
+1478	1478	engine	one_table@index	create_table_option/COMPRESSION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 COMPRESSION 's';
 ok	3184	engine	one_table@index	create_table_option/ENCRYPTION_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 ENCRYPTION 's';
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/AUTO_INC_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 AUTO_INCREMENT 1;
 ok:432768d72745	ok:432768d72745	engine	one_table@index	create_table_option/PACK_KEYS_SYM_opt_equal_ternary_option	ALTER TABLE utf8mb4 PACK_KEYS 1;
@@ -1328,8 +1328,8 @@ ok:120d3b557241	ok:120d3b557241	engine	one_table@index	create_table_option/DELAY
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/ROW_FORMAT_SYM_opt_equal_row_types	ALTER TABLE utf8mb4 ROW_FORMAT DEFAULT;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/UNION_SYM_opt_equal_(_opt_table_list_)	ALTER TABLE utf8mb4 UNION();
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/default_charset	ALTER TABLE utf8mb4 CHARSET utf8mb4;
-ok	1273	engine	one_table@index	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
-1064	1273	engine	one_table@index	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@index	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
+1273	1273	engine	one_table@index	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/INSERT_METHOD_opt_equal_merge_insert_types	ALTER TABLE utf8mb4 INSERT_METHOD NO;
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/DATA_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 DATA DIRECTORY 's';
 ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	create_table_option/INDEX_SYM_DIRECTORY_SYM_opt_equal_TEXT_STRING_sys	ALTER TABLE utf8mb4 INDEX DIRECTORY 's';
@@ -1340,7 +1340,7 @@ ok:66aaba61be7a	ok:66aaba61be7a	engine	one_table@index	create_table_option/CONNE
 ok:1d9168f9e38e	ok:1d9168f9e38e	engine	one_table@index	create_table_option/KEY_BLOCK_SIZE_opt_equal_ulonglong_num	ALTER TABLE utf8mb4 KEY_BLOCK_SIZE 1;
 ok	3979	engine	one_table@index	create_table_option/START_SYM_TRANSACTION_SYM	ALTER TABLE utf8mb4 START TRANSACTION;
 ok	4025	engine	one_table@index	create_table_option/option_autoextend_size	ALTER TABLE utf8mb4 AUTOEXTEND_SIZE 1;
-ok	1478	engine	one_table@index	row_types/FIXED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT FIXED;
+1478	1478	engine	one_table@index	row_types/FIXED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT FIXED;
 ok:c105ad11e9d8	ok:c105ad11e9d8	engine	one_table@index	row_types/DYNAMIC_SYM	ALTER TABLE utf8mb4 ROW_FORMAT DYNAMIC;
 ok:d0ce90e08583	ok:d0ce90e08583	engine	one_table@index	row_types/COMPRESSED_SYM	ALTER TABLE utf8mb4 ROW_FORMAT COMPRESSED;
 ok:db6303ad7e81	ok:db6303ad7e81	engine	one_table@index	row_types/REDUNDANT_SYM	ALTER TABLE utf8mb4 ROW_FORMAT REDUNDANT;
@@ -1460,8 +1460,8 @@ ok	3812	engine	one_table@index	opt_constraint_enforcement/constraint_enforcement
 1060	1060	engine	one_table@index	column_attribute/UNIQUE_SYM_KEY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE KEY;
 1060	1060	engine	one_table@index	column_attribute/UNIQUE_SYM_KEY_SYM!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT UNIQUE
 1060	1060	engine	one_table@index	column_attribute/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE utf8mb4 ADD utf8mb4 INT COMMENT 's';
-1060	1273	engine	one_table@index	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
-1064	1273	engine	one_table@index	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
+1273	1273	engine	one_table@index	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
+1273	1273	engine	one_table@index	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 1060	1060	engine	one_table@index	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
 1060	1060	engine	one_table@index	column_attribute/STORAGE_SYM_storage_media	ALTER TABLE utf8mb4 ADD utf8mb4 INT STORAGE DEFAULT;
 1060	1221	engine	one_table@index	column_attribute/SRID_SYM_real_ulonglong_num	ALTER TABLE utf8mb4 ADD utf8mb4 INT SRID 1;
@@ -1638,7 +1638,7 @@ ok:ae98cf37c226	ok:ae98cf37c226	engine	one_table@index	opt_table/TABLE_SYM	TRUNC
 1054	1054	engine	one_table@index	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@index	view_or_trigger_or_sp_or_event/view_replace_or_algorithm_definer_opt_init_lex_create_info_view_tail!insert	CREATE OR REPLACE VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 ok	ok:ae98cf37c226	engine	one_table@index	definer_tail/sp_tail	CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;
-ok	1054	engine	one_table@index	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
+1054	1054	engine	one_table@index	definer_tail/event_tail	CREATE DEFINER = utf8mb4 EVENT utf8mb4 ON SCHEDULE AT utf8mb4 DO COMMIT;
 1054	1054	engine	one_table@index	view_replace_or_algorithm/view_replace_view_algorithm	CREATE OR REPLACE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1054	1054	engine	one_table@index	view_replace_or_algorithm/view_algorithm	CREATE ALGORITHM = UNDEFINED VIEW utf8mb4 AS SELECT utf8mb4;
 1347	1347	engine	one_table@index	view_algorithm/ALGORITHM_SYM_EQ_MERGE_SYM	ALTER ALGORITHM = MERGE VIEW utf8mb4 AS SELECT utf8mb4;

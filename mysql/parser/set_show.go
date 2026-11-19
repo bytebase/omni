@@ -265,10 +265,12 @@ func (p *Parser) parseSetNames(stmt *nodes.SetStmt) error {
 	if _, ok := p.match(kwCOLLATE); !ok {
 		return nil
 	}
+	collPos := p.pos()
 	collation, loc, err := p.parseSetCharsetName()
 	if err != nil {
 		return err
 	}
+	p.checkCollation(collation, collPos)
 	appendSetWord(stmt, "COLLATE", collation, loc, p.prev.End)
 	return nil
 }

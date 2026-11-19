@@ -15,7 +15,9 @@ const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
 // createTable installs the table stmt defines. declared is true when stmt lists
 // its keys in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
+// source is the text the statement was parsed from, which a CREATE TABLE ...
+// SELECT body is judged against (isDualRef), or "" when there is none.
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source string) error {
 	// MySQL checks a FULLTEXT key's parser, a column's display width and an
 	// ENGINE while preparing the statement, so each answers ahead of the
 	// database and the table it names: 1128 for a FULLTEXT key whose parser it
@@ -87,8 +89,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		return c.createTableLike(db, tableName, key, stmt)
 	}
 
-	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
+	// CREATE TABLE ... AS SELECT (CTAS). MySQL reads the body after the table's
+	// own name, which the checks above answer 1050 for: over a table that is not
+	// there, `CREATE TABLE z SELECT nosuch` is 1054 `Unknown column 'nosuch' in
+	// 'field list'`, and a star with no table to expand is 1096 (`SELECT *` and
+	// `SELECT * FROM DUAL` alike). Both are a view body's refusals, so the body
+	// is read as one (analyzeViewBody). The catalog does not model the table a
+	// body makes yet, so one it reads installs nothing.
 	if stmt.Select != nil && len(stmt.Columns) == 0 {
+		if declared {
+			if _, err := c.analyzeViewBody(stmt.Select, source); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 

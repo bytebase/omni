@@ -310,11 +310,18 @@ func (p *Parser) parseCharsetName() (string, error) {
 
 // parseCollationName parses the name a database option's COLLATE takes. It is
 // parseCharsetName's grammar: the collation name carries the same BINARY arm,
-// so `COLLATE = binary` parses on MySQL 8.0.
+// so `COLLATE = binary` parses on MySQL 8.0. The server resolves the name while
+// it parses, so an unknown one is recorded as 1273 (see checkCollation).
 //
 // Ref: collation_name in MySQL 8.0.46 sql/sql_yacc.yy.
 func (p *Parser) parseCollationName() (string, error) {
-	return p.parseCharsetName()
+	pos := p.pos()
+	name, err := p.parseCharsetName()
+	if err != nil {
+		return name, err
+	}
+	p.checkCollation(name, pos)
+	return name, nil
 }
 
 // knownCharsets holds the character sets of MySQL 8.0, read from
