@@ -376,7 +376,10 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		// GROUP BY takes ALL, DISTINCT or a list. ALL is a modifier in
 		// PostgreSQL's grammar and an alternative to the list in Redshift's docs,
 		// so both readings parse: GROUP BY ALL alone, and GROUP BY ALL
-		// rollup(a, b) from a query written for PostgreSQL.
+		// rollup(a, b) from a query written for PostgreSQL. redshift/parsertest
+		// (TestParseGroupByAll, GROUP BY ALL a) and redshift/pgregress
+		// (groupingsets.sql) pin the modifier, and GroupAll beside GroupClause
+		// records which reading was written.
 		if p.cur.Type == ALL {
 			p.advance()
 			stmt.GroupAll = true
