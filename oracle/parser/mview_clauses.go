@@ -420,7 +420,7 @@ func (p *Parser) parseMviewProperties(stmt *nodes.CreateViewStmt) error {
 				return err
 			}
 		case p.isCreateTableInmemoryStart():
-			if err := p.parseCreateTableInmemory(table, true, &inmemoryTable); err != nil {
+			if err := p.parseCreateTableInmemory(table, true, &inmemoryTable, true); err != nil {
 				return err
 			}
 		case table.Organization == "INDEX" && p.isKeywordStr("PCTTHRESHOLD"):

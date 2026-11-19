@@ -161,6 +161,118 @@ template rows do not set the clause at all, so their `ORA-02199` is the
 missing `DATAFILE` the truncated text leaves.
 
 
+## Rows only omni accepts, measured
+
+The other direction: the 796 rows whose cells were `accept` where the pinned
+Oracle says `reject`. Each was measured the same way, at judge revision 3,
+with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
+question a row asks is whether Oracle's refusal is the grammar's: the page
+`bnf/` quotes under it is the grammar omni must read, so a statement the page
+derives stays accepted even where this server refuses it, and is recorded
+here instead of closed. Fifteen rows are text the page refuses too, and are
+closed; the other 781 are a name Oracle looks up, a check of the parsed
+statement, or the server's own setup, and stay rows.
+
+### Closed
+
+`TestOverAcceptsRefused` holds each of these to the byte Oracle reports, and
+holds the form beside it, which Oracle takes, to the parser.
+
+| Family | Rows | Oracle's answer | The rule it breaks |
+| --- | --- | --- | --- |
+| `ANALYZE a VALIDATE STRUCTURE` | 1 | `ORA-01490` at `VALIDATE` (10) | ANALYZE names `TABLE`, `INDEX` or `CLUSTER` first; the three near-misses (`TABLES`, `INDEXES`, `CLUSTERING` for it) now answer at the word they leave over, 15, 16 and 19, as Oracle does |
+| `CREATE SCHEMA a ...` | 1 | `ORA-02420` at 14 | `CREATE SCHEMA AUTHORIZATION schema`, the word required |
+| `DROP USER` | 1 | `ORA-01935` at 9 | a user is required |
+| `DROP AUDIT POLICY` | 1 | `ORA-46353` at 17 | a policy is required |
+| `ALTER TRIGGER a RENAME TO` | 1 | `ORA-04070` at 25 | `RENAME TO new_name` |
+| `PURGE a`, `PURGE REDO`, `PURGE DBTIMEZONE` | 3 | `ORA-38302` at 6 | `PURGE { TABLE \| INDEX \| TABLESPACE \| RECYCLEBIN \| DBA_RECYCLEBIN }`; five more rows (`PURGE TABLES a` among them) moved to Oracle's byte without changing cell |
+| `ALTER TABLE a SET PARTITIONING`, `ALTER MATERIALIZED VIEW a SET PARTITIONING` | 2 | `ORA-14853` at 0 | `SET PARTITIONING { AUTOMATIC \| MANUAL }` |
+| `CREATE FUNCTION IF NOT a ...` | 1 | `ORA-11543` at 16 | `[ IF NOT EXISTS ]`, all three words or none |
+| `CREATE MATERIALIZED VIEW a INMEMORY(a) ...` | 2 | `ORA-00922` at 56, 77 | a materialized view's `inmemory_column_clause` is `( column [, ...] ) { INMEMORY \| NO INMEMORY }`, the keyword after the columns; a table's is the other way round and stays |
+| `SELECT 1 "a""b" FROM dual` | 1 | `ORA-25716` at 9 | a quoted identifier holds no `"`, doubled or not (`"a b"` still parses) |
+| `SELECT 1 FROM dual WHERE 1 ~= 2` | 1 | `ORA-00911` at 27 | SQL has no `~=`; PL/SQL does, and `BEGIN IF 1 ~= 2 THEN NULL; END IF; END;` still parses |
+
+### Measured
+
+A byte is `DBMS_SQL.LAST_ERROR_POSITION` unless the row says otherwise. Each
+group's code was measured on the pinned server, and the control beside it,
+which is the same text with the missing feature added, is what tells a check
+from the grammar; the controls are named where a reader would ask.
+
+| Cause | Rows | Oracle's answer |
+| --- | --- | --- |
+| `CREATE CLUSTER ... PARTITION BY RANGE(...)`, and every clause inside its partitions | 146 | `ORA-14179` at the `PARTITION` clause (45): a cluster is partitioned only when it is a hash cluster, so `CREATE CLUSTER ... HASHKEYS 10 PARTITION BY RANGE(...)` parses and answers `ORA-01031` when it runs (the clause is the page's, the check is not) |
+| `CREATE PLUGGABLE DATABASE a USING 's' ...` | 82 | `ORA-65125` at 34, the file name |
+| `ALTER SYSTEM RESET a ...` (11), `SELECT`/`DELETE ... FROM EXTERNAL(... TYPE a ...)` (42), a materialized view's `INMEMORY (columns) INMEMORY` or `... NO INMEMORY` (8) | 61 | `ORA-00922` at 0, 39 and 48, and at the query (65, 68, 80): `ALTER SYSTEM RESET OPTIMIZER_MODE` parses, `TYPE ORACLE_LOADER` parses, and the column clause's documented form is refused here: this server takes no inmemory column list for a materialized view, the page takes one |
+| `CREATE TABLE a ENABLE ... USING INDEX ...` | 59 | `ORA-02432` at 34: the table `a` defines no primary key; with one the clause parses (`ENABLE PRIMARY KEY USING INDEX zz` answers `ORA-01418`) |
+| `ALTER TYPE a ...` | 48 | `ORA-04043` at 0: the type `a` is not there. With a type, `ADD ATTRIBUTE`, `ADD ATTRIBUTE (...)`, `ADD MAP MEMBER FUNCTION ... RETURN NUMBER`, `ADD MEMBER PROCEDURE` and `INSTANTIABLE` parse |
+| a column, property, attribute or key named twice | 41 | `ORA-00957` at the second name |
+| `... PARTITIONSET ...` | 32 | `ORA-02577` at 21: no composite sharding on this server |
+| `ALTER SYSTEM SET a = 1 ...` | 25 | `ORA-02065` at 17: `a` is no initialization parameter, and `OPTIMIZER_MODE = a` parses |
+| `SHARING = { METADATA \| DATA \| NONE }` | 21 | `ORA-65021` at the clause: not an application root |
+| property graph: an element table, property or key named twice | 21 | `ORA-42404` at 41-58 |
+| `ALTER SESSION SET a = 1`, `... INSTANCES`, `... ETAG` and the other non-parameters | 15 | `ORA-02248` at 18, 32: `OPTIMIZER_MODE = a` parses |
+| `ALTER INMEMORY JOIN GROUP a(...)`, `CREATE INMEMORY JOIN GROUP a(...)` | 14 | `ORA-00903` at the table name (29-43) |
+| `CREATE PFILE ...`, `CREATE SPFILE ...` | 14 | `ORA-65168` at 13, 24, 25: a name is required in this container, and `CREATE PFILE = 'x.ora' FROM SPFILE` parses (`ORA-01031`) |
+| `COLLATE a`, `DEFAULT COLLATION a` | 12 | `ORA-43929` at 0: `MAX_STRING_SIZE=STANDARD` |
+| `ALTER DATABASE RECOVER MANAGED STANDBY DATABASE { FINISH \| TO LOGICAL STANDBY \| USING INSTANCES }` | 11 | `ORA-00274` at 0, naming the option: the database is no standby. In the root container `FINISH` and `USING INSTANCES` parse (`ORA-01031`) and `TO LOGICAL STANDBY` answers `ORA-00274` still |
+| a virtual column of a datatype that is no type | 11 | `ORA-54003` at the datatype (15-21), as `ORA-00902` is for a column |
+| `DROP TABLESPACE SET a [ INCLUDING CONTENTS ... ]` | 10 | `ORA-02557` at 20: shard DDL is disabled |
+| `SPLIT ... NESTED TABLE a INTO ...` | 10 | `ORA-22912` at the column (51, 63): not a nested table |
+| `ALTER PLUGGABLE DATABASE ... RECOVER ...` | 8 | `ORA-00905` at 0, in the root container too: the page derives the clause and this release's parser does not read it |
+| `CREATE ROLE`/`ALTER ROLE`/`CREATE USER`/`ALTER USER ... IDENTIFIED GLOBALLY` | 8 | `ORA-00439` at 0: Enterprise User Security is not enabled |
+| `ENCRYPT USING 's'`, and a tablespace's encryption spec | 8 | `ORA-28339` at the algorithm |
+| `CREATE AUDIT POLICY a` with no audit option | 8 | `ORA-46373` at 0 |
+| `ALTER PLUGGABLE DATABASE ... SNAPSHOT ...` | 7 | `ORA-12754` at 0: the feature's capability is missing |
+| `SIZE 1 P` in `DEALLOCATE UNUSED KEEP 1 P` and `ALLOCATE EXTENT(SIZE ...)` | 6 | `ORA-03277` at the value |
+| `ALTER INDEXTYPE a ADD a(NUMBER, OBJECT)`, `CREATE OPERATOR a BINDING(NUMBER, OBJECT) ...` | 6 | `ORA-00902` at the datatype (26-38) |
+| `AUDIT ...` | 5 | `ORA-46401` at 6: traditional auditing is desupported |
+| `SHARD`, `NOSHARD` on a sequence | 5 | `ORA-02511` at 17, 18: shard DDL is disabled |
+| `XMLTYPE ... STORE AS BINARY XML`, `ALLOW NONSCHEMA` | 5 | `ORA-19001` at 47, 57 |
+| `ALTER AUDIT POLICY a CONDITION 's' EVALUATE PER ...` | 4 | `ORA-46368` at 0: no simple rule condition |
+| `INITRANS 1` | 4 | `ORA-02207` at the value: a value check, and `INITRANS 2` parses |
+| `ALTER INDEXTYPE a.a COMPILE`, `DROP INDEXTYPE a.a`, `DROP OPERATOR a.a` | 4 | `ORA-00987` at 0: no user `a` |
+| a resource named twice in `ALTER PROFILE`/`ALTER RESOURCE COST` | 4 | `ORA-02376` at the end |
+| `ALTER TABLESPACE SET ... DATAFILE` | 4 | `ORA-02580` at the end |
+| `SIZE 1 G` on `CREATE CLUSTER` | 4 | `ORA-02229` at 32: a value check, `SIZE 1 K` parses |
+| `ALTER DIMENSION a.a COMPILE`, `CREATE MATERIALIZED VIEW a.a ...`, `CREATE MATERIALIZED ZONEMAP a.a ...` | 3 | `ORA-01435` at 0: no user `a` |
+| `ALTER MATERIALIZED VIEW a REFRESH FAST USING ROLLBACK SEGMENT a` | 3 | `ORA-12061` at 45 |
+| `XMLTYPE ... XMLSCHEMA 's'`, `STORE AS OBJECT RELATIONAL` | 3 | `ORA-19002` at the end: the URL or the schema is missing |
+| `... ILM ADD POLICY COMPRESS ROW ...` on a tablespace | 3 | `ORA-38336` at 0: the policy is invalid for a tablespace |
+| `CREATE FUNCTION a ... SHARING = { METADATA \| NONE }` | 3 | `ORA-24344` with no byte, a unit created with compilation errors: as `ORA-65021` is for a sequence, SHARING is the application root's |
+
+Forty-three rows answer a code no other row has, or one they share with a
+single other row: a date literal out of range (`ORA-01841` at 74), `UPDATE
+INDEXES(a(PARTITION NOCOMPRESS))`
+(`ORA-14006` at 40), a segment name (`ORA-64223` at 0), `ALTER TABLE a ENABLE
+PRIMARY KEY USING INDEX a` (`ORA-03049` at 45: `USING INDEX bb` parses on the
+same table and answers `ORA-02432`, so the clause takes a name and the word
+`a` does not), a flashback archive with another operation (`ORA-55643` at the
+end), a LOB option on a hash partition (`ORA-22877`), `MAXVALUE` twice
+(`ORA-02278`), `ASSOCIATE STATISTICS ... USING NULL` (`ORA-29936`), a nested
+table partitioned under a plain one (`ORA-30758`), a system-partitioned
+materialized view (`ORA-32362`), a subpartition's physical attribute
+(`ORA-14160`), `SCALE 1` on a zonemap (`ORA-31951`), `CREATE PFILE = FROM
+SPFILE` (`ORA-02236` at 15), a mandatory profile's limit (`ORA-02387` at the
+end), `CREATE SPFILE ...` in a pluggable database (`ORA-65136`), `CREATE TABLE
+a PARENT a` (`ORA-02523`), `CREATE TABLE a ENABLE CONSTRAINT a`
+(`ORA-02250`: the table defines no such constraint), a tablespace set's file
+name (`ORA-02537`), an annotation twice (`ORA-11562`), a property graph's key
+and EXCEPT list named twice (`ORA-42416`, `ORA-42426`), a dimension hierarchy
+with no child (`ORA-30336`), `CREATE DATABASE a` (`ORA-01501` at 0: the judge
+ran it and the database could not be created), a retention outside its range
+(`ORA-05741`), Java not installed (`ORA-29538`), a partition bound that is a
+keyword rather than a literal (`ORA-14019`, `ORA-14017`, `ORA-14308`), an
+implementation type that is not there (`ORA-29829`), a user or role that is
+not there (`ORA-01917` at 0) and a graph property named twice (`ORA-42407`).
+
+Two rows are a bare `reject`, with no byte: `ALTER MATERIALIZED VIEW LOG ON a
+SPLIT PARTITION a AT(1) PARALLEL` and its `SUBPARTITION` twin fail in Oracle's
+own code (`ORA-00600` at `PTI, prspo_set_up`), which the judge reads as a
+rejection with no position. Nothing says where it stopped, so neither row is
+closed.
+
+
 ## Tapes
 
 Every other test that asked Oracle replays a tape through

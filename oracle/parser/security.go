@@ -555,6 +555,11 @@ func (p *Parser) parseDropAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
+	// A policy is required: DROP AUDIT POLICY answers ORA-46353, the name
+	// either missing or invalid, at the end.
+	if stmt.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
