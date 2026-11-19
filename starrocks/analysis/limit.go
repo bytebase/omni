@@ -158,6 +158,9 @@ func rewriteSetOpLimit(sql string, stmt *ast.SetOpStmt, limitCount int) (string,
 	}
 	// The grammar puts INTO OUTFILE inside the query relation, before LIMIT, so
 	// the cap goes before the export clause rather than after it.
+	if stmt.Into != nil {
+		return sql[:stmt.Into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[stmt.Into.Loc.Start:], nil
+	}
 	if into := selectInto(stmt.Left); into != nil {
 		return sql[:into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[into.Loc.Start:], nil
 	}

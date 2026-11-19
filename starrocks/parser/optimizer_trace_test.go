@@ -197,3 +197,9 @@ func TestDoubleSettledOutfilePlan(t *testing.T) {
 		t.Errorf("unexpected errors: %v", errs)
 	}
 }
+
+func TestGroupedMTMVOutfile(t *testing.T) {
+	if _, errs := parseForTest("CREATE MATERIALIZED VIEW v AS (SELECT 1) INTO OUTFILE 'x'"); len(errs) != 0 {
+		t.Errorf("unexpected errors: %v", errs)
+	}
+}
