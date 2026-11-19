@@ -389,6 +389,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *InlineExternalTable:
 		return v.Loc
+	case *InlineAnalyticView:
+		return v.Loc
+	case *SubAVClause:
+		return v.Loc
 	case *TableCollectionExpr:
 		return v.Loc
 	case *JsonTableRef:

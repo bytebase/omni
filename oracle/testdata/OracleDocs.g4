@@ -16,7 +16,7 @@
 // nor, where it is optional, a clause it refuses that way: PARTITIONSET in
 // ALTER TABLE and CREATE TABLE.
 //
-// pin: docs https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ sha256:4898c740ed43f093638425639be7462d426e3875a78177109d3063581aab6007 2026-03-15
+// pin: docs https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/ sha256:78bc1d63fa53eff6bd195d3f87c1b9205c25fdcc948f546adf415235542862b2 2026-11-19
 
 grammar OracleDocs;
 
@@ -4542,7 +4542,7 @@ delete_outer_join_type
     : ('LEFT' | 'RIGHT' | 'FULL') 'OUTER'?
     ;
 delete_sub_av_clause
-    : 'ANALYTIC' 'VIEW' 'USING' ID delete_hierarchies_clause? delete_filter_clauses? delete_add_meas_clause?
+    : 'USING' (ID '.')? ID delete_hierarchies_clause? delete_filter_clauses? delete_add_meas_clause?
     ;
 delete_pivot_for_clause
     : 'FOR' (ID | '(' ID (',' ID)* ')')
@@ -4581,13 +4581,13 @@ delete_annotations_clause
     : 'ANNOTATIONS' '(' ('ADD' delete_annotation | 'DROP' ID (',' ID)* | 'REMOVE' 'ALL') ')'
     ;
 delete_hierarchies_clause
-    : 'HIERARCHIES' '(' ID (',' ID)* ')'
+    : 'HIERARCHIES' '(' ((ID '.')? ID (',' ID)?)* ')'
     ;
 delete_filter_clauses
-    : delete_filter_clause delete_filter_clause*
+    : 'FILTER' 'FACT' '(' delete_filter_clause (',' delete_filter_clause)* ')'
     ;
 delete_add_meas_clause
-    : 'ADD' 'MEASURES' '(' delete_calc_meas_clause (',' delete_calc_meas_clause)* ')'
+    : 'ADD' 'MEASURES' '(' delete_cube_meas (',' delete_cube_meas)* ')'
     ;
 delete_row_pattern_term
     : delete_row_pattern_factor delete_row_pattern_factor*
@@ -4602,10 +4602,10 @@ delete_annotation
     : ID STRING?
     ;
 delete_filter_clause
-    : 'FILTER' 'FACT' '(' ID 'TO' (ID '.')? CONDITION ')'
+    : delete_hier_ids 'TO' CONDITION
     ;
-delete_calc_meas_clause
-    : 'AS' '(' EXPR ')'
+delete_cube_meas
+    : ID (delete_base_meas_clause | delete_calc_meas_clause)
     ;
 delete_row_pattern_factor
     : delete_row_pattern_primary delete_row_pattern_quantifier?
@@ -4615,6 +4615,15 @@ delete_using_index_clause
     ;
 delete_exceptions_clause
     : 'EXCEPTIONS' 'INTO' (ID '.')? ID
+    ;
+delete_hier_ids
+    : ID (',' ID)*
+    ;
+delete_base_meas_clause
+    : ('FACT' ID)? delete_meas_aggregate_clause?
+    ;
+delete_calc_meas_clause
+    : 'AS' '(' EXPR ')'
     ;
 delete_row_pattern_primary
     : ID
@@ -4632,6 +4641,9 @@ delete_row_pattern_quantifier
 delete_index_attributes
     : (delete_physical_attributes_clause | 'TABLESPACE' (ID | 'DEFAULT') | delete_logging_clause | delete_index_compression | delete_partial_index_clause | delete_parallel_clause)+
     ;
+delete_meas_aggregate_clause
+    : delete_aggr_function
+    ;
 delete_physical_attributes_clause
     : ('PCTUSED' NUMBER)? ('PCTFREE' NUMBER)? ('INITRANS' NUMBER)?
     ;
@@ -4646,6 +4658,9 @@ delete_partial_index_clause
     ;
 delete_parallel_clause
     : ('PARALLEL' NUMBER? | 'NOPARALLEL')
+    ;
+delete_aggr_function
+    : ('APPROX_COUNT_DISTINCT' | 'APPROX_COUNT_DISTINCT_AGG' | 'AVG' | 'COUNT' | 'MAX' | 'MIN' | 'STDDEV' | 'STDDEV_POP' | 'STDDEV_SAMP' | 'SUM' | 'VAR_POP' | 'VAR_SAMP' | 'VARIANCE')
     ;
 delete_prefix_compression
     : 'COMPRESS' NUMBER?
@@ -5088,7 +5103,7 @@ select_subquery_factoring_clause
     : ID ('(' ID (',' ID)* ')')? 'AS' '(' select_subquery ')' select_search_clause? select_cycle_clause? (',' ID ('(' ID (',' ID)* ')')? 'AS' '(' select_subquery ')' select_search_clause? select_cycle_clause?)*
     ;
 select_subav_factoring_clause
-    : ID 'AS' '(' select_sub_av_clause ')' (',' ID 'AS' '(' select_sub_av_clause ')')*
+    : ID 'ANALYTIC' 'VIEW' 'AS' '(' select_sub_av_clause ')' (',' ID 'ANALYTIC' 'VIEW' 'AS' '(' select_sub_av_clause ')')*
     ;
 select_query_block
     : 'SELECT' HINT? ('DISTINCT' | 'UNIQUE' | 'ALL')? select_select_list ('FROM' (select_table_reference | select_join_clause) (',' (select_table_reference | select_join_clause))?)* select_where_clause? select_hierarchical_query_clause? select_group_by_clause? select_model_clause? select_window_clause? select_qualify_clause?
@@ -5106,7 +5121,7 @@ select_cycle_clause
     : 'CYCLE' ID (',' ID)* 'SET' ID 'TO' EXPR 'DEFAULT' EXPR
     ;
 select_sub_av_clause
-    : 'ANALYTIC' 'VIEW' 'USING' ID select_hierarchies_clause? select_filter_clauses? select_add_meas_clause?
+    : 'USING' (ID '.')? ID select_hierarchies_clause? select_filter_clauses? select_add_meas_clause?
     ;
 select_select_list
     : ('*' | (ID | (ID '.')? ID) '.' '*' | EXPR ('AS'? ID)?) (',' ('*' | (ID | (ID '.')? ID) '.' '*' | EXPR ('AS'? ID)?))*
@@ -5136,13 +5151,13 @@ select_qualify_clause
     : 'QUALIFY' CONDITION
     ;
 select_hierarchies_clause
-    : 'HIERARCHIES' '(' ID (',' ID)* ')'
+    : 'HIERARCHIES' '(' ((ID '.')? ID (',' ID)?)* ')'
     ;
 select_filter_clauses
-    : select_filter_clause select_filter_clause*
+    : 'FILTER' 'FACT' '(' select_filter_clause (',' select_filter_clause)* ')'
     ;
 select_add_meas_clause
-    : 'ADD' 'MEASURES' '(' select_calc_meas_clause (',' select_calc_meas_clause)* ')'
+    : 'ADD' 'MEASURES' '(' select_cube_meas (',' select_cube_meas)* ')'
     ;
 select_query_table_expression
     : ((ID '.')? ID select_partition_extension_clause? ('@' ID)? | '(' select_subquery select_subquery_restriction_clause? ')' | select_table_collection_expression | select_inline_analytic_view) select_flashback_query_clause? select_sample_clause? (select_pivot_clause | select_unpivot_clause)? select_row_pattern_clause? select_containers_clause? select_shards_clause?
@@ -5181,10 +5196,10 @@ select_window_specification
     : ID? select_query_partition_clause? select_order_by_clause? select_windowing_clause?
     ;
 select_filter_clause
-    : 'FILTER' 'FACT' '(' ID 'TO' (ID '.')? CONDITION ')'
+    : select_hier_ids 'TO' CONDITION
     ;
-select_calc_meas_clause
-    : ID 'AS' '(' EXPR ')'
+select_cube_meas
+    : ID (select_base_meas_clause | select_calc_meas_clause)
     ;
 select_partition_extension_clause
     : ('PARTITION' '(' ID ')' | 'PARTITION' 'FOR' '(' EXPR (',' EXPR)* ')' | 'SUBPARTITION' '(' ID ')' | 'SUBPARTITION' 'FOR' '(' EXPR (',' EXPR)* ')')
@@ -5243,6 +5258,15 @@ select_model_rules_clause
 select_windowing_clause
     : ('ROWS' | 'RANGE' | 'GROUPS') ('BETWEEN' ('UNBOUNDED' 'PRECEDING' | 'CURRENT' 'ROW' | EXPR ('PRECEDING' | 'FOLLOWING')) 'AND' ('UNBOUNDED' 'FOLLOWING' | 'CURRENT' 'ROW' | EXPR ('PRECEDING' | 'FOLLOWING')) | ('UNBOUNDED' 'PRECEDING' | 'CURRENT' 'ROW' | EXPR 'PRECEDING')) (('EXCLUDE' 'CURRENT' 'ROW' | 'EXCLUDE' 'GROUP' | 'EXCLUDE' 'TIES' | 'EXCLUDE' 'NO' 'OTHERS'))?
     ;
+select_hier_ids
+    : ID (',' ID)*
+    ;
+select_base_meas_clause
+    : ('FACT' ID)? select_meas_aggregate_clause?
+    ;
+select_calc_meas_clause
+    : 'AS' '(' EXPR ')'
+    ;
 select_pivot_for_clause
     : 'FOR' (ID | '(' ID (',' ID)* ')')
     ;
@@ -5291,6 +5315,9 @@ select_model_iterate_clause
 select_cell_assignment
     : ID ((CONDITION | EXPR | select_single_column_for_loop | select_multi_column_for_loop) (',' (CONDITION | EXPR | select_single_column_for_loop | select_multi_column_for_loop))?)*
     ;
+select_meas_aggregate_clause
+    : select_aggr_function
+    ;
 select_row_pattern_term
     : select_row_pattern_factor select_row_pattern_factor*
     ;
@@ -5308,6 +5335,9 @@ select_single_column_for_loop
     ;
 select_multi_column_for_loop
     : 'FOR' '(' ID (',' ID)* ')' 'IN' '(' ('(' EXPR (',' EXPR)* ')' (',' '(' EXPR (',' EXPR)* ')')* | select_subquery) ')'
+    ;
+select_aggr_function
+    : ('APPROX_COUNT_DISTINCT' | 'APPROX_COUNT_DISTINCT_AGG' | 'AVG' | 'COUNT' | 'MAX' | 'MIN' | 'STDDEV' | 'STDDEV_POP' | 'STDDEV_SAMP' | 'SUM' | 'VAR_POP' | 'VAR_SAMP' | 'VARIANCE')
     ;
 select_row_pattern_factor
     : select_row_pattern_primary select_row_pattern_quantifier?

@@ -38008,17 +38008,15 @@ reject@20	reject@20	engine	delete_query_table_expression((ID_.)?_ID_delete_parti
 reject@21	reject@21	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_table_collection_expression!drop-4	DELETE a FROM TABLE(1
 accept	accept	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_table_collection_expression!insert	DELETE a FROM TABLE(1) zzz
 accept	accept	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_table_collection_expression!swap	DELETE a FROM TABLES(1)
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@14	reject@14	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-1	DELETE a FROM VIEW(ANALYTIC VIEW USING a)
-reject@32	reject@32	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-2	DELETE a FROM ANALYTIC(ANALYTIC VIEW USING a)
-reject@49	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-3	DELETE a FROM ANALYTIC VIEW ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-4	DELETE a FROM ANALYTIC VIEW(VIEW USING a)
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-5	DELETE a FROM ANALYTIC VIEW(ANALYTIC USING a)
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-6	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW a)
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-7	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING)
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-8	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a
-reject@23	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a) zzz
-reject@22	reject@22	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!swap	DELETE a FROM ANALYZE VIEW(ANALYTIC VIEW USING a)
+accept	accept	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view	DELETE a FROM ANALYTIC VIEW(USING a)
+reject@14	reject@14	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-1	DELETE a FROM VIEW(USING a)
+reject@30	reject@29	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-2	DELETE a FROM ANALYTIC(USING a)
+reject@35	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-3	DELETE a FROM ANALYTIC VIEW USING a)
+reject@28	reject@28	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-4	DELETE a FROM ANALYTIC VIEW(a)
+reject@33	reject@33	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-5	DELETE a FROM ANALYTIC VIEW(USING)
+reject@35	reject@35	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!drop-6	DELETE a FROM ANALYTIC VIEW(USING a
+accept	accept	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!insert	DELETE a FROM ANALYTIC VIEW(USING a) zzz
+reject@22	reject@22	engine	delete_query_table_expression((ID_.)?_ID_delete_partition_extensio~9d9ec8cf)/delete_inline_analytic_view!swap	DELETE a FROM ANALYZE VIEW(USING a)
 accept	accept	engine	delete_query_table_expression(ID_.)?/%empty	DELETE a FROM a
 accept	accept	engine	delete_query_table_expression(ID_.)?/%empty!insert	DELETE a FROM zzz a
 accept	accept	engine	delete_query_table_expression(ID_.)?/ID_.	DELETE a FROM a.a
@@ -38220,10 +38218,10 @@ reject@24	reject@23	engine	delete_table_collection_expression((_+_))?/(_+_)!drop
 reject@23	reject@22	engine	delete_table_collection_expression((_+_))?/(_+_)!drop-2	DELETE a FROM TABLE(1)()
 reject@24	reject@22	engine	delete_table_collection_expression((_+_))?/(_+_)!drop-3	DELETE a FROM TABLE(1)(+
 accept	accept	engine	delete_table_collection_expression((_+_))?/(_+_)!insert	DELETE a FROM TABLE(1)(+) zzz
-reject@23	reject@28	engine	delete_inline_analytic_view/ANALYTIC_VIEW_(_delete_sub_av_clause_)_(ID)?	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_inline_analytic_view(ID)?/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_inline_analytic_view(ID)?/ID	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a) a
-reject@23	reject@28	engine	delete_inline_analytic_view(ID)?/ID!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a) a zzz
+accept	accept	engine	delete_inline_analytic_view/ANALYTIC_VIEW_(_delete_sub_av_clause_)_(ID)?	DELETE a FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	delete_inline_analytic_view(ID)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	delete_inline_analytic_view(ID)?/ID	DELETE a FROM ANALYTIC VIEW(USING a) a
+reject@39	reject@39	engine	delete_inline_analytic_view(ID)?/ID!insert	DELETE a FROM ANALYTIC VIEW(USING a) a zzz
 accept	accept	engine	delete_flashback_query_clause/(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)	DELETE a FROM a AS OF SCN 1
 accept	accept	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR	DELETE a FROM a VERSIONS BETWEEN SCN 1 AND 1
 reject@16	reject@16	engine	delete_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!drop-1	DELETE a FROM a BETWEEN SCN 1 AND 1
@@ -38632,43 +38630,46 @@ accept	accept	engine	delete_outer_join_type(OUTER)?/OUTER	DELETE a FROM a NATURA
 reject@28	reject@28	engine	delete_outer_join_type(OUTER)?/OUTER!truncate	DELETE a FROM a NATURAL LEFT
 reject@35	reject@35	engine	delete_outer_join_type(OUTER)?/OUTER!insert	DELETE a FROM a NATURAL LEFT OUTER zzz JOIN a
 reject@29	reject@29	engine	delete_outer_join_type(OUTER)?/OUTER!swap	DELETE a FROM a NATURAL LEFT OUTLINE JOIN a
-reject@23	reject@28	engine	delete_sub_av_clause/ANALYTIC_VIEW_USING_ID_(delete_hierarchies_clause)?_(de~2a443907	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_sub_av_clause/ANALYTIC_VIEW_USING_ID_(delete_hierarchies_clause)?_(de~2a443907!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING
-reject@23	reject@28	engine	delete_sub_av_clause/ANALYTIC_VIEW_USING_ID_(delete_hierarchies_clause)?_(de~2a443907!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a zzz)
-reject@23	reject@28	engine	delete_sub_av_clause/ANALYTIC_VIEW_USING_ID_(delete_hierarchies_clause)?_(de~2a443907!swap	DELETE a FROM ANALYTIC VIEW(ANALYZE VIEW USING a)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a(a))
-reject@64	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES a))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-3	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES())
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-4	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a) zzz)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!swap	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHY(a))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER(a TO 1 = 1))
-reject@73	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-3	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT a TO 1 = 1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-4	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(TO 1 = 1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-5	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a 1 = 1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-6	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-7	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) zzz)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!swap	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FINAL FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1)))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a MEASURES(AS(1)))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD(AS(1)))
-reject@69	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-3	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES AS(1)))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-4	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES((1)))
-reject@69	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-5	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS 1)))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-6	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS()))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-7	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1))
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1)) zzz)
-reject@23	reject@28	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!swap	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADMIN MEASURES(AS(1)))
+accept	accept	engine	delete_sub_av_clause/USING_(ID_.)?_ID_(delete_hierarchies_clause)?_(delete_f~5e450d97	DELETE a FROM ANALYTIC VIEW(USING a)
+reject@33	reject@33	engine	delete_sub_av_clause/USING_(ID_.)?_ID_(delete_hierarchies_clause)?_(delete_f~5e450d97!truncate	DELETE a FROM ANALYTIC VIEW(USING
+reject@36	reject@36	engine	delete_sub_av_clause/USING_(ID_.)?_ID_(delete_hierarchies_clause)?_(delete_f~5e450d97!insert	DELETE a FROM ANALYTIC VIEW(USING a zzz)
+reject@28	reject@28	engine	delete_sub_av_clause/USING_(ID_.)?_ID_(delete_hierarchies_clause)?_(delete_f~5e450d97!swap	DELETE a FROM ANALYTIC VIEW(VALIDATE a)
+accept	accept	engine	delete_sub_av_clause(ID_.)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a)
+reject@38	reject@38	engine	delete_sub_av_clause(ID_.)?/%empty!insert	DELETE a FROM ANALYTIC VIEW(USING zzz a)
+accept	accept	engine	delete_sub_av_clause(ID_.)?/ID_.	DELETE a FROM ANALYTIC VIEW(USING a.a)
+reject@33	reject@33	engine	delete_sub_av_clause(ID_.)?/ID_.!drop-1	DELETE a FROM ANALYTIC VIEW(USING.a)
+reject@36	reject@36	engine	delete_sub_av_clause(ID_.)?/ID_.!drop-2	DELETE a FROM ANALYTIC VIEW(USING a a)
+reject@40	reject@40	engine	delete_sub_av_clause(ID_.)?/ID_.!insert	DELETE a FROM ANALYTIC VIEW(USING a.zzz a)
+accept	accept	engine	delete_sub_av_clause(delete_hierarchies_clause)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES())
+reject@35	reject@35	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-1	DELETE a FROM ANALYTIC VIEW(USING a())
+reject@48	reject@47	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-2	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES))
+reject@49	reject@49	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!drop-3	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES()
+reject@48	reject@48	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!truncate	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(
+reject@50	reject@50	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!insert	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES() zzz)
+reject@36	reject@36	engine	delete_sub_av_clause(delete_hierarchies_clause)?/delete_hierarchies_clause!swap	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHY())
+accept	accept	engine	delete_sub_av_clause(delete_filter_clauses)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@36	reject@36	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-1	DELETE a FROM ANALYTIC VIEW(USING a FACT(a TO 1 = 1))
+reject@42	reject@42	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-2	DELETE a FROM ANALYTIC VIEW(USING a FILTER(a TO 1 = 1))
+reject@59	reject@48	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-3	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT a TO 1 = 1))
+reject@48	reject@48	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-4	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(TO 1 = 1))
+reject@50	reject@50	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-5	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a 1 = 1))
+reject@52	reject@52	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-6	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO))
+reject@59	reject@59	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!drop-7	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1)
+reject@58	reject@58	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!truncate	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1
+reject@60	reject@60	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!insert	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1) zzz)
+reject@36	reject@36	engine	delete_sub_av_clause(delete_filter_clauses)?/delete_filter_clauses!swap	DELETE a FROM ANALYTIC VIEW(USING a FINAL FACT(a TO 1 = 1))
+accept	accept	engine	delete_sub_av_clause(delete_add_meas_clause)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a)
+reject@50	reject@50	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@36	reject@36	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-1	DELETE a FROM ANALYTIC VIEW(USING a MEASURES(a))
+reject@36	reject@39	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-2	DELETE a FROM ANALYTIC VIEW(USING a ADD(a))
+reject@51	reject@49	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-3	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES a))
+reject@49	reject@49	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-4	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES())
+reject@51	reject@50	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!drop-5	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a)
+reject@50	reject@50	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!truncate	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a
+reject@50	reject@50	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a) zzz)
+reject@36	reject@36	engine	delete_sub_av_clause(delete_add_meas_clause)?/delete_add_meas_clause!swap	DELETE a FROM ANALYTIC VIEW(USING a ADMIN MEASURES(a))
 accept	accept	engine	delete_pivot_for_clause/FOR_(ID|(_ID_(,_ID)*_))	DELETE a FROM a UNPIVOT(a FOR a IN(a))
 reject@29	reject@29	engine	delete_pivot_for_clause/FOR_(ID|(_ID_(,_ID)*_))!truncate	DELETE a FROM a UNPIVOT(a FOR
 reject@32	reject@32	engine	delete_pivot_for_clause/FOR_(ID|(_ID_(,_ID)*_))!insert	DELETE a FROM a UNPIVOT(a FOR a zzz IN(a))
@@ -38979,39 +38980,42 @@ reject@33	reject@33	engine	delete_annotations_clause(,_ID)*/,_ID_(,_ID)*!drop-1	
 reject@33	reject@33	engine	delete_annotations_clause(,_ID)*/,_ID_(,_ID)*!drop-2	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(DROP a,)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@52	reject@33	engine	delete_annotations_clause(,_ID)*/,_ID_(,_ID)*!truncate	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(DROP a,
 reject@33	reject@33	engine	delete_annotations_clause(,_ID)*/,_ID_(,_ID)*!insert	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(DROP a, a zzz)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-reject@23	reject@28	engine	delete_hierarchies_clause/HIERARCHIES_(_ID_(,_ID)*_)	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a))
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a))
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/%empty!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a zzz))
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/,_ID_(,_ID)*	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a, a))
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a a))
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a,))
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a,
-reject@23	reject@28	engine	delete_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a HIERARCHIES(a, a zzz))
-reject@23	reject@28	engine	delete_filter_clauses/delete_filter_clause_(delete_filter_clause)*	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER(a TO 1 = 1))
-reject@97	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-3	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-4	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-5	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a 1 = 1))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-6	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO))
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!drop-7	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1)
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1) zzz)
-reject@23	reject@28	engine	delete_filter_clauses(delete_filter_clause)*/delete_filter_clause_(delete_filter_clause)*!swap	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FINAL FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_add_meas_clause/ADD_MEASURES_(_delete_calc_meas_clause_(,_delete_calc_m~c804582c	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1)))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1)))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/%empty!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1) zzz))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), AS(1)))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1) AS(1)))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1),(1)))
-reject@76	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!drop-3	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), AS 1)))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!drop-4	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), AS()))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!drop-5	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), AS(1))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), AS(1
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), AS(1) zzz))
-reject@23	reject@28	engine	delete_add_meas_clause(,_delete_calc_meas_clause)*/,_delete_calc_meas_clause_(,_delete_calc_meas_clause)*!swap	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1), ASC(1)))
+accept	accept	engine	delete_hierarchies_clause/HIERARCHIES_(_((ID_.)?_ID_(,_ID)?)*_)	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES())
+accept	accept	engine	delete_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/%empty	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES())
+accept	accept	engine	delete_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/%empty!insert	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(zzz))
+accept	accept	engine	delete_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/(ID_.)?_ID_(,_ID)?_((ID_.)?_ID_(,_ID)?)*	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+reject@50	reject@50	engine	delete_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/(ID_.)?_ID_(,_ID)?_((ID_.)?_ID_(,_ID)?)*!insert	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a zzz))
+accept	accept	engine	delete_hierarchies_clause(ID_.)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+reject@52	reject@52	engine	delete_hierarchies_clause(ID_.)?/%empty!insert	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(zzz a))
+accept	accept	engine	delete_hierarchies_clause(ID_.)?/ID_.	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a.a))
+reject@48	reject@48	engine	delete_hierarchies_clause(ID_.)?/ID_.!drop-1	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(.a))
+reject@50	reject@50	engine	delete_hierarchies_clause(ID_.)?/ID_.!drop-2	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a a))
+reject@49	reject@49	engine	delete_hierarchies_clause(ID_.)?/ID_.!truncate	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a
+reject@54	reject@54	engine	delete_hierarchies_clause(ID_.)?/ID_.!insert	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a.zzz a))
+accept	accept	engine	delete_hierarchies_clause(,_ID)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+accept	accept	engine	delete_hierarchies_clause(,_ID)?/,_ID	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a, a))
+reject@50	reject@50	engine	delete_hierarchies_clause(,_ID)?/,_ID!drop-2	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a,))
+reject@50	reject@50	engine	delete_hierarchies_clause(,_ID)?/,_ID!truncate	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a,
+reject@53	reject@53	engine	delete_hierarchies_clause(,_ID)?/,_ID!insert	DELETE a FROM ANALYTIC VIEW(USING a HIERARCHIES(a, a zzz))
+accept	accept	engine	delete_filter_clauses/FILTER_FACT_(_delete_filter_clause_(,_delete_filter_clause)*_)	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+accept	accept	engine	delete_filter_clauses(,_delete_filter_clause)*/%empty	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@59	reject@59	engine	delete_filter_clauses(,_delete_filter_clause)*/%empty!insert	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1 zzz))
+accept	accept	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO 1 = 1))
+reject@59	reject@59	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!drop-1	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1 a TO 1 = 1))
+reject@60	reject@60	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!drop-2	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, TO 1 = 1))
+reject@62	reject@62	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!drop-3	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a 1 = 1))
+reject@64	reject@64	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!drop-4	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO))
+reject@64	reject@64	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!truncate	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO
+reject@71	reject@71	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!insert	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO 1 = 1 zzz))
+reject@62	reject@62	engine	delete_filter_clauses(,_delete_filter_clause)*/,_delete_filter_clause_(,_delete_filter_clause)*!swap	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TOPLEVEL 1 = 1))
+reject@50	reject@50	engine	delete_add_meas_clause/ADD_MEASURES_(_delete_cube_meas_(,_delete_cube_meas)*_)	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@50	reject@50	engine	delete_add_meas_clause(,_delete_cube_meas)*/%empty	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@51	reject@51	engine	delete_add_meas_clause(,_delete_cube_meas)*/%empty!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a zzz))
+reject@50	reject@50	engine	delete_add_meas_clause(,_delete_cube_meas)*/,_delete_cube_meas_(,_delete_cube_meas)*	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a, a))
+reject@51	reject@51	engine	delete_add_meas_clause(,_delete_cube_meas)*/,_delete_cube_meas_(,_delete_cube_meas)*!drop-1	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a a))
+reject@50	reject@50	engine	delete_add_meas_clause(,_delete_cube_meas)*/,_delete_cube_meas_(,_delete_cube_meas)*!drop-2	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a,))
+reject@51	reject@50	engine	delete_add_meas_clause(,_delete_cube_meas)*/,_delete_cube_meas_(,_delete_cube_meas)*!truncate	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a,
+reject@50	reject@50	engine	delete_add_meas_clause(,_delete_cube_meas)*/,_delete_cube_meas_(,_delete_cube_meas)*!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a, a zzz))
 reject@16	reject	engine	delete_row_pattern_term/delete_row_pattern_factor_(delete_row_pattern_factor)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_term(delete_row_pattern_factor)*/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_term(delete_row_pattern_factor)*/delete_row_pattern_factor_(delete_row_pattern_factor)*	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a a) DEFINE a AS 1 = 1)
@@ -39155,17 +39159,20 @@ reject@33	reject@33	engine	delete_annotation/ID_(STRING)?	DELETE a FROM EXTERNAL
 reject@33	reject@33	engine	delete_annotation(STRING)?/%empty	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_annotation(STRING)?/STRING	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a 's')) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_annotation(STRING)?/STRING!insert	DELETE a FROM EXTERNAL((a NUMBER ANNOTATIONS(ADD a 's' zzz)) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
-reject@23	reject@28	engine	delete_filter_clause/FILTER_FACT_(_ID_TO_(ID_.)?_CONDITION_)	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/%empty	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1))
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/%empty!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO zzz 1 = 1))
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/ID_.	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO a.1 = 1))
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/ID_.!drop-1	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO.1 = 1))
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/ID_.!drop-2	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO a 1 = 1))
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/ID_.!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO a
-reject@23	reject@28	engine	delete_filter_clause(ID_.)?/ID_.!insert	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a FILTER FACT(a TO a.zzz 1 = 1))
-reject@23	reject@28	engine	delete_calc_meas_clause/AS_(_EXPR_)	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1)))
-reject@23	reject@28	engine	delete_calc_meas_clause/AS_(_EXPR_)!truncate	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(AS(1
-reject@23	reject@28	engine	delete_calc_meas_clause/AS_(_EXPR_)!swap	DELETE a FROM ANALYTIC VIEW(ANALYTIC VIEW USING a ADD MEASURES(ASC(1)))
+accept	accept	engine	delete_filter_clause/delete_hier_ids_TO_CONDITION	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@52	reject@52	engine	delete_filter_clause/delete_hier_ids_TO_CONDITION!truncate	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO
+reject@50	reject@50	engine	delete_filter_clause/delete_hier_ids_TO_CONDITION!swap	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TOPLEVEL 1 = 1))
+reject@50	reject@50	engine	delete_cube_meas/ID_(delete_base_meas_clause|delete_calc_~14dfee5a)	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@49	reject@49	engine	delete_cube_meas/ID_(delete_base_meas_clause|delete_calc_~14dfee5a)!truncate	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(
+reject@50	reject@50	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_base_meas_clause	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+accept	accept	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
+reject@50	reject@50	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!drop-1	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a(1)))
+reject@57	reject@54	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!drop-2	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS 1)))
+reject@54	reject@54	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!drop-3	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS()))
+reject@57	reject@57	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!drop-4	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1))
+reject@55	reject@55	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!truncate	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1
+reject@57	reject@57	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1) zzz))
+reject@51	reject@51	engine	delete_cube_meas(delete_base_meas_clause|delete_calc_~14dfee5a)/delete_calc_meas_clause!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a ASC(1)))
 reject@16	reject	engine	delete_row_pattern_factor/delete_row_pattern_primary_(delete_row_pattern_quantifier)?	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/%empty	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject@42	engine	delete_row_pattern_factor(delete_row_pattern_quantifier)?/delete_row_pattern_quantifier	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)
@@ -39190,6 +39197,26 @@ reject@33	reject@33	engine	delete_exceptions_clause(ID_.)?/ID_.!drop-1	DELETE a 
 reject@33	reject@33	engine	delete_exceptions_clause(ID_.)?/ID_.!drop-2	DELETE a FROM EXTERNAL((a NUMBER NULL EXCEPTIONS INTO a a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@55	reject@33	engine	delete_exceptions_clause(ID_.)?/ID_.!truncate	DELETE a FROM EXTERNAL((a NUMBER NULL EXCEPTIONS INTO a
 reject@33	reject@33	engine	delete_exceptions_clause(ID_.)?/ID_.!insert	DELETE a FROM EXTERNAL((a NUMBER NULL EXCEPTIONS INTO a.zzz a) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+accept	accept	engine	delete_hier_ids/ID_(,_ID)*	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@48	reject@48	engine	delete_hier_ids/ID_(,_ID)*!truncate	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(
+reject@50	reject@50	engine	delete_hier_ids/ID_(,_ID)*!insert	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a zzz TO 1 = 1))
+accept	accept	engine	delete_hier_ids(,_ID)*/%empty	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@49	reject@49	engine	delete_hier_ids(,_ID)*/,_ID_(,_ID)*	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a, a TO 1 = 1))
+reject@50	reject@50	engine	delete_hier_ids(,_ID)*/,_ID_(,_ID)*!drop-1	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a a TO 1 = 1))
+reject@49	reject@49	engine	delete_hier_ids(,_ID)*/,_ID_(,_ID)*!drop-2	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a, TO 1 = 1))
+reject@50	reject@49	engine	delete_hier_ids(,_ID)*/,_ID_(,_ID)*!truncate	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a,
+reject@49	reject@49	engine	delete_hier_ids(,_ID)*/,_ID_(,_ID)*!insert	DELETE a FROM ANALYTIC VIEW(USING a FILTER FACT(a, a zzz TO 1 = 1))
+reject@50	reject@50	engine	delete_base_meas_clause/(FACT_ID)?_(delete_meas_aggregate_clause)?	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@50	reject@50	engine	delete_base_meas_clause(FACT_ID)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@57	reject@57	engine	delete_base_meas_clause(FACT_ID)?/FACT_ID	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT a))
+reject@55	reject@55	engine	delete_base_meas_clause(FACT_ID)?/FACT_ID!drop-2	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT))
+reject@55	reject@55	engine	delete_base_meas_clause(FACT_ID)?/FACT_ID!truncate	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT
+reject@58	reject@58	engine	delete_base_meas_clause(FACT_ID)?/FACT_ID!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT a zzz))
+reject@51	reject@51	engine	delete_base_meas_clause(FACT_ID)?/FACT_ID!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACTOR a))
+reject@50	reject@50	engine	delete_base_meas_clause(delete_meas_aggregate_clause)?/%empty	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@51	reject@51	engine	delete_base_meas_clause(delete_meas_aggregate_clause)?/delete_meas_aggregate_clause	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
+reject@51	reject@51	engine	delete_base_meas_clause(delete_meas_aggregate_clause)?/delete_meas_aggregate_clause!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT zzz))
+accept	accept	engine	delete_calc_meas_clause/AS_(_EXPR_)	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
 reject@16	reject	engine	delete_row_pattern_primary/ID	DELETE a FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@16	reject@40	engine	delete_row_pattern_primary/'$'	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('$') DEFINE a AS 1 = 1)
 reject@16	reject@40	engine	delete_row_pattern_primary/'$'!insert	DELETE a FROM a MATCH_RECOGNIZE(PATTERN('$' zzz) DEFINE a AS 1 = 1)
@@ -39282,6 +39309,7 @@ reject@33	reject@33	engine	delete_index_attributes(ID|DEFAULT)/ID	DELETE a FROM 
 reject@33	reject@33	engine	delete_index_attributes(ID|DEFAULT)/DEFAULT	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX TABLESPACE DEFAULT) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_index_attributes(ID|DEFAULT)/DEFAULT!insert	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX TABLESPACE DEFAULT zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_index_attributes(ID|DEFAULT)/DEFAULT!swap	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX TABLESPACE DEFAULT_COLLATION) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@51	reject@51	engine	delete_meas_aggregate_clause/delete_aggr_function	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
 reject@33	reject@33	engine	delete_physical_attributes_clause/(PCTUSED_NUMBER)?_(PCTFREE_NUMBER)?_(INITRANS_NUMBER)?	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_physical_attributes_clause(PCTUSED_NUMBER)?/%empty	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_physical_attributes_clause(PCTUSED_NUMBER)?/PCTUSED_NUMBER	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX PCTUSED 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -39332,6 +39360,41 @@ reject@33	reject@33	engine	delete_parallel_clause(NUMBER)?/%empty	DELETE a FROM 
 reject@33	reject@33	engine	delete_parallel_clause(NUMBER)?/NUMBER	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX PARALLEL 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@58	reject@33	engine	delete_parallel_clause(NUMBER)?/NUMBER!truncate	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX PARALLEL
 reject@33	reject@33	engine	delete_parallel_clause(NUMBER)?/NUMBER!insert	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX PARALLEL 1 zzz) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
+reject@51	reject@51	engine	delete_aggr_function/(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT_AGG	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT_AGG))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT_AGG!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT_AGG zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT_AGG!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a ARCHIVAL))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/AVG	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AVG))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/AVG!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a AVG zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/AVG!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a BACKINGFILE))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/COUNT	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a COUNT))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/COUNT!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a COUNT zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/COUNT!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a CPU_PER_CALL))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MAX	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a MAX))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MAX!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a MAX zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MAX!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a MAXIMIZE))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MIN	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a MIN))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MIN!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a MIN zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MIN!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a MINIMUM))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_POP	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_POP))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_POP!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_POP zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_SAMP	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_SAMP))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_SAMP!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_SAMP zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_SAMP!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a STOP))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/SUM	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUM))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/SUM!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUM zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/SUM!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUPPLEMENTAL))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_POP	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_POP))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_POP!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_POP zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_SAMP	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_SAMP))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_SAMP!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_SAMP zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_SAMP!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VECTOR))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VARIANCE	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VARIANCE))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VARIANCE!insert	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VARIANCE zzz))
+reject@51	reject@51	engine	delete_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VARIANCE!swap	DELETE a FROM ANALYTIC VIEW(USING a ADD MEASURES(a VARRAY))
 reject@33	reject@33	engine	delete_prefix_compression/COMPRESS_(NUMBER)?	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX COMPRESS) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_prefix_compression(NUMBER)?/%empty	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX COMPRESS) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
 reject@33	reject@33	engine	delete_prefix_compression(NUMBER)?/NUMBER	DELETE a FROM EXTERNAL((a NUMBER NULL USING INDEX COMPRESS 1) TYPE a DEFAULT DIRECTORY a LOCATION('s'))
@@ -41369,18 +41432,18 @@ reject@27	reject@19	engine	select_with_clause(select_plsql_declarations|select_s
 reject@18	reject@18	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subquery_factoring_clause!truncate	WITH a AS(SELECT *
 reject@20	reject@20	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subquery_factoring_clause!insert	WITH a AS(SELECT *) zzz SELECT *
 reject@7	reject@7	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subquery_factoring_clause!swap	WITH a ASC(SELECT *) SELECT *
-reject@10	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@17	reject@5	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-1	WITH AS(ANALYTIC VIEW USING a) SELECT *
-reject@16	reject@16	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-2	WITH a(ANALYTIC VIEW USING a) SELECT *
-reject@31	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-3	WITH a AS ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-4	WITH a AS(VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-5	WITH a AS(ANALYTIC USING a) SELECT *
-reject@10	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-6	WITH a AS(ANALYTIC VIEW a) SELECT *
-reject@10	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-7	WITH a AS(ANALYTIC VIEW USING) SELECT *
-reject@40	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-8	WITH a AS(ANALYTIC VIEW USING a SELECT *
-reject@31	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!truncate	WITH a AS(ANALYTIC VIEW USING a
-reject@10	reject@10	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!insert	WITH a AS(ANALYTIC VIEW USING a) zzz SELECT *
-reject@7	reject@7	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!swap	WITH a ASC(ANALYTIC VIEW USING a) SELECT *
+accept	accept	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause	WITH a ANALYTIC VIEW AS(USING a) SELECT *
+reject@14	reject@14	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-1	WITH ANALYTIC VIEW AS(USING a) SELECT *
+reject@7	reject@7	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-2	WITH a VIEW AS(USING a) SELECT *
+reject@16	reject@16	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-3	WITH a ANALYTIC AS(USING a) SELECT *
+reject@20	reject@20	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-4	WITH a ANALYTIC VIEW(USING a) SELECT *
+reject@31	reject@24	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-5	WITH a ANALYTIC VIEW AS USING a) SELECT *
+reject@24	reject@24	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-6	WITH a ANALYTIC VIEW AS(a) SELECT *
+reject@29	reject@29	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-7	WITH a ANALYTIC VIEW AS(USING) SELECT *
+reject@40	reject@32	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!drop-8	WITH a ANALYTIC VIEW AS(USING a SELECT *
+reject@31	reject@31	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!truncate	WITH a ANALYTIC VIEW AS(USING a
+reject@33	reject@33	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!insert	WITH a ANALYTIC VIEW AS(USING a) zzz SELECT *
+reject@7	reject@7	engine	select_with_clause(select_plsql_declarations|select_sub~9756867b)/select_subav_factoring_clause!swap	WITH a ANALYZE VIEW AS(USING a) SELECT *
 accept	accept	engine	select_subquery/select_query_block_((UNION_ALL?|INTERSECT|MINUS)_select~cb60610a	SELECT *
 accept	accept	engine	select_subquery((UNION_ALL?|INTERSECT|MINUS)_select_~dcfcd5c6)*/%empty	SELECT *
 accept	accept	engine	select_subquery((UNION_ALL?|INTERSECT|MINUS)_select_~dcfcd5c6)*/(UNION_ALL?|INTERSECT|MINUS)_select_query_block_((UNION~296be00b	SELECT * UNION SELECT *
@@ -41507,21 +41570,21 @@ reject@43	reject@35	engine	select_subquery_factoring_clause(,_ID_((_ID_(,_ID)*_)
 reject@34	reject@34	engine	select_subquery_factoring_clause(,_ID_((_ID_(,_ID)*_))?_AS_(_select_s~0896ec10)*/,_ID_((_ID_(,_ID)*_))?_AS_(_select_subquery_)_(select_s~d03acef5!truncate	WITH a AS(SELECT *), a AS(SELECT *
 reject@36	reject@36	engine	select_subquery_factoring_clause(,_ID_((_ID_(,_ID)*_))?_AS_(_select_s~0896ec10)*/,_ID_((_ID_(,_ID)*_))?_AS_(_select_subquery_)_(select_s~d03acef5!insert	WITH a AS(SELECT *), a AS(SELECT *) zzz SELECT *
 reject@23	reject@23	engine	select_subquery_factoring_clause(,_ID_((_ID_(,_ID)*_))?_AS_(_select_s~0896ec10)*/,_ID_((_ID_(,_ID)*_))?_AS_(_select_subquery_)_(select_s~d03acef5!swap	WITH a AS(SELECT *), a ASC(SELECT *) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause/ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_av~465c6a2f	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/%empty	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-1	WITH a AS(ANALYTIC VIEW USING a) a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-2	WITH a AS(ANALYTIC VIEW USING a), AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-3	WITH a AS(ANALYTIC VIEW USING a), a(ANALYTIC VIEW USING a) SELECT *
-reject@60	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-4	WITH a AS(ANALYTIC VIEW USING a), a AS ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-5	WITH a AS(ANALYTIC VIEW USING a), a AS(VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-6	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC USING a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-7	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC VIEW a) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-8	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC VIEW USING) SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!drop-9	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC VIEW USING a SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!truncate	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC VIEW USING a
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!insert	WITH a AS(ANALYTIC VIEW USING a), a AS(ANALYTIC VIEW USING a) zzz SELECT *
-reject@10	reject@10	engine	select_subav_factoring_clause(,_ID_AS_(_select_sub_av_clause_))*/,_ID_AS_(_select_sub_av_clause_)_(,_ID_AS_(_select_sub_~b5d2644c!swap	WITH a AS(ANALYTIC VIEW USING a), a ASC(ANALYTIC VIEW USING a) SELECT *
+accept	accept	engine	select_subav_factoring_clause/ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_ANAL~58acc960	WITH a ANALYTIC VIEW AS(USING a) SELECT *
+accept	accept	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/%empty	WITH a ANALYTIC VIEW AS(USING a) SELECT *
+accept	accept	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING a) SELECT *
+reject@33	reject@33	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-1	WITH a ANALYTIC VIEW AS(USING a) a ANALYTIC VIEW AS(USING a) SELECT *
+reject@43	reject@43	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-2	WITH a ANALYTIC VIEW AS(USING a), ANALYTIC VIEW AS(USING a) SELECT *
+reject@36	reject@36	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-3	WITH a ANALYTIC VIEW AS(USING a), a VIEW AS(USING a) SELECT *
+reject@45	reject@45	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-4	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC AS(USING a) SELECT *
+reject@49	reject@49	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-5	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW(USING a) SELECT *
+reject@60	reject@53	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-6	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS USING a) SELECT *
+reject@53	reject@53	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-7	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(a) SELECT *
+reject@58	reject@58	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-8	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING) SELECT *
+reject@69	reject@61	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!drop-9	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING a SELECT *
+reject@60	reject@60	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!truncate	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING a
+reject@62	reject@62	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!insert	WITH a ANALYTIC VIEW AS(USING a), a ANALYTIC VIEW AS(USING a) zzz SELECT *
+reject@36	reject@36	engine	select_subav_factoring_clause(,_ID_ANALYTIC_VIEW_AS_(_select_sub_a~d45be8c2)*/,_ID_ANALYTIC_VIEW_AS_(_select_sub_av_clause_)_(,_ID_AN~3708ff54!swap	WITH a ANALYTIC VIEW AS(USING a), a ANALYZE VIEW AS(USING a) SELECT *
 accept	accept	engine	select_query_block/SELECT_(HINT)?_(DISTINCT|UNIQUE|ALL)?_select_select_lis~68a7eb71	SELECT *
 accept	accept	engine	select_query_block(HINT)?/%empty	SELECT *
 reject@12	reject@12	engine	select_query_block(HINT)?/%empty!insert	SELECT zzz *
@@ -41729,44 +41792,49 @@ reject@7	reject@7	engine	select_cycle_clause(,_ID)*/,_ID_(,_ID)*!drop-1	WITH a A
 reject@7	reject@7	engine	select_cycle_clause(,_ID)*/,_ID_(,_ID)*!drop-2	WITH a AS(SELECT *) CYCLE a, SET a TO 1 DEFAULT 1 SELECT *
 reject@7	reject@7	engine	select_cycle_clause(,_ID)*/,_ID_(,_ID)*!truncate	WITH a AS(SELECT *) CYCLE a,
 reject@7	reject@7	engine	select_cycle_clause(,_ID)*/,_ID_(,_ID)*!insert	WITH a AS(SELECT *) CYCLE a, a zzz SET a TO 1 DEFAULT 1 SELECT *
-reject@10	reject@10	engine	select_sub_av_clause/ANALYTIC_VIEW_USING_ID_(select_hierarchies_clause)?_(se~53ef9a24	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@29	reject@10	engine	select_sub_av_clause/ANALYTIC_VIEW_USING_ID_(select_hierarchies_clause)?_(se~53ef9a24!truncate	WITH a AS(ANALYTIC VIEW USING
-reject@10	reject@10	engine	select_sub_av_clause/ANALYTIC_VIEW_USING_ID_(select_hierarchies_clause)?_(se~53ef9a24!insert	WITH a AS(ANALYTIC VIEW USING a zzz) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause/ANALYTIC_VIEW_USING_ID_(select_hierarchies_clause)?_(se~53ef9a24!swap	WITH a AS(ANALYZE VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/%empty	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-1	WITH a AS(ANALYTIC VIEW USING a(a)) SELECT *
-reject@46	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-2	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES a)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-3	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES()) SELECT *
-reject@55	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-4	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a) SELECT *
-reject@45	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!truncate	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a
-reject@10	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!insert	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a) zzz) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!swap	WITH a AS(ANALYTIC VIEW USING a HIERARCHY(a)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/%empty	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-1	WITH a AS(ANALYTIC VIEW USING a FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-2	WITH a AS(ANALYTIC VIEW USING a FILTER(a TO 1 = 1)) SELECT *
-reject@55	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-3	WITH a AS(ANALYTIC VIEW USING a FILTER FACT a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-4	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-5	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-6	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO)) SELECT *
-reject@64	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-7	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) SELECT *
-reject@54	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!truncate	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!insert	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) zzz) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!swap	WITH a AS(ANALYTIC VIEW USING a FINAL FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/%empty	WITH a AS(ANALYTIC VIEW USING a) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1))) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-1	WITH a AS(ANALYTIC VIEW USING a MEASURES(a AS(1))) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-2	WITH a AS(ANALYTIC VIEW USING a ADD(a AS(1))) SELECT *
-reject@53	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-3	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES a AS(1))) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-4	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(AS(1))) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-5	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a(1))) SELECT *
-reject@53	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-6	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS 1))) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-7	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS())) SELECT *
-reject@62	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-8	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1)) SELECT *
-reject@52	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!truncate	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1)
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!insert	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1)) zzz) SELECT *
-reject@10	reject@10	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!swap	WITH a AS(ANALYTIC VIEW USING a ADMIN MEASURES(a AS(1))) SELECT *
+accept	accept	engine	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37	SELECT * FROM ANALYTIC VIEW(USING a)
+reject@28	reject@28	engine	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37!drop-1	SELECT * FROM ANALYTIC VIEW(a)
+reject@33	reject@33	engine	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37!drop-2	SELECT * FROM ANALYTIC VIEW(USING)
+reject@33	reject@33	engine	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37!truncate	SELECT * FROM ANALYTIC VIEW(USING
+reject@36	reject@36	engine	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37!insert	SELECT * FROM ANALYTIC VIEW(USING a zzz)
+reject@28	reject@28	engine	select_sub_av_clause/USING_(ID_.)?_ID_(select_hierarchies_clause)?_(select_f~134cef37!swap	SELECT * FROM ANALYTIC VIEW(VALIDATE a)
+accept	accept	engine	select_sub_av_clause(ID_.)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a)
+reject@38	reject@38	engine	select_sub_av_clause(ID_.)?/%empty!insert	SELECT * FROM ANALYTIC VIEW(USING zzz a)
+accept	accept	engine	select_sub_av_clause(ID_.)?/ID_.	SELECT * FROM ANALYTIC VIEW(USING a.a)
+reject@33	reject@33	engine	select_sub_av_clause(ID_.)?/ID_.!drop-1	SELECT * FROM ANALYTIC VIEW(USING.a)
+reject@36	reject@36	engine	select_sub_av_clause(ID_.)?/ID_.!drop-2	SELECT * FROM ANALYTIC VIEW(USING a a)
+reject@35	reject@35	engine	select_sub_av_clause(ID_.)?/ID_.!truncate	SELECT * FROM ANALYTIC VIEW(USING a
+reject@40	reject@40	engine	select_sub_av_clause(ID_.)?/ID_.!insert	SELECT * FROM ANALYTIC VIEW(USING a.zzz a)
+accept	accept	engine	select_sub_av_clause(select_hierarchies_clause)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES())
+reject@35	reject@35	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-1	SELECT * FROM ANALYTIC VIEW(USING a())
+reject@48	reject@47	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-2	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES))
+reject@49	reject@49	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!drop-3	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES()
+reject@48	reject@48	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!truncate	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(
+reject@50	reject@50	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!insert	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES() zzz)
+reject@36	reject@36	engine	select_sub_av_clause(select_hierarchies_clause)?/select_hierarchies_clause!swap	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHY())
+accept	accept	engine	select_sub_av_clause(select_filter_clauses)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@36	reject@36	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-1	SELECT * FROM ANALYTIC VIEW(USING a FACT(a TO 1 = 1))
+reject@42	reject@42	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-2	SELECT * FROM ANALYTIC VIEW(USING a FILTER(a TO 1 = 1))
+reject@59	reject@48	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-3	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT a TO 1 = 1))
+reject@48	reject@48	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-4	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(TO 1 = 1))
+reject@50	reject@50	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-5	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a 1 = 1))
+reject@52	reject@52	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-6	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO))
+reject@59	reject@59	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!drop-7	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1)
+reject@58	reject@58	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!truncate	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1
+reject@60	reject@60	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!insert	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1) zzz)
+reject@36	reject@36	engine	select_sub_av_clause(select_filter_clauses)?/select_filter_clauses!swap	SELECT * FROM ANALYTIC VIEW(USING a FINAL FACT(a TO 1 = 1))
+accept	accept	engine	select_sub_av_clause(select_add_meas_clause)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a)
+reject@50	reject@50	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@36	reject@36	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-1	SELECT * FROM ANALYTIC VIEW(USING a MEASURES(a))
+reject@36	reject@39	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-2	SELECT * FROM ANALYTIC VIEW(USING a ADD(a))
+reject@51	reject@49	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-3	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES a))
+reject@49	reject@49	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-4	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES())
+reject@51	reject@50	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!drop-5	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a)
+reject@50	reject@50	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!truncate	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a
+reject@50	reject@50	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a) zzz)
+reject@36	reject@36	engine	select_sub_av_clause(select_add_meas_clause)?/select_add_meas_clause!swap	SELECT * FROM ANALYTIC VIEW(USING a ADMIN MEASURES(a))
 accept	accept	engine	select_select_list/(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)_(,_(*|(ID|(ID_.)~d02ac994	SELECT *
 accept	accept	engine	select_select_list(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)/*	SELECT *
 accept	accept	engine	select_select_list(*|(ID|(ID_.)?_ID)_._*|EXPR_(AS?_ID)?)/(ID|(ID_.)?_ID)_._*	SELECT a.*
@@ -41956,40 +42024,42 @@ reject@29	reject@29	engine	select_window_clause(,_ID_AS_(_select_window_specific
 reject@24	reject@24	engine	select_window_clause(,_ID_AS_(_select_window_specification_))*/,_ID_AS_(_select_window_specification_)_(,_ID_AS_(_sele~d78bc6a1!insert	SELECT * WINDOW a AS(), a AS() zzz
 reject@26	reject@26	engine	select_window_clause(,_ID_AS_(_select_window_specification_))*/,_ID_AS_(_select_window_specification_)_(,_ID_AS_(_sele~d78bc6a1!swap	SELECT * WINDOW a AS(), a ASC()
 accept	accept	engine	select_qualify_clause/QUALIFY_CONDITION	SELECT * QUALIFY 1 = 1
-reject@10	reject@10	engine	select_hierarchies_clause/HIERARCHIES_(_ID_(,_ID)*_)	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a)) SELECT *
-reject@10	reject@10	engine	select_hierarchies_clause(,_ID)*/%empty	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a)) SELECT *
-reject@10	reject@10	engine	select_hierarchies_clause(,_ID)*/%empty!insert	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a zzz)) SELECT *
-reject@10	reject@10	engine	select_hierarchies_clause(,_ID)*/,_ID_(,_ID)*	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a, a)) SELECT *
-reject@10	reject@10	engine	select_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!drop-1	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a a)) SELECT *
-reject@10	reject@10	engine	select_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!drop-2	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a,)) SELECT *
-reject@46	reject@10	engine	select_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!truncate	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a,
-reject@10	reject@10	engine	select_hierarchies_clause(,_ID)*/,_ID_(,_ID)*!insert	WITH a AS(ANALYTIC VIEW USING a HIERARCHIES(a, a zzz)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses/select_filter_clause_(select_filter_clause)*	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/%empty	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-1	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-2	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER(a TO 1 = 1)) SELECT *
-reject@79	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-3	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-4	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-5	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-6	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO)) SELECT *
-reject@88	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!drop-7	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1) SELECT *
-reject@78	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!truncate	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!insert	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FILTER FACT(a TO 1 = 1) zzz) SELECT *
-reject@10	reject@10	engine	select_filter_clauses(select_filter_clause)*/select_filter_clause_(select_filter_clause)*!swap	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1) FINAL FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause/ADD_MEASURES_(_select_calc_meas_clause_(,_select_calc_m~23f1dbca	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1))) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/%empty	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1))) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/%empty!insert	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1) zzz)) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a AS(1))) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!drop-1	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1) a AS(1))) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!drop-2	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), AS(1))) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!drop-3	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a(1))) SELECT *
-reject@62	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!drop-4	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a AS 1))) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!drop-5	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a AS())) SELECT *
-reject@71	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!drop-6	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a AS(1)) SELECT *
-reject@60	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!truncate	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a AS(1
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!insert	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a AS(1) zzz)) SELECT *
-reject@10	reject@10	engine	select_add_meas_clause(,_select_calc_meas_clause)*/,_select_calc_meas_clause_(,_select_calc_meas_clause)*!swap	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1), a ASC(1))) SELECT *
+accept	accept	engine	select_hierarchies_clause/HIERARCHIES_(_((ID_.)?_ID_(,_ID)?)*_)	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES())
+accept	accept	engine	select_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/%empty	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES())
+accept	accept	engine	select_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/%empty!insert	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(zzz))
+accept	accept	engine	select_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/(ID_.)?_ID_(,_ID)?_((ID_.)?_ID_(,_ID)?)*	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+reject@50	reject@50	engine	select_hierarchies_clause((ID_.)?_ID_(,_ID)?)*/(ID_.)?_ID_(,_ID)?_((ID_.)?_ID_(,_ID)?)*!insert	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a zzz))
+accept	accept	engine	select_hierarchies_clause(ID_.)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+reject@52	reject@52	engine	select_hierarchies_clause(ID_.)?/%empty!insert	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(zzz a))
+accept	accept	engine	select_hierarchies_clause(ID_.)?/ID_.	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a.a))
+reject@48	reject@48	engine	select_hierarchies_clause(ID_.)?/ID_.!drop-1	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(.a))
+reject@50	reject@50	engine	select_hierarchies_clause(ID_.)?/ID_.!drop-2	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a a))
+reject@49	reject@49	engine	select_hierarchies_clause(ID_.)?/ID_.!truncate	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a
+reject@54	reject@54	engine	select_hierarchies_clause(ID_.)?/ID_.!insert	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a.zzz a))
+accept	accept	engine	select_hierarchies_clause(,_ID)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a))
+accept	accept	engine	select_hierarchies_clause(,_ID)?/,_ID	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a, a))
+reject@50	reject@50	engine	select_hierarchies_clause(,_ID)?/,_ID!drop-2	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a,))
+reject@50	reject@50	engine	select_hierarchies_clause(,_ID)?/,_ID!truncate	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a,
+reject@53	reject@53	engine	select_hierarchies_clause(,_ID)?/,_ID!insert	SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(a, a zzz))
+accept	accept	engine	select_filter_clauses/FILTER_FACT_(_select_filter_clause_(,_select_filter_clause)*_)	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+accept	accept	engine	select_filter_clauses(,_select_filter_clause)*/%empty	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@59	reject@59	engine	select_filter_clauses(,_select_filter_clause)*/%empty!insert	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1 zzz))
+accept	accept	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO 1 = 1))
+reject@59	reject@59	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!drop-1	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1 a TO 1 = 1))
+reject@60	reject@60	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!drop-2	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, TO 1 = 1))
+reject@62	reject@62	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!drop-3	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a 1 = 1))
+reject@64	reject@64	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!drop-4	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO))
+reject@64	reject@64	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!truncate	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO
+reject@71	reject@71	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!insert	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TO 1 = 1 zzz))
+reject@62	reject@62	engine	select_filter_clauses(,_select_filter_clause)*/,_select_filter_clause_(,_select_filter_clause)*!swap	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1, a TOPLEVEL 1 = 1))
+reject@50	reject@50	engine	select_add_meas_clause/ADD_MEASURES_(_select_cube_meas_(,_select_cube_meas)*_)	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@50	reject@50	engine	select_add_meas_clause(,_select_cube_meas)*/%empty	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@51	reject@51	engine	select_add_meas_clause(,_select_cube_meas)*/%empty!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a zzz))
+reject@50	reject@50	engine	select_add_meas_clause(,_select_cube_meas)*/,_select_cube_meas_(,_select_cube_meas)*	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a, a))
+reject@51	reject@51	engine	select_add_meas_clause(,_select_cube_meas)*/,_select_cube_meas_(,_select_cube_meas)*!drop-1	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a a))
+reject@50	reject@50	engine	select_add_meas_clause(,_select_cube_meas)*/,_select_cube_meas_(,_select_cube_meas)*!drop-2	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a,))
+reject@51	reject@50	engine	select_add_meas_clause(,_select_cube_meas)*/,_select_cube_meas_(,_select_cube_meas)*!truncate	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a,
+reject@50	reject@50	engine	select_add_meas_clause(,_select_cube_meas)*/,_select_cube_meas_(,_select_cube_meas)*!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a, a zzz))
 accept	accept	engine	select_query_table_expression/((ID_.)?_ID_select_partition_extensio~bb979365)_(select~351d8167	SELECT * FROM a
 accept	accept	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/(ID_.)?_ID_(select_partition_extension_clause)?_(@_ID)?	SELECT * FROM a
 accept	accept	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/(_select_subquery_(select_subquery_restriction_clause)?_)	SELECT * FROM(SELECT *)
@@ -42006,17 +42076,12 @@ reject@20	reject@20	engine	select_query_table_expression((ID_.)?_ID_select_parti
 reject@21	reject@21	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_table_collection_expression!drop-4	SELECT * FROM TABLE(1
 accept	accept	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_table_collection_expression!insert	SELECT * FROM TABLE(1) zzz
 accept	accept	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_table_collection_expression!swap	SELECT * FROM TABLES(1)
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@14	reject@14	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-1	SELECT * FROM VIEW(ANALYTIC VIEW USING a)
-reject@32	reject@32	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-2	SELECT * FROM ANALYTIC(ANALYTIC VIEW USING a)
-reject@49	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-3	SELECT * FROM ANALYTIC VIEW ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-4	SELECT * FROM ANALYTIC VIEW(VIEW USING a)
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-5	SELECT * FROM ANALYTIC VIEW(ANALYTIC USING a)
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-6	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW a)
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-7	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING)
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-8	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a
-reject@23	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!insert	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a) zzz
-reject@22	reject@22	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!swap	SELECT * FROM ANALYZE VIEW(ANALYTIC VIEW USING a)
+accept	accept	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view	SELECT * FROM ANALYTIC VIEW(USING a)
+reject@14	reject@14	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-1	SELECT * FROM VIEW(USING a)
+reject@30	reject@29	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-2	SELECT * FROM ANALYTIC(USING a)
+reject@35	reject@28	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!drop-3	SELECT * FROM ANALYTIC VIEW USING a)
+accept	accept	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!insert	SELECT * FROM ANALYTIC VIEW(USING a) zzz
+reject@22	reject@22	engine	select_query_table_expression((ID_.)?_ID_select_partition_extensio~bb979365)/select_inline_analytic_view!swap	SELECT * FROM ANALYZE VIEW(USING a)
 accept	accept	engine	select_query_table_expression(ID_.)?/%empty	SELECT * FROM a
 accept	accept	engine	select_query_table_expression(ID_.)?/%empty!insert	SELECT * FROM zzz a
 accept	accept	engine	select_query_table_expression(ID_.)?/ID_.	SELECT * FROM a.a
@@ -42317,17 +42382,20 @@ reject@21	reject@21	engine	select_window_specification(select_windowing_clause)?
 reject@35	reject@21	engine	select_window_specification(select_windowing_clause)?/select_windowing_clause!truncate	SELECT * WINDOW a AS(ROWS UNBOUNDED
 reject@21	reject@21	engine	select_window_specification(select_windowing_clause)?/select_windowing_clause!insert	SELECT * WINDOW a AS(ROWS UNBOUNDED PRECEDING zzz)
 reject@21	reject@21	engine	select_window_specification(select_windowing_clause)?/select_windowing_clause!swap	SELECT * WINDOW a AS(RULES UNBOUNDED PRECEDING)
-reject@10	reject@10	engine	select_filter_clause/FILTER_FACT_(_ID_TO_(ID_.)?_CONDITION_)	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clause(ID_.)?/%empty	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clause(ID_.)?/%empty!insert	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO zzz 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clause(ID_.)?/ID_.	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO a.1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clause(ID_.)?/ID_.!drop-1	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO.1 = 1)) SELECT *
-reject@10	reject@10	engine	select_filter_clause(ID_.)?/ID_.!drop-2	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO a 1 = 1)) SELECT *
-reject@50	reject@10	engine	select_filter_clause(ID_.)?/ID_.!truncate	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO a
-reject@10	reject@10	engine	select_filter_clause(ID_.)?/ID_.!insert	WITH a AS(ANALYTIC VIEW USING a FILTER FACT(a TO a.zzz 1 = 1)) SELECT *
-reject@10	reject@10	engine	select_calc_meas_clause/ID_AS_(_EXPR_)	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1))) SELECT *
-reject@51	reject@10	engine	select_calc_meas_clause/ID_AS_(_EXPR_)!truncate	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a AS(1
-reject@10	reject@10	engine	select_calc_meas_clause/ID_AS_(_EXPR_)!swap	WITH a AS(ANALYTIC VIEW USING a ADD MEASURES(a ASC(1))) SELECT *
+accept	accept	engine	select_filter_clause/select_hier_ids_TO_CONDITION	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@52	reject@52	engine	select_filter_clause/select_hier_ids_TO_CONDITION!truncate	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO
+reject@50	reject@50	engine	select_filter_clause/select_hier_ids_TO_CONDITION!swap	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TOPLEVEL 1 = 1))
+reject@50	reject@50	engine	select_cube_meas/ID_(select_base_meas_clause|select_calc_~bff5c397)	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@49	reject@49	engine	select_cube_meas/ID_(select_base_meas_clause|select_calc_~bff5c397)!truncate	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(
+reject@50	reject@50	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_base_meas_clause	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+accept	accept	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
+reject@50	reject@50	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!drop-1	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a(1)))
+reject@57	reject@54	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!drop-2	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS 1)))
+reject@54	reject@54	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!drop-3	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS()))
+reject@57	reject@57	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!drop-4	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1))
+reject@55	reject@55	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!truncate	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1
+reject@57	reject@57	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1) zzz))
+reject@51	reject@51	engine	select_cube_meas(select_base_meas_clause|select_calc_~bff5c397)/select_calc_meas_clause!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a ASC(1)))
 accept	accept	engine	select_partition_extension_clause/(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)	SELECT * FROM a PARTITION(a)
 accept	accept	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_(_ID_)	SELECT * FROM a PARTITION(a)
 accept	accept	engine	select_partition_extension_clause(PARTITION_(_ID_)|PARTITION_FOR_(_EXP~c3018d04)/PARTITION_FOR_(_EXPR_(,_EXPR)*_)	SELECT * FROM a PARTITION FOR(1)
@@ -42381,10 +42449,10 @@ reject@24	reject@23	engine	select_table_collection_expression((_+_))?/(_+_)!drop
 reject@23	reject@22	engine	select_table_collection_expression((_+_))?/(_+_)!drop-2	SELECT * FROM TABLE(1)()
 reject@24	reject@22	engine	select_table_collection_expression((_+_))?/(_+_)!drop-3	SELECT * FROM TABLE(1)(+
 accept	accept	engine	select_table_collection_expression((_+_))?/(_+_)!insert	SELECT * FROM TABLE(1)(+) zzz
-reject@23	reject@28	engine	select_inline_analytic_view/ANALYTIC_VIEW_(_select_sub_av_clause_)_(ID)?	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	select_inline_analytic_view(ID)?/%empty	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)
-reject@23	reject@28	engine	select_inline_analytic_view(ID)?/ID	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a) a
-reject@23	reject@28	engine	select_inline_analytic_view(ID)?/ID!insert	SELECT * FROM ANALYTIC VIEW(ANALYTIC VIEW USING a) a zzz
+accept	accept	engine	select_inline_analytic_view/ANALYTIC_VIEW_(_select_sub_av_clause_)_(ID)?	SELECT * FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	select_inline_analytic_view(ID)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a)
+accept	accept	engine	select_inline_analytic_view(ID)?/ID	SELECT * FROM ANALYTIC VIEW(USING a) a
+reject@39	reject@39	engine	select_inline_analytic_view(ID)?/ID!insert	SELECT * FROM ANALYTIC VIEW(USING a) a zzz
 accept	accept	engine	select_flashback_query_clause/(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)	SELECT * FROM a AS OF SCN 1
 accept	accept	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR	SELECT * FROM a VERSIONS BETWEEN SCN 1 AND 1
 reject@16	reject@16	engine	select_flashback_query_clause(VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXP~52c058c4)/VERSIONS_BETWEEN_(SCN|TIMESTAMP)_EXPR_AND_EXPR!drop-1	SELECT * FROM a BETWEEN SCN 1 AND 1
@@ -42971,6 +43039,26 @@ reject@21	reject@21	engine	select_windowing_clause(EXCLUDE_CURRENT_ROW|EXCLUDE_G
 reject@56	reject@21	engine	select_windowing_clause(EXCLUDE_CURRENT_ROW|EXCLUDE_GROUP|EX~b0d8ce19)/EXCLUDE_NO_OTHERS!truncate	SELECT * WINDOW a AS(ROWS UNBOUNDED PRECEDING EXCLUDE NO
 reject@21	reject@21	engine	select_windowing_clause(EXCLUDE_CURRENT_ROW|EXCLUDE_GROUP|EX~b0d8ce19)/EXCLUDE_NO_OTHERS!insert	SELECT * WINDOW a AS(ROWS UNBOUNDED PRECEDING EXCLUDE NO OTHERS zzz)
 reject@21	reject@21	engine	select_windowing_clause(EXCLUDE_CURRENT_ROW|EXCLUDE_GROUP|EX~b0d8ce19)/EXCLUDE_NO_OTHERS!swap	SELECT * WINDOW a AS(ROWS UNBOUNDED PRECEDING EXCLUDING NO OTHERS)
+accept	accept	engine	select_hier_ids/ID_(,_ID)*	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@48	reject@48	engine	select_hier_ids/ID_(,_ID)*!truncate	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(
+reject@50	reject@50	engine	select_hier_ids/ID_(,_ID)*!insert	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a zzz TO 1 = 1))
+accept	accept	engine	select_hier_ids(,_ID)*/%empty	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a TO 1 = 1))
+reject@49	reject@49	engine	select_hier_ids(,_ID)*/,_ID_(,_ID)*	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a, a TO 1 = 1))
+reject@50	reject@50	engine	select_hier_ids(,_ID)*/,_ID_(,_ID)*!drop-1	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a a TO 1 = 1))
+reject@49	reject@49	engine	select_hier_ids(,_ID)*/,_ID_(,_ID)*!drop-2	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a, TO 1 = 1))
+reject@50	reject@49	engine	select_hier_ids(,_ID)*/,_ID_(,_ID)*!truncate	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a,
+reject@49	reject@49	engine	select_hier_ids(,_ID)*/,_ID_(,_ID)*!insert	SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a, a zzz TO 1 = 1))
+reject@50	reject@50	engine	select_base_meas_clause/(FACT_ID)?_(select_meas_aggregate_clause)?	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@50	reject@50	engine	select_base_meas_clause(FACT_ID)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@57	reject@57	engine	select_base_meas_clause(FACT_ID)?/FACT_ID	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT a))
+reject@55	reject@55	engine	select_base_meas_clause(FACT_ID)?/FACT_ID!drop-2	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT))
+reject@55	reject@55	engine	select_base_meas_clause(FACT_ID)?/FACT_ID!truncate	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT
+reject@58	reject@58	engine	select_base_meas_clause(FACT_ID)?/FACT_ID!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT a zzz))
+reject@51	reject@51	engine	select_base_meas_clause(FACT_ID)?/FACT_ID!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACTOR a))
+reject@50	reject@50	engine	select_base_meas_clause(select_meas_aggregate_clause)?/%empty	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))
+reject@51	reject@51	engine	select_base_meas_clause(select_meas_aggregate_clause)?/select_meas_aggregate_clause	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
+reject@51	reject@51	engine	select_base_meas_clause(select_meas_aggregate_clause)?/select_meas_aggregate_clause!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT zzz))
+accept	accept	engine	select_calc_meas_clause/AS_(_EXPR_)	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AS(1)))
 accept	accept	engine	select_pivot_for_clause/FOR_(ID|(_ID_(,_ID)*_))	SELECT * FROM a UNPIVOT(a FOR a IN(a))
 reject@29	reject@29	engine	select_pivot_for_clause/FOR_(ID|(_ID_(,_ID)*_))!truncate	SELECT * FROM a UNPIVOT(a FOR
 reject@32	reject@32	engine	select_pivot_for_clause/FOR_(ID|(_ID_(,_ID)*_))!insert	SELECT * FROM a UNPIVOT(a FOR a zzz IN(a))
@@ -43362,6 +43450,7 @@ reject@9	reject@9	engine	select_cell_assignment(,_(CONDITION|EXPR|select_single_
 reject@9	reject@9	engine	select_cell_assignment(,_(CONDITION|EXPR|select_single_colu~691988c9)?/,_(CONDITION|EXPR|select_single_column_~9daf1c29)!drop-2	SELECT * MODEL DIMENSION BY(1) MEASURES(1)(a 1 = 1, = 1)
 reject@9	reject@9	engine	select_cell_assignment(,_(CONDITION|EXPR|select_single_colu~691988c9)?/,_(CONDITION|EXPR|select_single_column_~9daf1c29)!truncate	SELECT * MODEL DIMENSION BY(1) MEASURES(1)(a 1 = 1,
 reject@9	reject@9	engine	select_cell_assignment(,_(CONDITION|EXPR|select_single_colu~691988c9)?/,_(CONDITION|EXPR|select_single_column_~9daf1c29)!insert	SELECT * MODEL DIMENSION BY(1) MEASURES(1)(a 1 = 1, 1 = 1 zzz = 1)
+reject@51	reject@51	engine	select_meas_aggregate_clause/select_aggr_function	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
 accept	accept	engine	select_row_pattern_term/select_row_pattern_factor_(select_row_pattern_factor)*	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	select_row_pattern_term(select_row_pattern_factor)*/%empty	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	select_row_pattern_term(select_row_pattern_factor)*/select_row_pattern_factor_(select_row_pattern_factor)*	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a a) DEFINE a AS 1 = 1)
@@ -43581,6 +43670,41 @@ reject@9	reject@9	engine	select_multi_column_for_loop(,_(_EXPR_(,_EXPR)*_))*/,_(
 reject@9	reject@9	engine	select_multi_column_for_loop(,_(_EXPR_(,_EXPR)*_))*/,_(_EXPR_(,_EXPR)*_)_(,_(_EXPR_(,_EXPR)*_))*!drop-4	SELECT * MODEL DIMENSION BY(1) MEASURES(1)(a FOR(a) IN((1),(1) = 1)
 reject@9	reject@9	engine	select_multi_column_for_loop(,_(_EXPR_(,_EXPR)*_))*/,_(_EXPR_(,_EXPR)*_)_(,_(_EXPR_(,_EXPR)*_))*!truncate	SELECT * MODEL DIMENSION BY(1) MEASURES(1)(a FOR(a) IN((1),(1
 reject@9	reject@9	engine	select_multi_column_for_loop(,_(_EXPR_(,_EXPR)*_))*/,_(_EXPR_(,_EXPR)*_)_(,_(_EXPR_(,_EXPR)*_))*!insert	SELECT * MODEL DIMENSION BY(1) MEASURES(1)(a FOR(a) IN((1),(1) zzz) = 1)
+reject@51	reject@51	engine	select_aggr_function/(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT_AGG	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT_AGG))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT_AGG!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a APPROX_COUNT_DISTINCT_AGG zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/APPROX_COUNT_DISTINCT_AGG!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a ARCHIVAL))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/AVG	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AVG))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/AVG!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a AVG zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/AVG!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a BACKINGFILE))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/COUNT	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a COUNT))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/COUNT!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a COUNT zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/COUNT!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a CPU_PER_CALL))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MAX	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a MAX))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MAX!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a MAX zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MAX!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a MAXIMIZE))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MIN	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a MIN))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MIN!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a MIN zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/MIN!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a MINIMUM))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_POP	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_POP))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_POP!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_POP zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_SAMP	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_SAMP))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_SAMP!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STDDEV_SAMP zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/STDDEV_SAMP!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a STOP))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/SUM	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUM))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/SUM!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUM zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/SUM!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUPPLEMENTAL))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_POP	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_POP))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_POP!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_POP zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_SAMP	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_SAMP))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_SAMP!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VAR_SAMP zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VAR_SAMP!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VECTOR))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VARIANCE	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VARIANCE))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VARIANCE!insert	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VARIANCE zzz))
+reject@51	reject@51	engine	select_aggr_function(APPROX_COUNT_DISTINCT|APPROX_COUNT_D~98a9d1d6)/VARIANCE!swap	SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a VARRAY))
 accept	accept	engine	select_row_pattern_factor/select_row_pattern_primary_(select_row_pattern_quantifier)?	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 accept	accept	engine	select_row_pattern_factor(select_row_pattern_quantifier)?/%empty	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a) DEFINE a AS 1 = 1)
 reject@42	reject@42	engine	select_row_pattern_factor(select_row_pattern_quantifier)?/select_row_pattern_quantifier	SELECT * FROM a MATCH_RECOGNIZE(PATTERN(a '*') DEFINE a AS 1 = 1)

@@ -2365,6 +2365,19 @@ func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
 		marker = true
 	}
 	v.markers = append(v.markers, marker)
+	// A derived analytic view names a persistent analytic view, in a FROM
+	// clause and in a WITH element: the change depends on it.
+	if clause, ok := node.(*ast.SubAVClause); ok && clause.Using != nil && clause.Using.Name != "" {
+		schema := clause.Using.Schema
+		if schema == "" {
+			schema = v.schema
+		}
+		key := schema + "\x00" + clause.Using.Name
+		if !v.seen[key] {
+			v.seen[key] = true
+			*v.result = append(*v.result, &metadatapb.DependencyColumn{Schema: schema, Table: clause.Using.Name, Column: "*"})
+		}
+	}
 	if ref, ok := node.(*ast.TableRef); ok && ref.Name != nil && ref.Name.Name != "" {
 		inScope := len(v.scopes) > 0 && v.scopes[len(v.scopes)-1][ref.Name.Name]
 		if ref.Name.Schema == "" && inScope {
