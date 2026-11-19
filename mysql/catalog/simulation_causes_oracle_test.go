@@ -1014,6 +1014,19 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  4028,
 		},
 		{
+			// The visible column is judged over the table the statement leaves.
+			name:  "hide a column and add another in one ALTER",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE, ADD COLUMN c INT",
+			code:  0,
+		},
+		{
+			name:  "hide two columns in one ALTER",
+			setup: []string{"CREATE TABLE z (a INT, b INT)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE, ALTER COLUMN b SET INVISIBLE",
+			code:  4028,
+		},
+		{
 			name:  "MODIFY the last visible column INVISIBLE",
 			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
 			stmt:  "ALTER TABLE z MODIFY a INT INVISIBLE",

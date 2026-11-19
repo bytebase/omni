@@ -164,8 +164,10 @@ func viewBlockStar(sel *nodes.SelectStmt, source string) error {
 		if rt, ok := field.(*nodes.ResTarget); ok {
 			expr = rt.Val
 		}
-		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star && !relations[starQualifier(e)] {
-			return errStarNamesNoTable(e.Table)
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star {
+			if qualifier := starQualifier(e); !relations[qualifier] {
+				return errStarNamesNoTable(qualifier)
+			}
 		}
 	}
 	return nil

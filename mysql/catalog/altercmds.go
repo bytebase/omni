@@ -165,8 +165,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 	leaves := alterFinalColumns(tbl, stmt.Commands)
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
-		// Single command carrying one table element: no rollback needed.
-		return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
+		if !alterCanHideColumn(stmt.Commands[0]) {
+			// Single command carrying one table element: no rollback needed.
+			return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
+		}
+		snapshot := cloneTable(tbl)
+		if err := c.execAlterCmd(db, tbl, stmt.Commands[0], leaves); err != nil {
+			return err
+		}
+		if !tableHasVisibleColumn(tbl) {
+			undoAlter(db, key, tbl, snapshot)
+			return errTableMustHaveColumns()
+		}
+		return nil
 	}
 
 	// Multi-command ALTER: MySQL treats this as atomic.
@@ -184,6 +195,12 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	// A table must keep a visible column, judged over the table the statement
+	// leaves (mysql:8.0.46).
+	if !tableHasVisibleColumn(tbl) {
+		undoAlter(db, origKey, tbl, snapshot)
+		return errTableMustHaveColumns()
+	}
 	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -191,6 +208,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// alterCanHideColumn reports whether a command can leave the table with a column
+// fewer visible ones.
+func alterCanHideColumn(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch cmd.Type {
+	case nodes.ATAlterColumnInvisible, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		return true
+	}
+	return false
 }
 
 // checkKeysOnFinalTable re-checks the keys a statement added once every command
@@ -785,12 +815,6 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
-	// A replacement may hide the last visible column, which MySQL refuses with
-	// 4028 (mysql:8.0.46).
-	if !tableHasVisibleColumn(tbl) {
-		tbl.Columns[idx] = oldCol
-		return errTableMustHaveColumns()
-	}
 
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
@@ -1329,21 +1353,17 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	return nil
 }
 
-// alterColumnVisibility toggles the INVISIBLE flag on a column. A table must
-// keep a visible column, so hiding the last one is 4028 (mysql:8.0.46).
+// alterColumnVisibility toggles the INVISIBLE flag on a column. Whether the
+// statement leaves a visible column is judged over the whole ALTER, once every
+// command has run: `ALTER COLUMN a SET INVISIBLE, ADD COLUMN b INT` is a table
+// MySQL takes (mysql:8.0.46).
 func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, invisible bool) error {
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
 		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
-	col := tbl.Columns[idx]
-	was := col.Invisible
-	col.Invisible = invisible
-	if !tableHasVisibleColumn(tbl) {
-		col.Invisible = was
-		return errTableMustHaveColumns()
-	}
+	tbl.Columns[idx].Invisible = invisible
 	return nil
 }
 

@@ -291,8 +291,10 @@ func viewBlockStar(sel *nodes.SelectStmt, source string) error {
 		if target, ok := item.(*nodes.ResTarget); ok {
 			expr = target.Val
 		}
-		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star && !relations[starQualifier(e)] {
-			return errUnknownTableName(e.Table)
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star {
+			if qualifier := starQualifier(e); !relations[qualifier] {
+				return errUnknownTableName(qualifier)
+			}
 		}
 	}
 	return nil
