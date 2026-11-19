@@ -11,8 +11,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// A NOW()-family DEFAULT the column's type cannot hold is 1067 while TiDB
 	// prepares the statement, before it resolves the database and before it
 	// looks the table up: `ALTER TABLE nodb.a ADD x INT DEFAULT NOW()` is 1067
-	// rather than 1049 or 1146 (measured on v8.5.5).
+	// rather than 1049 or 1146 (measured on v8.5.5). A charset or collation a
+	// column definition names is resolved as early: `ADD x TINYTEXT CHARACTER
+	// SET ucs2` is 1115 even with no such table (measured on v8.5.5).
 	if err := checkAlterNowDefaults(stmt.Commands); err != nil {
+		return err
+	}
+	if err := checkAlterColumnCharsets(stmt.Commands); err != nil {
 		return err
 	}
 	// Resolve database.
@@ -34,6 +39,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	if len(stmt.Commands) == 0 {
 		return nil
+	}
+	// A cached table takes CACHE and NOCACHE and nothing else, one command at a
+	// time: v8.5.5 answers 8242 to every other ALTER, `NOCACHE, ADD COLUMN`
+	// included (read on v8.5.5).
+	if tbl.Cached && !singleCacheCommand(stmt.Commands) {
+		return errCachedTable("Alter Table")
 	}
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
 		// Single command carrying one table element: no rollback needed.
@@ -62,6 +73,15 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// singleCacheCommand reports whether the ALTER TABLE is the one form a cached
+// table takes: a single CACHE or NOCACHE.
+func singleCacheCommand(cmds []*nodes.AlterTableCmd) bool {
+	if len(cmds) != 1 || cmds[0] == nil {
+		return false
+	}
+	return cmds[0].Type == nodes.ATCache || cmds[0].Type == nodes.ATNoCache
 }
 
 // checkMultiCmdColumnRefs enforces TiDB v8.5.5's rule that every column a
@@ -200,15 +220,30 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.TTLJobInterval = ""
 		return nil
 
+	case nodes.ATCache:
+		// CACHE changes no column or key, but SHOW CREATE TABLE writes the
+		// attribute back as `/* CACHED ON */`, so it is part of the schema the
+		// catalog stores (read on v8.5.5). A partitioned table cannot be cached
+		// at all: v8.5.5 answers 8242 "'partition mode' is unsupported on cache
+		// tables".
+		if tbl.Partitioning != nil {
+			return errCachedTable("partition mode")
+		}
+		tbl.Cached = true
+		return nil
+	case nodes.ATNoCache:
+		tbl.Cached = false
+		return nil
+
 	// The TiDB actions that change no schema the catalog models. Each is
 	// named rather than left to the default arm, so a reader sees the
-	// decision: CACHE and NOCACHE move the table in and out of the cache
-	// without touching its definition, READ ONLY and READ WRITE set a flag
-	// on it, COMPACT rewrites its data, and ATTRIBUTES, STATS_OPTIONS and a
-	// partition's options are server-side settings that no field of Table or
-	// PartitionDefInfo holds. ANALYZE PARTITION and PARTITION ATTRIBUTES are
-	// above, because TiDB refuses them on a table with no partitions.
-	case nodes.ATCache, nodes.ATNoCache, nodes.ATWriteable, nodes.ATCompact,
+	// decision: READ ONLY and READ WRITE set a flag on the table that SHOW
+	// CREATE does not write, COMPACT rewrites its data, and ATTRIBUTES,
+	// STATS_OPTIONS and a partition's options are server-side settings that
+	// no field of Table or PartitionDefInfo holds. ANALYZE PARTITION and
+	// PARTITION ATTRIBUTES are above, because TiDB refuses them on a table
+	// with no partitions.
+	case nodes.ATWriteable, nodes.ATCompact,
 		nodes.ATAttributes, nodes.ATStatsOptions, nodes.ATPartitionOptions:
 		return nil
 
@@ -281,9 +316,30 @@ func (c *Catalog) addSingleColumnIfNotExists(tbl *Table, colDef *nodes.ColumnDef
 
 // addSingleColumn adds one column definition to the table.
 func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+	// TiDB refuses an ADD COLUMN that carries AUTO_RANDOM ahead of the column's
+	// own name check (8216, read on v8.5.5): the row handle is decided once the
+	// table exists, so no ALTER adds one.
+	if colDef.AutoRandom {
+		dbName := ""
+		if tbl.Database != nil {
+			dbName = tbl.Database.Name
+		}
+		return errAutoRandomAddColumn(colDef.Name, dbName, tbl.Name)
+	}
+	// A DEFAULT that reads a sequence resolves it first: a name that is a table
+	// but not a sequence is 1347, and nothing of the name is 1146, both ahead
+	// of the duplicate-column check below (read on v8.5.5).
+	if err := checkColumnSequenceDefault(tbl, colDef); err != nil {
+		return err
+	}
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
+	}
+	// TiDB adds no STORED generated column, and the duplicate-column check
+	// comes first (both read on v8.5.5).
+	if colDef.Generated != nil && colDef.Generated.Stored {
+		return errAlterStoredGeneratedColumn()
 	}
 
 	col, err := buildColumnFromDef(tbl, colDef)
@@ -728,6 +784,15 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if conName == "" {
 			conName = fmt.Sprintf("fk_%d", fkID)
 		}
+		// A table-level FOREIGN KEY names the referenced columns it matches, and
+		// TiDB refuses one that names none (1239), whether or not the
+		// referenced table exists: `ADD FOREIGN KEY (c) REFERENCES c` is 1239
+		// even with no table c (read on v8.5.5). The column-level REFERENCES a
+		// column may carry takes the referenced table's key instead, and is not
+		// this rule's.
+		if len(con.RefColumns) == 0 {
+			return errFKKeyRefMismatch(conName)
+		}
 		if findForeignKey(tbl, conName) != nil {
 			return errCannotAddForeign()
 		}
@@ -989,11 +1054,7 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 	}
 
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // alterRenameTable moves a table to a new name.
@@ -1075,6 +1136,11 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "auto_id_cache":
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIDCache)
 	case "auto_random_base":
+		// The base is a setting on an auto-random column's table, so a table
+		// whose columns carry none is refused (8216, read on v8.5.5).
+		if !hasAutoRandom(tbl) {
+			return errAutoRandomBaseNoColumn()
+		}
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoRandomBase)
 	case "placement policy":
 		if err := c.validatePolicyRef(opt.Value); err != nil {
@@ -1084,6 +1150,10 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "ttl":
 		col, interval, err := extractTTLParts(opt.Value)
 		if err != nil {
+			return err
+		}
+		// TiDB resolves the TTL column before it records the config.
+		if err := checkTTLColumn(tbl, col); err != nil {
 			return err
 		}
 		if tbl.TTLColumn == "" {
@@ -1102,6 +1172,22 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	return nil
 }
 
+// checkTTLColumn resolves the column a TTL config names: a name the table does
+// not have is 1054 ("in 'TTL config'") and a column whose type is not a
+// DATETIME, DATE or TIMESTAMP one is 8148 (both read on v8.5.5).
+func checkTTLColumn(tbl *Table, col string) error {
+	ttlCol := tbl.GetColumn(col)
+	if ttlCol == nil {
+		return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+			Message: fmt.Sprintf("Unknown column '%s' in 'TTL config'", col)}
+	}
+	switch toLower(ttlCol.DataType) {
+	case "datetime", "date", "timestamp":
+		return nil
+	}
+	return errTTLColumnType(col)
+}
+
 // alterColumnDefault sets or drops the default on an existing column.
 func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	colKey := toLower(cmd.Name)
@@ -1116,6 +1202,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		probe := *col
 		probe.Default = &s
 		if err := checkLiteralDefaultAllowed(&probe); err != nil {
+			return err
+		}
+		if err := checkSetDefaultColumnRef(tbl, col, cmd.DefaultExpr); err != nil {
 			return err
 		}
 		if err := checkExistingColumnDefault(tbl, col, cmd.DefaultExpr); err != nil {
@@ -1143,11 +1232,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.
@@ -1314,6 +1399,9 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) (*Column, error) {
 	// carries no table-level PRIMARY KEY of its own, so the 1171 case cannot
 	// arise here and the nil constraint list is the whole story.
 	if err := checkColumnDefaultValue(colDef, col.DataType, nil); err != nil {
+		return nil, err
+	}
+	if err := checkAlterColumnDefinition(tbl, colDef, col); err != nil {
 		return nil, err
 	}
 	return col, nil
