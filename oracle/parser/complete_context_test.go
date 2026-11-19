@@ -270,12 +270,24 @@ func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
 	})
 
 	t.Run("derived analytic view exposes alias and WITH element keeps later CTEs", func(t *testing.T) {
-		ctx := collectCompletionMarked(t, "SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) av, departments d")
+		ctx := collectCompletionMarked(t, "SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av ADD MEASURES(lag_sales AS(1))) av, departments d")
 		requireLocalReferenceNames(t, ctx.Scope, []string{"av", "d"})
 		ref := requireLocalRangeReference(t, ctx.Scope, "av")
 		if !strings.EqualFold(ref.Schema, "hr") || !strings.EqualFold(ref.Name, "sales_av") {
 			t.Fatalf("inline analytic view base object = %q.%q, want hr.sales_av", ref.Schema, ref.Name)
 		}
+		requireColumns(t, ref.Columns, []string{"lag_sales"})
+
+		parenCtx := collectCompletionMarked(t, "SELECT av.| FROM (ANALYTIC VIEW(USING hr.sales_av ADD MEASURES(lag_sales AS(1)))) av, departments d")
+		requireLocalReferenceNames(t, parenCtx.Scope, []string{"av", "d"})
+		parenRef := requireLocalRangeReference(t, parenCtx.Scope, "av")
+		if parenRef.Kind != RangeReferenceRelation || !strings.EqualFold(parenRef.Schema, "hr") || !strings.EqualFold(parenRef.Name, "sales_av") {
+			t.Fatalf("parenthesized inline analytic view ref = %+v, want hr.sales_av relation", parenRef)
+		}
+		requireColumns(t, parenRef.Columns, []string{"lag_sales"})
+
+		unaliasedParenCtx := collectCompletionMarked(t, "SELECT | FROM (ANALYTIC VIEW(USING hr.sales_av))")
+		requireLocalReferenceNames(t, unaliasedParenCtx.Scope, []string{"sales_av"})
 
 		for _, sql := range []string{
 			"SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) AS OF SCN 1 av, departments d",
@@ -286,12 +298,13 @@ func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
 			requireLocalReferenceNames(t, flashCtx.Scope, []string{"av", "d"})
 		}
 
-		withCtx := collectCompletionMarked(t, "WITH my_av ANALYTIC VIEW AS (USING hr.sales_av), other AS (SELECT c1 FROM t) SELECT my_av.| FROM my_av, other")
+		withCtx := collectCompletionMarked(t, "WITH my_av ANALYTIC VIEW AS (USING hr.sales_av ADD MEASURES(lag_sales AS(1))), other AS (SELECT c1 FROM t) SELECT my_av.| FROM my_av, other")
 		requireLocalReferenceNames(t, withCtx.Scope, []string{"my_av", "other"})
 		myAVRef := requireLocalRangeReference(t, withCtx.Scope, "my_av")
 		if myAVRef.Kind != RangeReferenceRelation || !strings.EqualFold(myAVRef.Schema, "hr") || !strings.EqualFold(myAVRef.Name, "sales_av") {
 			t.Fatalf("WITH analytic view ref = %+v, want relation hr.sales_av aliased as my_av", myAVRef)
 		}
+		requireColumns(t, myAVRef.Columns, []string{"lag_sales"})
 		otherRef := requireLocalRangeReference(t, withCtx.Scope, "other")
 		requireColumns(t, otherRef.Columns, []string{"c1"})
 	})

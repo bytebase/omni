@@ -523,7 +523,7 @@ func (r *oracleRefReader) fromReferences(start, end, want, hi int) (int, []Range
 			continue
 		}
 		if expectingRef {
-			isInlineAV := oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && i+2 < hi && tokens[i+1].Type == kwVIEW && tokens[i+2].Type == '('
+			isInlineAV := r.opensInlineAnalyticView(i, hi)
 			next, ref, ok := r.rangeReference(i, hi)
 			if ok && next <= end {
 				if !isInlineAV {
@@ -741,6 +741,7 @@ func resolveOracleCTEReference(ref RangeReference, ctes map[string]RangeReferenc
 		ref.Schema = cte.Schema
 		ref.Name = cte.Name
 		ref.Alias = alias
+		ref.Columns = append([]string{}, cte.Columns...)
 		ref.BodyLoc = cte.BodyLoc
 		return ref
 	}
@@ -784,6 +785,9 @@ func (r *oracleRefReader) rangeReference(i, hi int) (int, RangeReference, bool) 
 		return r.containersReference(i, hi)
 	}
 	if tokens[i].Type == '(' {
+		if next, ref, ok := r.parenthesizedInlineAnalyticViewReference(i, hi); ok {
+			return next, ref, true
+		}
 		return r.subqueryReference(i, hi)
 	}
 	if !isOracleCompletionIdent(tokens[i]) {
@@ -969,6 +973,7 @@ func (r *oracleRefReader) inlineAnalyticViewReference(i, hi int) (int, RangeRefe
 		Kind:    RangeReferenceRelation,
 		Name:    name,
 		Alias:   aliasName,
+		Columns: r.subAVAddedMeasures(i+4, closeIdx),
 		Loc:     nodes.Loc{Start: tokens[i].Loc, End: tokens[idx-1].End},
 		BodyLoc: nodes.Loc{Start: tokens[i+2].End, End: tokens[closeIdx].Loc},
 	}
@@ -976,6 +981,99 @@ func (r *oracleRefReader) inlineAnalyticViewReference(i, hi int) (int, RangeRefe
 		ref.Schema = parts[len(parts)-2].Str
 	}
 	return idx, ref, true
+}
+
+func (r *oracleRefReader) opensInlineAnalyticView(i, hi int) bool {
+	tokens := r.toks
+	for i < hi && tokens[i].Type == '(' {
+		i++
+	}
+	return i+2 < hi && oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && tokens[i+1].Type == kwVIEW && tokens[i+2].Type == '('
+}
+
+func (r *oracleRefReader) parenthesizedInlineAnalyticViewReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	inner := i
+	for inner < hi && tokens[inner].Type == '(' {
+		inner++
+	}
+	if inner == i || !r.opensInlineAnalyticView(inner, hi) {
+		return i, RangeReference{}, false
+	}
+	innerClose := r.closeOf(inner-1, hi)
+	if innerClose < 0 {
+		return i, RangeReference{}, false
+	}
+	endInner, ref, ok := r.inlineAnalyticViewReference(inner, innerClose)
+	if !ok || endInner != innerClose {
+		return i, RangeReference{}, false
+	}
+	cur := innerClose + 1
+	for w := inner - 1; w >= i; w-- {
+		bound := hi
+		if w > i {
+			bound = r.closeOf(w-1, hi)
+			if bound < 0 {
+				return i, RangeReference{}, false
+			}
+		}
+		if nextAlias, alias, hasAlias := r.inlineAVOptionalAlias(cur, bound, false); hasAlias {
+			ref.Alias = alias.Str
+			cur = nextAlias
+		}
+		if w > i {
+			if cur != bound {
+				return i, RangeReference{}, false
+			}
+			cur = bound + 1
+		}
+	}
+	ref.Loc = nodes.Loc{Start: tokens[i].Loc, End: tokens[cur-1].End}
+	return cur, ref, true
+}
+
+func (r *oracleRefReader) subAVAddedMeasures(lo, hi int) []string {
+	tokens := r.toks
+	if lo >= hi {
+		return nil
+	}
+	want := r.depth[lo]
+	for k := lo; k+2 < hi; k++ {
+		if r.depth[k] != want {
+			continue
+		}
+		if tokens[k].Type == '(' {
+			if c := r.closeOf(k, hi); c >= 0 {
+				k = c
+				continue
+			}
+			return nil
+		}
+		if tokens[k].Type == kwADD && oracleTokenIsIdentLikeStr(tokens[k+1], "MEASURES") && tokens[k+2].Type == '(' {
+			mClose := r.closeOf(k+2, hi)
+			if mClose < 0 {
+				return nil
+			}
+			var names []string
+			mDepth := r.depth[k+2] + 1
+			expectName := true
+			for m := k + 3; m < mClose; m++ {
+				if r.depth[m] != mDepth {
+					continue
+				}
+				if tokens[m].Type == ',' {
+					expectName = true
+					continue
+				}
+				if expectName && isOracleCompletionIdent(tokens[m]) {
+					names = append(names, tokens[m].Str)
+					expectName = false
+				}
+			}
+			return names
+		}
+	}
+	return nil
 }
 
 func (r *oracleRefReader) inlineAVOptionalAlias(idx, hi int, sampleSeen bool) (int, Token, bool) {
@@ -1302,6 +1400,7 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 					if len(parts) > 1 {
 						ref.Schema = parts[len(parts)-2].Str
 					}
+					ref.Columns = r.subAVAddedMeasures(i+2, closeIdx)
 				}
 			}
 		} else if len(ref.Columns) == 0 {

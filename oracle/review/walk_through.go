@@ -652,6 +652,8 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 		switch v := e.(type) {
 		case *ast.TableRef:
 			return v.Dblink == "" && add(v.Name, v.Alias)
+		case *ast.InlineAnalyticView:
+			return v.Clause != nil && add(v.Clause.Using, v.Alias)
 		case *ast.JoinClause:
 			return from(v.Left) && from(v.Right)
 		}

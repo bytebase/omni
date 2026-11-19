@@ -506,6 +506,7 @@ var walkForms = []walktest.Form{
 	{SQL: "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p WHERE id = 1;\nMERGE INTO nokey USING p ON (nokey.a = p.id) WHEN MATCHED THEN UPDATE SET nokey.a = 1;"},
 	{SQL: "INSERT ALL INTO nokey (a) VALUES (1) INTO p (id) VALUES (2) SELECT * FROM dual;"},
 	{SQL: "SELECT upper(note), count(*) FROM p GROUP BY note;"},
+	{SQL: "SELECT av.sales FROM ANALYTIC VIEW (USING sales_av) av;"},
 	// Ends the walk after its checks: it may run code of a schema.
 	{SQL: "SELECT f(1) FROM dual;", Last: true},
 	{SQL: "INSERT INTO pv VALUES (1, 'a');", Last: true},
