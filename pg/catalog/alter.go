@@ -236,35 +236,49 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// A failed subcommand leaves PostgreSQL's ALTER wholly undone. The one
 	// mutation this catalog cannot rebuild from another field is a stored
 	// tablespace, so it is restored if a later subcommand fails.
-	movesTablespace := false
+	needsRollback := false
 	for _, p := range pending {
-		if nodes.AlterTableType(p.cmd.Subtype) == nodes.AT_SetTableSpace {
-			movesTablespace = true
-			break
+		switch nodes.AlterTableType(p.cmd.Subtype) {
+		case nodes.AT_SetTableSpace, nodes.AT_ChangeOwner:
+			needsRollback = true
 		}
 	}
 	var relTablespaces map[*Relation]string
 	var idxTablespaces map[*Index]string
-	restoreTablespaces := func() {}
-	if movesTablespace {
-		relTablespaces = map[*Relation]string{rel: rel.Tablespace}
+	var relOwners map[*Relation]string
+	var idxOwners map[*Index]string
+	restore := func() {}
+	if needsRollback {
+		rels := []*Relation{rel}
 		for _, childOID := range c.findChildRelations(rel.OID) {
 			if child := c.relationByOID[childOID]; child != nil {
-				relTablespaces[child] = child.Tablespace
+				rels = append(rels, child)
 			}
 		}
+		relTablespaces = map[*Relation]string{}
+		relOwners = map[*Relation]string{}
 		idxTablespaces = map[*Index]string{}
-		for r := range relTablespaces {
+		idxOwners = map[*Index]string{}
+		for _, r := range rels {
+			relTablespaces[r] = r.Tablespace
+			relOwners[r] = r.OwnerName
 			for _, idx := range c.indexesByRel[r.OID] {
 				idxTablespaces[idx] = idx.Tablespace
+				idxOwners[idx] = idx.OwnerName
 			}
 		}
-		restoreTablespaces = func() {
+		restore = func() {
 			for r, ts := range relTablespaces {
 				r.Tablespace = ts
 			}
+			for r, owner := range relOwners {
+				r.OwnerName = owner
+			}
 			for idx, ts := range idxTablespaces {
 				idx.Tablespace = ts
+			}
+			for idx, owner := range idxOwners {
+				idx.OwnerName = owner
 			}
 		}
 	}
@@ -272,7 +286,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// Execute in pass order.
 	for _, p := range pending {
 		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
-			restoreTablespaces()
+			restore()
 			return err
 		}
 		if recurse && shouldRecurse(nodes.AlterTableType(p.cmd.Subtype)) {
@@ -282,7 +296,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 					continue
 				}
 				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, recurse, true); err != nil {
-					restoreTablespaces()
+					restore()
 					return err
 				}
 			}

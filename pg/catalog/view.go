@@ -197,6 +197,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		Name:          viewName,
 		Schema:        schema,
 		RelKind:       'v',
+		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,
 		RowTypeOID:    rowTypeOID,

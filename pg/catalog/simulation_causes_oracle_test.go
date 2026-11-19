@@ -327,6 +327,59 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// A failed ALTER TABLE restores the owner as well as the tablespace.
+	t.Run("a failed ALTER TABLE restores the owner", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE a (b int)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		before := c.schemaByName["public"].Relations["a"].OwnerName
+		if code := simulationCatalogCode(t, c, "ALTER TABLE a OWNER TO alice, CLUSTER ON missing_idx"); code != CodeUndefinedObject {
+			t.Fatalf("catalog answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.OwnerName != before {
+			t.Fatalf("a failed ALTER TABLE kept owner %q, want %q", rel.OwnerName, before)
+		}
+	})
+
+	// A view records its owner, so DROP OWNED can find it.
+	t.Run("a view records its owner", func(t *testing.T) {
+		c := New()
+		c.SetSessionUser("alice")
+		for _, stmt := range []string{
+			"CREATE TABLE a (b int)",
+			"CREATE VIEW v AS SELECT b FROM a",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["v"]; rel == nil || rel.OwnerName != "alice" {
+			t.Fatal("the view did not record its owner")
+		}
+	})
+
+	// A snapshot catalog accepts lifecycle statements for tablespaces it
+	// cannot see.
+	t.Run("a snapshot catalog allows an unobserved tablespace lifecycle", func(t *testing.T) {
+		c := New()
+		c.snapshot = true
+		for _, stmt := range []string{
+			"ALTER TABLESPACE fast RENAME TO slow",
+			"DROP TABLESPACE slow",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("snapshot catalog refused %s with %s", stmt, code)
+			}
+		}
+	})
+
 	// A later failing subcommand restores the tablespace of the relation.
 	t.Run("a failed ALTER TABLE restores the tablespace", func(t *testing.T) {
 		c := New()

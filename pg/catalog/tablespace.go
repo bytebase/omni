@@ -122,12 +122,12 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 		return &Error{Code: CodeInsufficientPrivilege,
 			Message: fmt.Sprintf("permission denied for tablespace %s", name)}
 	}
-	if !c.tablespaces[name] {
+	if err := c.checkTablespace(name); err != nil {
 		if stmt.MissingOk {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("tablespace %q does not exist, skipping", name))
 			return nil
 		}
-		return errUndefinedObject("tablespace", name)
+		return err
 	}
 	if c.tablespaceInUse(name) {
 		return &Error{Code: CodeObjectNotInPrerequisiteState,
@@ -150,8 +150,8 @@ func (c *Catalog) RenameTablespace(stmt *nodes.RenameStmt) error {
 		return &Error{Code: CodeInsufficientPrivilege,
 			Message: fmt.Sprintf("permission denied for tablespace %s", oldName)}
 	}
-	if !c.tablespaces[oldName] {
-		return errUndefinedObject("tablespace", oldName)
+	if err := c.checkTablespace(oldName); err != nil {
+		return err
 	}
 	if c.tablespaces[stmt.Newname] {
 		return errDuplicateObject("tablespace", stmt.Newname)

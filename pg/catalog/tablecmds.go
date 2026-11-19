@@ -112,6 +112,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		childColMap[colDefs[i].Name] = i
 	}
 
+	// IF NOT EXISTS skips a name an index or sequence holds before the
+	// parents are resolved, as PostgreSQL does for a partition target.
+	if stmt.IfNotExists {
+		if _, ok := relationNamespaceKind(schema, relName); ok {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
+			return nil
+		}
+	}
+
 	// Handle OF TYPE (typed tables).
 	// pg: src/backend/parser/parse_utilcmd.c — transformOfType
 	// pg: src/backend/commands/tablecmds.c — MergeAttributes (is_from_type handling)
@@ -175,15 +184,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		constraintDefs = userConstraints
 
 		ofTypeOID = oid
-	}
-
-	// IF NOT EXISTS skips a name an index or sequence holds before the
-	// parents are resolved, as PostgreSQL does for a partition target.
-	if stmt.IfNotExists {
-		if _, ok := relationNamespaceKind(schema, relName); ok {
-			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
-			return nil
-		}
 	}
 
 	// Merge inherited columns (INHERITS clause).
