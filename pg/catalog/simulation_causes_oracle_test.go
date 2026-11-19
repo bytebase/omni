@@ -2161,6 +2161,86 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatal("a failed CREATE SCHEMA recorded its AUTHORIZATION role")
 		}
 
+		// #186: a foreign-owned operator inside an owned schema blocks RESTRICT
+		// and only goes with CASCADE.
+		c53 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE schema_owner",
+			"CREATE ROLE other_role",
+			"CREATE SCHEMA gate_s",
+			"ALTER SCHEMA gate_s OWNER TO schema_owner",
+			"CREATE FUNCTION gate_s.g(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"SET ROLE other_role",
+			"CREATE OPERATOR gate_s.!! (LEFTARG = int, RIGHTARG = int, PROCEDURE = gate_s.g)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c53, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c53, "DROP OWNED BY schema_owner RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED over a foreign operator answered %s, want %s", code, CodeDependentObjects)
+		}
+		if len(c53.operByKey[operKey{name: "!!", left: INT4OID, right: INT4OID}]) == 0 {
+			t.Fatal("failed DROP OWNED removed the foreign operator")
+		}
+		if code := simulationCatalogCode(t, c53, "DROP OWNED BY schema_owner CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED CASCADE: %s", code)
+		}
+
+		// #187 & #189: opclasses and families in an owned schema, and users of
+		// an owned extension's access method, follow DROP OWNED.
+		c54 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE fam_owner",
+			"CREATE SCHEMA fam_s",
+			"ALTER SCHEMA fam_s OWNER TO fam_owner",
+			"CREATE OPERATOR FAMILY fam_s.fam1 USING gist",
+		} {
+			if code := simulationCatalogCode(t, c54, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c54, "DROP OWNED BY fam_owner RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED over an owned-schema operator family answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c54, "DROP OWNED BY fam_owner CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED CASCADE: %s", code)
+		}
+
+		// #190: DROP FUNCTION ... CASCADE removes an access method using it.
+		c55 := New()
+		for _, stmt := range []string{
+			"CREATE FUNCTION am_handler(internal) RETURNS table_am_handler LANGUAGE internal AS 'bthandler'",
+			"CREATE ACCESS METHOD cascade_am TYPE TABLE HANDLER am_handler",
+			"DROP FUNCTION am_handler(internal) CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c55, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if c55.accessMethodByName["cascade_am"] != nil {
+			t.Fatal("DROP FUNCTION ... CASCADE left the access method")
+		}
+
+		// #192: a procedure and a function with the same signature collide.
+		RegisterExtensionSQL("test_proc_ext", "CREATE PROCEDURE shared_sig(int) LANGUAGE sql AS 'SELECT 1';")
+		defer delete(extensionScripts, "test_proc_ext")
+		c56 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA psrc",
+			"CREATE SCHEMA pdst",
+			"CREATE EXTENSION test_proc_ext SCHEMA psrc",
+			"CREATE FUNCTION pdst.shared_sig(int) RETURNS int LANGUAGE sql AS 'SELECT 2'",
+		} {
+			if code := simulationCatalogCode(t, c56, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c56, "ALTER EXTENSION test_proc_ext SET SCHEMA pdst"); code != CodeDuplicateFunction {
+			t.Fatalf("cross-kind SET SCHEMA collision answered %s, want %s", code, CodeDuplicateFunction)
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

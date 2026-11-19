@@ -799,6 +799,28 @@ func (c *Catalog) roleInUse(name string) bool {
 	return false
 }
 
+// ownerAMUser is an operator class or family that uses an access method of an
+// owned extension.
+type ownerAMUser struct {
+	dep     DepEntry
+	extName string
+}
+
+// removeAMUser removes the operator class or family a dependency entry names.
+func (c *Catalog) removeAMUser(dep DepEntry) {
+	switch dep.ObjType {
+	case 'q':
+		if opc := c.opClasses[dep.ObjOID]; opc != nil {
+			if opc.IsDefault {
+				delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
+			}
+			delete(c.opClasses, opc.OID)
+		}
+	case 'Q':
+		delete(c.opFamilies, dep.ObjOID)
+	}
+}
+
 // ownerIndexExt pairs an index with the extension whose operator class it
 // uses, for the DROP OWNED report.
 type ownerIndexExt struct {
@@ -853,6 +875,7 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	var amRelations []*Relation
 	amRelOIDs := map[uint32]bool{}
 	var amIndexes []ownerIndexExt
+	var amUsers []ownerAMUser
 	for oid, extName := range c.extensionMembers {
 		if !ownedExtNames[extName] {
 			continue
@@ -881,6 +904,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 					opclassIndexOIDs[idx.OID] = true
 					amIndexes = append(amIndexes, ownerIndexExt{idx: idx, extName: extName})
 				}
+			}
+		}
+		for _, dep := range c.findNormalDependents('m', oid) {
+			if dep.ObjType == 'q' || dep.ObjType == 'Q' {
+				amUsers = append(amUsers, ownerAMUser{dep: dep, extName: extName})
 			}
 		}
 	}
@@ -1067,13 +1095,15 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			ownedOperators = append(ownedOperators, oid)
 		}
 	}
-	for oid := range c.operByOID {
-		if seenOperator[oid] || oid < FirstNormalObjectId {
-			continue
-		}
-		if nsOID, ok := c.operatorSchemas[oid]; ok && ownedSchemaOIDs[nsOID] {
-			seenOperator[oid] = true
-			ownedOperators = append(ownedOperators, oid)
+	if cascade {
+		for oid := range c.operByOID {
+			if seenOperator[oid] || oid < FirstNormalObjectId {
+				continue
+			}
+			if nsOID, ok := c.operatorSchemas[oid]; ok && ownedSchemaOIDs[nsOID] {
+				seenOperator[oid] = true
+				ownedOperators = append(ownedOperators, oid)
+			}
 		}
 	}
 
@@ -1169,6 +1199,18 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 					return errDependentObjects("schema", s.Name)
 				}
 			}
+			if !cascade {
+				for _, opc := range c.opClasses {
+					if opc.Schema == s.OID {
+						return errDependentObjects("schema", s.Name)
+					}
+				}
+				for _, fam := range c.opFamilies {
+					if fam.Schema == s.OID {
+						return errDependentObjects("schema", s.Name)
+					}
+				}
+			}
 		}
 		for _, x := range rels {
 			for _, dep := range c.relationDependents(x.rel.OID, 0) {
@@ -1214,6 +1256,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			if !ownedRelOIDs[x.idx.RelOID] && !inDropSet('i', x.idx.OID) {
 				return errDependentObjects("extension", x.extName)
 			}
+		}
+		for _, x := range amUsers {
+			return errDependentObjects("extension", x.extName)
 		}
 		for _, x := range externalCasts {
 			return errDependentObjects("extension", x.extName)
@@ -1338,6 +1383,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				c.removeIndex(x.idx.Schema, x.idx.Name, x.idx)
 			}
 		}
+		for _, x := range amUsers {
+			c.removeAMUser(x.dep)
+		}
 		for _, x := range externalCasts {
 			delete(c.castIndex, x.key)
 		}
@@ -1345,6 +1393,22 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	sort.Slice(ownedOperators, func(i, j int) bool { return ownedOperators[i] < ownedOperators[j] })
 	for _, oid := range ownedOperators {
 		c.removeOperator(oid)
+	}
+	for _, s := range ownedSchemas {
+		for oid, opc := range c.opClasses {
+			if opc.Schema != s.OID {
+				continue
+			}
+			if opc.IsDefault {
+				delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
+			}
+			delete(c.opClasses, oid)
+		}
+		for oid, fam := range c.opFamilies {
+			if fam.Schema == s.OID {
+				delete(c.opFamilies, oid)
+			}
+		}
 	}
 	for _, evt := range ownedEventTriggers {
 		if c.eventTriggers[evt.OID] == evt {

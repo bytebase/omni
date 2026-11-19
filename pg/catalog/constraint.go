@@ -972,6 +972,15 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 		if c.operByOID[objOID] != nil {
 			c.removeOperator(objOID)
 		}
+	case 'm':
+		if am := c.accessMethods[objOID]; am != nil {
+			delete(c.accessMethods, am.OID)
+			delete(c.accessMethodByName, am.Name)
+		}
+	case 'q':
+		c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: objOID})
+	case 'Q':
+		c.removeAMUser(DepEntry{ObjType: 'Q', ObjOID: objOID})
 	case 't':
 		bt := c.typeByOID[objOID]
 		if bt == nil {

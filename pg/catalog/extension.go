@@ -530,6 +530,22 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		for _, dep := range extAMUsers {
 			switch dep.ObjType {
 			case 'm':
+				// The external access method may itself have table, index, or
+				// operator-class users; take them with the method.
+				for _, user := range c.findNormalDependents('m', dep.ObjOID) {
+					switch user.ObjType {
+					case 'r':
+						if rel := c.relationByOID[user.ObjOID]; rel != nil {
+							c.cascadeDropRelation(rel)
+						}
+					case 'i':
+						if idx := c.indexes[user.ObjOID]; idx != nil {
+							c.removeIndex(idx.Schema, idx.Name, idx)
+						}
+					case 'q', 'Q':
+						c.removeAMUser(user)
+					}
+				}
 				if am := c.accessMethods[dep.ObjOID]; am != nil {
 					delete(c.accessMethods, am.OID)
 					delete(c.accessMethodByName, am.Name)
@@ -771,12 +787,21 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 			}
 		}
 		if up := c.userProcs[oid]; up != nil && oldSchema != nil && up.Schema == oldSchema {
+			// pg_proc's uniqueness ignores whether the routine is a function,
+			// procedure, or aggregate.
 			for _, other := range c.findUserProcsByName(newSchema, up.Name) {
-				if other.OID == up.OID || other.Kind != up.Kind {
+				if other.OID == up.OID {
 					continue
 				}
 				if slices.Equal(c.procByOID[other.OID].ArgTypes, c.procByOID[up.OID].ArgTypes) {
 					return errDuplicateFunction(up.Name)
+				}
+			}
+		}
+		if op := c.operByOID[oid]; op != nil && c.operatorSchemas[oid] == oldOID {
+			for _, other := range c.operByKey[operKey{name: op.Name, left: op.Left, right: op.Right}] {
+				if other.OID != op.OID && other.OID >= FirstNormalObjectId && c.operatorSchemas[other.OID] == newSchema.OID {
+					return errDuplicateObject("operator", op.Name)
 				}
 			}
 		}
