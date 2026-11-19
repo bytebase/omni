@@ -280,6 +280,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if _, exists := tbl.colByName[colKey]; exists {
 			return errDupColumn(colDef.Name)
 		}
+		// After the table's own columns are known to lack the name: 4029, an
+		// expression reading the column it defines or a generated column defined
+		// after it.
+		if err := validateColumnSelfReference(colDef); err != nil {
+			return err
+		}
+		if err := validateColumnGeneratedOrder(colDef, stmt.Columns[i+1:]); err != nil {
+			return err
+		}
 
 		col := &Column{
 			Position: i + 1,

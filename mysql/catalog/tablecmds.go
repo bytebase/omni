@@ -33,6 +33,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := validateColumnDisplayWidth(colDef); err != nil {
 			return err
 		}
+		// A bare NOW()-family DEFAULT on a column that is neither DATETIME nor
+		// TIMESTAMP is 1067 while the statement is prepared, ahead of the name
+		// collision and of the database the name sits in (mysql:8.0.46).
+		if err := validateBareNowDefault(colDef); err != nil {
+			return err
+		}
 	}
 	// A loader's statement (DefineTable) is a snapshot of a server that may
 	// ship another engine, so only a CREATE TABLE statement is judged, and its
@@ -630,14 +636,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			if err := checkKeyColumns(con); err != nil {
 				return err
 			}
-			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			spatial := isSpatialIndexType(resolveConstraintIndexType(con))
+			if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 				return err
 			}
 			keyIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
 				Columns:   idxCols,
-				IndexType: resolveConstraintIndexType(con),
+				Spatial:   spatial,
+				IndexType: storedIndexType(resolveConstraintIndexType(con)),
 				Visible:   true,
 			}
 			applyIndexOptions(keyIdx, con.IndexOptions)
@@ -759,6 +767,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
+	// A table with no visible column is 4028, not only one with no column at
+	// all: `CREATE TABLE q (a INT INVISIBLE)` is refused, and so it is with
+	// sql_generate_invisible_primary_key on, where the only column is the
+	// invisible my_row_id. MySQL answers it after the name collision (1050) and
+	// after a key's own columns are resolved (1072), and before the partition
+	// clause, which alone cannot make a column: `CREATE TABLE q (KEY (x))` is
+	// 1072 and `CREATE TABLE q PARTITION BY KEY()` 4028 (mysql:8.0.46).
+	// A CTAS is never this error's: MySQL appends the query's own columns to the
+	// declared ones as visible columns, so `CREATE TABLE t2 (col2 INT INVISIBLE)
+	// AS SELECT col1, col2 FROM t1` is a table it takes (mysql:8.0.46).
+	if stmt.Select == nil && !tableHasVisibleColumn(tbl) {
+		return errTableMustHaveColumns()
+	}
+
 	// Validate foreign key constraints (unless foreign_key_checks=0).
 	if c.foreignKeyChecks {
 		if err := c.validateForeignKeys(db, tbl); err != nil {
@@ -780,6 +802,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+// tableHasVisibleColumn reports whether the table keeps a column a SELECT * and
+// a reader may see. my_row_id is invisible, so a table the generated invisible
+// primary key alone fills has none, and neither has one whose only other column
+// is a functional index's hidden system column.
+func tableHasVisibleColumn(tbl *Table) bool {
+	for _, col := range tbl.Columns {
+		if col != nil && !col.Invisible && col.Hidden == ColumnHiddenNone {
+			return true
+		}
+	}
+	return false
 }
 
 func errGIPKPartitioned() error {
@@ -1267,9 +1302,35 @@ func canonicalBitLiteral(bits string) string {
 	return "b'" + bits + "'"
 }
 
+// validatePartitionClause judges a partitioning a CREATE TABLE writes: the clause
+// itself, and then every unique key of the table it leaves covering it.
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := validatePartitionClauseShape(tbl, pc); err != nil {
+		return err
+	}
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+}
+
+// validatePartitionClauseShape runs the checks the clause makes on its own, without
+// the unique keys that must cover it: what it defines (1492), what it mixes (1500),
+// the columns it names (1652, 1488, 1054) and its bounds (1481, 1493, 1491).
+func validatePartitionClauseShape(tbl *Table, pc *nodes.PartitionClause) error {
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
-		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
+		return errPartitionsMustBeDefined()
+	}
+	// A top-level HASH or KEY partitioning takes no SUBPARTITION BY: MySQL mixes
+	// subpartitioning with RANGE and LIST only, and answers 1500 before it reads a
+	// column either function names (mysql:8.0.46).
+	if (pc.Type == nodes.PartitionHash || pc.Type == nodes.PartitionKey) && partitionClauseHasSubpartitions(pc) {
+		return errPartitionSubpartMix()
+	}
+	// Every column the clause names must be a column of the table. KEY's name list
+	// answers 1488, a partitioning expression 1054, and a name the list repeats 1652,
+	// which the server answers first: `PARTITION BY KEY(zzz, zzz)` is 1652 and
+	// `PARTITION BY KEY(zzz)` on a table keyed by another column is 1488 rather than
+	// the 1503 its unique keys would raise (mysql:8.0.46).
+	if err := validatePartitionClauseColumns(tbl, pc); err != nil {
+		return err
 	}
 	if pc.Type == nodes.PartitionRange && len(pc.Columns) > 0 {
 		// RANGE COLUMNS takes MAXVALUE in any partition: what it requires is
@@ -1311,7 +1372,52 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+	return nil
+}
+
+// partitionClauseHasSubpartitions reports whether the clause writes a SUBPARTITION
+// BY. PartitionType's zero value is RANGE, which no SUBPARTITION BY takes, so a
+// subpartitioning type is one of the other two.
+func partitionClauseHasSubpartitions(pc *nodes.PartitionClause) bool {
+	return pc.SubPartType == nodes.PartitionHash || pc.SubPartType == nodes.PartitionKey ||
+		pc.SubPartExpr != nil || len(pc.SubPartColumns) > 0
+}
+
+// validatePartitionClauseColumns refuses a partition function that names a column
+// the table does not hold, and a name one list repeats.
+func validatePartitionClauseColumns(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := validatePartitionFields(tbl, pc.Type, pc.Columns, pc.Expr); err != nil {
+		return err
+	}
+	return validatePartitionFields(tbl, pc.SubPartType, pc.SubPartColumns, pc.SubPartExpr)
+}
+
+// validatePartitionFields checks one partitioning function's columns against the
+// table: a KEY list's names, which MySQL answers 1652 and then 1488 for, and the
+// columns an expression reads, which it answers 1054 for. A COLUMNS list is read
+// as the names it is compared by.
+func validatePartitionFields(tbl *Table, typ nodes.PartitionType, columns []string, expr nodes.ExprNode) error {
+	seen := map[string]bool{}
+	for _, name := range columns {
+		if seen[toLower(name)] {
+			return errDupPartitionField(name)
+		}
+		seen[toLower(name)] = true
+	}
+	for _, name := range columns {
+		if tbl.GetColumn(name) == nil {
+			if typ == nodes.PartitionKey {
+				return errPartitionFieldNotFound()
+			}
+			return errNoSuchColumn(name, "partition function")
+		}
+	}
+	for _, name := range exprColumnNames(expr) {
+		if tbl.GetColumn(name) == nil {
+			return errNoSuchColumn(name, "partition function")
+		}
+	}
+	return nil
 }
 
 // rangeColumnsNotIncreasing reports whether the RANGE COLUMNS bound cur is
@@ -1914,6 +2020,12 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			return errCannotPartOfFulltext(ic.Name)
 		}
 		if spatial {
+			// The column's type is judged before its nullability: a SPATIAL key over an
+			// INT column is 1687 whether or not the column is NOT NULL, and 1252 is
+			// what a nullable geometry column answers (mysql:8.0.46).
+			if !isGeometryColumnType(col.DataType) {
+				return errSpatialNotGeometrical()
+			}
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
 			}
@@ -1940,6 +2052,36 @@ func isFulltextColumnType(dt string) bool {
 		return true
 	}
 	return false
+}
+
+// isGeometryColumnType reports whether a column's type is one a SPATIAL key takes.
+func isGeometryColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "geometry", "geomcollection", "geometrycollection", "point", "linestring", "polygon",
+		"multipoint", "multilinestring", "multipolygon":
+		return true
+	}
+	return false
+}
+
+// isSpatialIndexType reports whether an index type takes the rules of a SPATIAL
+// key. USING RTREE makes the key a spatial one, whatever its own type says.
+func isSpatialIndexType(indexType string) bool {
+	switch strings.ToUpper(strings.TrimSpace(indexType)) {
+	case "SPATIAL", "RTREE":
+		return true
+	}
+	return false
+}
+
+// storedIndexType is the type an index whose USING names a spatial access method is
+// stored as: MySQL keeps SPATIAL KEY and drops the RTREE spelling, so a table built
+// with `KEY USING RTREE (g)` reads back as `SPATIAL KEY g (g)` (mysql:8.0.46).
+func storedIndexType(indexType string) string {
+	if strings.EqualFold(strings.TrimSpace(indexType), "RTREE") {
+		return "SPATIAL"
+	}
+	return indexType
 }
 
 func fixedLengthStringColumnLimit(col *Column) (int, bool) {

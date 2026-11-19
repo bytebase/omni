@@ -271,6 +271,20 @@ func checkPartitionNames(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	var bounds []nodes.Node
+	// A repeated partition name is 1517 before a bound is read, as it is in CREATE
+	// TABLE. It comes after the 1500 a subpartition under a HASH/KEY partitioning
+	// without SUBPARTITION BY answers.
+	seen := make(map[string]bool, len(pc.Partitions))
+	for _, pd := range pc.Partitions {
+		if pd.Name == "" {
+			continue
+		}
+		name := toLower(pd.Name)
+		if seen[name] {
+			return &Error{Code: 1517, SQLState: "HY000", Message: fmt.Sprintf("Duplicate partition name '%s'", pd.Name)}
+		}
+		seen[name] = true
+	}
 	for _, pd := range pc.Partitions {
 		bounds = append(bounds, pd.Values)
 		for _, sp := range pd.SubPartitions {

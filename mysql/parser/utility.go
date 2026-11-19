@@ -1709,7 +1709,7 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 					Position: p.cur.Loc,
 				}
 			}
-			stmt.Name = p.cur.Str
+			stmt.Name, stmt.HasName = p.cur.Str, true
 			p.advance()
 		case p.cur.Type == kwDEFINITION:
 			p.advance()
@@ -1719,7 +1719,7 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 					Position: p.cur.Loc,
 				}
 			}
-			stmt.Definition = p.cur.Str
+			stmt.Definition, stmt.HasDefinition = p.cur.Str, true
 			p.advance()
 		case p.cur.Type == kwORGANIZATION:
 			p.advance()

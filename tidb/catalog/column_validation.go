@@ -122,8 +122,11 @@ func checkTemporalDefaultFsp(colName string, dt *nodes.DataType, defaultExpr nod
 	default:
 		return nil
 	}
-	fn, ok := defaultExpr.(*nodes.FuncCallExpr)
-	if !ok || !nowFamilyDefaultFuncs[strings.ToLower(fn.Name)] {
+	// The function is read through the parentheses it may be written in:
+	// DATETIME DEFAULT(CURRENT_TIMESTAMP(1)) is the same mismatch as the bare
+	// form, and TiDB answers 1067 to both (read on v8.5.5).
+	fn, ok := nowDefaultCall(defaultExpr)
+	if !ok {
 		return nil
 	}
 	funcFsp := 0
@@ -134,6 +137,77 @@ func checkTemporalDefaultFsp(colName string, dt *nodes.DataType, defaultExpr nod
 	}
 	if funcFsp != dt.Length {
 		return errInvalidDefault(colName)
+	}
+	return nil
+}
+
+// nowDefaultCall reports the NOW()-family call a DEFAULT names, reading
+// through the parentheses it may be written in: DEFAULT CURRENT_TIMESTAMP,
+// DEFAULT(CURRENT_TIMESTAMP) and DEFAULT NOW() are one default to TiDB.
+func nowDefaultCall(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
+	for {
+		paren, ok := expr.(*nodes.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = paren.Expr
+	}
+	fn, ok := expr.(*nodes.FuncCallExpr)
+	if !ok || !nowFamilyDefaultFuncs[strings.ToLower(fn.Name)] {
+		return nil, false
+	}
+	return fn, true
+}
+
+// checkNowDefaultColumnType enforces TiDB v8.5.5's 1067 for a NOW()-family
+// DEFAULT on a column that is neither DATETIME nor TIMESTAMP. The engine reads
+// such a default as a current-timestamp value, which only those two types
+// hold, and refuses a TINYINT, INT, DATE, TIME, YEAR or VARCHAR column alike;
+// the fractional-seconds argument does not change that
+// (`a TINYINT DEFAULT CURRENT_TIMESTAMP(1)` is 1067). A DATETIME or TIMESTAMP
+// column is left to checkTemporalDefaultFsp, which holds the function's
+// precision to the column's own.
+//
+// TiDB validates this while it prepares the statement, before it resolves the
+// database or looks the table up: `ALTER TABLE nodb.a ADD x INT DEFAULT NOW()`
+// is 1067 rather than 1049, and on an existing table it answers 1067 ahead of
+// the duplicate column's 1060 (measured on v8.5.5, 2026-11-19).
+func checkNowDefaultColumnType(colName string, dt *nodes.DataType, expr nodes.ExprNode) error {
+	if dt == nil {
+		return nil
+	}
+	if _, ok := nowDefaultCall(expr); !ok {
+		return nil
+	}
+	switch strings.ToLower(dt.Name) {
+	case "datetime", "timestamp":
+		return nil
+	}
+	return errInvalidDefault(colName)
+}
+
+// checkAlterNowDefaults applies checkNowDefaultColumnType to every column
+// definition an ALTER TABLE adds, modifies or changes, which is the set TiDB
+// judges while it prepares the statement.
+func checkAlterNowDefaults(cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		default:
+			continue
+		}
+		colDefs := cmd.Columns
+		if cmd.Column != nil {
+			colDefs = append(append([]*nodes.ColumnDef{}, colDefs...), cmd.Column)
+		}
+		for _, colDef := range colDefs {
+			if err := checkNowDefaultColumnType(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -680,6 +754,73 @@ func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons
 		return errInvalidDefault(colDef.Name)
 	}
 	return nil
+}
+
+// checkExistingColumnNowDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT
+// (CURRENT_TIMESTAMP) to the rule checkNowDefaultColumnType states for a column
+// definition, judged against the type the catalog already holds for c: a column
+// that is neither DATETIME nor TIMESTAMP is 1067, and a DATETIME or TIMESTAMP one
+// holds the call's precision to its own. Only the CURRENT_TIMESTAMP spelling is
+// this rule's here; SET DEFAULT (NOW()) and SET DEFAULT (LOCALTIME) are general
+// default expressions, which TiDB refuses with 3770 whatever the column's type
+// (all read on v8.5.5).
+func checkExistingColumnNowDefault(col *Column, expr nodes.ExprNode) error {
+	if col == nil {
+		return nil
+	}
+	fn, ok := nowDefaultCall(expr)
+	if !ok {
+		return nil
+	}
+	if !strings.EqualFold(fn.Name, "current_timestamp") {
+		// SET DEFAULT names the function outright, so its aliases are a
+		// disallowed function rather than the current-timestamp default:
+		// SET DEFAULT (NOW()) and SET DEFAULT (LOCALTIME) are 3770 on any
+		// column (read on v8.5.5).
+		return errDefaultFunctionNotAllowed(col.Name, fn.Name)
+	}
+	switch strings.ToLower(col.DataType) {
+	case "datetime", "timestamp":
+		// The call's precision is held to the column's own, as a column
+		// definition's is: DATETIME(1) takes CURRENT_TIMESTAMP(1) and refuses
+		// the bare call (read on v8.5.5).
+		if callFsp, ok := nowCallFsp(fn); ok && callFsp != columnTypeFsp(col.ColumnType) {
+			return errInvalidDefault(col.Name)
+		}
+		return nil
+	}
+	return errInvalidDefault(col.Name)
+}
+
+// nowCallFsp is the fractional-seconds argument a NOW()-family call carries, 0
+// when it names none.
+func nowCallFsp(fn *nodes.FuncCallExpr) (int, bool) {
+	if len(fn.Args) == 0 {
+		return 0, true
+	}
+	lit, ok := fn.Args[0].(*nodes.IntLit)
+	if !ok {
+		return 0, false
+	}
+	return int(lit.Value), true
+}
+
+// columnTypeFsp reads the fractional-seconds precision out of a column's
+// rendered type, 0 when it names none: DATETIME(1) is 1, DATETIME is 0.
+func columnTypeFsp(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	close := strings.IndexByte(columnType, ')')
+	if open < 0 || close <= open+1 {
+		return 0
+	}
+	n := 0
+	for _, ch := range columnType[open+1 : close] {
+		if ch < '0' || ch > '9' {
+			return 0
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n
 }
 
 // checkExistingColumnDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT

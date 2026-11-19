@@ -308,13 +308,14 @@ var dbtExecuteProps = map[string]execValue{
 }
 
 // dbtExecuteWorkspaceProps are the properties EXECUTE DBT PROJECT [ FROM
-// WORKSPACE <name> ] takes: PROJECT_ROOT in place of IMPORTS and WRITEBACK.
+// WORKSPACE <name> ] takes: CREATE's but WRITEBACK, and PROJECT_ROOT.
 var dbtExecuteWorkspaceProps = map[string]execValue{
 	"ARGS":                         execString,
 	"DBT_VERSION":                  execString,
 	"EXTERNAL_ACCESS_INTEGRATIONS": execNames,
 	"ENVIRONMENT":                  execString,
 	"ENV_VARS":                     execEnvVars,
+	"IMPORTS":                      execImports,
 	"PROJECT_ROOT":                 execString,
 }
 
@@ -329,9 +330,11 @@ var dbtExecuteWorkspaceProps = map[string]execValue{
 //	  [ WRITEBACK = { TRUE | FALSE } ]
 //	EXECUTE DBT PROJECT [ IF EXISTS ] [ FROM WORKSPACE <name> ]
 //	  [ ARGS = ... ] [ DBT_VERSION = ... ] [ EXTERNAL_ACCESS_INTEGRATIONS = ... ]
-//	  [ ENVIRONMENT = ... ] [ ENV_VARS = ... ] [ PROJECT_ROOT = '<subdirectory_path>' ]
+//	  [ ENVIRONMENT = ... ] [ ENV_VARS = ... ]
+//	  [ IMPORTS = ( ... ) ] [ PROJECT_ROOT = '<subdirectory_path>' ]
 //
-// The second form brackets FROM WORKSPACE, so it may name no project at all.
+// The second form brackets FROM WORKSPACE, so it may name no project at all,
+// and it takes IMPORTS as the page writes it, beside PROJECT_ROOT.
 //
 // https://docs.snowflake.com/en/sql-reference/sql/execute-dbt-project
 func (p *Parser) parseExecuteDbtProject(s *ast.ObjectStmt) error {
@@ -501,10 +504,11 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 			if err != nil {
 				return err
 			}
-			if _, ok := x.(*ast.FuncCallExpr); !ok {
+			call, ok := x.(*ast.FuncCallExpr)
+			if !ok || !validImportCall(call) {
 				return &ParseError{
 					Position: e.Loc.Start, End: p.prev.Loc.End,
-					Message: "syntax error: IMPORTS takes a source location or a system function call",
+					Message: "syntax error: IMPORTS takes a source location, or a system function call with string arguments",
 				}
 			}
 			e.Expr = x
@@ -521,6 +525,35 @@ func execImports(p *Parser, opt *ast.CopyOption) error {
 		}
 		return nil
 	})
+}
+
+// validImportCall reports whether call is one of the page's system functions
+// with the arguments its own page gives it: SYSTEM$LOCATE_DBT_ARCHIVE and
+// SYSTEM$LOCATE_DBT_ARTIFACTS take one string, a query id, and the three
+// SYSTEM$DBT_GET_LAST_*_RUN_TARGET functions take one to three strings, the
+// project and optionally the commands and target path.
+// https://docs.snowflake.com/en/sql-reference/functions/system_dbt_get_last_successful_run_target
+// https://docs.snowflake.com/en/sql-reference/functions/system_locate_dbt_archive
+func validImportCall(call *ast.FuncCallExpr) bool {
+	if call.Star || call.Distinct || len(call.OrderBy) > 0 || call.Over != nil {
+		// The page writes a plain call; no aggregate or window modifier.
+		return false
+	}
+	max := 1
+	switch strings.ToUpper(call.Name.Name.Name) {
+	case "SYSTEM$DBT_GET_LAST_SUCCESSFUL_RUN_TARGET", "SYSTEM$DBT_GET_LAST_FAILED_RUN_TARGET", "SYSTEM$DBT_GET_LAST_RUN_TARGET":
+		max = 3
+	}
+	if len(call.Args) < 1 || len(call.Args) > max {
+		return false
+	}
+	for _, arg := range call.Args {
+		lit, ok := arg.(*ast.Literal)
+		if !ok || lit.Kind != ast.LitString {
+			return false
+		}
+	}
+	return true
 }
 
 // execBundleArgs reads ( { '<arg>' | :<variable> } [ , ... ] ).

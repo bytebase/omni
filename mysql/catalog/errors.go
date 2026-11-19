@@ -67,6 +67,18 @@ const (
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
+
+	// ErrNoTablesUsed is 1096, which mysql:8.0.46 answers for a SELECT whose
+	// star has no table to expand, a CREATE VIEW body included.
+	ErrNoTablesUsed = 1096
+	// ErrTableMustHaveColumns is 4028, which mysql:8.0.46 answers for a CREATE
+	// TABLE that lists no column at all.
+	ErrTableMustHaveColumns        = 4028
+	ErrPartitionFieldNotFound      = 1488
+	ErrPartitionSubpartMix         = 1500
+	ErrDupPartitionField           = 1652
+	ErrSpatialColumnNotGeometrical = 1687
+	ErrSRSMissingAttribute         = 3708
 )
 
 var sqlStateMap = map[int]string{
@@ -74,6 +86,7 @@ var sqlStateMap = map[int]string{
 	ErrUnknownDatabase:                   "42000",
 	ErrDupTable:                          "42S01",
 	ErrUnknownTable:                      "42S02",
+	ErrNoTablesUsed:                      "HY000",
 	ErrDupColumn:                         "42S21",
 	ErrDupKeyName:                        "42000",
 	ErrDupEntry:                          "23000",
@@ -117,6 +130,9 @@ var sqlStateMap = map[int]string{
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
+	ErrTableMustHaveColumns:              "HY000",
+	ErrSpatialColumnNotGeometrical:       "42000",
+	ErrSRSMissingAttribute:               "SR006",
 }
 
 func sqlState(code int) string {
@@ -171,6 +187,31 @@ func errMultiplePriKey() error {
 		Message: "Multiple primary key defined"}
 }
 
+// errNoTablesUsed is MySQL 1096 for a star with no table to expand. mysql's
+// CREATE VIEW resolves the body before the view's own name, so this answers
+// ahead of a name collision (1050). A star that qualifies its table is not this
+// error: MySQL names the table it cannot find (1051).
+func errNoTablesUsed() error {
+	return &Error{Code: ErrNoTablesUsed, SQLState: sqlState(ErrNoTablesUsed),
+		Message: "No tables used"}
+}
+
+// errUnknownTableName is MySQL 1051 as a view body's qualified star words it:
+// `CREATE VIEW v AS SELECT t.*`, with no FROM naming t, is "Unknown table 't'"
+// (mysql:8.0.46).
+func errUnknownTableName(name string) error {
+	return &Error{Code: ErrUnknownTable, SQLState: sqlState(ErrUnknownTable),
+		Message: fmt.Sprintf("Unknown table '%s'", name)}
+}
+
+// errTableMustHaveColumns is MySQL 4028 for a CREATE TABLE whose element list
+// holds no column. mysql:8.0.46 answers it after the name collision (1050) and
+// after a key's columns are resolved (1072).
+func errTableMustHaveColumns() error {
+	return &Error{Code: ErrTableMustHaveColumns, SQLState: sqlState(ErrTableMustHaveColumns),
+		Message: "A table must have at least one visible column."}
+}
+
 func errInvalidDefault(name string) error {
 	return &Error{Code: ErrInvalidDefault, SQLState: sqlState(ErrInvalidDefault),
 		Message: fmt.Sprintf("Invalid default value for '%s'", name)}
@@ -199,6 +240,47 @@ func errInvalidYearColumnLength() error {
 func errNoSuchColumn(name, context string) error {
 	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
 		Message: fmt.Sprintf("Unknown column '%s' in '%s'", name, context)}
+}
+
+// errPartitionFieldNotFound is 1488, a column a KEY partitioning names and the
+// table does not hold. MySQL words it without the name.
+func errPartitionFieldNotFound() error {
+	return &Error{Code: ErrPartitionFieldNotFound, SQLState: sqlState(ErrPartitionFieldNotFound),
+		Message: "Field in list of fields for partition function not found in table"}
+}
+
+// errDupPartitionField is 1652, the same column named twice in one partition
+// function.
+func errDupPartitionField(name string) error {
+	return &Error{Code: ErrDupPartitionField, SQLState: sqlState(ErrDupPartitionField),
+		Message: fmt.Sprintf("Duplicate partition field name '%s'", name)}
+}
+
+// errPartitionSubpartMix is 1500, a HASH or KEY partitioning that also writes a
+// SUBPARTITION BY: MySQL mixes subpartitioning with RANGE and LIST only.
+func errPartitionSubpartMix() error {
+	return &Error{Code: ErrPartitionSubpartMix, SQLState: sqlState(ErrPartitionSubpartMix),
+		Message: "It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning for subpartitioning"}
+}
+
+// errPartitionsMustBeDefined is 1492, a RANGE or LIST partitioning that defines
+// no partition.
+func errPartitionsMustBeDefined() error {
+	return &Error{Code: 1492, SQLState: sqlState(1492),
+		Message: "Partitions must be defined for RANGE/LIST partitioning"}
+}
+
+// errSpatialNotGeometrical is 1687, a SPATIAL key over a column of another type.
+func errSpatialNotGeometrical() error {
+	return &Error{Code: ErrSpatialColumnNotGeometrical, SQLState: sqlState(ErrSpatialColumnNotGeometrical),
+		Message: "A SPATIAL index may only contain a geometrical type column"}
+}
+
+// errSRSMandatoryAttribute is 3708, a CREATE SPATIAL REFERENCE SYSTEM that
+// leaves out the attribute MySQL requires.
+func errSRSMandatoryAttribute(name string) error {
+	return &Error{Code: ErrSRSMissingAttribute, SQLState: sqlState(ErrSRSMissingAttribute),
+		Message: fmt.Sprintf("Missing mandatory attribute %s.", name)}
 }
 
 func errUnknownTable(db, name string) error {

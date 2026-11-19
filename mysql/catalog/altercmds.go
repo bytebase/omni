@@ -54,6 +54,16 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	}
 
 	repartition := alterRepartition(stmt.Commands)
+	if repartition != nil {
+		// What the clause says about the table's columns is judged here, in the order
+		// MySQL judges it (1492, 1500, 1652, 1488, 1054). The unique keys that must
+		// cover it are judged after the commands, by validateAlteredUniqueKeys, since
+		// they are the keys the statement leaves: a statement that drops one of them
+		// leaves a table the clause covers.
+		if err := validatePartitionClauseShape(tbl, repartition); err != nil {
+			return err
+		}
+	}
 	if tbl.Partitioning == nil && repartition == nil {
 		return c.alterTableCommands(db, tbl, key, stmt)
 	}
@@ -73,10 +83,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		undoAlter(db, key, tbl, snapshot)
 		return err
 	}
-	if repartition != nil && tbl.Partitioning != nil {
-		// The catalog does not apply a repartition, so the partitioning it keeps no
-		// longer says which columns a unique key needs.
-		tbl.Partitioning.keyColumns = nil
+	if repartition != nil {
+		// The catalog applies the partitioning the statement wrote, as the engine
+		// does: MySQL keeps a table partitioned once ALTER TABLE ... PARTITION BY
+		// has run, so the table a later statement reads is the partitioned one. true
+		// is what an executed CREATE TABLE passes: the clause is authored input, not
+		// a snapshot's.
+		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
 	return nil
 }
@@ -165,8 +178,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	}
 	leaves := alterFinalColumns(tbl, stmt.Commands)
 	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
-		// Single command carrying one table element: no rollback needed.
-		return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
+		if !alterCanHideColumn(stmt.Commands[0]) {
+			// Single command carrying one table element: no rollback needed.
+			return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
+		}
+		snapshot := cloneTable(tbl)
+		if err := c.execAlterCmd(db, tbl, stmt.Commands[0], leaves); err != nil {
+			return err
+		}
+		if !tableHasVisibleColumn(tbl) {
+			undoAlter(db, key, tbl, snapshot)
+			return errTableMustHaveColumns()
+		}
+		return nil
 	}
 
 	// Multi-command ALTER: MySQL treats this as atomic.
@@ -184,6 +208,12 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
+	// A table must keep a visible column, judged over the table the statement
+	// leaves (mysql:8.0.46).
+	if !tableHasVisibleColumn(tbl) {
+		undoAlter(db, origKey, tbl, snapshot)
+		return errTableMustHaveColumns()
+	}
 	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -191,6 +221,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+// alterCanHideColumn reports whether a command can leave the table with a column
+// fewer visible ones.
+func alterCanHideColumn(cmd *nodes.AlterTableCmd) bool {
+	if cmd == nil {
+		return false
+	}
+	switch cmd.Type {
+	case nodes.ATAlterColumnInvisible, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		return true
+	}
+	return false
 }
 
 // checkKeysOnFinalTable re-checks the keys a statement added once every command
@@ -221,7 +264,7 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 					}
 				}
 			case nodes.ConstrUnique, nodes.ConstrIndex:
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con))); err != nil {
 					return err
 				}
 			case nodes.ConstrFulltextIndex:
@@ -302,6 +345,11 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 			if err := validateColumnDisplayWidth(colDef); err != nil {
 				return err
 			}
+			// A bare NOW()-family DEFAULT the column's type cannot hold is
+			// 1067 here, with the other prepare-time answers.
+			if err := validateBareNowDefault(colDef); err != nil {
+				return err
+			}
 		}
 		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
 			if err := validateStorageEngine(cmd.Option.Value, c.noEngineSubstitution()); err != nil {
@@ -314,6 +362,15 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 		if cmd.Type == nodes.ATAddPartition || cmd.Type == nodes.ATReorganizePartition {
 			if err := validatePartitionDefinitions(cmd.PartitionDefs, c.noEngineSubstitution()); err != nil {
 				return err
+			}
+		}
+		// A RANGE or LIST PARTITION BY that defines no partition answers 1492 the
+		// same way: `ALTER TABLE missing PARTITION BY RANGE(b)` is 1492, not 1146,
+		// while the forms that read a column answer 1146 first (mysql:8.0.46).
+		if cmd.Type == nodes.ATPartitionBy && cmd.PartitionBy != nil {
+			pc := cmd.PartitionBy
+			if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
+				return errPartitionsMustBeDefined()
 			}
 		}
 	}
@@ -987,14 +1044,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
+		if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 			return err
 		}
 		keyIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
-			IndexType: resolveConstraintIndexType(con),
+			Spatial:   spatial,
+			IndexType: storedIndexType(resolveConstraintIndexType(con)),
 			Visible:   true,
 		}
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
@@ -1318,7 +1377,10 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	return nil
 }
 
-// alterColumnVisibility toggles the INVISIBLE flag on a column.
+// alterColumnVisibility toggles the INVISIBLE flag on a column. Whether the
+// statement leaves a visible column is judged over the whole ALTER, once every
+// command has run: `ALTER COLUMN a SET INVISIBLE, ADD COLUMN b INT` is a table
+// MySQL takes (mysql:8.0.46).
 func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, invisible bool) error {
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]

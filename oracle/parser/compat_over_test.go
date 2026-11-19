@@ -63,6 +63,13 @@ func TestOverAcceptsRefused(t *testing.T) {
 		// (ORA-25716 at the identifier).
 		{`SELECT 1 "a""b" FROM dual`, 9},
 		{`CREATE TABLE "a""b" (x NUMBER)`, 13},
+		// A partitionset belongs to a composite-sharded table, which this
+		// server is not: ORA-02577 at the word, before the clause it starts
+		// is read. No form of it parses here, so these have no control.
+		{"ALTER TABLE a MODIFY PARTITIONSET BY RANGE(a) PARTITION BY CONSISTENT HASH(a) PARTITIONS AUTO(PARTITIONSET a VALUES LESS THAN(1))", 21},
+		{"ALTER TABLE a MODIFY PARTITIONSET BY LIST(a) PARTITION BY CONSISTENT HASH(a) PARTITIONS AUTO(PARTITIONSET a VALUES(1))", 21},
+		{"ALTER TABLE a MODIFY PARTITIONSET BY RANGE(a) PARTITION BY CONSISTENT HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS AUTO(PARTITIONSET a VALUES LESS THAN(1) TABLESPACE SET a)", 21},
+		{"ALTER TABLE a MODIFY PARTITIONSET a ADD PARTITIONSET a VALUES LESS THAN(1)", 21},
 	}
 	for _, tc := range refused {
 		_, err := Parse(tc.sql)

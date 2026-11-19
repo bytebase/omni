@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -45,20 +47,37 @@ func (p *Parser) parseGQLStmt() (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	// graph_operation_block: composite_query_block (NEXT composite_query_block)*.
+	blocks, end, err := p.parseGraphOperationBlock()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Blocks = blocks
+	stmt.Loc.End = end
+	return stmt, nil
+}
+
+// parseGraphOperationBlock parses a graph_operation_block:
+//
+//	graph_composite_query_block ("NEXT" graph_composite_query_block)*
+//
+// It returns the blocks and the end offset of the last one. Both the GRAPH
+// statement and a braced graph subquery hold this list.
+func (p *Parser) parseGraphOperationBlock() ([]ast.Node, int, error) {
+	var blocks []ast.Node
+	end := p.cur.Loc.Start
 	for {
 		block, err := p.parseGraphCompositeQueryBlock()
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
-		stmt.Blocks = append(stmt.Blocks, block)
-		stmt.Loc.End = nodeLoc(block).End
+		blocks = append(blocks, block)
+		end = nodeLoc(block).End
 		if p.cur.Type != kwNEXT {
 			break
 		}
 		p.advance() // NEXT
 	}
-	return stmt, nil
+	return blocks, end, nil
 }
 
 // parseGraphCompositeQueryBlock parses a graph_composite_query_block: a single
@@ -71,6 +90,14 @@ func (p *Parser) parseGraphCompositeQueryBlock() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.parseGraphSetOpChain(first)
+}
+
+// parseGraphSetOpChain parses the set-operation tail of a
+// graph_composite_query_prefix after its first linear query operation: the
+// block is `linear (meta linear)*`. first is already parsed; when no set
+// operation follows, the block is just first.
+func (p *Parser) parseGraphSetOpChain(first *ast.GraphLinearQuery) (ast.Node, error) {
 	if !p.atGraphSetOpMeta() {
 		return first, nil
 	}
@@ -96,7 +123,26 @@ func (p *Parser) parseGraphCompositeQueryBlock() (ast.Node, error) {
 // graph_set_operation_metadata (query_set_operation_type all_or_distinct): one
 // of UNION / EXCEPT / INTERSECT.
 func (p *Parser) atGraphSetOpMeta() bool {
+	// graph_set_operation_metadata is
+	// opt_corresponding_outer_mode query_set_operation_type all_or_distinct, so a
+	// leading FULL/OUTER/LEFT/INNER belongs to it when a set operator follows. The
+	// words are also join keywords, so the same lookahead the query set operation
+	// uses decides it here.
+	if atSetOpKeyword(p.cur.Type) {
+		return true
+	}
 	switch p.cur.Type {
+	case kwFULL, kwLEFT:
+		return p.setOpFollowsOuterMode()
+	case kwOUTER, kwINNER:
+		return atSetOpKeyword(p.peekNext().Type)
+	}
+	return false
+}
+
+// atSetOpKeyword reports whether tokenType is a query_set_operation_type.
+func atSetOpKeyword(tokenType int) bool {
+	switch tokenType {
 	case kwUNION, kwEXCEPT, kwINTERSECT:
 		return true
 	}
@@ -107,8 +153,22 @@ func (p *Parser) atGraphSetOpMeta() bool {
 // query_set_operation_type all_or_distinct. Both the operation type
 // (UNION|EXCEPT|INTERSECT) and the quantifier (ALL|DISTINCT) are REQUIRED.
 func (p *Parser) parseGraphSetOpMeta() (*ast.GraphSetOpMeta, error) {
+	meta := &ast.GraphSetOpMeta{Loc: p.cur.Loc}
+	// opt_corresponding_outer_mode: FULL [OUTER] | OUTER | LEFT [OUTER] | INNER.
+	switch p.cur.Type {
+	case kwFULL, kwLEFT:
+		modeTok := p.advance()
+		meta.OuterMode = upperTokenName(modeTok.Type)
+		if p.cur.Type == kwOUTER {
+			p.advance()
+			meta.Loc.End = p.prev.Loc.End
+		}
+	case kwOUTER, kwINNER:
+		modeTok := p.advance()
+		meta.OuterMode = upperTokenName(modeTok.Type)
+	}
 	opTok := p.advance() // UNION | EXCEPT | INTERSECT (atGraphSetOpMeta gated)
-	meta := &ast.GraphSetOpMeta{Op: TokenName(opTok.Type), Loc: opTok.Loc}
+	meta.Op = TokenName(opTok.Type)
 	switch p.cur.Type {
 	case kwALL:
 		meta.Quantifier = "ALL"
@@ -129,14 +189,22 @@ func (p *Parser) parseGraphSetOpMeta() (*ast.GraphSetOpMeta, error) {
 // The operator list is a sequence of linear operators; the RETURN operator is
 // required at the end.
 func (p *Parser) parseGraphLinearQuery() (*ast.GraphLinearQuery, error) {
-	lq := &ast.GraphLinearQuery{Loc: p.cur.Loc}
+	var ops []ast.Node
 	for p.atGraphLinearOperator() {
 		op, err := p.parseGraphLinearOperator()
 		if err != nil {
 			return nil, err
 		}
-		lq.Operators = append(lq.Operators, op)
+		ops = append(ops, op)
 	}
+	return p.finishGraphLinearQuery(ops)
+}
+
+// finishGraphLinearQuery parses the RETURN operator that terminates a linear
+// query operation and wraps the already-parsed operators with it. ops may be
+// empty (`RETURN *` alone is a complete linear query operation).
+func (p *Parser) finishGraphLinearQuery(ops []ast.Node) (*ast.GraphLinearQuery, error) {
+	lq := &ast.GraphLinearQuery{Loc: p.cur.Loc, Operators: ops}
 	ret, err := p.parseGraphReturnOp()
 	if err != nil {
 		return nil, err
@@ -158,7 +226,7 @@ func (p *Parser) parseGraphLinearQuery() (*ast.GraphLinearQuery, error) {
 func (p *Parser) atGraphLinearOperator() bool {
 	switch p.cur.Type {
 	case kwMATCH, kwOPTIONAL, kwLET, kwFILTER, kwORDER, kwWITH, kwFOR,
-		kwTABLESAMPLE, kwOFFSET, kwSKIP, kwLIMIT:
+		kwTABLESAMPLE, kwOFFSET, kwSKIP, kwLIMIT, kwCALL:
 		return true
 	}
 	return false
@@ -171,7 +239,22 @@ func (p *Parser) parseGraphLinearOperator() (ast.Node, error) {
 	case kwMATCH:
 		return p.parseGraphMatchOp(false)
 	case kwOPTIONAL:
+		// OPTIONAL introduces graph_optional_match_operator or the OPTIONAL form
+		// of graph_call_operator; no other linear operator takes it.
+		if p.peekNext().Type == kwCALL {
+			optional := p.advance() // OPTIONAL
+			op, err := p.parseGraphCallOp(true)
+			if err != nil {
+				return nil, err
+			}
+			// The node spans OPTIONAL, its first token.
+			call := op.(*ast.GraphCallOp)
+			call.Loc.Start = optional.Loc.Start
+			return call, nil
+		}
 		return p.parseGraphMatchOp(true)
+	case kwCALL:
+		return p.parseGraphCallOp(false)
 	case kwLET:
 		return p.parseGraphLetOp()
 	case kwFILTER:
@@ -550,18 +633,19 @@ func (p *Parser) parseGraphSampleOp() (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // ROWS | PERCENT
-	// partition_by_clause_prefix_no_hint?  — PARTITION BY expr (, expr)* inside
-	// the sample size. The expressions are parse-only here (the sample-size
-	// partition is a rarely-used tail); consume them for parity.
+	// partition_by_clause_prefix_no_hint? — PARTITION BY expr (, expr)* inside the
+	// sample size. The expressions are kept: a scalar subquery in one is a read.
 	if p.cur.Type == kwPARTITION {
 		p.advance() // PARTITION
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
 		}
 		for {
-			if _, err := p.parseExpr(); err != nil {
+			expr, err := p.parseExpr()
+			if err != nil {
 				return nil, err
 			}
+			op.PartitionBy = append(op.PartitionBy, expr)
 			if p.cur.Type != int(',') {
 				break
 			}
@@ -874,53 +958,27 @@ func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
 		p.advance() // =
 	}
 
-	// opt_graph_search_prefix: (ANY|ALL) SHORTEST?. ANY/ALL are also usable as
-	// bare graph_identifiers, so they are consumed as a search prefix only when
-	// graphPrefixKeywordContinues confirms a prefix follows (SHORTEST / a further
-	// prefix / a path-factor start) — NOT when the keyword is the first node's own
-	// identifier (e.g. the parenthesized path `( ANY )` is a single node named
-	// ANY). This is the same guard the disambiguator (atGraphPathPrefix) uses, so
-	// the two never disagree about whether a leading keyword is a prefix.
-	switch p.cur.Type {
-	case kwANY:
-		if p.graphPrefixKeywordContinues(p.peekNext().Type) {
-			p.advance()
-			pp.Search = "ANY"
-			if p.cur.Type == kwSHORTEST {
-				p.advance()
-				pp.Search = "ANY SHORTEST"
-			}
-		}
-	case kwALL:
-		if p.graphPrefixKeywordContinues(p.peekNext().Type) {
-			p.advance()
-			pp.Search = "ALL"
-			if p.cur.Type == kwSHORTEST {
-				p.advance()
-				pp.Search = "ALL SHORTEST"
-			}
-		}
+	// opt_graph_search_prefix: ANY / ALL with an optional SHORTEST, CHEAPEST or
+	// count. ANY and ALL are also usable as bare graph_identifiers, so they are
+	// consumed as a prefix only when graphPrefixKeywordContinues confirms a prefix
+	// follows — NOT when the keyword is the first node's own identifier (e.g. the
+	// parenthesized path `( ANY )` is a single node named ANY). This is the same
+	// guard the disambiguator (atGraphPathPrefix) uses, so the two never disagree
+	// about whether a leading keyword is a prefix.
+	search, err := p.parseGraphSearchPrefix()
+	if err != nil {
+		return nil, err
 	}
+	pp.Search = search
 
-	// opt_graph_path_mode_prefix: opt_graph_path_mode path_or_paths?. The mode
+	// opt_graph_path_mode_prefix: opt_graph_path_mode (PATH | PATHS)?. The mode
 	// keywords are likewise usable as bare identifiers, so they are consumed as a
 	// mode prefix only when graphPrefixKeywordContinues confirms a prefix follows
-	// (PATH/PATHS / a further prefix / a path-factor start).
-	switch p.cur.Type {
-	case kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC:
-		if p.graphPrefixKeywordContinues(p.peekNext().Type) {
-			mode := TokenName(p.cur.Type)
-			p.advance()
-			switch p.cur.Type {
-			case kwPATH:
-				p.advance()
-				mode += " PATH"
-			case kwPATHS:
-				p.advance()
-				mode += " PATHS"
-			}
-			pp.Mode = mode
-		}
+	// (PATH/PATHS / a further prefix / a path-factor start). PATH and PATHS need no
+	// mode in front of them (`PATH -` is a path in PATH mode).
+	pp.Mode, err = p.parseGraphPathMode()
+	if err != nil {
+		return nil, err
 	}
 
 	// graph_path_pattern_expr: graph_path_factor (hint? graph_path_factor)*.
@@ -934,30 +992,61 @@ func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
 	// '@' for the caller (which would have its own hint position). Because the only
 	// position a trailing '@' could be consumed is here, we detect it and demand a
 	// factor.
+	factor, err := p.parseGraphPathFactor()
+	if err != nil {
+		return nil, err
+	}
+	pp.Factors = append(pp.Factors, factor)
+	pp.Loc.End = nodeLoc(factor).End
 	for {
-		factor, err := p.parseGraphPathFactor()
+		// A '@' here opens a `hint? graph_path_factor` continuation. Consume the
+		// hint, then REQUIRE a following factor (F5).
+		hintLoc := ast.Loc{}
+		hasHint := false
+		if p.cur.Type == int('@') {
+			hintLoc = p.cur.Loc
+			if herr := p.skipHint(); herr != nil {
+				return nil, herr
+			}
+			hasHint = true
+			if !p.atGraphPathFactor() {
+				return nil, p.syntaxErrorAtCur()
+			}
+		} else if !p.atGraphPathFactor() {
+			break
+		}
+		next, err := p.parseGraphPathFactor()
 		if err != nil {
 			return nil, err
 		}
-		pp.Factors = append(pp.Factors, factor)
-		pp.Loc.End = nodeLoc(factor).End
-		if p.cur.Type != int('@') {
-			if !p.atGraphPathFactor() {
-				break
+		// A hint between two EDGE patterns is ambiguous and the grammar refuses it
+		// ("Hint cannot be used in between two …"), so `- @1 -` rejects while a
+		// quantified edge (a one-factor path pattern) or a node pattern does not.
+		if hasHint {
+			_, lastIsEdge := pp.Factors[len(pp.Factors)-1].(*ast.GraphEdgePattern)
+			if _, nextIsEdge := next.(*ast.GraphEdgePattern); lastIsEdge && nextIsEdge {
+				return nil, &ParseError{
+					Position: hintLoc.Start,
+					End:      hintLoc.End,
+					Message:  "Syntax error: Hint cannot be used in between two edge patterns",
+				}
 			}
-			continue
 		}
-		// A '@' here opens a `hint? graph_path_factor` continuation. Consume the
-		// hint, then REQUIRE a following factor (F5).
-		if herr := p.skipHint(); herr != nil {
-			return nil, herr
-		}
-		if !p.atGraphPathFactor() {
-			return nil, p.syntaxErrorAtCur()
-		}
+		pp.Factors = append(pp.Factors, next)
+		pp.Loc.End = nodeLoc(next).End
 	}
 	pp.Loc.Start = start
 	return pp, nil
+}
+
+// atGraphEdgeStart reports whether tokenType begins a graph_edge_pattern (one of
+// the six shapes: `-`, `<-`, `->`, and their bracketed forms).
+func atGraphEdgeStart(tokenType int) bool {
+	switch tokenType {
+	case int('-'), int('<'), tokArrow:
+		return true
+	}
+	return false
 }
 
 // atGraphPathFactor reports whether the cursor is at the start of a
@@ -965,7 +1054,12 @@ func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
 // parenthesized path pattern `(`. (Both node patterns and parenthesized paths
 // start with '(', disambiguated inside parseGraphPathPrimary.)
 func (p *Parser) atGraphPathFactor() bool {
-	switch p.cur.Type {
+	return atGraphPathFactorToken(p.cur)
+}
+
+// atGraphPathFactorToken reports whether tok begins a graph_path_factor.
+func atGraphPathFactorToken(tok Token) bool {
+	switch tok.Type {
 	case int('('), int('-'), int('<'), tokArrow:
 		return true
 	}
@@ -974,51 +1068,92 @@ func (p *Parser) atGraphPathFactor() bool {
 
 // parseGraphPathFactor parses a graph_path_factor:
 //
-//	graph_path_primary [ { [n,] m } ]   (a quantified path primary)
+//	graph_path_primary [ graph_quantifier ]   (a quantified path primary)
 func (p *Parser) parseGraphPathFactor() (ast.Node, error) {
 	primary, err := p.parseGraphPathPrimary()
 	if err != nil {
 		return nil, err
 	}
-	// graph_quantified_path_primary: primary '{' int? ',' int '}' | primary '{' int '}'.
-	if p.cur.Type == int('{') {
+	// graph_quantified_path_primary: graph_path_primary graph_quantifier.
+	if p.atGraphQuantifier() {
 		return p.parseGraphQuantifier(primary)
 	}
 	return primary, nil
 }
 
-// parseGraphQuantifier consumes a `{ [n,] m }` quantifier following a path
-// primary. The quantifier bounds are parse-only (the consumer needs the inner
-// pattern's tables, not the repetition count); the primary node is returned with
-// its Loc extended over the quantifier. The cursor is at '{'.
+// atGraphQuantifier reports whether the cursor begins a graph_quantifier:
+// `{ [n,] m }` (either bound optional), `{ n }`, or the `+` / `*` shorthand.
+func (p *Parser) atGraphQuantifier() bool {
+	switch p.cur.Type {
+	case int('{'), int('+'), int('*'):
+		return true
+	}
+	return false
+}
+
+// parseGraphQuantifier consumes a graph_quantifier following a path primary:
+//
+//	{ [n,] m } | { n }   (both bounds optional in the first form)
+//	+ | *                (plus_or_star_quantifier)
+//
+// The bounds are parse-only (the consumer needs the inner pattern's tables, not
+// the repetition count); the primary node is returned with its Loc extended over
+// the quantifier. The grammar refuses a quantifier on a node pattern
+// ("Quantifier cannot be used on a node pattern"), so that is an error here.
 func (p *Parser) parseGraphQuantifier(primary ast.Node) (ast.Node, error) {
-	p.advance() // {
-	// int_literal_or_parameter? ',' int_literal_or_parameter  |  int_literal_or_parameter
-	//
+	if node, ok := primary.(*ast.GraphNodePattern); ok {
+		return nil, &ParseError{
+			Position: node.Loc.Start,
+			End:      node.Loc.End,
+			Message:  "Syntax error: Quantifier cannot be used on a node pattern",
+		}
+	}
 	// The bounds are int_literal_or_parameter (integer / @param / ? / @@sysvar) —
 	// NOT a full expression. A bare identifier or an arithmetic expression here is
 	// a syntax error (oracle: the Spanner emulator rejects `{a,b}` / `{1+1,3}`).
-	if p.cur.Type != int(',') {
-		if _, err := p.parseGraphIntLiteralOrParameter(); err != nil {
+	var closeTok Token
+	if p.cur.Type == int('+') || p.cur.Type == int('*') {
+		// plus_or_star_quantifier: a bare `+` or `*`.
+		p.advance()
+		closeTok = p.prev
+	} else {
+		p.advance() // {
+		// int_literal_or_parameter? ',' int_literal_or_parameter? | int_literal_or_parameter
+		// A brace with neither a bound nor the comma is not a quantifier (`{}`).
+		if !atIntLiteralOrParameter(p.cur.Type) && p.cur.Type != int(',') {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if atIntLiteralOrParameter(p.cur.Type) {
+			if _, err := p.parseGraphIntLiteralOrParameter(); err != nil {
+				return nil, err
+			}
+		}
+		if p.cur.Type == int(',') {
+			p.advance() // ,
+			if atIntLiteralOrParameter(p.cur.Type) {
+				if _, err := p.parseGraphIntLiteralOrParameter(); err != nil {
+					return nil, err
+				}
+			}
+		}
+		var err error
+		closeTok, err = p.expect(int('}'))
+		if err != nil {
 			return nil, err
 		}
 	}
-	if p.cur.Type == int(',') {
-		p.advance() // ,
-		if _, err := p.parseGraphIntLiteralOrParameter(); err != nil {
-			return nil, err
-		}
-	}
-	closeTok, err := p.expect(int('}'))
-	if err != nil {
-		return nil, err
-	}
-	// Extend the primary's Loc to include the quantifier so the factor spans it.
+	// Extend the primary's Loc to include the quantifier so the factor spans it. A
+	// quantified EDGE becomes a one-factor graph_path_pattern, as the grammar's
+	// action wraps it (`quantifier_container = MakeNode<ASTGraphPathPattern>`), so a
+	// quantified edge is a path and not a bare edge factor — which is what keeps
+	// the hint rule below from reading `-+ @1 -` as a hint between two edges.
 	switch n := primary.(type) {
-	case *ast.GraphNodePattern:
-		n.Loc.End = closeTok.Loc.End
 	case *ast.GraphEdgePattern:
-		n.Loc.End = closeTok.Loc.End
+		// The edge keeps its own range; the quantifier belongs to the wrapper.
+		return &ast.GraphPathPattern{
+			Factors: []ast.Node{n},
+			Loc:     ast.Loc{Start: n.Loc.Start, End: closeTok.Loc.End},
+		}, nil
 	case *ast.GraphPathPattern:
 		n.Loc.End = closeTok.Loc.End
 	}
@@ -1049,6 +1184,7 @@ func (p *Parser) parseGraphPathPrimary() (ast.Node, error) {
 	case int('('):
 		open := p.advance() // (
 		hintConsumed := false
+		hintLoc := p.cur.Loc
 		if p.cur.Type == int('@') {
 			if herr := p.skipHint(); herr != nil {
 				return nil, herr
@@ -1056,6 +1192,16 @@ func (p *Parser) parseGraphPathPrimary() (ast.Node, error) {
 			hintConsumed = true
 		}
 		if p.interiorStartsParenthesizedPath() {
+			// A hint may open a node pattern's filler, but a parenthesized path
+			// pattern takes none — the grammar refuses it outright ("Hint cannot be
+			// used at beginning of path pattern"), so `(@1 -)` rejects.
+			if hintConsumed {
+				return nil, &ParseError{
+					Position: hintLoc.Start,
+					End:      hintLoc.End,
+					Message:  "Syntax error: Hint cannot be used at beginning of path pattern",
+				}
+			}
 			return p.parseGraphParenthesizedPathBody(open)
 		}
 		return p.parseGraphNodePatternBody(open, hintConsumed)
@@ -1100,7 +1246,14 @@ func (p *Parser) interiorStartsParenthesizedPath() bool {
 func (p *Parser) atGraphPathPrefix() bool {
 	switch p.cur.Type {
 	case kwANY, kwALL, kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC:
-		return p.graphPrefixKeywordContinues(p.peekNext().Type)
+		return p.graphPrefixKeywordContinues(p.peekNext())
+	case kwPATH, kwPATHS:
+		// PATH/PATHS need no mode in front of them, but they are still only a
+		// prefix when a path factor follows: `(PATH)` is a node named PATH.
+		return atGraphPathFactorToken(p.peekNext())
+	}
+	if p.curIsGraphWord("SHORTEST") || p.curIsGraphWord("CHEAPEST") {
+		return atIntLiteralOrParameter(p.peekNext().Type)
 	}
 	// opt_path_variable_assignment: graph_identifier '='.
 	return isIdentifierStart(p.cur.Type) && p.peekNext().Type == int('=')
@@ -1109,19 +1262,145 @@ func (p *Parser) atGraphPathPrefix() bool {
 // graphPrefixKeywordContinues reports whether a token following a search/mode
 // prefix keyword (ANY/ALL/WALK/TRAIL/SIMPLE/ACYCLIC) confirms that the keyword
 // introduces a path-pattern prefix rather than standing in as a node-filler
-// identifier. A prefix continues into another prefix word (SHORTEST after
-// ANY/ALL; PATH/PATHS after a mode; or a further mode/search keyword) or
-// directly into a path factor ('(' or an edge). A following filler-continuation
-// (':', IS, '{', WHERE) or a closing ')' means the keyword was the node's own
-// identifier, so it does NOT continue.
-func (p *Parser) graphPrefixKeywordContinues(next int) bool {
-	switch next {
+// identifier. A prefix continues into another prefix word (SHORTEST or CHEAPEST
+// after ANY/ALL; PATH/PATHS after a mode; or a further mode/search keyword), into
+// a search count (int_literal_or_parameter, as in `ANY 2`), or directly into a
+// path factor ('(' or an edge). A following filler-continuation (':', IS, '{',
+// WHERE) or a closing ')' means the keyword was the node's own identifier, so it
+// does NOT continue.
+func (p *Parser) graphPrefixKeywordContinues(next Token) bool {
+	// CHEAPEST (and the counts after ANY/SHORTEST/CHEAPEST) continue a search
+	// prefix. CHEAPEST is a tm keyword the legacy lexer does not carry, so it
+	// arrives as an identifier and is matched by its source text.
+	if tokenIsUnquotedWord(next, "CHEAPEST") {
+		return true
+	}
+	switch next.Type {
 	case kwSHORTEST, kwPATH, kwPATHS,
 		kwANY, kwALL, kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC,
-		int('('), int('-'), int('<'), tokArrow:
+		int('('), int('-'), int('<'), tokArrow,
+		tokInteger, int('@'), int('?'), tokAtAt:
 		return true
 	}
 	return false
+}
+
+// curIsGraphWord reports whether the current token is the unquoted word `word`,
+// whether the lexer reads it as an identifier or as a keyword. The graph rules
+// name words the legacy GoogleSQLLexer.g4 does not carry (CHEAPEST, COST,
+// LABELED, PER, YIELD) — those arrive as identifiers — beside words it does
+// (SHORTEST), so both spellings are matched. A backtick-quoted word is an
+// identifier of that text and never the keyword, which the span check enforces.
+func (p *Parser) curIsGraphWord(word string) bool {
+	if p.cur.Type == tokIdentifier {
+		return tokenIsUnquotedWord(p.cur, word)
+	}
+	return p.cur.Type >= keywordBase && strings.EqualFold(TokenName(p.cur.Type), word)
+}
+
+// tokenIsUnquotedWord reports whether tok is the unquoted word `word`. A
+// backtick-quoted `cheapest` is the same text but names an identifier, so the
+// check compares the token's byte span with its text, as curIsUnquotedWord does.
+func tokenIsUnquotedWord(tok Token, word string) bool {
+	return tok.Type == tokIdentifier && strings.EqualFold(tok.Str, word) &&
+		tok.Loc.End-tok.Loc.Start == len(word)
+}
+
+// atIntLiteralOrParameter reports whether tokenType begins an
+// int_literal_or_parameter: integer | @param | ? | @@sysvar.
+func atIntLiteralOrParameter(tokenType int) bool {
+	switch tokenType {
+	case tokInteger, int('@'), int('?'), tokAtAt:
+		return true
+	}
+	return false
+}
+
+// parseGraphSearchPrefix parses an opt_graph_search_prefix and returns the
+// spelling the AST keeps:
+//
+//	ANY | ALL                                 (search with no bound)
+//	ANY SHORTEST | ALL SHORTEST | ANY CHEAPEST | ALL CHEAPEST
+//	ANY <n> | SHORTEST <n> | CHEAPEST <n>     (a count, as source text)
+//
+// ANY and ALL stand alone, so each is a prefix only when
+// graphPrefixKeywordContinues confirms one follows; SHORTEST and CHEAPEST always
+// take a count. The cursor is left after the prefix ("" when there is none).
+func (p *Parser) parseGraphSearchPrefix() (string, error) {
+	var lead string
+	switch {
+	case p.cur.Type == kwANY:
+		lead = "ANY"
+	case p.cur.Type == kwALL:
+		lead = "ALL"
+	case p.curIsGraphWord("SHORTEST"):
+		lead = "SHORTEST"
+	case p.curIsGraphWord("CHEAPEST"):
+		lead = "CHEAPEST"
+	default:
+		return "", nil
+	}
+	if lead == "SHORTEST" || lead == "CHEAPEST" {
+		// Unlike ANY and ALL, these never stand alone: the grammar takes them only
+		// with a count (`SHORTEST 1`), so a bare SHORTEST is an identifier.
+		if !atIntLiteralOrParameter(p.peekNext().Type) {
+			return "", nil
+		}
+	} else if !p.graphPrefixKeywordContinues(p.peekNext()) {
+		return "", nil
+	}
+	p.advance() // ANY | ALL | SHORTEST | CHEAPEST
+	switch {
+	case p.cur.Type == kwSHORTEST:
+		p.advance()
+		return lead + " SHORTEST", nil
+	case p.curIsGraphWord("CHEAPEST"):
+		p.advance()
+		return lead + " CHEAPEST", nil
+	case lead != "ALL" && atIntLiteralOrParameter(p.cur.Type):
+		// Counts follow ANY, SHORTEST and CHEAPEST only: graph_search_prefix has no
+		// `ALL <count>` alternative, so `ALL 2 -` is not a path.
+		start := p.cur.Loc.Start
+		if _, err := p.parseGraphIntLiteralOrParameter(); err != nil {
+			return "", err
+		}
+		count := p.input[absIndex(p, start):absIndex(p, p.prev.Loc.End)]
+		return lead + " " + count, nil
+	}
+	return lead, nil
+}
+
+// parseGraphPathMode parses opt_graph_path_mode_prefix: an optional
+// graph_path_mode followed by an optional PATH | PATHS. It returns the spelling
+// the AST keeps ("WALK", "TRAIL PATH", "PATH", …; "" when there is none).
+//
+// The mode words are also usable as bare graph identifiers, so a mode is
+// consumed only when graphPrefixKeywordContinues confirms one follows. PATH and
+// PATHS need no mode in front of them (`PATH -` is a path in PATH mode), and
+// they are consumed only when a path factor follows, so `(PATH)` stays a node
+// named PATH.
+func (p *Parser) parseGraphPathMode() (string, error) {
+	mode := ""
+	switch p.cur.Type {
+	case kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC:
+		if p.graphPrefixKeywordContinues(p.peekNext()) {
+			mode = TokenName(p.cur.Type)
+			p.advance()
+		}
+	}
+	switch p.cur.Type {
+	case kwPATH:
+		if mode != "" || atGraphPathFactorToken(p.peekNext()) {
+			mode += " PATH"
+			p.advance()
+		}
+	case kwPATHS:
+		if mode != "" || atGraphPathFactorToken(p.peekNext()) {
+			mode += " PATHS"
+			p.advance()
+		}
+	}
+	return strings.TrimSpace(mode), nil
 }
 
 // parseGraphParenthesizedPathBody parses the body of a
@@ -1203,9 +1482,11 @@ func (p *Parser) parseGraphEdgePattern() (ast.Node, error) {
 		arrow := p.advance()
 		return &ast.GraphEdgePattern{Direction: ast.EdgeRight, Loc: ast.Loc{Start: start.Start, End: arrow.Loc.End}}, nil
 	case int('<'):
-		// `<-` then optionally `[ filler ]-` (left-directed).
+		// `<-` then optionally `[ filler ]-` (left-directed). The grammar's
+		// ValidateNoWhitespace refuses `< -` and `< - [`, so the delimiters must
+		// touch (`< -` and `< - [ ] -` are recorded rejections).
 		p.advance() // <
-		if _, err := p.expect(int('-')); err != nil {
+		if _, err := p.expectAdjacent(int('-')); err != nil {
 			return nil, err
 		}
 		if p.cur.Type == int('[') {
@@ -1256,7 +1537,10 @@ func (p *Parser) parseBracketedEdgeFiller(allowArrowClose bool) (*ast.GraphPatte
 // true, `->` (`]->`, a right-directed edge). It returns the filler, whether the
 // close was the `->` arrow (closeArrow), and the end offset.
 func (p *Parser) parseBracketedEdge(allowArrowClose bool) (filler *ast.GraphPatternFiller, closeArrow bool, end int, err error) {
-	p.advance() // [
+	// `-[` : the open bracket touches the dash (ValidateNoWhitespace).
+	if _, err = p.expectAdjacent(int('[')); err != nil {
+		return nil, false, 0, err
+	}
 	filler, err = p.parseGraphPatternFiller(false)
 	if err != nil {
 		return nil, false, 0, err
@@ -1265,16 +1549,39 @@ func (p *Parser) parseBracketedEdge(allowArrowClose bool) (filler *ast.GraphPatt
 		return nil, false, 0, err
 	}
 	if allowArrowClose && p.cur.Type == tokArrow {
-		// `]->` : a right-directed full edge closes with `->` (tokArrow).
-		arrow := p.advance()
-		return filler, true, arrow.Loc.End, nil
+		// `]->` : a right-directed full edge closes with `->` (tokArrow), adjacent
+		// to the bracket (ValidateNoWhitespace).
+		if end, err = p.expectAdjacent(tokArrow); err != nil {
+			return nil, false, 0, err
+		}
+		return filler, true, end, nil
 	}
-	// `]-` : an undirected or left-directed full edge closes with a bare MINUS.
-	minus, merr := p.expect(int('-'))
-	if merr != nil {
-		return nil, false, 0, merr
+	// `]-` : an undirected or left-directed full edge closes with a bare MINUS,
+	// adjacent to the bracket (ValidateNoWhitespace).
+	if end, err = p.expectAdjacent(int('-')); err != nil {
+		return nil, false, 0, err
 	}
-	return filler, false, minus.Loc.End, nil
+	return filler, false, end, nil
+}
+
+// expectAdjacent consumes a token of the given type and reports the offset past
+// it, requiring that it touches the previous token. graph_edge_pattern's
+// delimiter pairs are written without whitespace (`-[`, `]-`, `]->`, `<-`), and
+// the grammar's ValidateNoWhitespace actions refuse a space between them, so
+// `- [ ] -` is a syntax error rather than a spaced edge pattern.
+func (p *Parser) expectAdjacent(tokenType int) (int, error) {
+	if p.cur.Type != tokenType {
+		return 0, p.syntaxErrorAtCur()
+	}
+	if p.prev.Loc.End != p.cur.Loc.Start {
+		return 0, &ParseError{
+			Position: p.cur.Loc.Start,
+			End:      p.cur.Loc.End,
+			Message:  "Syntax error: Unexpected whitespace inside an edge pattern",
+		}
+	}
+	tok := p.advance()
+	return tok.Loc.End, nil
 }
 
 // parseGraphPatternFiller parses a graph_element_pattern_filler — the interior
@@ -1305,6 +1612,12 @@ func (p *Parser) parseGraphPatternFiller(hintAlreadyConsumed bool) (*ast.GraphPa
 	// that is a path-variable assignment handled at the path level, which never
 	// reaches here). An identifier directly before ':'/'IS'/'{'/WHERE/')'/']' is
 	// the element variable.
+	//
+	// opt_graph_cost — the grammar's third filler tail, `COST <expression>` — is
+	// NOT read here: the pinned emulator syntax-rejects it, compat.tsv records
+	// that (`opt_graph_cost/COST_expression`, `SELECT EXISTS {(COST NULL) }`), and
+	// the word parses as an element named COST, which is what the grammar's own
+	// shift preference and that recording agree on.
 	if isIdentifierStart(p.cur.Type) {
 		tok := p.advance()
 		name, err := p.identifierText(tok)
@@ -1520,4 +1833,377 @@ func (p *Parser) parseLabelPrimary() (*ast.GraphLabelExpr, error) {
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Graph subqueries and CALL
+// ---------------------------------------------------------------------------
+
+// parseGraphBracedSubquery parses a braced_graph_subquery — a whole graph query
+// inside braces, used as an expression operand; the cursor is at '{':
+//
+//	{ graph_operation_block }
+//	{ GRAPH <path_expression> graph_operation_block }
+//
+// The operation block always ends in RETURN, so the subquery yields rows. A
+// subquery nests, so it passes through enterNesting.
+func (p *Parser) parseGraphBracedSubquery() (*ast.GraphSubqueryExpr, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	open := p.advance() // {
+	sub := &ast.GraphSubqueryExpr{Loc: open.Loc}
+	graph, err := p.parseGraphSubqueryGraph()
+	if err != nil {
+		return nil, err
+	}
+	sub.Graph = graph
+	blocks, _, err := p.parseGraphOperationBlock()
+	if err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(int('}'))
+	if err != nil {
+		return nil, err
+	}
+	sub.Blocks = blocks
+	sub.Loc.End = closeTok.Loc.End
+	return sub, nil
+}
+
+// parseGraphSubqueryGraph parses the optional `GRAPH <path_expression>` prefix
+// every braced graph subquery admits, after the '{' (or the EXISTS keyword's
+// brace) has been consumed. It returns nil when the graph is left implicit.
+func (p *Parser) parseGraphSubqueryGraph() (*ast.PathExpr, error) {
+	if p.cur.Type != kwGRAPH {
+		return nil, nil
+	}
+	p.advance() // GRAPH
+	// braced_graph_subquery takes a plain path_expression — dotted identifier
+	// components only — so a dashed name (`GRAPH a-b`) is not folded here the way
+	// BigQuery's table paths are.
+	return p.parsePathExpr()
+}
+
+// parseGraphExistsBraced parses the braced alternatives of exists_graph_subquery
+// (exists_graph_pattern_subquery, exists_linear_ops_subquery, and
+// `EXISTS [hint] braced_graph_subquery`). The EXISTS keyword and any hint have
+// been consumed; start is EXISTS's start offset and the cursor is at '{'.
+//
+// What follows the brace decides the form:
+//
+//	RETURN …                → a complete graph query (GraphSubqueryExpr)
+//	linear operators, RETURN→ a complete graph query (GraphSubqueryExpr)
+//	linear operators        → a linear-operator run (GraphExistsExpr)
+//	a graph pattern         → a bare pattern (GraphExistsExpr)
+func (p *Parser) parseGraphExistsBraced(start int) (ast.Node, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	p.advance() // {
+	graph, err := p.parseGraphSubqueryGraph()
+	if err != nil {
+		return nil, err
+	}
+	if p.atGraphLinearOperator() || p.cur.Type == kwRETURN {
+		var ops []ast.Node
+		for p.atGraphLinearOperator() {
+			op, err := p.parseGraphLinearOperator()
+			if err != nil {
+				return nil, err
+			}
+			ops = append(ops, op)
+		}
+		if p.cur.Type == kwRETURN {
+			// A complete linear query operation: this is the braced-subquery
+			// alternative, so the rest is an operation block.
+			first, err := p.finishGraphLinearQuery(ops)
+			if err != nil {
+				return nil, err
+			}
+			block, err := p.parseGraphSetOpChain(first)
+			if err != nil {
+				return nil, err
+			}
+			blocks := []ast.Node{block}
+			for p.cur.Type == kwNEXT {
+				p.advance() // NEXT
+				b, err := p.parseGraphCompositeQueryBlock()
+				if err != nil {
+					return nil, err
+				}
+				blocks = append(blocks, b)
+			}
+			closeTok, err := p.expect(int('}'))
+			if err != nil {
+				return nil, err
+			}
+			return &ast.GraphSubqueryExpr{
+				Modifier: ast.GraphSubqueryExists,
+				Graph:    graph,
+				Blocks:   blocks,
+				Loc:      ast.Loc{Start: start, End: closeTok.Loc.End},
+			}, nil
+		}
+		closeTok, err := p.expect(int('}'))
+		if err != nil {
+			return nil, err
+		}
+		return &ast.GraphExistsExpr{
+			Kind:  ast.GraphExistsLinearOps,
+			Graph: graph,
+			Ops:   ops,
+			Loc:   ast.Loc{Start: start, End: closeTok.Loc.End},
+		}, nil
+	}
+	pattern, err := p.parseGraphPattern()
+	if err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(int('}'))
+	if err != nil {
+		return nil, err
+	}
+	return &ast.GraphExistsExpr{
+		Kind:    ast.GraphExistsPattern,
+		Graph:   graph,
+		Pattern: pattern,
+		Loc:     ast.Loc{Start: start, End: closeTok.Loc.End},
+	}, nil
+}
+
+// parseGraphCallOp parses a graph_call_operator:
+//
+//	[OPTIONAL] CALL opt_per_clause tvf opt_yield_clause
+//	[OPTIONAL] CALL opt_per_clause braced_graph_subquery
+//	           CALL parenthesized_identifier_list braced_graph_subquery
+//
+// optional says the OPTIONAL keyword has already been consumed; the cursor is at
+// CALL. PER and YIELD are tm keywords the legacy lexer does not carry, so they
+// arrive as identifiers and are matched by source text.
+func (p *Parser) parseGraphCallOp(optional bool) (ast.Node, error) {
+	callTok := p.advance() // CALL
+	op := &ast.GraphCallOp{Optional: optional, Loc: callTok.Loc}
+	// The identifier-list spelling has no PER keyword and is not a partitioning
+	// call: `CALL ( id, … ) { … }`.
+	if p.cur.Type == int('(') {
+		ids, end, err := p.parseGraphIdentifierList()
+		if err != nil {
+			return nil, err
+		}
+		op.Per = ids
+		op.Loc.End = end
+		if p.cur.Type != int('{') {
+			return nil, p.syntaxErrorAtCur()
+		}
+		sub, err := p.parseGraphBracedSubquery()
+		if err != nil {
+			return nil, err
+		}
+		op.Subquery = sub
+		op.Loc.End = sub.Loc.End
+		return op, nil
+	}
+	// opt_per_clause: PER ( id, … ). A `PER (` is the clause; a table-valued
+	// function merely named `per` is not (the grammar's LALR preference reads it
+	// the same way, and `CALL PER() a()` needs the empty list).
+	if p.curIsGraphWord("PER") && p.peekNext().Type == int('(') {
+		p.advance() // PER
+		ids, end, err := p.parseGraphIdentifierList()
+		if err != nil {
+			return nil, err
+		}
+		op.HasPer = true
+		op.Per = ids
+		op.Loc.End = end
+	}
+	if p.cur.Type == int('{') {
+		sub, err := p.parseGraphBracedSubquery()
+		if err != nil {
+			return nil, err
+		}
+		op.Subquery = sub
+		op.Loc.End = sub.Loc.End
+		return op, nil
+	}
+	// A named table-valued function, then its optional YIELD list. graph_call_
+	// operator_core takes the grammar's `tvf`, whose arguments admit TABLE /
+	// MODEL / CONNECTION / INPUT TABLE, so this is the shared TVF parser rather
+	// than an ordinary scalar call.
+	fc, err := p.parseTVF()
+	if err != nil {
+		return nil, err
+	}
+	op.Call = fc
+	op.Loc.End = fc.Loc.End
+	if p.curIsGraphWord("YIELD") {
+		p.advance() // YIELD
+		items, end, err := p.parseGraphYieldList()
+		if err != nil {
+			return nil, err
+		}
+		op.Yield = items
+		op.Loc.End = end
+	}
+	return op, nil
+}
+
+// parseGraphIdentifierList parses a parenthesized_identifier_list — `( id, … )`,
+// possibly empty — and returns the identifiers and the end offset of the closing
+// ')'. The cursor is at '('.
+func (p *Parser) parseGraphIdentifierList() ([]string, int, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, 0, err
+	}
+	var ids []string
+	for p.cur.Type != int(')') {
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, 0, err
+		}
+		id, err := p.identifierText(tok)
+		if err != nil {
+			return nil, 0, err
+		}
+		ids = append(ids, id)
+		if p.cur.Type != int(',') {
+			break
+		}
+		p.advance() // ,
+		// parenthesized_identifier_list is an identifier_list: no trailing comma.
+		if p.cur.Type == int(')') {
+			return nil, 0, p.syntaxErrorAtCur()
+		}
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, 0, err
+	}
+	return ids, closeTok.Loc.End, nil
+}
+
+// parseGraphYieldList parses a yield_item_list — `identifier [AS alias]` items
+// separated by commas — and returns them with the end offset of the last item.
+// The YIELD keyword has been consumed.
+func (p *Parser) parseGraphYieldList() ([]*ast.GraphYieldItem, int, error) {
+	var items []*ast.GraphYieldItem
+	end := p.cur.Loc.End
+	for {
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, 0, err
+		}
+		name, err := p.identifierText(tok)
+		if err != nil {
+			return nil, 0, err
+		}
+		item := &ast.GraphYieldItem{Name: name, Loc: tok.Loc}
+		end = tok.Loc.End
+		if p.cur.Type == kwAS {
+			p.advance() // AS
+			aliasTok, err := p.expectIdentifier()
+			if err != nil {
+				return nil, 0, err
+			}
+			alias, err := p.identifierText(aliasTok)
+			if err != nil {
+				return nil, 0, err
+			}
+			item.Alias = alias
+			item.Loc.End = aliasTok.Loc.End
+			end = aliasTok.Loc.End
+		}
+		items = append(items, item)
+		if p.cur.Type != int(',') {
+			break
+		}
+		p.advance() // ,
+	}
+	return items, end, nil
+}
+
+// ---------------------------------------------------------------------------
+// Graph predicates (graph_expression)
+// ---------------------------------------------------------------------------
+
+// parseGraphIsPredicate parses the graph_expression predicates that begin with
+// IS [NOT] (the cursor is just past IS, with `not` recording a NOT):
+//
+//	IS [NOT] SOURCE [OF] <expr>          (edge_source_endpoint_operator)
+//	IS [NOT] DESTINATION [OF] <expr>     (edge_dest_endpoint_operator)
+//	IS [NOT] LABELED <label_expression>  (is_labeled_operator)
+//
+// handled is false when the token is none of these, so the caller reads
+// `IS NULL` / `IS DISTINCT FROM` as before. Left is the expression the IS
+// applies to. The endpoint RHS is at the EHP level (the grammar's
+// expression_higher_prec_than_and), and the whole predicate is non-associative
+// with the other comparisons, as EDGE_ENDPOINT_PRECEDENCE sits among them.
+func (p *Parser) parseGraphIsPredicate(left ast.Node, not bool) (ast.Node, bool, error) {
+	kind := ast.GraphIsLabeled
+	switch {
+	case p.cur.Type == kwSOURCE:
+		kind = ast.GraphIsSource
+	case p.cur.Type == kwDESTINATION:
+		kind = ast.GraphIsDestination
+	case p.curIsGraphWord("LABELED"):
+		// LABELED is a tm keyword the legacy lexer does not carry, so it arrives
+		// as an identifier and is matched by its source text.
+		p.advance() // LABELED
+		label, err := p.parseLabelExpression()
+		if err != nil {
+			return nil, true, err
+		}
+		// The predicate ends at the label expression's last consumed token, which is
+		// the closing ')' of a parenthesized label: the label node itself stays
+		// transparent (its Loc excludes the parentheses, as the grammar says).
+		return &ast.GraphPredicate{
+			Kind:  ast.GraphIsLabeled,
+			Not:   not,
+			Left:  left,
+			Right: label,
+			Loc:   ast.Loc{Start: nodeLoc(left).Start, End: p.prev.Loc.End},
+		}, true, nil
+	default:
+		return nil, false, nil
+	}
+	p.advance() // SOURCE | DESTINATION
+	if p.cur.Type == kwOF {
+		p.advance() // OF
+	}
+	right, err := p.parseBinaryExpr(bpBitOr)
+	if err != nil {
+		return nil, true, err
+	}
+	return &ast.GraphPredicate{
+		Kind:  kind,
+		Not:   not,
+		Left:  left,
+		Right: right,
+		Loc:   spanNodes(left, right),
+	}, true, nil
+}
+
+// parseValueGraphSubquery parses `VALUE [hint] { <graph subquery> }`
+// (expression_subquery_with_keyword's VALUE braced_graph_subquery). VALUE is
+// non-reserved, so a VALUE that is not followed by a brace or a hint stays an
+// identifier (the caller handles that).
+func (p *Parser) parseValueGraphSubquery() (ast.Node, error) {
+	valTok := p.advance() // VALUE
+	if p.cur.Type == int('@') {
+		if herr := p.skipHint(); herr != nil {
+			return nil, herr
+		}
+	}
+	if p.cur.Type != int('{') {
+		return nil, p.syntaxErrorAtCur()
+	}
+	sub, err := p.parseGraphBracedSubquery()
+	if err != nil {
+		return nil, err
+	}
+	sub.Modifier = ast.GraphSubqueryValue
+	sub.Loc.Start = valTok.Loc.Start
+	return sub, nil
 }

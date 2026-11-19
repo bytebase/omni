@@ -35,6 +35,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		if stmt.IfExists {
 			return nil
 		}
+		// A partition maintenance command is not an error on a table that is not
+		// there: OPTIMIZE, ANALYZE, CHECK and REPAIR PARTITION run and report
+		// nothing (measured on mariadb:11.8.8), where REBUILD PARTITION and
+		// REMOVE [FORCE] PARTITIONING answer 1146.
+		if onlyPartitionMaintenance(stmt.Commands) {
+			return nil
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -46,8 +53,24 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 // 11.8.8 keeps it through a RENAME and through nothing else that rewrites an
 // InnoDB or MyISAM table, and Aria's handler carries it over.
 func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
+	// A ROW_FORMAT FIXED or PAGE the statement writes is the engine's to take, and
+	// InnoDB refuses it with 1478 — after the statement's other commands, which
+	// answer first: `ROW_FORMAT FIXED, ADD KEY(a)` is 1072. MariaDB leaves the
+	// table as it found it, so hold a copy to put back when the row format is what
+	// the statement fails on.
+	refusesRowFormat := writesFixedRowFormat(tbl, stmt.Commands)
+	var snapshot Table
+	if refusesRowFormat {
+		snapshot = cloneTable(tbl)
+	}
 	if err := c.alterTableRun(db, tbl, key, stmt); err != nil {
 		return err
+	}
+	if refusesRowFormat {
+		if err := validateAlteredRowFormat(tbl); err != nil {
+			undoAlter(db, key, tbl, snapshot)
+			return err
+		}
 	}
 	rebuilt, setsPageChecksum := false, false
 	for _, cmd := range stmt.Commands {
@@ -142,6 +165,14 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 
 	skip, err := checkAlterIndexIgnorability(tbl, stmt.Commands)
 	if err != nil {
+		return err
+	}
+
+	// The columns the statement adds are read before any of them is built, so a
+	// generated one may not read a generated column the same statement adds after
+	// it. That is a check over the whole statement, and it runs before any command
+	// changes the table.
+	if err := validateAddedColumnOrder(tbl, stmt.Commands); err != nil {
 		return err
 	}
 
@@ -595,6 +626,11 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
 	}
+	// 4029, after the name is known to be new: the column's own expression may
+	// not read it.
+	if err := validateColumnSelfReference(colDef); err != nil {
+		return err
+	}
 
 	col := buildColumnFromDef(tbl, colDef)
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
@@ -1041,6 +1077,14 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if oldCol.Generated != nil && colDef.Generated != nil {
 		if oldCol.Generated.Stored != colDef.Generated.Stored {
 			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
+		}
+	}
+	// A generated column whose replacement expression reads it is 4029, for the
+	// column that was generated already: turning a plain column into a generated
+	// one is 1907 first, which the catalog does not model.
+	if oldCol.Generated != nil {
+		if err := validateColumnSelfReference(colDef); err != nil {
+			return err
 		}
 	}
 
@@ -1934,6 +1978,14 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		// A default expression that reads the column it defaults is 4029, after
+		// the column is known to exist (1054).
+		key := toLower(col.Name)
+		for _, ref := range generatedColumnRefs(cmd.DefaultExpr) {
+			if toLower(ref) == key {
+				return errUninitializedField(col.Name, col.Name)
+			}
+		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
@@ -2414,6 +2466,145 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	}
 	tbl.Partitioning.Partitions = result
 	return nil
+}
+
+// validateAddedColumnOrder refuses, before any of them is added, a generated column
+// the statement adds whose expression reads a generated column the same statement adds
+// after it: 4029 naming the field read, as CREATE TABLE answers it. Measured on
+// mariadb:11.8.8: `ALTER TABLE t ADD c INT AS(d), ADD d INT AS(c)` is 4029, and
+// `ADD c INT AS(d), ADD d INT` runs.
+//
+// MariaDB reads every column first, so a name the table already holds is 1060 before
+// this — `ADD b INT AS(a), ADD a INT AS(b)` over a table that has a and b is 1060 — and
+// so is a definition's own semantics, as `ADD a INT AS(a), ADD c INT NOT NULL DEFAULT
+// 'x'` answers 1067 for c. The statement's own commands then judge nothing again: what
+// a single ADD answers is checked where it is added (see addSingleColumn).
+func validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	type addedColumn struct {
+		def         *nodes.ColumnDef
+		ifNotExists bool
+	}
+	var added []addedColumn
+	for _, cmd := range cmds {
+		if cmd == nil || cmd.Type != nodes.ATAddColumn {
+			continue
+		}
+		defs := cmd.Columns
+		if cmd.Column != nil {
+			defs = append([]*nodes.ColumnDef{cmd.Column}, defs...)
+		}
+		for _, def := range defs {
+			if def != nil {
+				added = append(added, addedColumn{def: def, ifNotExists: cmd.IfNotExists})
+			}
+		}
+	}
+	generated := false
+	for _, a := range added {
+		if a.def.Generated != nil {
+			generated = true
+			break
+		}
+	}
+	if !generated {
+		return nil
+	}
+	for _, a := range added {
+		if !a.ifNotExists && tableHasColumn(tbl, a.def.Name) {
+			return errDupColumn(a.def.Name)
+		}
+	}
+	indexed := indexedColumnsOf(tbl)
+	for _, a := range added {
+		if err := validateColumnDefSemantics(a.def, indexed); err != nil {
+			return err
+		}
+	}
+	for i, a := range added {
+		later := make([]*nodes.ColumnDef, 0, len(added)-i-1)
+		for _, b := range added[i+1:] {
+			later = append(later, b.def)
+		}
+		if err := validateColumnGeneratedOrder(a.def, later); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// onlyPartitionMaintenance reports whether every command of an ALTER TABLE is one of
+// the partition maintenance commands, which a missing table takes silently.
+func onlyPartitionMaintenance(cmds []*nodes.AlterTableCmd) bool {
+	if len(cmds) == 0 {
+		return false
+	}
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATOptimizePartition, nodes.ATAnalyzePartition, nodes.ATCheckPartition, nodes.ATRepairPartition:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// writesFixedRowFormat reports whether the statement writes ROW_FORMAT FIXED or PAGE
+// and leaves the table on an engine that does not take it, which is 1478. The engine
+// is the one the statement leaves, so `ROW_FORMAT FIXED ENGINE=MyISAM` is taken.
+func writesFixedRowFormat(tbl *Table, cmds []*nodes.AlterTableCmd) bool {
+	engine, written := tbl.Engine, false
+	for _, cmd := range cmds {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		switch {
+		case eqFoldStr(cmd.Option.Name, "ENGINE"):
+			engine = canonicalEngineName(cmd.Option.Value)
+		case eqFoldStr(cmd.Option.Name, "ROW_FORMAT"):
+			written = writesFixedRowFormatValue(canonicalRowFormat(cmd.Option.Value))
+		}
+	}
+	return written && !engineTakesFixedRowFormat(engine)
+}
+
+func writesFixedRowFormatValue(value string) bool {
+	switch strings.ToLower(value) {
+	case "fixed", "page":
+		return true
+	}
+	return false
+}
+
+// engineTakesFixedRowFormat reports whether an engine takes ROW_FORMAT FIXED and PAGE,
+// which MyISAM, Aria, MEMORY, CSV and MRG_MyISAM do on mariadb:11.8.8. A table that
+// names no engine is InnoDB's.
+func engineTakesFixedRowFormat(engine string) bool {
+	if engine == "" {
+		return false
+	}
+	switch strings.ToLower(engine) {
+	case "myisam", "aria", "memory", "csv", "mrg_myisam":
+		return true
+	}
+	return false
+}
+
+// validateAlteredRowFormat refuses the ROW_FORMAT the table was left with when its engine
+// does not take it: InnoDB answers 1478, "Table storage engine 'InnoDB' does not support
+// the create option 'ROW_TYPE'" (measured on mariadb:11.8.8), where MyISAM, Aria,
+// MEMORY, CSV and MRG_MyISAM take FIXED and PAGE. writesFixedRowFormat decides whether
+// the statement wrote one; a row format the table had already and an engine change
+// alone are left out, as MariaDB answers 1005 for those and not 1478.
+func validateAlteredRowFormat(tbl *Table) error {
+	engine := tbl.Engine
+	if engine == "" {
+		engine = "InnoDB"
+	}
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: fmt.Sprintf("Table storage engine '%s' does not support the create option 'ROW_TYPE'", engine)}
 }
 
 // alterExchangePartition exchanges a partition with a non-partitioned table.
