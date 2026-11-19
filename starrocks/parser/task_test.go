@@ -35,6 +35,7 @@ func TestSubmitTask(t *testing.T) {
 		{"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE c (PARTITION p VALUES LESS THAN ('1')) AS SELECT 1 AS c", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS CREATE TABLE a PARTITION BY c AS SELECT 1 AS c", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS CREATE TABLE a PARTITION BY date_trunc(c, 'day') AS SELECT 1 AS c", "", 0, nil, ast.T_CreateTableStmt},
+		{"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE date_trunc('day', c) (PARTITION p VALUES LESS THAN ('2027-01-01')) AS SELECT CURRENT_DATE AS c", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS INSERT INTO t(c) (SELECT 1)", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO t(c) TRACE ALL SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS INSERT INTO a SELECT 1 UNION (SELECT 2) INTO OUTFILE 'x'", "", 0, nil, ast.T_InsertStmt},

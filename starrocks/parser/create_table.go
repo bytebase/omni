@@ -703,8 +703,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 			if p.strictCTAS {
-				if partDesc.RangeExplicit && !partDesc.HasDefinitions ||
-					partDesc.RangeExplicit && len(partDesc.FuncExprs) > 0 && !partDesc.RangeScalar {
+				if partDesc.RangeExplicit && !partDesc.HasDefinitions {
 					return p.syntaxErrorAtCur()
 				}
 				for _, item := range partDesc.Partitions {
