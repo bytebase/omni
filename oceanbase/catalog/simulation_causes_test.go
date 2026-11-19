@@ -19,4 +19,10 @@ func TestAlterRepartitionRefusedBeforeStoring(t *testing.T) {
 	if tbl := c.GetDatabase("d").GetTable("a"); tbl.Partitioning != nil {
 		t.Fatalf("the catalog installed the refused partitioning: %+v", tbl.Partitioning)
 	}
+	// Only RANGE takes no partition list as automatic; a LIST without one is
+	// refused rather than stored as an empty layout.
+	err = execError(t, c, "ALTER TABLE a PARTITION BY LIST(c)")
+	if !errors.As(err, &refusal) || refusal.Code != 1492 {
+		t.Fatalf("ALTER LIST without a partition list: error %v, want 1492", err)
+	}
 }

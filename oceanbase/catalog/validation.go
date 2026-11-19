@@ -83,7 +83,7 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 		}
 	}
 	if strings.EqualFold(colDef.TypeName.Name, "serial") && hasColumnConstraint(colDef, nodes.ColConstrNull) {
-		return &Error{Code: 5252, SQLState: "42000", Message: fmt.Sprintf("Column '%s' definition is ambiguous. Column has both NULL and NOT NULL attributes", colDef.Name)}
+		return &Error{Code: 5252, SQLState: "HY000", Message: fmt.Sprintf("Column '%s' definition is ambiguous. Column has both NULL and NOT NULL attributes", colDef.Name)}
 	}
 	if hasExplicitNullPrimaryKey(colDef) {
 		return &Error{Code: 1171, SQLState: "42000", Message: "All parts of a PRIMARY KEY must be NOT NULL"}

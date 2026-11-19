@@ -1388,12 +1388,13 @@ func checkPartitionStructure(tbl *Table, pc *nodes.PartitionClause, repartition 
 	// size and no list is the same form: the pinned server reads ALTER TABLE a
 	// PARTITION BY RANGE() back as `partition by range() size ('2048MB')`, and
 	// the catalog must load what the engine stores.
-	if !repartition && (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" && pc.SplitSize == "" {
+	automaticRange := repartition && pc.Type == nodes.PartitionRange
+	if !automaticRange && (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" && pc.SplitSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
 		for i, pd := range pc.Partitions {
-			if pd.Values != nil && strings.Contains(strings.ToUpper(partitionValueToString(pd.Values, pc.Type)), "MAXVALUE") && i != len(pc.Partitions)-1 {
+			if boundHasMaxValue(pd.Values) && i != len(pc.Partitions)-1 {
 				return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
 			}
 		}
@@ -1423,6 +1424,24 @@ func checkPartitionStructure(tbl *Table, pc *nodes.PartitionClause, repartition 
 		}
 	}
 	return nil
+}
+
+// boundHasMaxValue reports whether a partition bound holds the MAXVALUE keyword.
+// The parser keeps that sentinel as a *nodes.String reading MAXVALUE, where a
+// quoted 'MAXVALUE' is a *nodes.StringLit: the renderer alone cannot tell them
+// apart, and a string-key's bound may spell the word.
+func boundHasMaxValue(n nodes.Node) bool {
+	switch v := n.(type) {
+	case *nodes.String:
+		return strings.EqualFold(v.Str, "MAXVALUE")
+	case *nodes.List:
+		for _, item := range v.Items {
+			if boundHasMaxValue(item) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func containsPartitionDefaultExpr(n nodes.Node) bool {

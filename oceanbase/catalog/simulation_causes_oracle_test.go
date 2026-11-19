@@ -39,6 +39,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		setup []string
 		stmt  string
 		code  int
+		state string
 	}{
 		{
 			name:  "repartition by an implicit key",
@@ -66,10 +67,16 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a PARTITION BY RANGE(b)",
 		},
 		{
+			name:  "repartition by string bounds one of which spells MAXVALUE",
+			setup: []string{"CREATE TABLE a (s VARCHAR(10) PRIMARY KEY, c INT)"},
+			stmt:  "ALTER TABLE a PARTITION BY RANGE COLUMNS(s)(PARTITION p0 VALUES LESS THAN ('MAXVALUE'), PARTITION p1 VALUES LESS THAN (MAXVALUE))",
+		},
+		{
 			name:  "a SERIAL column with an explicit NULL",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD a SERIAL NULL",
 			code:  5252,
+			state: "HY000",
 		},
 		{
 			name:  "a collation written in another case",
@@ -81,30 +88,35 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a PARTITION BY KEY()(PARTITION a, PARTITION a)",
 			code:  1517,
+			state: "HY000",
 		},
 		{
 			name:  "repartition by a range key that is not the primary key prefix",
 			setup: []string{aColumnTable},
 			stmt:  "ALTER TABLE a PARTITION BY RANGE(a)",
 			code:  1235,
+			state: "0A000",
 		},
 		{
 			name:  "a character set the server does not have",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a CHARSET a",
 			code:  1115,
+			state: "42000",
 		},
 		{
 			name:  "a converted character set the server does not have",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET a",
 			code:  1115,
+			state: "42000",
 		},
 		{
 			name:  "a collation the server does not have",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a COLLATE a",
 			code:  1273,
+			state: "HY000",
 		},
 		{
 			name:  "a SERIAL column added to a table",
@@ -121,12 +133,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a COLLATE utf8mb4_not_a_collation",
 			code:  1273,
+			state: "HY000",
 		},
 		{
 			name:  "a collation of another character set",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET latin1 COLLATE utf8mb4_general_ci",
 			code:  1253,
+			state: "42000",
 		},
 		{
 			name:  "a SERIAL replacement of an unindexed column",
@@ -147,19 +161,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 				}
 			}
 			_, err := conn.ExecContext(ctx, tc.stmt)
-			engineCode, engineMessage := simulationCauseEngineRefusal(t, tc.stmt, err)
+			engineCode, engineState, engineMessage := simulationCauseEngineRefusal(t, tc.stmt, err)
 			if engineCode != tc.code {
 				t.Fatalf("oceanbase: %s answered %d (%s), want %d", tc.stmt, engineCode, engineMessage, tc.code)
+			}
+			if tc.state != "" && engineState != tc.state {
+				t.Fatalf("oceanbase: %s answered SQLSTATE %s, want %s", tc.stmt, engineState, tc.state)
 			}
 
 			c, err := LoadSQL(build + "\n" + joinStatements(tc.setup))
 			if err != nil {
 				t.Fatalf("the catalog does not load the fixture: %v", err)
 			}
-			catalogCode, catalogMessage := simulationCauseCatalogRefusal(t, c, tc.stmt)
+			catalogCode, catalogState, catalogMessage := simulationCauseCatalogRefusal(t, c, tc.stmt)
 			if catalogCode != engineCode {
 				t.Fatalf("catalog: %s answered %d (%s), OceanBase answered %d (%s)",
 					tc.stmt, catalogCode, catalogMessage, engineCode, engineMessage)
+			}
+			if catalogState != engineState {
+				t.Fatalf("catalog: %s answered SQLSTATE %s, OceanBase answered %s", tc.stmt, catalogState, engineState)
 			}
 			if tc.code != 0 {
 				return
@@ -194,21 +214,21 @@ func joinStatements(stmts []string) string {
 
 // simulationCauseEngineRefusal reads the server's answer as the error number
 // and message, 0 for a statement it took.
-func simulationCauseEngineRefusal(t *testing.T, stmt string, err error) (int, string) {
+func simulationCauseEngineRefusal(t *testing.T, stmt string, err error) (int, string, string) {
 	t.Helper()
 	if err == nil {
-		return 0, ""
+		return 0, "", ""
 	}
 	var refusal *gomysql.MySQLError
 	if !errors.As(err, &refusal) {
 		t.Fatalf("%s: not an OceanBase error: %v", stmt, err)
 	}
-	return int(refusal.Number), refusal.Message
+	return int(refusal.Number), string(refusal.SQLState[:]), refusal.Message
 }
 
 // simulationCauseCatalogRefusal reads the catalog's answer as the error number
 // and message, 0 for a statement it took.
-func simulationCauseCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, string) {
+func simulationCauseCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, string, string) {
 	t.Helper()
 	results, err := c.Exec(stmt, nil)
 	if err != nil {
@@ -218,11 +238,11 @@ func simulationCauseCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, 
 		t.Fatalf("Exec(%q): %d results, want 1", stmt, len(results))
 	}
 	if results[0].Error == nil {
-		return 0, ""
+		return 0, "", ""
 	}
 	var refusal *Error
 	if !errors.As(results[0].Error, &refusal) {
 		t.Fatalf("%s: not a catalog error: %v", stmt, results[0].Error)
 	}
-	return refusal.Code, refusal.Message
+	return refusal.Code, refusal.SQLState, refusal.Message
 }

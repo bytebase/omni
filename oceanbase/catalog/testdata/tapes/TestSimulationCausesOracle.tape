@@ -155,6 +155,35 @@
 | CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
 < ok 0 0
 > exec
+| CREATE TABLE a (s VARCHAR(10) PRIMARY KEY, c INT)
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION BY RANGE COLUMNS(s)(PARTITION p0 VALUES LESS THAN ('MAXVALUE'), PARTITION p1 VALUES LESS THAN (MAXVALUE))
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `s` varchar(10) NOT NULL,
+|   `c` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`s`)
+| ) ORGANIZATION INDEX DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+|  partition by range columns(`s`)
+| (partition `p0` values less than ('MAXVALUE'),
+| partition `p1` values less than (MAXVALUE))
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 1 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
