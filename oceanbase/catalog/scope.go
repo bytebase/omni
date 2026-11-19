@@ -139,6 +139,48 @@ func (s *analyzerScope) fullJoinColumn(column string) (AnalyzedExpr, bool) {
 	return s.fullJoinExpr(entryName, column)
 }
 
+// ancestor returns the scope levels queries out, or nil.
+func (s *analyzerScope) ancestor(levels int) *analyzerScope {
+	cur := s
+	for i := 0; i < levels && cur != nil; i++ {
+		cur = cur.parent
+	}
+	return cur
+}
+
+// rteEntryName returns the scope name of the relation an RTE index stands for.
+func (s *analyzerScope) rteEntryName(rteIdx int) (string, bool) {
+	for _, q := range s.quals {
+		if q.rteIdx == rteIdx {
+			return q.name, true
+		}
+	}
+	return "", false
+}
+
+// rebaseFullJoinColumn returns the merged FULL-join expression of a key that a
+// column reference resolved to levels scopes out, with the expression's own
+// variables lifted by those levels: `SELECT (SELECT id) FROM l FULL JOIN r
+// USING(id)` reads the outer key's COALESCE through the correlation.
+func (s *analyzerScope) rebaseFullJoinColumn(column string, levels, rteIdx int) (AnalyzedExpr, bool) {
+	if levels <= 0 {
+		return nil, false
+	}
+	owner := s.ancestor(levels)
+	if owner == nil {
+		return nil, false
+	}
+	entryName, ok := owner.rteEntryName(rteIdx)
+	if !ok {
+		return nil, false
+	}
+	merged, ok := owner.fullJoinExpr(entryName, column)
+	if !ok {
+		return nil, false
+	}
+	return rebaseAnalyzedLevels(merged, levels), true
+}
+
 // fullJoinExpr returns the expression a FULL join's merged column takes in the
 // star expansion of that entry and column, if the scope holds one.
 func (s *analyzerScope) fullJoinExpr(entryName, column string) (AnalyzedExpr, bool) {

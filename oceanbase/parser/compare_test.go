@@ -12868,3 +12868,19 @@ func TestRetainedMarkersAreSerialized(t *testing.T) {
 		t.Errorf("quoted collate marker missing: quoted=%s plain=%s", qc, plain)
 	}
 }
+
+func TestSetOperationAndIndexArmRefusals(t *testing.T) {
+	// UNIQUE is UNION's modifier alone.
+	ParseAndCheck(t, "SELECT 1 UNION UNIQUE SELECT 1")
+	for _, sql := range []string{
+		"SELECT 1 EXCEPT UNIQUE SELECT 1",
+		"SELECT 1 INTERSECT UNIQUE SELECT 1",
+		"SELECT 1 MINUS UNIQUE SELECT 1",
+	} {
+		ParseExpectError(t, sql)
+	}
+	// alter_index_option's parenthesized ADD arms take no FULLTEXT.
+	ParseExpectError(t, "ALTER TABLE t ADD (FULLTEXT KEY (a))")
+	ParseAndCheck(t, "ALTER TABLE t ADD (SPATIAL KEY i (a))")
+	ParseAndCheck(t, "ALTER TABLE t ADD (UNIQUE KEY u (a))")
+}

@@ -394,9 +394,10 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		if _, ok := p.match(kwALL); ok {
 			all = true
 		} else if _, ok := p.match(kwDISTINCT); !ok {
-			// set_type's UNION UNIQUE is the distinct form too.
-			if _, ok := p.match(kwUNIQUE); ok {
-				all = false
+			// set_type's UNION UNIQUE is the distinct form too, and UNIQUE is
+			// UNION's alone: EXCEPT UNIQUE and INTERSECT UNIQUE are 1064s.
+			if op == nodes.SetOpUnion {
+				p.match(kwUNIQUE)
 			}
 		}
 

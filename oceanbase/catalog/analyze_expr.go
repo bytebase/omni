@@ -136,13 +136,39 @@ func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr,
 		return nil, err
 	}
 	// A FULL join's key read unqualified is COALESCE(left, right): an r-only row
-	// would project NULL from the surviving left column alone.
+	// would project NULL from the surviving left column alone. A correlated
+	// reference to an outer query's key lifts that expression's variables by the
+	// levels it crossed.
 	if levelsUp == 0 {
 		if merged, ok := scope.fullJoinColumn(ref.Column); ok {
 			return merged, nil
 		}
+	} else if merged, ok := scope.rebaseFullJoinColumn(ref.Column, levelsUp, rteIdx); ok {
+		return merged, nil
 	}
 	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+}
+
+// rebaseAnalyzedLevels returns expr with every variable of the query it belongs
+// to moved levels queries out. A merged FULL-join key is a COALESCE over that
+// query's own variables, which is what a correlated reference to it needs.
+func rebaseAnalyzedLevels(expr AnalyzedExpr, levels int) AnalyzedExpr {
+	switch e := expr.(type) {
+	case *VarExprQ:
+		if e.LevelsUp != 0 {
+			return e
+		}
+		rebased := *e
+		rebased.LevelsUp = levels
+		return &rebased
+	case *CoalesceExprQ:
+		args := make([]AnalyzedExpr, len(e.Args))
+		for i, arg := range e.Args {
+			args[i] = rebaseAnalyzedLevels(arg, levels)
+		}
+		return &CoalesceExprQ{Args: args}
+	}
+	return expr
 }
 
 // analyzeFuncCall resolves a function call expression.

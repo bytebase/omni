@@ -649,3 +649,34 @@ func TestCorrelatedUnknownColumnStopsAtNearestScope(t *testing.T) {
 		t.Errorf("inner target binds to %q, want r", rte.TableName)
 	}
 }
+
+func TestCorrelatedFullJoinKeyKeepsCoalesce(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_corr_key AS SELECT (SELECT id) AS id FROM l FULL JOIN r USING (id);
+	`)
+
+	vq := c.GetDatabase("testdb").Views["v_corr_key"].AnalyzedQuery
+	if vq == nil {
+		t.Fatal("expected v_corr_key to have AnalyzedQuery")
+	}
+	sub, ok := vq.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target = %T, want *SubLinkExprQ", vq.TargetList[0].Expr)
+	}
+	coalesce, ok := sub.Subquery.TargetList[0].Expr.(*CoalesceExprQ)
+	if !ok {
+		t.Fatalf("inner target = %T, want the merged *CoalesceExprQ", sub.Subquery.TargetList[0].Expr)
+	}
+	for _, arg := range coalesce.Args {
+		if v, ok := arg.(*VarExprQ); !ok || v.LevelsUp != 1 {
+			t.Fatalf("coalesce argument = %+v, want a variable one level up", arg)
+		}
+	}
+	if got, want := DeparseQuery(vq),
+		"select (select coalesce(`l`.`id`, `r`.`id`) as `id`) as `id` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_corr_key) =\n  %s\nwant\n  %s", got, want)
+	}
+}

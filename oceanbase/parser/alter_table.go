@@ -758,8 +758,11 @@ func (p *Parser) parenOpensAddIndex() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
+	// alter_index_option's parenthesized ADD arms are key_or_index, UNIQUE,
+	// CONSTRAINT, SPATIAL and PRIMARY KEY. FULLTEXT is no arm of them, so
+	// `ALTER TABLE t ADD (FULLTEXT KEY (a))` is a 1064.
 	switch p.peekNext().Type {
-	case kwKEY, kwINDEX, kwUNIQUE, kwPRIMARY, kwSPATIAL, kwFULLTEXT, kwCONSTRAINT:
+	case kwKEY, kwINDEX, kwUNIQUE, kwPRIMARY, kwSPATIAL, kwCONSTRAINT:
 		return true
 	}
 	return false
