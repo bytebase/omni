@@ -88,10 +88,13 @@ func (p *Parser) parseCreateSchemaStmt(start int) (*nodes.CreateSchemaStmt, erro
 		Loc:   nodes.Loc{Start: start},
 	}
 
-	// AUTHORIZATION schema_name
-	if p.isIdentLikeStr("AUTHORIZATION") {
-		p.advance() // consume AUTHORIZATION
+	// AUTHORIZATION schema_name. Oracle's reader requires the word: CREATE
+	// SCHEMA a CREATE TABLE a (a NUMBER) answers ORA-02420, a missing schema
+	// authorization clause, at the a.
+	if !p.isIdentLikeStr("AUTHORIZATION") {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume AUTHORIZATION
 	if p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT || p.isIdentLike() {
 		stmt.SchemaName = p.cur.Str
 		p.advance()
@@ -310,10 +313,13 @@ func (p *Parser) parseDropAdminObject(start int) (nodes.StmtNode, error) {
 		}
 		var parseErr198 error
 		stmt.Name, parseErr198 = p.parseObjectName()
-		if parseErr198 !=
-			// CASCADE
-			nil {
+		if parseErr198 != nil {
 			return nil, parseErr198
+		}
+		// A user is required: DROP USER answers ORA-01935, a missing or
+		// invalid user name, at the end.
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		if p.cur.Type == kwCASCADE {
