@@ -17,6 +17,9 @@ import (
 const defaultAutoSplitSize = "2048MB"
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

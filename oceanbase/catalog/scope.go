@@ -205,10 +205,30 @@ func (s *analyzerScope) soleUnknownColumnRTE() (int, bool) {
 // how many scopes out it sits. `SELECT (SELECT a) FROM cat.db.t` reads the
 // remote relation's a through the correlation, so an unqualified name no scope
 // resolves belongs to it.
+//
+// Resolution stops at the nearest scope that holds a relation whose columns are
+// unknown: with two of them the name is ambiguous, and with one it belongs to
+// that one rather than to a relation of an enclosing query. A nearer unknown
+// relation therefore never yields to an outer one.
 func (s *analyzerScope) soleUnknownColumnInChain() (int, int, bool) {
 	for cur, levels := s, 0; cur != nil; cur, levels = cur.parent, levels+1 {
-		if idx, ok := cur.soleUnknownColumnRTE(); ok {
+		var idx int
+		unknowns := 0
+		for _, q := range cur.quals {
+			if q.unknown {
+				if unknowns == 0 {
+					idx = q.rteIdx
+				}
+				unknowns++
+			}
+		}
+		switch unknowns {
+		case 0:
+			continue
+		case 1:
 			return idx, levels, true
+		default:
+			return 0, 0, false
 		}
 	}
 	return 0, 0, false

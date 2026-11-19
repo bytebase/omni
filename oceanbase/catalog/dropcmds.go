@@ -6,6 +6,9 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 	// A table named twice is 1066 before any is looked up, IF EXISTS or not.
 	seen := map[[2]string]bool{}
 	for _, ref := range stmt.Tables {
+		if err := rejectRemoteRef(ref); err != nil {
+			return err
+		}
 		k := [2]string{toLower(ref.Schema), toLower(ref.Name)}
 		if seen[k] {
 			return errNotUniqueTable(ref.Name)
@@ -72,6 +75,11 @@ func (c *Catalog) checkFKReferences(dbName, tableName string) error {
 }
 
 func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
+	for _, ref := range stmt.Tables {
+		if err := rejectRemoteRef(ref); err != nil {
+			return err
+		}
+	}
 	for _, ref := range stmt.Tables {
 		dbName := ref.Schema
 		db, err := c.resolveDatabase(dbName)

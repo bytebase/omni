@@ -16,6 +16,9 @@ import (
 // CREATE VIEW path (Exec) and false on a DefineView sync, whose body the engine
 // already accepted.
 func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody, materialized bool) error {
+	if err := rejectRemoteRef(stmt.Name); err != nil {
+		return err
+	}
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -330,6 +333,9 @@ func rowsHaveParamMarker(rows [][]nodes.ExprNode) bool {
 
 // alterView applies ALTER VIEW; source is as for createView.
 func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
+	if err := rejectRemoteRef(stmt.Name); err != nil {
+		return err
+	}
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -934,6 +940,9 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 	}
 	seen := map[[2]string]bool{}
 	for _, ref := range stmt.Views {
+		if err := rejectRemoteRef(ref); err != nil {
+			return err
+		}
 		db, err := c.resolveDatabase(ref.Schema)
 		if err != nil {
 			if stmt.IfExists {

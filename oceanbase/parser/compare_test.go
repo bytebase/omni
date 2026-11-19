@@ -12849,3 +12849,22 @@ func TestIndexColumnIDAndVectorParametersNeedLimit(t *testing.T) {
 	ParseExpectError(t, "SELECT a FROM t ORDER BY a PARAMETERS(x = 1)")
 	ParseExpectError(t, "SELECT a FROM t APPROX PARAMETERS(x = 1)")
 }
+
+func TestRetainedMarkersAreSerialized(t *testing.T) {
+	// lob_storage_clause is a child of the ALTER command and serializes.
+	lob := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD (a INT) JSON(a) STORE AS (CHUNK 1)").Items[0])
+	if !strings.Contains(lob, ":lob_storage") || !strings.Contains(lob, "LOB_STORAGE") {
+		t.Errorf("lob_storage_clause missing from NodeToString: %s", lob)
+	}
+	// data_type's STRING_VALUE arm is visible.
+	quoted := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD a 's'").Items[0])
+	if !strings.Contains(quoted, ":from_string_value true") {
+		t.Errorf("quoted data type marker missing: %s", quoted)
+	}
+	// A string-valued collation is visible.
+	qc := ast.NodeToString(ParseAndCheck(t, "SELECT a COLLATE 'utf8mb4_bin' FROM t").Items[0])
+	plain := ast.NodeToString(ParseAndCheck(t, "SELECT a COLLATE utf8mb4_bin FROM t").Items[0])
+	if !strings.Contains(qc, ":quoted true") || qc == plain {
+		t.Errorf("quoted collate marker missing: quoted=%s plain=%s", qc, plain)
+	}
+}

@@ -503,3 +503,29 @@ func TestViewTableIDIsRefused(t *testing.T) {
 		t.Fatalf("ALTER VIEW TABLE_ID: expected error 1235, got %v", results[0].Error)
 	}
 }
+
+func TestRemoteQualifiedDDLIsRefused(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE t (a INT)")
+
+	for _, sql := range []string{
+		"DROP TABLE cat.db.t",
+		"DROP TABLE t@link",
+		"ALTER TABLE cat.db.t ADD COLUMN b INT",
+		"TRUNCATE TABLE cat.db.t",
+		"CREATE INDEX i ON cat.db.t (a)",
+		"DROP INDEX i ON cat.db.t",
+		"CREATE TABLE cat.db.t (a INT)",
+		"RENAME TABLE cat.db.t TO t2",
+	} {
+		results, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+		if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1235 {
+			t.Errorf("%q: expected error 1235, got %v", sql, results[0].Error)
+		}
+	}
+
+	// The local table is still there, and no view was installed.
+	if tbl := c.GetDatabase("testdb").GetTable("t"); tbl == nil || len(tbl.Columns) != 1 {
+		t.Fatalf("remote-qualified DDL changed the local table: %+v", tbl)
+	}
+}

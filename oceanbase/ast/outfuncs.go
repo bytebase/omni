@@ -391,6 +391,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnDef(sb, n)
 	case *GeneratedColumn:
 		writeGeneratedColumn(sb, n)
+	case *LobStorageClause:
+		fmt.Fprintf(sb, "{LOB_STORAGE :loc %d :column %s :chunk %q}", n.Loc.Start, n.Column, n.Chunk)
 	case *ColumnConstraint:
 		writeColumnConstraint(sb, n)
 	case *Constraint:
@@ -2928,6 +2930,9 @@ func writeCollateExpr(sb *strings.Builder, n *CollateExpr) {
 	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
 	writeNode(sb, n.Expr)
 	fmt.Fprintf(sb, " :collation %s", n.Collation)
+	if n.Quoted {
+		sb.WriteString(" :quoted true")
+	}
 	sb.WriteString("}")
 }
 
@@ -3470,6 +3475,9 @@ func writeConstraint(sb *strings.Builder, n *Constraint) {
 func writeDataType(sb *strings.Builder, n *DataType) {
 	sb.WriteString("{DATATYPE")
 	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	if n.FromStringValue {
+		sb.WriteString(" :from_string_value true")
+	}
 	if n.Length > 0 {
 		fmt.Fprintf(sb, " :len %d", n.Length)
 	}
@@ -3561,6 +3569,10 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.DefaultExpr != nil {
 		sb.WriteString(" :default_expr ")
 		writeNode(sb, n.DefaultExpr)
+	}
+	if n.LobStorage != nil {
+		sb.WriteString(" :lob_storage ")
+		writeNode(sb, n.LobStorage)
 	}
 	if n.Constraint != nil {
 		sb.WriteString(" :constraint ")

@@ -8,6 +8,14 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 		oldKey, newKey string
 		newName        string
 	}
+	for _, pair := range stmt.Pairs {
+		if err := rejectRemoteRef(pair.Old); err != nil {
+			return err
+		}
+		if err := rejectRemoteRef(pair.New); err != nil {
+			return err
+		}
+	}
 	plans := make([]plan, 0, len(stmt.Pairs))
 
 	// Simulate every pair in order against copies of the touched maps, so a

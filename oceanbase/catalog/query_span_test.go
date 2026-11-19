@@ -628,3 +628,24 @@ func TestFullJoinExplicitKeyProjection(t *testing.T) {
 		}},
 	})
 }
+
+func TestCorrelatedUnknownColumnStopsAtNearestScope(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE local_no_a (b INT)")
+
+	// The inner query's own remote relation is the nearest unknown source, so
+	// `a` binds to it rather than to the outer query's remote relation.
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT (SELECT a FROM cat1.db.r, local_no_a) FROM cat2.db.o"))
+	assertNoError(t, err)
+	sub, ok := q.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target = %T, want *SubLinkExprQ", q.TargetList[0].Expr)
+	}
+	v, ok := sub.Subquery.TargetList[0].Expr.(*VarExprQ)
+	if !ok || v.LevelsUp != 0 {
+		t.Fatalf("inner target = %+v, want a local reference with LevelsUp 0", sub.Subquery.TargetList[0].Expr)
+	}
+	if rte := sub.Subquery.RangeTable[v.RangeIdx]; rte.TableName != "r" {
+		t.Errorf("inner target binds to %q, want r", rte.TableName)
+	}
+}

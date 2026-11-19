@@ -10,7 +10,21 @@ import (
 	"github.com/bytebase/omni/oceanbase/deparse"
 )
 
+// rejectRemoteRef refuses a table reference another catalog holds or a database
+// link reads. This catalog models neither namespace, so keying on the local
+// database and table of the same name would change the wrong object: the
+// reference is refused before anything is touched.
+func rejectRemoteRef(ref *nodes.TableRef) error {
+	if ref != nil && (ref.Catalog != "" || ref.Dblink != "") {
+		return errNotSupported("external table reference")
+	}
+	return nil
+}
+
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
