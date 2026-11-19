@@ -1123,7 +1123,7 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(n.Dblink)
 	case *ast.OdbcEscapeExpr:
 		b.WriteString("{")
-		b.WriteString(n.Name)
+		b.WriteString(quoteIdent(n.Name))
 		b.WriteString(" ")
 		writeExprAlias(b, n.Expr)
 		b.WriteString("}")
@@ -1860,7 +1860,7 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(n.Dblink)
 	case *ast.OdbcEscapeExpr:
 		b.WriteString("{")
-		b.WriteString(n.Name)
+		b.WriteString(quoteIdent(n.Name))
 		b.WriteString(" ")
 		writeExpr(b, n.Expr)
 		b.WriteString("}")

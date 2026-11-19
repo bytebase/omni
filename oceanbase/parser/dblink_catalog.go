@@ -298,6 +298,10 @@ func (p *Parser) atDatabaseLink() bool {
 	if !((next.Type == tokIDENT || next.Type >= 700) && strings.EqualFold(next.Str, "LINK")) {
 		return false
 	}
+	// A quoted `LINK` is the name of a database, not the keyword.
+	if p.backtickQuotedAt(next.Loc) {
+		return false
+	}
 	// LINK is an ordinary name too, so `DROP DATABASE LINK` is DROP DATABASE of
 	// the database called LINK, and only a word after LINK makes a link.
 	look := *p.lexer

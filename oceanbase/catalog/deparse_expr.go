@@ -56,7 +56,7 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeGroupingSetExprQ(b, e, q)
 	case *OdbcEscapeExprQ:
 		b.WriteString("{")
-		b.WriteString(e.Name)
+		b.WriteString(backtickIDQ(e.Name))
 		b.WriteString(" ")
 		writeAnalyzedExpr(b, e.Arg, q)
 		b.WriteString("}")

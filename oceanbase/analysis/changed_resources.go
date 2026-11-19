@@ -72,9 +72,10 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		}
 
 	case *ast.PurgeStmt:
-		// PURGE TABLE and PURGE INDEX name a table in the recycle bin; PURGE
-		// RECYCLEBIN names none.
-		if n.Name != nil && (n.Kind == "TABLE" || n.Kind == "INDEX") {
+		// PURGE TABLE names a table in the recycle bin; PURGE INDEX names an
+		// index there, which is no table of this database, and PURGE RECYCLEBIN
+		// names nothing.
+		if n.Name != nil && n.Kind == "TABLE" {
 			db, table := tableRef(n.Name, database)
 			addTable(db, table, true)
 		}
