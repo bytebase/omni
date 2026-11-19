@@ -361,7 +361,7 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 			if err != nil {
 				return err
 			}
-			stmt.BadFile = value
+			stmt.BadFile, stmt.HasBadFile = value, true
 		default:
 			return nil
 		}

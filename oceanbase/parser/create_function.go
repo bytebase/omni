@@ -62,7 +62,8 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	switch strings.ToUpper(retType) {
 	case "STRING", "INTEGER", "INT", "REAL", "DECIMAL", "DEC", "FIXED", "NUMERIC":
 	default:
-		return nil, p.syntaxErrorAtCur()
+		// The error is the type's own token, not the clause that follows it.
+		return nil, &ParseError{Message: "unsupported return type", Position: retStart}
 	}
 	stmt.Returns = &nodes.DataType{
 		Loc:  nodes.Loc{Start: retStart, End: p.prev.End},

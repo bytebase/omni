@@ -2264,7 +2264,7 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.HasRejectLimit {
 		fmt.Fprintf(sb, " :reject_limit %d", n.RejectLimit)
 	}
-	if n.BadFile != "" {
+	if n.HasBadFile {
 		fmt.Fprintf(sb, " :badfile %q", n.BadFile)
 	}
 	sb.WriteString("}")

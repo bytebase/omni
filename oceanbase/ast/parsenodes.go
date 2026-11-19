@@ -2303,6 +2303,7 @@ type LoadDataStmt struct {
 	HasRejectLimit     bool
 	RejectLimit        int
 	BadFile            string
+	HasBadFile         bool
 	RowsIdentifiedBy   string // ROWS IDENTIFIED BY '<tagname>' (XML only)
 	Columns            []ExprNode
 	SetList            []*Assignment
