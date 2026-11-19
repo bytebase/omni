@@ -663,6 +663,13 @@ func refuseTablespaceEngine(tbl *Table) error {
 		Message: fmt.Sprintf("Storage engine %s of the table `%s`.`%s` doesn't have this option", engine, tbl.Database.Name, tbl.Name)}
 }
 
+// errTablespaceDiscarded is 1814, an ALTER that needs a copy of a table whose
+// tablespace the statement DISCARDed. Measured on mariadb:11.8.8.
+func errTablespaceDiscarded(table string) error {
+	return &Error{Code: 1814, SQLState: "HY000",
+		Message: fmt.Sprintf("Tablespace has been discarded for table `%s`", table)}
+}
+
 // errTablespaceMissing is 1030, IMPORT TABLESPACE over a table whose tablespace
 // the statement DISCARDed and which holds no secondary index: there is no file
 // to import, which the server reports as storage engine error 194. Measured on

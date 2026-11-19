@@ -428,9 +428,12 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 	fold := !collationCaseSensitive(enumCollation(colDef, tableCollation))
 	seen := make(map[string]string, len(colDef.TypeName.EnumValues))
 	for _, value := range colDef.TypeName.EnumValues {
-		key := value
+		// A trailing space is the collation's: MariaDB stores `ENUM('a ','b ')`
+		// as enum('a','b') and answers 1291 for `('a','a ')`, whatever the
+		// collation. Measured on mariadb:11.8.8, a tab being kept.
+		key := strings.TrimRight(value, " ")
 		if fold {
-			key = strings.ToLower(value)
+			key = strings.ToLower(key)
 		}
 		if first, ok := seen[key]; ok {
 			// The message names the first spelling: `ENUM('s','S')` over a

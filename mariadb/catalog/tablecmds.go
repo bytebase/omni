@@ -2463,6 +2463,12 @@ func (c *Catalog) validateAddedKeyEngineOptions(tbl *Table, cmds []*nodes.AlterT
 			if con == nil {
 				continue
 			}
+			// A key IF NOT EXISTS finds is a note, and the definition beside it
+			// is never read: measured on mariadb:11.8.8, `ADD KEY IF NOT EXISTS k
+			// (b) x = 1` over a table that holds k runs.
+			if con.IfNotExists && addedConstraintExists(tbl, con, extractColumnNames(con)) {
+				continue
+			}
 			if err := c.validateKeyEngineOptions(tbl, con.IndexOptions, con.Type == nodes.ConstrVector); err != nil {
 				return err
 			}
@@ -3396,7 +3402,9 @@ func formatColumnType(dt *nodes.DataType) string {
 			if i > 0 {
 				buf.WriteString(",")
 			}
-			buf.WriteString("'" + escapeEnumValue(v) + "'")
+			// A trailing space is the collation's, and MariaDB writes without
+			// it: `ENUM('a ','b ')` is enum('a','b').
+			buf.WriteString("'" + escapeEnumValue(strings.TrimRight(v, " ")) + "'")
 		}
 		buf.WriteString(")")
 	}

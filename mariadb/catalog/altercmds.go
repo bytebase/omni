@@ -58,6 +58,17 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 	// answer first: `ROW_FORMAT FIXED, ADD KEY(a)` is 1072. MariaDB leaves the
 	// table as it found it, so hold a copy to put back when the row format is what
 	// the statement fails on.
+	// A discarded tablespace leaves nothing to copy the table into, so the ALTERs
+	// that need a copy of it are refused (1814) where the in-place ones run:
+	// measured on mariadb:11.8.8 over a table whose tablespace was DISCARDed,
+	// `ROW_FORMAT=COMPACT`, `ENGINE=MyISAM`, `MODIFY b BIGINT` and
+	// `ALGORITHM=COPY, ADD d INT` answer 1814, and `ADD c INT`, `ADD INDEX i (b)`
+	// and `RENAME TO u` run.
+	if tbl.TablespaceDiscarded {
+		if err := refuseCopyAlterOnDiscarded(tbl, stmt.Commands); err != nil {
+			return err
+		}
+	}
 	refusesRowFormat := writesFixedRowFormat(tbl, stmt.Commands)
 	// MariaDB holds every table an ALTER leaves to the AUTO_INCREMENT rule
 	// (1075), so the statement that can unkey the column needs a snapshot to put
@@ -94,6 +105,43 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 	// Aria recovers the checksum it has when the ALTER names none.
 	if rebuilt && !setsPageChecksum && !eqFoldStr(tbl.Engine, "Aria") {
 		tbl.PageChecksum = ""
+	}
+	return nil
+}
+
+// refuseCopyAlterOnDiscarded refuses an ALTER that needs a copy of a table whose
+// tablespace the statement DISCARDed: 1814. The catalog knows the commands that
+// rewrite the table's storage — a ROW_FORMAT or an ENGINE option, and a column
+// whose type changes — and not the rest (MariaDB also refuses FORCE and an added
+// CHECK there).
+func refuseCopyAlterOnDiscarded(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		switch cmd.Type {
+		case nodes.ATTableOption:
+			if cmd.Option == nil {
+				continue
+			}
+			switch toLower(cmd.Option.Name) {
+			case "engine", "row_format":
+				return errTablespaceDiscarded(tbl.Name)
+			}
+		case nodes.ATModifyColumn, nodes.ATChangeColumn:
+			for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+				if colDef == nil || colDef.TypeName == nil {
+					continue
+				}
+				col := tbl.GetColumn(cmd.Name)
+				if col == nil {
+					col = tbl.GetColumn(colDef.Name)
+				}
+				if col == nil {
+					continue
+				}
+				if !eqFoldStr(col.ColumnType, formatColumnType(colDef.TypeName)) {
+					return errTablespaceDiscarded(tbl.Name)
+				}
+			}
+		}
 	}
 	return nil
 }

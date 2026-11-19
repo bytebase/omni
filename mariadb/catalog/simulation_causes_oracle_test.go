@@ -958,6 +958,49 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"enum('s','S')"},
 		},
+		// An ENUM's trailing spaces are its collation's: `('a','a ')` lists one
+		// value twice, and `('a ','b ')` is stored as enum('a','b').
+		{
+			name: "ENUM listing a value and its trailing-space form",
+			stmt: "CREATE TABLE a (e ENUM('a', 'a '))",
+			code: 1291,
+		},
+		{
+			name:     "ENUM of two values with trailing spaces",
+			stmt:     "CREATE TABLE a (e ENUM('a ', 'b '))",
+			code:     0,
+			contains: []string{"enum('a','b')"},
+		},
+		// A discarded tablespace leaves nothing to copy into: the ALTERs that
+		// need a copy are 1814, the in-place ones run.
+		{
+			name:        "ROW_FORMAT of a table whose tablespace was DISCARDed",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a ROW_FORMAT=COMPACT",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:        "MODIFY that changes the type of a discarded table's column",
+			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:        "ALTER TABLE a MODIFY c BIGINT",
+			code:        1814,
+			keepsSchema: true,
+		},
+		{
+			name:  "ADD COLUMN to a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD e INT",
+			code:  0,
+		},
+		// A key IF NOT EXISTS finds is a note, and the definition beside it is
+		// not read.
+		{
+			name:  "ADD KEY IF NOT EXISTS of a name the table holds, with an option",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY IF NOT EXISTS idx_d (d) x = 1",
+			code:  0,
+		},
 		// A column the table already holds is 1060 before the key it would be
 		// is read, where the same statement over a free name is 1068.
 		{
