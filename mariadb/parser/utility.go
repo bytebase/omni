@@ -840,7 +840,12 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 				p.advance() // consume ','
 			}
 		}
-		p.expect(')')
+		// The list's ')' is required: `CALL p(1` is 1064, not a statement whose
+		// list the parser stopped reading (measured on mariadb:11.8.8), so the
+		// error is returned rather than dropped.
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prev.End

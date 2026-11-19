@@ -6372,6 +6372,14 @@ func TestParseCall(t *testing.T) {
 			ParseAndCheck(t, sql)
 		})
 	}
+	// A list that opens and never closes is 1064, on the two-part and the
+	// three-part form alike: measured on mariadb:11.8.8, `CALL p(1`,
+	// `CALL p(1,` and `CALL db.pkg.proc(1` all answer it.
+	for _, sql := range []string{
+		"CALL p(1", "CALL p(1,", "CALL db.pkg.proc(1", "CALL db.pkg.proc(1,",
+	} {
+		ParseExpectError(t, sql)
+	}
 }
 
 // TestParseCallPackageMemberName: a packaged routine's own name is checked as a
