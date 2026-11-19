@@ -552,3 +552,26 @@ func TestSnapshotScopesAreExclusive(t *testing.T) {
 		}
 	}
 }
+
+func TestQualifiedLabelNeedsTheWholeSnapshot(t *testing.T) {
+	// A label that names a database excludes every other scope that names
+	// one: a DATABASE clause and an external-catalog selection, which the
+	// server refuses in all three combinations.
+	for _, sql := range []string{
+		`BACKUP EXTERNAL CATALOG(a) SNAPSHOT db.s TO r`,
+		`BACKUP ALL EXTERNAL CATALOGS SNAPSHOT db.s TO r`,
+		`RESTORE SNAPSHOT db.s FROM r EXTERNAL CATALOG(a)`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		`BACKUP SNAPSHOT db.s TO r`,
+		`BACKUP EXTERNAL CATALOG(a) SNAPSHOT s TO r`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+}

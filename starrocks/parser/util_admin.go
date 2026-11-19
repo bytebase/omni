@@ -41,14 +41,8 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt.LabelParts = labelName.Parts
 	endLoc := ast.NodeLoc(labelName)
 
-	// "Specifying dbName before snapshot name is forbidden if the DbName is
-	// specified in backup statement": the DATABASE clause and a qualified
-	// label name the same thing twice.
-	if stmt.Database != "" && len(labelName.Parts) > 1 {
-		return nil, &ParseError{
-			Position: labelName.Loc.Start, End: labelName.Loc.End,
-			Message: "the snapshot label and the DATABASE clause both name a database",
-		}
+	if err := p.checkSnapshotLabelScope(labelName, stmt.Database, stmt.AllExternalCatalogs, stmt.ExternalCatalogs); err != nil {
+		return nil, err
 	}
 
 	// TO repo_name
@@ -323,11 +317,8 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if stmt.Database != "" && len(labelName.Parts) > 1 {
-		return nil, &ParseError{
-			Position: labelName.Loc.Start, End: labelName.Loc.End,
-			Message: "the snapshot label and the DATABASE clause both name a database",
-		}
+	if err := p.checkSnapshotLabelScope(labelName, stmt.Database, stmt.AllExternalCatalogs, stmt.ExternalCatalogs); err != nil {
+		return nil, err
 	}
 	if scopeLoc.IsValid() {
 		endLoc = scopeLoc
@@ -465,6 +456,24 @@ func (p *Parser) parseBackupScope(all *bool, catalogs *[]*ast.ExternalCatalogRef
 		endLoc = nameLoc
 	}
 	return endLoc, nil
+}
+
+// checkSnapshotLabelScope refuses a snapshot label that names a database beside
+// another scope that names one: the DATABASE clause ("Specifying dbName before
+// snapshot name is forbidden if the DbName is specified in backup statement")
+// and an external-catalog selection ("Can not sepcify database name for
+// external catalog Backup/Restore") both take the database the label holds.
+func (p *Parser) checkSnapshotLabelScope(label *ast.ObjectName, database string, allCatalogs bool, catalogs []*ast.ExternalCatalogRef) error {
+	if len(label.Parts) < 2 {
+		return nil
+	}
+	if database != "" || allCatalogs || len(catalogs) > 0 {
+		return &ParseError{
+			Position: label.Loc.Start, End: label.Loc.End,
+			Message: "the snapshot label names a database the statement's scope already names",
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
