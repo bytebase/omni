@@ -2194,6 +2194,11 @@ func (ew *exprWalk) walk(node ast.Node) {
 		ew.walkList(e.Values)
 		ew.walk(e.Unnest)
 		ew.walk(e.Subquery)
+		// The braced graph subquery RHS (graph_expression's `expr IN { … }`): its
+		// patterns name labels, but a nested scalar subquery is still an access.
+		if e.GraphSubquery != nil {
+			ew.walk(e.GraphSubquery)
+		}
 	case *ast.BetweenExpr:
 		ew.walk(e.Expr)
 		ew.walk(e.Low)
@@ -2265,10 +2270,25 @@ func (ew *exprWalk) walk(node ast.Node) {
 	case *ast.StarExpr:
 		// A bare '*' (COUNT(*)) carries no column reference.
 
+	// --- Graph subqueries and graph expressions (parser-gql) ---
+	case *ast.GraphSubqueryExpr, *ast.GraphExistsExpr, *ast.GraphCallOp:
+		// A graph subquery is a boundary: the names it invents are not columns.
+		ew.walkGraph(node)
+	case *ast.GraphPredicate:
+		// A standalone graph predicate is an ordinary relational comparison —
+		// `SELECT a IS SOURCE b FROM t` reads both columns — so its operands are
+		// walked with the caller's callbacks. (Inside a graph subquery the boundary
+		// walker has none, so a pattern's predicate still invents nothing.)
+		ew.walk(e.Left)
+		ew.walk(e.Right)
+
 	// --- Leaves: literals, parameters, system vars, typed literals ---
 	default:
-		// Literal / TypedLiteral / Parameter / SystemVariable / TypeRef / etc.
-		// carry no column or subquery.
+		// A graph operator or pattern holds expressions but is not itself one, so
+		// the parser-gql nodes are routed through walkGraphNode; everything else
+		// here (Literal / TypedLiteral / Parameter / SystemVariable / TypeRef) is a
+		// leaf that carries no column or subquery.
+		ew.walkGraphNode(node)
 	}
 }
 
@@ -2303,6 +2323,218 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	// its output columns are discarded (a SELECT-list scalar subquery is opaque
 	// to lineage — see makeColumnInfo).
 	ew.w.visitBody(query)
+}
+
+// walkGraph walks a graph subquery's or graph expression's internals as a
+// subquery boundary: the graph's own names — element variables, path and LET
+// variables, RETURN items — are not relational columns, so a fresh walk with no
+// column callbacks is used instead of the caller's. Nested SQL subqueries are
+// still followed, so a scalar subquery inside a graph expression records the
+// tables it reads.
+//
+// A graph subquery's ROWS come from graph element patterns over a graph, not
+// from table paths, so — like a bare GQL statement
+// (TestGetQuerySpan_GQLEmptySpan) — the patterns and the graph name contribute
+// no access table.
+func (ew *exprWalk) walkGraph(node ast.Node) {
+	inner := &exprWalk{w: ew.w, followSub: true}
+	inner.walkGraphNode(node)
+}
+
+// walkGraphCallArgs records what a graph CALL's TVF arguments name — a table
+// (`CALL f(TABLE t)`, positional or named) and the arguments' nested subqueries
+// — and walks their expressions with this boundary walker, so a table argument's
+// filter or pivot expression cannot leak a graph-local name into the enclosing
+// statement's columns. A pipe CALL has no such boundary and uses
+// spanWalker.recordCallTableArgs instead.
+func (ew *exprWalk) walkGraphCallArgs(fc *ast.FuncCall) {
+	if fc == nil {
+		return
+	}
+	for _, arg := range fc.Args {
+		switch a := arg.(type) {
+		case *ast.CallArg:
+			if a.Kind == ast.CallArgTable {
+				ew.w.recordTable(a.Path, "")
+			}
+			ew.walk(a)
+		case *ast.TableClause:
+			ew.walkGraphTableClause(a)
+		case *ast.NamedArg:
+			if tc, ok := a.Value.(*ast.TableClause); ok {
+				ew.walkGraphTableClause(tc)
+			}
+			ew.walk(a)
+		default:
+			ew.walk(arg)
+		}
+	}
+}
+
+// walkGraphTableClause records a table_clause's table (or its nested TVF's
+// arguments) and walks its expressions — the WHERE filter among them — with this
+// boundary walker.
+func (ew *exprWalk) walkGraphTableClause(tc *ast.TableClause) {
+	if tc == nil {
+		return
+	}
+	if tc.Table != nil {
+		if tc.Table.Func != nil {
+			ew.walkGraphCallArgs(tc.Table.Func)
+		} else {
+			ew.w.recordTable(tc.Table.Path, "")
+		}
+		// A PIVOT / UNPIVOT clause is walked for its subqueries only, which is
+		// already a boundary; a TABLESAMPLE's expressions are walked here so a
+		// PARTITION BY naming a graph-local variable adds no outer column.
+		ew.w.walkPivotExpressions(tc.Table.Pivot)
+		ew.w.walkUnpivotExpressions(tc.Table.Unpivot)
+		if sc := tc.Table.Sample; sc != nil {
+			ew.walk(sc.Size)
+			ew.walkList(sc.PartitionBy)
+			ew.walk(sc.Repeatable)
+		}
+	}
+	ew.walk(tc.Where)
+}
+
+// walkGraphNodes is the parser-gql counterpart of the expression walk: it
+// reaches every expression a graph operator or pattern holds, so a subquery
+// inside one records the tables it reads.
+func (ew *exprWalk) walkGraphNodes(nodes []ast.Node) {
+	for _, node := range nodes {
+		ew.walk(node)
+	}
+}
+
+// walkGraphNode walks one graph node's expression-bearing fields. The graph
+// node types are leaves to the generic expression walk (they are not
+// expressions), so each one that holds an expression is listed here.
+func (ew *exprWalk) walkGraphNode(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.GraphSubqueryExpr:
+		ew.walkGraphNodes(n.Blocks)
+	case *ast.GraphExistsExpr:
+		if n.Pattern != nil {
+			ew.walk(n.Pattern)
+		}
+		ew.walkGraphNodes(n.Ops)
+	case *ast.GraphCallOp:
+		if n.Call != nil {
+			// A TVF argument names a table the call reads (`CALL f(TABLE t)`), which
+			// the expression walk cannot see: the argument is a table clause, not an
+			// expression. It is recorded here, with this boundary walker, so a filter
+			// that names a graph-local variable adds no outer column.
+			ew.walkGraphCallArgs(n.Call)
+			ew.walk(n.Call)
+		}
+		if n.Subquery != nil {
+			ew.walk(n.Subquery)
+		}
+	case *ast.GraphPredicate:
+		ew.walk(n.Left)
+		ew.walk(n.Right)
+	case *ast.GraphLinearQuery:
+		ew.walkGraphNodes(n.Operators)
+		if n.Return != nil {
+			ew.walk(n.Return)
+		}
+	case *ast.GraphSetOp:
+		ew.walkGraphNodes(n.Ops)
+	case *ast.GraphMatchOp:
+		if n.Pattern != nil {
+			ew.walk(n.Pattern)
+		}
+	case *ast.GraphPattern:
+		for _, path := range n.Paths {
+			ew.walk(path)
+		}
+		ew.walk(n.Where)
+	case *ast.GraphPathPattern:
+		ew.walkGraphNodes(n.Factors)
+		ew.walk(n.Where)
+	case *ast.GraphNodePattern:
+		if n.Filler != nil {
+			ew.walk(n.Filler)
+		}
+	case *ast.GraphEdgePattern:
+		if n.Filler != nil {
+			ew.walk(n.Filler)
+		}
+	case *ast.GraphPatternFiller:
+		if n.Properties != nil {
+			ew.walk(n.Properties)
+		}
+		ew.walk(n.Where)
+	case *ast.GraphPropertySpec:
+		for _, prop := range n.Properties {
+			if prop != nil {
+				ew.walk(prop.Expr)
+			}
+		}
+	case *ast.GraphLetOp:
+		for _, v := range n.Vars {
+			if v != nil {
+				ew.walk(v.Expr)
+			}
+		}
+	case *ast.GraphFilterOp:
+		ew.walk(n.Expr)
+	case *ast.GraphOrderByOp:
+		ew.walkOrderItems(n.Items)
+	case *ast.GraphWithOp:
+		ew.walkGraphReturnItems(n.Items)
+		if n.GroupBy != nil {
+			ew.walk(n.GroupBy)
+		}
+	case *ast.GroupByClause:
+		// A graph RETURN/WITH `GROUP BY` (and a grouping set's items): the
+		// expressions are predicates, so a subquery inside one is a read.
+		for _, item := range n.Items {
+			if item == nil {
+				continue
+			}
+			ew.walk(item.Expr)
+			ew.walkList(item.Items)
+		}
+	case *ast.GraphForOp:
+		ew.walk(n.Expr)
+	case *ast.GraphSampleOp:
+		ew.walk(n.Size)
+		ew.walkList(n.PartitionBy)
+		ew.walk(n.Repeatable)
+	case *ast.GraphReturnOp:
+		ew.walkGraphReturnItems(n.Items)
+		if n.GroupBy != nil {
+			ew.walk(n.GroupBy)
+		}
+		ew.walkOrderItems(n.OrderBy)
+		if n.Page != nil {
+			ew.walk(n.Page)
+		}
+	case *ast.GraphPageOp:
+		ew.walk(n.Skip)
+		ew.walk(n.Limit)
+	}
+}
+
+// walkOrderItems walks a list of ORDER BY items' expressions.
+func (ew *exprWalk) walkOrderItems(items []*ast.OrderItem) {
+	for _, item := range items {
+		if item != nil {
+			ew.walk(item.Expr)
+			ew.walk(item.Collate)
+		}
+	}
+}
+
+// walkGraphReturnItems walks a graph RETURN/WITH list's expressions.
+func (ew *exprWalk) walkGraphReturnItems(items []*ast.GraphReturnItem) {
+	for _, item := range items {
+		if item != nil {
+			ew.walk(item.Expr)
+		}
+	}
 }
 
 // walkFuncCall walks a function call's arguments, ORDER BY, FILTER, and OVER
