@@ -214,3 +214,16 @@ func TestRedshiftSelectGroupByAllParse(t *testing.T) {
 		}
 	}
 }
+
+// TestRedshiftSelectConnectByNestedScope pins PRIOR's scope: a SELECT inside a
+// CONNECT BY condition is a scope of its own, where PRIOR names a column again.
+func TestRedshiftSelectConnectByNestedScope(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT 1 CONNECT BY EXISTS (SELECT prior FROM t2);",
+		"SELECT 1 START WITH id IN (SELECT prior FROM t2) CONNECT BY PRIOR id = parent_id;",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+}

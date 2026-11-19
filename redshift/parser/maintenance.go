@@ -153,14 +153,17 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 	n := &nodes.VacuumStmt{
 		IsVacuumCmd: false,
 	}
+	// r_ANALYZE_COMPRESSION is a statement of its own: [ table [ ( column
+	// [, ...] ) ] ] [ COMPROWS number ], and none of the ANALYZE clauses around
+	// it. Its column list may come with no table, so ANALYZE COMPRESSION (a)
+	// holds a relation with no name, its VaCols set and its Relation nil.
 	if p.cur.Type == COMPRESSION {
 		p.advance()
 		n.Options = appendToList(n.Options, makeDefElem("compression", nil))
-		// r_ANALYZE_COMPRESSION writes the table as optional and its column
-		// list outside it, so ANALYZE COMPRESSION (a) may open the column list
-		// with no table for it to belong to. The relation's VaCols hold the
-		// list and its Relation is nil then.
-		if p.cur.Type == '(' {
+		switch {
+		case p.redshiftKeywordIs("comprows"):
+			// COMPROWS with no table before it: the whole database's tables.
+		case p.cur.Type == '(':
 			listLoc := p.pos()
 			cols, err := p.parseParenColumnList()
 			if err != nil {
@@ -170,14 +173,31 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 				VaCols: cols,
 				Loc:    nodes.Loc{Start: listLoc, End: p.prev.End},
 			}}}
+		case p.isColId():
+			rels, err := p.parseVacuumRelationList()
+			if err != nil {
+				return nil, err
+			}
+			n.Rels = rels
 		}
+		if p.redshiftKeywordIs("comprows") {
+			p.advance()
+			// The docs' recognizer accepts COMPROWS with no number after it, so
+			// a bare COMPROWS parses; there is no count to record then.
+			if p.isRedshiftNumberStart() {
+				rows := p.parseSignedIconst()
+				n.Options = appendToList(n.Options, makeDefElem("comprows", &nodes.Integer{Ival: rows}))
+			}
+		}
+		n.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		return n, nil
 	}
 	if p.cur.Type == VERBOSE {
 		p.advance()
 		n.Options = appendToList(n.Options, makeDefElem("verbose", nil))
 	}
 
-	if n.Rels == nil && !p.redshiftAnalyzeOptionStart() {
+	if !p.redshiftAnalyzeOptionStart() {
 		rels, err := p.parseOptVacuumRelationList()
 		if err != nil {
 			return nil, err

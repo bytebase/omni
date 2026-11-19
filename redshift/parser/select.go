@@ -226,6 +226,12 @@ func (p *Parser) parseSimpleSelectLeaf() (*nodes.SelectStmt, error) {
 //	    [ HAVING condition ]
 //	    [ WINDOW window_name AS ( window_definition ) [, ...] ]
 func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
+	// PRIOR is CONNECT BY's prefix operator, and a SELECT inside that condition
+	// is a scope of its own, where the word names a column again.
+	savedInConnectBy := p.inConnectBy
+	p.inConnectBy = false
+	defer func() { p.inConnectBy = savedInConnectBy }()
+
 	loc := p.pos()
 	p.advance() // consume SELECT
 	stmt := &nodes.SelectStmt{}

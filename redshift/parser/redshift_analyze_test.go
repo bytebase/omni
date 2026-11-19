@@ -83,6 +83,7 @@ func TestRedshiftAnalyzeCompressionColumnListParse(t *testing.T) {
 		{"ANALYZE COMPRESSION(a, b)", "", 2},
 		{"ANALYZE COMPRESSION venue(venuename, venuecity)", "venue", 2},
 		{"ANALYZE COMPRESSION(a) COMPROWS 100", "", 1},
+		{"ANALYZE COMPRESSION COMPROWS 100", "", 0},
 	} {
 		stmt := singleStmt(t, tc.sql)
 		analyze, ok := stmt.(*nodes.VacuumStmt)
@@ -91,6 +92,13 @@ func TestRedshiftAnalyzeCompressionColumnListParse(t *testing.T) {
 		}
 		if findDefElem(analyze.Options, "compression") == nil {
 			t.Fatalf("Parse(%q): expected compression option in %#v", tc.sql, analyze.Options)
+		}
+		if tc.column == 0 && tc.rel == "" {
+			// COMPROWS with no table or column list names no relation.
+			if analyze.Rels != nil {
+				t.Fatalf("Parse(%q): rels = %#v, want none", tc.sql, analyze.Rels)
+			}
+			continue
 		}
 		if analyze.Rels == nil || len(analyze.Rels.Items) != 1 {
 			t.Fatalf("Parse(%q): rels = %#v, want one relation", tc.sql, analyze.Rels)
@@ -108,6 +116,32 @@ func TestRedshiftAnalyzeCompressionColumnListParse(t *testing.T) {
 		}
 		if rel.VaCols == nil || len(rel.VaCols.Items) != tc.column {
 			t.Fatalf("Parse(%q): columns = %#v, want %d", tc.sql, rel.VaCols, tc.column)
+		}
+	}
+}
+
+// TestRedshiftAnalyzeCompressionIsItsOwnStatement pins r_ANALYZE_COMPRESSION's
+// suffix: the compression form takes a table, a column list and COMPROWS, and
+// none of the ANALYZE clauses beside it.
+func TestRedshiftAnalyzeCompressionIsItsOwnStatement(t *testing.T) {
+	// COMPROWS with no number parses, as the docs' recognizer reads it, and
+	// records no count.
+	stmt := singleStmt(t, "ANALYZE COMPRESSION (a) COMPROWS")
+	analyze, ok := stmt.(*nodes.VacuumStmt)
+	if !ok {
+		t.Fatalf("expected VacuumStmt, got %T", stmt)
+	}
+	if findDefElem(analyze.Options, "comprows") != nil {
+		t.Fatalf("expected no comprows option, got %#v", analyze.Options)
+	}
+
+	for _, sql := range []string{
+		"ANALYZE COMPRESSION (a) VERBOSE",
+		"ANALYZE COMPRESSION (a) ALL COLUMNS",
+		"ANALYZE COMPRESSION venue PREDICATE COLUMNS",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
 		}
 	}
 }
