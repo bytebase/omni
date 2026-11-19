@@ -2238,7 +2238,12 @@ func (p *Parser) parseCreateGroupStmt() (nodes.Node, error) {
 	}
 	for with && p.cur.Type == ',' {
 		p.advance()
-		if !p.consumeRedshiftWord("with") {
+		if p.collectMode() {
+			// The clause repeats after the comma, and WITH comes first.
+			p.addTokenCandidate(WITH)
+			return options, nil
+		}
+		if !p.acceptRedshiftKeyword("with") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		more, err := p.parseOptRoleList(true)
@@ -2451,12 +2456,7 @@ func (p *Parser) parseRoleOptionIdent() *nodes.DefElem {
 		p.expect(ACCESS)
 		access, _ := p.parseColLabel()
 		return makeDefElem("syslog_access", &nodes.String{Str: access})
-	case "rename":
-		// r_ALTER_USER lists RENAME TO among its comma-separated options.
-		p.advance()
-		p.expect(TO)
-		name, _ := p.parseColId()
-		return makeDefElem("rename_to", &nodes.String{Str: name})
+
 	default:
 		return nil
 	}
@@ -2545,28 +2545,54 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 // parseRedshiftAlterUserOptionList parses r_ALTER_USER's
 // alterUser_option (',' alterUser_option)*; PostgreSQL's ALTER ROLE takes its
 // options without commas between them, so the separators are ALTER USER's
-// alone.
+// alone. RENAME TO is one of those options and takes part in the list.
 func (p *Parser) parseRedshiftAlterUserOptionList() (*nodes.List, error) {
-	options, err := p.parseOptRoleList(false)
+	var options *nodes.List
+	for {
+		started := false
+		if p.cur.Type == RENAME {
+			rename, err := p.parseRedshiftAlterUserRename()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, rename)
+			started = true
+		} else {
+			more, err := p.parseOptRoleList(false)
+			if err != nil {
+				return nil, err
+			}
+			if more != nil {
+				options = appendNodeLists(options, more)
+				started = true
+			}
+		}
+		if !started {
+			if options == nil {
+				// alterUser_option (',' alterUser_option)*: a comma follows an
+				// option, and this list holds none.
+				return nil, nil
+			}
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ',' {
+			return options, nil
+		}
+		p.advance()
+	}
+}
+
+// parseRedshiftAlterUserRename parses r_ALTER_USER's RENAME TO name option.
+func (p *Parser) parseRedshiftAlterUserRename() (*nodes.DefElem, error) {
+	p.advance() // consume RENAME
+	if _, err := p.expect(TO); err != nil {
+		return nil, err
+	}
+	name, err := p.parseName()
 	if err != nil {
 		return nil, err
 	}
-	if options == nil {
-		// alterUser_option (',' alterUser_option)*: the commas follow an option.
-		return nil, nil
-	}
-	for p.cur.Type == ',' {
-		p.advance()
-		more, err := p.parseOptRoleList(false)
-		if err != nil {
-			return nil, err
-		}
-		if more == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		options = appendNodeLists(options, more)
-	}
-	return options, nil
+	return makeDefElem("rename_to", &nodes.String{Str: name}), nil
 }
 
 // parseRedshiftAlterRoleClauses parses r_ALTER_ROLE's RENAME TO and OWNER TO
@@ -2617,7 +2643,7 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, is
 			break
 		}
 		p.advance()
-		if p.cur.Type == RENAME || p.cur.Type == OWNER {
+		if p.cur.Type == RENAME || (!isUser && p.cur.Type == OWNER) {
 			continue
 		}
 		if !isUser {

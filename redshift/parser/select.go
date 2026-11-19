@@ -460,10 +460,11 @@ func (p *Parser) parseRedshiftTopClause(stmt *nodes.SelectStmt) error {
 }
 
 // parseRedshiftExcludeList parses the EXCLUDE clause r_SELECT_synopsis and
-// r_SELECT_INTO put after the select list. The docs write it in two forms,
-// one name, or a parenthesized list of names:
+// r_SELECT_INTO put after the select list. r_EXCLUDE_list writes the names
+// with the parentheses optional, so both forms parse:
 //
-//	[ EXCLUDE { column_name | ( column_name [, ...] ) } ]
+//	[ EXCLUDE ( column_name [, ...] ) ]
+//	[ EXCLUDE column_name [, ...] ]
 //
 // Each name is recorded as a String, in the order written.
 func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
@@ -477,7 +478,7 @@ func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 		return nil, err
 	}
 	items := []nodes.Node{&nodes.String{Str: name}}
-	for parenthesized && p.cur.Type == ',' {
+	for p.cur.Type == ',' {
 		p.advance()
 		name, err := p.parseColId()
 		if err != nil {
@@ -526,8 +527,9 @@ func (p *Parser) parseRedshiftConnectBy(stmt *nodes.SelectStmt) error {
 		}
 		stmt.StartWith = cond
 	}
-	// CONNECT is no keyword of this package, so it is matched as the word.
-	if !p.consumeRedshiftWord("connect") {
+	// CONNECT is no keyword of this package, so it is matched as the unquoted
+	// word.
+	if !p.acceptRedshiftKeyword("connect") {
 		return p.syntaxErrorAtCur()
 	}
 	if _, err := p.expect(BY); err != nil {

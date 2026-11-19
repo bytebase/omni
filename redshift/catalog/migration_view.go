@@ -115,7 +115,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ops = append(ops, buildModifyViewOps(from, to, entry)...)
 				}
 			case 'm':
-				ops = append(ops, buildModifyMatViewOps(to, entry)...)
+				ops = append(ops, buildModifyMatViewOps(from, to, entry)...)
 			}
 		}
 	}
@@ -256,8 +256,32 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 }
 
 // buildModifyMatViewOps creates DROP + CREATE ops for a modified matview.
-// Materialized views don't support CREATE OR REPLACE.
-func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
+// Materialized views don't support CREATE OR REPLACE, so a dependent view
+// blocks the drop until it is dropped or redefined, and the plan says so.
+func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
+	var warnings []MigrationOp
+	if from != nil {
+		dependents := findDependentViews(from, entry.SchemaName, entry.Name)
+		if len(dependents) > 0 {
+			names := make([]string, len(dependents))
+			for i, d := range dependents {
+				names[i] = migrationQualifiedName(d.schema, d.name)
+			}
+			sort.Strings(names)
+			warnings = append(warnings, MigrationOp{
+				Type:          OpAlterView,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           "", // no SQL — warning only
+				Warning:       fmt.Sprintf("materialized view %s has dependent views that block its re-creation: %s", migrationQualifiedName(entry.SchemaName, entry.Name), strings.Join(names, ", ")),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityView,
+			})
+		}
+	}
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
 
@@ -295,7 +319,7 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 		Priority:      PriorityView,
 	}
 
-	return []MigrationOp{dropOp, createOp}
+	return append(warnings, dropOp, createOp)
 }
 
 // viewRef identifies a view by schema and name.

@@ -1,5 +1,9 @@
 package catalog
 
+import (
+	nodes "github.com/bytebase/omni/redshift/ast"
+)
+
 // Clone creates a deep copy of the Catalog.
 //
 // Builtin immutable data (casts, operators, builtin procs, builtin types) is shared
@@ -114,6 +118,11 @@ func (c *Catalog) Clone() *Catalog {
 				copy(pb.UpperBound, r.PartitionBound.UpperBound)
 			}
 			cr.PartitionBound = &pb
+		}
+		// MatViewOptions: deep copy, so a caller building a target catalog does
+		// not change the source's storage.
+		if r.MatViewOptions != nil {
+			cr.MatViewOptions = &nodes.List{Items: append([]nodes.Node(nil), r.MatViewOptions.Items...)}
 		}
 		// AnalyzedQuery: shallow copy (shared, not mutated by dry-run).
 		// Fix Schema pointer.

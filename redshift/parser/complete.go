@@ -191,7 +191,11 @@ func (p *Parser) collectMode() bool {
 // position answers yes through it in completion mode, where the peek otherwise
 // sees only the end of the input.
 func (p *Parser) cursorAfterCur() bool {
-	return p.completing && p.cursorOff >= p.cur.End
+	if !p.completing || p.cursorOff < p.cur.End {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == 0 || next.Loc >= p.cursorOff
 }
 
 // checkCursor checks whether the current token is at or past the cursor

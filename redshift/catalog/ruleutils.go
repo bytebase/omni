@@ -1443,6 +1443,8 @@ func (d *deparseCtx) getSQLValueFunc(s *SQLValueFuncExpr) {
 		d.buf.WriteString("CURRENT_CATALOG")
 	case SVFCurrentSchema:
 		d.buf.WriteString("CURRENT_SCHEMA")
+	case SVFLevel:
+		d.buf.WriteString("LEVEL")
 	}
 }
 

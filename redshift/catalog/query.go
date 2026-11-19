@@ -474,6 +474,9 @@ const (
 	SVFSessionUser
 	SVFCurrentCatalog
 	SVFCurrentSchema
+	// SVFLevel is Redshift's: the row's depth in the hierarchy its CONNECT BY
+	// clause builds.
+	SVFLevel
 )
 
 // DistinctExprQ represents IS [NOT] DISTINCT FROM.

@@ -217,3 +217,76 @@ func TestViewDependenciesFromHierarchicalConditions(t *testing.T) {
 		t.Fatalf("view v_hier_dep is no dependent of t.id, which CONNECT BY and the SELECT list read")
 	}
 }
+
+// TestViewLevelPseudocolumn pins LEVEL, Redshift's integer pseudocolumn of a
+// hierarchical query: a view may name it, its conditions included, and the
+// stored definition keeps the word.
+func TestViewLevelPseudocolumn(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int, parent_id int);`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+	}
+	for _, stmt := range parseStmts(t, `CREATE VIEW v_level AS SELECT id, level FROM t WHERE level < 4 START WITH parent_id IS NULL CONNECT BY PRIOR id = parent_id;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("create view: %v", err)
+		}
+	}
+
+	rel := c.GetRelation("", "v_level")
+	if rel == nil {
+		t.Fatal("view v_level is missing")
+	}
+	if len(rel.Columns) != 2 || rel.Columns[1].Name != "level" {
+		t.Fatalf("columns = %#v, want id and level", rel.Columns)
+	}
+	def, err := c.GetViewDefinition("", "v_level")
+	if err != nil {
+		t.Fatalf("GetViewDefinition: %v", err)
+	}
+	if !strings.Contains(def, "LEVEL") {
+		t.Fatalf("view definition = %q, want LEVEL in it", def)
+	}
+}
+
+// TestMigrationMatViewReplaceKeepsIndexesAndWarns pins the plan for a
+// materialized view the catalog replaces: its indexes are created again after
+// the new view, and a dependent view is named in a warning because the drop
+// waits on it.
+func TestMigrationMatViewReplaceKeepsIndexesAndWarns(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE INDEX idx_mv_id ON mv (id);
+CREATE VIEW v_dep AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE INDEX idx_mv_id ON mv (id);
+CREATE VIEW v_dep AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	createIdx := 0
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateIndex && strings.Contains(op.SQL, "idx_mv_id") {
+			createIdx++
+		}
+	}
+	if createIdx != 1 {
+		t.Fatalf("CREATE INDEX idx_mv_id appears %d times, want once after the re-created view", createIdx)
+	}
+	warned := false
+	for _, w := range plan.Warnings() {
+		if strings.Contains(w.Warning, "dependent") && strings.Contains(w.Warning, "v_dep") {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Fatalf("warnings = %#v, want one naming v_dep", plan.Warnings())
+	}
+}

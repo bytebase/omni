@@ -456,6 +456,10 @@ func TestCollectHierarchicalAndIcebergContinuations(t *testing.T) {
 		{"ALTER MATERIALIZED VIEW m AUTO REFRESH YES ", []int{INTERVAL}, nil},
 		// VACUUM SORT takes ONLY.
 		{"VACUUM SORT ", []int{ONLY}, nil},
+		// A CREATE GROUP clause repeats only through WITH.
+		{"CREATE GROUP g WITH USER u, ", []int{WITH}, nil},
+		// DROP DATABASE takes FORCE, or PostgreSQL's option list.
+		{"DROP DATABASE db ", []int{FORCE, '('}, nil},
 	} {
 		cs := Collect(tc.sql, len(tc.sql))
 		if cs == nil {
@@ -471,5 +475,22 @@ func TestCollectHierarchicalAndIcebergContinuations(t *testing.T) {
 				t.Errorf("Collect(%q): expected word %q in candidates %v", tc.sql, word, cs.Words)
 			}
 		}
+	}
+}
+
+// TestCollectKeepsAliasBeforeAClauseCursor pins cursorAfterCur to the position
+// right after its token: START followed by another token is the table's alias,
+// and completion reaches what follows it as usual.
+func TestCollectKeepsAliasBeforeAClauseCursor(t *testing.T) {
+	sql := "SELECT * FROM t START WHERE "
+	cs := Collect(sql, len(sql))
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	if cs.HasToken(WITH) {
+		t.Errorf("WITH offered after START WHERE, which keeps START an alias: %v", cs.Tokens)
+	}
+	if !cs.HasToken(TRUE_P) && !cs.HasToken(IDENT) {
+		t.Errorf("expected the WHERE expression's candidates, got %v", cs.Tokens)
 	}
 }

@@ -745,6 +745,10 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 			}
 		}
 		c.recordDepsFromNode(objType, objOID, v.WhereClause)
+		// Redshift's hierarchical-query conditions read whatever their
+		// subqueries name, so the function depends on those tables too.
+		c.recordDepsFromNode(objType, objOID, v.StartWith)
+		c.recordDepsFromNode(objType, objOID, v.ConnectBy)
 		if v.Larg != nil {
 			c.recordDepsFromNode(objType, objOID, v.Larg)
 		}

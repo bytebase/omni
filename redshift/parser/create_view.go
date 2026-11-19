@@ -513,7 +513,7 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 				p.addWordCandidate("PROPERTIES")
 				return options, nil
 			}
-			if !p.consumeRedshiftWord("properties") {
+			if !p.acceptRedshiftKeyword("properties") {
 				return nil, p.syntaxErrorAtCur()
 			}
 			properties, err := p.parseRedshiftStringOptionList()

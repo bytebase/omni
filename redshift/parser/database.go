@@ -795,6 +795,11 @@ func (p *Parser) parseDropdbStmt(stmtLoc int) (nodes.Node, error) {
 	// stands where PostgreSQL's opt_with '(' drop_option_list ')' does: the two
 	// are alternatives, not a prefix and a suffix.
 	var options *nodes.List
+	if p.collectMode() {
+		// FORCE is Redshift's, and PostgreSQL's option list is the other form.
+		p.addTokenCandidate(FORCE)
+		p.addTokenCandidate('(')
+	}
 	switch {
 	case p.cur.Type == FORCE:
 		p.advance()

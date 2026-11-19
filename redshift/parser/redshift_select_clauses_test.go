@@ -16,6 +16,7 @@ func TestRedshiftSelectExcludeParse(t *testing.T) {
 		names []string
 	}{
 		{"SELECT * EXCLUDE a FROM t;", []string{"a"}},
+		{"SELECT * EXCLUDE a, b FROM t;", []string{"a", "b"}},
 		{"SELECT * EXCLUDE (a, b) FROM t;", []string{"a", "b"}},
 		{"SELECT * EXCLUDE a INTO t2 FROM t;", []string{"a"}},
 		{"SELECT * EXCLUDE (a) INTO t2 FROM t;", []string{"a"}},
@@ -38,10 +39,7 @@ func TestRedshiftSelectExcludeParse(t *testing.T) {
 		})
 	}
 
-	// The comma list is the parenthesized form's, so a bare pair is no EXCLUDE.
-	if _, err := Parse("SELECT * EXCLUDE a, b FROM t;"); err == nil {
-		t.Error("EXCLUDE a, b parsed, want a syntax error")
-	}
+	// A trailing comma takes no name in either form.
 	for _, sql := range []string{
 		"SELECT * EXCLUDE a,",
 		"SELECT * EXCLUDE (a,)",

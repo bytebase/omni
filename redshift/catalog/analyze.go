@@ -304,6 +304,8 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		catalog: c,
 		query:   q,
 		opts:    opts,
+		// LEVEL is a pseudocolumn of the whole query, conditions included.
+		hierarchical: stmt.ConnectBy != nil,
 	}
 
 	if stmt.WithClause != nil {
@@ -635,6 +637,10 @@ type analyzeCtx struct {
 	// for a CTE or for an outer column, made a long UNION take quadratic
 	// time and memory, so each level keeps where those lookups go on,
 	// passing over the levels of set operations that cannot answer them.
+	// hierarchical is true for a query with a CONNECT BY clause, where Redshift
+	// resolves LEVEL as an integer pseudocolumn.
+	hierarchical bool
+
 	setOp       bool        // the level of a set operation
 	noCTEs      bool        // the level of a set operation with no WITH clause
 	cteParent   *analyzeCtx // the level lookupCTE searches after this one
@@ -1821,6 +1827,12 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 	// EXPR_KIND_COLUMN_DEFAULT rejects ColumnRef before attempting resolution.
 	if ac.exprKind == analyzeExprKindColumnDefault {
 		return nil, errColumnReferenceInDefault()
+	}
+
+	// Redshift's hierarchical queries expose LEVEL as an integer pseudocolumn:
+	// the depth of the row in the hierarchy CONNECT BY builds.
+	if tableName == "" && ac.hierarchical && strings.EqualFold(colName, "level") {
+		return &SQLValueFuncExpr{Op: SVFLevel, TypeOID: INT4OID}, nil
 	}
 
 	// pg: src/backend/commands/typecmds.c — replace_domain_constraint_value
@@ -3405,6 +3417,7 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 
 	// Simple SELECT with parent context.
 	subAc := ac.subContext(disallowParentCols)
+	subAc.hierarchical = stmt.ConnectBy != nil
 	q := subAc.query
 
 	// Process WITH clause if present.
