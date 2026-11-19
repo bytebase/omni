@@ -763,6 +763,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			name:  "SET DEFAULT naming nothing as a sequence",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER c SET DEFAULT (NEXTVAL(nope))",
+			code:  1146,
+		},
+		{
+			name:  "SET DEFAULT naming a table as a sequence",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER c SET DEFAULT (NEXTVAL(a))",
+			code:  1347,
+		},
+		{
 			name:       "ALTER TABLE PARTITION BY KEY with no column",
 			setup:      []string{oneTable},
 			stmt:       "ALTER TABLE a PARTITION BY KEY()",

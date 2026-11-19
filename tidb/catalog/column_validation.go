@@ -726,6 +726,11 @@ func checkSetDefaultColumnRef(tbl *Table, col *Column, expr nodes.ExprNode) erro
 	if expr == nil || col == nil {
 		return nil
 	}
+	// A NEXT VALUE FOR / NEXTVAL in the expression is a sequence default, which
+	// SET DEFAULT takes: its name is resolved rather than read as a column.
+	if err := checkSequenceDefault(tbl, expr, col.Name, false); err != nil {
+		return err
+	}
 	switch strings.ToLower(col.DataType) {
 	case "datetime", "timestamp":
 		return nil
@@ -773,12 +778,21 @@ func columnRefsOutsideSequenceCalls(expr nodes.ExprNode) []*nodes.ColumnRef {
 	return refs
 }
 
-// checkColumnSequenceDefault resolves the sequence a column definition's DEFAULT
-// NEXT VALUE FOR names, which TiDB v8.5.5 does while it prepares the ALTER:
-// a table of the name that is not a sequence answers 1347, and nothing of the
-// name 1146 (both read on v8.5.5, ahead of the duplicate-column check).
+// checkColumnSequenceDefault resolves the sequence an ADD COLUMN's DEFAULT
+// NEXT VALUE FOR names, which TiDB v8.5.5 does while it prepares the ALTER: a
+// table of the name that is not a sequence answers 1347, nothing of the name
+// 1146, and a sequence 8230 (all read on v8.5.5, ahead of the duplicate-column
+// check).
 func checkColumnSequenceDefault(tbl *Table, colDef *nodes.ColumnDef) error {
-	expr := columnDefaultExpr(colDef)
+	return checkSequenceDefault(tbl, columnDefaultExpr(colDef), colDef.Name, true)
+}
+
+// checkSequenceDefault resolves the sequence a default expression's NEXT VALUE
+// FOR / NEXTVAL names: 1146 for nothing of the name, 1347 for an object of
+// another kind, and, when addColumn is set, 8230 because a sequence cannot back
+// an ADD COLUMN's default -- CREATE TABLE and SET DEFAULT take one (all read on
+// v8.5.5).
+func checkSequenceDefault(tbl *Table, expr nodes.ExprNode, colName string, addColumn bool) error {
 	if expr == nil {
 		return nil
 	}
@@ -802,10 +816,13 @@ func checkColumnSequenceDefault(tbl *Table, colDef *nodes.ColumnDef) error {
 		return nil
 	}
 	if db.Sequences[toLower(ref.Column)] != nil {
+		if !addColumn {
+			return nil
+		}
 		// A sequence backs a CREATE TABLE's default and a SET DEFAULT, but not
 		// an ADD COLUMN's: v8.5.5 answers 8230 (read on v8.5.5).
 		return &Error{Code: ErrSequenceDefaultInAddColumn, SQLState: sqlState(ErrSequenceDefaultInAddColumn),
-			Message: fmt.Sprintf("Unsupported using sequence as default value in add column '%s'", colDef.Name)}
+			Message: fmt.Sprintf("Unsupported using sequence as default value in add column '%s'", colName)}
 	}
 	if db.GetTable(ref.Column) != nil || db.Views[toLower(ref.Column)] != nil {
 		return errWrongObjectKind(db.Name, ref.Column, "SEQUENCE")

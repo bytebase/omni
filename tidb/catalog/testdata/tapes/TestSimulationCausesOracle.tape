@@ -3061,6 +3061,62 @@
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER TABLE a ALTER c SET DEFAULT (NEXTVAL(nope))
+< error
+| 1146 42S02 Table 'test.nope' doesn't exist
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER c SET DEFAULT (NEXTVAL(a))
+< error
+| 1347 HY000 'test.a' is not SEQUENCE
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a PARTITION BY KEY()
 < ok 0 0
 > query
