@@ -708,24 +708,29 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 		}
 		return false
 	}
-	// withLocal adds the columns the WITH elements of the statement add to
-	// their relations: a subav_factoring_clause's ADD MEASURES.
+	// withLocal adds the columns each WITH element contributes to the
+	// relation it names: a subav_factoring_clause's ADD MEASURES. They are
+	// the element's own columns, so they enter the scope only where the query
+	// reads that element.
 	withLocal := func(w *ast.WithClause) {
-		if w == nil {
+		if w == nil || w.CTEs == nil {
 			return
 		}
-		local := map[string]bool{}
 		for _, item := range w.CTEs.Items {
 			cte, ok := item.(*ast.CTE)
 			if !ok || cte.SubAV == nil {
 				continue
 			}
-			for name := range subAVLocalColumns(cte.SubAV) {
-				local[name] = true
+			local := subAVLocalColumns(cte.SubAV)
+			if len(local) == 0 {
+				continue
 			}
-		}
-		if len(local) > 0 {
-			scope = append(scope, scoped{local: local})
+			for _, s := range scope {
+				if strings.EqualFold(s.alias, cte.Name) || s.alias == "" && strings.EqualFold(s.ref.name, cte.Name) {
+					scope = append(scope, scoped{alias: cte.Name, local: local})
+					break
+				}
+			}
 		}
 	}
 	fromList := func(l *ast.List) bool {
@@ -742,8 +747,9 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 	}
 	switch v := n.(type) {
 	case *ast.SelectStmt:
+		ok := blocks == 1 && fromList(v.FromClause)
 		withLocal(v.WithClause)
-		return scope, blocks == 1 && fromList(v.FromClause)
+		return scope, ok
 	case *ast.InsertStmt:
 		switch {
 		case v.MultiTable != nil:

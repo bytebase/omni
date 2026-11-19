@@ -1709,9 +1709,7 @@ func (q *querySpanExtractor) extractInlineAnalyticView(ref *oracleast.InlineAnal
 }
 
 // subAVTableSource is the span of the persistent analytic view a sub_av_clause
-// names, with the columns its ADD MEASURES adds to the derived view. A
-// calculated measure's expression is not parsed (its grammar is no page's
-// here), so its column carries no source columns.
+// names, with the columns its ADD MEASURES adds to the derived view.
 func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (spanTable, error) {
 	if clause == nil || clause.Using == nil || clause.Using.Name == "" {
 		return nil, nil
@@ -1733,7 +1731,7 @@ func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (sp
 	if tableSource == nil {
 		return nil, nil
 	}
-	added := subAVMeasures(clause)
+	added := q.subAVMeasures(clause, tableSource)
 	if len(added) == 0 {
 		return tableSource, nil
 	}
@@ -1742,21 +1740,37 @@ func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (sp
 	return &pseudoTable{Name: tableSource.GetTableName(), Columns: columns}, nil
 }
 
-// subAVMeasures returns the columns an ADD MEASURES clause adds.
-func subAVMeasures(clause *oracleast.SubAVClause) []QuerySpanResult {
+// subAVMeasures returns the columns an ADD MEASURES clause adds, each with
+// the source columns its expression reads in the derived view: the base
+// relation and the measures added before it. A measure whose expression the
+// parser read whole (SubAVClause.OpaqueMeasure) carries none.
+func (q *querySpanExtractor) subAVMeasures(clause *oracleast.SubAVClause, base spanTable) []QuerySpanResult {
 	for _, node := range listItems(clause.Options) {
 		option, ok := node.(*oracleast.DDLOption)
 		if !ok || option.Key != "ADD MEASURES" {
 			continue
 		}
+		// The measures are the derived view's own columns: an expression
+		// resolves against the relation and the measures before it.
+		oldFrom := q.tableSourcesFrom
+		added := &pseudoTable{}
+		q.tableSourcesFrom = []spanTable{base, added}
 		var measures []QuerySpanResult
 		for _, item := range listItems(option.Items) {
 			measure, ok := item.(*oracleast.ResTarget)
 			if !ok || measure.Name == "" {
 				continue
 			}
-			measures = append(measures, QuerySpanResult{Name: measure.Name, SourceColumns: ColumnSet{}})
+			sourceColumns := ColumnSet{}
+			if measure.Expr != nil {
+				if _, columns, err := q.extractExpr(measure.Expr); err == nil {
+					sourceColumns = columns
+				}
+			}
+			measures = append(measures, QuerySpanResult{Name: measure.Name, SourceColumns: sourceColumns})
+			added.Columns = measures
 		}
+		q.tableSourcesFrom = oldFrom
 		return measures
 	}
 	return nil

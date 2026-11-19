@@ -156,6 +156,17 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	require.NotEmpty(t, span.Results[0].SourceColumns)
 	require.Empty(t, span.Results[1].SourceColumns)
 
+	// A parsed measure carries the lineage of what it reads, the measures
+	// before it included; one the parser read whole carries none.
+	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(A)))")
+	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "SELECT N FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(A), N AS(M + 1)))")
+	require.Equal(t, []QuerySpanResult{{Name: "N", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(LAG(S) OVER (HIERARCHY H OFFSET 1))))")
+	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: ColumnSet{}}}, span.Results)
+
 	// USING names a persistent analytic view in the schema, never a CTE of the
 	// same name.
 	span = resolve(t, "WITH V AS (SELECT 1 AS X FROM T) SELECT A FROM ANALYTIC VIEW(USING V)")

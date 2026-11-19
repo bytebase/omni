@@ -513,6 +513,9 @@ var walkForms = []walktest.Form{
 	{SQL: "WITH av ANALYTIC VIEW AS (USING sales_av ADD MEASURES(lag_sales AS(1))) SELECT lag_sales FROM av;"},
 	// Ends the walk after its checks: it may run code of a schema.
 	{SQL: "SELECT f(1) FROM dual;", Last: true},
+	// An unused element's ADD MEASURES is no column of the query: F may be
+	// a schema function.
+	{SQL: "WITH av ANALYTIC VIEW AS (USING sales_av ADD MEASURES(f AS(1))) SELECT f FROM p;", Last: true},
 	{SQL: "SELECT m FROM ANALYTIC VIEW(USING av ADD MEASURES(m AS(pkg.f())));", Last: true},
 	{SQL: "INSERT INTO pv VALUES (1, 'a');", Last: true},
 	{SQL: "CREATE TABLE x AS SELECT f(1) a FROM dual;", Last: true},
