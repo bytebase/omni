@@ -375,6 +375,30 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// REASSIGN OWNED and ALTER ROLE RENAME move a function's owner too.
+	t.Run("function ownership follows REASSIGN and RENAME", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"SET ROLE alice",
+			"CREATE FUNCTION f() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"RESET ROLE",
+			"REASSIGN OWNED BY alice TO bob",
+			"ALTER ROLE bob RENAME TO carol",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP OWNED BY carol"); code != "0" {
+			t.Fatalf("catalog refused DROP OWNED BY carol with %s", code)
+		}
+		if len(c.userProcs) != 0 {
+			t.Fatal("DROP OWNED kept the function after REASSIGN and RENAME")
+		}
+	})
+
 	// DROP OWNED drops a function the role owns.
 	t.Run("DROP OWNED drops an owned function", func(t *testing.T) {
 		c := New()
