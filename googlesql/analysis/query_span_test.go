@@ -506,6 +506,51 @@ func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_GraphSubqueryExpression pins what a graph subquery used as an
+// expression does to the span of an ordinary SELECT. The graph subquery is a leaf
+// for lineage, like a bare GQL statement (see TestGetQuerySpan_GQLEmptySpan):
+// the legacy accessTableListener walks table_path_expression positions only, and
+// a graph element pattern references labels, not tables — so a MATCH's patterns
+// and the graph's own name contribute no AccessTables. Everything else about the
+// SELECT still resolves: its FROM table is an access and its select list is the
+// projection.
+func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
+	cases := []struct {
+		sql     string
+		tables  []string
+		results int
+	}{
+		{"SELECT a, EXISTS { MATCH (n) RETURN n } FROM t", []string{"t"}, 2},
+		{"SELECT ARRAY { RETURN NULL }", nil, 1},
+		{"SELECT VALUE { RETURN NULL }", nil, 1},
+		{"SELECT NULL IN { RETURN NULL }", nil, 1},
+		{"SELECT a, EXISTS { MATCH (n:Person) WHERE n.id = 1 RETURN n } FROM t", []string{"t"}, 2},
+		// A scalar subquery inside a graph operator or pattern is still a read: the
+		// graph tree's expressions are walked even though its patterns name labels.
+		{"SELECT EXISTS { LET a = (SELECT MAX(x) FROM secret) RETURN a }", []string{"secret"}, 1},
+		{"SELECT EXISTS { MATCH (n) WHERE n.id IN (SELECT id FROM secret) RETURN n }", []string{"secret"}, 1},
+		// A graph predicate's operands are walked: neither names a table here.
+		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},
+	}
+	for _, tc := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			span, err := GetQuerySpan(tc.sql, dialect)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q, %v) error: %v", tc.sql, dialect, err)
+			}
+			if span.Type != Select {
+				t.Errorf("GetQuerySpan(%q, %v) Type = %v, want Select", tc.sql, dialect, span.Type)
+			}
+			if got := tableNames(span); !eqStrings(got, tc.tables) {
+				t.Errorf("GetQuerySpan(%q, %v) AccessTables = %v, want %v", tc.sql, dialect, got, tc.tables)
+			}
+			if len(span.Results) != tc.results {
+				t.Errorf("GetQuerySpan(%q, %v) Results = %v, want %d columns", tc.sql, dialect, resultNames(span), tc.results)
+			}
+		}
+	}
+}
+
 // TestGetQuerySpan_GQLEmptySpan pins the parser-gql query-span DISPOSITION
 // (finding F9): a GQL graph query (`GRAPH … MATCH … RETURN …`) yields an EMPTY
 // span — Type=Unknown, no AccessTables, no Results, no PredicateColumns. This is

@@ -957,3 +957,403 @@ func TestGQL_WalkReachesSubnodes(t *testing.T) {
 		t.Errorf("walker reached %d PathExpr nodes, want >= 3 (subnodes unreachable?)", pathExprs)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Graph subqueries, graph expressions and CALL (the alternatives compat.tsv's
+// graph rows cover: braced_graph_subquery, the three exists_graph_subquery
+// forms, expression_subquery_with_keyword over a brace, graph_expression's
+// endpoint/label predicates and IN, and graph_call_operator).
+// ---------------------------------------------------------------------------
+
+// selectExprItems parses a SELECT and returns its select list.
+func selectExprItems(t *testing.T, sql string) []*ast.SelectItem {
+	t.Helper()
+	n := parseDDL(t, sql)
+	q, ok := n.(*ast.QueryStmt)
+	if !ok {
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.QueryStmt", sql, n)
+	}
+	sel, ok := q.Body.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("parseForTest(%q): body is %T, want *ast.SelectStmt", sql, q.Body)
+	}
+	return sel.Items
+}
+
+// onlyItemExpr parses `SELECT <expr>` and returns the single item's expression.
+func onlyItemExpr(t *testing.T, sql string) ast.Node {
+	t.Helper()
+	items := selectExprItems(t, sql)
+	if len(items) != 1 {
+		t.Fatalf("parseForTest(%q): %d items, want 1", sql, len(items))
+	}
+	return items[0].Expr
+}
+
+func TestGraphSubquery_Modifiers(t *testing.T) {
+	cases := []struct {
+		sql      string
+		modifier ast.GraphSubqueryModifier
+		graph    string
+	}{
+		{"SELECT ARRAY { RETURN NULL }", ast.GraphSubqueryArray, ""},
+		{"SELECT VALUE { RETURN NULL }", ast.GraphSubqueryValue, ""},
+		{"SELECT EXISTS { RETURN NULL }", ast.GraphSubqueryExists, ""},
+		{"SELECT ARRAY { GRAPH a RETURN NULL }", ast.GraphSubqueryArray, "a"},
+		{"SELECT VALUE { GRAPH a RETURN NULL }", ast.GraphSubqueryValue, "a"},
+	}
+	for _, tc := range cases {
+		sub, ok := onlyItemExpr(t, tc.sql).(*ast.GraphSubqueryExpr)
+		if !ok {
+			t.Fatalf("%q: expression is %T, want *ast.GraphSubqueryExpr", tc.sql, onlyItemExpr(t, tc.sql))
+		}
+		if sub.Modifier != tc.modifier {
+			t.Errorf("%q: Modifier = %v, want %v", tc.sql, sub.Modifier, tc.modifier)
+		}
+		gotGraph := ""
+		if sub.Graph != nil {
+			gotGraph = sub.Graph.String()
+		}
+		if gotGraph != tc.graph {
+			t.Errorf("%q: Graph = %q, want %q", tc.sql, gotGraph, tc.graph)
+		}
+		if len(sub.Blocks) != 1 {
+			t.Fatalf("%q: Blocks = %d, want 1", tc.sql, len(sub.Blocks))
+		}
+		lq, ok := sub.Blocks[0].(*ast.GraphLinearQuery)
+		if !ok {
+			t.Fatalf("%q: Blocks[0] is %T, want *ast.GraphLinearQuery", tc.sql, sub.Blocks[0])
+		}
+		if lq.Return == nil || len(lq.Return.Items) != 1 {
+			t.Errorf("%q: RETURN items = %v, want 1", tc.sql, lq.Return)
+		}
+	}
+}
+
+func TestGraphSubquery_InPredicate(t *testing.T) {
+	in, ok := onlyItemExpr(t, "SELECT NULL IN { RETURN NULL }").(*ast.InExpr)
+	if !ok {
+		t.Fatalf("expression is %T, want *ast.InExpr", onlyItemExpr(t, "SELECT NULL IN { RETURN NULL }"))
+	}
+	if in.GraphSubquery == nil {
+		t.Fatal("InExpr.GraphSubquery = nil, want the braced graph subquery")
+	}
+	if in.GraphSubquery.Modifier != ast.GraphSubqueryBare {
+		t.Errorf("Modifier = %v, want GraphSubqueryBare", in.GraphSubquery.Modifier)
+	}
+	if len(in.GraphSubquery.Blocks) != 1 {
+		t.Errorf("Blocks = %d, want 1", len(in.GraphSubquery.Blocks))
+	}
+}
+
+func TestGraphExistsSubquery_PatternAndLinearOps(t *testing.T) {
+	// A bare graph pattern after the brace.
+	e, ok := onlyItemExpr(t, "SELECT EXISTS { - }").(*ast.GraphExistsExpr)
+	if !ok {
+		t.Fatalf("expression is %T, want *ast.GraphExistsExpr", onlyItemExpr(t, "SELECT EXISTS { - }"))
+	}
+	if e.Kind != ast.GraphExistsPattern {
+		t.Errorf("Kind = %v, want GraphExistsPattern", e.Kind)
+	}
+	if e.Pattern == nil || len(e.Pattern.Paths) != 1 {
+		t.Fatalf("Pattern = %v, want one path", e.Pattern)
+	}
+	if _, ok := e.Pattern.Paths[0].Factors[0].(*ast.GraphEdgePattern); !ok {
+		t.Errorf("factor is %T, want *ast.GraphEdgePattern", e.Pattern.Paths[0].Factors[0])
+	}
+
+	// A run of linear operators with no RETURN.
+	e, ok = onlyItemExpr(t, "SELECT EXISTS { MATCH - FILTER NULL }").(*ast.GraphExistsExpr)
+	if !ok {
+		t.Fatalf("expression is %T, want *ast.GraphExistsExpr", onlyItemExpr(t, "SELECT EXISTS { MATCH - FILTER NULL }"))
+	}
+	if e.Kind != ast.GraphExistsLinearOps {
+		t.Errorf("Kind = %v, want GraphExistsLinearOps", e.Kind)
+	}
+	if len(e.Ops) != 2 {
+		t.Fatalf("Ops = %d, want 2 (MATCH, FILTER)", len(e.Ops))
+	}
+	if _, ok := e.Ops[0].(*ast.GraphMatchOp); !ok {
+		t.Errorf("Ops[0] is %T, want *ast.GraphMatchOp", e.Ops[0])
+	}
+	if _, ok := e.Ops[1].(*ast.GraphFilterOp); !ok {
+		t.Errorf("Ops[1] is %T, want *ast.GraphFilterOp", e.Ops[1])
+	}
+
+	// A named graph prefix.
+	e, ok = onlyItemExpr(t, "SELECT EXISTS { GRAPH a MATCH - }").(*ast.GraphExistsExpr)
+	if !ok {
+		t.Fatalf("expression is %T, want *ast.GraphExistsExpr", onlyItemExpr(t, "SELECT EXISTS { GRAPH a MATCH - }"))
+	}
+	if e.Graph == nil || e.Graph.String() != "a" {
+		t.Errorf("Graph = %v, want a", e.Graph)
+	}
+}
+
+func TestGraphCallOp(t *testing.T) {
+	// A named table-valued function with a YIELD list.
+	call := firstLinearOp(t, "SELECT EXISTS { CALL a() YIELD a, a AS b }")
+	c, ok := call.(*ast.GraphCallOp)
+	if !ok {
+		t.Fatalf("operator is %T, want *ast.GraphCallOp", call)
+	}
+	if c.Call == nil || c.Call.Name.String() != "a" {
+		t.Fatalf("Call = %v, want a()", c.Call)
+	}
+	if len(c.Yield) != 2 || c.Yield[0].Name != "a" || c.Yield[1].Alias != "b" {
+		t.Errorf("Yield = %v, want [a, a AS b]", c.Yield)
+	}
+	if c.HasPer || c.Optional {
+		t.Errorf("HasPer/Optional = %v/%v, want false/false", c.HasPer, c.Optional)
+	}
+
+	// OPTIONAL CALL with a PER clause, and the empty PER list.
+	c, ok = firstLinearOp(t, "SELECT EXISTS { OPTIONAL CALL PER(a) a() }").(*ast.GraphCallOp)
+	if !ok {
+		t.Fatal("operator is not *ast.GraphCallOp")
+	}
+	if !c.Optional {
+		t.Error("Optional = false, want true")
+	}
+	if !c.HasPer || len(c.Per) != 1 || c.Per[0] != "a" {
+		t.Errorf("Per = %v (HasPer %v), want [a]", c.Per, c.HasPer)
+	}
+	c, ok = firstLinearOp(t, "SELECT EXISTS { CALL PER() a() }").(*ast.GraphCallOp)
+	if !ok {
+		t.Fatal("operator is not *ast.GraphCallOp")
+	}
+	if !c.HasPer || len(c.Per) != 0 {
+		t.Errorf("Per = %v (HasPer %v), want the empty PER list", c.Per, c.HasPer)
+	}
+
+	// The inline-subquery call, with and without the identifier list.
+	c, ok = firstLinearOp(t, "SELECT EXISTS { CALL { RETURN NULL } }").(*ast.GraphCallOp)
+	if !ok {
+		t.Fatal("operator is not *ast.GraphCallOp")
+	}
+	if c.Subquery == nil || c.Call != nil {
+		t.Fatalf("Subquery = %v, Call = %v; want a subquery call", c.Subquery, c.Call)
+	}
+	c, ok = firstLinearOp(t, "SELECT EXISTS { CALL() { RETURN NULL } }").(*ast.GraphCallOp)
+	if !ok {
+		t.Fatal("operator is not *ast.GraphCallOp")
+	}
+	if c.Subquery == nil || !c.HasPer || len(c.Per) != 0 {
+		t.Errorf("identifier-list call = %v / Per %v, want a subquery call with an empty list", c.Subquery, c.Per)
+	}
+}
+
+// firstLinearOp parses a statement whose first block is a linear query and
+// returns its first operator.
+func firstLinearOp(t *testing.T, sql string) ast.Node {
+	t.Helper()
+	e := onlyItemExpr(t, sql)
+	var ops []ast.Node
+	switch n := e.(type) {
+	case *ast.GraphExistsExpr:
+		ops = n.Ops
+	case *ast.GraphSubqueryExpr:
+		lq, ok := n.Blocks[0].(*ast.GraphLinearQuery)
+		if !ok {
+			t.Fatalf("%q: Blocks[0] is %T, want *ast.GraphLinearQuery", sql, n.Blocks[0])
+		}
+		ops = lq.Operators
+	default:
+		t.Fatalf("%q: expression is %T, want a graph subquery", sql, e)
+	}
+	if len(ops) == 0 {
+		t.Fatalf("%q: no linear operators", sql)
+	}
+	return ops[0]
+}
+
+func TestGraphPredicate(t *testing.T) {
+	cases := []struct {
+		expr string
+		kind ast.GraphPredicateKind
+		not  bool
+	}{
+		{"a IS SOURCE b", ast.GraphIsSource, false},
+		{"a IS SOURCE OF b", ast.GraphIsSource, false},
+		{"a IS NOT SOURCE b", ast.GraphIsSource, true},
+		{"a IS NOT SOURCE OF b", ast.GraphIsSource, true},
+		{"a IS DESTINATION b", ast.GraphIsDestination, false},
+		{"a IS NOT DESTINATION OF b", ast.GraphIsDestination, true},
+	}
+	for _, tc := range cases {
+		p, ok := mustParse(t, tc.expr).(*ast.GraphPredicate)
+		if !ok {
+			t.Fatalf("%q: expression is %T, want *ast.GraphPredicate", tc.expr, mustParse(t, tc.expr))
+		}
+		if p.Kind != tc.kind || p.Not != tc.not {
+			t.Errorf("%q: Kind = %v, Not = %v; want %v, %v", tc.expr, p.Kind, p.Not, tc.kind, tc.not)
+		}
+		if _, ok := p.Right.(*ast.Identifier); !ok {
+			t.Errorf("%q: Right is %T, want the endpoint expression", tc.expr, p.Right)
+		}
+	}
+
+	// IS [NOT] LABELED carries the label algebra.
+	p, ok := mustParse(t, "a IS LABELED x & !y | %").(*ast.GraphPredicate)
+	if !ok {
+		t.Fatal("expression is not *ast.GraphPredicate")
+	}
+	if p.Kind != ast.GraphIsLabeled {
+		t.Errorf("Kind = %v, want GraphIsLabeled", p.Kind)
+	}
+	label, ok := p.Right.(*ast.GraphLabelExpr)
+	if !ok {
+		t.Fatalf("Right is %T, want *ast.GraphLabelExpr", p.Right)
+	}
+	// `&` binds tighter than `|`: (x & !y) | %.
+	if label.Kind != ast.LabelOr {
+		t.Fatalf("top label op = %v, want LabelOr", label.Kind)
+	}
+	if label.Left.Kind != ast.LabelAnd || label.Left.Right.Kind != ast.LabelNot {
+		t.Errorf("left operand = %v/%v, want an AND of a NOT", label.Left.Kind, label.Left.Right.Kind)
+	}
+	if label.Right.Kind != ast.LabelWildcard {
+		t.Errorf("right operand = %v, want the %% wildcard", label.Right.Kind)
+	}
+}
+
+func TestGraphSearchPrefixAndPathMode(t *testing.T) {
+	cases := []struct {
+		pattern string
+		search  string
+		mode    string
+	}{
+		{"ANY -", "ANY", ""},
+		{"ANY SHORTEST -", "ANY SHORTEST", ""},
+		{"ANY CHEAPEST -", "ANY CHEAPEST", ""},
+		{"ANY 1 -", "ANY 1", ""},
+		{"SHORTEST 1 -", "SHORTEST 1", ""},
+		{"CHEAPEST 1 -", "CHEAPEST 1", ""},
+		{"ALL -", "ALL", ""},
+		{"ALL SHORTEST -", "ALL SHORTEST", ""},
+		{"ALL CHEAPEST -", "ALL CHEAPEST", ""},
+		{"WALK -", "", "WALK"},
+		{"TRAIL PATH -", "", "TRAIL PATH"},
+		{"ACYCLIC PATHS -", "", "ACYCLIC PATHS"},
+		{"PATH -", "", "PATH"},
+		{"PATHS -", "", "PATHS"},
+		{"p = ANY SHORTEST WALK PATHS -", "ANY SHORTEST", "WALK PATHS"},
+	}
+	for _, tc := range cases {
+		path := firstPathOf(t, "SELECT EXISTS { "+tc.pattern+" }")
+		if path.Search != tc.search {
+			t.Errorf("%q: Search = %q, want %q", tc.pattern, path.Search, tc.search)
+		}
+		if path.Mode != tc.mode {
+			t.Errorf("%q: Mode = %q, want %q", tc.pattern, path.Mode, tc.mode)
+		}
+	}
+	// A path-variable assignment: `p = …`.
+	path := firstPathOf(t, "SELECT EXISTS { p = ANY - }")
+	if path.PathVar != "p" {
+		t.Errorf("PathVar = %q, want p", path.PathVar)
+	}
+}
+
+// firstPathOf parses `SELECT EXISTS { <pattern> }` and returns the pattern's
+// single path pattern.
+func firstPathOf(t *testing.T, sql string) *ast.GraphPathPattern {
+	t.Helper()
+	e, ok := onlyItemExpr(t, sql).(*ast.GraphExistsExpr)
+	if !ok {
+		t.Fatalf("%q: expression is %T, want *ast.GraphExistsExpr", sql, onlyItemExpr(t, sql))
+	}
+	if e.Pattern == nil || len(e.Pattern.Paths) != 1 {
+		t.Fatalf("%q: Pattern = %v, want one path", sql, e.Pattern)
+	}
+	return e.Pattern.Paths[0]
+}
+
+func TestGraphQuantifier(t *testing.T) {
+	// `+`, `*`, `{n}`, `{n,}`, `{,m}` and `{n,m}` are all quantifiers on an edge,
+	// and each keeps the edge pattern as the factor.
+	for _, pattern := range []string{"- +", "- *", "- { 1 }", "- { 1, }", "- {, 2 }", "- { 1, 2 }"} {
+		path := firstPathOf(t, "SELECT EXISTS { "+pattern+" }")
+		if len(path.Factors) != 1 {
+			t.Fatalf("%q: %d factors, want 1", pattern, len(path.Factors))
+		}
+		if _, ok := path.Factors[0].(*ast.GraphEdgePattern); !ok {
+			t.Errorf("%q: factor is %T, want *ast.GraphEdgePattern", pattern, path.Factors[0])
+		}
+	}
+	// A quantifier on a node pattern is refused, as the grammar's action does.
+	if _, errs := parseForTest("SELECT EXISTS { (a)* }"); len(errs) == 0 {
+		t.Error("parseForTest(`SELECT EXISTS { (a)* }`) accepted a quantifier on a node pattern")
+	}
+}
+
+func TestGraphEdgePatternRequiresAdjacency(t *testing.T) {
+	// The grammar's ValidateNoWhitespace refuses a space between an edge
+	// pattern's delimiters, so the generator's spaced spelling is a near-miss the
+	// emulator rejects and omni must too.
+	for _, sql := range []string{
+		"SELECT EXISTS { - [ ] - }",
+		"SELECT EXISTS { - [ ] -> }",
+		"SELECT EXISTS { < - [ ] - }",
+		"SELECT EXISTS { < - }",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) accepted whitespace inside an edge pattern", sql)
+		}
+	}
+	// The adjacent spellings parse.
+	for _, sql := range []string{
+		"SELECT EXISTS { -[]- }",
+		"SELECT EXISTS { -[]-> }",
+		"SELECT EXISTS { <-[]- }",
+		"SELECT EXISTS { <- }",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+}
+
+func TestGraphHintPlacement(t *testing.T) {
+	// A hint between two edges is ambiguous, and the grammar refuses it.
+	if _, errs := parseForTest("SELECT EXISTS { -@1 - }"); len(errs) == 0 {
+		t.Error("parseForTest accepted a hint between two edge patterns")
+	}
+	// A hint may not open a parenthesized path pattern.
+	if _, errs := parseForTest("SELECT EXISTS { (@1 -) }"); len(errs) == 0 {
+		t.Error("parseForTest accepted a hint at the beginning of a path pattern")
+	}
+	// A hint may open a node pattern's filler, and may sit between two nodes.
+	for _, sql := range []string{
+		"SELECT EXISTS { (@1) }",
+		"SELECT EXISTS { (@1 a) }",
+		"SELECT EXISTS { (a)@1(b) }",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+}
+
+func TestGraphKeywordIdentifiers(t *testing.T) {
+	// The pinned grammar's common_keyword_as_identifier takes these as names;
+	// the pinned emulator agrees (compat.tsv's common_keyword_as_identifier rows).
+	for _, word := range []string{"MATCH_RECOGNIZE", "NOTHING", "QUALIFY", "SHORTEST", "REPLACE_FIELDS", "SAFE_CAST"} {
+		for _, sql := range []string{"SELECT " + word, "SELECT " + word + " zzz"} {
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+			}
+		}
+	}
+	// The clause readings survive: QUALIFY after a select list is still the
+	// clause, and SAFE_CAST/REPLACE_FIELDS with a '(' are still the functions.
+	for _, sql := range []string{
+		"SELECT a QUALIFY ROW_NUMBER() OVER () = 1",
+		"SELECT SAFE_CAST(a AS INT64) FROM t",
+		"SELECT REPLACE_FIELDS(a, b AS c) FROM t",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+}

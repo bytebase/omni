@@ -300,6 +300,10 @@ const (
 	T_GraphPropertySpec
 	T_GraphPropertyNameValue
 	T_GraphLabelExpr
+	T_GraphSubqueryExpr
+	T_GraphExistsExpr
+	T_GraphCallOp
+	T_GraphPredicate
 	T_CreatePropertyGraphStmt
 	T_ElementTableDef
 	T_LabelAndProperties
@@ -746,6 +750,14 @@ func (t NodeTag) String() string {
 		return "GraphPropertyNameValue"
 	case T_GraphLabelExpr:
 		return "GraphLabelExpr"
+	case T_GraphSubqueryExpr:
+		return "GraphSubqueryExpr"
+	case T_GraphExistsExpr:
+		return "GraphExistsExpr"
+	case T_GraphCallOp:
+		return "GraphCallOp"
+	case T_GraphPredicate:
+		return "GraphPredicate"
 	case T_CreatePropertyGraphStmt:
 		return "CreatePropertyGraphStmt"
 	case T_ElementTableDef:

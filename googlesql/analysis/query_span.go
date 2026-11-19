@@ -2265,10 +2265,26 @@ func (ew *exprWalk) walk(node ast.Node) {
 	case *ast.StarExpr:
 		// A bare '*' (COUNT(*)) carries no column reference.
 
+	// --- Graph subqueries and graph expressions (parser-gql) ---
+	case *ast.GraphSubqueryExpr:
+		ew.walkGraphBlocks(e.Blocks)
+	case *ast.GraphExistsExpr:
+		ew.walk(e.Pattern)
+		ew.walkList(e.Ops)
+	case *ast.GraphCallOp:
+		ew.walk(e.Call)
+		ew.walk(e.Subquery)
+	case *ast.GraphPredicate:
+		ew.walk(e.Left)
+		ew.walk(e.Right)
+
 	// --- Leaves: literals, parameters, system vars, typed literals ---
 	default:
-		// Literal / TypedLiteral / Parameter / SystemVariable / TypeRef / etc.
-		// carry no column or subquery.
+		// A graph operator or pattern holds expressions but is not itself one, so
+		// the parser-gql nodes are routed through walkGraphNode; everything else
+		// here (Literal / TypedLiteral / Parameter / SystemVariable / TypeRef) is a
+		// leaf that carries no column or subquery.
+		ew.walkGraphNode(node)
 	}
 }
 
@@ -2303,6 +2319,128 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	// its output columns are discarded (a SELECT-list scalar subquery is opaque
 	// to lineage — see makeColumnInfo).
 	ew.w.visitBody(query)
+}
+
+// walkGraphBlocks walks the expressions inside a graph subquery's operation
+// blocks (graph_operation_block: the blocks, their linear operators, their
+// RETURN/WITH/GROUP BY/ORDER BY/PAGE items, and the patterns' inline predicates
+// and property values).
+//
+// A graph subquery's ROWS come from graph element patterns over a graph, not
+// from table paths, so — like a bare GQL statement (TestGetQuerySpan_GQLEmptySpan)
+// — the patterns and the graph name contribute no access table. Its expressions
+// can still name a table through a nested scalar subquery, so they are walked
+// rather than dropped.
+func (ew *exprWalk) walkGraphBlocks(blocks []ast.Node) {
+	for _, block := range blocks {
+		ew.walk(block)
+	}
+}
+
+// walkGraphNodes is the parser-gql counterpart of the expression walk: it
+// reaches every expression a graph operator or pattern holds, so a subquery
+// inside one records the tables it reads.
+func (ew *exprWalk) walkGraphNodes(nodes []ast.Node) {
+	for _, node := range nodes {
+		ew.walk(node)
+	}
+}
+
+// walkGraphNode walks one graph node's expression-bearing fields. The graph
+// node types are leaves to the generic expression walk (they are not
+// expressions), so each one that holds an expression is listed here.
+func (ew *exprWalk) walkGraphNode(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.GraphLinearQuery:
+		ew.walkGraphNodes(n.Operators)
+		if n.Return != nil {
+			ew.walk(n.Return)
+		}
+	case *ast.GraphSetOp:
+		ew.walkGraphNodes(n.Ops)
+	case *ast.GraphMatchOp:
+		if n.Pattern != nil {
+			ew.walk(n.Pattern)
+		}
+	case *ast.GraphPattern:
+		for _, path := range n.Paths {
+			ew.walk(path)
+		}
+		ew.walk(n.Where)
+	case *ast.GraphPathPattern:
+		ew.walkGraphNodes(n.Factors)
+		ew.walk(n.Where)
+	case *ast.GraphNodePattern:
+		if n.Filler != nil {
+			ew.walk(n.Filler)
+		}
+	case *ast.GraphEdgePattern:
+		if n.Filler != nil {
+			ew.walk(n.Filler)
+		}
+	case *ast.GraphPatternFiller:
+		if n.Properties != nil {
+			ew.walk(n.Properties)
+		}
+		ew.walk(n.Where)
+	case *ast.GraphPropertySpec:
+		for _, prop := range n.Properties {
+			if prop != nil {
+				ew.walk(prop.Expr)
+			}
+		}
+	case *ast.GraphLetOp:
+		for _, v := range n.Vars {
+			if v != nil {
+				ew.walk(v.Expr)
+			}
+		}
+	case *ast.GraphFilterOp:
+		ew.walk(n.Expr)
+	case *ast.GraphOrderByOp:
+		ew.walkOrderItems(n.Items)
+	case *ast.GraphWithOp:
+		ew.walkGraphReturnItems(n.Items)
+		if n.GroupBy != nil {
+			ew.walk(n.GroupBy)
+		}
+	case *ast.GraphForOp:
+		ew.walk(n.Expr)
+	case *ast.GraphSampleOp:
+		ew.walk(n.Size)
+		ew.walk(n.Repeatable)
+	case *ast.GraphReturnOp:
+		ew.walkGraphReturnItems(n.Items)
+		if n.GroupBy != nil {
+			ew.walk(n.GroupBy)
+		}
+		ew.walkOrderItems(n.OrderBy)
+		if n.Page != nil {
+			ew.walk(n.Page)
+		}
+	case *ast.GraphPageOp:
+		ew.walk(n.Skip)
+		ew.walk(n.Limit)
+	}
+}
+
+// walkOrderItems walks a list of ORDER BY items' expressions.
+func (ew *exprWalk) walkOrderItems(items []*ast.OrderItem) {
+	for _, item := range items {
+		if item != nil {
+			ew.walk(item.Expr)
+			ew.walk(item.Collate)
+		}
+	}
+}
+
+// walkGraphReturnItems walks a graph RETURN/WITH list's expressions.
+func (ew *exprWalk) walkGraphReturnItems(items []*ast.GraphReturnItem) {
+	for _, item := range items {
+		if item != nil {
+			ew.walk(item.Expr)
+		}
+	}
 }
 
 // walkFuncCall walks a function call's arguments, ORDER BY, FILTER, and OVER

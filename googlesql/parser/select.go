@@ -381,7 +381,12 @@ func (p *Parser) parseSelectClause() (*ast.SelectStmt, error) {
 // (grammar: select_clause's empty-list-before-FROM error alt; oracle: Spanner
 // rejects `SELECT FROM t` with "SELECT list must not be empty").
 func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
-	if p.atSelectListEnd() {
+	// A word the pinned grammar takes as an identifier is a list item even where
+	// it also opens a clause: `SELECT QUALIFY` is one column named QUALIFY (the
+	// QUALIFY clause needs an expression after it, which that statement does not
+	// have). Only the empty list consults this; after an item the clause reading
+	// wins, so `SELECT a QUALIFY x > 0` keeps its clause.
+	if p.atSelectListEnd() && !p.atTmNonReservedWord() {
 		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: SELECT list must not be empty"}
 	}
 	var items []*ast.SelectItem
@@ -489,10 +494,13 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		}
 		item.Alias = alias
 		item.Loc.End = aliasTok.Loc.End
-	} else if isIdentifierStart(p.cur.Type) && !p.atSelectListEnd() {
+	} else if (isIdentifierStart(p.cur.Type) && !p.atSelectListEnd()) || p.atClauseWordImplicitAlias() {
 		// Implicit alias: `SELECT a b` → column a aliased b. isIdentifierStart
 		// already excludes reserved keywords (FROM/WHERE/etc are reserved), so a
-		// following clause keyword is never mistaken for an alias.
+		// following clause keyword is never mistaken for an alias — except for a
+		// non-reserved word that also opens a clause (QUALIFY), which is an alias
+		// when no expression follows it (`SELECT NULL QUALIFY` names the column
+		// QUALIFY; the clause needs an expression after it).
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)
 		if err != nil {
@@ -502,6 +510,23 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		item.Loc.End = aliasTok.Loc.End
 	}
 	return item, nil
+}
+
+// atClauseWordImplicitAlias reports whether the cursor is a word that may be
+// either a bare alias or the next clause's keyword, and is the alias because no
+// expression follows it. QUALIFY is the one such word: the pinned grammar lists
+// KW_QUALIFY_NONRESERVED in common_keyword_as_identifier, so `SELECT NULL
+// QUALIFY` derives as a column named NULL aliased QUALIFY, while
+// `SELECT NULL QUALIFY x > 0` keeps its clause.
+func (p *Parser) atClauseWordImplicitAlias() bool {
+	if p.cur.Type != kwQUALIFY {
+		return false
+	}
+	switch p.peekNext().Type {
+	case tokEOF, int(')'), int(','), int(';'):
+		return true
+	}
+	return false
 }
 
 // pathDotStarAhead reports whether the current position begins a path-qualified

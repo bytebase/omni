@@ -402,6 +402,12 @@ func (p *Parser) parseIs(left ast.Node) (ast.Node, error) {
 		}
 		return &ast.IsExpr{Expr: left, Not: not, DistinctFrom: right, Loc: spanNodes(left, right)}, nil
 	}
+	// graph_expression's IS SOURCE / IS DESTINATION / IS LABELED predicates. They
+	// sit at the comparison family's precedence (EDGE_ENDPOINT_PRECEDENCE), so
+	// they are read here, at the one comparison step.
+	if pred, handled, err := p.parseGraphIsPredicate(left, not); handled || err != nil {
+		return pred, err
+	}
 	// Predicate form: NULL / TRUE / FALSE / UNKNOWN.
 	var pred string
 	switch p.cur.Type {
@@ -476,6 +482,18 @@ func (p *Parser) parseIn(left ast.Node, not bool) (ast.Node, error) {
 		}
 		out.Unnest = unnest
 		out.Loc = spanNodes(left, unnest)
+		return out, nil
+	}
+
+	// `expr [NOT] IN { <graph subquery> }` (graph_expression's IN over a
+	// braced_graph_subquery).
+	if p.cur.Type == int('{') {
+		sub, err := p.parseGraphBracedSubquery()
+		if err != nil {
+			return nil, err
+		}
+		out.GraphSubquery = sub
+		out.Loc = ast.Loc{Start: nodeLoc(left).Start, End: sub.Loc.End}
 		return out, nil
 	}
 
@@ -698,6 +716,11 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	case kwCAST:
 		return p.parseCastExpr(false)
 	case kwSAFE_CAST:
+		// SAFE_CAST is non-reserved: with no '(' it is an identifier
+		// (`SELECT SAFE_CAST` names a column), and with one it is the cast.
+		if p.peekNext().Type != int('(') {
+			return p.parseNameOrCall()
+		}
 		return p.parseCastExpr(true)
 	case kwEXTRACT:
 		return p.parseExtractExpr()
@@ -715,6 +738,11 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	case kwNEW:
 		return p.parseNewConstructor()
 	case kwREPLACE_FIELDS:
+		// REPLACE_FIELDS is non-reserved, like SAFE_CAST: a bare word is an
+		// identifier and a following '(' makes it the function.
+		if p.peekNext().Type != int('(') {
+			return p.parseNameOrCall()
+		}
 		return p.parseReplaceFields()
 	case kwWITH:
 		return p.parseWithExpr()
@@ -724,6 +752,14 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	// --- EXISTS subquery ---
 	case kwEXISTS:
 		return p.parseExistsExpr()
+
+	// --- VALUE with a braced graph subquery ---
+	case kwVALUE:
+		if p.peekNext().Type == int('{') || p.peekNext().Type == int('@') {
+			return p.parseValueGraphSubquery()
+		}
+		// VALUE is non-reserved, so a bare VALUE is an identifier.
+		return p.parseNameOrCall()
 
 	// --- parenthesized expression or subquery ---
 	case int('('):
@@ -743,7 +779,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 
 	// --- identifier / path / function call ---
 	default:
-		if isIdentifierStart(p.cur.Type) {
+		if isIdentifierStart(p.cur.Type) || p.atTmNonReservedWord() {
 			return p.parseNameOrCall()
 		}
 		return nil, p.syntaxErrorAtCur()
@@ -780,7 +816,7 @@ func (p *Parser) parseNameOrCall() (ast.Node, error) {
 // foundation's permissive path-component rule, also used by parseType). The
 // current token begins the path.
 func (p *Parser) parsePathExpr() (*ast.PathExpr, error) {
-	if !isIdentifierStart(p.cur.Type) {
+	if !isIdentifierStart(p.cur.Type) && !p.atTmNonReservedWord() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	first := p.advance()
@@ -1791,6 +1827,16 @@ func (p *Parser) parseArrayOrArraySubquery() (ast.Node, error) {
 			return nil, err
 		}
 		return &ast.ArraySubqueryExpr{RawText: sub, TextStart: textStart, Loc: ast.Loc{Start: arrayTok.Loc.Start, End: end}}, nil
+	case int('{'):
+		// ARRAY { <graph subquery> } — expression_subquery_with_keyword's
+		// ARRAY braced_graph_subquery.
+		sub, err := p.parseGraphBracedSubquery()
+		if err != nil {
+			return nil, err
+		}
+		sub.Modifier = ast.GraphSubqueryArray
+		sub.Loc.Start = arrayTok.Loc.Start
+		return sub, nil
 	case int('['):
 		// ARRAY [ … ].
 		return p.parseArrayConstructor(true, nil)
@@ -2131,7 +2177,7 @@ func (p *Parser) parseReplaceFields() (ast.Node, error) {
 		if _, err := p.expect(kwAS); err != nil {
 			return nil, err
 		}
-		path, err := p.parseGeneralizedPath()
+		path, err := p.parseReplaceFieldsPath()
 		if err != nil {
 			return nil, err
 		}
@@ -2147,6 +2193,25 @@ func (p *Parser) parseReplaceFields() (ast.Node, error) {
 	}
 	rf.Loc.End = closeTok.Loc.End
 	return rf, nil
+}
+
+// parseReplaceFieldsPath parses a replace_fields_arg's replacement path, which
+// the grammar takes from either generalized_path_expression or
+// generalized_extension_path — the latter also admits the parenthesized `( path )`
+// form (`REPLACE_FIELDS(s, 1 AS (a))`). The AST keeps the path as text.
+func (p *Parser) parseReplaceFieldsPath() (string, error) {
+	if p.cur.Type != int('(') {
+		return p.parseGeneralizedPath()
+	}
+	p.advance() // (
+	path, err := p.parsePathExpr()
+	if err != nil {
+		return "", err
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return "", err
+	}
+	return "(" + path.String() + ")", nil
 }
 
 // parseWithExpr parses the inline `WITH(name AS expr, …, body)` expression
@@ -2266,6 +2331,10 @@ func (p *Parser) parseExistsExpr() (ast.Node, error) {
 		if herr := p.skipHint(); herr != nil {
 			return nil, herr
 		}
+	}
+	// EXISTS { … } — exists_graph_subquery's three braced forms.
+	if p.cur.Type == int('{') {
+		return p.parseGraphExistsBraced(existsTok.Loc.Start)
 	}
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err

@@ -526,10 +526,25 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *GraphCallOp:
+		if n.Call != nil {
+			Walk(v, n.Call)
+		}
+		if n.Subquery != nil {
+			Walk(v, n.Subquery)
+		}
 	case *GraphEdgePattern:
 		if n.Filler != nil {
 			Walk(v, n.Filler)
 		}
+	case *GraphExistsExpr:
+		if n.Graph != nil {
+			Walk(v, n.Graph)
+		}
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
+		walkNodes(v, n.Ops)
 	case *GraphFilterOp:
 		Walk(v, n.Expr)
 	case *GraphForOp:
@@ -586,6 +601,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Properties)
 		}
 		Walk(v, n.Where)
+	case *GraphPredicate:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
 	case *GraphPropertyNameValue:
 		Walk(v, n.Expr)
 	case *GraphPropertySpec:
@@ -612,6 +630,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Repeatable)
 	case *GraphSetOp:
 		walkNodes(v, n.Ops)
+	case *GraphSubqueryExpr:
+		if n.Graph != nil {
+			Walk(v, n.Graph)
+		}
+		walkNodes(v, n.Blocks)
 	case *GraphWithOp:
 		for _, c := range n.Items {
 			Walk(v, c)
@@ -648,6 +671,9 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.Values)
 		Walk(v, n.Unnest)
 		Walk(v, n.Subquery)
+		if n.GraphSubquery != nil {
+			Walk(v, n.GraphSubquery)
+		}
 	case *IndexAccess:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
