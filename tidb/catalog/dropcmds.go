@@ -13,11 +13,17 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
-		if db.Tables[key] == nil {
+		tbl := db.Tables[key]
+		if tbl == nil {
 			if stmt.IfExists {
 				continue
 			}
 			return errUnknownTable(db.Name, ref.Name)
+		}
+		// A cached table cannot be dropped; NOCACHE it first (8242, read on
+		// v8.5.5).
+		if tbl.Cached {
+			return errCachedTable("Drop Table")
 		}
 		// Check if any other table in any database has a FK referencing this table
 		// (unless foreign_key_checks=0).
@@ -69,6 +75,9 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		tbl := db.GetTable(ref.Name)
 		if tbl == nil {
 			return errNoSuchTable(db.Name, ref.Name)
+		}
+		if tbl.Cached {
+			return errCachedTable("Truncate Table")
 		}
 		tbl.AutoIncrement = 0
 	}

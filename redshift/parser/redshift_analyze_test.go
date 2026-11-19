@@ -69,3 +69,96 @@ func TestRedshiftAnalyzeCompressionParse(t *testing.T) {
 		}
 	}
 }
+
+// TestRedshiftAnalyzeCompressionColumnListParse pins r_ANALYZE_COMPRESSION's
+// column list, which the docs leave outside the optional table name:
+// ANALYZE COMPRESSION (a) names columns with no table to hold them.
+func TestRedshiftAnalyzeCompressionColumnListParse(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		rel    string
+		column int
+	}{
+		{"ANALYZE COMPRESSION(a)", "", 1},
+		{"ANALYZE COMPRESSION(a, b)", "", 2},
+		{"ANALYZE COMPRESSION venue(venuename, venuecity)", "venue", 2},
+		{"ANALYZE COMPRESSION(a) COMPROWS 100", "", 1},
+		{"ANALYZE COMPRESSION COMPROWS 100", "", 0},
+	} {
+		stmt := singleStmt(t, tc.sql)
+		analyze, ok := stmt.(*nodes.VacuumStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected VacuumStmt, got %T", tc.sql, stmt)
+		}
+		if findDefElem(analyze.Options, "compression") == nil {
+			t.Fatalf("Parse(%q): expected compression option in %#v", tc.sql, analyze.Options)
+		}
+		if tc.column == 0 && tc.rel == "" {
+			// COMPROWS with no table or column list names no relation.
+			if analyze.Rels != nil {
+				t.Fatalf("Parse(%q): rels = %#v, want none", tc.sql, analyze.Rels)
+			}
+			continue
+		}
+		if analyze.Rels == nil || len(analyze.Rels.Items) != 1 {
+			t.Fatalf("Parse(%q): rels = %#v, want one relation", tc.sql, analyze.Rels)
+		}
+		rel, ok := analyze.Rels.Items[0].(*nodes.VacuumRelation)
+		if !ok {
+			t.Fatalf("Parse(%q): relation = %T, want VacuumRelation", tc.sql, analyze.Rels.Items[0])
+		}
+		if tc.rel == "" {
+			if rel.Relation != nil {
+				t.Fatalf("Parse(%q): relation name = %#v, want none", tc.sql, rel.Relation)
+			}
+		} else if rel.Relation == nil || rel.Relation.Relname != tc.rel {
+			t.Fatalf("Parse(%q): relation name = %#v, want %q", tc.sql, rel.Relation, tc.rel)
+		}
+		if rel.VaCols == nil || len(rel.VaCols.Items) != tc.column {
+			t.Fatalf("Parse(%q): columns = %#v, want %d", tc.sql, rel.VaCols, tc.column)
+		}
+	}
+}
+
+// TestRedshiftAnalyzeCompressionIsItsOwnStatement pins r_ANALYZE_COMPRESSION's
+// suffix: the compression form takes a table, a column list and COMPROWS, and
+// none of the ANALYZE clauses beside it.
+func TestRedshiftAnalyzeCompressionIsItsOwnStatement(t *testing.T) {
+	// COMPROWS with no number parses, as the docs' recognizer reads it, and
+	// records no count.
+	stmt := singleStmt(t, "ANALYZE COMPRESSION (a) COMPROWS")
+	analyze, ok := stmt.(*nodes.VacuumStmt)
+	if !ok {
+		t.Fatalf("expected VacuumStmt, got %T", stmt)
+	}
+	if findDefElem(analyze.Options, "comprows") != nil {
+		t.Fatalf("expected no comprows option, got %#v", analyze.Options)
+	}
+
+	for _, sql := range []string{
+		"ANALYZE COMPRESSION (a) VERBOSE",
+		"ANALYZE COMPRESSION (a) ALL COLUMNS",
+		"ANALYZE COMPRESSION venue PREDICATE COLUMNS",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+// TestRedshiftAnalyzeCompressionSingleRelation pins r_ANALYZE_COMPRESSION's one
+// optional table: the comma-separated list is PostgreSQL's VACUUM production,
+// not this statement's.
+func TestRedshiftAnalyzeCompressionSingleRelation(t *testing.T) {
+	for _, sql := range []string{
+		"ANALYZE COMPRESSION a, b",
+		"ANALYZE COMPRESSION a (x), b",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	if _, err := Parse("ANALYZE COMPRESSION a (x, y) COMPROWS 10"); err != nil {
+		t.Errorf("Parse(ANALYZE COMPRESSION a (x, y) COMPROWS 10): %v", err)
+	}
+}

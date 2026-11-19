@@ -197,22 +197,43 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 		d.getRuleExpr(query.JoinTree.Quals, false)
 	}
 
-	// GROUP BY.
-	if len(query.GroupingSets) > 0 {
-		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
-		for i, gs := range query.GroupingSets {
-			if i > 0 {
-				d.buf.WriteString(", ")
-			}
-			d.getGroupingSet(gs, query.TargetList)
+	// Redshift's hierarchical-query clauses, between WHERE and GROUP BY.
+	if query.StartWithQual != nil {
+		d.appendContextKeyword(" START WITH ", -prettyIndentStd, prettyIndentStd, 0)
+		d.getRuleExpr(query.StartWithQual, false)
+	}
+	if query.ConnectByQual != nil {
+		d.appendContextKeyword(" CONNECT BY ", -prettyIndentStd, prettyIndentStd, 0)
+		d.getRuleExpr(query.ConnectByQual, false)
+	}
+
+	// GROUP BY. ALL may stand alone or modify the grouping beside it, as
+	// PostgreSQL's set_quantifier allows, so the word comes before whichever
+	// form the query has.
+	if len(query.GroupingSets) > 0 || len(query.GroupClause) > 0 || query.GroupAll {
+		d.appendContextKeyword(" GROUP BY", -prettyIndentStd, prettyIndentStd, 0)
+		if query.GroupAll {
+			d.buf.WriteString(" ALL")
 		}
-	} else if len(query.GroupClause) > 0 {
-		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
-		for i, grp := range query.GroupClause {
-			if i > 0 {
-				d.buf.WriteString(", ")
+		switch {
+		case len(query.GroupingSets) > 0:
+			for i, gs := range query.GroupingSets {
+				if i == 0 {
+					d.buf.WriteByte(' ')
+				} else {
+					d.buf.WriteString(", ")
+				}
+				d.getGroupingSet(gs, query.TargetList)
 			}
-			d.getSortGroupClause(grp, query.TargetList, false)
+		case len(query.GroupClause) > 0:
+			for i, grp := range query.GroupClause {
+				if i == 0 {
+					d.buf.WriteByte(' ')
+				} else {
+					d.buf.WriteString(", ")
+				}
+				d.getSortGroupClause(grp, query.TargetList, false)
+			}
 		}
 	}
 
@@ -1422,6 +1443,8 @@ func (d *deparseCtx) getSQLValueFunc(s *SQLValueFuncExpr) {
 		d.buf.WriteString("CURRENT_CATALOG")
 	case SVFCurrentSchema:
 		d.buf.WriteString("CURRENT_SCHEMA")
+	case SVFLevel:
+		d.buf.WriteString("LEVEL")
 	}
 }
 

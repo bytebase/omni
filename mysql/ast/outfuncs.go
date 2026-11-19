@@ -2924,6 +2924,9 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	sb.WriteString("{AT_CMD")
 	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
+	if n.ConstraintKeyword != ConstraintKeywordNone {
+		fmt.Fprintf(sb, " :constraint_keyword %s", n.ConstraintKeyword)
+	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}

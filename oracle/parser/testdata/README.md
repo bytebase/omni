@@ -208,14 +208,12 @@ from the grammar; the controls are named where a reader would ask.
 | --- | --- | --- |
 | `CREATE CLUSTER ... PARTITION BY RANGE(...)`, and every clause inside its partitions | 146 | `ORA-14179` at the `PARTITION` clause (45): a cluster is partitioned only when it is a hash cluster, so `CREATE CLUSTER ... HASHKEYS 10 PARTITION BY RANGE(...)` parses and answers `ORA-01031` when it runs (the clause is the page's, the check is not) |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 82 | `ORA-65125` at 34, the file name |
-| `ALTER SYSTEM RESET a ...` (11), `SELECT`/`DELETE ... FROM EXTERNAL(... TYPE a ...)` (42), a materialized view's `INMEMORY (columns) INMEMORY` or `... NO INMEMORY` (8) | 61 | `ORA-00922` at 0, 39 and 48, and at the query (65, 68, 80): `ALTER SYSTEM RESET OPTIMIZER_MODE` parses, `TYPE ORACLE_LOADER` parses, and the column clause's documented form is refused here: this server takes no inmemory column list for a materialized view, the page takes one |
+| `SELECT`/`DELETE ... FROM EXTERNAL(... TYPE a ...)` (42), a materialized view's `INMEMORY (columns) INMEMORY` or `... NO INMEMORY` (8) | 50 | `ORA-00922` at 39 and 48, and at the query (65, 68, 80): `TYPE ORACLE_LOADER` parses, and the column clause's documented form is refused here: this server takes no inmemory column list for a materialized view, the page takes one |
 | `CREATE TABLE a ENABLE ... USING INDEX ...` | 59 | `ORA-02432` at 34: the table `a` defines no primary key; with one the clause parses (`ENABLE PRIMARY KEY USING INDEX zz` answers `ORA-01418`) |
 | `ALTER TYPE a ...` | 48 | `ORA-04043` at 0: the type `a` is not there. With a type, `ADD ATTRIBUTE`, `ADD ATTRIBUTE (...)`, `ADD MAP MEMBER FUNCTION ... RETURN NUMBER`, `ADD MEMBER PROCEDURE` and `INSTANTIABLE` parse |
 | a column, property, attribute or key named twice | 41 | `ORA-00957` at the second name |
-| `ALTER SYSTEM SET a = 1 ...` | 25 | `ORA-02065` at 17: `a` is no initialization parameter, and `OPTIMIZER_MODE = a` parses |
 | `SHARING = { METADATA \| DATA \| NONE }` | 21 | `ORA-65021` at the clause: not an application root |
 | property graph: an element table, property or key named twice | 21 | `ORA-42404` at 41-58 |
-| `ALTER SESSION SET a = 1`, `... INSTANCES`, `... ETAG` and the other non-parameters | 15 | `ORA-02248` at 18, 32: `OPTIMIZER_MODE = a` parses |
 | `ALTER INMEMORY JOIN GROUP a(...)`, `CREATE INMEMORY JOIN GROUP a(...)` | 14 | `ORA-00903` at the table name (29-43) |
 | `CREATE PFILE ...`, `CREATE SPFILE ...` | 14 | `ORA-65168` at 13, 24, 25: a name is required in this container, and `CREATE PFILE = 'x.ora' FROM SPFILE` parses (`ORA-01031`) |
 | `COLLATE a`, `DEFAULT COLLATION a` | 12 | `ORA-43929` at 0: `MAX_STRING_SIZE=STANDARD` |
@@ -279,7 +277,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,501 rows, 1,167 of them where omni stops first and 3,932
+different byte: 5,453 rows, 1,116 of them where omni stops first and 3,477
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -302,7 +300,7 @@ statements are the corpora's, whose cells move only with the corpus.
 | `ALTER TABLE a MODIFY PARTITIONSET ...` | 163 | `PARTITIONSET` (21): `ORA-02577`, before the clause is read |
 | `CREATE MATERIALIZED VIEW a PARTITION RANGE(a) ...` | 9 | the word where `BY` belongs (37): a materialized view's properties enter the clause on `PARTITION` |
 
-This change moved 280 more, and closed 2 rows omni accepted where Oracle
+#1475 moved 280 more, and closed 2 rows omni accepted where Oracle
 refuses (`... ORGANIZATION EXTERNAL(TYPE a) AS QUERY`). Both are readings
 the grammar had not made: Oracle reads two words, or the table's column
 list, before it refuses. One row Oracle accepts, `CREATE TABLE a
@@ -314,7 +312,27 @@ Oracle's byte 13 rather than 43, so it stays in "Rows only Oracle accepts".
 | `... PARTITION BY CONSISTENT HASH (...) ...` | 217 | the token after `HASH`: Oracle reads `CONSISTENT HASH` and answers `ORA-14151` there outside a sharded database, before the columns. omni refused at `CONSISTENT` without reading them. 209 rows name `HASH`; 8 are near-misses that drop it |
 | `CREATE TABLE a ORGANIZATION EXTERNAL (...)` | 63 | the table's name (13): Oracle reads the access driver type, then answers `ORA-00906` because the table has no column list, before the rest of the clause. A clause that does not start with `TYPE` is refused inside it, at its own token |
 
-The remaining rows are spread thin: 4,208 name no family below. These are the
+This change moved 48 more. It is a clause the page derives and omni did not
+read, so Oracle's byte is where the clause it read ends and the token that
+cannot follow it stands. No verdict moved: every one of the 48 was a
+rejection on both sides, at another byte.
+
+| Cause | Rows | Where Oracle stops |
+| --- | --- | --- |
+| `CREATE TABLE a(SUPPLEMENTAL LOG ...)` | 48 | the ')' of a column list that holds no column, or the token inside or after the clause that is not the one it takes: a supplemental_logging_props clause is one of relational_properties (`CREATE-TABLE.bnf` lines 58-65 and 183), so Oracle reads it and then wants a column, as it refuses a list of constraints alone at its ')' (`ORA-03079`). `CREATE TABLE a OF a(SUPPLEMENTAL LOG GROUP a(a))` is the control: an object table's `object_properties` took the clause all along and Oracle accepts it |
+
+The parameter family moved. `parameters.go` carries the 566 names
+`V$PARAMETER` lists on the pinned server and the 7,137 hidden names `X$KSPPI`
+adds (7,700 distinct), with the single-word values `V$PARAMETER_VALID_VALUES`
+lists for them, and `TestAlterParameterReading` holds the family: a name the
+lists do not hold is refused at the name
+(`ORA-02248` for ALTER SESSION, `ORA-02065` for ALTER SYSTEM, `ORA-00922` at 0
+for ALTER SYSTEM RESET), while a name it holds is read on, so a value where the
+`=` belongs is refused at the value. 136 rows moved, 51 of them from omni
+accepting to both refusing; the 10 rows below are what the list cannot answer,
+all at Oracle's byte 0.
+
+The remaining rows are spread thin: 3,033 name no family below. These are the
 largest, and a row may be one of several, so the counts are not disjoint.
 
 | Family | Rows | Why the byte stays |
@@ -327,6 +345,13 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |
 | `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): a near-miss puts a `)` where a `(` belongs, and the delimiter scan answers for it before the statement parsers run |
 | `CREATE TABLE a ORGANIZATION EXTERNAL ...` behind a `)` | 2 | the clause is read and refused at the table's name, but the statement carries a stray `)` the scan answers first: `... EXTERNAL TYPE a)` and `... EXTERNAL(TYPE a LOCATION 's'))` |
+| `ALTER DIMENSION ...` | 39 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 72 `ALTER DIMENSION` rows here, 30 more carry `reject@0` (a clause word Oracle has no form for) and 3 sit behind the scan's `)` and end-of-input answers |
+| `ALTER SESSION SET DEFAULT_COLLATION ...`, `ROW VISIBILITY ...`, and `ALTER SESSION SET` with no setting | 10 | `ORA-43929` or `ORA-00922` at 0: this server runs `MAX_STRING_SIZE=STANDARD`, so `DEFAULT_COLLATION` is refused at the statement's start; `ROW VISIBILITY` is no setting, and an empty `SET` is refused whole. The parameter names themselves are read now (see below) |
+| `... PARTITION BY RANGE(a)` on a `CREATE CLUSTER` | 323 | the clause's `(` (45): `ORA-14179`, because a cluster is partitioned only when it is a hash cluster. This is the check "Rows only omni accepts" measures (146 rows there), not a reading, and the near-misses that carry it stay |
+| `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | `ENABLE` (34): `ORA-02432`, the table defines no primary key. A check of the parsed statement, so the clause after it is not read |
+| `... FROM ANALYTIC VIEW (...)` | 103 | the first token inside the parens (28), in every form the page derives: an inline analytic view's `sub_av_clause` starts with `ANALYTIC` there, and Oracle refuses it. Whether the form takes a clause or a name is not settled by the answers recorded, so the reading waits on a recording |
+| `CREATE TABLE a (...)` with `PARTITION`, `VARRAY`, `NESTED`, `LOB` or `DOMAIN` first | 48 | the token after the word: Oracle reads `PARTITION` as a column name and the next word as its datatype, as "Rows only Oracle accepts" records (`ORA-00902` at 25 for `CREATE TABLE a (PARTITION ...)`), but for `VARRAY`, `NESTED TABLE` and `TABLE` it reads past the second word and stops at 32. Matching one server's reading of a word that is no datatype is not a reading of the page |
+| `CREATE TABLE a XMLTYPE ...` | 73 | 15 for some texts and the token after the XMLType column for others: Oracle refuses the clause where it stands for a table with no column list, but reads `XMLTYPE a` before refusing when more follows it, so no single reading of the page orders them |
 
 The scan's stray `)` answer is still not deferred. Asked with these readings
 in place, returning the parsers' answer for a `)` the scan refuses moves 732

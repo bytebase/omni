@@ -298,6 +298,13 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
+		// A table of the name is not a view, and IF EXISTS covers only a name
+		// nothing holds: TiDB v8.5.5 answers 1347 "'<db>.<name>' is not VIEW"
+		// for DROP VIEW over a table with or without the flag (read on
+		// v8.5.5).
+		if db.GetTable(ref.Name) != nil {
+			return errWrongObjectKind(db.Name, ref.Name, "VIEW")
+		}
 		if _, exists := db.Views[key]; !exists {
 			if stmt.IfExists {
 				continue

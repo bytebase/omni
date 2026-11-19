@@ -1,8 +1,6 @@
 package review
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/parser"
 )
@@ -25,9 +23,9 @@ const (
 
 // dropKindOf returns what an ALTER TABLE subcommand drops, dropNone for
 // one that drops nothing. The parser gives DROP PRIMARY KEY, DROP FOREIGN
-// KEY, DROP CHECK, and DROP CONSTRAINT one command type; the keyword after
-// DROP in the subcommand's own text tells them apart.
-func dropKindOf(sql string, cmd *ast.AlterTableCmd) dropKind {
+// KEY, DROP CHECK, and DROP CONSTRAINT one command type and keeps the keyword
+// each of them read on the command, which tells them apart.
+func dropKindOf(cmd *ast.AlterTableCmd) dropKind {
 	switch cmd.Type {
 	case ast.ATDropColumn:
 		return dropColumn
@@ -40,32 +38,18 @@ func dropKindOf(sql string, cmd *ast.AlterTableCmd) dropKind {
 	case ast.ATDropPartition:
 		return dropPartition
 	case ast.ATDropConstraint:
-		switch wordAfterDrop(sql, cmd.Loc) {
-		case "PRIMARY":
+		switch cmd.ConstraintKeyword {
+		case ast.ConstraintKeywordPrimaryKey:
 			return dropPrimaryKey
-		case "FOREIGN":
+		case ast.ConstraintKeywordForeignKey:
 			return dropForeignKey
-		case "CHECK":
+		case ast.ConstraintKeywordCheck:
 			return dropCheck
-		case "CONSTRAINT":
+		case ast.ConstraintKeywordConstraint:
 			return dropConstraint
 		}
 	}
 	return dropNone
-}
-
-// wordAfterDrop returns the word that follows DROP in the text of a
-// location, upper-cased, "" when the text does not start with DROP.
-func wordAfterDrop(sql string, loc ast.Loc) string {
-	if loc.Start < 0 || loc.End > len(sql) || loc.End <= loc.Start {
-		return ""
-	}
-	text := sql[loc.Start:loc.End]
-	tokens := parser.Tokenize(text)
-	if len(tokens) < 2 || !strings.EqualFold(tokenText(text, tokens[0]), "DROP") {
-		return ""
-	}
-	return strings.ToUpper(tokenText(text, tokens[1]))
 }
 
 func tokenText(text string, tok parser.Token) string {

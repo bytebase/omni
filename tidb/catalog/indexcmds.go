@@ -127,6 +127,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
+	if tbl.Cached {
+		return errCachedTable("Create Index")
+	}
 
 	// CREATE FULLTEXT INDEX and CREATE SPATIAL INDEX parse, and v8.5.5 refuses
 	// both once the table is found: 8200 "FULLTEXT and SPATIAL index is not
@@ -268,6 +271,9 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 	tbl := db.Tables[toLower(tableName)]
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
+	}
+	if tbl.Cached {
+		return errCachedTable("Drop Index")
 	}
 
 	// Find and remove index.

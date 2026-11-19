@@ -181,3 +181,22 @@ func TestNodeToString_EscapeString(t *testing.T) {
 		t.Errorf("expected %s, got: %s", expected, result)
 	}
 }
+
+// TestNodeToString_GroupByAllAndConnectBy pins the Redshift-only SELECT fields:
+// GROUP BY ALL has no list of its own, so the marker is the only trace of it,
+// and the hierarchical-query conditions are written beside it.
+func TestNodeToString_GroupByAllAndConnectBy(t *testing.T) {
+	groupAll := &SelectStmt{GroupAll: true}
+	if got := NodeToString(groupAll); !strings.Contains(got, ":groupAll true") {
+		t.Fatalf("NodeToString(GROUP BY ALL) = %q, want :groupAll true", got)
+	}
+
+	hier := &SelectStmt{
+		StartWith: &A_Const{Val: &Integer{Ival: 1}},
+		ConnectBy: &A_Const{Val: &Integer{Ival: 2}},
+	}
+	got := NodeToString(hier)
+	if !strings.Contains(got, ":startWith") || !strings.Contains(got, ":connectBy") {
+		t.Fatalf("NodeToString(CONNECT BY) = %q, want both conditions", got)
+	}
+}

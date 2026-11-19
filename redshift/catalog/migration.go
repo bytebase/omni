@@ -64,6 +64,7 @@ const (
 	OpAlterType          MigrationOpType = "AlterType"
 	OpCreateTrigger      MigrationOpType = "CreateTrigger"
 	OpDropTrigger        MigrationOpType = "DropTrigger"
+	OpAlterTrigger       MigrationOpType = "AlterTrigger"
 	OpCreateEventTrigger MigrationOpType = "CreateEventTrigger"
 	OpDropEventTrigger   MigrationOpType = "DropEventTrigger"
 	OpAlterEventTrigger  MigrationOpType = "AlterEventTrigger"
@@ -228,6 +229,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	// Post-processing: wrap ALTER COLUMN TYPE ops with DROP VIEW / CREATE VIEW
 	// for dependent views. PG cannot ALTER a column type when a view depends on it.
 	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops)
+
+	// A replaced materialized view takes the relations that read it with it,
+	// and they come back from the target after it.
+	ops = wrapMatViewReplacementsWithDependents(from, to, diff, ops)
 
 	// Dependency-driven ordering: sort ops by phase, then topologically within each phase.
 	ops = sortMigrationOps(from, to, ops)

@@ -90,7 +90,7 @@ func (c *Catalog) dropPlacementPolicy(stmt *nodes.DropPlacementPolicyStmt) error
 		return errUnknownPlacementPolicy(stmt.Name)
 	}
 	// TiDB rejects DROP when any database or table still references
-	// the policy (error 8240 "Placement policy 'X' is still in use").
+	// the policy (error 8241 "Placement policy 'X' is still in use by X").
 	// The catalog mirrors TiDB's execution-time validation since it
 	// has both the database and table reference info indexed.
 	if ref := c.findPolicyReference(stmt.Name); ref != "" {

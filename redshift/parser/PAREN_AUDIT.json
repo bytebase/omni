@@ -1667,5 +1667,21 @@
     "priority": "med",
     "proof_notes": "Redshift-specific bare IDENTITY column attribute. After IDENTITY, '(' unambiguously starts the optional seed and step parameter list. Exercised by TestRedshiftCreateTableOptionsParse and TestRedshiftCreateTableOptionsAST for IDENTITY(1,1).",
     "suspicion_notes": null
+  },
+  {
+    "site": "select.go:455",
+    "function": "parseRedshiftExcludeList",
+    "nonterminals": [
+      "redshift_exclude_list"
+    ],
+    "ambiguity_present": false,
+    "current_technique": "T1",
+    "pg_reference": "Amazon Redshift SELECT EXCLUDE column_name | ( column_name [, ...] )",
+    "aligned": "no",
+    "blocked_by": null,
+    "cluster": "C5.n",
+    "priority": "low",
+    "proof_notes": "Redshift-only EXCLUDE clause of SELECT. After consuming EXCLUDE, '(' unambiguously starts the parenthesized column list; any other token starts the one-name form the docs write as EXCLUDE column_name. Exercised by TestRedshiftSelectExcludeParse in redshift_select_view_doc_test.go, which pins both forms and the SELECT and SELECT INTO statements of compat.tsv.",
+    "suspicion_notes": null
   }
 ]
