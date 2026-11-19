@@ -2086,7 +2086,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						optStart := p.pos()
 						stmt.Organization = "EXTERNAL"
 						p.advance()
-						if err := p.parseCreateTableExternalData(); err != nil {
+						if err := p.parseCreateTableExternalData(hasColumns, stmt.Name.Loc); err != nil {
 							return err
 						}
 						appendCreateTableOption(stmt, "ORGANIZATION EXTERNAL", p.createTableOptionValue(optStart+len("EXTERNAL")), nodes.Loc{Start: optStart, End: p.prev.End})
