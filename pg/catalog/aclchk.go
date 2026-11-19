@@ -12,6 +12,7 @@ type Grant struct {
 	ObjType   byte   // 'r'=relation, 's'=sequence, 'f'=function, 'n'=schema
 	ObjOID    uint32 // OID of the object
 	Grantee   string // role name ("" = PUBLIC)
+	Grantor   string // role that issued the grant
 	Privilege string // SELECT, INSERT, UPDATE, DELETE, REFERENCES, TRIGGER, EXECUTE, USAGE, CREATE, ALL
 	Columns   []string
 	WithGrant bool
@@ -76,6 +77,7 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 					ObjType:   objTypeCode,
 					ObjOID:    objOID,
 					Grantee:   grantee,
+					Grantor:   c.currentOwner(),
 					Privilege: priv.name,
 					Columns:   priv.columns,
 					WithGrant: stmt.GrantOption,

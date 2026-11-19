@@ -178,9 +178,79 @@ func (c *Catalog) ExecAlterOwnerStmt(stmt *nodes.AlterOwnerStmt) error {
 		return c.alterTypeOwner(stmt)
 	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
 		return c.alterRoutineOwner(stmt)
+	case nodes.OBJECT_OPERATOR:
+		return c.alterOperatorOwner(stmt)
+	case nodes.OBJECT_EVENT_TRIGGER:
+		return c.alterEventTriggerOwner(stmt)
 	default:
 		return nil
 	}
+}
+
+// alterOperatorOwner changes the owner recorded for a user-defined operator.
+func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
+	owa, ok := stmt.Object.(*nodes.ObjectWithArgs)
+	if !ok {
+		return nil
+	}
+	_, oprName := qualifiedName(owa.Objname)
+	var left, right uint32
+	if owa.Objargs != nil {
+		var oids []uint32
+		for _, item := range owa.Objargs.Items {
+			tn, ok := item.(*nodes.TypeName)
+			if !ok {
+				continue
+			}
+			oid, _, err := c.resolveTypeName(tn)
+			if err != nil {
+				return err
+			}
+			oids = append(oids, oid)
+		}
+		if len(oids) == 1 {
+			right = oids[0]
+		} else if len(oids) >= 2 {
+			left, right = oids[0], oids[1]
+		}
+	}
+	var found *BuiltinOperator
+	for _, op := range c.operByKey[operKey{name: oprName, left: left, right: right}] {
+		if op.OID >= FirstNormalObjectId {
+			found = op
+			break
+		}
+	}
+	if found == nil {
+		return errUndefinedObject("operator", oprName)
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	c.operatorOwners[found.OID] = owner
+	return nil
+}
+
+// alterEventTriggerOwner changes the owner recorded for an event trigger.
+func (c *Catalog) alterEventTriggerOwner(stmt *nodes.AlterOwnerStmt) error {
+	name := extractSimpleObjectName(stmt.Object)
+	evt := c.eventTriggerByName[name]
+	if evt == nil {
+		return errUndefinedObject("event trigger", name)
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	evt.OwnerName = owner
+	return nil
 }
 
 // AlterTablespaceOwner changes the owner recorded for a tablespace.
@@ -247,11 +317,21 @@ func (c *Catalog) alterSchemaOwner(stmt *nodes.AlterOwnerStmt) error {
 
 func (c *Catalog) alterTypeOwner(stmt *nodes.AlterOwnerStmt) error {
 	schemaName, typeName := extractObjectName(stmt.Object)
-	schema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		return err
+	var bt *BuiltinType
+	if schemaName == "" {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if found := c.typeByName[typeKey{ns: nsOID, name: typeName}]; found != nil {
+				bt = found
+				break
+			}
+		}
+	} else {
+		schema, err := c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
+		bt = c.typeByName[typeKey{ns: schema.OID, name: typeName}]
 	}
-	bt := c.typeByName[typeKey{ns: schema.OID, name: typeName}]
 	if bt == nil {
 		return errUndefinedType(typeName)
 	}
@@ -304,9 +384,23 @@ func (c *Catalog) alterRoutineOwner(stmt *nodes.AlterOwnerStmt) error {
 		kindStr = "routine"
 	}
 	schemaName, funcName := qualifiedName(owa.Objname)
-	schema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		return err
+	var schema *Schema
+	if schemaName == "" {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if ns := c.schemas[nsOID]; ns != nil && len(c.findUserProcsByName(ns, funcName)) > 0 {
+				schema = ns
+				break
+			}
+		}
+	} else {
+		var err error
+		schema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
+	}
+	if schema == nil {
+		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
 	}
 	var bp *BuiltinProc
 	if !owa.ArgsUnspecified {
@@ -581,7 +675,7 @@ func (c *Catalog) roleInUse(name string) bool {
 		}
 	}
 	for _, g := range c.grants {
-		if g.Grantee == name {
+		if g.Grantee == name || g.Grantor == name {
 			return true
 		}
 	}
@@ -819,6 +913,18 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 
+	// Event triggers are collected before preflight so a function they call
+	// and they themselves both count as part of one DROP OWNED set.
+	var ownedEventTriggers []*EventTrigger
+	ownedEventTriggerOIDs := map[uint32]bool{}
+	for _, evt := range c.eventTriggers {
+		if owners[evt.OwnerName] {
+			ownedEventTriggers = append(ownedEventTriggers, evt)
+			ownedEventTriggerOIDs[evt.OID] = true
+		}
+	}
+	sort.Slice(ownedEventTriggers, func(i, j int) bool { return ownedEventTriggers[i].OID < ownedEventTriggers[j].OID })
+
 	inDropSet := func(objType byte, objOID uint32) bool {
 		switch objType {
 		case 'r':
@@ -851,6 +957,8 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		case 'p':
 			pol := c.policies[objOID]
 			return pol != nil && ownedRelOIDs[pol.RelOID]
+		case 'E':
+			return ownedEventTriggerOIDs[objOID]
 		}
 		return false
 	}
@@ -1040,13 +1148,6 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 	sort.Slice(ownedOperators, func(i, j int) bool { return ownedOperators[i] < ownedOperators[j] })
-	var ownedEventTriggers []*EventTrigger
-	for _, evt := range c.eventTriggers {
-		if owners[evt.OwnerName] {
-			ownedEventTriggers = append(ownedEventTriggers, evt)
-		}
-	}
-	sort.Slice(ownedEventTriggers, func(i, j int) bool { return ownedEventTriggers[i].OID < ownedEventTriggers[j].OID })
 	for _, oid := range ownedOperators {
 		c.removeOperator(oid)
 	}
@@ -1067,9 +1168,10 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 
 	kept := c.grants[:0]
 	for _, g := range c.grants {
-		if !owners[g.Grantee] {
-			kept = append(kept, g)
+		if owners[g.Grantee] || owners[g.Grantor] {
+			continue
 		}
+		kept = append(kept, g)
 	}
 	c.grants = kept
 
@@ -1307,6 +1409,9 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	for i := range c.grants {
 		if c.grants[i].Grantee == oldName {
 			c.grants[i].Grantee = stmt.Newname
+		}
+		if c.grants[i].Grantor == oldName {
+			c.grants[i].Grantor = stmt.Newname
 		}
 	}
 	for _, p := range c.policies {

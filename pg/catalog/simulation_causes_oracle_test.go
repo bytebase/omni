@@ -1566,6 +1566,116 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("recreating citext: %s", code)
 		}
 
+		// #144: ALTER OPERATOR / ALTER EVENT TRIGGER OWNER TO move tracked
+		// ownership, so the old owner can be dropped and the new one cannot.
+		c23 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE FUNCTION own_cmp(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"CREATE FUNCTION own_evt() RETURNS event_trigger LANGUAGE plpgsql AS 'BEGIN END'",
+			"SET ROLE alice",
+			"CREATE OPERATOR ==>> (LEFTARG = int, RIGHTARG = int, PROCEDURE = own_cmp)",
+			"CREATE EVENT TRIGGER own_evt_trig ON ddl_command_start EXECUTE FUNCTION own_evt()",
+			"RESET ROLE",
+			"ALTER OPERATOR ==>> (int, int) OWNER TO bob",
+			"ALTER EVENT TRIGGER own_evt_trig OWNER TO bob",
+		} {
+			if code := simulationCatalogCode(t, c23, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c23, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("DROP ROLE alice after ownership transfer answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c23, "DROP ROLE bob"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE bob after ownership transfer answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		// #145: an unqualified type or routine owner target resolves through the
+		// search path, not to the first schema.
+		c24 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE SCHEMA s1",
+			"CREATE SCHEMA s2",
+			"SET search_path = s1, s2",
+			"CREATE TYPE s2.mood2 AS ENUM ('ok')",
+			"CREATE FUNCTION s2.sp_fn() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+			"SET ROLE alice",
+		} {
+			if code := simulationCatalogCode(t, c24, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		// Give alice ownership through ALTER ... OWNER TO in the later schema.
+		if code := simulationCatalogCode(t, c24, "ALTER TYPE mood2 OWNER TO alice"); code != "0" {
+			t.Fatalf("ALTER TYPE through the search path answered %s", code)
+		}
+		if code := simulationCatalogCode(t, c24, "ALTER FUNCTION sp_fn() OWNER TO alice"); code != "0" {
+			t.Fatalf("ALTER FUNCTION through the search path answered %s", code)
+		}
+
+		// #146: SET ROLE refuses a role the catalog does not hold.
+		c25 := New()
+		if code := simulationCatalogCode(t, c25, "SET ROLE ghost"); code != CodeUndefinedObject {
+			t.Fatalf("SET ROLE ghost answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if c25.currentUser != "" {
+			t.Fatalf("failed SET ROLE changed the current user to %q", c25.currentUser)
+		}
+
+		// #147: DROP OWNED removes an owned event trigger together with the
+		// function it calls under RESTRICT.
+		c26 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE evt_role",
+			"SET ROLE evt_role",
+			"CREATE FUNCTION evt_role_fn() RETURNS event_trigger LANGUAGE plpgsql AS 'BEGIN END'",
+			"CREATE EVENT TRIGGER evt_role_trig ON ddl_command_start EXECUTE FUNCTION evt_role_fn()",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c26, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c26, "DROP OWNED BY evt_role RESTRICT"); code != "0" {
+			t.Fatalf("DROP OWNED on an owned event trigger answered %s, want 0", code)
+		}
+		if c26.eventTriggerByName["evt_role_trig"] != nil || len(c26.userProcs) != 0 {
+			t.Fatal("DROP OWNED left the owned event trigger or its function")
+		}
+
+		// #148: a grant's grantor is a role dependency and DROP OWNED revokes it.
+		c27 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE ROLE carol",
+			"CREATE TABLE acl_t (id int)",
+			"SET ROLE alice",
+			"GRANT SELECT ON acl_t TO carol",
+			"RESET ROLE",
+			"ALTER TABLE acl_t OWNER TO bob",
+		} {
+			if code := simulationCatalogCode(t, c27, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c27, "DROP ROLE alice"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE alice as grantor answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c27, "DROP OWNED BY alice"); code != "0" {
+			t.Fatalf("DROP OWNED BY alice: %s", code)
+		}
+		if len(c27.grants) != 0 {
+			t.Fatalf("DROP OWNED left %d grants issued by alice", len(c27.grants))
+		}
+		if code := simulationCatalogCode(t, c27, "DROP ROLE alice"); code != "0" {
+			t.Fatalf("DROP ROLE alice after DROP OWNED answered %s, want 0", code)
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

@@ -418,6 +418,9 @@ func (c *Catalog) processSetRole(s *nodes.VariableSetStmt) error {
 			if roleName == "none" {
 				c.ResetRole()
 			} else {
+				if err := c.checkRole(roleName); err != nil {
+					return err
+				}
 				c.SetRole(roleName)
 			}
 			return nil
