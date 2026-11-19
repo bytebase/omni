@@ -2,6 +2,8 @@ package parser
 
 import (
 	"strings"
+
+	"github.com/bytebase/omni/starrocks/ast"
 )
 
 // The SHOW statements StarRocks accepts (testdata/StarRocks.g4), one pattern
@@ -38,9 +40,9 @@ var starRocksShowForms = compileShowForms([]string{
 	"SHOW ROUTINE LOAD TASK [ FROM name ] WHERE expr",                                        // :1281
 	"SHOW CREATE ROUTINE LOAD name",                                                          // :1287
 	"SHOW [ ALL ] STREAM LOAD [ FOR name ] [ FROM name ] [ WHERE expr ] [ sort ] [ limit ]",  // :1291
-	"SHOW ANALYZE [ ( JOB | STATUS ) ] [ WHERE expr ]",                                       // :1334
-	"SHOW STATS META [ WHERE expr ]",                                                         // :1338
-	"SHOW HISTOGRAM META [ WHERE expr ]",                                                     // :1342
+	"SHOW ANALYZE [ ( JOB | STATUS ) ] [ pwhere ]",                                           // :1334
+	"SHOW STATS META [ pwhere ]",                                                             // :1338
+	"SHOW HISTOGRAM META [ pwhere ]",                                                         // :1342
 	"SHOW [ VERBOSE ] RESOURCE GROUP ident",                                                  // :1375
 	"SHOW [ VERBOSE ] RESOURCE GROUPS [ ALL ]",                                               // :1376
 	"SHOW USAGE RESOURCE GROUP ident",                                                        // :1380
@@ -64,7 +66,7 @@ var starRocksShowForms = compileShowForms([]string{
 	"SHOW REPOSITORIES", // :1557
 	"SHOW OPEN TABLES",  // :1561
 	"SHOW PRIVILEGES",   // :1564
-	"SHOW ( PROCEDURE | FUNCTION ) STATUS [ wild ]", // :1568
+	"SHOW ( PROCEDURE | FUNCTION ) STATUS [ ( ( LIKE str ) | pwhere ) ]", // :1568
 	"SHOW PROC str",                                                   // :1572
 	"SHOW [ FULL ] PROCESSLIST [ FOR str ]",                           // :1576
 	"SHOW PROFILELIST [ LIMIT int ]",                                  // :1580
@@ -91,7 +93,7 @@ var starRocksShowForms = compileShowForms([]string{
 	"SHOW DATACACHE RULES",                                                           // :1856
 	"SHOW EXPORT [ ( FROM | IN ) name ] [ wild ] [ sort ] [ limit ]",                 // :1882
 	"SHOW FILE [ ( FROM | IN ) name ]",                                               // :1908
-	"SHOW PIPES [ ( wild | FROM name ) ] [ sort ] [ limit ]",                         // :1940
+	"SHOW PIPES [ ( ( LIKE str ) | strwhere | ( FROM name ) ) ] [ sort ] [ limit ]",  // :1940
 	"SHOW PLAN ADVISOR",                                                              // :2034
 	"SHOW WAREHOUSES [ LIKE str ]",                                                   // :2060
 	"SHOW CLUSTERS FROM WAREHOUSE ident",                                             // :2064
@@ -218,7 +220,11 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 		if !p.showShapeIdent() {
 			return false
 		}
-		for p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) {
+		for p.cur.Kind == tokDotIdent || p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) {
+			if p.cur.Kind == tokDotIdent {
+				p.advance()
+				continue
+			}
 			p.advance()
 			p.advance()
 		}
@@ -232,6 +238,18 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 	case "expr":
 		_, err := p.parseExpr()
 		return err == nil
+	case "pwhere": // (WHERE expression): a predicate, as these SHOW statements read it
+		if !p.showShapeToken(kwWHERE) {
+			return false
+		}
+		expr, err := p.parseExpr()
+		return err == nil && isPredicateNode(expr)
+	case "strwhere": // (WHERE expression): SHOW PIPES' predicate, whose literals are strings
+		if !p.showShapeToken(kwWHERE) {
+			return false
+		}
+		expr, err := p.parseExpr()
+		return err == nil && isStringPredicateExpr(expr)
 	case "wild": // (LIKE pattern=string) | (WHERE expression)
 		if p.showShapeToken(kwLIKE) {
 			return p.showShapeToken(tokString)
@@ -305,6 +323,73 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 		return false
 	}
 	panic("show pattern names an unknown nonterminal: " + name)
+}
+
+// isPredicateNode reports whether n is a Predicate in StarRocks's tree: one
+// comparison, IN, BETWEEN, LIKE, REGEXP, IS or EXISTS predicate, a compound AND
+// or OR, or a NOT. A resource group's classifier is one (`Cannot cast
+// com.starrocks.analysis.IntLiteral to com.starrocks.analysis.Predicate` for
+// `TO(1)`, and `TO(user = 'x')` and `TO(1 = 1)` are accepted), and so is the
+// WHERE of SHOW ANALYZE, SHOW STATS META, SHOW HISTOGRAM META and SHOW
+// PROCEDURE STATUS (`SHOW ANALYZE WHERE a = 1 OR b = 2` and
+// `... WHERE NOT a = 1` are accepted, `... WHERE CURRENT_USER` is not).
+func isPredicateNode(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.BinaryExpr:
+		switch v.Op {
+		case ast.BinEq, ast.BinNe, ast.BinLt, ast.BinGt, ast.BinLe, ast.BinGe,
+			ast.BinNullSafeEq, ast.BinAnd, ast.BinOr:
+			return true
+		}
+		return false
+	case *ast.InExpr, *ast.BetweenExpr, *ast.LikeExpr, *ast.RegexpExpr,
+		*ast.IsExpr, *ast.ExistsExpr:
+		return true
+	case *ast.UnaryExpr:
+		return v.Op == ast.UnaryNot
+	}
+	return false
+}
+
+// isStringPredicateExpr reports whether n is the predicate SHOW PIPES reads
+// its WHERE as: a single comparison whose later operand is a string literal,
+// an IN whose list holds string literals only, or a LIKE, REGEXP or BETWEEN
+// over string literals. The pinned server casts each operand to StringLiteral
+// and refuses `WHERE a`, `WHERE 1 = 1`, `WHERE a = 1`, `WHERE a = b`,
+// `WHERE a = 'x' AND b = 'y'` and `WHERE a IS NULL` with that error, while it
+// takes `WHERE a = 'x'`, `WHERE a > 'x'` and `WHERE a IN ('x')`.
+func isStringPredicateExpr(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.BinaryExpr:
+		switch v.Op {
+		case ast.BinEq, ast.BinNe, ast.BinLt, ast.BinGt, ast.BinLe, ast.BinGe, ast.BinNullSafeEq:
+			return isStringLiteral(v.Right)
+		}
+		return false
+	case *ast.InExpr:
+		if len(v.Values) == 0 {
+			return false
+		}
+		for _, value := range v.Values {
+			if !isStringLiteral(value) {
+				return false
+			}
+		}
+		return true
+	case *ast.LikeExpr:
+		return isStringLiteral(v.Pattern)
+	case *ast.RegexpExpr:
+		return isStringLiteral(v.Pattern)
+	case *ast.BetweenExpr:
+		return isStringLiteral(v.Low) && isStringLiteral(v.High)
+	}
+	return false
+}
+
+// isStringLiteral reports whether n is a string literal.
+func isStringLiteral(n ast.Node) bool {
+	lit, ok := n.(*ast.Literal)
+	return ok && lit.Kind == ast.LitString
 }
 
 // showShapeIdent reads an identifier: a quoted one, or any word
@@ -394,7 +479,7 @@ func (c *showCompiler) seq() *showShape {
 // showNonterminals names the nonterminals showShapeNonterminal reads.
 var showNonterminals = map[string]bool{
 	"ident": true, "name": true, "text": true, "str": true, "int": true,
-	"expr": true, "wild": true, "sort": true, "limit": true, "user": true,
+	"expr": true, "wild": true, "pwhere": true, "strwhere": true, "sort": true, "limit": true, "user": true,
 	"part": true,
 }
 

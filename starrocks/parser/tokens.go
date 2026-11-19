@@ -16,20 +16,20 @@ type TokenKind = int
 
 // Multi-character operators (500-599).
 const (
-	tokLessEq     = 500 + iota // <=
-	tokGreaterEq               // >=
-	tokNotEq                   // <> or !=
-	tokNullSafeEq              // <=>
-	tokLogicalAnd              // &&
-	tokDoublePipes             // ||
-	tokShiftLeft               // <<
-	tokShiftRight              // >>
-	tokArrow                   // ->
-	tokDoubleAt                // @@
-	tokAssign                  // :=
-	tokDotDotDot               // ...
-	tokHintStart               // /*+
-	tokHintEnd                 // */ — emitted for ANY */ in the token stream; the parser is responsible for validating hint context
+	tokLessEq      = 500 + iota // <=
+	tokGreaterEq                // >=
+	tokNotEq                    // <> or !=
+	tokNullSafeEq               // <=>
+	tokLogicalAnd               // &&
+	tokDoublePipes              // ||
+	tokShiftLeft                // <<
+	tokShiftRight               // >>
+	tokArrow                    // ->
+	tokDoubleAt                 // @@
+	tokAssign                   // :=
+	tokDotDotDot                // ...
+	tokHintStart                // /*+
+	tokHintEnd                  // */ — emitted for ANY */ in the token stream; the parser is responsible for validating hint context
 )
 
 // Literal tokens (600-699).
@@ -42,6 +42,7 @@ const (
 	tokHexLiteral               // X'...' or x'...'
 	tokBitLiteral               // B'...' or b'...'
 	tokPlaceholder              // ?
+	tokDotIdent                 // .1a: DOT_IDENTIFIER, a '.' and a DIGIT_IDENTIFIER in one token
 )
 
 // Token represents a single lexical token.

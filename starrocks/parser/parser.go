@@ -66,6 +66,13 @@ type Parser struct {
 	// hints holds SET_VAR values read from optimizer hints before they are
 	// skipped; SUBMIT TASK merges them into its properties.
 	hints []*ast.Property
+
+	// terminated records that the segment this parse reads ended at a ';' in
+	// the source, which Split leaves out of the segment's text. TRANSLATE's
+	// translateSQL (StarRocks.g4:2077) is `.+`, and the pinned server reads
+	// the terminator as the token it matches, so `TRANSLATE a;` is accepted
+	// and a `TRANSLATE a` that ends the input is not.
+	terminated bool
 }
 
 // typeReplay is a recorded parseDataType result, the state the parse ended
@@ -111,8 +118,6 @@ func (p *Parser) replayParen(r parenReplay) {
 	p.cur, p.prev, p.nextBuf, p.hasNext = r.end.cur, r.end.prev, r.end.nextBuf, r.end.hasNext
 }
 
-// rawQuery is a query body captured as raw text: the text and the absolute
-// byte offset of its first character in the parser's input.
 // rawQuery is a query body captured as raw text: the text, the absolute
 // byte offset of its first character in the parser's input, and the nesting
 // depth it was captured at, which the nested parse that validates it starts
@@ -125,6 +130,8 @@ type rawQuery struct {
 	// the optimizerTrace prefix. An expression subquery is a queryRelation and
 	// does not.
 	allowTrace bool
+	sub        *ast.SubqueryExpr
+	raw        *ast.RawQuery
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -414,7 +421,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwCATALOG:
 			return p.parseCreateCatalog()
 		case kwRESOURCE:
+			// CREATE RESOURCE GROUP (StarRocks.g4:1358) or CREATE [EXTERNAL]
+			// RESOURCE; GROUP, reserved, tells them apart.
+			if p.atResourceGroup() {
+				p.advance() // consume RESOURCE
+				return p.parseCreateResourceGroup(createTok.Loc)
+			}
 			return p.parseCreateResource(createTok.Loc, false)
+		case kwDATACACHE:
+			return p.parseCreateDataCacheRule(createTok.Loc)
+		case kwPIPE:
+			return p.parseCreatePipe(createTok.Loc, false)
 		case kwVIEW:
 			return p.parseCreateView(createTok.Loc, false)
 		case kwMATERIALIZED:
@@ -431,6 +448,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			if p.cur.Kind == kwPROCEDURE {
 				return p.parseCreateProcedure(createTok.Loc, true)
+			}
+			if p.cur.Kind == kwPIPE {
+				return p.parseCreatePipe(createTok.Loc, true)
 			}
 			if isCreateFunctionStart(p.cur.Kind, p.peekNext().Kind) {
 				return p.parseCreateFunction(createTok.Loc, true)
@@ -491,7 +511,16 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwREPOSITORY:
 			return p.parseAlterRepository(alterTok.Loc)
 		case kwRESOURCE:
+			// ALTER RESOURCE GROUP (StarRocks.g4:1367) or ALTER RESOURCE.
+			if p.atResourceGroup() {
+				p.advance() // consume RESOURCE
+				return p.parseAlterResourceGroup(alterTok.Loc)
+			}
 			return p.parseAlterResource(p.prev.Loc)
+		case kwPIPE:
+			return p.parseAlterPipe(alterTok.Loc)
+		case kwPLAN:
+			return p.parseAlterPlanAdvisor(alterTok.Loc)
 		case kwDICTIONARY:
 			return p.parseAlterDictionary(p.prev.Loc)
 		case kwROLE:
@@ -532,7 +561,20 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		case kwFILE:
 			return p.parseDropFile(dropTok.Loc)
 		case kwRESOURCE:
+			// DROP RESOURCE GROUP (StarRocks.g4:1363) or DROP RESOURCE.
+			if p.atResourceGroup() {
+				p.advance() // consume RESOURCE
+				return p.parseDropResourceGroup(dropTok.Loc)
+			}
 			return p.parseDropResource(dropTok.Loc)
+		case kwDATACACHE:
+			return p.parseDropDataCacheRule(dropTok.Loc)
+		case kwPIPE:
+			return p.parseDropPipe(dropTok.Loc)
+		case kwPREPARE:
+			// deallocateStatement (StarRocks.g4:2295): DROP PREPARE name; the
+			// DEALLOCATE spelling is its own leading keyword.
+			return p.parseDeallocate(dropTok.Loc)
 		case kwROW:
 			p.advance() // consume ROW
 			return p.parseDropRowPolicy(dropTok.Loc)
@@ -566,6 +608,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.unsupported("DROP")
 		}
 	case kwTRUNCATE:
+		// TRUNCATE PLAN ADVISOR (StarRocks.g4:2027), told from truncating a
+		// table named plan by the ADVISOR that follows.
+		if p.atPlanAdvisor() {
+			return p.parseTruncatePlanAdvisor()
+		}
 		return p.parseTruncateTable()
 
 	// DML
@@ -603,6 +650,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		updateTok := p.advance() // consume UPDATE
 		return p.parseUpdateStmt(updateTok.Loc.Start)
 	case kwDELETE:
+		if p.atDeleteBlacklist() {
+			deleteTok := p.advance() // consume DELETE
+			return p.parseDeleteBlacklist(deleteTok.Loc)
+		}
 		deleteTok := p.advance() // consume DELETE
 		return p.parseDeleteStmt(deleteTok.Loc.Start)
 
@@ -640,6 +691,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwSHOW:
 		return p.parseShow()
 	case kwDESCRIBE, kwDESC:
+		// descPipeStatement (StarRocks.g4:1935): (DESC | DESCRIBE) PIPE name.
+		if p.atDescPipe() {
+			descTok := p.advance() // consume DESC/DESCRIBE
+			return p.parseDescPipe(descTok.Loc)
+		}
 		// descStorageVolumeStatement (StarRocks.g4:820):
 		// (DESC | DESCRIBE) STORAGE VOLUME name. STORAGE is nonReserved, so DESC
 		// STORAGE alone describes a table named storage; the form is taken only
@@ -749,6 +805,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseRefreshCatalog()
 		case kwDICTIONARY:
 			return p.parseRefreshDictionary(refreshTok.Loc)
+		case kwEXTERNAL:
+			return p.parseRefreshExternalTable(refreshTok.Loc)
 		}
 		return p.unsupported("REFRESH")
 
@@ -826,6 +884,32 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		cleanTok := p.advance() // consume CLEAN
 		return p.parseClean(cleanTok.Loc)
 
+	// Blacklists, prepared statements, the SQL converter, data cache rules
+	case kwADD:
+		if p.atAddBlacklist() {
+			addTok := p.advance() // consume ADD
+			return p.parseAddBlacklist(addTok.Loc)
+		}
+		return p.unsupported("ADD")
+	case kwCLEAR:
+		if p.atClearDataCacheRules() {
+			clearTok := p.advance() // consume CLEAR
+			return p.parseClearDataCacheRules(clearTok.Loc)
+		}
+		return p.unsupported("CLEAR")
+	case kwTRANSLATE:
+		return p.parseTranslate()
+	case kwDEALLOCATE:
+		deallocTok := p.advance() // consume DEALLOCATE
+		return p.parseDeallocate(deallocTok.Loc)
+	case kwPREPARE:
+		return p.parsePrepare(p.cur.Loc)
+	case kwEXECUTE:
+		if p.peekNext().Kind == kwAS {
+			return p.parseExecuteAs(p.cur.Loc)
+		}
+		return p.parseExecute(p.cur.Loc)
+
 	default:
 		return nil, p.unknownStatementError()
 	}
@@ -879,7 +963,8 @@ func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing, depth)
+		terminated := seg.ByteEnd < len(input) && input[seg.ByteEnd] == ';'
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing, depth, terminated)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -924,13 +1009,14 @@ func parseAll(input string, strictTrailing bool, depth int) *ParseResult {
 // from Segment.Text. baseOffset is the byte offset of segText within the
 // original input — passed to NewLexerWithOffset so token Loc values are
 // absolute. depth is the nesting depth the parse starts at (see parseAll).
-func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int) (ast.Node, []ParseError) {
+func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int, terminated bool) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer:          NewLexerWithOffset(segText, baseOffset),
 		input:          segText,
 		baseOffset:     baseOffset,
 		strictTrailing: strictTrailing,
 		depth:          depth,
+		terminated:     terminated,
 	}
 	p.advance() // prime cur with the first token
 
@@ -980,6 +1066,12 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 			// parses every body now and drops the statement when one fails.
 			if errs := p.validateRawQueries(); len(errs) > 0 {
 				p.errors = append(p.errors, errs...)
+				node = nil
+			} else if len(p.rawQueries) > 0 && node != nil && treeTooHigh(node, len(segText)) {
+				// validateRawQueries attaches parsed bodies onto RawQuery and
+				// SubqueryExpr after the initial treeTooHigh check above, so
+				// remeasure the completed statement tree before returning it.
+				p.errors = append(p.errors, *nestedTooDeeply(first.Loc))
 				node = nil
 			}
 		}
@@ -1084,8 +1176,19 @@ func (p *Parser) validateRawQueries() []ParseError {
 		if q.allowTrace {
 			body = isQueryStatementBody
 		}
-		if !body(res.File.Stmts[0]) {
+		stmt := res.File.Stmts[0]
+		if !body(stmt) {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+			continue
+		}
+		if q.start != 0 {
+			remapTreeLocs(stmt, func(pos int) int { return pos + q.start })
+		}
+		if q.sub != nil {
+			q.sub.Query = stmt
+		}
+		if q.raw != nil {
+			q.raw.Query = stmt
 		}
 	}
 	return out

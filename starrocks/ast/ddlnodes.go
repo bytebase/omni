@@ -223,6 +223,11 @@ type RawQuery struct {
 	// back into the outer statement's coordinates.
 	TextStart int
 
+	// Query is the body as the strict parser validated it, with locations in
+	// the parser's input like the rest of the tree. Walk does not visit it,
+	// matching SubqueryExpr.Query.
+	Query Node
+
 	Loc Loc
 }
 
@@ -709,7 +714,7 @@ var _ Node = (*DropRepositoryStmt)(nil)
 //	CREATE FILE file_name [IN db] PROPERTIES(...)
 type CreateFileStmt struct {
 	Name       string
-	Database   string // optional IN db_name
+	Catalog    *ObjectName // optional {FROM | IN} catalog=qualifiedName
 	Properties []*Property
 	Loc        Loc
 }
@@ -724,7 +729,7 @@ var _ Node = (*CreateFileStmt)(nil)
 //	DROP FILE file_name [FROM db] PROPERTIES(...)
 type DropFileStmt struct {
 	Name       string
-	Database   string // optional FROM db_name
+	Catalog    *ObjectName // optional {FROM | IN} catalog=qualifiedName
 	Properties []*Property
 	Loc        Loc
 }

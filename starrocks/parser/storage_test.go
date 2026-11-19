@@ -288,8 +288,8 @@ func TestCreateFile_Basic(t *testing.T) {
 	if stmt.Name != "ca.pem" {
 		t.Errorf("Name = %q, want %q", stmt.Name, "ca.pem")
 	}
-	if stmt.Database != "" {
-		t.Errorf("Database = %q, want empty", stmt.Database)
+	if stmt.Catalog != nil {
+		t.Errorf("Catalog = %v, want nil", stmt.Catalog)
 	}
 	if len(stmt.Properties) != 2 {
 		t.Fatalf("expected 2 properties, got %d", len(stmt.Properties))
@@ -306,8 +306,8 @@ func TestCreateFile_WithDatabase(t *testing.T) {
 	if stmt.Name != "my_cert.pem" {
 		t.Errorf("Name = %q, want %q", stmt.Name, "my_cert.pem")
 	}
-	if stmt.Database != "mydb" {
-		t.Errorf("Database = %q, want %q", stmt.Database, "mydb")
+	if stmt.Catalog == nil || stmt.Catalog.String() != "mydb" {
+		t.Errorf("Catalog = %v, want mydb", stmt.Catalog)
 	}
 }
 
@@ -339,8 +339,8 @@ func TestDropFile_Basic(t *testing.T) {
 	if stmt.Name != "ca.pem" {
 		t.Errorf("Name = %q, want %q", stmt.Name, "ca.pem")
 	}
-	if stmt.Database != "" {
-		t.Errorf("Database = %q, want empty", stmt.Database)
+	if stmt.Catalog != nil {
+		t.Errorf("Catalog = %v, want nil", stmt.Catalog)
 	}
 	if len(stmt.Properties) != 1 {
 		t.Fatalf("expected 1 property, got %d", len(stmt.Properties))
@@ -354,8 +354,8 @@ func TestDropFile_WithDatabase(t *testing.T) {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
 	stmt := file.Stmts[0].(*ast.DropFileStmt)
-	if stmt.Database != "mydb" {
-		t.Errorf("Database = %q, want %q", stmt.Database, "mydb")
+	if stmt.Catalog == nil || stmt.Catalog.String() != "mydb" {
+		t.Errorf("Catalog = %v, want mydb", stmt.Catalog)
 	}
 }
 

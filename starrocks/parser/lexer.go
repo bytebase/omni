@@ -110,9 +110,13 @@ func (l *Lexer) nextTokenInner() Token {
 	case ch == '`':
 		return l.scanBacktickIdent()
 	case ch >= '0' && ch <= '9':
-		return l.scanNumber()
+		return l.scanNumberOrDigitIdent()
 	case ch == '.' && l.peekDigit():
-		return l.scanNumber()
+		// DOT_IDENTIFIER is '.' DIGIT_IDENTIFIER (StarRocksLex.g4:574) and
+		// wins the longest match over DECIMAL_VALUE and DOUBLE_VALUE, so
+		// '.1a' and '.1E2a' are one token while '.1' and '.1E2' — a tie,
+		// which the numeric rule wins by coming first — are numbers.
+		return l.scanDotNumberOrIdent()
 	case (ch == 'X' || ch == 'x') && (l.peek(1) == '\'' || l.peek(1) == '"'):
 		// BINARY_SINGLE_QUOTED_TEXT and BINARY_DOUBLE_QUOTED_TEXT (StarRocksLex.g4).
 		return l.scanHexLiteral()
@@ -278,29 +282,7 @@ func (l *Lexer) scanString(quote byte) Token {
 			if l.pos >= len(l.input) {
 				break
 			}
-			esc := l.input[l.pos]
-			switch esc {
-			case 'n':
-				sb.WriteByte('\n')
-			case 't':
-				sb.WriteByte('\t')
-			case 'r':
-				sb.WriteByte('\r')
-			case '0':
-				sb.WriteByte(0)
-			case '\\':
-				sb.WriteByte('\\')
-			case '\'':
-				sb.WriteByte('\'')
-			case '"':
-				sb.WriteByte('"')
-			case 'b':
-				sb.WriteByte(0x08)
-			case 'Z':
-				sb.WriteByte(0x1A)
-			default:
-				sb.WriteByte(esc)
-			}
+			sb.WriteByte(unescapeStringByte(l.input[l.pos]))
 			l.pos++
 			continue
 		}
@@ -310,6 +292,31 @@ func (l *Lexer) scanString(quote byte) Token {
 	}
 	l.errors = append(l.errors, LexError{Loc: ast.Loc{Start: start, End: l.pos}, Msg: errUnterminatedString})
 	return Token{Kind: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}
+}
+
+func unescapeStringByte(esc byte) byte {
+	switch esc {
+	case 'n':
+		return '\n'
+	case 't':
+		return '\t'
+	case 'r':
+		return '\r'
+	case '0':
+		return 0
+	case '\\':
+		return '\\'
+	case '\'':
+		return '\''
+	case '"':
+		return '"'
+	case 'b':
+		return 0x08
+	case 'Z':
+		return 0x1A
+	default:
+		return esc
+	}
 }
 
 // scanBacktickIdent reads a backtick-quoted identifier. Only doubled-backtick
@@ -428,15 +435,21 @@ func (l *Lexer) scanNumber() Token {
 		}
 	}
 
-	// Optional exponent
+	// Optional exponent. DOUBLE_VALUE needs its digits, so an 'e' with none
+	// after it is not one: the letter belongs to a DIGIT_IDENTIFIER
+	// ('1e' is a name on the pinned server), which the caller reads once this
+	// leaves it in place.
 	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
-		isFloat = true
-		l.pos++
-		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
-			l.pos++
+		end := l.pos + 1
+		if end < len(l.input) && (l.input[end] == '+' || l.input[end] == '-') {
+			end++
 		}
-		for l.pos < len(l.input) && l.input[l.pos] >= '0' && l.input[l.pos] <= '9' {
-			l.pos++
+		if digits := end; digits < len(l.input) && l.input[digits] >= '0' && l.input[digits] <= '9' {
+			for digits < len(l.input) && l.input[digits] >= '0' && l.input[digits] <= '9' {
+				digits++
+			}
+			isFloat = true
+			l.pos = digits
 		}
 	}
 
@@ -453,8 +466,101 @@ func (l *Lexer) scanNumber() Token {
 	return Token{Kind: tokInt, Str: text, Ival: val, Loc: loc}
 }
 
+// scanNumberOrDigitIdent reads a number, or the DIGIT_IDENTIFIER it starts
+// (StarRocksLex.g4:564): DIGIT (LETTER | DIGIT | '_')+ outruns every numeric
+// rule when what follows the digits is more identifier, so '1a', '1e2a' and
+// '1E2a' are one identifier while '1.2a' stays a decimal and its label,
+// since '.' is no DIGIT_IDENTIFIER character.
+func (l *Lexer) scanNumberOrDigitIdent() Token {
+	start := l.start
+	tok := l.scanNumber()
+	if !isDigitIdentText(tok.Str) {
+		return tok
+	}
+	end, ok := l.digitIdentEnd()
+	if !ok {
+		return tok
+	}
+	l.pos = end
+	return Token{Kind: tokIdent, Str: l.input[start:end], Loc: ast.Loc{Start: start, End: end}}
+}
+
+// isDigitIdentText reports whether a scanned number is spelled like the start
+// of a DIGIT_IDENTIFIER: digits, letters and '_' only, so '1e2' may run on
+// into a name and '1.2' or '1e+2' may not.
+func isDigitIdentText(text string) bool {
+	if text == "" || text[0] < '0' || text[0] > '9' {
+		return false
+	}
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
 func isHexDigit(ch byte) bool {
 	return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+}
+
+// digitIdentEnd reports where the DIGIT_IDENTIFIER that starts at the digits
+// just scanned ends, if one starts there: DIGIT (LETTER | DIGIT | '_')+ needs
+// a LETTER, '_' or another digit after the digits already scanned.
+func (l *Lexer) digitIdentEnd() (int, bool) {
+	if l.pos >= len(l.input) {
+		return 0, false
+	}
+	r, size := utf8.DecodeRuneInString(l.input[l.pos:])
+	if !isIdentRune(r) {
+		return 0, false
+	}
+	return l.identRunEnd(l.pos + size), true
+}
+
+// dotIdentEnd reports where the DOT_IDENTIFIER (StarRocksLex.g4:574) that
+// would start at the current '.' ends, if the text there is one: '.' and a
+// DIGIT_IDENTIFIER.
+func (l *Lexer) dotIdentEnd() (int, bool) {
+	i := l.pos + 1
+	for i < len(l.input) && l.input[i] >= '0' && l.input[i] <= '9' {
+		i++
+	}
+	if i >= len(l.input) {
+		return 0, false
+	}
+	r, size := utf8.DecodeRuneInString(l.input[i:])
+	if !isIdentRune(r) {
+		return 0, false
+	}
+	return l.identRunEnd(i + size), true
+}
+
+// scanDotNumberOrIdent scans the number at the current '.', or the
+// DOT_IDENTIFIER, whichever is the longer match.
+func (l *Lexer) scanDotNumberOrIdent() Token {
+	start := l.pos
+	identEnd, isIdent := l.dotIdentEnd()
+	tok := l.scanNumber()
+	if !isIdent || identEnd <= l.pos {
+		return tok
+	}
+	l.pos = identEnd
+	return Token{Kind: tokDotIdent, Str: l.input[start+1 : identEnd], Loc: ast.Loc{Start: start, End: identEnd}}
+}
+
+// identRunEnd scans the identifier characters from i and returns where they
+// end.
+func (l *Lexer) identRunEnd(i int) int {
+	for i < len(l.input) {
+		r, size := utf8.DecodeRuneInString(l.input[i:])
+		if !isIdentRune(r) {
+			break
+		}
+		i += size
+	}
+	return i
 }
 
 // --- Identifier / Keyword Scanning -----------------------------------------

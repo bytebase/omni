@@ -119,6 +119,7 @@ var _ Node = (*DropFunctionStmt)(nil)
 type Property struct {
 	Key   string
 	Value string
+	Expr  Node // optional parsed value expression (e.g. keyPartition literal)
 	Loc   Loc
 }
 

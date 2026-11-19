@@ -15,11 +15,17 @@ func TestInsertOverwriteNoTable(t *testing.T) {
 	}
 }
 
-// Regression: the doris OVERWRITE TABLE form must still parse (additive).
-func TestInsertOverwriteTableStillParses(t *testing.T) {
-	stmt := mustParseInsert(t, "INSERT OVERWRITE TABLE test VALUES (1, 2)")
-	if !stmt.Overwrite {
-		t.Error("Overwrite = false, want true")
+// TestInsertOverwriteTableRefused: insertStatement (StarRocks.g4:2190) is
+// INSERT (INTO | OVERWRITE) and then the target, so the doris fork's OVERWRITE
+// TABLE names a table called table and the pinned server refuses it at TABLE.
+func TestInsertOverwriteTableRefused(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT OVERWRITE TABLE test VALUES (1, 2)",
+		"INSERT a SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 

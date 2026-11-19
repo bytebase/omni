@@ -573,6 +573,21 @@ func (p *Parser) parseDescribe() (ast.Node, error) {
 		p.advance()
 	}
 
+	// DESC FILES(propertyList) describes a files() table function rather than
+	// a table (descTableStatement, StarRocks.g4:561). FILES is no identifier,
+	// so it opens this form and nothing else.
+	if p.cur.Kind == kwFILES && !stmt.Full {
+		p.advance() // consume FILES
+		props, err := p.parsePropertyList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Files = true
+		stmt.Properties = props
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	// Target table/function name.
 	if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
 		target, err := p.parseMultipartIdentifier()
@@ -689,10 +704,6 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 	switch p.cur.Kind {
 	case kwEXPLAIN, kwDESC, kwDESCRIBE, kwTRACE:
 		return nil, p.syntaxErrorAtCur()
-	case kwINSERT:
-		if next := p.peekNext().Kind; next != kwINTO && next != kwOVERWRITE {
-			return nil, p.syntaxErrorAtCur()
-		}
 	}
 
 	// Parse the explained query. The RawQuery fallback is best-effort
@@ -764,11 +775,14 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 //
 //	USE db_name
 //	USE catalog_name.db_name
-//	USE db_name@cluster_name
 //	USE '<catalog_name>'
 //
 // The last form is StarRocks' useCatalogStatement, which switches the catalog
-// and names no database (StarRocks.g4:335).
+// and names no database (StarRocks.g4:335). useDatabaseStatement takes a
+// qualifiedName, which the AST builder reads as a catalog and a database and
+// no more: `USE a.b.c` is "Invalid db name format" on the pinned server. The
+// doris fork's `USE db@cluster` is not in StarRocks.g4 and the server refuses
+// it.
 //
 // On entry, USE has NOT yet been consumed.
 func (p *Parser) parseUse() (ast.Node, error) {
@@ -785,36 +799,24 @@ func (p *Parser) parseUse() (ast.Node, error) {
 		return stmt, nil
 	}
 
-	// Parse the name: may be plain, catalog.db, or db@cluster.
-	first, _, err := p.parseIdentifier()
+	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
-
-	// Check for catalog.db form.
-	if p.cur.Kind == int('.') {
-		p.advance() // consume '.'
-		db, _, err := p.parseIdentifierQualified()
-		if err != nil {
-			return nil, err
+	if len(name.Parts) > 2 {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "USE names a database or a catalog and a database",
 		}
-		stmt.Catalog = first
-		stmt.Database = db
+	}
+	if len(name.Parts) == 2 {
+		stmt.Catalog = name.Parts[0]
+		stmt.Database = name.Parts[1]
 	} else {
-		stmt.Database = first
+		stmt.Database = name.Parts[0]
 	}
 
-	// Check for db@cluster form.
-	if p.cur.Kind == int('@') {
-		p.advance() // consume '@'
-		cluster, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Cluster = cluster
-	}
-
-	stmt.Loc.End = p.prev.Loc.End
+	stmt.Loc.End = name.Loc.End
 	return stmt, nil
 }
 

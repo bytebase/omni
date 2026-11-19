@@ -88,6 +88,9 @@ func treeHeightExceeds(root ast.Node, limit int) bool {
 			// the statement's tree, so the body counts below it.
 			kids.children = append(kids.children, sub.Query)
 		}
+		if rq, ok := top.node.(*ast.RawQuery); ok && rq.Query != nil {
+			kids.children = append(kids.children, rq.Query)
+		}
 		for _, child := range kids.children {
 			stack = append(stack, level{child, top.depth + 1})
 		}

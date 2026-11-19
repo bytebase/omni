@@ -47,8 +47,10 @@ var _ Node = (*ShowStmt)(nil)
 //	DESCRIBE FUNCTION name
 type DescribeStmt struct {
 	Target     *ObjectName
-	Full       bool // DESCRIBE FULL ...
-	AllVerbose bool // ALL VERBOSE suffix
+	Full       bool        // DESCRIBE FULL ...
+	AllVerbose bool        // ALL VERBOSE suffix
+	Files      bool        // DESC FILES(...): the file list of a files() table function
+	Properties []*Property // DESC FILES' property list
 	Loc        Loc
 }
 
@@ -108,7 +110,6 @@ var _ Node = (*OptimizerTraceStmt)(nil)
 type UseStmt struct {
 	Database string // database (right-hand of catalog, or sole name)
 	Catalog  string // catalog prefix before '.' (empty if absent)
-	Cluster  string // cluster suffix after '@' (empty if absent)
 	Loc      Loc
 }
 
