@@ -881,6 +881,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			name:  "CREATE VIEW whose qualified star names no relation of the block",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT missing.* FROM a",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names its relation's alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a AS t",
+			code:  0,
+		},
+		{
+			// The dummy DUAL reads no CTE, whatever a CTE of that name is.
+			name:  "CREATE VIEW whose quoted dual CTE the dummy DUAL does not read",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH `dual` AS (SELECT *) SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
 			name:  "CREATE VIEW whose body reads only DUAL for a column",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT 1 FROM DUAL",
@@ -960,6 +979,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name: "CREATE TABLE with an invisible and a visible column",
 			stmt: "CREATE TABLE z (a INT INVISIBLE, b INT);",
 			code: 0,
+		},
+		{
+			name:  "ALTER COLUMN SET INVISIBLE on the last visible column",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			name:  "MODIFY the last visible column INVISIBLE",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z MODIFY a INT INVISIBLE",
+			code:  4028,
 		},
 		{
 			// A CTAS appends the query's own columns as visible ones.

@@ -137,26 +137,66 @@ func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 	return refusal
 }
 
-// viewBlockStar reports the star of one query block that reads no table.
+// viewBlockStar reports the star of one query block that names no relation it
+// can expand from: a block with no table, or a qualified star whose qualifier is
+// not one of the block's relations.
 func viewBlockStar(sel *nodes.SelectStmt, source string) error {
-	if !readsOnlyNoTable(sel, source) {
+	if readsOnlyNoTable(sel, source) {
+		for _, field := range sel.TargetList {
+			expr := field
+			if rt, ok := field.(*nodes.ResTarget); ok {
+				expr = rt.Val
+			}
+			switch e := expr.(type) {
+			case *nodes.StarExpr:
+				return errStarNamesNoTable("")
+			case *nodes.ColumnRef:
+				if e.Star {
+					return errStarNamesNoTable(e.Table)
+				}
+			}
+		}
 		return nil
 	}
+	relations := blockRelationNames(sel)
 	for _, field := range sel.TargetList {
 		expr := field
 		if rt, ok := field.(*nodes.ResTarget); ok {
 			expr = rt.Val
 		}
-		switch e := expr.(type) {
-		case *nodes.StarExpr:
-			return errStarNamesNoTable("")
-		case *nodes.ColumnRef:
-			if e.Star {
-				return errStarNamesNoTable(e.Table)
-			}
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star && !relations[toLower(e.Table)] {
+			return errStarNamesNoTable(e.Table)
 		}
 	}
 	return nil
+}
+
+// blockRelationNames is the names a qualified star may carry in the block: each
+// relation's alias, or its own name when the statement gave it none.
+func blockRelationNames(sel *nodes.SelectStmt) map[string]bool {
+	names := make(map[string]bool, len(sel.From))
+	var add func(nodes.TableExpr)
+	add = func(te nodes.TableExpr) {
+		switch e := te.(type) {
+		case *nodes.TableRef:
+			if e.Alias != "" {
+				names[toLower(e.Alias)] = true
+			} else if e.Name != "" {
+				names[toLower(e.Name)] = true
+			}
+		case *nodes.SubqueryExpr:
+			if e.Alias != "" {
+				names[toLower(e.Alias)] = true
+			}
+		case *nodes.JoinClause:
+			add(e.Left)
+			add(e.Right)
+		}
+	}
+	for _, te := range sel.From {
+		add(te)
+	}
+	return names
 }
 
 // readsOnlyNoTable reports whether the block reads no relation at all, or only

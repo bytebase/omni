@@ -785,6 +785,12 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
+	// A replacement may hide the last visible column, which MySQL refuses with
+	// 4028 (mysql:8.0.46).
+	if !tableHasVisibleColumn(tbl) {
+		tbl.Columns[idx] = oldCol
+		return errTableMustHaveColumns()
+	}
 
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
@@ -1323,14 +1329,21 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 	return nil
 }
 
-// alterColumnVisibility toggles the INVISIBLE flag on a column.
+// alterColumnVisibility toggles the INVISIBLE flag on a column. A table must
+// keep a visible column, so hiding the last one is 4028 (mysql:8.0.46).
 func (c *Catalog) alterColumnVisibility(tbl *Table, cmd *nodes.AlterTableCmd, invisible bool) error {
 	colKey := toLower(cmd.Name)
 	idx, exists := tbl.colByName[colKey]
 	if !exists {
 		return errNoSuchColumn(cmd.Name, tbl.Name)
 	}
-	tbl.Columns[idx].Invisible = invisible
+	col := tbl.Columns[idx]
+	was := col.Invisible
+	col.Invisible = invisible
+	if !tableHasVisibleColumn(tbl) {
+		col.Invisible = was
+		return errTableMustHaveColumns()
+	}
 	return nil
 }
 

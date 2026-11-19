@@ -759,17 +759,25 @@ func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons
 // checkExistingColumnNowDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT
 // (CURRENT_TIMESTAMP) to the rule checkNowDefaultColumnType states for a column
 // definition, judged against the type the catalog already holds for c: a column
-// that is neither DATETIME nor TIMESTAMP is 1067. Only the CURRENT_TIMESTAMP
-// spelling is this rule's here; SET DEFAULT (NOW()) and SET DEFAULT (LOCALTIME)
-// are general default expressions, which TiDB refuses with 3770 whatever the
-// column's type (all read on v8.5.5).
+// that is neither DATETIME nor TIMESTAMP is 1067, and a DATETIME or TIMESTAMP one
+// holds the call's precision to its own. Only the CURRENT_TIMESTAMP spelling is
+// this rule's here; SET DEFAULT (NOW()) and SET DEFAULT (LOCALTIME) are general
+// default expressions, which TiDB refuses with 3770 whatever the column's type
+// (all read on v8.5.5).
 func checkExistingColumnNowDefault(col *Column, expr nodes.ExprNode) error {
 	if col == nil {
 		return nil
 	}
 	fn, ok := nowDefaultCall(expr)
-	if !ok || !strings.EqualFold(fn.Name, "current_timestamp") {
+	if !ok {
 		return nil
+	}
+	if !strings.EqualFold(fn.Name, "current_timestamp") {
+		// SET DEFAULT names the function outright, so its aliases are a
+		// disallowed function rather than the current-timestamp default:
+		// SET DEFAULT (NOW()) and SET DEFAULT (LOCALTIME) are 3770 on any
+		// column (read on v8.5.5).
+		return errDefaultFunctionNotAllowed(col.Name, fn.Name)
 	}
 	switch strings.ToLower(col.DataType) {
 	case "datetime", "timestamp":

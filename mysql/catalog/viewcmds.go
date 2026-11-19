@@ -140,7 +140,7 @@ func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
 		return nil
 	}
 	body := viewBody{edges: map[*nodes.CommonTableExpr]map[*nodes.CommonTableExpr]bool{}}
-	body.walk(sel, nil, nil)
+	body.walk(sel, nil, nil, source)
 	body.reach()
 	for _, b := range body.blocks {
 		if b.owner != nil && !body.reads[b.owner] {
@@ -174,7 +174,7 @@ type viewBlock struct {
 
 // walk records block and the CTEs it reads, then the blocks nested in it. ctes
 // are the declarations visible from the enclosing blocks, outermost first.
-func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, owner *nodes.CommonTableExpr) {
+func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, owner *nodes.CommonTableExpr, source string) {
 	if block == nil {
 		return
 	}
@@ -195,7 +195,8 @@ func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, 
 			// Walked below, with the CTE as the body's owner.
 			return false
 		case *nodes.TableRef:
-			if e.Schema == "" && e.Name != "" {
+			// The dummy DUAL reads no CTE, whatever a CTE of that name is.
+			if e.Schema == "" && e.Name != "" && !isDualRef(e, source) {
 				names = append(names, e.Name)
 			}
 		}
@@ -223,10 +224,10 @@ func (v *viewBody) walk(block *nodes.SelectStmt, ctes []*nodes.CommonTableExpr, 
 		// written before it and itself, not the siblings written after it
 		// (mysql:8.0.46).
 		mine := append(append([]*nodes.CommonTableExpr{}, ctes...), block.CTEs[:i+1]...)
-		v.walk(cte.Select, mine, cte)
+		v.walk(cte.Select, mine, cte, source)
 	}
 	for _, child := range children {
-		v.walk(child, visible, owner)
+		v.walk(child, visible, owner, source)
 	}
 }
 
@@ -263,26 +264,66 @@ func visibleCte(ctes []*nodes.CommonTableExpr, name string) *nodes.CommonTableEx
 	return nil
 }
 
-// viewBlockStar reports the star of one query block that reads no table.
+// viewBlockStar reports the star of one query block that names no relation it
+// can expand from: a block with no table, or a qualified star whose qualifier is
+// not one of the block's relations.
 func viewBlockStar(sel *nodes.SelectStmt, source string) error {
-	if !readsOnlyNoTable(sel, source) {
+	if readsOnlyNoTable(sel, source) {
+		for _, item := range sel.TargetList {
+			expr := item
+			if target, ok := item.(*nodes.ResTarget); ok {
+				expr = target.Val
+			}
+			switch e := expr.(type) {
+			case *nodes.StarExpr:
+				return errNoTablesUsed()
+			case *nodes.ColumnRef:
+				if e.Star {
+					return errUnknownTableName(e.Table)
+				}
+			}
+		}
 		return nil
 	}
+	relations := blockRelationNames(sel)
 	for _, item := range sel.TargetList {
 		expr := item
 		if target, ok := item.(*nodes.ResTarget); ok {
 			expr = target.Val
 		}
-		switch e := expr.(type) {
-		case *nodes.StarExpr:
-			return errNoTablesUsed()
-		case *nodes.ColumnRef:
-			if e.Star {
-				return errUnknownTableName(e.Table)
-			}
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star && !relations[toLower(e.Table)] {
+			return errUnknownTableName(e.Table)
 		}
 	}
 	return nil
+}
+
+// blockRelationNames is the names a qualified star may carry in the block: each
+// relation's alias, or its own name when the statement gave it none.
+func blockRelationNames(sel *nodes.SelectStmt) map[string]bool {
+	names := make(map[string]bool, len(sel.From))
+	var add func(nodes.TableExpr)
+	add = func(te nodes.TableExpr) {
+		switch e := te.(type) {
+		case *nodes.TableRef:
+			if e.Alias != "" {
+				names[toLower(e.Alias)] = true
+			} else if e.Name != "" {
+				names[toLower(e.Name)] = true
+			}
+		case *nodes.SubqueryExpr:
+			if e.Alias != "" {
+				names[toLower(e.Alias)] = true
+			}
+		case *nodes.JoinClause:
+			add(e.Left)
+			add(e.Right)
+		}
+	}
+	for _, te := range sel.From {
+		add(te)
+	}
+	return names
 }
 
 // readsOnlyNoTable reports whether the block reads no relation at all, or only

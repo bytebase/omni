@@ -236,6 +236,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1051,
 		},
 		{
+			name:  "CREATE VIEW whose qualified star names no relation of the block",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT missing.* FROM a",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names its relation's alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a AS t",
+			code:  0,
+		},
+		{
 			name:  "CREATE VIEW whose body reads only DUAL for a column",
 			setup: []string{oneTable},
 			stmt:  "CREATE VIEW v AS SELECT 1 FROM DUAL",
@@ -322,6 +334,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable, "ALTER TABLE a ADD dt DATETIME"},
 			stmt:  "ALTER TABLE a ALTER dt SET DEFAULT (CURRENT_TIMESTAMP)",
 			code:  0,
+		},
+		{
+			// SET DEFAULT names the function, so a NOW()-family alias is a
+			// disallowed function rather than the current-timestamp default.
+			name:  "SET DEFAULT NOW on an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER b SET DEFAULT (NOW())",
+			code:  3770,
+		},
+		{
+			name:  "SET DEFAULT LOCALTIME on an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER b SET DEFAULT (LOCALTIME)",
+			code:  3770,
 		},
 		{
 			name:  "SET DEFAULT CURRENT_TIMESTAMP past a DATETIME(1) column",
