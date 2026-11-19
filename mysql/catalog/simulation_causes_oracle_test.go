@@ -24,7 +24,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -844,6 +844,26 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			name:  "CREATE VIEW whose body expands a star over DUAL",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM DUAL",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body reads only DUAL for a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
+			// `other.c` names another schema's table, not the CTE c, so MySQL
+			// never resolves the CTE's star.
+			name:  "CREATE VIEW whose qualified name shares an unreferenced CTE's",
+			setup: []string{"CREATE DATABASE cteother", "CREATE TABLE cteother.c (x INT)"},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM cteother.c",
+			code:  0,
+		},
+		{
 			name:  "CREATE TABLE LIKE over a table",
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE z (LIKE a);",
@@ -908,6 +928,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{
 			name: "CREATE TABLE with an invisible and a visible column",
 			stmt: "CREATE TABLE z (a INT INVISIBLE, b INT);",
+			code: 0,
+		},
+		{
+			// A CTAS appends the query's own columns as visible ones.
+			name: "CREATE TABLE AS SELECT beside an invisible column",
+			stmt: "CREATE TABLE z (a INT INVISIBLE) AS SELECT 1 AS b;",
 			code: 0,
 		},
 	}

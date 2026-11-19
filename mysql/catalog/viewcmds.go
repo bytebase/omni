@@ -153,12 +153,14 @@ func checkViewBodyStar(sel *nodes.SelectStmt) error {
 	return refusal
 }
 
-// bodyTableNames is every name the body reads in a FROM clause, at any depth,
-// which is the set of CTEs MySQL resolves.
+// bodyTableNames is every unqualified name the body reads in a FROM clause, at
+// any depth, which is the set of CTEs MySQL resolves: `FROM other.c` names the
+// table c of another schema, not the CTE c, so a qualified reference does not
+// make a CTE one the body reads.
 func bodyTableNames(sel *nodes.SelectStmt) map[string]bool {
 	names := make(map[string]bool)
 	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if ref, ok := n.(*nodes.TableRef); ok && ref.Name != "" {
+		if ref, ok := n.(*nodes.TableRef); ok && ref.Name != "" && ref.Schema == "" {
 			names[toLower(ref.Name)] = true
 		}
 		return true
@@ -168,7 +170,7 @@ func bodyTableNames(sel *nodes.SelectStmt) map[string]bool {
 
 // viewBlockStar reports the star of one query block that reads no table.
 func viewBlockStar(sel *nodes.SelectStmt) error {
-	if len(sel.From) != 0 {
+	if !readsOnlyNoTable(sel) {
 		return nil
 	}
 	for _, item := range sel.TargetList {
@@ -186,6 +188,22 @@ func viewBlockStar(sel *nodes.SelectStmt) error {
 		}
 	}
 	return nil
+}
+
+// readsOnlyNoTable reports whether the block reads no relation at all, or only
+// DUAL. MySQL keeps DUAL as a table reference but expands a star over it from
+// nothing, so `CREATE VIEW v AS SELECT * FROM DUAL` is 1096 like a block with no
+// FROM while `CREATE VIEW v AS SELECT 1 FROM DUAL` is a view it takes (read on
+// mysql:8.0.46).
+func readsOnlyNoTable(sel *nodes.SelectStmt) bool {
+	if len(sel.From) > 1 {
+		return false
+	}
+	if len(sel.From) == 0 {
+		return true
+	}
+	ref, ok := sel.From[0].(*nodes.TableRef)
+	return ok && ref.Schema == "" && strings.EqualFold(ref.Name, "dual")
 }
 
 // viewBodyMayNameNoColumn reports whether a no-FROM body reads a column that

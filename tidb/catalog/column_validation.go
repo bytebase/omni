@@ -773,9 +773,46 @@ func checkExistingColumnNowDefault(col *Column, expr nodes.ExprNode) error {
 	}
 	switch strings.ToLower(col.DataType) {
 	case "datetime", "timestamp":
+		// The call's precision is held to the column's own, as a column
+		// definition's is: DATETIME(1) takes CURRENT_TIMESTAMP(1) and refuses
+		// the bare call (read on v8.5.5).
+		if callFsp, ok := nowCallFsp(fn); ok && callFsp != columnTypeFsp(col.ColumnType) {
+			return errInvalidDefault(col.Name)
+		}
 		return nil
 	}
 	return errInvalidDefault(col.Name)
+}
+
+// nowCallFsp is the fractional-seconds argument a NOW()-family call carries, 0
+// when it names none.
+func nowCallFsp(fn *nodes.FuncCallExpr) (int, bool) {
+	if len(fn.Args) == 0 {
+		return 0, true
+	}
+	lit, ok := fn.Args[0].(*nodes.IntLit)
+	if !ok {
+		return 0, false
+	}
+	return int(lit.Value), true
+}
+
+// columnTypeFsp reads the fractional-seconds precision out of a column's
+// rendered type, 0 when it names none: DATETIME(1) is 1, DATETIME is 0.
+func columnTypeFsp(columnType string) int {
+	open := strings.IndexByte(columnType, '(')
+	close := strings.IndexByte(columnType, ')')
+	if open < 0 || close <= open+1 {
+		return 0
+	}
+	n := 0
+	for _, ch := range columnType[open+1 : close] {
+		if ch < '0' || ch > '9' {
+			return 0
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n
 }
 
 // checkExistingColumnDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT

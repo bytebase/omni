@@ -26,6 +26,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -57,6 +60,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER VIEW a AS SELECT b FROM a
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
@@ -83,6 +89,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE VIEW a AS SELECT 1 AS b
@@ -115,6 +124,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -146,6 +158,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | DROP VIEW a
 < error
 | 1051 42S02 Unknown table 'test.a'
@@ -172,6 +187,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -205,6 +223,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -234,6 +255,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -267,6 +291,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -296,6 +323,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -329,6 +359,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -357,6 +390,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -390,6 +426,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -419,6 +458,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -452,6 +494,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -481,6 +526,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -514,6 +562,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -543,6 +594,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -576,6 +630,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -607,6 +664,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b TEXT)
 < ok 0 0
 > exec
@@ -635,6 +695,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -668,6 +731,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -697,6 +763,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -730,6 +799,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -761,6 +833,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -789,6 +864,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -822,6 +900,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -852,6 +933,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -880,6 +964,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -913,6 +1000,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -941,6 +1031,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -974,6 +1067,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1005,6 +1101,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1034,6 +1133,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1070,6 +1172,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1102,6 +1207,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1137,6 +1245,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1168,6 +1279,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1196,6 +1310,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1229,6 +1346,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1258,6 +1378,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1291,6 +1414,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1322,6 +1448,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE VIEW a AS SELECT a
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -1348,6 +1477,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1381,6 +1513,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE VIEW a AS SELECT ABS(a)
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -1407,6 +1542,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE VIEW a AS SELECT 1 UNION SELECT a
@@ -1437,6 +1575,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE VIEW a AS SELECT a HAVING 1
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'
@@ -1463,6 +1604,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE VIEW a AS SELECT 1 WHERE a
@@ -1493,6 +1637,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE VIEW a AS SELECT (SELECT 1 AS x HAVING x)
 < ok 0 0
 > exec
@@ -1518,6 +1665,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1549,6 +1699,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1599,6 +1752,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1646,6 +1802,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1691,6 +1850,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1741,6 +1903,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT)
 < ok 0 0
 > exec
@@ -1784,6 +1949,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT)
@@ -1831,6 +1999,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1860,6 +2031,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1893,6 +2067,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1922,6 +2099,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -1955,6 +2135,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -1984,6 +2167,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2017,6 +2203,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2046,6 +2235,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2079,6 +2271,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2108,6 +2303,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2141,6 +2339,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT) PARTITION BY RANGE(b) SUBPARTITION BY HASH(b) (PARTITION p0 VALUES LESS THAN (10))
 < ok 0 0
 > exec
@@ -2172,6 +2373,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER TABLE a ADD PARTITION (PARTITION p0 VALUES LESS THAN (b))
 < error
 | 1054 42S22 Unknown column 'b' in 'partition function'
@@ -2200,6 +2404,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 ENGINE nosuch)
 < error
 | 1286 42000 Unknown storage engine 'nosuch'
@@ -2226,6 +2433,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2259,6 +2469,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2290,6 +2503,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2319,6 +2535,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2355,6 +2574,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2384,6 +2606,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2416,6 +2641,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2446,6 +2674,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT) PARTITION BY HASH(b) PARTITIONS 2
 < ok 0 0
 > exec
@@ -2474,6 +2705,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2507,6 +2741,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2536,6 +2773,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2569,6 +2809,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2598,6 +2841,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2631,6 +2877,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2662,6 +2911,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER TABLE a ADD e INT(256)
 < error
 | 1439 42000 Display width out of range for column 'e' (max = 255)
@@ -2688,6 +2940,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2721,6 +2976,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE s (b INT(256))
 < error
 | 1439 42000 Display width out of range for column 'b' (max = 255)
@@ -2747,6 +3005,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2780,6 +3041,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2809,6 +3073,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2842,6 +3109,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2873,6 +3143,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER TABLE a ENGINE = nosuch
 < error
 | 1286 42000 Unknown storage engine 'nosuch'
@@ -2899,6 +3172,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2930,6 +3206,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -2963,6 +3242,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -2992,6 +3274,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3025,6 +3310,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3054,6 +3342,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3087,6 +3378,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER TABLE a ENGINE = PERFORMANCE_SCHEMA
 < error
 | 1146 42S02 Table 'test.a' doesn't exist
@@ -3113,6 +3407,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3148,6 +3445,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3179,6 +3479,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3215,6 +3518,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3246,6 +3552,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3282,6 +3591,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3310,6 +3622,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3342,6 +3657,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3370,6 +3688,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3403,6 +3724,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3432,6 +3756,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3464,6 +3791,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3492,6 +3822,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3525,6 +3858,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3554,6 +3890,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3586,6 +3925,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3616,6 +3958,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3644,6 +3989,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3677,6 +4025,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3706,6 +4057,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3739,6 +4093,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3769,6 +4126,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3797,6 +4157,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3830,6 +4193,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE z;
 < error
 | 4028 HY000 A table must have at least one visible column.
@@ -3856,6 +4222,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE z (KEY (b));
@@ -3886,6 +4255,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE z PARTITION BY KEY();
 < error
 | 4028 HY000 A table must have at least one visible column.
@@ -3912,6 +4284,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -3945,6 +4320,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -3974,6 +4352,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -4006,6 +4387,112 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT * FROM DUAL
+< error
+| 1096 HY000 No tables used
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW v AS SELECT 1 FROM DUAL
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| CREATE DATABASE cteother
+< ok 1 0
+> exec
+| CREATE TABLE cteother.c (x INT)
+< ok 0 0
+> exec
+| CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM cteother.c
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 1 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -4036,6 +4523,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | ALTER TABLE nope ADD e INT DEFAULT NOW()
 < error
 | 1067 42000 Invalid default value for 'e'
@@ -4062,6 +4552,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -4095,6 +4588,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -4124,6 +4620,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
@@ -4156,6 +4655,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
@@ -4186,6 +4688,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE z (a INT DEFAULT NOW());
 < error
 | 1067 42000 Invalid default value for 'a'
@@ -4212,6 +4717,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | CREATE TABLE z (a DATETIME DEFAULT NOW());
@@ -4241,6 +4749,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE z (a INT INVISIBLE);
 < error
 | 4028 HY000 A table must have at least one visible column.
@@ -4267,6 +4778,9 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = ON
@@ -4300,6 +4814,9 @@
 | SET SESSION sql_generate_invisible_primary_key = OFF
 < ok 0 0
 > exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
 | CREATE TABLE z (a INT INVISIBLE, b INT);
 < ok 0 0
 > exec
@@ -4325,4 +4842,37 @@
 < ok 0 0
 > exec
 | SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| CREATE TABLE z (a INT INVISIBLE) AS SELECT 1 AS b;
+< ok 1 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
 < ok 0 0

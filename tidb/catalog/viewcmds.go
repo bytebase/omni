@@ -139,7 +139,7 @@ func checkViewBodyStar(sel *nodes.SelectStmt) error {
 
 // viewBlockStar reports the star of one query block that reads no table.
 func viewBlockStar(sel *nodes.SelectStmt) error {
-	if len(sel.From) > 0 {
+	if !readsOnlyNoTable(sel) {
 		return nil
 	}
 	for _, field := range sel.TargetList {
@@ -157,6 +157,21 @@ func viewBlockStar(sel *nodes.SelectStmt) error {
 		}
 	}
 	return nil
+}
+
+// readsOnlyNoTable reports whether the block reads no relation at all, or only
+// DUAL. TiDB keeps DUAL as a table reference but expands a star over it from
+// nothing, so `CREATE VIEW v AS SELECT * FROM DUAL` is the same 1051 as a block
+// with no FROM while `SELECT 1 FROM DUAL` is taken (read on v8.5.5).
+func readsOnlyNoTable(sel *nodes.SelectStmt) bool {
+	if len(sel.From) > 1 {
+		return false
+	}
+	if len(sel.From) == 0 {
+		return true
+	}
+	ref, ok := sel.From[0].(*nodes.TableRef)
+	return ok && ref.Schema == "" && strings.EqualFold(ref.Name, "dual")
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter

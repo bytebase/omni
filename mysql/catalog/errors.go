@@ -125,7 +125,7 @@ var sqlStateMap = map[int]string{
 	ErrFKDupName:                         "HY000",
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckConstraintDupName:            "HY000",
-	ErrTableMustHaveColumns:              "42000",
+	ErrTableMustHaveColumns:              "HY000",
 }
 
 func sqlState(code int) string {

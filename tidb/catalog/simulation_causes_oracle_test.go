@@ -214,6 +214,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1051,
 		},
 		{
+			name:  "CREATE VIEW whose body expands a star over DUAL",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM DUAL",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body reads only DUAL for a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
 			name:  "CREATE TABLE LIKE over a table",
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE z (LIKE a)",
@@ -293,6 +305,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "SET DEFAULT CURRENT_TIMESTAMP on a DATETIME column",
 			setup: []string{oneTable, "ALTER TABLE a ADD dt DATETIME"},
 			stmt:  "ALTER TABLE a ALTER dt SET DEFAULT (CURRENT_TIMESTAMP)",
+			code:  0,
+		},
+		{
+			name:  "SET DEFAULT CURRENT_TIMESTAMP past a DATETIME(1) column",
+			setup: []string{oneTable, "ALTER TABLE a ADD dt DATETIME(1)"},
+			stmt:  "ALTER TABLE a ALTER dt SET DEFAULT (CURRENT_TIMESTAMP)",
+			code:  1067,
+		},
+		{
+			name:  "SET DEFAULT CURRENT_TIMESTAMP(1) at a DATETIME(1) column",
+			setup: []string{oneTable, "ALTER TABLE a ADD dt DATETIME(1)"},
+			stmt:  "ALTER TABLE a ALTER dt SET DEFAULT (CURRENT_TIMESTAMP(1))",
 			code:  0,
 		},
 	}

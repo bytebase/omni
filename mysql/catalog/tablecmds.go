@@ -772,7 +772,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// after a key's own columns are resolved (1072), and before the partition
 	// clause, which alone cannot make a column: `CREATE TABLE q (KEY (x))` is
 	// 1072 and `CREATE TABLE q PARTITION BY KEY()` 4028 (mysql:8.0.46).
-	if !tableHasVisibleColumn(tbl) {
+	// A CTAS is never this error's: MySQL appends the query's own columns to the
+	// declared ones as visible columns, so `CREATE TABLE t2 (col2 INT INVISIBLE)
+	// AS SELECT col1, col2 FROM t1` is a table it takes (mysql:8.0.46).
+	if stmt.Select == nil && !tableHasVisibleColumn(tbl) {
 		return errTableMustHaveColumns()
 	}
 
