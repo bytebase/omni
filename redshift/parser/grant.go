@@ -2232,7 +2232,10 @@ func (p *Parser) parseCreateGroupStmt() (nodes.Node, error) {
 	// none of them.
 	with := p.cur.Type == WITH
 	p.parseGrantOptWith()
+	savedInCreateGroup := p.inCreateGroup
+	p.inCreateGroup = with
 	options, err := p.parseOptRoleList(true)
+	p.inCreateGroup = savedInCreateGroup
 	if err != nil {
 		return nil, err
 	}

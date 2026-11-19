@@ -145,3 +145,20 @@ func TestRedshiftAnalyzeCompressionIsItsOwnStatement(t *testing.T) {
 		}
 	}
 }
+
+// TestRedshiftAnalyzeCompressionSingleRelation pins r_ANALYZE_COMPRESSION's one
+// optional table: the comma-separated list is PostgreSQL's VACUUM production,
+// not this statement's.
+func TestRedshiftAnalyzeCompressionSingleRelation(t *testing.T) {
+	for _, sql := range []string{
+		"ANALYZE COMPRESSION a, b",
+		"ANALYZE COMPRESSION a (x), b",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	if _, err := Parse("ANALYZE COMPRESSION a (x, y) COMPROWS 10"); err != nil {
+		t.Errorf("Parse(ANALYZE COMPRESSION a (x, y) COMPROWS 10): %v", err)
+	}
+}

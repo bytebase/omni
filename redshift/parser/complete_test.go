@@ -494,3 +494,28 @@ func TestCollectKeepsAliasBeforeAClauseCursor(t *testing.T) {
 		t.Errorf("expected the WHERE expression's candidates, got %v", cs.Tokens)
 	}
 }
+
+// TestCollectRoleListAfterComma pins the role names a comma still takes, in an
+// ordinary role list and in CREATE GROUP's, where the WITH clause repeats too.
+func TestCollectRoleListAfterComma(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE ROLE r ROLE u, ",
+		"ALTER GROUP g ADD USER u, ",
+	} {
+		cs := Collect(sql, len(sql))
+		if cs == nil {
+			t.Fatalf("Collect(%q) returned nil", sql)
+		}
+		if len(cs.Tokens) == 0 {
+			t.Errorf("Collect(%q) offered no candidate after the comma", sql)
+		}
+	}
+
+	cs := Collect("CREATE GROUP g WITH USER u, ", len("CREATE GROUP g WITH USER u, "))
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	if !cs.HasToken(WITH) {
+		t.Errorf("WITH is not offered after a CREATE GROUP comma: %v", cs.Tokens)
+	}
+}

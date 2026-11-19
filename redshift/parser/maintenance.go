@@ -174,11 +174,14 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 				Loc:    nodes.Loc{Start: listLoc, End: p.prev.End},
 			}}}
 		case p.isColId():
-			rels, err := p.parseVacuumRelationList()
+			// r_ANALYZE_COMPRESSION names one table, whose columns are the
+			// parenthesized list; PostgreSQL's multi-relation VACUUM list is
+			// not this statement's.
+			rel, err := p.parseVacuumRelation()
 			if err != nil {
 				return nil, err
 			}
-			n.Rels = rels
+			n.Rels = &nodes.List{Items: []nodes.Node{rel}}
 		}
 		if p.redshiftKeywordIs("comprows") {
 			p.advance()

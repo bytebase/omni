@@ -2346,7 +2346,12 @@ func (p *Parser) parseRoleList() (*nodes.List, error) {
 	}
 	items := []nodes.Node{rs}
 	for p.cur.Type == ',' {
-		if !isRedshiftRoleSpecStart(p.peekNext()) {
+		if p.inCreateGroup && p.cursorAfterComma() {
+			// r_CREATE_GROUP repeats its WITH clause after this comma, beside
+			// the users the list may still name.
+			p.addTokenCandidate(WITH)
+		}
+		if !isRedshiftRoleSpecStart(p.peekNext()) && !p.cursorAfterComma() {
 			// The comma ends the list: r_CREATE_GROUP repeats its WITH clause
 			// after a comma (CREATE GROUP g WITH USER u, WITH USER v), and WITH
 			// begins no RoleSpec.

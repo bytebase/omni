@@ -43,6 +43,10 @@ type Parser struct {
 	// inConnectBy is true while parsing CONNECT BY's condition, where PRIOR is
 	// the prefix operator on the parent row's column; it is a name elsewhere.
 	inConnectBy bool
+	// inCreateGroup is true while parsing CREATE GROUP's WITH clause, whose
+	// user list repeats the clause after a comma rather than continuing the
+	// list of users alone.
+	inCreateGroup bool
 
 	// Completion mode fields.
 	completing   bool          // true when collecting completion candidates

@@ -198,6 +198,13 @@ func (p *Parser) cursorAfterCur() bool {
 	return next.Type == 0 || next.Loc >= p.cursorOff
 }
 
+// cursorAfterComma reports whether completion is running and the cursor sits
+// right after a comma, where a list goes on: the peek sees only the end of the
+// input then, and the list's next element is what the caller should offer.
+func (p *Parser) cursorAfterComma() bool {
+	return p.completing && p.cursorOff >= p.cur.End && p.peekNext().Type == 0
+}
+
 // checkCursor checks whether the current token is at or past the cursor
 // offset, and if so, enables collection mode.
 func (p *Parser) checkCursor() {

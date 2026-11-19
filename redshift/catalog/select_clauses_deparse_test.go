@@ -348,3 +348,43 @@ func optionNamed(options *nodes.List, name string) *nodes.DefElem {
 	}
 	return nil
 }
+
+// TestMigrationMatViewReplaceSkipsRemovedDependent pins the dependents a
+// replaced materialized view takes with it: only the ones the target keeps
+// unchanged, so a dependent the target removed is not restored and its own diff
+// is the only op on it.
+func TestMigrationMatViewReplaceSkipsRemovedDependent(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE VIEW v_keep AS SELECT id FROM mv;
+CREATE VIEW v_gone AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE VIEW v_keep AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	drops, creates := 0, 0
+	for _, op := range plan.Ops {
+		if strings.Contains(op.SQL, `"v_gone"`) {
+			if op.Type == OpCreateView {
+				t.Fatalf("the plan restores the removed view: %s", op.SQL)
+			}
+			drops++
+		}
+		if strings.Contains(op.SQL, `"v_keep"`) && op.Type == OpCreateView {
+			creates++
+		}
+	}
+	if drops != 1 {
+		t.Fatalf("v_gone is dropped %d times, want its own diff's one drop", drops)
+	}
+	if creates != 1 {
+		t.Fatalf("v_keep is created %d times, want once after the new view", creates)
+	}
+}

@@ -263,7 +263,21 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 	var ops []MigrationOp
 
 	// Deepest dependents first, so each is dropped before the view it reads.
-	dependents := dependentViewsInDropOrder(from, entry.SchemaName, entry.Name)
+	// Only the ones the target keeps unchanged are ours: a removed or changed
+	// dependent has a diff of its own, which would duplicate this work.
+	var dependents []viewRef
+	for _, dep := range dependentViewsInDropOrder(from, entry.SchemaName, entry.Name) {
+		fromRel, toRel := from.GetRelation(dep.schema, dep.name), to.GetRelation(dep.schema, dep.name)
+		if fromRel == nil || toRel == nil || toRel.RelKind != 'v' || fromRel.CheckOption != toRel.CheckOption {
+			continue
+		}
+		fromDef, _ := from.GetViewDefinition(dep.schema, dep.name)
+		toDef, _ := to.GetViewDefinition(dep.schema, dep.name)
+		if fromDef != toDef {
+			continue
+		}
+		dependents = append(dependents, dep)
+	}
 	for _, dep := range dependents {
 		op := MigrationOp{
 			Type:          OpDropView,
