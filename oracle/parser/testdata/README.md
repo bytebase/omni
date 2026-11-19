@@ -279,7 +279,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,425 rows, 1,116 of them where omni stops first and 3,449
+different byte: 5,453 rows, 1,116 of them where omni stops first and 3,477
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -314,20 +314,14 @@ Oracle's byte 13 rather than 43, so it stays in "Rows only Oracle accepts".
 | `... PARTITION BY CONSISTENT HASH (...) ...` | 217 | the token after `HASH`: Oracle reads `CONSISTENT HASH` and answers `ORA-14151` there outside a sharded database, before the columns. omni refused at `CONSISTENT` without reading them. 209 rows name `HASH`; 8 are near-misses that drop it |
 | `CREATE TABLE a ORGANIZATION EXTERNAL (...)` | 63 | the table's name (13): Oracle reads the access driver type, then answers `ORA-00906` because the table has no column list, before the rest of the clause. A clause that does not start with `TYPE` is refused inside it, at its own token |
 
-This change moved 76 more. Both are clauses the page derives and omni did
-not read, so Oracle's byte is where the clause it read ends and the token
-that cannot follow it stands. No verdict moved: every one of the 76 was a
+This change moved 48 more. It is a clause the page derives and omni did not
+read, so Oracle's byte is where the clause it read ends and the token that
+cannot follow it stands. No verdict moved: every one of the 48 was a
 rejection on both sides, at another byte.
 
 | Cause | Rows | Where Oracle stops |
 | --- | --- | --- |
 | `CREATE TABLE a(SUPPLEMENTAL LOG ...)` | 48 | the ')' of a column list that holds no column, or the token inside or after the clause that is not the one it takes: a supplemental_logging_props clause is one of relational_properties (`CREATE-TABLE.bnf` lines 58-65 and 183), so Oracle reads it and then wants a column, as it refuses a list of constraints alone at its ')' (`ORA-03079`). `CREATE TABLE a OF a(SUPPLEMENTAL LOG GROUP a(a))` is the control: an object table's `object_properties` took the clause all along and Oracle accepts it |
-| `ALTER SESSION SET <setting> ... <name>` | 28 | the name of a setting after the one read: `ORA-02248` names a parameter the statement cannot apply, so `ALTER SESSION SET EDITION = a zzz` stops at `zzz` (30), not at the end of the text where the '=' that name wanted is missing. A setting the page names is refused at the token after it (`ALTER SESSION SET EDITION a` at `a`, 26), which is why the name's own byte answers only for one the page does not name |
-
-Three `ALTER SESSION SET` rows moved within the gap block rather than out of
-it, and are recorded at their new bytes: `SET a = 1 zzz` (24, Oracle at 18,
-the name of the parameter `a`), and `SET DEFAULT_COLLATION = a zzz` (40) and
-`SET DEFAULT_COLLATION = NONE zzz` (43), whose cells are `reject@0`.
 
 The remaining rows are spread thin: 3,033 name no family below. These are the
 largest, and a row may be one of several, so the counts are not disjoint.
@@ -343,7 +337,7 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | `... MODIFY PARTITIONSET ...` behind a `)` in the middle of the statement | 60 | `PARTITIONSET` (21): a near-miss puts a `)` where a `(` belongs, and the delimiter scan answers for it before the statement parsers run |
 | `CREATE TABLE a ORGANIZATION EXTERNAL ...` behind a `)` | 2 | the clause is read and refused at the table's name, but the statement carries a stray `)` the scan answers first: `... EXTERNAL TYPE a)` and `... EXTERNAL(TYPE a LOCATION 's'))` |
 | `ALTER DIMENSION ...` | 39 | the dimension's name (16): Oracle reads a complete `ADD`/`DROP` clause and then resolves the dimension, which is not there, before it reads what follows the clause, so its byte is the name and not a token (`ALTER DIMENSION a DROP LEVEL a IS(a.a)`, `... ADD LEVEL a IS(a.a) zzz`). A clause broken inside itself answers at its own token and already agrees. Of the 72 `ALTER DIMENSION` rows here, 30 more carry `reject@0` (a clause word Oracle has no form for) and 3 sit behind the scan's `)` and end-of-input answers |
-| `ALTER SESSION SET <parameter>` / `ALTER SYSTEM SET <parameter>` | 45 | the parameter's name (`ORA-02248`, `ORA-02065` at 17 or 18): Oracle reads the name and refuses one that is no parameter, as in `ALTER SYSTEM SET a = 1 SCOPE MEMORY`. The name is a check on the server's parameters, not a token of the grammar, so no reading moves it; the 28 rows this change moved are the names of settings that stand *after* one Oracle applied |
+| `ALTER SESSION SET` / `ALTER SYSTEM SET <parameter>` | 73 | the parameter's name (17, 18): Oracle answers `ORA-02248` or `ORA-02065` at a name that is no parameter, as in `ALTER SYSTEM SET a = 1 SCOPE MEMORY`, and names the setting after one it applied too (`ALTER SESSION SET EDITION = a zzz` at `zzz`, 30). A parameter the server has is refused after its name instead (`ALTER SESSION SET optimizer_mode ALL_ROWS` at `ALL_ROWS`), and omni keeps no list of them, so reporting the name would trade these rows for ones that agree today: the syntactic answer, at the token after the name, stands |
 | `... PARTITION BY RANGE(a)` on a `CREATE CLUSTER` | 323 | the clause's `(` (45): `ORA-14179`, because a cluster is partitioned only when it is a hash cluster. This is the check "Rows only omni accepts" measures (146 rows there), not a reading, and the near-misses that carry it stay |
 | `CREATE TABLE ... ENABLE ... USING INDEX ...` | 329 | `ENABLE` (34): `ORA-02432`, the table defines no primary key. A check of the parsed statement, so the clause after it is not read |
 | `... FROM ANALYTIC VIEW (...)` | 103 | the first token inside the parens (28), in every form the page derives: an inline analytic view's `sub_av_clause` starts with `ANALYTIC` there, and Oracle refuses it. Whether the form takes a clause or a name is not settled by the answers recorded, so the reading waits on a recording |

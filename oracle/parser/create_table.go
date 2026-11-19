@@ -530,7 +530,10 @@ func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 // A supplemental_logging_props clause is one of relational_properties too
 // (CREATE-TABLE.bnf lines 58-65 and 183): Oracle reads SUPPLEMENTAL LOG
 // GROUP a(a) inside the list and refuses the closing ')' of a list that
-// holds no column, as it refuses a list of constraints alone.
+// holds no column, as it refuses a list of constraints alone. It is kept as
+// a SUPPLEMENTAL LOG DDLOption, whose group ends the walk in
+// oracle/review (the group is a constraint), as the object_properties path
+// already keeps it.
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
 	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
 	p.createTableColumns = true
@@ -543,9 +546,11 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 		progress = p.pos()
 		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods + supplemental
 		if p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG") {
+			start, valueStart := p.pos(), p.peekNext().End
 			if err := p.parseCreateTableSupplementalLogging(); err != nil {
 				return err
 			}
+			appendCreateTableOption(stmt, "SUPPLEMENTAL LOG", p.createTableOptionValue(valueStart), nodes.Loc{Start: start, End: p.prev.End})
 			supplemental++
 			// Check if this is a table-level constraint
 		} else if p.isCreateTablePeriodStart() {
