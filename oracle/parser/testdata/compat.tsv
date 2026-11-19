@@ -12604,12 +12604,12 @@ reject@19	reject@19	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab
 reject@23	reject@23	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/SYNC_WITH_PRIMARY!drop-3	ALTER SESSION SYNC WITH
 reject@32	reject@32	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/SYNC_WITH_PRIMARY!insert	ALTER SESSION SYNC WITH PRIMARY zzz
 reject@14	reject@14	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/SYNC_WITH_PRIMARY!swap	ALTER SESSION SYNCHRONOUS WITH PRIMARY
-accept	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause	ALTER SESSION SET a = 1
+reject@18	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause	ALTER SESSION SET a = 1
 reject@14	reject@14	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!drop-1	ALTER SESSION a = 1
 reject@18	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!drop-2	ALTER SESSION SET = 1
-reject@20	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!drop-3	ALTER SESSION SET a 1
-reject@21	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!drop-4	ALTER SESSION SET a =
-reject@27	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!insert	ALTER SESSION SET a = 1 zzz
+reject@18	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!drop-3	ALTER SESSION SET a 1
+reject@18	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!drop-4	ALTER SESSION SET a =
+reject@18	reject@18	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!insert	ALTER SESSION SET a = 1 zzz
 reject@14	reject@14	engine	alterSession(ADVISE_(COMMIT|ROLLBACK|NOTHING)|CLO~4ab7efe1)/alterSession_alter_session_set_clause!swap	ALTER SESSION SETS a = 1
 accept	accept	engine	alterSession(COMMIT|ROLLBACK|NOTHING)/COMMIT	ALTER SESSION ADVISE COMMIT
 reject@21	reject@21	engine	alterSession(COMMIT|ROLLBACK|NOTHING)/COMMIT!swap	ALTER SESSION ADVISE COMMITTED
@@ -12651,107 +12651,107 @@ reject@31	reject@31	engine	alterSession(NAME_STRING)?/NAME_STRING!drop-1	ALTER S
 reject@35	reject@35	engine	alterSession(NAME_STRING)?/NAME_STRING!drop-2	ALTER SESSION ENABLE RESUMABLE NAME
 reject@40	reject@40	engine	alterSession(NAME_STRING)?/NAME_STRING!insert	ALTER SESSION ENABLE RESUMABLE NAME 's' zzz
 reject@31	reject@31	engine	alterSession(NAME_STRING)?/NAME_STRING!swap	ALTER SESSION ENABLE RESUMABLE NAMED 's'
-accept	reject@18	engine	alterSession_alter_session_set_clause/SET_(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)	ALTER SESSION SET a = 1
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ID_=_EXPR_(,_ID_=_EXPR)*	ALTER SESSION SET a = 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause/SET_(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)	ALTER SESSION SET a = 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ID_=_EXPR_(,_ID_=_EXPR)*	ALTER SESSION SET a = 1
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID	ALTER SESSION SET EDITION = a
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!drop-1	ALTER SESSION SET = a
 reject@26	reject@26	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!drop-2	ALTER SESSION SET EDITION a
 reject@27	reject@27	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!drop-3	ALTER SESSION SET EDITION =
-reject@33	reject@30	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!insert	ALTER SESSION SET EDITION = a zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!swap	ALTER SESSION SET EDITIONABLE = a
+reject@30	reject@30	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!insert	ALTER SESSION SET EDITION = a zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/EDITION_=_ID!swap	ALTER SESSION SET EDITIONABLE = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?	ALTER SESSION SET CONTAINER = a
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!drop-2	ALTER SESSION SET CONTAINER a
 reject@29	reject@29	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!drop-3	ALTER SESSION SET CONTAINER =
-reject@35	reject@32	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!insert	ALTER SESSION SET CONTAINER = a zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!swap	ALTER SESSION SET CONTAINERS = a
+reject@32	reject@32	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!insert	ALTER SESSION SET CONTAINER = a zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CONTAINER_=_ID_(SERVICE_=_ID)?!swap	ALTER SESSION SET CONTAINERS = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE
-reject@27	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-1	ALTER SESSION SET ARCHIVAL VISIBILITY = ACTIVE
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-1	ALTER SESSION SET ARCHIVAL VISIBILITY = ACTIVE
 reject@22	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-2	ALTER SESSION SET ROW VISIBILITY = ACTIVE
 reject@31	reject@31	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-3	ALTER SESSION SET ROW ARCHIVAL = ACTIVE
 reject@42	reject@42	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-4	ALTER SESSION SET ROW ARCHIVAL VISIBILITY ACTIVE
 reject@43	reject@43	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!drop-5	ALTER SESSION SET ROW ARCHIVAL VISIBILITY =
-reject@54	reject@51	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE zzz
-reject@34	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!swap	ALTER SESSION SET ROWDEPENDENCIES ARCHIVAL VISIBILITY = ACTIVE
+reject@51	reject@51	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ROW_ARCHIVAL_VISIBILITY_=_(ACTIVE|ALL)!swap	ALTER SESSION SET ROWDEPENDENCIES ARCHIVAL VISIBILITY = ACTIVE
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)	ALTER SESSION SET DEFAULT_COLLATION = a
 reject@36	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!drop-2	ALTER SESSION SET DEFAULT_COLLATION a
 reject@37	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!drop-3	ALTER SESSION SET DEFAULT_COLLATION =
-reject@43	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!insert	ALTER SESSION SET DEFAULT_COLLATION = a zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!swap	ALTER SESSION SET DEFERRABLE = a
+reject@40	reject@0	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!insert	ALTER SESSION SET DEFAULT_COLLATION = a zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/DEFAULT_COLLATION_=_(ID|NONE)!swap	ALTER SESSION SET DEFERRABLE = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)	ALTER SESSION SET CONSTRAINT = IMMEDIATE
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!drop-1	ALTER SESSION SET = IMMEDIATE
 reject@29	reject@29	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!drop-2	ALTER SESSION SET CONSTRAINT IMMEDIATE
 reject@30	reject@30	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!drop-3	ALTER SESSION SET CONSTRAINT =
-reject@44	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!insert	ALTER SESSION SET CONSTRAINT = IMMEDIATE zzz
+reject@41	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/(CONSTRAINT|CONSTRAINTS)_=_(IMMEDIATE|DEFERRED|DEFAULT)!insert	ALTER SESSION SET CONSTRAINT = IMMEDIATE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID	ALTER SESSION SET CURRENT_SCHEMA = a
 reject@33	reject@33	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!drop-2	ALTER SESSION SET CURRENT_SCHEMA a
 reject@34	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!drop-3	ALTER SESSION SET CURRENT_SCHEMA =
-reject@40	reject@37	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!insert	ALTER SESSION SET CURRENT_SCHEMA = a zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!swap	ALTER SESSION SET CURRENT_USER = a
+reject@37	reject@37	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!insert	ALTER SESSION SET CURRENT_SCHEMA = a zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/CURRENT_SCHEMA_=_ID!swap	ALTER SESSION SET CURRENT_USER = a
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!drop-1	ALTER SESSION SET = TRUE
 reject@40	reject@40	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!drop-2	ALTER SESSION SET ERROR_ON_OVERLAP_TIME TRUE
 reject@41	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!drop-3	ALTER SESSION SET ERROR_ON_OVERLAP_TIME =
-reject@50	reject@47	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!swap	ALTER SESSION SET ETAG = TRUE
+reject@47	reject@47	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ERROR_ON_OVERLAP_TIME_=_(TRUE|FALSE)!swap	ALTER SESSION SET ETAG = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)	ALTER SESSION SET FLAGGER = ENTRY
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!drop-1	ALTER SESSION SET = ENTRY
 reject@26	reject@26	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!drop-2	ALTER SESSION SET FLAGGER ENTRY
 reject@27	reject@27	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!drop-3	ALTER SESSION SET FLAGGER =
-reject@37	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!insert	ALTER SESSION SET FLAGGER = ENTRY zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!swap	ALTER SESSION SET FLASHBACK = ENTRY
+reject@34	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!insert	ALTER SESSION SET FLAGGER = ENTRY zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/FLAGGER_=_(ENTRY|OFF)!swap	ALTER SESSION SET FLASHBACK = ENTRY
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER	ALTER SESSION SET INSTANCE = 1
 reject@27	reject@27	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!drop-2	ALTER SESSION SET INSTANCE 1
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!drop-3	ALTER SESSION SET INSTANCE =
-reject@34	reject@31	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!insert	ALTER SESSION SET INSTANCE = 1 zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!swap	ALTER SESSION SET INSTANCES = 1
+reject@31	reject@31	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!insert	ALTER SESSION SET INSTANCE = 1 zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/INSTANCE_=_NUMBER!swap	ALTER SESSION SET INSTANCES = 1
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!drop-1	ALTER SESSION SET = SERIALIZABLE
 reject@34	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!drop-2	ALTER SESSION SET ISOLATION_LEVEL SERIALIZABLE
 reject@35	reject@35	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!drop-3	ALTER SESSION SET ISOLATION_LEVEL =
-reject@52	reject@49	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!insert	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!swap	ALTER SESSION SET IS_LEAF = SERIALIZABLE
+reject@49	reject@49	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!insert	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/ISOLATION_LEVEL_=_(SERIALIZABLE|READ_COMMITTED)!swap	ALTER SESSION SET IS_LEAF = SERIALIZABLE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1
 reject@41	reject@41	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!drop-2	ALTER SESSION SET STANDBY_MAX_DATA_DELAY 1
 reject@42	reject@42	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!drop-3	ALTER SESSION SET STANDBY_MAX_DATA_DELAY =
-reject@48	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1 zzz
+reject@45	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1 zzz
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/STANDBY_MAX_DATA_DELAY_=_(NUMBER|NONE)!swap	ALTER SESSION SET START = 1
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)	ALTER SESSION SET TIME_ZONE = 's'
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!drop-1	ALTER SESSION SET = 's'
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!drop-2	ALTER SESSION SET TIME_ZONE 's'
 reject@29	reject@29	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!drop-3	ALTER SESSION SET TIME_ZONE =
-reject@37	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!insert	ALTER SESSION SET TIME_ZONE = 's' zzz
+reject@34	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!insert	ALTER SESSION SET TIME_ZONE = 's' zzz
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!swap	ALTER SESSION SET TO = 's'
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-2	ALTER SESSION SET USE_PRIVATE_OUTLINES TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_PRIVATE_OUTLINES =
-reject@49	reject@46	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE zzz
+reject@46	reject@46	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)	ALTER SESSION SET USE_STORED_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-2	ALTER SESSION SET USE_STORED_OUTLINES TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_STORED_OUTLINES =
-reject@48	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_STORED_OUTLINES = TRUE zzz
-accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!swap	ALTER SESSION SET USING = TRUE
-accept	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/%empty	ALTER SESSION SET a = 1
-reject@23	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*	ALTER SESSION SET a = 1, a = 1
-accept	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-1	ALTER SESSION SET a = 1 a = 1
-reject@23	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-2	ALTER SESSION SET a = 1, = 1
-reject@23	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-3	ALTER SESSION SET a = 1, a 1
-reject@23	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-4	ALTER SESSION SET a = 1, a =
-reject@23	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!insert	ALTER SESSION SET a = 1, a = 1 zzz
+reject@45	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_STORED_OUTLINES = TRUE zzz
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!swap	ALTER SESSION SET USING = TRUE
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/%empty	ALTER SESSION SET a = 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*	ALTER SESSION SET a = 1, a = 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-1	ALTER SESSION SET a = 1 a = 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-2	ALTER SESSION SET a = 1, = 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-3	ALTER SESSION SET a = 1, a 1
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!drop-4	ALTER SESSION SET a = 1, a =
+reject@18	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/,_ID_=_EXPR_(,_ID_=_EXPR)*!insert	ALTER SESSION SET a = 1, a = 1 zzz
 accept	accept	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/%empty	ALTER SESSION SET CONTAINER = a
 accept	accept	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID	ALTER SESSION SET CONTAINER = a SERVICE = a
 reject@32	reject@32	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!drop-1	ALTER SESSION SET CONTAINER = a = a
 reject@40	reject@40	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!drop-2	ALTER SESSION SET CONTAINER = a SERVICE a
 reject@41	reject@41	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!drop-3	ALTER SESSION SET CONTAINER = a SERVICE =
-reject@47	reject@44	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!insert	ALTER SESSION SET CONTAINER = a SERVICE = a zzz
-accept	reject@32	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!swap	ALTER SESSION SET CONTAINER = a SERVICES = a
+reject@44	reject@44	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!insert	ALTER SESSION SET CONTAINER = a SERVICE = a zzz
+reject@32	reject@32	engine	alterSession_alter_session_set_clause(SERVICE_=_ID)?/SERVICE_=_ID!swap	ALTER SESSION SET CONTAINER = a SERVICES = a
 accept	accept	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ACTIVE	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ACTIVE
 reject@44	reject@44	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ACTIVE!swap	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ADD
 accept	accept	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALL
-reject@51	reject@48	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALL zzz
+reject@48	reject@48	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL!insert	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALL zzz
 reject@44	reject@44	engine	alterSession_alter_session_set_clause(ACTIVE|ALL)/ALL!swap	ALTER SESSION SET ROW ARCHIVAL VISIBILITY = ALLOCATE
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/ID	ALTER SESSION SET DEFAULT_COLLATION = a
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/NONE	ALTER SESSION SET DEFAULT_COLLATION = NONE
-reject@46	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/NONE!insert	ALTER SESSION SET DEFAULT_COLLATION = NONE zzz
+reject@43	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/NONE!insert	ALTER SESSION SET DEFAULT_COLLATION = NONE zzz
 accept	reject@0	engine	alterSession_alter_session_set_clause(ID|NONE)/NONE!swap	ALTER SESSION SET DEFAULT_COLLATION = NONEDITIONABLE
 accept	accept	engine	alterSession_alter_session_set_clause(CONSTRAINT|CONSTRAINTS)/CONSTRAINT	ALTER SESSION SET CONSTRAINT = IMMEDIATE
 reject@17	reject@0	engine	alterSession_alter_session_set_clause(CONSTRAINT|CONSTRAINTS)/CONSTRAINT!truncate	ALTER SESSION SET
@@ -12762,46 +12762,46 @@ reject@30	reject@30	engine	alterSession_alter_session_set_clause(CONSTRAINT|CONS
 accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/IMMEDIATE	ALTER SESSION SET CONSTRAINT = IMMEDIATE
 reject@31	reject@31	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/IMMEDIATE!swap	ALTER SESSION SET CONSTRAINT = IMPORT
 accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED	ALTER SESSION SET CONSTRAINT = DEFERRED
-reject@43	reject@40	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED!insert	ALTER SESSION SET CONSTRAINT = DEFERRED zzz
+reject@40	reject@40	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED!insert	ALTER SESSION SET CONSTRAINT = DEFERRED zzz
 reject@31	reject@31	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFERRED!swap	ALTER SESSION SET CONSTRAINT = DEFINE
 accept	accept	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT	ALTER SESSION SET CONSTRAINT = DEFAULT
-reject@42	reject@39	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT!insert	ALTER SESSION SET CONSTRAINT = DEFAULT zzz
+reject@39	reject@39	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT!insert	ALTER SESSION SET CONSTRAINT = DEFAULT zzz
 reject@31	reject@31	engine	alterSession_alter_session_set_clause(IMMEDIATE|DEFERRED|DEFAULT)/DEFAULT!swap	ALTER SESSION SET CONSTRAINT = DEFAULT_COLLATION
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/TRUE	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUE
 reject@42	reject@42	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/TRUE!swap	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = TRUNCATE
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FALSE
-reject@51	reject@48	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FALSE zzz
+reject@48	reject@48	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE!insert	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FALSE zzz
 reject@42	reject@42	engine	alterSession_alter_session_set_clause(TRUE|FALSE)/FALSE!swap	ALTER SESSION SET ERROR_ON_OVERLAP_TIME = FAR
 accept	accept	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/ENTRY	ALTER SESSION SET FLAGGER = ENTRY
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/ENTRY!swap	ALTER SESSION SET FLAGGER = ENUM
 accept	accept	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF	ALTER SESSION SET FLAGGER = OFF
-reject@35	reject@32	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF!insert	ALTER SESSION SET FLAGGER = OFF zzz
+reject@32	reject@32	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF!insert	ALTER SESSION SET FLAGGER = OFF zzz
 reject@28	reject@28	engine	alterSession_alter_session_set_clause(ENTRY|OFF)/OFF!swap	ALTER SESSION SET FLAGGER = OFFLINE
 accept	accept	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/SERIALIZABLE	ALTER SESSION SET ISOLATION_LEVEL = SERIALIZABLE
 reject@36	reject@36	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/SERIALIZABLE!swap	ALTER SESSION SET ISOLATION_LEVEL = SERVICE
 accept	accept	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED	ALTER SESSION SET ISOLATION_LEVEL = READ COMMITTED
 reject@36	reject@36	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!drop-1	ALTER SESSION SET ISOLATION_LEVEL = COMMITTED
 reject@40	reject@40	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!drop-2	ALTER SESSION SET ISOLATION_LEVEL = READ
-reject@54	reject@51	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!insert	ALTER SESSION SET ISOLATION_LEVEL = READ COMMITTED zzz
+reject@51	reject@51	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!insert	ALTER SESSION SET ISOLATION_LEVEL = READ COMMITTED zzz
 reject@36	reject@36	engine	alterSession_alter_session_set_clause(SERIALIZABLE|READ_COMMITTED)/READ_COMMITTED!swap	ALTER SESSION SET ISOLATION_LEVEL = READS COMMITTED
 accept	accept	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NUMBER	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = 1
 accept	accept	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONE
-reject@51	reject@48	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONE zzz
+reject@48	reject@48	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE!insert	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONE zzz
 reject@43	reject@43	engine	alterSession_alter_session_set_clause(NUMBER|NONE)/NONE!swap	ALTER SESSION SET STANDBY_MAX_DATA_DELAY = NONEDITIONABLE
 accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/STRING	ALTER SESSION SET TIME_ZONE = 's'
 accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL	ALTER SESSION SET TIME_ZONE = LOCAL
-reject@39	reject@36	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL!insert	ALTER SESSION SET TIME_ZONE = LOCAL zzz
+reject@36	reject@36	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL!insert	ALTER SESSION SET TIME_ZONE = LOCAL zzz
 reject@30	reject@30	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/LOCAL!swap	ALTER SESSION SET TIME_ZONE = LOCATION
 accept	accept	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE	ALTER SESSION SET TIME_ZONE = DBTIMEZONE
-reject@44	reject@41	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE!insert	ALTER SESSION SET TIME_ZONE = DBTIMEZONE zzz
+reject@41	reject@41	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE!insert	ALTER SESSION SET TIME_ZONE = DBTIMEZONE zzz
 reject@30	reject@30	engine	alterSession_alter_session_set_clause(STRING|LOCAL|DBTIMEZONE)/DBTIMEZONE!swap	ALTER SESSION SET TIME_ZONE = DDL
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/TRUE	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/TRUE!swap	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUNCATE
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE	ALTER SESSION SET USE_PRIVATE_OUTLINES = FALSE
-reject@50	reject@47	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = FALSE zzz
+reject@47	reject@47	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = FALSE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/FALSE!swap	ALTER SESSION SET USE_PRIVATE_OUTLINES = FAR
 accept	accept	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/ID	ALTER SESSION SET USE_PRIVATE_OUTLINES = a
-reject@46	reject@43	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/ID!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = a zzz
+reject@43	reject@43	engine	alterSession_alter_session_set_clause(TRUE|FALSE|ID)/ID!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = a zzz
 accept	accept	engine	alterSynonym/ALTER_(PUBLIC)?_SYNONYM_(IF_EXISTS)?_(ID_.)?_ID_(EDITIO~1f0cb73e	ALTER SYNONYM a EDITIONABLE
 accept	accept	engine	alterSynonym(PUBLIC)?/%empty	ALTER SYNONYM a EDITIONABLE
 reject@6	reject@6	engine	alterSynonym(PUBLIC)?/%empty!insert	ALTER zzz SYNONYM a EDITIONABLE
@@ -12885,17 +12885,17 @@ reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff
 accept	accept	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/REGISTER	ALTER SYSTEM REGISTER
 reject@22	reject@22	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/REGISTER!insert	ALTER SYSTEM REGISTER zzz
 reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/REGISTER!swap	ALTER SYSTEM REGULAR
-accept	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause	ALTER SYSTEM SET a = 1
 reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!drop-1	ALTER SYSTEM a = 1
 reject@17	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!drop-2	ALTER SYSTEM SET = 1
-reject@19	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!drop-3	ALTER SYSTEM SET a 1
-reject@20	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!drop-4	ALTER SYSTEM SET a =
-reject@26	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!insert	ALTER SYSTEM SET a = 1 zzz
+reject@17	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!drop-3	ALTER SYSTEM SET a 1
+reject@17	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!drop-4	ALTER SYSTEM SET a =
+reject@17	reject@17	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!insert	ALTER SYSTEM SET a = 1 zzz
 reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_set_clause!swap	ALTER SYSTEM SETS a = 1
-accept	reject@0	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause	ALTER SYSTEM RESET a
+reject@0	reject@0	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause	ALTER SYSTEM RESET a
 reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause!drop-1	ALTER SYSTEM a
-reject@18	reject@0	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause!drop-2	ALTER SYSTEM RESET
-reject@21	reject@0	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause!insert	ALTER SYSTEM RESET a zzz
+reject@0	reject@0	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause!drop-2	ALTER SYSTEM RESET
+reject@0	reject@0	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause!insert	ALTER SYSTEM RESET a zzz
 reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_alter_system_reset_clause!swap	ALTER SYSTEM RESETLOGS a
 accept	accept	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_cancel_sql_clause	ALTER SYSTEM CANCEL SQL 's'
 reject@13	reject@13	engine	alterSystem(alterSystem_archive_log_clause|alter~fbff7e0b)/alterSystem_cancel_sql_clause!drop-1	ALTER SYSTEM SQL 's'
@@ -13072,85 +13072,85 @@ reject@22	reject@22	engine	alterSystem_shutdown_dispatcher_clause(IMMEDIATE)?/%e
 accept	accept	engine	alterSystem_shutdown_dispatcher_clause(IMMEDIATE)?/IMMEDIATE	ALTER SYSTEM SHUTDOWN IMMEDIATE 's'
 reject@32	reject@32	engine	alterSystem_shutdown_dispatcher_clause(IMMEDIATE)?/IMMEDIATE!insert	ALTER SYSTEM SHUTDOWN IMMEDIATE zzz 's'
 reject@22	reject@22	engine	alterSystem_shutdown_dispatcher_clause(IMMEDIATE)?/IMMEDIATE!swap	ALTER SYSTEM SHUTDOWN IMPORT 's'
-accept	reject@17	engine	alterSystem_alter_system_set_clause/SET_ID_=_EXPR_(,_EXPR)*_(COMMENT_=_STRING)?_(DEFERRED)?~f987af5c	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/%empty	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	ALTER SYSTEM SET a = 1, 1
-reject@23	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	ALTER SYSTEM SET a = 1 1
-reject@23	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	ALTER SYSTEM SET a = 1,
-reject@29	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	ALTER SYSTEM SET a = 1, 1 zzz
-accept	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/%empty	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER SYSTEM SET a = 1 COMMENT = 's'
-reject@23	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER SYSTEM SET a = 1 = 's'
-reject@23	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER SYSTEM SET a = 1 COMMENT 's'
-reject@32	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER SYSTEM SET a = 1 COMMENT =
-reject@40	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER SYSTEM SET a = 1 COMMENT = 's' zzz
-accept	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER SYSTEM SET a = 1 COMMIT = 's'
-accept	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/%empty	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/DEFERRED	ALTER SYSTEM SET a = 1 DEFERRED
-reject@35	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/DEFERRED!insert	ALTER SYSTEM SET a = 1 DEFERRED zzz
-reject@29	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/DEFERRED!swap	ALTER SYSTEM SET a = 1 DEFINE
-accept	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/%empty	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)	ALTER SYSTEM SET a = 1 SCOPE = MEMORY
-reject@23	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-1	ALTER SYSTEM SET a = 1 = MEMORY
-reject@29	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-2	ALTER SYSTEM SET a = 1 SCOPE MEMORY
-reject@30	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-3	ALTER SYSTEM SET a = 1 SCOPE =
-reject@41	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!insert	ALTER SYSTEM SET a = 1 SCOPE = MEMORY zzz
-accept	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!swap	ALTER SYSTEM SET a = 1 SCRUB = MEMORY
-accept	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/MEMORY	ALTER SYSTEM SET a = 1 SCOPE = MEMORY
-reject@31	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/MEMORY!swap	ALTER SYSTEM SET a = 1 SCOPE = MERGE
-accept	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/SPFILE	ALTER SYSTEM SET a = 1 SCOPE = SPFILE
-reject@41	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/SPFILE!insert	ALTER SYSTEM SET a = 1 SCOPE = SPFILE zzz
-reject@31	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/SPFILE!swap	ALTER SYSTEM SET a = 1 SCOPE = SPLIT
-accept	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/BOTH	ALTER SYSTEM SET a = 1 SCOPE = BOTH
-reject@39	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/BOTH!insert	ALTER SYSTEM SET a = 1 SCOPE = BOTH zzz
-reject@31	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/BOTH!swap	ALTER SYSTEM SET a = 1 SCOPE = BREADTH
-accept	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/%empty	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')	ALTER SYSTEM SET a = 1 SID = 's'
-reject@27	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-2	ALTER SYSTEM SET a = 1 SID 's'
-reject@28	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-3	ALTER SYSTEM SET a = 1 SID =
-reject@36	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!insert	ALTER SYSTEM SET a = 1 SID = 's' zzz
-accept	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!swap	ALTER SYSTEM SET a = 1 SINGLE = 's'
-accept	reject@17	engine	alterSystem_alter_system_set_clause(STRING|'*')/STRING	ALTER SYSTEM SET a = 1 SID = 's'
-accept	reject@17	engine	alterSystem_alter_system_set_clause(STRING|'*')/'*'	ALTER SYSTEM SET a = 1 SID = '*'
-reject@36	reject@17	engine	alterSystem_alter_system_set_clause(STRING|'*')/'*'!insert	ALTER SYSTEM SET a = 1 SID = '*' zzz
-accept	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/%empty	ALTER SYSTEM SET a = 1
-accept	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	ALTER SYSTEM SET a = 1 CONTAINER = ALL
-reject@23	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	ALTER SYSTEM SET a = 1 = ALL
-reject@33	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	ALTER SYSTEM SET a = 1 CONTAINER ALL
-reject@34	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	ALTER SYSTEM SET a = 1 CONTAINER =
-reject@42	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	ALTER SYSTEM SET a = 1 CONTAINER = ALL zzz
-accept	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	ALTER SYSTEM SET a = 1 CONTAINERS = ALL
-accept	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/ALL	ALTER SYSTEM SET a = 1 CONTAINER = ALL
-reject@35	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/ALL!swap	ALTER SYSTEM SET a = 1 CONTAINER = ALLOCATE
-accept	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/CURRENT	ALTER SYSTEM SET a = 1 CONTAINER = CURRENT
-reject@46	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/CURRENT!insert	ALTER SYSTEM SET a = 1 CONTAINER = CURRENT zzz
-reject@35	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/CURRENT!swap	ALTER SYSTEM SET a = 1 CONTAINER = CURRENT_SCHEMA
-accept	reject@0	engine	alterSystem_alter_system_reset_clause/RESET_ID_(SCOPE_=_(MEMORY|SPFILE|BOTH))?_(SID_=_(STRING|'*'))?	ALTER SYSTEM RESET a
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/%empty	ALTER SYSTEM RESET a
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)	ALTER SYSTEM RESET a SCOPE = MEMORY
-reject@21	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-1	ALTER SYSTEM RESET a = MEMORY
-reject@27	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-2	ALTER SYSTEM RESET a SCOPE MEMORY
-reject@28	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-3	ALTER SYSTEM RESET a SCOPE =
-reject@36	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!insert	ALTER SYSTEM RESET a SCOPE = MEMORY zzz
-reject@21	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!swap	ALTER SYSTEM RESET a SCRUB = MEMORY
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/MEMORY	ALTER SYSTEM RESET a SCOPE = MEMORY
-reject@29	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/MEMORY!swap	ALTER SYSTEM RESET a SCOPE = MERGE
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/SPFILE	ALTER SYSTEM RESET a SCOPE = SPFILE
-reject@36	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/SPFILE!insert	ALTER SYSTEM RESET a SCOPE = SPFILE zzz
-reject@29	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/SPFILE!swap	ALTER SYSTEM RESET a SCOPE = SPLIT
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/BOTH	ALTER SYSTEM RESET a SCOPE = BOTH
-reject@34	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/BOTH!insert	ALTER SYSTEM RESET a SCOPE = BOTH zzz
-reject@29	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/BOTH!swap	ALTER SYSTEM RESET a SCOPE = BREADTH
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/%empty	ALTER SYSTEM RESET a
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')	ALTER SYSTEM RESET a SID = 's'
-reject@21	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-1	ALTER SYSTEM RESET a = 's'
-reject@25	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-2	ALTER SYSTEM RESET a SID 's'
-reject@26	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-3	ALTER SYSTEM RESET a SID =
-reject@31	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!insert	ALTER SYSTEM RESET a SID = 's' zzz
-reject@21	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!swap	ALTER SYSTEM RESET a SINGLE = 's'
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(STRING|'*')/STRING	ALTER SYSTEM RESET a SID = 's'
-accept	reject@0	engine	alterSystem_alter_system_reset_clause(STRING|'*')/'*'	ALTER SYSTEM RESET a SID = '*'
-reject@31	reject@0	engine	alterSystem_alter_system_reset_clause(STRING|'*')/'*'!insert	ALTER SYSTEM RESET a SID = '*' zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause/SET_ID_=_EXPR_(,_EXPR)*_(COMMENT_=_STRING)?_(DEFERRED)?~f987af5c	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/%empty	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*	ALTER SYSTEM SET a = 1, 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-1	ALTER SYSTEM SET a = 1 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!drop-2	ALTER SYSTEM SET a = 1,
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(,_EXPR)*/,_EXPR_(,_EXPR)*!insert	ALTER SYSTEM SET a = 1, 1 zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/%empty	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER SYSTEM SET a = 1 COMMENT = 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER SYSTEM SET a = 1 = 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER SYSTEM SET a = 1 COMMENT 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER SYSTEM SET a = 1 COMMENT =
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER SYSTEM SET a = 1 COMMENT = 's' zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER SYSTEM SET a = 1 COMMIT = 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/%empty	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/DEFERRED	ALTER SYSTEM SET a = 1 DEFERRED
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/DEFERRED!insert	ALTER SYSTEM SET a = 1 DEFERRED zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(DEFERRED)?/DEFERRED!swap	ALTER SYSTEM SET a = 1 DEFINE
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/%empty	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)	ALTER SYSTEM SET a = 1 SCOPE = MEMORY
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-1	ALTER SYSTEM SET a = 1 = MEMORY
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-2	ALTER SYSTEM SET a = 1 SCOPE MEMORY
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-3	ALTER SYSTEM SET a = 1 SCOPE =
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!insert	ALTER SYSTEM SET a = 1 SCOPE = MEMORY zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!swap	ALTER SYSTEM SET a = 1 SCRUB = MEMORY
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/MEMORY	ALTER SYSTEM SET a = 1 SCOPE = MEMORY
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/MEMORY!swap	ALTER SYSTEM SET a = 1 SCOPE = MERGE
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/SPFILE	ALTER SYSTEM SET a = 1 SCOPE = SPFILE
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/SPFILE!insert	ALTER SYSTEM SET a = 1 SCOPE = SPFILE zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/SPFILE!swap	ALTER SYSTEM SET a = 1 SCOPE = SPLIT
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/BOTH	ALTER SYSTEM SET a = 1 SCOPE = BOTH
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/BOTH!insert	ALTER SYSTEM SET a = 1 SCOPE = BOTH zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(MEMORY|SPFILE|BOTH)/BOTH!swap	ALTER SYSTEM SET a = 1 SCOPE = BREADTH
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/%empty	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')	ALTER SYSTEM SET a = 1 SID = 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-2	ALTER SYSTEM SET a = 1 SID 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-3	ALTER SYSTEM SET a = 1 SID =
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!insert	ALTER SYSTEM SET a = 1 SID = 's' zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!swap	ALTER SYSTEM SET a = 1 SINGLE = 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(STRING|'*')/STRING	ALTER SYSTEM SET a = 1 SID = 's'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(STRING|'*')/'*'	ALTER SYSTEM SET a = 1 SID = '*'
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(STRING|'*')/'*'!insert	ALTER SYSTEM SET a = 1 SID = '*' zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/%empty	ALTER SYSTEM SET a = 1
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)	ALTER SYSTEM SET a = 1 CONTAINER = ALL
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-1	ALTER SYSTEM SET a = 1 = ALL
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-2	ALTER SYSTEM SET a = 1 CONTAINER ALL
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!drop-3	ALTER SYSTEM SET a = 1 CONTAINER =
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!insert	ALTER SYSTEM SET a = 1 CONTAINER = ALL zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(CONTAINER_=_(ALL|CURRENT))?/CONTAINER_=_(ALL|CURRENT)!swap	ALTER SYSTEM SET a = 1 CONTAINERS = ALL
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/ALL	ALTER SYSTEM SET a = 1 CONTAINER = ALL
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/ALL!swap	ALTER SYSTEM SET a = 1 CONTAINER = ALLOCATE
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/CURRENT	ALTER SYSTEM SET a = 1 CONTAINER = CURRENT
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/CURRENT!insert	ALTER SYSTEM SET a = 1 CONTAINER = CURRENT zzz
+reject@17	reject@17	engine	alterSystem_alter_system_set_clause(ALL|CURRENT)/CURRENT!swap	ALTER SYSTEM SET a = 1 CONTAINER = CURRENT_SCHEMA
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause/RESET_ID_(SCOPE_=_(MEMORY|SPFILE|BOTH))?_(SID_=_(STRING|'*'))?	ALTER SYSTEM RESET a
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/%empty	ALTER SYSTEM RESET a
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)	ALTER SYSTEM RESET a SCOPE = MEMORY
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-1	ALTER SYSTEM RESET a = MEMORY
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-2	ALTER SYSTEM RESET a SCOPE MEMORY
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!drop-3	ALTER SYSTEM RESET a SCOPE =
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!insert	ALTER SYSTEM RESET a SCOPE = MEMORY zzz
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SCOPE_=_(MEMORY|SPFILE|BOTH))?/SCOPE_=_(MEMORY|SPFILE|BOTH)!swap	ALTER SYSTEM RESET a SCRUB = MEMORY
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/MEMORY	ALTER SYSTEM RESET a SCOPE = MEMORY
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/MEMORY!swap	ALTER SYSTEM RESET a SCOPE = MERGE
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/SPFILE	ALTER SYSTEM RESET a SCOPE = SPFILE
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/SPFILE!insert	ALTER SYSTEM RESET a SCOPE = SPFILE zzz
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/SPFILE!swap	ALTER SYSTEM RESET a SCOPE = SPLIT
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/BOTH	ALTER SYSTEM RESET a SCOPE = BOTH
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/BOTH!insert	ALTER SYSTEM RESET a SCOPE = BOTH zzz
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(MEMORY|SPFILE|BOTH)/BOTH!swap	ALTER SYSTEM RESET a SCOPE = BREADTH
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/%empty	ALTER SYSTEM RESET a
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')	ALTER SYSTEM RESET a SID = 's'
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-1	ALTER SYSTEM RESET a = 's'
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-2	ALTER SYSTEM RESET a SID 's'
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!drop-3	ALTER SYSTEM RESET a SID =
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!insert	ALTER SYSTEM RESET a SID = 's' zzz
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(SID_=_(STRING|'*'))?/SID_=_(STRING|'*')!swap	ALTER SYSTEM RESET a SINGLE = 's'
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(STRING|'*')/STRING	ALTER SYSTEM RESET a SID = 's'
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(STRING|'*')/'*'	ALTER SYSTEM RESET a SID = '*'
+reject@0	reject@0	engine	alterSystem_alter_system_reset_clause(STRING|'*')/'*'!insert	ALTER SYSTEM RESET a SID = '*' zzz
 accept	accept	engine	alterSystem_cancel_sql_clause/CANCEL_SQL_STRING_(,_@_NUMBER)?_(SQL_ID_STRING)?	ALTER SYSTEM CANCEL SQL 's'
 accept	accept	engine	alterSystem_cancel_sql_clause(,_@_NUMBER)?/%empty	ALTER SYSTEM CANCEL SQL 's'
 reject@27	reject@27	engine	alterSystem_cancel_sql_clause(,_@_NUMBER)?/,_@_NUMBER	ALTER SYSTEM CANCEL SQL 's',@1

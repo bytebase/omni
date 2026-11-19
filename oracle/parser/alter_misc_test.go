@@ -136,7 +136,7 @@ func TestParseAlterView(t *testing.T) {
 
 // TestParseAlterLocSet tests that Loc is set on AlterSessionStmt.
 func TestParseAlterLocSet(t *testing.T) {
-	result := ParseAndCheck(t, "ALTER SESSION SET X = 1")
+	result := ParseAndCheck(t, "ALTER SESSION SET SORT_AREA_SIZE = 1")
 	raw := result.Items[0].(*ast.RawStmt)
 	stmt := raw.Stmt.(*ast.AlterSessionStmt)
 	if stmt.Loc.Start != 0 {
