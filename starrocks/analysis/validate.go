@@ -55,6 +55,10 @@ func readsRows(node ast.Node) bool {
 		// SUBMIT TASK answers with the task name and its status (SUBMITTED,
 		// REJECTED or FAILED), so the driver reads rows rather than Exec'ing.
 		return true
+	case *ast.ExecuteStmt:
+		// EXECUTE runs a prepared statement, which may be a SELECT, so the
+		// driver reads rows rather than Exec'ing and discarding them.
+		return true
 	case *ast.DataCacheSelectStmt:
 		// CACHE SELECT returns the cache warm-up metrics.
 		return true
@@ -77,7 +81,14 @@ func parseStatements(text string) ([]ast.Node, error) {
 		if segment.Empty() || strings.TrimSpace(segment.Text) == "" {
 			continue
 		}
-		file, err := parser.Parse(segment.Text)
+		// Parse the segment with its terminator: Split leaves it out, and a
+		// rule may read it (`TRANSLATE`'s translateSQL is `.+`, which the
+		// terminator satisfies). Positions stay relative to the segment.
+		end := segment.ByteEnd
+		if end < len(text) && text[end] == ';' {
+			end++
+		}
+		file, err := parser.Parse(text[segment.ByteStart:end])
 		if err != nil {
 			return nil, offsetParseError(err, segment.ByteStart)
 		}

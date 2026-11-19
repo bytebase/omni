@@ -172,3 +172,27 @@ func TestValidateQueryFailsClosedOnLexError(t *testing.T) {
 		}
 	}
 }
+
+// A segment carries its terminator into the parse: TRANSLATE's translateSQL
+// is `.+`, so `TRANSLATE presto;` reads but a bare `TRANSLATE presto` at the
+// end of the input does not.
+func TestValidateQueryKeepsTheTerminator(t *testing.T) {
+	if _, _, err := ValidateQuery("TRANSLATE presto;"); err != nil {
+		t.Errorf("ValidateQuery(TRANSLATE presto;): %v", err)
+	}
+	if _, _, err := ValidateQuery("TRANSLATE presto"); err == nil {
+		t.Error("ValidateQuery(TRANSLATE presto) accepted, want a syntax error")
+	}
+}
+
+// EXECUTE may run a prepared SELECT, so the driver reads rows from it rather
+// than Exec'ing them away.
+func TestValidateQueryExecuteReturnsData(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("EXECUTE p")
+	if err != nil {
+		t.Fatalf("ValidateQuery(EXECUTE p): %v", err)
+	}
+	if readOnly || !returnsData {
+		t.Errorf("EXECUTE = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
+	}
+}

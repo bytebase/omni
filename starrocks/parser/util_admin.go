@@ -309,7 +309,9 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	if scopeLoc.IsValid() {
 		endLoc = scopeLoc
 	}
-	if p.cur.Kind == kwAS {
+	// The alias is DATABASE's own: `RESTORE SNAPSHOT s FROM r AS x` is a
+	// syntax error on the pinned server.
+	if stmt.Database != "" && p.cur.Kind == kwAS {
 		p.advance() // consume AS
 		alias, aliasLoc, err := p.parseIdentifier()
 		if err != nil {

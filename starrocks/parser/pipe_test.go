@@ -322,3 +322,34 @@ func TestExternalCatalogsAreWalked(t *testing.T) {
 		}
 	}
 }
+
+func TestQuotedFunctionNameTakesAnyArity(t *testing.T) {
+	// A backticked name is an identifier, so the generic function production
+	// reads it and LEFT's two-argument rule does not apply; the server takes
+	// both `LEFT`(1) and `CHAR`().
+	for _, sql := range []string{"SELECT `LEFT`(1)", "SELECT `CHAR`()"} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+	if _, errs := parseForTest(`SELECT LEFT(1)`); len(errs) == 0 {
+		t.Error("LEFT(1) parsed, want a syntax error")
+	}
+}
+
+func TestRestoreAliasNeedsDatabase(t *testing.T) {
+	// The alias is DATABASE's own clause.
+	if _, errs := parseForTest(`RESTORE SNAPSHOT s FROM r AS x`); len(errs) == 0 {
+		t.Error("RESTORE ... AS x parsed, want a syntax error")
+	}
+	if _, errs := parseForTest(`RESTORE SNAPSHOT s FROM r DATABASE d AS x`); len(errs) != 0 {
+		t.Errorf("RESTORE ... DATABASE d AS x: %v", errs)
+	}
+}
+
+func TestDropResourceGroupSpanEndsAtTheParen(t *testing.T) {
+	sql := `ALTER RESOURCE GROUP rg DROP(1, 2)`
+	if got := ast.NodeLoc(parseOne(t, sql)).End; got != len(sql) {
+		t.Errorf("Loc.End = %d, want %d", got, len(sql))
+	}
+}

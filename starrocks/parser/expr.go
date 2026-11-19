@@ -1082,10 +1082,11 @@ var funcArity = map[string][2]int{
 
 // checkFuncArity refuses a call to a named function with an argument count its
 // production does not take. Only an unqualified reserved name is held to it: a
-// qualified call is an ordinary function, and a non-reserved name is an
-// identifier the grammar reads as one.
+// qualified call is an ordinary function, a non-reserved name is an identifier
+// the grammar reads as one, and a backticked name is an identifier too, so
+// `SELECT `LEFT`(1)` is an ordinary call and `SELECT LEFT(1)` is not.
 func (p *Parser) checkFuncArity(name *ast.ObjectName, fc *ast.FuncCallExpr) error {
-	if len(name.Parts) != 1 || fc.Star {
+	if len(name.Parts) != 1 || fc.Star || p.isQuotedName(name) {
 		return nil
 	}
 	upper := strings.ToUpper(name.Parts[0])
@@ -1101,6 +1102,13 @@ func (p *Parser) checkFuncArity(name *ast.ObjectName, fc *ast.FuncCallExpr) erro
 		return p.syntaxErrorAtCur()
 	}
 	return nil
+}
+
+// isQuotedName reports whether the name was written with backticks, which the
+// token keeps only in the source it came from.
+func (p *Parser) isQuotedName(name *ast.ObjectName) bool {
+	start := name.Loc.Start - p.baseOffset
+	return start >= 0 && start < len(p.input) && p.input[start] == '`'
 }
 
 // isIgnoreNullsWindowFunc reports whether name is one of the window value
