@@ -184,11 +184,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		}
 		idx := len(q.RangeTable)
 		q.RangeTable = append(q.RangeTable, rte)
-		scope.add(rte.ERef, idx, cols)
-		if remote {
-			// Its columns are known only when the query runs.
-			scope.addUnknownColumns(rte.ERef, idx)
-		}
+		scope.addRelation(rte, idx, cols, remote)
 		return &RangeTableRefQ{RTIndex: idx}, nil
 
 	case *nodes.JoinClause:

@@ -615,6 +615,9 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 // resolveColumnRef qualifies an unqualified column reference by finding which
 // table in scope contains the column.
 func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprNode {
+	if col.Catalog != "" {
+		return col
+	}
 	// Already qualified — just validate the table name maps to an alias
 	if col.Table != "" {
 		// Check if this table name is in scope (might be an alias)

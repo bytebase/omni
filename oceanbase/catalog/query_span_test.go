@@ -429,3 +429,70 @@ func TestLineageQuantifiedExprAndRemoteViewIsolation(t *testing.T) {
 		}
 	}
 }
+
+func TestFullJoinQualifiedStarsKeepSideColumns(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_star AS SELECT * FROM l FULL JOIN r USING (id);
+		CREATE VIEW v_lstar AS SELECT l.* FROM l FULL JOIN r USING (id);
+		CREATE VIEW v_rstar AS SELECT r.* FROM l FULL JOIN r USING (id);
+	`)
+
+	db := c.GetDatabase("testdb")
+	if got, want := DeparseQuery(db.Views["v_star"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, `r`.`id`) as `id`, `l`.`lx`, `r`.`rx` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_star) =\n  %s\nwant\n  %s", got, want)
+	}
+	if got, want := DeparseQuery(db.Views["v_lstar"].AnalyzedQuery),
+		"select `l`.`id`, `l`.`lx` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_lstar) =\n  %s\nwant\n  %s", got, want)
+	}
+	if got, want := DeparseQuery(db.Views["v_rstar"].AnalyzedQuery),
+		"select `r`.`id`, `r`.`rx` from `testdb`.`l` full join `testdb`.`r` using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_rstar) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	lQuery, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id, lx FROM v_lstar"))
+	assertNoError(t, err)
+	assertLineage(t, collectColumnLineage(c, lQuery.ExpandMergeViews(c)), []resultLineage{
+		{Name: "id", SourceCols: []columnLineage{{DB: "testdb", Table: "l", Column: "id"}}},
+		{Name: "lx", SourceCols: []columnLineage{{DB: "testdb", Table: "l", Column: "lx"}}},
+	})
+}
+
+func TestRemoteCatalogQualifiedColumnResolution(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE t (a INT);
+		CREATE VIEW v_multi_cat AS SELECT c1.d.t.a AS a1, c2.d.t.b AS b2 FROM c1.d.t, c2.d.t;
+	`)
+
+	vq := c.GetDatabase("testdb").Views["v_multi_cat"].AnalyzedQuery
+	if vq == nil {
+		t.Fatal("expected v_multi_cat to have AnalyzedQuery")
+	}
+	v0, ok0 := vq.TargetList[0].Expr.(*VarExprQ)
+	v1, ok1 := vq.TargetList[1].Expr.(*VarExprQ)
+	if !ok0 || !ok1 || v0.RangeIdx != 0 || v1.RangeIdx != 1 {
+		t.Fatalf("expected c1->RangeIdx 0 and c2->RangeIdx 1, got %+v and %+v", vq.TargetList[0].Expr, vq.TargetList[1].Expr)
+	}
+	if got, want := DeparseQuery(vq), "select `c1`.`d`.`t`.`a` as `a1`, `c2`.`d`.`t`.`b` as `b2` from `c1`.`d`.`t`, `c2`.`d`.`t`"; got != want {
+		t.Errorf("DeparseQuery(v_multi_cat) =\n  %s\nwant\n  %s", got, want)
+	}
+
+	// Unqualified-catalog `t.a` across two remote `t` relations is ambiguous (1052).
+	if _, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT t.a FROM c1.d.t, c2.d.t")); err == nil {
+		t.Fatal("expected ambiguity error for SELECT t.a FROM c1.d.t, c2.d.t")
+	} else if catErr, ok := err.(*Error); !ok || catErr.Code != 1052 {
+		t.Fatalf("expected error 1052, got %v", err)
+	}
+
+	// Four-part `c1.d.t.a` alongside local `t` binds to `c1.d.t` (RangeIdx 1), not local `t` (RangeIdx 0).
+	mixedQ, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT c1.d.t.a FROM t, c1.d.t"))
+	assertNoError(t, err)
+	if mv, ok := mixedQ.TargetList[0].Expr.(*VarExprQ); !ok || mv.RangeIdx != 1 {
+		t.Fatalf("expected c1.d.t.a to bind to RangeIdx 1, got %+v", mixedQ.TargetList[0].Expr)
+	}
+}

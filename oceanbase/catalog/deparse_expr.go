@@ -90,6 +90,17 @@ func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *deparseScope) {
 		// A column of a relation whose schema is unknown keeps the name written.
 		colName = v.Name
 	}
+	if rte.Alias == "" && rte.Catalog != "" {
+		b.WriteString(backtickIDQ(rte.Catalog))
+		b.WriteString(".")
+		if rte.DBName != "" {
+			b.WriteString(backtickIDQ(rte.DBName))
+			b.WriteString(".")
+		}
+	} else if rte.Alias == "" && rte.Dblink != "" && rte.DBName != "" {
+		b.WriteString(backtickIDQ(rte.DBName))
+		b.WriteString(".")
+	}
 	b.WriteString(backtickIDQ(rte.ERef))
 	b.WriteString(".")
 	b.WriteString(backtickIDQ(colName))

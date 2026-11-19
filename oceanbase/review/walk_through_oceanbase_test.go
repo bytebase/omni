@@ -209,6 +209,11 @@ func TestWalkThroughOceanBase(t *testing.T) {
 		noFindingOB(t, "CREATE EVENT `shop.e3` ON SCHEDULE EVERY 1 DAY DO SELECT 1;\nCREATE TABLE t (a int);", shop)
 		noFindingOB(t, "ALTER EVENT e RENAME TO `q.e`;\nCREATE TABLE t (a int);", shop)
 	})
+
+	t.Run("FLASHBACK stops the walk and SET CATALOG marks session lost", func(t *testing.T) {
+		noFindingOB(t, "DROP TABLE t;\nFLASHBACK TABLE t TO BEFORE DROP;\nALTER TABLE t ADD COLUMN c int;", shop)
+		noFindingOB(t, "SET CATALOG ext_cat;\nALTER TABLE nosuch ADD COLUMN c int;", shop)
+	})
 }
 
 // oceanBaseForms are the statement forms OceanBase's deltas add to

@@ -45,7 +45,10 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 
 	case *nodes.ColumnRef:
 		if n.Star {
-			// SELECT t.*
+			// SELECT t.* — a catalog-qualified star names no local table.
+			if n.Catalog != "" {
+				return nil, fmt.Errorf("no columns found for remote star expansion")
+			}
 			return expandStar(n.Table, q, scope, resNo)
 		}
 		// Bare column reference: SELECT col
@@ -87,7 +90,7 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	if tableName == "" {
 		// SELECT * — expand all tables in scope order.
 		for _, e := range scope.allEntries() {
-			entries, err := expandScopeEntry(e, q, scope, resNo)
+			entries, err := expandScopeEntry(e, q, scope, resNo, true)
 			if err != nil {
 				return nil, err
 			}
@@ -97,7 +100,7 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 		// SELECT t.* — expand only the named table.
 		lower := toLower(tableName)
 		if i := scope.entryIndex(lower); i >= 0 {
-			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo)
+			entries, err := expandScopeEntry(scope.entry(i), q, scope, resNo, false)
 			if err != nil {
 				return nil, err
 			}
@@ -117,32 +120,40 @@ func expandStar(tableName string, q *Query, scope *analyzerScope, resNo *int) ([
 	return result, nil
 }
 
-// expandScopeEntry expands all columns from a single scope entry,
-// skipping columns marked as coalesced by USING/NATURAL.
-func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) ([]*TargetEntryQ, error) {
+// expandScopeEntry expands all columns from a single scope entry.
+// When unqualifiedStar is true (SELECT *), columns coalesced away by
+// USING/NATURAL are skipped and FULL-join merged keys wrap in COALESCE(l, r);
+// qualified stars (SELECT l.*) keep side-specific variables.
+func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int, unqualifiedStar bool) ([]*TargetEntryQ, error) {
 	var result []*TargetEntryQ
 	rte := q.RangeTable[e.rteIdx]
 	for i, col := range e.columns {
-		// Skip columns that were coalesced away by USING/NATURAL.
-		if scope.isCoalesced(e.name, col.Name) {
+		// Skip columns that were coalesced away by USING/NATURAL on unqualified *.
+		if unqualifiedStar && scope.isCoalesced(e.name, col.Name) {
 			continue
 		}
 		var expr AnalyzedExpr = &VarExprQ{
 			RangeIdx: e.rteIdx,
 			AttNum:   i + 1,
 		}
-		// A FULL join's merged key is COALESCE(left, right): either side may be
-		// the null one.
-		if right, ok := scope.fullJoinKey(e.name, col.Name); ok {
-			expr = &CoalesceExprQ{Args: []AnalyzedExpr{expr, right}}
+		// On unqualified *, a FULL join's merged key is COALESCE(left, right):
+		// either side may be the null one. Qualified l.* retains l's own column.
+		coalescedFull := false
+		if unqualifiedStar {
+			if right, ok := scope.fullJoinKey(e.name, col.Name); ok {
+				expr = &CoalesceExprQ{Args: []AnalyzedExpr{expr, right}}
+				coalescedFull = true
+			}
 		}
 		te := &TargetEntryQ{
-			Expr:         expr,
-			ResNo:        *resNo,
-			ResName:      col.Name,
-			ResOrigDB:    rte.DBName,
-			ResOrigTable: rte.TableName,
-			ResOrigCol:   col.Name,
+			Expr:    expr,
+			ResNo:   *resNo,
+			ResName: col.Name,
+		}
+		if !coalescedFull {
+			te.ResOrigDB = rte.DBName
+			te.ResOrigTable = rte.TableName
+			te.ResOrigCol = col.Name
 		}
 		*resNo++
 		result = append(result, te)

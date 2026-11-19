@@ -97,6 +97,13 @@ func (b *builder) statement(n ast.Node) bool {
 			b.forgetTemporary()
 		}
 		return true
+	case *ast.CatalogStmt:
+		// SET CATALOG switches the session to another catalog, which the ledger
+		// does not hold: mark the session database unknown as USE catalog.db does.
+		if v.Action == "SET" {
+			b.Session(func() { b.w.lost = true })
+		}
+		return true
 	case *ast.BeginStmt, *ast.CommitStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
@@ -104,10 +111,12 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
 		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
 		*ast.MethodOptStmt,
-		// A catalog's own statements and PURGE change no table, column or index
-		// the walk keeps: the first manage catalogs, the second empties the
-		// recycle bin.
-		*ast.CatalogStmt, *ast.PurgeStmt, *ast.FlashbackStmt, *ast.RestorePointStmt, *ast.DatabaseLinkStmt,
+		// PURGE empties the recycle bin, and restore points, database links and
+		// dump-memory diagnostics change no table, column or index the walk
+		// keeps. FLASHBACK restores a dropped object from the recycle bin, which
+		// the ledger does not model, so it falls through to return false and
+		// stops the walk as ROLLBACK does.
+		*ast.PurgeStmt, *ast.RestorePointStmt, *ast.DatabaseLinkStmt,
 		*ast.DumpMemoryStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.

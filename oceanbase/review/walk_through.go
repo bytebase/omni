@@ -495,7 +495,7 @@ const (
 
 // ref resolves a table reference's database and name.
 func (b *builder) ref(tr *ast.TableRef) (tableRef, refState) {
-	if tr == nil {
+	if tr == nil || tr.Catalog != "" || tr.Dblink != "" {
 		return tableRef{}, refUnknown
 	}
 	r := tableRef{written: table(tr), rng: rangeOf(tr.Loc)}

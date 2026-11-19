@@ -20,9 +20,10 @@ type analyzerScope struct {
 	firstByName map[string]int
 	indexed     int
 
-	// unknownColumns maps a relation's effective name to its RTE index for
-	// relations whose columns are not known locally.
-	unknownColumns map[string]int
+	// quals records each relation in scope with its catalog/schema qualifiers,
+	// preserving duplicates and remote relations whose columns are unknown.
+	quals      []rteQualifier
+	hasUnknown bool
 
 	// fullJoinKeys maps `<entry>.<column>` to the right side's variable for a
 	// FULL join's merged key: the star expansion of that column is
@@ -138,35 +139,115 @@ func (s *analyzerScope) isCoalesced(tableName, colName string) bool {
 	return s.base.IsCoalesced(tableName, colName)
 }
 
-// add registers a table reference in the scope.
-// addUnknownColumns registers an entry whose relation's columns are not known
-// locally: a column reference to it resolves when it is written, since only the
-// schema is unavailable and not the column.
-func (s *analyzerScope) addUnknownColumns(name string, rteIdx int) {
-	if s.unknownColumns == nil {
-		s.unknownColumns = map[string]int{}
+type rteQualifier struct {
+	catalog  string
+	schema   string
+	name     string // effective reference name (alias if present, else table name)
+	hasAlias bool
+	unknown  bool
+	rteIdx   int
+	entryIdx int // index in cols when !unknown, -1 when unknown
+}
+
+// addRelation registers a base, view or remote relation in the scope, keeping
+// its catalog and schema qualifiers so qualified references distinguish
+// `c1.d.t` from `c2.d.t` and never overwrite a local table of the same name.
+func (s *analyzerScope) addRelation(rte *RangeTableEntryQ, rteIdx int, columns []*Column, unknown bool) {
+	if unknown {
+		s.hasUnknown = true
+		s.quals = append(s.quals, rteQualifier{
+			catalog:  rte.Catalog,
+			schema:   rte.DBName,
+			name:     rte.ERef,
+			hasAlias: rte.Alias != "",
+			unknown:  true,
+			rteIdx:   rteIdx,
+			entryIdx: -1,
+		})
+		return
 	}
-	s.unknownColumns[strings.ToLower(name)] = rteIdx
+	s.add(rte.ERef, rteIdx, columns)
+	q := &s.quals[len(s.quals)-1]
+	q.catalog = rte.Catalog
+	q.schema = rte.DBName
+	q.hasAlias = rte.Alias != ""
 }
 
 // soleUnknownColumnRTE returns the RTE index of a relation whose columns are
 // unknown when it is the only scope entry: an unqualified column then belongs to
 // it, and any other entry would make the name ambiguous.
 func (s *analyzerScope) soleUnknownColumnRTE() (int, bool) {
-	if len(s.unknownColumns) != 1 || len(s.base.AllEntries()) != 1 {
-		return 0, false
-	}
-	for _, idx := range s.unknownColumns {
-		return idx, true
+	if len(s.quals) == 1 && s.quals[0].unknown {
+		return s.quals[0].rteIdx, true
 	}
 	return 0, false
 }
 
-// unknownColumnRTE returns the RTE index of a named relation whose columns are
-// unknown, if the scope holds one.
-func (s *analyzerScope) unknownColumnRTE(tableName string) (int, bool) {
-	idx, ok := s.unknownColumns[strings.ToLower(tableName)]
-	return idx, ok
+func (s *analyzerScope) hasUnknownInChain() bool {
+	for cur := s; cur != nil; cur = cur.parent {
+		if cur.hasUnknown {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveQualifiedRefFull resolves a table-qualified column reference
+// (`t.c`, `d.t.c` or `cat.d.t.c`), honoring catalog and schema qualifiers and
+// rejecting ambiguous matches across local and remote relations.
+func (s *analyzerScope) resolveQualifiedRefFull(catalog, schema, tableName, colName string) (*VarExprQ, error) {
+	if catalog == "" && schema == "" && !s.hasUnknownInChain() {
+		rteIdx, attNum, levelsUp, err := s.resolveQualifiedColumnFull(tableName, colName)
+		if err != nil {
+			return nil, err
+		}
+		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+	}
+
+	for cur, levelsUp := s, 0; cur != nil; cur, levelsUp = cur.parent, levelsUp+1 {
+		var matches []rteQualifier
+		for _, q := range cur.quals {
+			if !strings.EqualFold(q.name, tableName) {
+				continue
+			}
+			if catalog != "" {
+				if q.hasAlias || !strings.EqualFold(q.catalog, catalog) || !strings.EqualFold(q.schema, schema) {
+					continue
+				}
+			} else if schema != "" {
+				if q.hasAlias || !strings.EqualFold(q.schema, schema) {
+					continue
+				}
+			}
+			matches = append(matches, q)
+		}
+		if len(matches) > 1 {
+			return nil, s.unsure(&Error{
+				Code:     1052,
+				SQLState: "23000",
+				Message:  fmt.Sprintf("Column '%s' in field list is ambiguous", colName),
+			})
+		}
+		if len(matches) == 1 {
+			m := matches[0]
+			if m.unknown {
+				return &VarExprQ{RangeIdx: m.rteIdx, Name: colName, LevelsUp: levelsUp}, nil
+			}
+			lowerCol := strings.ToLower(colName)
+			for j, c := range cur.cols[m.entryIdx] {
+				if strings.ToLower(c.Name) == lowerCol {
+					return &VarExprQ{RangeIdx: m.rteIdx, AttNum: j + 1, LevelsUp: levelsUp}, nil
+				}
+			}
+			return nil, s.unsure(errNoSuchColumn(colName, "field list"))
+		}
+	}
+
+	return nil, s.unsure(&Error{
+		Code:     ErrUnknownTable,
+		SQLState: sqlState(ErrUnknownTable),
+		Message:  fmt.Sprintf("Unknown table '%s'", tableName),
+	})
 }
 
 func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
@@ -180,9 +261,15 @@ func (s *analyzerScope) add(name string, rteIdx int, columns []*Column) {
 	for i, c := range visible {
 		scopeCols[i] = scope.Column{Name: c.Name, Position: i + 1}
 	}
+	entryIdx := len(s.cols)
 	s.base.Add(name, &scope.Table{Name: name, Columns: scopeCols})
 	s.rteMap = append(s.rteMap, rteIdx)
 	s.cols = append(s.cols, visible)
+	s.quals = append(s.quals, rteQualifier{
+		name:     name,
+		rteIdx:   rteIdx,
+		entryIdx: entryIdx,
+	})
 }
 
 // resolveColumn finds an unqualified column name across all scope entries.
