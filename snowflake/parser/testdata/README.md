@@ -24,7 +24,7 @@ generated grammar and rows moved with them.
 
 `undocumented` rows are the near-misses the docs do not derive; docs say what is
 valid, not what Snowflake refuses, so they pass whatever omni says. The new pin
-has 53,144 of them.
+has 53,144 of them; the converter and parser changes below leave 53,222.
 
 ## The grammar and its fixes
 
@@ -50,12 +50,57 @@ DCM bind variable is `$<session_variable>` or the client `?`; the scripting
 `:name` form has no generated row because this notation writes `:` and the name
 as two tokens, which the row generator separates.
 
-The object-type sample still reads `ACCOUNT` as an object type that takes a
-name. Removing it is a converter change, which a pin-bump PR may not carry
-(`compatcheck` refuses one), so the `GRANT OWNERSHIP`, `GRANT`/`REVOKE CALLER`
-and `SHOW GRANTS ON ACCOUNT <name>` rows it makes up remain for a follow-up.
+The object-type sample read `ACCOUNT` first, so `GRANT OWNERSHIP ON ACCOUNT
+a`, `GRANT`/`REVOKE CALLER PRIVILEGES ON ACCOUNT a` and `SHOW GRANTS ON
+ACCOUNT a` were rows. The converter now reads `<object_type>` on the pages
+whose syntax writes it before a name as a type that takes one: `ACCOUNT` is
+not among them, because those pages write `ON ACCOUNT`, or `ON ALL
+<object_type_plural> IN ACCOUNT`, as a form of their own, and `GRANT
+OWNERSHIP`'s `object_type` parameter lists no `ACCOUNT`. `SCHEMA` comes first,
+so the statement a row derives is `ON SCHEMA a`. See `objectTypeTakesName` and
+`namedObjectTypeChoice` in `../cmd/docsgrammar`.
+
+### The name sample: the page's own form has the name
+
+The docs judge reads a name class (`ID`) as any word, keywords included,
+because Snowflake reserves so few of them. So a form of one page with its name
+dropped reads as another page's statement: `DROP APPLICATION PACKAGE` is `DROP
+APPLICATION` named `PACKAGE`, `USE ROLE` is `USE` named `ROLE`, and `ALTER
+ACCOUNT UNSET TAG` is the generic `UNSET <param_name>`. Omni's parser takes the
+longer form (it reads `PACKAGE`, `ROLE` and `TAG` as the object word and then
+wants the name), and each page writes that word as a form of its own.
+
+`../cmd/docsgrammar` writes the name of the pages that own such a form by the
+sample `a`, the text `tokens.tsv` gives `ID`, instead of by the name class
+(`sampledNames` there lists each page and placeholder, with the page's URL).
+The row's statement is the one the class derived (`DROP APPLICATION a`), and a
+name-dropped near-miss is `undocumented` instead of another page's statement.
+That is a narrowing: a near-miss that writes a name other than the sample is
+`undocumented` too, which passes. No alternative row moved to `undocumented`
+here; the alternatives keep their statements and still agree.
+
+Two pages' `UNSET` lists share their placeholder with the page's `SET` form,
+which keeps the class: docs-fixes names the `UNSET` occurrence
+`<unset_parameter>` (`alter-task`) and `<unset_property>` (`alter-task-graph`).
+Reading the sample there, and not the class, is what makes the page's own
+`UNSET TAG <tag_name>` the only form that writes `TAG`.
 
 `../../testdata/tokens.tsv` samples every token class the grammar uses.
+
+The parser reads the page's `SHOW GRANTS ... INCLUDE HIERARCHY` now
+(`../show.go`, `ast.ShowStmt.IncludeHierarchy`), for `SHOW GRANTS TO` a role, a
+database role or a user, and for `SHOW FUTURE GRANTS TO` a role or a database
+role, the grantee forms the page writes the clause after:
+https://docs.snowflake.com/en/sql-reference/sql/show-grants.
+
+This PR's fixes are in `docs-fixes.tsv` beside the pin bump's: `FOR INTERVAL
+'<interval>'` on `grant-role` (the parameter writes a quoted `'<n> <unit>'`),
+the two `[ EQUALITY ]` tails of `alter-dynamic-table`'s search optimization
+actions (the parameter gives `EQUALITY` a target, and no `EQUALITY` follows
+one), and the two `UNSET` names above. Dropping those tails makes DROP's `ON`
+list structurally identical to SUSPEND's and RESUME's, and the generator then
+attributes the shared alternatives to DROP alone; four `suite:` rows hold the
+targeted SUSPEND and RESUME forms the generator stopped writing.
 
 To rebuild the grammar from the live docs (a pin bump), then the rows:
 
@@ -64,52 +109,39 @@ go run ./snowflake/parser/cmd/docsgrammar -cache /tmp/snowflake-docs
 OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 ```
 
-After a parser fix, commit the rows that now agree:
+After a pin bump or a converter change the row set itself moves; record it, then
+commit the verdicts the parser change closed:
 
 ```bash
+OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 118 rows
+## What is left: 49 rows
 
-Every remaining row is `reject` in omni and `accept` in the docs. They are
-grouped here by the page whose notation or reading leaves them. None is a
-statement omni used to accept: no row that agreed with the docs stopped
-agreeing. Two class-2 rows moved from the docs' `accept` to `undocumented`,
-because the grammar no longer derives them; they still pass: the `ALTER
-SEQUENCE IF` and `ALTER RESOURCE MONITOR IF` near-misses.
+After the pin bump the docs judged 118 rows that omni rejects. The converter
+and parser changes above close 69 of them. Every remaining row is `reject` in
+omni and `accept` in the docs, grouped here by the page whose notation or
+reading leaves it. No alternative row that agreed with the docs stopped
+agreeing; the only rows whose expected moved from `accept` to `undocumented`
+are near-misses that write a name other than the sample (81), as the name
+sample says above.
 
 | Page | Rows | What remains |
 | --- | --- | --- |
-| alter-stage | 18 | `ALTER STAGE <name> SET` with no property; the external form's `SET { [ externalStageParams ] [ FILE_FORMAT ] [ COMMENT ] }` and its all-optional GCS/Azure `externalStageParams` have no notation for "at least one", so a page-local fix would invent a required parameter. |
-| the combined `statement` rule | 19 | Dropping a name leaves another page's statement: `DROP APPLICATION PACKAGE` is `DROP APPLICATION` named `PACKAGE`, `USE ROLE` is `USE [ DATABASE ] ROLE`, `ALTER DATABASE ROLE UNSET COMMENT` is `ALTER DATABASE` named `ROLE`, and `GRANT ... TO APPLICATION` loses its grantee. The `GRANT OWNERSHIP`, `GRANT`/`REVOKE CALLER` and `SHOW GRANTS ON ACCOUNT <name>` statements made by the `ACCOUNT` object-type sample are here too. These are judge readings, not a notation defect on one page. |
-| alter-task-graph | 11 | `<property> = <value>`, `<default_property>` and a repeated property run. The page says the properties are the ones in CREATE TASK GRAPH rather than listing them, and no grammar can stop `SET a = a` or a property named twice. |
-| grant-ownership | 10 | `ON ACCOUNT a`: the object-type sample includes `ACCOUNT`, so the name after it is a form the docs do not write; the page's `ON ACCOUNT` takes no name. Removing `ACCOUNT` from the sample is a converter follow-up. |
-| execute-dbt-project | 11 | `EXECUTE DBT PROJECT IMPORTS = (...)` with no project: the page's `FROM WORKSPACE` is optional, and omni does not read these targetless forms. The system-function calls are now the five the parameters name, not a bare identifier. |
-| grant-caller | 6 | `ON ACCOUNT a` from the object-type sample, and the inherited form with `IN APPLICATION PACKAGE` and no name. |
-| revoke-caller | 5 | `ON ACCOUNT a` from the object-type sample, and the inherited form with `IN APPLICATION PACKAGE` and no name. |
-| show-grants | 5 | Four `ON ACCOUNT a` rows from the object-type sample; `SHOW GRANTS TO APPLICATION ROLE` without its name; and the new `SHOW GRANTS ... INCLUDE HIERARCHY`, which the live page added and omni's parser does not read yet (a parser follow-up, not a docs fix). |
-| alter-database-role | 4 | The role's name is dropped by a mutation and the statement reads as `ALTER DATABASE` named `ROLE`. |
-| alter-application-package | 3 | The package's name is dropped and the statement reads as `ALTER APPLICATION` named `PACKAGE`. |
+| alter-stage | 19 | `ALTER STAGE <name> SET` with no property, which the `statement` rule holds as `statement/alterStage` too; the external form's `SET { [ externalStageParams ] [ FILE_FORMAT ] [ COMMENT ] }` and its all-optional GCS/Azure `externalStageParams` have no notation for "at least one", so a page-local fix would invent a required parameter. |
+| execute-dbt-project | 11 | `EXECUTE DBT PROJECT IMPORTS = (...)` with no project: the page's `FROM WORKSPACE` is optional, and omni does not read these targetless forms. The system-function calls are the five the parameters name, not a bare identifier. |
+| alter-task-graph | 9 | `<property> = <value>`, `<default_property>` and a repeated property run. The page says the properties are the ones in CREATE TASK GRAPH rather than listing them, and no grammar can stop `SET a = a` or a property named twice. `UNSET a` is the same: `a` is not one of the page's properties. |
 | create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> )`; the page's list of supported default properties is prose, and the run may repeat one. |
-| alter-application-role | 2 | The role's name is dropped and the statement reads as `ALTER APPLICATION` named `ROLE`. |
 | create-interactive-warehouse | 2 | A property run `( ... )+` may name the same property twice. |
-| alter-account | 1 | `UNSET TAG` without a tag: the page's generic `UNSET <param_name>` reads `TAG` as the parameter name. |
-| alter-application-service | 1 | The service's name is dropped and the statement reads as `ALTER APPLICATION` named `SERVICE` and `UPGRADE`. |
-| alter-dynamic-table | 1 | `[ EQUALITY ]` after `DROP SEARCH OPTIMIZATION ON <col>`; the parameters list no trailing `EQUALITY`. |
-| alter-organization-account | 1 | `UNSET TAG` without a tag, as `ALTER ACCOUNT`'s generic `UNSET <param_name>`. |
+| show-semantic-dimensions, -facts, -metrics | 3 | `IN SCHEMA.a` with the database part dropped; the page also lets `IN` take a `<semantic_view_name>`, a qualified name, and `SCHEMA.a` is one, so the docs say this is valid. |
 | alter-organization-user | 1 | `SET EMAIL = 's' EMAIL = 's'`: the property run repeats a property. |
-| alter-pipe | 1 | `UNSET TAG` without a tag, as the generic `UNSET { <property_name> | COMMENT }`. |
-| alter-snapshot-policy | 1 | The policy's name is dropped and the statement reads as another `ALTER` form. |
-| alter-task | 1 | `UNSET TAG` without a tag, as the generic `UNSET <property_name>`. |
-| alter-user | 1 | `UNSET TAG` without a tag, as the generic `UNSET { <object_property_name> | ... }`. |
-| alter-warehouse | 1 | `UNSET TAG` without a tag, as the generic `UNSET { <property_name> | <param_name> }`. |
-| create-clone | 1 | The database role's name is dropped and the statement reads as `CREATE <object>` named `DATABASE ROLE`. |
-| create-database-role | 1 | The role's name is dropped and `CREATE OR ALTER DATABASE ROLE` reads as `CREATE OR ALTER DATABASE` named `ROLE`. |
 | create-organization-user | 1 | A property run may name the same property twice. |
-| grant-application-role | 1 | The grantee's name is dropped after `APPLICATION ROLE`. |
-| grant-role | 1 | `FOR INTERVAL 1`: `<interval>` is read as a number, while the parameters require a quoted `'<n> <unit>'`. |
-| revoke-application-role | 1 | The grantee's name is dropped after `APPLICATION ROLE`. |
-| show-semantic-dimensions | 1 | `IN SCHEMA.a` with the database part dropped; the page writes `SCHEMA <db_name>.<schema_name>`. |
-| show-semantic-facts | 1 | `IN SCHEMA.a` with the database part dropped. |
-| show-semantic-metrics | 1 | `IN SCHEMA.a` with the database part dropped. |
+
+The agree count moved from 20,486 to 20,472 and the `undocumented` count from
+53,144 to 53,222; the total moved from 73,748 to 73,743. The object-type choice
+lost its `ACCOUNT` alternative on four rules, the search-optimization actions
+lost their trailing `EQUALITY` (with four `suite:` rows keeping the SUSPEND and
+RESUME targets), and `use-schema` gained the page's qualified form
+(`USE <db_name>.<schema_name>`) beside the `USE SCHEMA` one, as its parameters
+say.
