@@ -261,6 +261,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Generated != nil {
 			Walk(v, n.Generated)
 		}
+		Walk(v, n.OrigDefault)
 	case *CommonTableExpr:
 		if n.Select != nil {
 			Walk(v, n.Select)

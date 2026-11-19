@@ -955,6 +955,22 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if cmd.IfExists {
 			return nil
 		}
+		// The two spellings answer different errors on identical state:
+		// DROP CHECK is 3821 and DROP CONSTRAINT 3940.
+		if cmd.Keyword == "CONSTRAINT" {
+			return &Error{
+				Code:     3940,
+				SQLState: "HY000",
+				Message:  fmt.Sprintf("Constraint '%s' does not exist.", name),
+			}
+		}
+		if cmd.Keyword == "CHECK" {
+			return &Error{
+				Code:     3821,
+				SQLState: "HY000",
+				Message:  fmt.Sprintf("Check constraint '%s' is not found in the table.", name),
+			}
+		}
 		return errCantDropKey(name)
 	}
 
@@ -1503,6 +1519,15 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if toLower(con.Name) == key && con.Type == ConCheck {
 			con.NotEnforced = (cmd.NewName == "NOT ENFORCED")
 			return nil
+		}
+	}
+	// The server tells the two spellings apart: ALTER CHECK answers 3821, the
+	// check constraint not found, and ALTER CONSTRAINT 3940.
+	if cmd.Keyword == "CHECK" {
+		return &Error{
+			Code:     3821,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Check constraint '%s' is not found in the table.", cmd.Name),
 		}
 	}
 	return &Error{

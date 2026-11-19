@@ -38,6 +38,14 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
 	}
+	// column_attribute's lob_chunk_size and ORIG_DEFAULT are parsed and refused:
+	// the pinned server answers 1235 for CHUNK and 1067 for ORIG_DEFAULT.
+	if colDef.HasChunk {
+		return errNotSupported("column chunk")
+	}
+	if colDef.HasOrigDefault {
+		return &Error{Code: 1067, SQLState: "42000", Message: "Invalid default value"}
+	}
 	if err := checkCollectionElements(colDef.TypeName); err != nil {
 		return err
 	}

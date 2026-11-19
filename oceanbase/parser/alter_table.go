@@ -924,6 +924,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// DROP CHECK symbol, or alter_constraint_option's DROP CHECK '(' name_list ')'.
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
+		cmd.Keyword = "CHECK"
 		if p.cur.Type == '(' {
 			names, err := p.parseParenNameList()
 			if err != nil {
@@ -946,6 +947,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// DROP CONSTRAINT '(' name_list ')'.
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
+		cmd.Keyword = "CONSTRAINT"
 		if p.cur.Type == '(' {
 			names, err := p.parseParenNameList()
 			if err != nil {
@@ -1261,6 +1263,7 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
 	// empty arm.
 	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
+		cmd.Keyword = strings.ToUpper(p.cur.Str)
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {

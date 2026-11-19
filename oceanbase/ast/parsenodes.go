@@ -338,6 +338,10 @@ type AlterTableCmd struct {
 	Parallel *ParallelOption
 	// ConstraintNames is DROP CONSTRAINT's and DROP CHECK's '(' name_list ')'.
 	ConstraintNames []string
+	// Keyword is the word the statement wrote where the grammar takes two
+	// spellings that the server's errors tell apart: DROP/ALTER CHECK answer
+	// 3821 and DROP/ALTER CONSTRAINT 3940.
+	Keyword string
 	// LobStorage is lob_storage_clause, which follows an ALTER TABLE ADD's column
 	// list: JSON (column) STORE AS (CHUNK n).
 	LobStorage *LobStorageClause
@@ -595,8 +599,16 @@ type ColumnDef struct {
 	ColumnFormat  string // COLUMN_FORMAT {FIXED | DYNAMIC | DEFAULT}
 	// ID and HasID are column_attribute's `ID INTNUM`, which pins the column's
 	// storage id. OceanBase admits the same attribute on a generated column.
-	ID                       int64
-	HasID                    bool
+	ID    int64
+	HasID bool
+	// Chunk and HasChunk are column_attribute's lob_chunk_size, `CHUNK n` or
+	// `CHUNK 'size'`, which the server parses and refuses to run.
+	Chunk    string
+	HasChunk bool
+	// OrigDefault is column_attribute's `ORIG_DEFAULT now_or_signed_literal`,
+	// which the server parses and refuses to run.
+	OrigDefault              ExprNode
+	HasOrigDefault           bool
 	Storage                  string // STORAGE {DISK | MEMORY}
 	EngineAttribute          string // ENGINE_ATTRIBUTE [=] 'string'
 	SecondaryEngineAttribute string // SECONDARY_ENGINE_ATTRIBUTE [=] 'string'

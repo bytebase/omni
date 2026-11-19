@@ -619,12 +619,17 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 	//	SKIP_INDEX ( [MIN_MAX | SUM] [, {MIN_MAX | SUM}] ... )
 	//	CHUNK {n | 'size'}
 	//
-	// Known gap: ID n, which OceanBase parses and then refuses with 1064
-	// (simulate.tsv). Taking it waits for the catalog to refuse it too.
+	// ORIG_DEFAULT and CHUNK are kept: the server parses them and refuses to run
+	// them (1067 and 1235), which the catalog answers from these fields.
 	switch {
 	case p.isBareWord("ORIG_DEFAULT"):
 		p.advance()
-		return true, p.parseNowOrSignedLiteral()
+		value, err := p.parseNowOrSignedLiteralValue()
+		if err != nil {
+			return false, err
+		}
+		col.OrigDefault, col.HasOrigDefault = value, true
+		return true, nil
 	case p.isBareWord("SKIP_INDEX"):
 		p.advance()
 		if _, err := p.expect('('); err != nil {
@@ -650,6 +655,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
 			return false, p.syntaxErrorAtCur()
 		}
+		col.Chunk, col.HasChunk = p.cur.Str, true
 		p.advance()
 		return true, nil
 	}
@@ -687,6 +693,22 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 // Ref: now_or_signed_literal, cur_timestamp_func, opt_time_func_fsp_i and
 // signed_literal in sql_parser_mysql_mode.y (oceanbase v4.3.5_CE_BP6).
 func (p *Parser) parseNowOrSignedLiteral() error {
+	return p.parseNowOrSignedLiteralInto(nil)
+}
+
+// parseNowOrSignedLiteralValue reads now_or_signed_literal and returns it as an
+// expression, for a caller that keeps the value.
+func (p *Parser) parseNowOrSignedLiteralValue() (nodes.ExprNode, error) {
+	var value nodes.ExprNode
+	if err := p.parseNowOrSignedLiteralInto(&value); err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+// parseNowOrSignedLiteralInto reads now_or_signed_literal, storing the
+// expression it reads in *out where the caller wants it.
+func (p *Parser) parseNowOrSignedLiteralInto(out *nodes.ExprNode) error {
 	fsp := func(required bool) error {
 		if p.cur.Type != '(' {
 			if required {
@@ -703,21 +725,50 @@ func (p *Parser) parseNowOrSignedLiteral() error {
 	}
 	switch {
 	case p.cur.Type == '+' || p.cur.Type == '-':
+		start := p.pos()
 		p.advance()
 		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 			return p.syntaxErrorAtCur()
 		}
+		if out != nil {
+			*out = &nodes.UnaryExpr{
+				Loc:     nodes.Loc{Start: start, End: p.cur.End},
+				Op:      nodes.UnaryMinus,
+				Operand: &nodes.IntLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Ival, Text: p.cur.Str},
+			}
+		}
 		p.advance()
 		return nil
 	case p.isBareWord("NOW"):
+		start := p.pos()
 		p.advance()
-		return fsp(true)
+		if err := fsp(true); err != nil {
+			return err
+		}
+		if out != nil {
+			*out = &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NOW", HasParens: true}
+		}
+		return nil
 	case p.isBareWord("CURRENT_TIMESTAMP"), p.isBareWord("LOCALTIME"), p.isBareWord("LOCALTIMESTAMP"):
+		start := p.pos()
+		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		return fsp(false)
+		if err := fsp(false); err != nil {
+			return err
+		}
+		if out != nil {
+			*out = &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, HasParens: p.byteAt(p.prev.Loc) == ')'}
+		}
+		return nil
 	}
-	_, err := p.parseLiteralOnly()
-	return err
+	lit, err := p.parseLiteralOnly()
+	if err != nil {
+		return err
+	}
+	if out != nil {
+		*out = lit
+	}
+	return nil
 }
 
 // refuseColumnValue refuses a bare name as a column's DEFAULT or ON UPDATE value, as the
