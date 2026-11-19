@@ -167,6 +167,7 @@ func (p *Parser) parseStartTransaction(startLoc ast.Loc) (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		stmt.ConsistentSnapshot = true
 		stmt.Loc.End = snapshotTok.Loc.End
 	}
 	return stmt, nil

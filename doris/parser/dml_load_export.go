@@ -907,44 +907,41 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	return stmt, nil
 }
 
-// hasMalformedCommonHint reports whether input holds a /*+ ... */ hint whose
-// body is not the opt_common_hints rule's ident_list: it is empty, unclosed,
-// or not a comma-separated identifier sequence (TRUNCATE TABLE a /*+ 1 */).
+// hasMalformedCommonHint reports whether a /*+ ... */ common hint's body is
+// not the opt_common_hints rule's ident_list: empty, unclosed, or not a
+// comma-separated identifier sequence (TRUNCATE TABLE a /*+ 1 */). It reads
+// lexer tokens, so a /*+ inside a quoted identifier is a name, not a hint.
 func hasMalformedCommonHint(input string) bool {
-	for {
-		i := strings.Index(input, "/*+")
-		if i < 0 {
-			return false
-		}
-		rest := input[i+3:]
-		j := strings.Index(rest, "*/")
-		if j < 0 || !validCommonHintBody(rest[:j]) {
-			return true
-		}
-		input = rest[j+2:]
-	}
-}
-
-// validCommonHintBody reads an ident_list: identifier (COMMA identifier)*.
-func validCommonHintBody(body string) bool {
-	lx := NewLexer(body)
-	expectIdent, sawIdent := true, false
+	lx := NewLexer(input)
+	inHint, expectIdent, sawIdent := false, false, false
 	for {
 		tok := lx.NextToken()
 		if tok.Kind == tokEOF {
-			break
+			return inHint
+		}
+		if !inHint {
+			if tok.Kind == tokHintStart {
+				inHint, expectIdent, sawIdent = true, true, false
+			}
+			continue
+		}
+		if tok.Kind == tokHintEnd {
+			if !sawIdent || expectIdent {
+				return true
+			}
+			inHint = false
+			continue
 		}
 		if expectIdent {
 			if tok.Kind != tokIdent && tok.Kind != tokQuotedIdent && tok.Kind < 700 {
-				return false
+				return true
 			}
 			sawIdent, expectIdent = true, false
 			continue
 		}
 		if tok.Kind != int(',') {
-			return false
+			return true
 		}
 		expectIdent = true
 	}
-	return sawIdent && !expectIdent && len(lx.Errors()) == 0
 }

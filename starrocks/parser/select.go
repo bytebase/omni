@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -533,9 +535,13 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	alias, aliased, err := p.parseOptionalAlias(true)
-	if err != nil {
-		return nil, err
+	var alias string
+	var aliased bool
+	if !(p.cur.Kind == tokString && isBareDateColumn(expr)) {
+		alias, aliased, err = p.parseOptionalAlias(true)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if aliased {
 		item.Alias = alias
@@ -544,6 +550,17 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 
 	item.Loc.End = p.prev.Loc.End
 	return item, nil
+}
+
+// isBareDateColumn reports whether expr is the bare DATE/DATETIME name whose
+// following string the engine reads as a rejected literal rather than an
+// alias. A qualified t.DATE is an ordinary column and takes the alias.
+func isBareDateColumn(expr ast.Node) bool {
+	name, ok := expr.(*ast.ColumnRef)
+	if !ok || name.Name == nil || len(name.Name.Parts) != 1 {
+		return false
+	}
+	return strings.EqualFold(name.Name.Parts[0], "DATE") || strings.EqualFold(name.Name.Parts[0], "DATETIME")
 }
 
 // isSelectIdentToken reports whether the current token can start an identifier
@@ -584,9 +601,8 @@ func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool, error) {
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
 	// that does NOT start a clause. A SELECT item also takes a bare string
-	// literal as its alias (selectItem identifier|string), except after a bare
-	// DATE/DATETIME: the engine refuses SELECT DATE 'a'.
-	if stringOK && p.cur.Kind == tokString && p.prev.Kind != kwDATE && p.prev.Kind != kwDATETIME {
+	// literal as its alias (selectItem identifier|string).
+	if stringOK && p.cur.Kind == tokString {
 		return p.advance().Str, true, nil
 	}
 	if p.isAliasIdentToken() {

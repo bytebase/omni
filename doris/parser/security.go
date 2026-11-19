@@ -79,6 +79,7 @@ func (p *Parser) parseCreateRowPolicy(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	if p.cur.Kind == kwROLE {
+		stmt.ToRole = true
 		p.advance() // consume ROLE
 	}
 	toName, toLoc, err := p.parseIdentifierOrString()

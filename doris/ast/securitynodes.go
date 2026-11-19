@@ -23,6 +23,7 @@ type CreateRowPolicyStmt struct {
 	Type        string      // "RESTRICTIVE" or "PERMISSIVE"; empty = default
 	On          *ObjectName // ON table_name
 	To          string      // TO user_or_role
+	ToRole      bool        // the TO name is a role
 	Using       string      // USING (expr) — stored as raw text
 	Loc         Loc
 }

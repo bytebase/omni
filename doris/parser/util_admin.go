@@ -52,6 +52,7 @@ func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 
 	// Optional ON or EXCLUDE (table_list)
 	if p.cur.Kind == kwON || p.cur.Kind == kwEXCLUDE {
+		stmt.Exclude = p.cur.Kind == kwEXCLUDE
 		p.advance() // consume ON / EXCLUDE
 		tables, loc, err := p.parseBackupTableList()
 		if err != nil {
@@ -213,8 +214,9 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Repo = repo
 	endLoc = repoLoc
 
-	// Optional ON (table_list)
-	if p.cur.Kind == kwON {
+	// Optional ON or EXCLUDE (table_list)
+	if p.cur.Kind == kwON || p.cur.Kind == kwEXCLUDE {
+		stmt.Exclude = p.cur.Kind == kwEXCLUDE
 		p.advance()
 		tables, loc, err := p.parseBackupTableList()
 		if err != nil {
