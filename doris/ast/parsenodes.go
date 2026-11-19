@@ -272,6 +272,39 @@ func (n *DropIndexStmt) Tag() NodeTag { return T_DropIndexStmt }
 // Compile-time assertion that *DropIndexStmt satisfies Node.
 var _ Node = (*DropIndexStmt)(nil)
 
+// CreateInvertedIndexStmt represents:
+//
+//	CREATE INVERTED INDEX {ANALYZER | TOKENIZER | TOKEN_FILTER | CHAR_FILTER}
+//	  [IF NOT EXISTS] name [PROPERTIES(...)]
+type CreateInvertedIndexStmt struct {
+	Kind        string // ANALYZER, TOKENIZER, TOKEN_FILTER or CHAR_FILTER
+	Name        string
+	IfNotExists bool
+	Properties  []*Property
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateInvertedIndexStmt) Tag() NodeTag { return T_CreateInvertedIndexStmt }
+
+var _ Node = (*CreateInvertedIndexStmt)(nil)
+
+// DropInvertedIndexStmt represents:
+//
+//	DROP INVERTED INDEX {ANALYZER | TOKENIZER | TOKEN_FILTER | CHAR_FILTER}
+//	  [IF EXISTS] name
+type DropInvertedIndexStmt struct {
+	Kind     string // ANALYZER, TOKENIZER, TOKEN_FILTER or CHAR_FILTER
+	Name     string
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropInvertedIndexStmt) Tag() NodeTag { return T_DropInvertedIndexStmt }
+
+var _ Node = (*DropInvertedIndexStmt)(nil)
+
 // BuildIndexStmt represents:
 //
 //	BUILD INDEX name ON table [PARTITIONS(p1, p2, ...)]

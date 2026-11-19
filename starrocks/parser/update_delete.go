@@ -102,9 +102,16 @@ func (p *Parser) parseAssignment() (*ast.Assignment, error) {
 		return nil, err
 	}
 
-	val, err := p.parseExpr()
-	if err != nil {
-		return nil, err
+	// expressionOrDefault takes expression or DEFAULT (StarRocks.g4).
+	var val ast.Node
+	if p.cur.Kind == kwDEFAULT {
+		tok := p.advance()
+		val = &ast.Literal{Kind: ast.LitKeyword, Value: "DEFAULT", Loc: tok.Loc}
+	} else {
+		val, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ast.Assignment{

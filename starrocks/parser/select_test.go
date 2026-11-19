@@ -612,6 +612,20 @@ func TestSelectStringAlias(t *testing.T) {
 	if stmt.Items[0].Aliased {
 		t.Error("unaliased item reports Aliased=true")
 	}
+
+	// An implicit string alias is valid after an ordinary name, including a
+	// quoted `DATE`, but not after the bare DATE literal form.
+	stmt = mustParseSelect(t, "SELECT DAY 'a'")
+	if !stmt.Items[0].Aliased || stmt.Items[0].Alias != "a" {
+		t.Errorf("SELECT DAY 'a': Aliased=%v Alias=%q", stmt.Items[0].Aliased, stmt.Items[0].Alias)
+	}
+	stmt = mustParseSelect(t, "SELECT `DATE` 'a'")
+	if !stmt.Items[0].Aliased || stmt.Items[0].Alias != "a" {
+		t.Errorf("SELECT `DATE` 'a': Aliased=%v Alias=%q", stmt.Items[0].Aliased, stmt.Items[0].Alias)
+	}
+	if _, errs := parseForTest("SELECT DATE 'a'"); len(errs) == 0 {
+		t.Error("SELECT DATE 'a' accepted, want a syntax error")
+	}
 }
 
 func TestSelectGroupByGroupingSets(t *testing.T) {

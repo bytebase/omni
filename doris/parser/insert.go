@@ -37,9 +37,11 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 	} else if p.cur.Kind == kwINTO {
 		p.advance() // consume INTO
+	} else {
+		// The grammar states the head: INSERT (INTO | OVERWRITE TABLE)
+		// (DorisParser.g4:139). A bare INSERT table is refused.
+		return nil, p.syntaxErrorAtCur()
 	}
-	// If neither INTO nor OVERWRITE TABLE: bare INSERT table — still valid in
-	// some dialects but not standard Doris; fall through and parse the table name.
 
 	// Optional TEMPORARY keyword (before PARTITION clause)
 	if p.cur.Kind == kwTEMPORARY {
@@ -50,12 +52,45 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	// Optional PARTITION clause (may come before table name in some forms,
 	// but in Doris the order is: INSERT INTO [TEMP] table [PARTITION(...)] [WITH LABEL] [(cols)] source)
 	// According to the legacy corpus, PARTITION comes after table name.
-	// Parse table name first.
-	target, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
+	// The target is a multipartIdentifier with an optional @BRANCH, or
+	// DORIS_INTERNAL_TABLE_ID(id) (DorisParser.g4:139-146).
+	var target *ast.ObjectName
+	if p.cur.Kind == kwDORIS_INTERNAL_TABLE_ID && p.peekNext().Kind == int('(') {
+		p.advance() // consume DORIS_INTERNAL_TABLE_ID
+		p.advance() // consume '('
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		id := p.cur.Ival
+		p.advance()
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+		stmt.TableID = &id
+	} else {
+		target, err = p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Target = target
+		if p.cur.Kind == int('@') {
+			p.advance() // consume '@'
+			if _, err := p.expect(kwBRANCH); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			branch, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(int(')')); err != nil {
+				return nil, err
+			}
+			stmt.Branch = branch
+		}
 	}
-	stmt.Target = target
 
 	// Optional PARTITION(p1, p2, ...) or PARTITION(*)
 	if p.cur.Kind == kwPARTITION {
@@ -102,6 +137,29 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 		if isColList {
 			stmt.Columns = cols
+		}
+	}
+
+	// Optional [hint, ...] before the source (DorisParser.g4:146).
+	if p.cur.Kind == int('[') {
+		p.advance() // consume '['
+		if p.cur.Kind == int(']') {
+			// '[' ident_list ']' has at least one name.
+			return nil, p.syntaxErrorAtCur()
+		}
+		for p.cur.Kind != int(']') && p.cur.Kind != tokEOF {
+			hint, _, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Hints = append(stmt.Hints, hint)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(']')); err != nil {
+			return nil, err
 		}
 	}
 

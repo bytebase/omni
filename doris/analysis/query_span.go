@@ -291,6 +291,13 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.GroupedQuery:
 			w.visitGroupedQuery(q, false)
 			return false
+		case *ast.DescribeStmt:
+			// EXPLAIN a / EXPLAIN a ALL / DESCRIBE a name a table; record it as
+			// a read. A described function is not a table.
+			if !q.Function && q.Target != nil {
+				w.visitTableRef(&ast.TableRef{Name: q.Target, Loc: q.Target.Loc})
+			}
+			return false
 		case *ast.TableRef:
 			// A physical table referenced by DML — UPDATE ... FROM secret,
 			// DELETE ... USING secret, MERGE ... USING secret — is a read the

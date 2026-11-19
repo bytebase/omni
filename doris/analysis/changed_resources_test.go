@@ -348,3 +348,15 @@ func TestExtractChangedResourcesReplaceWithTable(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractChangedResourcesTableID(t *testing.T) {
+	// DORIS_INTERNAL_TABLE_ID names its target by id, not by name, so the
+	// resource keeps the id instead of silently dropping the write.
+	changes := changesFor(t, "INSERT INTO DORIS_INTERNAL_TABLE_ID(7) SELECT 1;", "db")
+	if len(changes.Resources) != 1 {
+		t.Fatalf("Resources = %+v, want one entry", changes.Resources)
+	}
+	if got := changes.Resources[0]; got.Database != "db" || got.TableID != 7 || got.Table != "" {
+		t.Errorf("Resources[0] = %+v, want database db and table id 7", got)
+	}
+}

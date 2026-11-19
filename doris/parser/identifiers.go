@@ -13,7 +13,10 @@ import (
 //   - a non-reserved keyword (e.g. COMMENT, BUCKETS) used as an identifier
 func isIdentifierToken(kind TokenKind) bool {
 	switch kind {
-	case tokIdent, tokQuotedIdent:
+	case tokIdent, tokQuotedIdent, int('{'), int('}'), tokHintEnd:
+		// The braces and HINT_END are punctuation the grammar's nonReserved
+		// rule also lists as identifiers (DorisParser.g4:1961, :1990, :2085):
+		// SELECT {, SELECT } and SELECT */ are accepted by the engine.
 		return true
 	default:
 		// A keyword token that is not reserved can serve as an identifier.
@@ -48,7 +51,7 @@ func isIdentifierTokenQualified(kind TokenKind) bool {
 func (p *Parser) parseIdentifier() (string, ast.Loc, error) {
 	tok := p.cur
 	switch tok.Kind {
-	case tokIdent, tokQuotedIdent:
+	case tokIdent, tokQuotedIdent, int('{'), int('}'), tokHintEnd:
 		p.advance()
 		return tok.Str, tok.Loc, nil
 	default:
@@ -67,7 +70,7 @@ func (p *Parser) parseIdentifier() (string, ast.Loc, error) {
 func (p *Parser) parseIdentifierQualified() (string, ast.Loc, error) {
 	tok := p.cur
 	switch tok.Kind {
-	case tokIdent, tokQuotedIdent:
+	case tokIdent, tokQuotedIdent, int('{'), int('}'), tokHintEnd:
 		p.advance()
 		return tok.Str, tok.Loc, nil
 	default:

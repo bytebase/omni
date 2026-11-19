@@ -33,6 +33,12 @@ func walkChildren(v Visitor, node Node) {
 	case *DropIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
+	case *CreateInvertedIndexStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropInvertedIndexStmt:
+		// leaf-ish node, no Node children
 	case *BuildIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
@@ -343,6 +349,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Into)
 		}
 	case *IntoOutfileClause:
+		if n.PathConstant != nil {
+			Walk(v, n.PathConstant)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
@@ -938,6 +947,8 @@ func walkChildren(v Visitor, node Node) {
 	// TCL — Transaction Control Language nodes (T7.2).
 	case *BeginStmt:
 		// leaf node, no Node children
+	case *StartTransactionStmt:
+		// leaf node, no Node children
 	case *CommitStmt:
 		// leaf node, no Node children
 	case *RollbackStmt:
@@ -1092,6 +1103,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.For != nil {
 			Walk(v, n.For)
 		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
 
 	case *ShowJobStmt:
 		if n.Where != nil {
@@ -1171,6 +1185,30 @@ func walkChildren(v Visitor, node Node) {
 	case *DropProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *RefreshStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterComputeGroupStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *AlterColocateGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropCatalogRecycleBinStmt:
+		// leaf node, no children
+	case *ReplayStmt:
+		if n.Query != nil {
+			Walk(v, n.Query)
 		}
 	}
 }

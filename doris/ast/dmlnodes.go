@@ -21,7 +21,10 @@ type InsertStmt struct {
 	Partition     []string    // optional PARTITION(p1, p2, ...) names; nil if absent
 	TempPartition bool        // true if TEMPORARY PARTITION was specified
 	PartitionStar bool        // true if PARTITION(*) was used
+	Branch        string      // optional @BRANCH name
+	TableID       *int64      // DORIS_INTERNAL_TABLE_ID(id) instead of a name
 	Columns       []string    // optional column list; nil if absent
+	Hints         []string    // optional [hint, ...] list
 	// Source: exactly one of Values or Query is non-nil.
 	Values [][]Node // VALUES rows: each inner slice is one row's expressions
 	Query  Node     // SELECT or WITH…SELECT (*SelectStmt); nil if VALUES form
@@ -91,13 +94,14 @@ var _ Node = (*UpdateStmt)(nil)
 //	    [USING table_refs]
 //	    [WHERE condition]
 type DeleteStmt struct {
-	With        *WithClause // optional leading CTE clause (Doris WITH ... DELETE); nil if absent
-	Target      *ObjectName // table to delete from
-	TargetAlias string      // optional alias
-	Partition   []string    // optional PARTITION(p1, p2, ...) names
-	Using       []Node      // optional USING clause table references
-	Where       Node        // optional WHERE expression
-	Loc         Loc
+	With          *WithClause // optional leading CTE clause (Doris WITH ... DELETE); nil if absent
+	Target        *ObjectName // table to delete from
+	TargetAlias   string      // optional alias
+	Partition     []string    // optional PARTITION(p1, p2, ...) names
+	TempPartition bool        // TEMPORARY PARTITION was stated
+	Using         []Node      // optional USING clause table references
+	Where         Node        // optional WHERE expression
+	Loc           Loc
 }
 
 // Tag implements Node.

@@ -167,7 +167,7 @@ func TestParseAllDispatchCategories(t *testing.T) {
 	}{
 		// Nearly all statement categories are implemented. REFRESH with an
 		// unrecognized target keyword still falls through to the unsupported stub.
-		{"REFRESH DATABASE db", "REFRESH"},
+		{"REFRESH zzz", "REFRESH"},
 	}
 	for _, tt := range tests {
 		_, errs := parseForTest(tt.input)

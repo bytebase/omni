@@ -610,13 +610,22 @@ func (p *Parser) parseDropSQLBlockRule(startLoc ast.Loc) (ast.Node, error) {
 		stmt.IfExists = true
 	}
 
-	// Rule name
-	name, nameLoc, err := p.parseIdentifierOrString()
-	if err != nil {
-		return nil, err
+	// identifierSeq: one or more identifiers (DorisParser.g4:743), not
+	// strings.
+	for {
+		name, nameLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Names = append(stmt.Names, name)
+		if len(stmt.Names) == 1 {
+			stmt.Name = name
+		}
+		stmt.Loc = startLoc.Merge(nameLoc)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
 	}
-	stmt.Name = name
-
-	stmt.Loc = startLoc.Merge(nameLoc)
 	return stmt, nil
 }

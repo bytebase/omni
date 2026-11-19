@@ -618,6 +618,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Transaction
 	case kwBEGIN:
 		return p.parseBeginStmt()
+	case kwSTART:
+		startTok := p.advance() // consume START
+		return p.parseStartTransaction(startTok.Loc)
 	case kwCOMMIT:
 		return p.parseCommitStmt()
 	case kwROLLBACK:

@@ -332,6 +332,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		switch p.cur.Kind {
 		case kwINDEX:
 			return p.parseCreateIndex(createTok.Loc)
+		case kwINVERTED:
+			return p.parseCreateInvertedIndex(createTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseCreateDatabase()
 		case kwTABLE, kwTEMPORARY:
@@ -463,6 +465,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterJob(p.prev.Loc)
 		case kwPROCEDURE, kwPROC:
 			return p.parseAlterProcedure(alterTok.Loc)
+		case kwCOMPUTE:
+			return p.parseAlterComputeGroup(alterTok.Loc)
+		case kwCOLOCATE:
+			return p.parseAlterColocateGroup(alterTok.Loc)
 		default:
 			return p.unsupported("ALTER")
 		}
@@ -471,6 +477,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		switch p.cur.Kind {
 		case kwINDEX:
 			return p.parseDropIndex(dropTok.Loc)
+		case kwINVERTED:
+			return p.parseDropInvertedIndex(dropTok.Loc)
 		case kwDATABASE, kwSCHEMA:
 			return p.parseDropDatabase()
 		case kwTABLE, kwTEMPORARY:
@@ -590,6 +598,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwCALL:
 		return p.parseCallProcedure()
 
+	// Plan replayer
+	case kwPLAN:
+		planTok := p.advance() // consume PLAN
+		return p.parseReplayCommand(planTok.Loc)
+
 	// Load / Export / Copy
 	case kwLOAD:
 		return p.parseLoad()
@@ -601,6 +614,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Transaction
 	case kwBEGIN:
 		return p.parseBeginStmt()
+	case kwSTART:
+		startTok := p.advance() // consume START
+		return p.parseStartTransaction(startTok.Loc)
 	case kwCOMMIT:
 		return p.parseCommitStmt()
 	case kwROLLBACK:
@@ -636,6 +652,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// statement. The catalog is required (DorisParser.g4:931
 		// #switchCatalog, DorisLegacyParser.g4:1754 switch_stmt).
 		p.advance() // consume SWITCH
+		// SWITCH is also read by the legacy parser, whose ident takes its own
+		// keyword list (sql_parser.cup:8234); CURRENT_USER is not on it, so
+		// SWITCH CURRENT_USER is refused although CURRENT_USER is nonReserved.
+		if p.cur.Kind == kwCURRENT_USER {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt := &ast.UseStmt{Loc: p.prev.Loc}
 		ident, _, err := p.parseIdentifier()
 		if err != nil {
@@ -722,6 +744,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseRefreshCatalog()
 		case kwDICTIONARY:
 			return p.parseRefreshDictionary(refreshTok.Loc)
+		case kwTABLE:
+			return p.parseRefreshTarget(refreshTok.Loc, "TABLE")
+		case kwDATABASE:
+			return p.parseRefreshTarget(refreshTok.Loc, "DATABASE")
+		case kwLDAP:
+			return p.parseRefreshLDAP(refreshTok.Loc)
 		}
 		return p.unsupported("REFRESH")
 

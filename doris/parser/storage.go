@@ -69,13 +69,17 @@ func (p *Parser) parseAlterStorageVault(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.AlterStorageVaultStmt{Name: name}
 
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
+		// propertyClause's item is propertyKey EQ propertyValue, either an
+		// identifier or a constant (DorisParser.g4:1377-1391), so
+		// PROPERTIES(a = a) parses as well as PROPERTIES('a' = 'a').
+		props, err := p.parseFullProperties()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Properties = props
 		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
+			// parseFullProperties consumed PROPERTIES through its closing ')'.
+			endLoc = p.prev.Loc
 		}
 	}
 
@@ -309,6 +313,10 @@ func (p *Parser) parseCreateRepository(startLoc ast.Loc, readOnly bool) (ast.Nod
 			return nil, err
 		}
 		stmt.BrokerName = brokerName
+	case kwLOCAL:
+		// LOCAL names no broker (DorisParser.g4:800 storageBackend).
+		stmt.Type = "LOCAL"
+		p.advance()
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -429,15 +437,19 @@ func (p *Parser) parseCreateStage(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Name = name
 	endLoc := nameLoc
 
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+	// The grammar's propertyClause is optional, but the engine refuses a STAGE
+	// without PROPERTIES(...): CREATE STAGE a and CREATE STAGE PROPERTIES are
+	// both syntax errors (compat.tsv).
+	if p.cur.Kind != kwPROPERTIES {
+		return nil, p.syntaxErrorAtCur()
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
+	if len(props) > 0 {
+		endLoc = ast.NodeLoc(props[len(props)-1])
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
@@ -503,15 +515,17 @@ func (p *Parser) parseCreateFile(startLoc ast.Loc) (ast.Node, error) {
 		endLoc = dbLoc
 	}
 
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+	// properties=propertyClause is required (DorisParser.g4:822).
+	if p.cur.Kind != kwPROPERTIES {
+		return nil, p.syntaxErrorAtCur()
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
+	if len(props) > 0 {
+		endLoc = ast.NodeLoc(props[len(props)-1])
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
@@ -545,15 +559,17 @@ func (p *Parser) parseDropFile(startLoc ast.Loc) (ast.Node, error) {
 		endLoc = dbLoc
 	}
 
-	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+	// properties=propertyClause is required (DorisParser.g4:836).
+	if p.cur.Kind != kwPROPERTIES {
+		return nil, p.syntaxErrorAtCur()
+	}
+	props, err := p.parseProperties()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
+	if len(props) > 0 {
+		endLoc = ast.NodeLoc(props[len(props)-1])
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
@@ -601,4 +617,65 @@ func (p *Parser) parseDropStorage(startLoc ast.Loc) (ast.Node, error) {
 	default:
 		return p.unsupported("DROP STORAGE")
 	}
+}
+
+// parseAlterComputeGroup parses:
+//
+//	ALTER COMPUTE GROUP name [PROPERTIES(...)]
+//
+// (DorisParser.g4:205 #alterComputeGroup). ALTER has been consumed; cur is
+// COMPUTE.
+func (p *Parser) parseAlterComputeGroup(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume COMPUTE
+	if _, err := p.expect(kwGROUP); err != nil {
+		return nil, err
+	}
+	name, nameLoc, err := p.parseIdentifierOrString()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.AlterComputeGroupStmt{Name: name, Loc: startLoc.Merge(nameLoc)}
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseFullProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		if len(props) > 0 {
+			// parseFullProperties consumed PROPERTIES through its closing ')'.
+			stmt.Loc.End = p.prev.Loc.End
+		}
+	}
+	return stmt, nil
+}
+
+// parseAlterColocateGroup parses:
+//
+//	ALTER COLOCATE GROUP name SET (propertyItemList)
+//
+// (DorisParser.g4:574 #alterColocateGroup). ALTER has been consumed; cur is
+// COLOCATE.
+func (p *Parser) parseAlterColocateGroup(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume COLOCATE
+	if _, err := p.expect(kwGROUP); err != nil {
+		return nil, err
+	}
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwSET); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	// The engine takes string properties here: SET(a = a) is refused,
+	// SET('a' = 'a') accepted.
+	props, err := p.parsePropertyItems(p.parseStringProperty)
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.AlterColocateGroupStmt{Name: name, Properties: props, Loc: startLoc.Merge(p.prev.Loc)}
+	return stmt, nil
 }

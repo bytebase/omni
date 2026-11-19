@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	gomysql "github.com/go-sql-driver/mysql"
+
 	"github.com/bytebase/omni/doris/ast"
 	dorisparser "github.com/bytebase/omni/doris/parser"
 	"github.com/bytebase/omni/driver"
@@ -185,8 +187,18 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 	}
 
 	functions, err := d.dumpFunctionSignatures(ctx)
+	var functionsRefused error
 	if err != nil {
-		return nil, err
+		if !routineProbeRefused(ctx, "", err) {
+			return nil, err
+		}
+		// A kernel built without the PL/SQL grammar (SelectDB 4.0.12+, 4.1.8+ and
+		// 5.0.5+, apache/doris#58700) refuses the function catalogue's statement
+		// rather than answering it empty, and so does an account without its
+		// privilege. The dump states the objects it can and leaves the functions
+		// out; a view that calls one is refused below, because a definition that
+		// reads a function the dump does not state does not replay.
+		functions, functionsRefused = nil, err
 	}
 	for _, signature := range functions {
 		// A variadic function's definition does not replay: the catalogue states
@@ -202,7 +214,12 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 
 	procedures, err := d.dumpProcedureNames(ctx)
 	if err != nil {
-		return nil, err
+		// No definition the dump carries calls a procedure, so an omitted
+		// procedure catalogue leaves nothing dangling.
+		if !routineProbeRefused(ctx, "routines", err) {
+			return nil, err
+		}
+		procedures = nil
 	}
 	for _, name := range procedures {
 		objects = append(objects, &dumpObject{kind: dumpProcedure, name: name})
@@ -224,8 +241,17 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 		}
 		o.stmt = stmt
 		if o.kind == dumpView || o.kind == dumpMaterializedView {
-			if o.reads, err = dumpDefinitionReads(stmt, catalog, d.databaseName); err != nil {
+			var calls []string
+			if o.reads, calls, err = dumpDefinitionReads(stmt, catalog, d.databaseName); err != nil {
 				return nil, fmt.Errorf("%s %q: %w", o.kind, o.name, err)
+			}
+			if functionsRefused != nil && len(calls) > 0 {
+				// The server refused the function catalogue, so the dump states
+				// every function it cannot see: this definition would name a
+				// function the script never creates, and the restore would fail
+				// on it. The dump says so here instead of handing back a script
+				// that cannot replay.
+				return nil, fmt.Errorf("%s %q calls function %q, which the server refused to state: %w", o.kind, o.name, calls[0], functionsRefused)
 			}
 		}
 		defined = append(defined, o)
@@ -236,6 +262,76 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 // errNoStatement reports a form the server answers no row for, which a
 // synchronous materialized view's index can be.
 var errNoStatement = errors.New("no statement")
+
+// The client error numbers of the refusals Doris states about a statement that
+// reads a routine catalogue: 1044 is the database, 1142 the object it names and
+// 1227 the operation, all SQLSTATE 42000.
+const (
+	errDatabaseAccessDenied = 1044
+	errObjectAccessDenied   = 1142
+	errOperationDenied      = 1227
+)
+
+// errUnknownError is the number Doris states everything it has no number of its
+// own for with, and it does not distinguish the answers that matter here: a
+// statement its parser refuses and a transient internal error, an overload or a
+// timeout all arrive under it.
+const errUnknownError = 1105
+
+// routineProbeRefused reports whether a routine catalogue probe was refused
+// rather than left unanswered, which is the one case the dump may read as an
+// absent catalogue. Doris states three such refusals, and each is checked
+// against the answer it actually gives:
+//
+//   - the parser refuses a statement the kernel's grammar does not have (a
+//     kernel built without the PL/SQL grammar, apache/doris#58700), as
+//     "errCode = 2, detailMessage = " followed by the parser's message and the
+//     position it refused, under 1105;
+//   - an account without the catalogue's privilege is refused it under 1044,
+//     1142 or 1227;
+//   - the relation the probe reads is not in information_schema, which Doris
+//     states as "Table [<relation>] does not exist in database
+//     [information_schema]" under 1105. relation names it; a probe that reads
+//     no relation passes "".
+//
+// Every other 1105 — an internal error, an overload, a query timeout, a table
+// the probe names and the server cannot find — states nothing about the
+// catalogue, so it fails the dump rather than dropping every routine from it.
+// So does a dead connection or an ended context.
+func routineProbeRefused(ctx context.Context, relation string, err error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	var mysqlErr *gomysql.MySQLError
+	if !errors.As(err, &mysqlErr) {
+		return false
+	}
+	switch mysqlErr.Number {
+	case errDatabaseAccessDenied, errObjectAccessDenied, errOperationDenied:
+		return true
+	case errUnknownError:
+		if relation != "" && strings.Contains(mysqlErr.Message, "Table ["+relation+"] does not exist in database [information_schema]") {
+			return true
+		}
+		return parseRefusal(mysqlErr.Message)
+	default:
+		return false
+	}
+}
+
+// parseRefusal reports whether a 1105 message is Doris's parser refusing the
+// statement: the server's own envelope, "errCode = 2, detailMessage = ", then
+// the parser's message and the position it stopped at, as in
+// "errCode = 2, detailMessage = \nno viable alternative at input 'SHOW FULL
+// FUNCTIONS'(line 1, pos 10)". No other 1105 carries a position, so no failure
+// to answer is read as a refusal.
+func parseRefusal(message string) bool {
+	_, detail, ok := strings.Cut(message, "detailMessage = ")
+	if !ok {
+		return false
+	}
+	return strings.Contains(detail, "(line ") && strings.Contains(detail, ", pos ")
+}
 
 // dumpMaterializedViewNames returns the set of the database's materialized
 // views.
@@ -420,16 +516,19 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name, table string) (s
 }
 
 // dumpDefinitionReads returns the objects in database that a view's or a
-// materialized view's definition reads. The definition is the server's own
-// rendering, so every reference is qualified with its catalog and database and
-// the parser sees the statement the server stored.
-func dumpDefinitionReads(stmt, catalog, database string) ([]string, error) {
+// materialized view's definition reads, and the database's functions it calls.
+// The definition is the server's own rendering, so every reference is qualified
+// with its catalog and database and the parser sees the statement the server
+// stored. SHOW CREATE states a database-scoped function's call with the
+// database's name and a built-in's bare (abs(x)), so a qualified call names a
+// function the dump has to create before the definition replays.
+func dumpDefinitionReads(stmt, catalog, database string) ([]string, []string, error) {
 	file, err := dorisparser.Parse(stmt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(file.Stmts) != 1 {
-		return nil, fmt.Errorf("%d statements, want one", len(file.Stmts))
+		return nil, nil, fmt.Errorf("%d statements, want one", len(file.Stmts))
 	}
 	var query ast.Node
 	switch s := file.Stmts[0].(type) {
@@ -438,9 +537,9 @@ func dumpDefinitionReads(stmt, catalog, database string) ([]string, error) {
 	case *ast.CreateMTMVStmt:
 		query = s.Query
 	default:
-		return nil, fmt.Errorf("%T is not a view or materialized view definition", file.Stmts[0])
+		return nil, nil, fmt.Errorf("%T is not a view or materialized view definition", file.Stmts[0])
 	}
-	var reads []string
+	var reads, calls []string
 	var collect func(node ast.Node)
 	collect = func(node ast.Node) {
 		ast.Inspect(node, func(n ast.Node) bool {
@@ -451,6 +550,12 @@ func dumpDefinitionReads(stmt, catalog, database string) ([]string, error) {
 				if n.Func == nil {
 					if name := dumpReferencedName(n.Name, catalog, database); name != "" {
 						reads = append(reads, name)
+					}
+				}
+			case *ast.FuncCallExpr:
+				if n.Name != nil {
+					if name := dumpReferencedName(n.Name, catalog, database); name != "" {
+						calls = append(calls, name)
 					}
 				}
 			case *ast.SubqueryExpr:
@@ -464,7 +569,7 @@ func dumpDefinitionReads(stmt, catalog, database string) ([]string, error) {
 		})
 	}
 	collect(query)
-	return reads, nil
+	return reads, calls, nil
 }
 
 // dumpReferencedName returns the object a table reference names when it is in

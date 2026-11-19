@@ -10,13 +10,13 @@ import (
 // rejects, in outer-statement coordinates, and keep accepting valid shapes.
 func TestStrictParseValidatesRawQueryBodies(t *testing.T) {
 	for _, c := range []struct{ sql, at string }{
-		{"SELECT (SELECT 1 */ 2 FROM secret) FROM public", "*/"},
+		{"SELECT (SELECT 1 */ 2 FROM secret) FROM public", "2"},
 		{"SELECT (SELECT 1 FROM t WHERE x = ) FROM u", " ) FROM"},
 		{"SELECT EXISTS () FROM public", ")"},
 		{"SELECT EXISTS (/* c */) FROM public", ")"},
 		{"SELECT EXISTS (DELETE FROM secret) FROM public", "DELETE"},
 		{"SELECT a FROM t WHERE b IN (SELECT (SELECT 1 FROM v 1 2) FROM u)", "1 2"},
-		{"CREATE TABLE dest AS SELECT 1 */ 2 FROM secret", "*/"},
+		{"CREATE TABLE dest AS SELECT 1 */ 2 FROM secret", "2"},
 	} {
 		file, errs := parseForTest(c.sql)
 		if len(errs) == 0 {

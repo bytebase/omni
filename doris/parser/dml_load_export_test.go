@@ -658,3 +658,23 @@ func TestT6NodeTags(t *testing.T) {
 		t.Errorf("ExportStmt tag = %v", export.Tag())
 	}
 }
+
+func TestTruncateCommonHint(t *testing.T) {
+	for _, sql := range []string{
+		"TRUNCATE TABLE `/*+ 1 */`",
+		"TRUNCATE TABLE a /*+ x, y */",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
+		}
+	}
+	for _, sql := range []string{
+		"TRUNCATE TABLE a /*+ 1 */",
+		"TRUNCATE TABLE a /*+ x y */",
+		"TRUNCATE TABLE a /*+ x",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) accepted, want a hint syntax error", sql)
+		}
+	}
+}
