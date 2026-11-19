@@ -287,7 +287,7 @@ func (p *Parser) parseLockingClause(stmt *nodes.SelectStmt) error {
 // last operand have moved to the set operation by now, and a parenthesized query has
 // read none of its own yet.
 func operandEndsInClauses(sel *nodes.SelectStmt) bool {
-	return len(sel.OrderBy) > 0 || sel.Limit != nil || sel.ForUpdate != nil
+	return len(sel.OrderBy) > 0 || sel.Limit != nil || sel.Approx || len(sel.VectorIndexParams) > 0 || sel.ForUpdate != nil
 }
 
 // parseQueryStatement parses a query expression where the grammar reads
@@ -427,6 +427,14 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		var forUpdate *nodes.ForUpdate
 		var into *nodes.IntoClause
 		if right.ParenSource == nil {
+			// select_clause_set_body is simple_select (without order_by/limit) and
+			// select_clause_set_with_order_and_limit has neither opt_approx nor
+			// opt_with_vector_index_parameters (sql_parser_mysql_mode.y,
+			// v4.3.5_CE_BP6, lines 11611-11671), so an unparenthesized set
+			// operation cannot carry APPROX or PARAMETERS.
+			if right.Approx || len(right.VectorIndexParams) > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 			orderBy, right.OrderBy = right.OrderBy, nil
 			limit, right.Limit = right.Limit, nil
 			forUpdate, right.ForUpdate = right.ForUpdate, nil

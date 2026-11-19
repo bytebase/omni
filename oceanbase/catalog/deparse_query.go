@@ -211,7 +211,7 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *deparseScope) {
 		}
 		b.WriteString(backtickIDQ(rte.TableName))
 		if rte.Dblink != "" {
-			b.WriteString(rte.Dblink)
+			b.WriteString(formatDblinkQ(rte.Dblink))
 		}
 		if rte.Alias != "" && rte.Alias != rte.TableName {
 			b.WriteString(" as ")
@@ -373,4 +373,30 @@ func deparseSetOpQuery(b *strings.Builder, setOp *Query, outer *deparseScope) {
 // backtickIDQ wraps an identifier in backticks.
 func backtickIDQ(name string) string {
 	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+}
+
+// formatDblinkQ formats a `@link` qualifier so any non-identifier link name is
+// quoted as a valid user variable.
+func formatDblinkQ(s string) string {
+	if s == "" || !strings.HasPrefix(s, "@") {
+		return s
+	}
+	rest := s[1:]
+	if len(rest) >= 2 && ((rest[0] == '\'' && rest[len(rest)-1] == '\'') ||
+		(rest[0] == '"' && rest[len(rest)-1] == '"') ||
+		(rest[0] == '`' && rest[len(rest)-1] == '`')) {
+		return s
+	}
+	for i := 0; i < len(rest); i++ {
+		c := rest[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$' || c == '.') {
+			escaped := strings.ReplaceAll(rest, `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+			return "@'" + escaped + "'"
+		}
+	}
+	if rest == "" {
+		return "@''"
+	}
+	return s
 }

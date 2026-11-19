@@ -575,10 +575,15 @@ func writeSetOperation(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias b
 		}
 	}
 
+	if stmt.Approx {
+		b.WriteString(" approx")
+	}
+
 	// LIMIT clause (applies to the entire set operation)
 	if stmt.Limit != nil {
 		writeLimit(b, stmt.Limit)
 	}
+	writeVectorIndexParams(b, stmt)
 
 	writeQueryTail(b, stmt)
 }
@@ -639,7 +644,10 @@ func writeCTEs(b *strings.Builder, ctes []*ast.CommonTableExpr) {
 // Used for subquery contexts (IN, EXISTS) where MySQL omits aliases.
 func writeResTargetNoAlias(b *strings.Builder, node ast.ExprNode) {
 	if rt, ok := node.(*ast.ResTarget); ok {
-		writeExpr(b, rt.Val)
+		node = rt.Val
+	}
+	if _, isStar := node.(*ast.StarExpr); isStar {
+		b.WriteByte('*')
 		return
 	}
 	writeExpr(b, node)
@@ -660,6 +668,15 @@ func writeResTarget(b *strings.Builder, node ast.ExprNode, position int) {
 		explicitAlias = rt.Name
 	} else {
 		expr = node
+	}
+
+	if _, isStar := expr.(*ast.StarExpr); isStar {
+		b.WriteByte('*')
+		return
+	}
+	if col, isCol := expr.(*ast.ColumnRef); isCol && col.Star {
+		b.WriteString(deparseColumnRef(col))
+		return
 	}
 
 	exprStart := b.Len()
@@ -1118,9 +1135,14 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(")")
 	case *ast.GroupingSet:
 		writeGroupingSet(b, n)
+	case *ast.QuantifiedExpr:
+		b.WriteString(strings.ToUpper(n.Quantifier))
+		b.WriteString(" (")
+		writeExprAlias(b, n.Expr)
+		b.WriteString(")")
 	case *ast.RemoteSequenceExpr:
 		b.WriteString(deparseColumnRef(n.Ref))
-		b.WriteString(n.Dblink)
+		b.WriteString(formatDblink(n.Dblink))
 	case *ast.OdbcEscapeExpr:
 		b.WriteString("{")
 		b.WriteString(quoteIdent(n.Name))
@@ -1720,7 +1742,7 @@ func deparseTableRef(t *ast.TableRef) string {
 	}
 	b.WriteString(quoteIdent(t.Name))
 	if t.Dblink != "" {
-		b.WriteString(t.Dblink)
+		b.WriteString(formatDblink(t.Dblink))
 	}
 	switch {
 	case len(t.Partitions) > 0:
@@ -1855,9 +1877,18 @@ func writeExpr(b *strings.Builder, node ast.ExprNode) {
 		writeRowExpr(b, n)
 	case *ast.GroupingSet:
 		writeGroupingSet(b, n)
+	case *ast.QuantifiedExpr:
+		word := "any"
+		if strings.EqualFold(n.Quantifier, "ALL") {
+			word = "all"
+		}
+		b.WriteString(word)
+		b.WriteString(" (")
+		writeExpr(b, n.Expr)
+		b.WriteString(")")
 	case *ast.RemoteSequenceExpr:
 		b.WriteString(deparseColumnRef(n.Ref))
-		b.WriteString(n.Dblink)
+		b.WriteString(formatDblink(n.Dblink))
 	case *ast.OdbcEscapeExpr:
 		b.WriteString("{")
 		b.WriteString(quoteIdent(n.Name))
@@ -2041,21 +2072,51 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 	b.WriteString(")")
 }
 
-func deparseColumnRef(n *ast.ColumnRef) string {
-	if n.Catalog != "" {
-		last := quoteIdent(n.Column)
-		if n.Star {
-			last = "*"
+// formatDblink returns a `@link` qualifier in parseable user-variable syntax.
+// Parsed qualifiers already keep their original quotes via variableRefText; a
+// synthetically constructed `@a/b` whose name is not a bare user-variable
+// identifier is single-quoted so the output can be parsed back.
+func formatDblink(s string) string {
+	if s == "" || !strings.HasPrefix(s, "@") {
+		return s
+	}
+	rest := s[1:]
+	if len(rest) >= 2 && ((rest[0] == '\'' && rest[len(rest)-1] == '\'') ||
+		(rest[0] == '"' && rest[len(rest)-1] == '"') ||
+		(rest[0] == '`' && rest[len(rest)-1] == '`')) {
+		return s
+	}
+	if rest != "" && isBareUserVarIdent(rest) {
+		return s
+	}
+	return "@" + quoteStringValue(rest)
+}
+
+func isBareUserVarIdent(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$' || c == '.') {
+			return false
 		}
+	}
+	return true
+}
+
+func deparseColumnRef(n *ast.ColumnRef) string {
+	last := quoteIdent(n.Column)
+	if n.Star {
+		last = "*"
+	}
+	if n.Catalog != "" {
 		return quoteIdent(n.Catalog) + "." + quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + last
 	}
 	if n.Schema != "" {
-		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + quoteIdent(n.Column)
+		return quoteIdent(n.Schema) + "." + quoteIdent(n.Table) + "." + last
 	}
 	if n.Table != "" {
-		return quoteIdent(n.Table) + "." + quoteIdent(n.Column)
+		return quoteIdent(n.Table) + "." + last
 	}
-	return quoteIdent(n.Column)
+	return last
 }
 
 func binaryOpToString(op ast.BinaryOp) string {

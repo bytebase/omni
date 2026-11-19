@@ -53,7 +53,7 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 	// database qualifier (TableRef.Schema). Unqualified names record nothing (request-database
 	// fallback). The object's own qualifier is used — never an ON-table reference.
 	addObjectDatabase := func(ref *ast.TableRef) {
-		if ref != nil && ref.Schema != "" {
+		if ref != nil && ref.Schema != "" && ref.Catalog == "" && ref.Dblink == "" {
 			changes.Resources = append(changes.Resources, ChangedResource{Database: ref.Schema, DatabaseOnly: true})
 		}
 	}

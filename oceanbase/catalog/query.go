@@ -1089,6 +1089,17 @@ func (*GroupingSetExprQ) analyzedExprTag()          {}
 func (g *GroupingSetExprQ) exprType() *ResolvedType { return nil }
 func (*GroupingSetExprQ) exprCollation() string     { return "" }
 
+// QuantifiedExprQ is any_expr's parenthesized-expression arm: the right side
+// of `expr comp_op {ANY|SOME|ALL} (expr)`.
+type QuantifiedExprQ struct {
+	Quantifier string // "ANY", "SOME" or "ALL"
+	Arg        AnalyzedExpr
+}
+
+func (*QuantifiedExprQ) analyzedExprTag()        {}
+func (*QuantifiedExprQ) exprType() *ResolvedType { return nil }
+func (*QuantifiedExprQ) exprCollation() string   { return "" }
+
 // OdbcEscapeExprQ is an ODBC escape (`{fn ABS(a)}`, `{d '2026-01-01'}`): the
 // word that says how its expression is read, and the analyzed expression.
 type OdbcEscapeExprQ struct {

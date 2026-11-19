@@ -85,3 +85,54 @@ func TestResolverStarThroughDerivedSource(t *testing.T) {
 		t.Errorf("target = %T, want the qualified star kept", resolved.TargetList[0])
 	}
 }
+
+func TestResolverRemoteTableAndNaturalFullUnknownColumns(t *testing.T) {
+	localOrders := &ResolverTable{
+		Name: "orders",
+		Columns: []ResolverColumn{
+			{Name: "id", Position: 1},
+			{Name: "secret", Position: 2},
+		},
+	}
+	lookup := func(name string) *ResolverTable {
+		if name == "orders" {
+			return localOrders
+		}
+		return nil
+	}
+
+	// Remote/catalog-qualified tables must never expand `*` using a same-named local table.
+	for _, sql := range []string{
+		"SELECT * FROM orders@remote",
+		"SELECT * FROM ext_catalog.db.orders",
+	} {
+		list, err := parser.Parse(sql)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", sql, err)
+		}
+		sel := list.Items[0].(*ast.SelectStmt)
+		resolver := &Resolver{Lookup: lookup}
+		resolved := resolver.Resolve(sel)
+		if len(resolved.TargetList) != 1 {
+			t.Fatalf("%s: got %d targets, want unexpanded *", sql, len(resolved.TargetList))
+		}
+		if _, ok := resolved.TargetList[0].(*ast.StarExpr); !ok {
+			t.Errorf("%s: target = %T, want *ast.StarExpr", sql, resolved.TargetList[0])
+		}
+	}
+
+	// NATURAL FULL JOIN with unknown-column input keeps JoinNaturalFull so deparse stays valid SQL.
+	const natFullSQL = "SELECT * FROM SOURCE(TYPE = 's') AS s NATURAL FULL JOIN orders"
+	list, err := parser.Parse(natFullSQL)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*ast.SelectStmt)
+	resolver := &Resolver{Lookup: lookup}
+	resolver.Resolve(sel)
+	RewriteSelectStmt(sel)
+	out := DeparseSelect(sel)
+	if _, err := parser.Parse(out); err != nil {
+		t.Fatalf("DeparseSelect(%q) produced unparseable SQL %q: %v", natFullSQL, out, err)
+	}
+}

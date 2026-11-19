@@ -223,6 +223,8 @@ func TestResolveQuerySpanTableFunctions(t *testing.T) {
 		"SELECT * FROM RB_ITERATE(t1.a)",
 		// A format value may read a table.
 		"SELECT a FROM 's'(FORMAT(FIELD_DELIMITER = (SELECT a FROM t1)))",
+		// Remote DUAL over a database link is a remote relation, not local 0-column DUAL.
+		"SELECT r.x FROM `dual`@remote_link AS r",
 		"FOR COLUMNS",
 	} {
 		if _, err := resolve(t, statement); err != nil {

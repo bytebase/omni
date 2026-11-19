@@ -60,8 +60,13 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
 	case *nodes.QuantifiedExpr:
-		// any_expr's `ALL (expr)` / `ANY (expr)` holds one expression of its own.
-		return analyzeExpr(c, n.Expr, scope)
+		// any_expr's `ALL (expr)` / `ANY (expr)` keeps its quantifier around the
+		// analyzed expression so `a = ANY(b)` does not collapse to `a = b`.
+		arg, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &QuantifiedExprQ{Quantifier: strings.ToUpper(n.Quantifier), Arg: arg}, nil
 	case *nodes.OdbcEscapeExpr:
 		// The escape's word says how its expression is read (`{d '2026-01-01'}`
 		// is a date), and its expression is analyzed like any other, so a column

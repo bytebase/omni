@@ -592,6 +592,9 @@ type DatabaseOption struct {
 	Loc   Loc
 	Name  string
 	Value string
+	// IsNull marks an option written with the keyword NULL, such as
+	// `TABLEGROUP = NULL`, as opposed to a quoted identifier named `NULL`.
+	IsNull bool
 }
 
 func (o *DatabaseOption) nodeTag() {}

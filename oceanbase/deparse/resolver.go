@@ -276,6 +276,17 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 	defer sc.span(tbl, len(sc.tables))
 	switch t := tbl.(type) {
 	case *ast.TableRef:
+		// A catalog-qualified or database-link table is external to the local
+		// database: never resolve it against local tables, and leave its columns
+		// unexpanded.
+		if t.Catalog != "" || t.Dblink != "" {
+			effectiveName := t.Name
+			if t.Alias != "" {
+				effectiveName = t.Alias
+			}
+			sc.unknownColumns[strings.ToLower(effectiveName)] = true
+			return
+		}
 		table := r.Lookup(t.Name)
 		if table == nil {
 			return
@@ -493,6 +504,17 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *fromScope) ast.ExprNode {
 	case *ast.ParenExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		return n
+	case *ast.QuantifiedExpr:
+		n.Expr = r.resolveExpr(n.Expr, sc)
+		return n
+	case *ast.OdbcEscapeExpr:
+		n.Expr = r.resolveExpr(n.Expr, sc)
+		return n
+	case *ast.GroupingSet:
+		for i, item := range n.Items {
+			n.Items[i] = r.resolveExpr(item, sc)
+		}
+		return n
 	case *ast.InExpr:
 		n.Expr = r.resolveExpr(n.Expr, sc)
 		for i, item := range n.List {
@@ -705,7 +727,9 @@ func (r *Resolver) expandNaturalJoin(j *ast.JoinClause, sc *fromScope) {
 	case ast.JoinNaturalRight:
 		j.Type = ast.JoinRight
 	case ast.JoinNaturalFull:
-		j.Type = ast.JoinFull
+		if j.Condition != nil {
+			j.Type = ast.JoinFull
+		}
 	}
 }
 
@@ -797,6 +821,14 @@ func (r *Resolver) resolveCastCharsets(node ast.ExprNode) {
 		r.resolveCastCharsets(n.Operand)
 	case *ast.ParenExpr:
 		r.resolveCastCharsets(n.Expr)
+	case *ast.QuantifiedExpr:
+		r.resolveCastCharsets(n.Expr)
+	case *ast.OdbcEscapeExpr:
+		r.resolveCastCharsets(n.Expr)
+	case *ast.GroupingSet:
+		for _, item := range n.Items {
+			r.resolveCastCharsets(item)
+		}
 	case *ast.FuncCallExpr:
 		for _, arg := range n.Args {
 			r.resolveCastCharsets(arg)

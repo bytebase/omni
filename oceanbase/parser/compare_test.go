@@ -12705,3 +12705,60 @@ func TestBlockCommentDoesNotHidePredicate(t *testing.T) {
 		t.Errorf("expected top-level WHERE operator OR, got %v", where.Op)
 	}
 }
+
+func TestTailReviewParserAndOutfuncs(t *testing.T) {
+	// TABLEGROUP = NULL vs quoted identifier `NULL` must remain distinct.
+	nullOpt := ast.NodeToString(ParseAndCheck(t, "ALTER DATABASE d TABLEGROUP = NULL").Items[0])
+	identOpt := ast.NodeToString(ParseAndCheck(t, "ALTER DATABASE d TABLEGROUP = `NULL`").Items[0])
+	if nullOpt == identOpt {
+		t.Fatalf("TABLEGROUP = NULL and TABLEGROUP = `NULL` serialized identically: %s", nullOpt)
+	}
+	if !strings.Contains(nullOpt, ":is_null true") {
+		t.Errorf("expected :is_null true in %s", nullOpt)
+	}
+	if !strings.Contains(identOpt, ":val NULL") {
+		t.Errorf("expected :val NULL in %s", identOpt)
+	}
+
+	// QuantifiedExpr serialization distinguishes ANY vs ALL and includes the inner expr.
+	anyExpr := ast.NodeToString(ParseAndCheck(t, "SELECT a = ANY(b)").Items[0])
+	allExpr := ast.NodeToString(ParseAndCheck(t, "SELECT a = ALL(b)").Items[0])
+	if anyExpr == allExpr || !strings.Contains(anyExpr, "{QUANTIFIED") || !strings.Contains(allExpr, ":quantifier ALL") {
+		t.Errorf("unexpected QuantifiedExpr serialization:\n  any=%s\n  all=%s", anyExpr, allExpr)
+	}
+
+	// IntoClause serialization emits PartitionBy, ExternalFormat and FileOptions.
+	intoOut := ast.NodeToString(ParseAndCheck(t, "SELECT a FROM t INTO OUTFILE 'x' PARTITION BY a FORMAT(TYPE = 'CSV') SINGLE = TRUE MAX_FILE_SIZE = '10M'").Items[0])
+	for _, want := range []string{":partition_by", ":external_format", ":file_options", `:val "10M"`} {
+		if !strings.Contains(intoOut, want) {
+			t.Errorf("IntoClause NodeToString missing %q: %s", want, intoOut)
+		}
+	}
+
+	// HandlerReadStmt serialization emits comparison operator and key tuple values.
+	hrGe := ast.NodeToString(ParseAndCheck(t, "HANDLER t READ idx >= (1, 2)").Items[0])
+	hrEq := ast.NodeToString(ParseAndCheck(t, "HANDLER t READ idx = (1, 2)").Items[0])
+	if hrGe == hrEq || !strings.Contains(hrGe, ":operator >=") || !strings.Contains(hrGe, ":values (") {
+		t.Errorf("unexpected HandlerReadStmt serialization:\n  ge=%s\n  eq=%s", hrGe, hrEq)
+	}
+
+	// SelectStmt vector search fields and FuncCallExpr window modifiers serialize.
+	vecOut := ast.NodeToString(ParseAndCheck(t, "SELECT a FROM t ORDER BY a APPROX LIMIT 1 PARAMETERS(ef_search = 10)").Items[0])
+	if !strings.Contains(vecOut, ":approx true") || !strings.Contains(vecOut, ":vector_index_params") {
+		t.Errorf("SelectStmt vector fields missing from NodeToString: %s", vecOut)
+	}
+	winOut := ast.NodeToString(ParseAndCheck(t, "SELECT NTH_VALUE(a, 2) FROM LAST IGNORE NULLS OVER ()").Items[0])
+	if !strings.Contains(winOut, ":from_first_last LAST") || !strings.Contains(winOut, ":null_treatment IGNORE") {
+		t.Errorf("FuncCallExpr window modifiers missing from NodeToString: %s", winOut)
+	}
+
+	// Set operations reject APPROX and PARAMETERS (sql_parser_mysql_mode.y:11611-11671).
+	ParseExpectError(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY a APPROX LIMIT 1")
+	ParseExpectError(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY a APPROX LIMIT 1 PARAMETERS(a = 1)")
+
+	// Window null treatment placement: in-argument only after arg 1, never twice.
+	ParseAndCheck(t, "SELECT LEAD(a IGNORE NULLS, 2) OVER ()")
+	ParseAndCheck(t, "SELECT LEAD(a, 2) IGNORE NULLS OVER ()")
+	ParseExpectError(t, "SELECT LEAD(a, 2 IGNORE NULLS) OVER ()")
+	ParseExpectError(t, "SELECT FIRST_VALUE(a IGNORE NULLS) RESPECT NULLS OVER ()")
+}

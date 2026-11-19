@@ -89,3 +89,19 @@ var nestedQuantifiedShapes = []string{
 	"abs(a > ALL (SELECT 1))",
 	"CASE WHEN a > ALL (SELECT 1) THEN 1 ELSE (a > ANY (SELECT 1)) + 1 END",
 }
+
+func TestQuantifiedExprDeparse(t *testing.T) {
+	for _, c := range []struct{ input, want string }{
+		{"a = ANY(b)", "(`a` = any (`b`))"},
+		{"a = SOME(b)", "(`a` = any (`b`))"},
+		{"a = ALL(b)", "(`a` = all (`b`))"},
+		{"NOT (a = ANY(b))", "(not((`a` = any (`b`))))"},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			got := Deparse(RewriteExpr(parseExpr(t, c.input)))
+			if got != c.want {
+				t.Errorf("Deparse(RewriteExpr(%q)) = %q, want %q", c.input, got, c.want)
+			}
+		})
+	}
+}

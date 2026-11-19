@@ -179,7 +179,7 @@ func analyzeTableExpr(c *Catalog, te nodes.TableExpr, q *Query, scope *analyzerS
 		if err != nil {
 			return nil, err
 		}
-		if viewNamesUncertain(c, ref) {
+		if !remote && viewNamesUncertain(c, ref) {
 			scope.namesUncertain = true
 		}
 		idx := len(q.RangeTable)
@@ -780,11 +780,37 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 				return true
 			}
 		}
+	case *QuantifiedExprQ:
+		return exprContainsAggregate(e.Arg)
 	case *OdbcEscapeExprQ:
 		return exprContainsAggregate(e.Arg)
 	case *GroupingSetExprQ:
 		for _, item := range e.Args {
 			if exprContainsAggregate(item) {
+				return true
+			}
+		}
+	case *CaseExprQ:
+		if exprContainsAggregate(e.TestExpr) {
+			return true
+		}
+		for _, w := range e.Args {
+			if exprContainsAggregate(w.Cond) || exprContainsAggregate(w.Then) {
+				return true
+			}
+		}
+		return exprContainsAggregate(e.Default)
+	case *CoalesceExprQ:
+		for _, arg := range e.Args {
+			if exprContainsAggregate(arg) {
+				return true
+			}
+		}
+	case *CastExprQ:
+		return exprContainsAggregate(e.Arg)
+	case *RowExprQ:
+		for _, arg := range e.Args {
+			if exprContainsAggregate(arg) {
 				return true
 			}
 		}
@@ -1212,6 +1238,14 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 			}
 		}
 	}
+	q.Approx = stmt.Approx
+	for _, param := range stmt.VectorIndexParams {
+		q.VectorIndexParams = append(q.VectorIndexParams, &VectorIndexParamQ{
+			Name:   param.Name,
+			Value:  param.Value,
+			IsName: param.IsName,
+		})
+	}
 
 	return q, nil
 }
@@ -1247,7 +1281,7 @@ func (c *Catalog) analyzeParenthesized(stmt *nodes.SelectStmt, parentScope *anal
 	if err != nil {
 		return nil, err
 	}
-	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil {
+	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil && !stmt.Approx && len(stmt.VectorIndexParams) == 0 {
 		return inner, nil
 	}
 	outer := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}

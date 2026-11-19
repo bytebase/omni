@@ -65,6 +65,14 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		n.Expr = rewriteExpr(n.Expr)
 		return n
 
+	case *ast.QuantifiedExpr:
+		n.Expr = rewriteExpr(n.Expr)
+		return n
+
+	case *ast.OdbcEscapeExpr:
+		n.Expr = rewriteExpr(n.Expr)
+		return n
+
 	case *ast.InExpr:
 		n.Expr = rewriteExpr(n.Expr)
 		for i, item := range n.List {
@@ -373,6 +381,9 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 	// differs from a, where the original holds only when every row does.
 	if binExpr, ok := unwrapParen(operand).(*ast.BinaryExpr); ok {
 		if sub, ok := binExpr.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" {
+			return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
+		}
+		if _, ok := binExpr.Right.(*ast.QuantifiedExpr); ok {
 			return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
 		}
 	}

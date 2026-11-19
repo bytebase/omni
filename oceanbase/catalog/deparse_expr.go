@@ -54,6 +54,15 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeRowExprQ(b, e, q)
 	case *GroupingSetExprQ:
 		writeGroupingSetExprQ(b, e, q)
+	case *QuantifiedExprQ:
+		word := "any"
+		if strings.EqualFold(e.Quantifier, "ALL") {
+			word = "all"
+		}
+		b.WriteString(word)
+		b.WriteString(" (")
+		writeAnalyzedExpr(b, e.Arg, q)
+		b.WriteString(")")
 	case *OdbcEscapeExprQ:
 		b.WriteString("{")
 		b.WriteString(backtickIDQ(e.Name))

@@ -232,6 +232,11 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, " :loc %d :dblink %q :ref ", n.Loc.Start, n.Dblink)
 		writeNode(sb, n.Ref)
 		sb.WriteString("}")
+	case *QuantifiedExpr:
+		sb.WriteString("{QUANTIFIED")
+		fmt.Fprintf(sb, " :loc %d :quantifier %s :expr ", n.Loc.Start, n.Quantifier)
+		writeNode(sb, n.Expr)
+		sb.WriteString("}")
 	case *OdbcEscapeExpr:
 		sb.WriteString("{ODBC_ESCAPE")
 		fmt.Fprintf(sb, " :loc %d :name %s :expr ", n.Loc.Start, n.Name)
@@ -401,7 +406,23 @@ func writeNode(sb *strings.Builder, node Node) {
 			fmt.Fprintf(sb, "{TABLE_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
 		}
 	case *DatabaseOption:
-		fmt.Fprintf(sb, "{DB_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
+		if n.IsNull {
+			fmt.Fprintf(sb, "{DB_OPT :loc %d :name %s :is_null true}", n.Loc.Start, n.Name)
+		} else {
+			fmt.Fprintf(sb, "{DB_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
+		}
+	case *VectorIndexParam:
+		if n.IsName {
+			fmt.Fprintf(sb, "{VEC_PARAM :loc %d :name %s :val %s :is_name true}", n.Loc.Start, n.Name, n.Value)
+		} else {
+			fmt.Fprintf(sb, "{VEC_PARAM :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
+		}
+	case *FileOption:
+		if n.ValueIsString {
+			fmt.Fprintf(sb, "{FILE_OPT :loc %d :name %s :val %q}", n.Loc.Start, n.Name, n.Value)
+		} else {
+			fmt.Fprintf(sb, "{FILE_OPT :loc %d :name %s :val %s}", n.Loc.Start, n.Name, n.Value)
+		}
 	case *PartitionClause:
 		writePartitionClause(sb, n)
 	case *PartitionDef:
@@ -712,9 +733,22 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 			sb.WriteString(" :order_by_with_rollup true")
 		}
 	}
+	if n.Approx {
+		sb.WriteString(" :approx true")
+	}
 	if n.Limit != nil {
 		sb.WriteString(" :limit ")
 		writeNode(sb, n.Limit)
+	}
+	if len(n.VectorIndexParams) > 0 {
+		sb.WriteString(" :vector_index_params (")
+		for i, param := range n.VectorIndexParams {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, param)
+		}
+		sb.WriteString(")")
 	}
 	if n.ForUpdate != nil {
 		sb.WriteString(" :for_update ")
@@ -2706,6 +2740,12 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :order_by ")
 		writeOrderByList(sb, n.OrderBy)
 	}
+	if n.FromFirstLast != "" {
+		fmt.Fprintf(sb, " :from_first_last %s", n.FromFirstLast)
+	}
+	if n.NullTreatment != "" {
+		fmt.Fprintf(sb, " :null_treatment %s", n.NullTreatment)
+	}
 	if n.Over != nil {
 		sb.WriteString(" :over ")
 		writeNode(sb, n.Over)
@@ -3839,6 +3879,30 @@ func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 			fmt.Fprintf(sb, " :encryption_key %q", n.EncryptionKey)
 		}
 	}
+	if n.PartitionBy != nil {
+		sb.WriteString(" :partition_by ")
+		writeNode(sb, n.PartitionBy)
+	}
+	if len(n.ExternalFormat) > 0 {
+		sb.WriteString(" :external_format (")
+		for i, prop := range n.ExternalFormat {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, prop)
+		}
+		sb.WriteString(")")
+	}
+	if len(n.FileOptions) > 0 {
+		sb.WriteString(" :file_options (")
+		for i, opt := range n.FileOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+		sb.WriteString(")")
+	}
 	if len(n.Vars) > 0 {
 		sb.WriteString(" :vars ")
 		for i, v := range n.Vars {
@@ -4404,6 +4468,14 @@ func writeHandlerReadStmt(sb *strings.Builder, n *HandlerReadStmt) {
 	}
 	if n.Index != "" {
 		fmt.Fprintf(sb, " :index %s", n.Index)
+	}
+	if n.Operator != "" {
+		fmt.Fprintf(sb, " :operator %s", n.Operator)
+	}
+	if len(n.Values) > 0 {
+		sb.WriteString(" :values (")
+		writeExprNodeList(sb, n.Values)
+		sb.WriteString(")")
 	}
 	if n.Where != nil {
 		sb.WriteString(" :where ")

@@ -166,8 +166,14 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATDropColumn:
 		return c.alterDropColumn(tbl, cmd)
 	case nodes.ATModifyColumn:
+		if alterCarriesColumnID(cmd) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "a column id cannot be altered"}
+		}
 		return c.alterModifyColumn(tbl, cmd)
 	case nodes.ATChangeColumn:
+		if alterCarriesColumnID(cmd) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "a column id cannot be altered"}
+		}
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
 		return c.alterAddConstraint(tbl, cmd)
@@ -175,7 +181,8 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
 		// alter_constraint_option's list form, DROP CHECK (c1, c2) and
-		// DROP CONSTRAINT (c1, c2), drops every name it writes.
+		// DROP CONSTRAINT (c1, c2), drops every check constraint it writes
+		// (sql_parser_mysql_mode.y:19456-19469).
 		if len(cmd.ConstraintNames) > 0 {
 			// The list is one command, whose failure leaves the table as it was:
 			// every name is looked up before any of them is dropped.
@@ -185,8 +192,8 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 				seen := map[string]bool{}
 				for _, name := range cmd.ConstraintNames {
 					key := toLower(name)
-					if !tableHasConstraint(tbl, name) || seen[key] {
-						// Both list forms answer 3821 for a name no constraint has.
+					if !tableHasCheckConstraint(tbl, name) || seen[key] {
+						// Both list forms answer 3821 for a name no check constraint has.
 						return errCheckConstraintNotFound(name)
 					}
 					seen[key] = true
@@ -194,10 +201,11 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 			}
 			for _, name := range cmd.ConstraintNames {
 				if err := c.alterDropConstraint(tbl, &nodes.AlterTableCmd{
-					Loc:      cmd.Loc,
-					Type:     cmd.Type,
-					Name:     name,
-					IfExists: cmd.IfExists,
+					Loc:               cmd.Loc,
+					Type:              cmd.Type,
+					ConstraintKeyword: nodes.ConstraintKeywordCheck,
+					Name:              name,
+					IfExists:          cmd.IfExists,
 				}); err != nil {
 					return err
 				}
@@ -304,11 +312,11 @@ func tableHasIndex(tbl *Table, name string) bool {
 	return false
 }
 
-// tableHasConstraint reports whether the table holds a constraint of that name.
-func tableHasConstraint(tbl *Table, name string) bool {
+// tableHasCheckConstraint reports whether the table holds a CHECK constraint of that name.
+func tableHasCheckConstraint(tbl *Table, name string) bool {
 	key := toLower(name)
 	for _, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
+		if con.Type == ConCheck && toLower(con.Name) == key {
 			return true
 		}
 	}

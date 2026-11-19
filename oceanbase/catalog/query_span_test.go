@@ -95,6 +95,14 @@ func collectVarExprs(q *Query, expr AnalyzedExpr, out *[]columnLineage) {
 		for _, arg := range e.Args {
 			collectVarExprs(q, arg, out)
 		}
+	case *QuantifiedExprQ:
+		collectVarExprs(q, e.Arg, out)
+	case *OdbcEscapeExprQ:
+		collectVarExprs(q, e.Arg, out)
+	case *GroupingSetExprQ:
+		for _, arg := range e.Args {
+			collectVarExprs(q, arg, out)
+		}
 	}
 }
 
@@ -365,4 +373,59 @@ func TestLineage_14_8_ViewInJoin(t *testing.T) {
 		{Name: "name", SourceCols: []columnLineage{{DB: "testdb", Table: "employees", Column: "name"}}},
 		{Name: "budget", SourceCols: []columnLineage{{DB: "testdb", Table: "departments", Column: "budget"}}},
 	})
+}
+
+func TestLineageQuantifiedExprAndRemoteViewIsolation(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE orders (id INT, tags INT, secret INT);
+		CREATE VIEW v_quant AS SELECT id = ANY(tags) AS hit_any, id = ALL(tags) AS hit_all FROM orders;
+		CREATE VIEW v_remote AS SELECT * FROM orders@remote_link;
+		CREATE VIEW v_cat AS SELECT * FROM ext_cat.other_db.orders;
+	`)
+
+	db := c.GetDatabase("testdb")
+	vq := db.Views["v_quant"]
+	if vq == nil || vq.AnalyzedQuery == nil {
+		t.Fatal("expected v_quant to have AnalyzedQuery")
+	}
+	deparsedQ := DeparseQuery(vq.AnalyzedQuery)
+	if want := "select (`orders`.`id` = any (`orders`.`tags`)) as `hit_any`, (`orders`.`id` = all (`orders`.`tags`)) as `hit_all` from `testdb`.`orders`"; deparsedQ != want {
+		t.Errorf("DeparseQuery(v_quant) = %q, want %q", deparsedQ, want)
+	}
+
+	sel := parseSelect(t, "SELECT hit_any, hit_all FROM v_quant")
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+	lineage := collectColumnLineage(c, q.ExpandMergeViews(c))
+	assertLineage(t, lineage, []resultLineage{
+		{Name: "hit_any", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "orders", Column: "id"},
+			{DB: "testdb", Table: "orders", Column: "tags"},
+		}},
+		{Name: "hit_all", SourceCols: []columnLineage{
+			{DB: "testdb", Table: "orders", Column: "id"},
+			{DB: "testdb", Table: "orders", Column: "tags"},
+		}},
+	})
+
+	// Aggregate inside QuantifiedExpr sets HasAggs.
+	aggQ, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT id = ANY(MAX(tags)) FROM orders"))
+	assertNoError(t, err)
+	if !aggQ.HasAggs {
+		t.Error("expected HasAggs=true for aggregate inside QuantifiedExpr")
+	}
+
+	// Remote/catalog views must not expand `*` to local `orders` columns (`id`, `tags`, `secret`).
+	for _, viewName := range []string{"v_remote", "v_cat"} {
+		v := db.Views[viewName]
+		if v == nil {
+			t.Fatalf("missing view %s", viewName)
+		}
+		for _, col := range v.Columns {
+			if col == "secret" {
+				t.Errorf("view %s leaked local table column %q into view columns %v", viewName, col, v.Columns)
+			}
+		}
+	}
 }

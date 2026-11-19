@@ -423,3 +423,46 @@ func TestAlterAddIndexKeepsOptions(t *testing.T) {
 		t.Errorf("kg: Scope=%q, want GLOBAL", idx.Scope)
 	}
 }
+
+func TestAlterTableModifyChangeRejectsColumnID(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE t (a INT, b VARCHAR(10))")
+	origType := c.GetDatabase("testdb").GetTable("t").GetColumn("a").ColumnType
+
+	for _, sql := range []string{
+		"ALTER TABLE t MODIFY a BIGINT ID 2",
+		"ALTER TABLE t CHANGE a c BIGINT ID 2",
+	} {
+		results, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+		if results[0].Error == nil {
+			t.Fatalf("%q: expected error, got nil", sql)
+		}
+		catErr, ok := results[0].Error.(*Error)
+		if !ok || catErr.Code != 1064 {
+			t.Fatalf("%q: expected catalog error 1064, got %v", sql, results[0].Error)
+		}
+	}
+
+	tbl := c.GetDatabase("testdb").GetTable("t")
+	if tbl.GetColumn("a") == nil || tbl.GetColumn("a").ColumnType != origType || tbl.GetColumn("c") != nil {
+		t.Fatalf("failed MODIFY/CHANGE with ID mutated table columns: %+v", tbl.Columns)
+	}
+}
+
+func TestAlterTableDropConstraintListChecksOnlyAtomic(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE p (id INT PRIMARY KEY)")
+	mustExec(t, c, "CREATE TABLE t (id INT PRIMARY KEY, pid INT, a INT, CONSTRAINT c1 CHECK (a > 0), CONSTRAINT fk1 FOREIGN KEY (pid) REFERENCES p(id))")
+
+	// List-form DROP CONSTRAINT only drops CHECK constraints; naming fk1 fails with 3821 and keeps c1 intact.
+	results, _ := c.Exec("ALTER TABLE t DROP CONSTRAINT (c1, fk1)", &ExecOptions{ContinueOnError: true})
+	if results[0].Error == nil {
+		t.Fatal("expected error when dropping foreign key via parenthesized DROP CONSTRAINT list")
+	}
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 3821 {
+		t.Fatalf("expected error 3821, got %v", results[0].Error)
+	}
+	if !tableHasCheckConstraint(c.GetDatabase("testdb").GetTable("t"), "c1") {
+		t.Fatal("failed list-form DROP CONSTRAINT removed c1 instead of rolling back")
+	}
+}

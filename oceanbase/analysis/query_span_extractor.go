@@ -1912,7 +1912,7 @@ func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, d
 }
 
 func isDualTable(tableRef *ast.TableRef) bool {
-	return tableRef != nil && tableRef.Schema == "" && strings.EqualFold(tableRef.Name, "dual")
+	return tableRef != nil && tableRef.Schema == "" && tableRef.Catalog == "" && tableRef.Dblink == "" && strings.EqualFold(tableRef.Name, "dual")
 }
 
 func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr, defaultDatabase string) {

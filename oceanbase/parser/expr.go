@@ -1120,10 +1120,10 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		}
 		fc.Args = append(fc.Args, arg)
 		// win_fun_first_last_params and win_fun_lead_lag_params write RESPECT
-		// NULLS or IGNORE NULLS after the parameters. LEAD and LAG may go on
-		// with more of them, `LEAD(a RESPECT NULLS, 2)`, and the others close
-		// their list there.
-		if builtin && inArgumentNullsTreatment[upperName] && p.atNullsTreatment() {
+		// NULLS or IGNORE NULLS after the first parameter. LEAD and LAG may go
+		// on with more parameters, `LEAD(a RESPECT NULLS, 2)`, and the others
+		// close their list there.
+		if builtin && len(fc.Args) == 1 && inArgumentNullsTreatment[upperName] && p.atNullsTreatment() {
 			t, err := p.parseNullsTreatment()
 			if err != nil {
 				return nil, err
@@ -1220,7 +1220,7 @@ func (p *Parser) finishFuncCall(fc *nodes.FuncCallExpr, builtin bool) (nodes.Exp
 			p.advance() // consume FROM
 			fc.FromFirstLast = strings.ToUpper(p.advance().Str)
 		}
-		if nullsTreatmentNames[fc.Name] && p.atNullsTreatment() {
+		if fc.NullTreatment == "" && nullsTreatmentNames[fc.Name] && p.atNullsTreatment() {
 			t, err := p.parseNullsTreatment()
 			if err != nil {
 				return nil, err

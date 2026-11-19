@@ -101,25 +101,14 @@ func (sc *fromScope) hasUnknownColumns() bool {
 	if len(sc.unknownColumns) > 0 {
 		return true
 	}
-	for _, te := range sc.from {
-		switch t := te.(type) {
-		case *ast.ExternalTableRef:
-			return true
-		case *ast.JoinClause:
-			if t.Left != nil && itemHasUnknownColumns(t.Left) {
-				return true
-			}
-			if t.Right != nil && itemHasUnknownColumns(t.Right) {
-				return true
-			}
-		}
-	}
-	return false
+	return itemHasUnknownColumnsInList(sc.from)
 }
 
 // itemHasUnknownColumns is hasUnknownColumns for one FROM item.
 func itemHasUnknownColumns(te ast.TableExpr) bool {
 	switch t := te.(type) {
+	case *ast.TableRef:
+		return t.Catalog != "" || t.Dblink != ""
 	case *ast.ExternalTableRef:
 		return true
 	case *ast.JoinClause:

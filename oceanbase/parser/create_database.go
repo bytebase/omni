@@ -247,20 +247,22 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 	case p.cur.Type == kwTABLEGROUP:
 		p.advance()
 		p.match('=')
-		val := "NULL"
-		if p.cur.Type != kwNULL {
-			name, _, err := p.parseIdent()
-			if err != nil {
-				return nil, false, err
-			}
-			val = name
-		} else {
+		if p.cur.Type == kwNULL {
 			p.advance()
+			return &nodes.DatabaseOption{
+				Loc:    nodes.Loc{Start: start, End: p.prev.End},
+				Name:   "TABLEGROUP",
+				IsNull: true,
+			}, true, nil
+		}
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, false, err
 		}
 		return &nodes.DatabaseOption{
 			Loc:   nodes.Loc{Start: start, End: p.prev.End},
 			Name:  "TABLEGROUP",
-			Value: val,
+			Value: name,
 		}, true, nil
 	}
 
@@ -321,6 +323,9 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 //
 // Ref: charset_name in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 7442-7480).
 func (p *Parser) parseCharsetName() (string, error) {
+	if p.isVariableRef() {
+		return "", p.syntaxErrorAtCur()
+	}
 	switch p.cur.Type {
 	case tokSCONST, kwBINARY, kwASCII:
 		tok := p.advance()
