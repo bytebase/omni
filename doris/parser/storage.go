@@ -641,7 +641,8 @@ func (p *Parser) parseAlterComputeGroup(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.Properties = props
 		if len(props) > 0 {
-			stmt.Loc.End = ast.NodeLoc(props[len(props)-1]).End
+			// parseFullProperties consumed PROPERTIES through its closing ')'.
+			stmt.Loc.End = p.prev.Loc.End
 		}
 	}
 	return stmt, nil

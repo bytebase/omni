@@ -17,6 +17,7 @@ func (p *Parser) parseBeginStmt() (ast.Node, error) {
 	// Optional WITH LABEL label_name. The label itself is optional
 	// (DorisParser.g4:527), so BEGIN WITH LABEL is a statement.
 	if p.cur.Kind == kwWITH {
+		stmt.WithLabel = true
 		p.advance() // consume WITH
 		labelTok, err := p.expect(kwLABEL)
 		if err != nil {

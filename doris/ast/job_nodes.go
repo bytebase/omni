@@ -144,11 +144,12 @@ var _ Node = (*ResumeJobStmt)(nil)
 //
 //	CANCEL TASK FOR job_name task_id
 type CancelTaskStmt struct {
-	For    *ObjectName // FOR job_name
-	TaskID int64       // task id
-	Like   string      // optional wildWhere LIKE
-	Where  Node        // optional wildWhere WHERE
-	Loc    Loc
+	For     *ObjectName // FOR job_name
+	TaskID  int64       // task id
+	Like    string      // optional wildWhere LIKE
+	HasLike bool        // the LIKE clause was stated, even with an empty pattern
+	Where   Node        // optional wildWhere WHERE
+	Loc     Loc
 }
 
 // Tag implements Node.

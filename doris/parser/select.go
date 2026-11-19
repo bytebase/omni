@@ -1576,17 +1576,24 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, bool, error) {
 	}
 
 	// GROUP BY takes expressionWithOrder: each expression may carry ASC or
-	// DESC (DorisParser.g4:1512-1517).
+	// DESC (DorisParser.g4:1512-1517). A directed item is an OrderByItem so
+	// the direction stays on the tree.
 	var list []ast.Node
 	for {
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, false, err
 		}
-		list = append(list, expr)
 		if p.cur.Kind == kwASC || p.cur.Kind == kwDESC {
-			p.advance()
+			desc := p.cur.Kind == kwDESC
+			dirTok := p.advance()
+			expr = &ast.OrderByItem{
+				Expr: expr,
+				Desc: desc,
+				Loc:  ast.Loc{Start: ast.NodeLoc(expr).Start, End: dirTok.Loc.End},
+			}
 		}
+		list = append(list, expr)
 		if p.cur.Kind != int(',') {
 			break
 		}

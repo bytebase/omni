@@ -187,7 +187,7 @@ func (p *Parser) parseDropCatalog() (ast.Node, error) {
 
 	// DROP CATALOG RECYCLE BIN WHERE 'type' = id (DorisParser.g4:214), before
 	// a catalog name is read.
-	if p.cur.Kind == kwRECYCLE {
+	if p.cur.Kind == kwRECYCLE && p.peekNext().Kind == kwBIN {
 		p.advance() // consume RECYCLE
 		if _, err := p.expect(kwBIN); err != nil {
 			return nil, err

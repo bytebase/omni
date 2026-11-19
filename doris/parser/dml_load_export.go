@@ -933,7 +933,8 @@ func hasMalformedCommonHint(input string) bool {
 			continue
 		}
 		if expectIdent {
-			if tok.Kind != tokIdent && tok.Kind != tokQuotedIdent && tok.Kind < 700 {
+			if tok.Kind != tokIdent && tok.Kind != tokQuotedIdent &&
+				!(tok.Kind >= 700 && !IsReserved(tok.Kind)) {
 				return true
 			}
 			sawIdent, expectIdent = true, false

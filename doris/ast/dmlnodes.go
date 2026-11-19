@@ -94,13 +94,14 @@ var _ Node = (*UpdateStmt)(nil)
 //	    [USING table_refs]
 //	    [WHERE condition]
 type DeleteStmt struct {
-	With        *WithClause // optional leading CTE clause (Doris WITH ... DELETE); nil if absent
-	Target      *ObjectName // table to delete from
-	TargetAlias string      // optional alias
-	Partition   []string    // optional PARTITION(p1, p2, ...) names
-	Using       []Node      // optional USING clause table references
-	Where       Node        // optional WHERE expression
-	Loc         Loc
+	With          *WithClause // optional leading CTE clause (Doris WITH ... DELETE); nil if absent
+	Target        *ObjectName // table to delete from
+	TargetAlias   string      // optional alias
+	Partition     []string    // optional PARTITION(p1, p2, ...) names
+	TempPartition bool        // TEMPORARY PARTITION was stated
+	Using         []Node      // optional USING clause table references
+	Where         Node        // optional WHERE expression
+	Loc           Loc
 }
 
 // Tag implements Node.

@@ -407,6 +407,7 @@ func (p *Parser) parseCancelTask(startLoc ast.Loc) (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Like = p.cur.Str
+		stmt.HasLike = true
 		stmt.Loc = startLoc.Merge(p.cur.Loc)
 		p.advance()
 	case kwWHERE:

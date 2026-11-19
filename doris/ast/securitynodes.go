@@ -41,6 +41,7 @@ type DropRowPolicyStmt struct {
 	IfExists bool
 	On       *ObjectName
 	For      string // optional FOR user or role name
+	ForHost  string // FOR user's host, if one was stated
 	ForRole  bool   // the FOR name is a role
 	Loc      Loc
 }

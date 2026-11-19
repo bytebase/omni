@@ -152,13 +152,20 @@ func (p *Parser) parseDropRowPolicy(startLoc ast.Loc) (ast.Node, error) {
 		if p.cur.Kind == kwROLE {
 			p.advance() // consume ROLE
 			stmt.ForRole = true
+			name, nameLoc, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			stmt.For = name
+			endLoc = nameLoc
+		} else {
+			identity, err := p.parseUserIdentity()
+			if err != nil {
+				return nil, err
+			}
+			stmt.For, stmt.ForHost = identity.Username, identity.Host
+			endLoc = identity.Loc
 		}
-		name, nameLoc, err := p.parseIdentifierOrString()
-		if err != nil {
-			return nil, err
-		}
-		stmt.For = name
-		endLoc = nameLoc
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)

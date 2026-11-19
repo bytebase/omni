@@ -861,7 +861,7 @@ func isWindowFrameOffset(expr ast.Node) bool {
 	case *ast.IntervalExpr:
 		return true
 	case *ast.UnaryExpr:
-		return isWindowFrameOffset(n.Expr)
+		return (n.Op == ast.UnaryPlus || n.Op == ast.UnaryMinus) && isWindowFrameOffset(n.Expr)
 	}
 	return false
 }

@@ -157,6 +157,7 @@ func (p *Parser) parseDeleteStmt(deleteStart int) (*ast.DeleteStmt, error) {
 	// partitionSpec? comes before tableAlias (DorisParser.g4:137), so
 	// DELETE FROM a PARTITION(p) zzz is a delete of a with alias zzz.
 	if p.cur.Kind == kwTEMPORARY {
+		stmt.TempPartition = true
 		p.advance() // consume TEMPORARY
 		if p.cur.Kind != kwPARTITION && p.cur.Kind != kwPARTITIONS {
 			return nil, p.syntaxErrorAtCur()

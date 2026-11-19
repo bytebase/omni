@@ -4,8 +4,9 @@ package ast
 
 // BeginStmt represents a BEGIN [WITH LABEL label_name] statement.
 type BeginStmt struct {
-	Label string // optional label name from WITH LABEL clause; empty if absent
-	Loc   Loc
+	Label     string // optional label name from WITH LABEL clause; empty if absent
+	WithLabel bool   // WITH LABEL was stated, even when its name was omitted
+	Loc       Loc
 }
 
 func (n *BeginStmt) Tag() NodeTag { return T_BeginStmt }
