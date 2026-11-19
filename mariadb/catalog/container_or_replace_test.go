@@ -482,6 +482,12 @@ func catalogErr(t *testing.T, c *Catalog, stmt string) (int, string) {
 		// and its message is the server's then.
 		var perr *parser.ParseError
 		if errors.As(err, &perr) {
+			// A refusal the parser records the server's code for, as it does for a
+			// name MariaDB looks up while it parses, answers that code; a syntax
+			// error is the parser's own.
+			if perr.Code != 0 {
+				return perr.Code, perr.Message
+			}
 			return catalogParseRefused, perr.Message
 		}
 		return catalogParseRefused, err.Error()

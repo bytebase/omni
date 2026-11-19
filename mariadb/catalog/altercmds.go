@@ -35,6 +35,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		if stmt.IfExists {
 			return nil
 		}
+		// A partition maintenance command is not an error on a table that is not
+		// there: OPTIMIZE, ANALYZE, CHECK and REPAIR PARTITION run and report
+		// nothing (measured on mariadb:11.8.8), where REBUILD PARTITION and
+		// REMOVE [FORCE] PARTITIONING answer 1146.
+		if onlyPartitionMaintenance(stmt.Commands) {
+			return nil
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 
@@ -47,6 +54,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 // InnoDB or MyISAM table, and Aria's handler carries it over.
 func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string, stmt *nodes.AlterTableStmt) error {
 	if err := c.alterTableRun(db, tbl, key, stmt); err != nil {
+		return err
+	}
+	if err := validateAlteredRowFormat(tbl, stmt.Commands); err != nil {
 		return err
 	}
 	rebuilt, setsPageChecksum := false, false
@@ -595,6 +605,11 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
 	}
+	// 4029, after the name is known to be new: the column's own expression may
+	// not read it.
+	if err := validateColumnSelfReference(colDef); err != nil {
+		return err
+	}
 
 	col := buildColumnFromDef(tbl, colDef)
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
@@ -1041,6 +1056,14 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if oldCol.Generated != nil && colDef.Generated != nil {
 		if oldCol.Generated.Stored != colDef.Generated.Stored {
 			return errUnsupportedGeneratedStorageChange(colDef.Name, tbl.Name)
+		}
+	}
+	// A generated column whose replacement expression reads it is 4029, for the
+	// column that was generated already: turning a plain column into a generated
+	// one is 1907 first, which the catalog does not model.
+	if oldCol.Generated != nil {
+		if err := validateColumnSelfReference(colDef); err != nil {
+			return err
 		}
 	}
 
@@ -1934,6 +1957,14 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		// A default expression that reads the column it defaults is 4029, after
+		// the column is known to exist (1054).
+		key := toLower(col.Name)
+		for _, ref := range generatedColumnRefs(cmd.DefaultExpr) {
+			if toLower(ref) == key {
+				return errUninitializedField(col.Name, col.Name)
+			}
+		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
@@ -2414,6 +2445,62 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 	}
 	tbl.Partitioning.Partitions = result
 	return nil
+}
+
+// onlyPartitionMaintenance reports whether every command of an ALTER TABLE is one of
+// the partition maintenance commands, which a missing table takes silently.
+func onlyPartitionMaintenance(cmds []*nodes.AlterTableCmd) bool {
+	if len(cmds) == 0 {
+		return false
+	}
+	for _, cmd := range cmds {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATOptimizePartition, nodes.ATAnalyzePartition, nodes.ATCheckPartition, nodes.ATRepairPartition:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// validateAlteredRowFormat refuses a ROW_FORMAT FIXED or PAGE the statement itself
+// writes on an engine that does not take it: InnoDB answers 1478, "Table storage
+// engine 'InnoDB' does not support the create option 'ROW_TYPE'" (measured on
+// mariadb:11.8.8), where MyISAM, Aria, MEMORY, CSV and MRG_MyISAM take both. The
+// table is the one the statement leaves, so `ENGINE=MyISAM ROW_FORMAT FIXED` and
+// `ROW_FORMAT FIXED ENGINE=MyISAM` both run. A row format the table had already and
+// an engine change alone are left out: MariaDB answers 1005 for those, not 1478.
+func validateAlteredRowFormat(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	written := ""
+	for _, cmd := range cmds {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil || !eqFoldStr(cmd.Option.Name, "ROW_FORMAT") {
+			continue
+		}
+		written = canonicalRowFormat(cmd.Option.Value)
+	}
+	if written == "" {
+		return nil
+	}
+	switch strings.ToLower(written) {
+	case "fixed", "page":
+	default:
+		return nil
+	}
+	switch strings.ToLower(tbl.Engine) {
+	case "myisam", "aria", "memory", "csv", "mrg_myisam":
+		return nil
+	}
+	// A table that names no engine is InnoDB's, which is what the server
+	// reports here.
+	engine := tbl.Engine
+	if engine == "" {
+		engine = "InnoDB"
+	}
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: fmt.Sprintf("Table storage engine '%s' does not support the create option 'ROW_TYPE'", engine)}
 }
 
 // alterExchangePartition exchanges a partition with a non-partitioned table.

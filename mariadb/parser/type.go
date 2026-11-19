@@ -858,13 +858,42 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 	}
 
 	if _, ok := p.match(kwCOLLATE); ok {
+		collPos := p.pos()
 		name, err := p.parseCollationName()
 		if err != nil {
 			return err
 		}
 		dt.Collate = name
+		if pe := collationCharsetRefusal(dt.Charset, name, collPos); pe != nil {
+			p.noteLookup(pe)
+		}
 	}
 	return nil
+}
+
+// collationCharsetRefusal is the 1253 MariaDB answers while it parses a type that
+// writes a collation of another character set than the one it settled, as
+// `CHAR ASCII COLLATE utf8mb4_bin` does: ASCII is latin1, and utf8mb4_bin is no
+// collation of latin1's. A type that settled no character set takes the
+// collation's own, and a name no character set starts is a lookup omni does not
+// make (1273 on the server).
+//
+// Ref: merge_charset_and_collation in MariaDB 11.8 sql/sql_yacc.yy and
+// sql/lex_charset.cc, read against mariadb:11.8.8.
+func collationCharsetRefusal(charset, collation string, pos int) *ParseError {
+	if charset == "" || collation == "" {
+		return nil
+	}
+	settled := canonicalCharset(charset)
+	collationOf := collationCharset(collation)
+	if !knownCharsets[settled] || collationOf == "" || collationOf == settled {
+		return nil
+	}
+	return &ParseError{
+		Code:     1253,
+		Message:  "COLLATION '" + strings.ToLower(collation) + "' is not valid for CHARACTER SET '" + settled + "'",
+		Position: pos,
+	}
 }
 
 // parseNationalModifiers parses what a national type takes after it: BINARY and then a
@@ -877,11 +906,15 @@ func (p *Parser) parseNationalModifiers(dt *nodes.DataType) error {
 		dt.Binary = true
 	}
 	if _, ok := p.match(kwCOLLATE); ok {
+		collPos := p.pos()
 		name, err := p.parseCollationName()
 		if err != nil {
 			return err
 		}
 		dt.Collate = name
+		if pe := collationCharsetRefusal(dt.Charset, name, collPos); pe != nil {
+			p.noteLookup(pe)
+		}
 	}
 	return nil
 }

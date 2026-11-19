@@ -1935,3 +1935,778 @@
 > exec
 | DROP TABLE IF EXISTS z
 < ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a INT AS(a)
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a INT AS(a) STORED
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a INT DEFAULT a
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a INT DEFAULT(a)
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY a (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ALTER a SET DEFAULT a
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT AS(b + 1) VIRTUAL)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD d INT AS(c)
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT AS(b + 1) VIRTUAL)
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY c INT AS(c)
+< error
+| 4029 01000 Expression for field `c` is referring to uninitialized field `c`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT AS(b + 1) VIRTUAL)
+< ok 0 0
+> exec
+| ALTER TABLE a CHANGE c c INT AS(c)
+< error
+| 4029 01000 Expression for field `c` is referring to uninitialized field `c`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE x (a INT AS(a))
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE x (a INT DEFAULT a)
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `a`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE x (a INT AS(b), b INT AS(a))
+< error
+| 4029 01000 Expression for field `a` is referring to uninitialized field `b`
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE x (a INT AS(b), b INT)
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY
+< error
+| 1253 42000 COLLATION 'binary' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR BYTE COLLATE utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'binary'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a NCHAR COLLATE utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'utf8mb3'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| ALTER TABLE x ADD a CHAR ASCII COLLATE utf8mb4_bin
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD a CHAR CHARACTER SET ascii COLLATE ascii_general_ci
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE a (x CHAR ASCII COLLATE utf8mb4_bin)
+< error
+| 1253 42000 COLLATION 'utf8mb4_bin' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| ALTER TABLE x ADD FULLTEXT(a) WITH PARSER a
+< error
+| 1128 HY000 Function 'a' is not defined
+> query
+| SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?
+: string
+| x
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< row
+: int64 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz
+< error
+| 1128 HY000 Function 'a' is not defined
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT FIXED
+< error
+| 1478 HY000 Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT PAGE
+< error
+| 1478 HY000 Table storage engine 'InnoDB' does not support the create option 'ROW_TYPE'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT FIXED ENGINE=MyISAM
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d)) ENGINE=MyISAM
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT PAGE
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d)) ENGINE=Aria
+< ok 0 0
+> exec
+| ALTER TABLE a ROW_FORMAT FIXED
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| ALTER TABLE x OPTIMIZE PARTITION ALL
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?
+: string
+| x
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< row
+: int64 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| ALTER TABLE x ANALYZE PARTITION p1
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?
+: string
+| x
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< row
+: int64 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| ALTER TABLE x CHECK PARTITION ALL
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?
+: string
+| x
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< row
+: int64 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| ALTER TABLE x REPAIR PARTITION ALL
+< ok 0 0
+> query
+| SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?
+: string
+| x
+< result
+< column "COUNT(*)" "BIGINT" "int64"
+< row
+: int64 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS x
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
