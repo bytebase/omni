@@ -21,6 +21,15 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		return err
 	}
 	key := toLower(stmt.Name.Name)
+	// A view body is judged before the view's name is looked up on the Exec
+	// path: TiDB resolves the body's names first, so `CREATE VIEW a AS SELECT *`
+	// is 1051 for the star even when a table a exists (1050). A synced view's
+	// body is the engine's already, so it is not judged here.
+	if checkBody {
+		if err := checkViewBodyStar(stmt.Select, source); err != nil {
+			return err
+		}
+	}
 	// Tables and views share the same namespace in MySQL.
 	if db.Tables[key] != nil || db.Sequences[key] != nil {
 		return errDupTable(stmt.Name.Name)
@@ -99,6 +108,147 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ColumnMetadata:  viewColumnMetadata(viewCols, collations),
 	}
 	return nil
+}
+
+// checkViewBodyStar refuses a view body whose star has no table to expand. Every
+// query block the body holds is judged, as TiDB resolves each of them: the ones
+// a set operation, a parenthesis, a CTE body, a derived table and a subquery
+// expression reach alike. A bare `*` in a block with no FROM names a table with
+// no name, which TiDB reports as an unknown table, and `t.*` there names t,
+// which the block reads nowhere. TiDB resolves the body before the view's name,
+// so `CREATE VIEW a AS SELECT *` is 1051 even over an existing table a, where
+// the name collision alone would be 1050 (read on v8.5.5). A FROM-less block
+// that names no star is left alone: `CREATE VIEW v AS SELECT count(*)` and
+// `... SELECT 1` are both views TiDB takes.
+func checkViewBodyStar(sel *nodes.SelectStmt, source string) error {
+	if sel == nil {
+		return nil
+	}
+	var refusal error
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if refusal != nil {
+			return false
+		}
+		if block, ok := n.(*nodes.SelectStmt); ok {
+			refusal = viewBlockStar(block, source)
+		}
+		return refusal == nil
+	})
+	return refusal
+}
+
+// viewBlockStar reports the star of one query block that names no relation it
+// can expand from: a block with no table, or a qualified star whose qualifier is
+// not one of the block's relations.
+func viewBlockStar(sel *nodes.SelectStmt, source string) error {
+	if readsOnlyNoTable(sel, source) {
+		for _, field := range sel.TargetList {
+			expr := field
+			if rt, ok := field.(*nodes.ResTarget); ok {
+				expr = rt.Val
+			}
+			switch e := expr.(type) {
+			case *nodes.StarExpr:
+				return errStarNamesNoTable("")
+			case *nodes.ColumnRef:
+				if e.Star {
+					return errStarNamesNoTable(e.Table)
+				}
+			}
+		}
+		return nil
+	}
+	relations := blockRelationNames(sel)
+	for _, field := range sel.TargetList {
+		expr := field
+		if rt, ok := field.(*nodes.ResTarget); ok {
+			expr = rt.Val
+		}
+		if e, ok := expr.(*nodes.ColumnRef); ok && e.Star {
+			// The name a star asks for may be schema-qualified; the error TiDB
+			// words names the table only (read on v8.5.5).
+			if qualifier := starQualifier(e); !relations[qualifier] {
+				return errStarNamesNoTable(e.Table)
+			}
+		}
+	}
+	return nil
+}
+
+// starQualifier is the name a qualified star asks for: its table, qualified by
+// its schema when the star wrote one.
+func starQualifier(e *nodes.ColumnRef) string {
+	if e.Schema == "" {
+		return toLower(e.Table)
+	}
+	return toLower(e.Schema) + "." + toLower(e.Table)
+}
+
+// blockRelationNames is the names a qualified star may carry in the block: each
+// relation's alias, or its own name when the statement gave it none.
+func blockRelationNames(sel *nodes.SelectStmt) map[string]bool {
+	names := make(map[string]bool, len(sel.From))
+	var add func(nodes.TableExpr)
+	add = func(te nodes.TableExpr) {
+		switch e := te.(type) {
+		case *nodes.TableRef:
+			// An alias hides the name; without one the reference answers to its
+			// table name, and to the schema-qualified name too.
+			if e.Alias != "" {
+				names[toLower(e.Alias)] = true
+				return
+			}
+			if e.Name != "" {
+				names[toLower(e.Name)] = true
+			}
+			if e.Schema != "" && e.Name != "" {
+				names[toLower(e.Schema)+"."+toLower(e.Name)] = true
+			}
+		case *nodes.SubqueryExpr:
+			if e.Alias != "" {
+				names[toLower(e.Alias)] = true
+			}
+		case *nodes.JoinClause:
+			add(e.Left)
+			add(e.Right)
+		}
+	}
+	for _, te := range sel.From {
+		add(te)
+	}
+	return names
+}
+
+// readsOnlyNoTable reports whether the block reads no relation at all, or only
+// DUAL. TiDB keeps DUAL as a table reference but expands a star over it from
+// nothing, so `CREATE VIEW v AS SELECT * FROM DUAL` is the same 1051 as a block
+// with no FROM while `SELECT 1 FROM DUAL` is taken (read on v8.5.5).
+func readsOnlyNoTable(sel *nodes.SelectStmt, source string) bool {
+	if len(sel.From) > 1 {
+		return false
+	}
+	if len(sel.From) == 0 {
+		return true
+	}
+	return isDualRef(sel.From[0], source)
+}
+
+// isDualRef reports whether a FROM entry is the dummy DUAL. The parser reads the
+// DUAL keyword and the quoted table name into the same TableRef, so the text the
+// reference starts at decides: a backtick opens a quoted identifier, which names
+// a real table (v8.5.5 takes the view over a table named dual written that way
+// and answers 1051 for the bare keyword). Without the statement's text (a synced
+// definition) the reference is read as that table, which can only over-accept.
+func isDualRef(expr nodes.TableExpr, source string) bool {
+	ref, ok := expr.(*nodes.TableRef)
+	if !ok || ref.Schema != "" || !strings.EqualFold(ref.Name, "dual") {
+		return false
+	}
+	start := ref.Loc.Start
+	if start < 0 || start >= len(source) {
+		return false
+	}
+	return source[start] != '`'
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter
