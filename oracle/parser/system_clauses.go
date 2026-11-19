@@ -379,6 +379,7 @@ func (p *Parser) parseAlterSessionSetParams() (*nodes.List, error) {
 func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 	start := p.pos()
 	var name string
+	quoted := p.cur.Type == tokQIDENT
 	if p.cur.Type == kwROW {
 		// ROW ARCHIVAL VISIBILITY
 		p.advance()
@@ -390,7 +391,6 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 		}
 		name = "ROW ARCHIVAL VISIBILITY"
 	} else {
-		quoted := p.cur.Type == tokQIDENT
 		var err error
 		if name, err = p.sysName(); err != nil {
 			return nil, err
@@ -413,10 +413,19 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 		return &nodes.SetParam{Name: name, Value: value, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	outline := name == "USE_PRIVATE_OUTLINES" || name == "USE_STORED_OUTLINES"
+	nameTok := Token{Type: tokIDENT, Loc: start, End: p.prev.End}
 	// Oracle takes the outline settings without '='; any other wants it
 	// (ORA-00927).
 	if !outline || p.cur.Type == '=' {
 		if err := p.sysExpectChar('='); err != nil {
+			// A setting the page does not name is one Oracle cannot apply:
+			// it answers ORA-02248 at the name (ALTER SESSION SET a 1), not
+			// at the token after it where the '=' it wanted is missing. A
+			// setting the page names is refused at that token (ALTER SESSION
+			// SET EDITION a at a).
+			if !isAlterSessionNamedSetting(name) && !quoted {
+				return nil, p.syntaxErrorAtTok(nameTok)
+			}
 			return nil, err
 		}
 	}
@@ -443,6 +452,22 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 		param.Loc.End = p.prev.End
 	}
 	return param, nil
+}
+
+// isAlterSessionNamedSetting reports whether name is one Oracle reads as a
+// setting of its own: the settings alter_session_set_clause names, and
+// SERVICE, which it reads as a name after CONTAINER too (ALTER SESSION SET
+// CONTAINER = a SERVICE a is refused at the a, not at SERVICE).
+func isAlterSessionNamedSetting(name string) bool {
+	switch name {
+	case "CONSTRAINT", "CONSTRAINTS", "ERROR_ON_OVERLAP_TIME", "FLAGGER",
+		"ISOLATION_LEVEL", "ROW ARCHIVAL VISIBILITY", "STANDBY_MAX_DATA_DELAY",
+		"INSTANCE", "TIME_ZONE", "CONTAINER", "CURRENT_SCHEMA", "EDITION",
+		"DEFAULT_COLLATION", "USE_PRIVATE_OUTLINES", "USE_STORED_OUTLINES", "EVENTS",
+		"SERVICE":
+		return true
+	}
+	return false
 }
 
 // parseAlterSessionGenericValue reads '=' and a plain parameter's value.

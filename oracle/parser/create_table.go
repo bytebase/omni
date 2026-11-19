@@ -526,19 +526,29 @@ func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.
 // It handles both column definitions and table-level constraints.
+//
+// A supplemental_logging_props clause is one of relational_properties too
+// (CREATE-TABLE.bnf lines 58-65 and 183): Oracle reads SUPPLEMENTAL LOG
+// GROUP a(a) inside the list and refuses the closing ')' of a list that
+// holds no column, as it refuses a list of constraints alone.
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
 	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
 	p.createTableColumns = true
-	periods := 0
+	periods, supplemental := 0, 0
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
 			return p.syntaxErrorAtCur()
 		}
 		progress = p.pos()
-		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods
-		// Check if this is a table-level constraint
-		if p.isCreateTablePeriodStart() {
+		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods + supplemental
+		if p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG") {
+			if err := p.parseCreateTableSupplementalLogging(); err != nil {
+				return err
+			}
+			supplemental++
+			// Check if this is a table-level constraint
+		} else if p.isCreateTablePeriodStart() {
 			if err := p.parseCreateTablePeriod(stmt); err != nil {
 				return err
 			}
@@ -567,7 +577,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
-		if stmt.Columns.Len()+stmt.Constraints.Len()+periods == before {
+		if stmt.Columns.Len()+stmt.Constraints.Len()+periods+supplemental == before {
 			return p.syntaxErrorAtCur()
 		}
 
