@@ -36,6 +36,10 @@ var seqBounds = map[uint32][2]int64{
 //
 // pg: src/backend/commands/sequence.c — DefineSequence
 func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
+	return c.defineSequenceWithOwner(stmt, "")
+}
+
+func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName string) error {
 	ifNotExists := stmt.IfNotExists
 	var schemaName, seqName string
 	if stmt.Sequence != nil {
@@ -236,12 +240,15 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 		return errInvalidParameterValue("CACHE must be positive")
 	}
 
+	if ownerName == "" {
+		ownerName = c.currentOwner()
+	}
 	seqOID := c.oidGen.Next()
 	seq := &Sequence{
 		OID:        seqOID,
 		Name:       seqName,
 		Schema:     schema,
-		OwnerName:  c.currentOwner(),
+		OwnerName:  ownerName,
 		TypeOID:    typeOID,
 		Start:      startValue,
 		Increment:  increment,
@@ -615,7 +622,7 @@ type identitySequenceSpec struct {
 	explicitName bool
 }
 
-func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName string, colTypeOID uint32, seqOptions *nodes.List) (*Sequence, *nodes.RangeVar, bool, error) {
+func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName, ownerName string, colTypeOID uint32, seqOptions *nodes.List) (*Sequence, *nodes.RangeVar, bool, error) {
 	seqTypeOID, err := identitySequenceTypeOID(colTypeOID)
 	if err != nil {
 		return nil, nil, false, err
@@ -636,7 +643,7 @@ func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName s
 		Options:     createOptions,
 		ForIdentity: true,
 	}
-	if err := c.DefineSequence(stmt); err != nil {
+	if err := c.defineSequenceWithOwner(stmt, ownerName); err != nil {
 		return nil, nil, false, err
 	}
 

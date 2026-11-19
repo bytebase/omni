@@ -1570,7 +1570,7 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 	var identityDefault string
 	if colDef.Identity == 'a' || colDef.Identity == 'd' {
 		if !recursing {
-			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, colDef.Name, typeOID, colDef.IdentityOptions)
+			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, colDef.Name, rel.OwnerName, typeOID, colDef.IdentityOptions)
 			if err != nil {
 				return err
 			}
@@ -2039,7 +2039,7 @@ func (c *Catalog) atAddIdentity(schema *Schema, rel *Relation, relName, colName 
 	}
 
 	if !recursing {
-		seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, colName, col.TypeOID, identityOptions)
+		seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, colName, rel.OwnerName, col.TypeOID, identityOptions)
 		if err != nil {
 			return err
 		}

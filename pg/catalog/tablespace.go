@@ -219,66 +219,9 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 	if !ok {
 		return nil
 	}
-	schemaName, oprName := qualifiedName(owa.Objname)
-	var opSchema *Schema
-	if schemaName != "" {
-		var err error
-		opSchema, err = c.resolveTargetSchema(schemaName)
-		if err != nil {
-			return err
-		}
-	}
-	var left, right uint32
-	if owa.Objargs != nil {
-		var oids []uint32
-		for _, item := range owa.Objargs.Items {
-			tn, ok := item.(*nodes.TypeName)
-			if !ok {
-				continue
-			}
-			oid, _, err := c.resolveTypeName(tn)
-			if err != nil {
-				return err
-			}
-			oids = append(oids, oid)
-		}
-		if len(oids) == 1 {
-			right = oids[0]
-		} else if len(oids) >= 2 {
-			left, right = oids[0], oids[1]
-		}
-	}
-	var found *BuiltinOperator
-	rank := func(op *BuiltinOperator) int {
-		if op.OID < FirstNormalObjectId {
-			return -1
-		}
-		nsOID, ok := c.operatorSchemas[op.OID]
-		if !ok {
-			return -1
-		}
-		if opSchema != nil {
-			if opSchema.OID == nsOID {
-				return 0
-			}
-			return -1
-		}
-		for i, visible := range c.searchPathWithCatalog() {
-			if visible == nsOID {
-				return i
-			}
-		}
-		return -1
-	}
-	bestRank := -1
-	for _, op := range c.operByKey[operKey{name: oprName, left: left, right: right}] {
-		if r := rank(op); r >= 0 && (bestRank < 0 || r < bestRank) {
-			bestRank = r
-			found = op
-		}
-	}
-	if found == nil {
-		return errUndefinedObject("operator", oprName)
+	found, err := c.lookupUserOperator(owa)
+	if err != nil {
+		return err
 	}
 	if stmt.Newowner == nil {
 		return nil

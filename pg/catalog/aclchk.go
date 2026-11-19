@@ -343,50 +343,7 @@ func (c *Catalog) resolveGrantObject(objType nodes.ObjectType, objTypeCode byte,
 		if !ok {
 			return 0, errInvalidParameterValue("expected ObjectWithArgs for GRANT on function")
 		}
-		schemaName, funcName := qualifiedName(owa.Objname)
-		argOIDs, argErr := c.routineArgOIDs(owa)
-		if argErr != nil {
-			return 0, argErr
-		}
-		matchBuiltin := func() *BuiltinProc {
-			var found *BuiltinProc
-			for _, p := range c.procByName[funcName] {
-				if p.OID >= FirstNormalObjectId {
-					continue
-				}
-				if argOIDs != nil {
-					if int(p.NArgs) != len(argOIDs) {
-						continue
-					}
-					ok := true
-					for i, a := range argOIDs {
-						if p.ArgTypes[i] != a {
-							ok = false
-							break
-						}
-					}
-					if ok {
-						return p
-					}
-				} else {
-					if found != nil {
-						return nil // ambiguous builtin handled below
-					}
-					found = p
-				}
-			}
-			return found
-		}
-		if _, bp, _, err := c.resolveRoutineTarget(objType, owa); err == nil {
-			return bp.OID, nil
-		} else if schemaName == "" || schemaName == "pg_catalog" {
-			if bp := matchBuiltin(); bp != nil {
-				return bp.OID, nil
-			}
-			return 0, err
-		} else {
-			return 0, err
-		}
+		return c.resolveGrantRoutine(objType, owa)
 	case 'n':
 		// Schema: obj may be a *String or a *List wrapping a single *String.
 		// pg grammar: GRANT ... ON SCHEMA name_list produces List nodes.
@@ -422,10 +379,112 @@ func (c *Catalog) resolveGrantObject(objType nodes.ObjectType, objTypeCode byte,
 		if bt == nil {
 			return 0, errUndefinedType(typeName)
 		}
+		if objType == nodes.OBJECT_DOMAIN && bt.Type != 'd' {
+			return 0, errWrongObjectType(typeName, "a domain")
+		}
 		return bt.OID, nil
 	default:
 		return 0, errInvalidParameterValue("unsupported grant object type")
 	}
+}
+
+func (c *Catalog) resolveGrantRoutine(objType nodes.ObjectType, owa *nodes.ObjectWithArgs) (uint32, error) {
+	kindStr := "function"
+	switch objType {
+	case nodes.OBJECT_PROCEDURE:
+		kindStr = "procedure"
+	case nodes.OBJECT_AGGREGATE:
+		kindStr = "aggregate"
+	case nodes.OBJECT_ROUTINE:
+		kindStr = "routine"
+	}
+	schemaName, funcName := qualifiedName(owa.Objname)
+	argOIDs, argErr := c.routineArgOIDs(owa)
+	if argErr != nil {
+		return 0, argErr
+	}
+	var schemasToSearch []uint32
+	if schemaName != "" {
+		schema, err := c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return 0, err
+		}
+		schemasToSearch = []uint32{schema.OID}
+	} else {
+		schemasToSearch = c.searchPathWithCatalog()
+	}
+
+	checkRoutineKind := func(kind byte) error {
+		switch objType {
+		case nodes.OBJECT_PROCEDURE:
+			if kind != 'p' {
+				return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a procedure", funcName)}
+			}
+		case nodes.OBJECT_FUNCTION:
+			if kind == 'p' {
+				return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a function", funcName)}
+			}
+		case nodes.OBJECT_AGGREGATE:
+			if kind != PROKIND_AGGREGATE {
+				return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not an aggregate", funcName)}
+			}
+		}
+		return nil
+	}
+	procSchemaOID := func(p *BuiltinProc) (uint32, bool) {
+		if p.OID < FirstNormalObjectId {
+			return PGCatalogNamespace, true
+		}
+		if up := c.userProcs[p.OID]; up != nil && up.Schema != nil {
+			return up.Schema.OID, true
+		}
+		return 0, false
+	}
+
+	if argOIDs != nil {
+		for _, nsOID := range schemasToSearch {
+			for _, p := range c.procByName[funcName] {
+				pNS, ok := procSchemaOID(p)
+				if !ok || pNS != nsOID || int(p.NArgs) != len(argOIDs) {
+					continue
+				}
+				match := true
+				for i, a := range argOIDs {
+					if p.ArgTypes[i] != a {
+						match = false
+						break
+					}
+				}
+				if match {
+					if err := checkRoutineKind(p.Kind); err != nil {
+						return 0, err
+					}
+					return p.OID, nil
+				}
+			}
+		}
+		return 0, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+	}
+
+	for _, nsOID := range schemasToSearch {
+		var matches []*BuiltinProc
+		for _, p := range c.procByName[funcName] {
+			pNS, ok := procSchemaOID(p)
+			if !ok || pNS != nsOID {
+				continue
+			}
+			if checkRoutineKind(p.Kind) == nil {
+				matches = append(matches, p)
+			}
+		}
+		if len(matches) > 1 {
+			return 0, errAmbiguousFunction(funcName)
+		}
+		if len(matches) == 1 {
+			return matches[0].OID, nil
+		}
+	}
+	return 0, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
 }
 
 // removeGrantsForObject removes all grants on the given object.

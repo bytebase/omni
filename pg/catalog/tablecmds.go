@@ -590,7 +590,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	for _, si := range serials {
 		if si.isIdentity {
 			cd := &colDefs[si.colIdx]
-			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, si.typeOID, cd.IdentityOptions)
+			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, "", si.typeOID, cd.IdentityOptions)
 			if err != nil {
 				cleanupCreatedSeqs()
 				return err
