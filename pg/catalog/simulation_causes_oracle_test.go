@@ -694,6 +694,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	t.Run("a reserved role name is refused", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, "CREATE ROLE pg_app"); code != CodeReservedName {
+			t.Fatalf("catalog answered %s, want %s", code, CodeReservedName)
+		}
+	})
+
 	t.Run("the current role cannot be dropped", func(t *testing.T) {
 		c := New()
 		if code := simulationCatalogCode(t, c, "DROP ROLE postgres"); code != CodeObjectNotInPrerequisiteState {
