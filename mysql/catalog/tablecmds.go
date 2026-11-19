@@ -73,6 +73,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
+	// A CREATE TABLE ... LIKE that names its own source is 1066, "Not unique
+	// table/alias", before the table it would create is looked up: mysql:8.0.46
+	// answers it whether the target exists (where 1050 would follow) or not
+	// (where the source's 1146 would). Only the self case is decided here; every
+	// other source is resolved after the target's collision checks, as before.
+	if stmt.Like != nil {
+		srcDB := c.GetDatabase(c.currentDB)
+		if stmt.Like.Schema != "" {
+			srcDB = c.GetDatabase(stmt.Like.Schema)
+		}
+		if srcDB == db && toLower(stmt.Like.Name) == key {
+			return errNonUniqueTable(stmt.Like.Name)
+		}
+	}
+
 	// Check for duplicate table or view with the same name.
 	if db.Tables[key] != nil {
 		if stmt.IfNotExists {

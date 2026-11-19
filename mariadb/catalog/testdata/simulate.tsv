@@ -667,7 +667,7 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/ENABLE_SY
 1054	1054	engine	one_table@table	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE a RENAME a;
 1054	1054	engine	one_table@table	alter_list_item/RENAME_COLUMN_SYM_opt_if_exists_table_element_ident_TO_SYM_ident	ALTER TABLE a RENAME COLUMN a TO a;
-1061	1176	engine	one_table@table	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
+1176	1176	engine	one_table@table	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4;
 ok:f3d346de60ff	ok:f3d346de60ff	engine	one_table@table	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default_COLLATE_SYM_collation_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4 COLLATE utf8mb4_bin;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/alter_order_clause	ALTER TABLE a ORDER BY a;
@@ -986,7 +986,7 @@ ok	1210	engine	one_table@column	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY U
 ok:d1cbc87e14ba	ok:d1cbc87e14ba	engine	one_table@column	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	one_table@column	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
 1176	1176	engine	one_table@column	ignorability/NOT_SYM_IGNORED_SYM	ALTER TABLE a ALTER KEY a NOT IGNORED;
-ok	1060	engine	one_table@column	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
+1060	1060	engine	one_table@column	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
 4156	4156	engine	one_table@column	opt_without_overlaps/,_ident_WITHOUT_OVERLAPS_SYM	ALTER TABLE a ADD UNIQUE(a, a WITHOUT OVERLAPS);
 ok	1089	engine	one_table@column	key_part/ident_(_NUM_)	ALTER TABLE a ADD KEY(a(1));
 ok:60a57f203d1c	ok:60a57f203d1c	engine	one_table@column	opt_ident/field_ident	ALTER TABLE a ADD KEY a(a);
@@ -1030,7 +1030,7 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/ENABLE_S
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE a RENAME a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/RENAME_COLUMN_SYM_opt_if_exists_table_element_ident_TO_SYM_ident	ALTER TABLE a RENAME COLUMN a TO a;
-1061	1176	engine	one_table@column	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
+1176	1176	engine	one_table@column	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4;
 ok:18e6955588ca	ok:18e6955588ca	engine	one_table@column	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default_COLLATE_SYM_collation_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4 COLLATE utf8mb4_bin;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/alter_order_clause	ALTER TABLE a ORDER BY a;
@@ -1349,7 +1349,7 @@ ok	1210	engine	one_table@index	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY US
 ok:27bf6ad5f57e	ok:27bf6ad5f57e	engine	one_table@index	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 ok:a2549cac2404	ok:a2549cac2404	engine	one_table@index	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	ignorability/NOT_SYM_IGNORED_SYM	ALTER TABLE a ALTER KEY a NOT IGNORED;
-ok	1060	engine	one_table@index	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
+1060	1060	engine	one_table@index	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
 4156	4156	engine	one_table@index	opt_without_overlaps/,_ident_WITHOUT_OVERLAPS_SYM	ALTER TABLE a ADD UNIQUE(a, a WITHOUT OVERLAPS);
 ok	1089	engine	one_table@index	key_part/ident_(_NUM_)	ALTER TABLE a ADD KEY(a(1));
 1061	1061	engine	one_table@index	opt_ident/field_ident	ALTER TABLE a ADD KEY a(a);
