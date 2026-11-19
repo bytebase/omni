@@ -9393,7 +9393,7 @@ accept	accept	engine	suite:graph-query	GRAPH g MATCH (a) RETURN a INTERSECT DIST
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (Person, Account)
 accept	accept	engine	suite:graph-query	CREATE OR REPLACE PROPERTY GRAPH g NODE TABLES (T)
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)
-accept	reject	engine	suite:graph-query	CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T)
+reject	reject	engine	suite:graph-query	CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T)
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (Person KEY (id), Account KEY (id)) EDGE TABLES (Owns KEY (person_id, account_id) SOURCE KEY (person_id) REFERENCES Person (id) DESTINATION KEY (account_id) REFERENCES Account (id))
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (T PROPERTIES ARE ALL COLUMNS EXCEPT (secret))
 accept	accept	engine	suite:graph-query	CREATE PROPERTY GRAPH g NODE TABLES (T LABEL L NO PROPERTIES)
