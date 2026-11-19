@@ -327,6 +327,10 @@ func madeByChange(stmts []statement) changeMade {
 			if v.Name != nil && !v.OrReplace && !v.IfNotExists {
 				m.relations = append(m.relations, key(v.Name))
 			}
+		case *ast.CreateAnalyticViewStmt:
+			if v.Name != nil && !v.OrReplace && !v.IfNotExists {
+				m.relations = append(m.relations, key(v.Name))
+			}
 		case *ast.CreateSynonymStmt:
 			if v.Name != nil && !v.OrReplace && !v.Public {
 				m.relations = append(m.relations, key(v.Name))
@@ -430,8 +434,17 @@ func backupReadsMade(d backupDML, groupSize int, x schemaIndex, m changeMade) st
 	var found *ast.ObjectName
 	for _, n := range reads {
 		ast.Inspect(n, func(n ast.Node) bool {
-			if t, ok := n.(*ast.TableRef); ok && found == nil && t.Name != nil && missing(t.Name, t.Name.Schema == x.db()) {
-				found = t.Name
+			switch v := n.(type) {
+			case *ast.TableRef:
+				if v.Name != nil && found == nil && missing(v.Name, v.Name.Schema == x.db()) {
+					found = v.Name
+				}
+			// A derived analytic view reads the persistent analytic view it
+			// names, which the change may be what creates.
+			case *ast.SubAVClause:
+				if v.Using != nil && found == nil && missing(v.Using, v.Using.Schema == x.db()) {
+					found = v.Using
+				}
 			}
 			return found == nil
 		})

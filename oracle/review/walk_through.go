@@ -708,28 +708,35 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 		}
 		return false
 	}
-	// withLocal adds the columns each WITH element contributes to the
-	// relation it names: a subav_factoring_clause's ADD MEASURES. They are
-	// the element's own columns, so they enter the scope only where the query
-	// reads that element.
-	withLocal := func(w *ast.WithClause) {
+	// withElements points each FROM reference of a WITH element at the
+	// relation the element reads: a subav_factoring_clause's USING, whose
+	// columns are the element's, with the measures it adds. An element the
+	// query does not read contributes nothing.
+	withElements := func(w *ast.WithClause) {
 		if w == nil || w.CTEs == nil {
 			return
 		}
 		for _, item := range w.CTEs.Items {
 			cte, ok := item.(*ast.CTE)
-			if !ok || cte.SubAV == nil {
+			if !ok || cte.SubAV == nil || cte.SubAV.Using == nil || cte.SubAV.Using.Name == "" {
 				continue
 			}
-			local := subAVLocalColumns(cte.SubAV)
-			if len(local) == 0 {
-				continue
-			}
-			for _, s := range scope {
-				if strings.EqualFold(s.alias, cte.Name) || s.alias == "" && strings.EqualFold(s.ref.name, cte.Name) {
-					scope = append(scope, scoped{alias: cte.Name, local: local})
+			for i := range scope {
+				// The element is named by the reference's own name: a FROM
+				// alias replaces it for every other purpose.
+				if !strings.EqualFold(scope[i].ref.name, cte.Name) {
+					continue
+				}
+				r, ok := b.ref(cte.SubAV.Using)
+				if !ok {
 					break
 				}
+				scope[i].ref = r
+				if scope[i].alias == "" {
+					scope[i].alias = cte.Name
+				}
+				scope[i].local = subAVLocalColumns(cte.SubAV)
+				break
 			}
 		}
 	}
@@ -748,7 +755,7 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 	switch v := n.(type) {
 	case *ast.SelectStmt:
 		ok := blocks == 1 && fromList(v.FromClause)
-		withLocal(v.WithClause)
+		withElements(v.WithClause)
 		return scope, ok
 	case *ast.InsertStmt:
 		switch {

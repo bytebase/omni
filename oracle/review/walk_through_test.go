@@ -511,6 +511,11 @@ var walkForms = []walktest.Form{
 	// base measure's fact column, which the synced relation lacks.
 	{SQL: "SELECT av.lag_sales, lag_sales FROM ANALYTIC VIEW (USING sales_av ADD MEASURES(lag_sales AS(1))) av;"},
 	{SQL: "WITH av ANALYTIC VIEW AS (USING sales_av ADD MEASURES(lag_sales AS(1))) SELECT lag_sales FROM av;"},
+	// The element's columns are its USING relation's, under the element's
+	// name or the FROM alias.
+	{SQL: "SELECT note FROM p;"},
+	{SQL: "WITH av ANALYTIC VIEW AS (USING p) SELECT av.note FROM av;"},
+	{SQL: "WITH av ANALYTIC VIEW AS (USING p) SELECT note FROM av x;"},
 	// Ends the walk after its checks: it may run code of a schema.
 	{SQL: "SELECT f(1) FROM dual;", Last: true},
 	// An unused element's ADD MEASURES is no column of the query: F may be

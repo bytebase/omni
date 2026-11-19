@@ -295,12 +295,20 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 			}
 			clause.OpaqueMeasure = clause.OpaqueMeasure || !parsed
 		default:
+			// A base measure aggregates a fact column: the one FACT names,
+			// or the one of the measure's own name.
+			fact, factLoc := measure, measureTarget.Loc
 			if p.isKeywordStr("FACT") {
 				p.advance()
-				if _, err := p.anParseName(); err != nil {
+				factLoc = nodes.Loc{Start: p.pos()}
+				parsed, err := p.anParseName()
+				if err != nil {
 					return err
 				}
+				factLoc.End = p.prev.End
+				fact = parsed
 			}
+			measureTarget.Expr = &nodes.ColumnRef{Column: fact, Loc: factLoc}
 			if err := p.anExpectWord("AGGREGATE"); err != nil {
 				return err
 			}
@@ -319,8 +327,9 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 	if err := p.anExpect(')'); err != nil {
 		return err
 	}
-	// Each measure names a column the derived view adds; its expression is
-	// kept as text, since analytic_view_expression has no quoted grammar.
+	// Each measure names a column the derived view adds; a calculated one's
+	// expression is kept where the grammar reads it, and a base one's fact
+	// column as a reference.
 	option := p.anOption("ADD MEASURES", optStart)
 	option.Items = &nodes.List{Items: measures}
 	clause.Options = anAppendItems(clause.Options, &nodes.List{Items: []nodes.Node{option}})

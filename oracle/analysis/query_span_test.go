@@ -167,6 +167,16 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M AS(LAG(S) OVER (HIERARCHY H OFFSET 1))))")
 	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: ColumnSet{}}}, span.Results)
 
+	// A base measure aggregates its FACT column, or the one of its own name.
+	span = resolve(t, "SELECT M FROM ANALYTIC VIEW(USING V ADD MEASURES(M FACT A AGGREGATE BY SUM))")
+	require.Equal(t, []QuerySpanResult{{Name: "M", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "SELECT S FROM ANALYTIC VIEW(USING V ADD MEASURES(S AGGREGATE BY SUM))")
+	require.Equal(t, []QuerySpanResult{{Name: "S", SourceColumns: ColumnSet{
+		{Database: "DB", Table: "T", Column: "A"}: true,
+		{Database: "DB", Table: "T", Column: "B"}: true,
+	}}}, span.Results)
+
 	// USING names a persistent analytic view in the schema, never a CTE of the
 	// same name.
 	span = resolve(t, "WITH V AS (SELECT 1 AS X FROM T) SELECT A FROM ANALYTIC VIEW(USING V)")
