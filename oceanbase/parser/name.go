@@ -1050,7 +1050,7 @@ func (p *Parser) parseRelationFactor() (*nodes.TableRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		ref.Dblink = "@" + vref.Name
+		ref.Dblink = p.variableRefText(vref)
 	}
 	ref.Loc.End = p.prev.End
 	return ref, nil
@@ -1147,6 +1147,16 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 		return nil, err
 	}
 	return ref, nil
+}
+
+// variableRefText returns a user variable as written, quotes included: a
+// database link may be named with a quoted user variable, `t@'a/b'`, and the
+// reference keeps that spelling to write it back.
+func (p *Parser) variableRefText(vref *nodes.VariableRef) string {
+	if text := p.inputText(vref.Loc.Start, vref.Loc.End); text != "" {
+		return text
+	}
+	return "@" + vref.Name
 }
 
 // atFullJoin reports whether FULL opens a join here: FULL JOIN or FULL OUTER

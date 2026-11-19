@@ -94,7 +94,7 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// and S3 forms.
 	// The url_spec alternative takes opt_duplicate and nothing else: no LOCAL,
 	// no LOW_PRIORITY and no CONCURRENT.
-	if !isXML && !stmt.Local && !stmt.LowPriority && !stmt.Concurrent && p.atLoadDataURLSource() {
+	if !isXML && !stmt.Local && !stmt.RemoteOSS && !stmt.LowPriority && !stmt.Concurrent && p.atLoadDataURLSource() {
 		return p.parseLoadDataURL(stmt)
 	}
 

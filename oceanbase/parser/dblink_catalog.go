@@ -205,7 +205,7 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt.Tenant = "@" + vref.Name
+	stmt.Tenant = p.variableRefText(vref)
 
 	if _, err := p.expect(kwDATABASE); err != nil {
 		return nil, err

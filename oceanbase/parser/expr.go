@@ -955,7 +955,7 @@ func (p *Parser) parseRemoteSequence(ref *nodes.ColumnRef) (nodes.ExprNode, erro
 	return &nodes.RemoteSequenceExpr{
 		Loc:    nodes.Loc{Start: ref.Loc.Start, End: p.prev.End},
 		Ref:    ref,
-		Dblink: "@" + vref.Name,
+		Dblink: p.variableRefText(vref),
 	}, nil
 }
 
