@@ -208,6 +208,10 @@ func (c *Catalog) checkRole(name string) error {
 
 // DefineRole records a CREATE ROLE.
 func (c *Catalog) DefineRole(stmt *nodes.CreateRoleStmt) error {
+	if strings.HasPrefix(stmt.Role, "pg_") {
+		return &Error{Code: CodeReservedName,
+			Message: fmt.Sprintf("role name %q is reserved", stmt.Role)}
+	}
 	if c.roles[stmt.Role] {
 		return errDuplicateObject("role", stmt.Role)
 	}
@@ -287,6 +291,13 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			c.removeSequence(schema, seq)
 		}
 	}
+	kept := c.grants[:0]
+	for _, g := range c.grants {
+		if !owners[g.Grantee] {
+			kept = append(kept, g)
+		}
+	}
+	c.grants = kept
 	return nil
 }
 

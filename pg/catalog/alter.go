@@ -623,6 +623,11 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			for _, idx := range c.indexesByRel[rel.OID] {
 				idx.OwnerName = rel.OwnerName
 			}
+			for _, seq := range c.sequenceByOID {
+				if seq.OwnerRelOID == rel.OID {
+					seq.OwnerName = rel.OwnerName
+				}
+			}
 		}
 		return nil
 
