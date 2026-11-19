@@ -2620,6 +2620,16 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, is
 	var opts []nodes.Node
 	clauses := 0
 	for {
+		if p.collectMode() {
+			// The list repeats RENAME TO and OWNER TO after a comma, and ALTER
+			// ROLE may end with EXTERNALID TO.
+			p.addTokenCandidate(RENAME)
+			p.addTokenCandidate(OWNER)
+			if !isUser {
+				p.addWordCandidate("EXTERNALID")
+			}
+			return nil, nil
+		}
 		switch p.cur.Type {
 		case RENAME:
 			p.advance()
@@ -2649,6 +2659,16 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, is
 			break
 		}
 		p.advance()
+		if p.collectMode() {
+			// The comma repeats the clause, and ALTER ROLE may end with the
+			// EXTERNALID tail.
+			p.addTokenCandidate(RENAME)
+			if !isUser {
+				p.addTokenCandidate(OWNER)
+				p.addWordCandidate("EXTERNALID")
+			}
+			return nil, nil
+		}
 		if p.cur.Type == RENAME || (!isUser && p.cur.Type == OWNER) {
 			continue
 		}
@@ -2670,6 +2690,11 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, is
 		break
 	}
 
+	if !isUser && p.collectMode() {
+		// The optional tail follows the last clause.
+		p.addWordCandidate("EXTERNALID")
+		return nil, nil
+	}
 	hasExternalID := false
 	if !isUser && p.redshiftKeywordIs("externalid") {
 		p.advance()

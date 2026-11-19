@@ -568,6 +568,8 @@ func (p *Parser) addRedshiftMatViewTableOptionCandidates(stage int) {
 	}
 	if stage <= 3 {
 		p.addWordCandidate("SORTKEY")
+		p.addWordCandidate("COMPOUND SORTKEY")
+		p.addWordCandidate("INTERLEAVED SORTKEY")
 	}
 	if stage <= 4 {
 		p.addWordCandidate("AUTO REFRESH")

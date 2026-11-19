@@ -367,12 +367,12 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 	// The two catalogs allocate OIDs independently, so an index is matched on
 	// the side its op belongs to: a drop by the source's index, a creation by
 	// the target's.
-	owned := make(map[string]bool, len(dependents))
-	recreated := make(map[string]bool, len(dependents))
+	owned := make(map[relKey]bool, len(dependents))
+	recreated := make(map[relKey]bool, len(dependents))
 	ownedSourceIndexes := make(map[uint32]bool)
 	ownedTargetIndexes := make(map[uint32]bool)
 	for _, rel := range dependents {
-		key := rel.Schema.Name + "." + rel.Name
+		key := relKey{schema: rel.Schema.Name, name: rel.Name}
 		owned[key] = true
 		for _, idx := range from.IndexesOf(rel.OID) {
 			ownedSourceIndexes[idx.OID] = true
@@ -390,7 +390,7 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 	}
 	kept := ops[:0]
 	for _, op := range ops {
-		key := op.SchemaName + "." + op.ObjectName
+		key := relKey{schema: op.SchemaName, name: op.ObjectName}
 		if owned[key] {
 			// The old view's own ops, whoever the target holds under that name.
 			switch op.Type {
@@ -411,7 +411,7 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 			continue
 		}
 		// A trigger op names the trigger and holds the relation it belongs to.
-		if recreated[op.SchemaName+"."+op.ParentObject] {
+		if recreated[relKey{schema: op.SchemaName, name: op.ParentObject}] {
 			switch op.Type {
 			case OpCreateTrigger, OpDropTrigger:
 				continue

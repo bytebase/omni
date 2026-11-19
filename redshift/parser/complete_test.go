@@ -557,3 +557,28 @@ func TestCollectCreateGroupSecondWithList(t *testing.T) {
 		t.Errorf("WITH is not offered after a repeated CREATE GROUP comma: %v", cs.Tokens)
 	}
 }
+
+// TestCollectAlterRoleClauseContinuations pins the roles' clause list: a comma
+// after a clause offers another RENAME or OWNER, ALTER ROLE may end with
+// EXTERNALID, and a SORTKEY stage offers its styled forms.
+func TestCollectAlterRoleClauseContinuations(t *testing.T) {
+	cs := Collect("ALTER ROLE r RENAME TO n, ", len("ALTER ROLE r RENAME TO n, "))
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	for _, tok := range []int{RENAME, OWNER} {
+		if !cs.HasToken(tok) {
+			t.Errorf("no %s after an ALTER ROLE clause comma: %v", TokenName(tok), cs.Tokens)
+		}
+	}
+	if !cs.HasWord("EXTERNALID") {
+		t.Errorf("no EXTERNALID after an ALTER ROLE clause comma: %v", cs.Words)
+	}
+
+	cs = Collect("CREATE MATERIALIZED VIEW m DISTKEY (a) ", len("CREATE MATERIALIZED VIEW m DISTKEY (a) "))
+	for _, word := range []string{"SORTKEY", "COMPOUND SORTKEY", "INTERLEAVED SORTKEY", "AUTO REFRESH"} {
+		if !cs.HasWord(word) {
+			t.Errorf("no %q at the SORTKEY stage: %v", word, cs.Words)
+		}
+	}
+}

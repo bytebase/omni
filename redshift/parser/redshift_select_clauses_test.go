@@ -225,3 +225,19 @@ func TestRedshiftSelectConnectByNestedScope(t *testing.T) {
 		}
 	}
 }
+
+// TestRedshiftSelectGroupByAllBeforeQualify pins GROUP BY ALL's end: QUALIFY is
+// an unreserved expression starter, so the clause must not read it as a
+// grouping expression.
+func TestRedshiftSelectGroupByAllBeforeQualify(t *testing.T) {
+	sel, ok := singleStmt(t, "SELECT row_number() OVER () AS rn FROM t GROUP BY ALL QUALIFY rn = 1;").(*nodes.SelectStmt)
+	if !ok {
+		t.Fatal("expected SelectStmt")
+	}
+	if !sel.GroupAll || sel.GroupClause != nil {
+		t.Fatalf("GROUP BY ALL before QUALIFY = %#v, want GroupAll and no list", sel)
+	}
+	if sel.QualifyClause == nil {
+		t.Fatal("QUALIFY was not read as the clause")
+	}
+}

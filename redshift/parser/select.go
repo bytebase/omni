@@ -393,7 +393,7 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 			p.advance()
 			stmt.GroupDistinct = true
 		}
-		if !stmt.GroupAll || p.isAExprStart() || p.collectMode() {
+		if !stmt.GroupAll || p.collectMode() || (p.isAExprStart() && !p.isReservedForClause()) {
 			// GROUP BY ALL may stand alone; collecting the list as well keeps
 			// its expressions among the candidates.
 			stmt.GroupClause, err = p.parseGroupByList()
