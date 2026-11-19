@@ -46,7 +46,7 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 	// Process DefElem options.
 	var pIncrement, pMinValue, pMaxValue, pStart, pCacheValue *int64
 	var cycle bool
-	var ownedBy string
+	var ownedBy, ownedBySchema string
 	var typeName string
 
 	// Duplicate DefElem detection.
@@ -116,8 +116,10 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 					parts := stringListItems(list)
 					if len(parts) == 1 && strings.ToUpper(parts[0]) == "NONE" {
 						// OWNED BY NONE — not applicable for CREATE, ignore.
-					} else if len(parts) >= 2 {
-						// Join last two elements as "table.column".
+					} else if len(parts) == 2 {
+						ownedBy = parts[0] + "." + parts[1]
+					} else if len(parts) >= 3 {
+						ownedBySchema = parts[len(parts)-3]
 						ownedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
 					}
 				}
@@ -254,7 +256,16 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 
 	// If OwnedBy specified, record dependency.
 	if ownedBy != "" {
-		if err := c.setSequenceOwner(seq, schema, ownedBy); err != nil {
+		ownSchema := schema
+		if ownedBySchema != "" {
+			ownSchema = c.schemaByName[ownedBySchema]
+			if ownSchema == nil {
+				delete(schema.Sequences, seqName)
+				delete(c.sequenceByOID, seqOID)
+				return errUndefinedSchema(ownedBySchema)
+			}
+		}
+		if err := c.setSequenceOwner(seq, ownSchema, ownedBy); err != nil {
 			delete(schema.Sequences, seqName)
 			delete(c.sequenceByOID, seqOID)
 			return err
@@ -291,12 +302,13 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	if err != nil {
 		return err
 	}
+	orig := *seq
 
 	// Duplicate DefElem detection.
 	// pg: src/backend/commands/sequence.c — init_params (duplicate option checks)
 	var sawIncrement, sawMinValue, sawMaxValue, sawStart, sawRestart, sawCache, sawCycle, sawOwnedBy bool
 	var clearOwnedBy bool
-	var newOwnedBy string
+	var newOwnedBy, newOwnedBySchema string
 
 	// Process DefElem options.
 	if stmt.Options != nil {
@@ -308,17 +320,20 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 			switch d.Defname {
 			case "increment":
 				if sawIncrement {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawIncrement = true
 				if v, ok := defElemInt(d); ok {
 					if v == 0 {
+						*seq = orig
 						return errInvalidParameterValue("INCREMENT must not be zero")
 					}
 					seq.Increment = v
 				}
 			case "minvalue":
 				if sawMinValue {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMinValue = true
@@ -327,6 +342,7 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "maxvalue":
 				if sawMaxValue {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMaxValue = true
@@ -335,6 +351,7 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "start":
 				if sawStart {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawStart = true
@@ -343,6 +360,7 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "restart":
 				if sawRestart {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawRestart = true
@@ -353,23 +371,27 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "cache":
 				if sawCache {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawCache = true
 				if v, ok := defElemInt(d); ok {
 					if v <= 0 {
+						*seq = orig
 						return errInvalidParameterValue("CACHE must be positive")
 					}
 					seq.CacheValue = v
 				}
 			case "cycle":
 				if sawCycle {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawCycle = true
 				seq.Cycle = defElemBool(d)
 			case "owned_by":
 				if sawOwnedBy {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawOwnedBy = true
@@ -377,7 +399,10 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 					parts := stringListItems(list)
 					if len(parts) == 1 && strings.ToUpper(parts[0]) == "NONE" {
 						clearOwnedBy = true
-					} else if len(parts) >= 2 {
+					} else if len(parts) == 2 {
+						newOwnedBy = parts[0] + "." + parts[1]
+					} else if len(parts) >= 3 {
+						newOwnedBySchema = parts[len(parts)-3]
 						newOwnedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
 					}
 				}
@@ -390,28 +415,37 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	bounds := seqBounds[seq.TypeOID]
 	if seq.TypeOID != INT8OID {
 		if seq.MaxValue < bounds[0] || seq.MaxValue > bounds[1] {
+			*seq = orig
 			return errInvalidParameterValue(fmt.Sprintf("MAXVALUE (%d) is out of range for sequence data type %s",
 				seq.MaxValue, c.seqTypeName(seq.TypeOID)))
 		}
 		if seq.MinValue < bounds[0] || seq.MinValue > bounds[1] {
+			*seq = orig
 			return errInvalidParameterValue(fmt.Sprintf("MINVALUE (%d) is out of range for sequence data type %s",
 				seq.MinValue, c.seqTypeName(seq.TypeOID)))
 		}
 	}
 
 	if seq.MinValue >= seq.MaxValue {
+		*seq = orig
 		return errInvalidParameterValue("MINVALUE must be less than MAXVALUE")
 	}
 
 	// Validate START (or RESTART) value is within [MinValue, MaxValue].
 	// pg: src/backend/commands/sequence.c — init_params (START crosscheck)
 	if seq.Start < seq.MinValue {
+		val := seq.Start
+		minV := seq.MinValue
+		*seq = orig
 		return errInvalidParameterValue(fmt.Sprintf("START value (%d) cannot be less than MINVALUE (%d)",
-			seq.Start, seq.MinValue))
+			val, minV))
 	}
 	if seq.Start > seq.MaxValue {
+		val := seq.Start
+		maxV := seq.MaxValue
+		*seq = orig
 		return errInvalidParameterValue(fmt.Sprintf("START value (%d) cannot be greater than MAXVALUE (%d)",
-			seq.Start, seq.MaxValue))
+			val, maxV))
 	}
 
 	// Ownership is the last thing applied, so a failed check above leaves the
@@ -421,7 +455,16 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 		seq.OwnerAttNum = 0
 		c.removeDepsOf('s', seq.OID)
 	} else if newOwnedBy != "" {
-		if err := c.setSequenceOwner(seq, seq.Schema, newOwnedBy); err != nil {
+		ownSchema := seq.Schema
+		if newOwnedBySchema != "" {
+			ownSchema = c.schemaByName[newOwnedBySchema]
+			if ownSchema == nil {
+				*seq = orig
+				return errUndefinedSchema(newOwnedBySchema)
+			}
+		}
+		if err := c.setSequenceOwner(seq, ownSchema, newOwnedBy); err != nil {
+			*seq = orig
 			return err
 		}
 	}
@@ -481,6 +524,7 @@ func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, 
 func (c *Catalog) removeSequence(schema *Schema, seq *Sequence) {
 	delete(schema.Sequences, seq.Name)
 	delete(c.sequenceByOID, seq.OID)
+	delete(c.extensionMembers, seq.OID)
 	c.removeGrantsForObject('s', seq.OID)
 	c.removeComments('s', seq.OID)
 	c.removeDepsOf('s', seq.OID)

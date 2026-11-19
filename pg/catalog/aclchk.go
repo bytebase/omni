@@ -54,9 +54,11 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 	if execErr != nil {
 		return execErr
 	}
-	for _, grantee := range grantees {
-		if grantee != "" {
-			c.roles[grantee] = true
+	if stmt.IsGrant {
+		for _, grantee := range grantees {
+			if grantee != "" {
+				c.roles[grantee] = true
+			}
 		}
 	}
 	return nil
@@ -83,15 +85,19 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 		}
 	}
 
-	// Resolve each object and record grants.
+	// Resolve all target objects before mutating c.grants.
 	if stmt.Objects == nil {
 		return nil
 	}
+	objOIDs := make([]uint32, 0, len(stmt.Objects.Items))
 	for _, obj := range stmt.Objects.Items {
-		objOID, err := c.resolveGrantObject(objTypeCode, obj)
+		objOID, err := c.resolveGrantObject(stmt.Objtype, objTypeCode, obj)
 		if err != nil {
 			return err
 		}
+		objOIDs = append(objOIDs, objOID)
+	}
+	for _, objOID := range objOIDs {
 		for _, grantee := range grantees {
 			for _, priv := range privs {
 				c.grants = append(c.grants, Grant{
@@ -110,31 +116,99 @@ func (c *Catalog) execGrant(stmt *nodes.GrantStmt, objTypeCode byte, privs []gra
 }
 
 func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []grantPriv, grantees []string, grantor string) error {
-	// Resolve each object and remove matching grants.
+	for _, priv := range privs {
+		if !isValidPrivilege(priv.name, objTypeCode) {
+			return &Error{Code: CodeInvalidGrantOperation,
+				Message: fmt.Sprintf("invalid privilege type %s for %s", priv.name, grantObjTypeName(objTypeCode))}
+		}
+	}
 	if stmt.Objects == nil {
 		return nil
 	}
+	objOIDs := make([]uint32, 0, len(stmt.Objects.Items))
 	for _, obj := range stmt.Objects.Items {
-		objOID, err := c.resolveGrantObject(objTypeCode, obj)
+		objOID, err := c.resolveGrantObject(stmt.Objtype, objTypeCode, obj)
 		if err != nil {
 			return err
 		}
-		c.revokeGrants(objTypeCode, objOID, grantees, privs, grantor)
+		objOIDs = append(objOIDs, objOID)
 	}
-	return nil
-}
+	if len(c.grants) == 0 {
+		return nil
+	}
 
-// revokeGrants removes matching grants from the catalog.
-func (c *Catalog) revokeGrants(objType byte, objOID uint32, grantees []string, privs []grantPriv, grantor string) {
-	n := 0
-	for _, g := range c.grants {
-		if g.ObjType == objType && g.ObjOID == objOID && g.Grantor == grantor && matchGrantee(g.Grantee, grantees) && matchPriv(g.Privilege, privs) {
-			continue // remove
-		}
-		c.grants[n] = g
-		n++
+	targetOIDs := make(map[uint32]bool, len(objOIDs))
+	for _, oid := range objOIDs {
+		targetOIDs[oid] = true
 	}
-	c.grants = c.grants[:n]
+	cascade := stmt.Behavior == nodes.DROP_CASCADE
+	grantPrivCovers := func(held, passed string) bool {
+		h := strings.ToUpper(held)
+		p := strings.ToUpper(passed)
+		return h == "ALL" || p == "ALL" || h == p
+	}
+
+	trial := make([]Grant, len(c.grants))
+	copy(trial, c.grants)
+	removed := make([]bool, len(trial))
+	lostGrantOpt := make([]bool, len(trial))
+	for i, g := range trial {
+		if g.ObjType == objTypeCode && targetOIDs[g.ObjOID] && g.Grantor == grantor &&
+			matchGrantee(g.Grantee, grantees) && matchPriv(g.Privilege, privs) {
+			if g.WithGrant {
+				lostGrantOpt[i] = true
+			}
+			if stmt.GrantOption {
+				trial[i].WithGrant = false
+			} else {
+				removed[i] = true
+			}
+		}
+	}
+
+	for changed := true; changed; {
+		changed = false
+		for i, g := range trial {
+			if removed[i] || g.Grantor == "" || c.objectOwnerName(g.ObjType, g.ObjOID) == g.Grantor {
+				continue
+			}
+			lost := false
+			stillHas := false
+			for j, src := range trial {
+				if src.ObjType != g.ObjType || src.ObjOID != g.ObjOID || src.Grantee != g.Grantor {
+					continue
+				}
+				if !grantPrivCovers(c.grants[j].Privilege, g.Privilege) {
+					continue
+				}
+				if lostGrantOpt[j] {
+					lost = true
+				}
+				if !removed[j] && src.WithGrant {
+					stillHas = true
+				}
+			}
+			if lost && !stillHas {
+				if !cascade {
+					return errDependentObjects("grant", g.Grantor)
+				}
+				if g.WithGrant {
+					lostGrantOpt[i] = true
+				}
+				removed[i] = true
+				changed = true
+			}
+		}
+	}
+
+	kept := c.grants[:0]
+	for i, g := range trial {
+		if !removed[i] {
+			kept = append(kept, g)
+		}
+	}
+	c.grants = kept
+	return nil
 }
 
 func matchGrantee(grantee string, grantees []string) bool {
@@ -224,11 +298,11 @@ func roleSpecName(rs *nodes.RoleSpec) string {
 
 func grantObjTypeCode(objType nodes.ObjectType) byte {
 	switch objType {
-	case nodes.OBJECT_TABLE, nodes.OBJECT_VIEW, nodes.OBJECT_MATVIEW:
+	case nodes.OBJECT_TABLE, nodes.OBJECT_VIEW, nodes.OBJECT_MATVIEW, nodes.OBJECT_FOREIGN_TABLE:
 		return 'r'
 	case nodes.OBJECT_SEQUENCE:
 		return 's'
-	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE:
+	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
 		return 'f'
 	case nodes.OBJECT_SCHEMA:
 		return 'n'
@@ -239,7 +313,7 @@ func grantObjTypeCode(objType nodes.ObjectType) byte {
 	}
 }
 
-func (c *Catalog) resolveGrantObject(objTypeCode byte, obj nodes.Node) (uint32, error) {
+func (c *Catalog) resolveGrantObject(objType nodes.ObjectType, objTypeCode byte, obj nodes.Node) (uint32, error) {
 	switch objTypeCode {
 	case 'r':
 		// Table/view: obj is a *RangeVar.
@@ -264,21 +338,55 @@ func (c *Catalog) resolveGrantObject(objTypeCode byte, obj nodes.Node) (uint32, 
 		}
 		return seq.OID, nil
 	case 'f':
-		// Function: obj is *ObjectWithArgs.
+		// Function/procedure/routine/aggregate: obj is *ObjectWithArgs.
 		owa, ok := obj.(*nodes.ObjectWithArgs)
 		if !ok {
 			return 0, errInvalidParameterValue("expected ObjectWithArgs for GRANT on function")
 		}
 		schemaName, funcName := qualifiedName(owa.Objname)
-		schema, err := c.resolveTargetSchema(schemaName)
-		if err != nil {
+		argOIDs, argErr := c.routineArgOIDs(owa)
+		if argErr != nil {
+			return 0, argErr
+		}
+		matchBuiltin := func() *BuiltinProc {
+			var found *BuiltinProc
+			for _, p := range c.procByName[funcName] {
+				if p.OID >= FirstNormalObjectId {
+					continue
+				}
+				if argOIDs != nil {
+					if int(p.NArgs) != len(argOIDs) {
+						continue
+					}
+					ok := true
+					for i, a := range argOIDs {
+						if p.ArgTypes[i] != a {
+							ok = false
+							break
+						}
+					}
+					if ok {
+						return p
+					}
+				} else {
+					if found != nil {
+						return nil // ambiguous builtin handled below
+					}
+					found = p
+				}
+			}
+			return found
+		}
+		if _, bp, _, err := c.resolveRoutineTarget(objType, owa); err == nil {
+			return bp.OID, nil
+		} else if schemaName == "" || schemaName == "pg_catalog" {
+			if bp := matchBuiltin(); bp != nil {
+				return bp.OID, nil
+			}
+			return 0, err
+		} else {
 			return 0, err
 		}
-		candidates := c.findUserProcsByName(schema, funcName)
-		if len(candidates) == 0 {
-			return 0, errUndefinedObject("function", funcName)
-		}
-		return candidates[0].OID, nil
 	case 'n':
 		// Schema: obj may be a *String or a *List wrapping a single *String.
 		// pg grammar: GRANT ... ON SCHEMA name_list produces List nodes.
@@ -296,11 +404,21 @@ func (c *Catalog) resolveGrantObject(objTypeCode byte, obj nodes.Node) (uint32, 
 	case 'T':
 		// Type/domain: obj is a *nodes.List of name parts (like DROP TYPE).
 		schemaName, typeName := extractDropObjectName(obj)
-		schema, err := c.resolveTargetSchema(schemaName)
-		if err != nil {
-			return 0, err
+		var bt *BuiltinType
+		if schemaName != "" {
+			schema, err := c.resolveTargetSchema(schemaName)
+			if err != nil {
+				return 0, err
+			}
+			bt = c.typeByName[typeKey{ns: schema.OID, name: typeName}]
+		} else {
+			for _, nsOID := range c.searchPathWithCatalog() {
+				if found := c.typeByName[typeKey{ns: nsOID, name: typeName}]; found != nil {
+					bt = found
+					break
+				}
+			}
 		}
-		bt := c.typeByName[typeKey{ns: schema.OID, name: typeName}]
 		if bt == nil {
 			return 0, errUndefinedType(typeName)
 		}

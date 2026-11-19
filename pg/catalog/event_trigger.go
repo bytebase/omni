@@ -95,6 +95,8 @@ func (c *Catalog) removeEventTriggerObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	var targets []*EventTrigger
+	seen := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		_, name := extractDropObjectName(obj)
 		evt := c.eventTriggerByName[name]
@@ -105,6 +107,15 @@ func (c *Catalog) removeEventTriggerObjects(stmt *nodes.DropStmt) error {
 			}
 			return errUndefinedObject("event trigger", name)
 		}
+		if c.isExtensionMember(evt.OID) {
+			return errDependentObjects("extension", c.extensionMembers[evt.OID])
+		}
+		if !seen[evt.OID] {
+			seen[evt.OID] = true
+			targets = append(targets, evt)
+		}
+	}
+	for _, evt := range targets {
 		c.removeEventTrigger(evt)
 	}
 	return nil
@@ -113,6 +124,7 @@ func (c *Catalog) removeEventTriggerObjects(stmt *nodes.DropStmt) error {
 func (c *Catalog) removeEventTrigger(evt *EventTrigger) {
 	delete(c.eventTriggers, evt.OID)
 	delete(c.eventTriggerByName, evt.Name)
+	delete(c.extensionMembers, evt.OID)
 	c.removeComments('E', evt.OID)
 	c.removeDepsOf('E', evt.OID)
 	c.removeDepsOn('E', evt.OID)

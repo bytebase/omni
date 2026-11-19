@@ -40,6 +40,11 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 		}
 		return errDuplicateSchema(schemaName)
 	}
+	var saved *Catalog
+	if stmt.SchemaElts != nil {
+		saved = c.Clone()
+	}
+
 	effectiveOwner := ownerName
 	if effectiveOwner == "" {
 		effectiveOwner = c.currentOwner()
@@ -69,19 +74,18 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 		if ownerName != "" {
 			c.currentUser = ownerName
 		}
-		defer func() {
-			c.searchPath = prevSearchPath
-			c.currentUser = prevCurrentUser
-		}()
 
 		for _, elt := range stmt.SchemaElts.Items {
 			if elt == nil {
 				continue
 			}
 			if err := c.ProcessUtility(elt); err != nil {
+				*c = *saved
 				return err
 			}
 		}
+		c.searchPath = prevSearchPath
+		c.currentUser = prevCurrentUser
 	}
 
 	// Roles are cluster-wide and a dump does not create them, so an
@@ -100,7 +104,12 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 // pg: src/backend/commands/schemacmds.c — (drop case in RemoveObjects via dropcmds.c)
 func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	if stmt.Objects == nil {
+		return nil
+	}
 
+	var targets []*Schema
+	seen := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		// Schema names may be a *nodes.String or a *nodes.List wrapping one.
 		_, schemaName := extractDropObjectName(obj)
@@ -119,10 +128,21 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			return errInvalidParameterValue("cannot drop schema " + schemaName)
 		}
 
-		if !cascade && c.schemaHasObjects(s) {
-			return errSchemaNotEmpty(schemaName)
+		if !seen[s.OID] {
+			seen[s.OID] = true
+			targets = append(targets, s)
 		}
+	}
 
+	if !cascade {
+		for _, s := range targets {
+			if c.schemaHasObjects(s) {
+				return errSchemaNotEmpty(s.Name)
+			}
+		}
+	}
+
+	for _, s := range targets {
 		// CASCADE: drop all contained objects. Extensions go first, through the
 		// extension CASCADE path, so their dependents elsewhere (an index on
 		// their operator class, a table using their type) are found before the
@@ -134,6 +154,7 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 					exts = append(exts, ext)
 				}
 			}
+			sort.Slice(exts, func(i, j int) bool { return exts[i].OID < exts[j].OID })
 			for _, ext := range exts {
 				_ = c.removeExtensionObjects(&nodes.DropStmt{
 					RemoveType: int(nodes.OBJECT_EXTENSION),
@@ -141,19 +162,37 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 					Behavior:   int(nodes.DROP_CASCADE),
 				})
 			}
-			for name, rel := range s.Relations {
+			var rels []*Relation
+			for _, rel := range s.Relations {
+				rels = append(rels, rel)
+			}
+			sort.Slice(rels, func(i, j int) bool { return rels[i].OID < rels[j].OID })
+			for _, rel := range rels {
 				if c.relationByOID[rel.OID] != nil {
-					c.removeRelation(s, name, rel)
+					c.cascadeDropRelation(rel)
 				}
 			}
-			for name, idx := range s.Indexes {
-				if s.Indexes[name] == idx {
-					c.removeIndex(s, name, idx)
+			var idxs []*Index
+			for _, idx := range s.Indexes {
+				idxs = append(idxs, idx)
+			}
+			sort.Slice(idxs, func(i, j int) bool { return idxs[i].OID < idxs[j].OID })
+			for _, idx := range idxs {
+				if c.indexes[idx.OID] == idx {
+					c.dropDependentObject('i', idx.OID)
 				}
 			}
+			var seqs []*Sequence
 			for _, seq := range s.Sequences {
+				seqs = append(seqs, seq)
+			}
+			sort.Slice(seqs, func(i, j int) bool { return seqs[i].OID < seqs[j].OID })
+			for _, seq := range seqs {
 				if c.sequenceByOID[seq.OID] != nil {
-					c.removeSequence(s, seq)
+					c.dropDependents('s', seq.OID)
+					if c.sequenceByOID[seq.OID] != nil {
+						c.removeSequence(s, seq)
+					}
 				}
 			}
 			c.removeFunctionsInSchema(s)
@@ -164,7 +203,9 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 					opOIDs = append(opOIDs, oid)
 				}
 			}
+			sort.Slice(opOIDs, func(i, j int) bool { return opOIDs[i] < opOIDs[j] })
 			for _, oid := range opOIDs {
+				c.dropDependents('O', oid)
 				c.removeOperator(oid)
 			}
 			opcOIDs := make([]uint32, 0, len(c.opClasses))
@@ -175,14 +216,7 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			}
 			sort.Slice(opcOIDs, func(i, j int) bool { return opcOIDs[i] < opcOIDs[j] })
 			for _, oid := range opcOIDs {
-				// An index elsewhere that uses the class goes with it, and so
-				// does the constraint that index backs.
-				for _, dep := range c.findNormalDependents('o', oid) {
-					if dep.ObjType == 'i' {
-						c.dropDependentObject('i', dep.ObjOID)
-					}
-				}
-				c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: oid})
+				c.cascadeDropOpClass(oid)
 			}
 			famOIDs := make([]uint32, 0, len(c.opFamilies))
 			for oid, fam := range c.opFamilies {
@@ -192,25 +226,14 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			}
 			sort.Slice(famOIDs, func(i, j int) bool { return famOIDs[i] < famOIDs[j] })
 			for _, oid := range famOIDs {
-				// Classes elsewhere that joined the family go with it, and so
-				// do the indexes that use them.
-				for _, dep := range c.findNormalDependents('Q', oid) {
-					if dep.ObjType != 'q' {
-						continue
-					}
-					for _, idxDep := range c.findNormalDependents('o', dep.ObjOID) {
-						if idxDep.ObjType == 'i' {
-							c.dropDependentObject('i', idxDep.ObjOID)
-						}
-					}
-					c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: dep.ObjOID})
-				}
-				c.removeAMUser(DepEntry{ObjType: 'Q', ObjOID: oid})
+				c.cascadeDropOpFamily(oid)
 			}
 		}
 
 		c.removeGrantsForObject('n', s.OID)
 		c.removeComments('n', s.OID)
+		c.removeDepsOf('n', s.OID)
+		c.removeDepsOn('n', s.OID)
 		delete(c.schemas, s.OID)
 		delete(c.schemaByName, s.Name)
 	}

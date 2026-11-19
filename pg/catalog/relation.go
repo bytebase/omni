@@ -210,14 +210,22 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 
 	delete(schema.Relations, name)
 	delete(c.relationByOID, rel.OID)
+	delete(c.extensionMembers, rel.OID)
 
 	// Remove row type.
 	if rel.RowTypeOID != 0 {
 		if rt := c.typeByOID[rel.RowTypeOID]; rt != nil {
 			delete(c.typeByName, typeKey{ns: rt.Namespace, name: rt.TypeName})
 		}
+		for key, cast := range c.castIndex {
+			if cast.Source == rel.RowTypeOID || cast.Target == rel.RowTypeOID {
+				delete(c.castIndex, key)
+				delete(c.extensionCasts, key)
+			}
+		}
 		delete(c.typeByOID, rel.RowTypeOID)
 		delete(c.typeOwners, rel.RowTypeOID)
+		delete(c.extensionMembers, rel.RowTypeOID)
 		c.removeGrantsForObject('T', rel.RowTypeOID)
 		c.removeComments('t', rel.RowTypeOID)
 		c.removeDepsOf('t', rel.RowTypeOID)
@@ -229,8 +237,15 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 		if at := c.typeByOID[rel.ArrayOID]; at != nil {
 			delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
 		}
+		for key, cast := range c.castIndex {
+			if cast.Source == rel.ArrayOID || cast.Target == rel.ArrayOID {
+				delete(c.castIndex, key)
+				delete(c.extensionCasts, key)
+			}
+		}
 		delete(c.typeByOID, rel.ArrayOID)
 		delete(c.typeOwners, rel.ArrayOID)
+		delete(c.extensionMembers, rel.ArrayOID)
 		c.removeGrantsForObject('T', rel.ArrayOID)
 		c.removeComments('t', rel.ArrayOID)
 		c.removeDepsOf('t', rel.ArrayOID)
@@ -238,14 +253,27 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 	}
 }
 
-// removeTriggersForRelation removes all triggers on a relation.
+// removeTriggersForRelation removes all triggers on a relation (and any
+// constraint triggers on other relations referencing it via FROM).
 func (c *Catalog) removeTriggersForRelation(relOID uint32) {
 	for _, trig := range c.triggersByRel[relOID] {
 		delete(c.triggers, trig.OID)
+		delete(c.extensionMembers, trig.OID)
 		c.removeComments('g', trig.OID)
 		c.removeDepsOf('g', trig.OID)
+		c.removeDepsOn('g', trig.OID)
 	}
 	delete(c.triggersByRel, relOID)
+
+	var refTrigs []*Trigger
+	for _, trig := range c.triggers {
+		if trig.ConstraintRelOID == relOID && trig.RelOID != relOID {
+			refTrigs = append(refTrigs, trig)
+		}
+	}
+	for _, trig := range refTrigs {
+		c.removeTrigger(trig)
+	}
 }
 
 // removeInhEntries removes all pg_inherits entries where relOID is child or parent.

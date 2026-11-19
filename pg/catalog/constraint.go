@@ -144,8 +144,6 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
 		idx.Tablespace = normalizeTablespace(effectiveTablespace)
-		idx.OwnerName = rel.OwnerName
-		c.recordOpClassDependencies('i', idx.OID, opClassRefsFrom(idx.OpClasses), idx.AccessMethod)
 	} else {
 		idx.IsUnique = true
 		idx.IsPrimary = isPrimary
@@ -451,6 +449,15 @@ func (c *Catalog) addFKConstraint(schema *Schema, rel *Relation, def ConstraintD
 	if refIdxOID := c.lookupFKSupportingIndex(refRel.OID, refAttnums); refIdxOID != 0 {
 		c.recordDependency('c', con.OID, 0, 'r', refIdxOID, 0, DepNormal)
 	}
+	seenFKOp := map[uint32]bool{}
+	for _, opGroups := range [][]uint32{pfEqOp, ppEqOp, ffEqOp} {
+		for _, opOID := range opGroups {
+			if opOID >= FirstNormalObjectId && !seenFKOp[opOID] {
+				seenFKOp[opOID] = true
+				c.recordDependency('c', con.OID, 0, 'O', opOID, 0, DepNormal)
+			}
+		}
+	}
 
 	return nil
 }
@@ -613,15 +620,27 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		accessMethod = "gist"
 	}
 
-	// Validate that the AM supports amgettuple (required for exclusion constraints).
-	// Only btree, hash, gist, spgist support it. gin and brin do not.
+	am := c.accessMethodByName[accessMethod]
+	if am == nil {
+		if !c.snapshot {
+			return errUndefinedObject("access method", accessMethod)
+		}
+		am = &AccessMethod{Name: accessMethod, Type: 'i', OID: c.oidGen.Next()}
+	}
+	if am.Type != 'i' {
+		return &Error{Code: CodeInternalError,
+			Message: fmt.Sprintf("access method %q is not of type INDEX", accessMethod)}
+	}
+	// Validate that built-in AMs support amgettuple (required for exclusion constraints).
+	// Only btree, hash, gist, spgist support it; gin and brin do not.
 	// pg: src/backend/commands/indexcmds.c — DefineIndex (line 875-879)
-	switch accessMethod {
-	case "btree", "hash", "gist", "spgist":
-		// OK — these AMs support amgettuple.
-	default:
-		return &Error{Code: CodeFeatureNotSupported,
-			Message: fmt.Sprintf("access method %q does not support exclusion constraints", accessMethod)}
+	if am.OID < FirstNormalObjectId {
+		switch accessMethod {
+		case "btree", "hash", "gist", "spgist":
+		default:
+			return &Error{Code: CodeFeatureNotSupported,
+				Message: fmt.Sprintf("access method %q does not support exclusion constraints", accessMethod)}
+		}
 	}
 
 	// Create backing index.
@@ -631,6 +650,13 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 	idxName := name
 	indOption := make([]int16, len(attnums))
+	var storedOpClasses []string
+	for _, oc := range def.ExclOpClasses {
+		if oc != "" {
+			storedOpClasses = append([]string(nil), def.ExclOpClasses...)
+			break
+		}
+	}
 	idx := &Index{
 		OID:           c.oidGen.Next(),
 		Name:          idxName,
@@ -645,27 +671,25 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		OwnerName:     rel.OwnerName,
 		NKeyColumns:   len(attnums),
 		IndOption:     indOption,
+		OpClasses:     storedOpClasses,
 	}
 	c.registerIndex(schema, idx)
 	c.recordDependency('i', idx.OID, 0, 'r', rel.OID, 0, DepAuto)
-	if len(def.ExclOpClasses) > 0 {
-		refs := make([]opClassRef, 0, len(def.ExclOpClasses))
-		for i, name := range def.ExclOpClasses {
-			ref := opClassRef{}
-			if name != "" {
-				ref.schema, ref.name = "", name
-				if j := strings.LastIndexByte(name, '.'); j >= 0 {
-					ref.schema, ref.name = name[:j], name[j+1:]
-				}
-			}
-			if i < len(attnums) {
-				if ci := indexOfAttNum(rel, attnums[i]); ci >= 0 {
-					ref.typeOID = rel.Columns[ci].TypeOID
-				}
-			}
-			refs = append(refs, ref)
+	c.recordColumnDependencies('i', idx.OID, rel.OID, attnums, DepAuto)
+	if c.accessMethods[am.OID] != nil {
+		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
+	c.recordOpClassDependencies('i', idx.OID, c.indexOpClassRefs(rel, attnums, len(attnums), def.ExclOpClasses), idx.AccessMethod)
+	for i, opName := range def.ExclOps {
+		if opName == "" || i >= len(attnums) {
+			continue
 		}
-		c.recordOpClassDependencies('i', idx.OID, refs, idx.AccessMethod)
+		if ci := indexOfAttNum(rel, attnums[i]); ci >= 0 {
+			colType := rel.Columns[ci].TypeOID
+			if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID >= FirstNormalObjectId {
+				c.recordDependency('c', conOID, 0, 'O', opOID, 0, DepNormal)
+			}
+		}
 	}
 
 	con := &Constraint{
@@ -759,6 +783,27 @@ func (c *Catalog) registerConstraint(relOID uint32, con *Constraint) {
 	c.consByRel[relOID] = append(c.consByRel[relOID], con)
 }
 
+// resolveVisibleOperatorOID finds the operator matching (name, left, right)
+// in search-path order, returning 0 when none matches.
+func (c *Catalog) resolveVisibleOperatorOID(name string, left, right uint32) uint32 {
+	ops := c.operByKey[operKey{name: name, left: left, right: right}]
+	if len(ops) == 0 {
+		return 0
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		for _, op := range ops {
+			opNS := uint32(PGCatalogNamespace)
+			if op.OID >= FirstNormalObjectId {
+				opNS = c.operatorSchemas[op.OID]
+			}
+			if opNS == nsOID {
+				return op.OID
+			}
+		}
+	}
+	return ops[0].OID
+}
+
 // removeConstraint removes a single constraint and its backing index (if any).
 func (c *Catalog) removeConstraint(schema *Schema, con *Constraint) {
 	// Remove backing index if present.
@@ -771,6 +816,7 @@ func (c *Catalog) removeConstraint(schema *Schema, con *Constraint) {
 	delete(c.constraints, con.OID)
 	c.removeComments('c', con.OID)
 	c.removeDepsOf('c', con.OID)
+	c.removeDepsOn('c', con.OID)
 
 	// Remove from consByRel.
 	list := c.consByRel[con.RelOID]
@@ -791,11 +837,14 @@ func (c *Catalog) removeConstraintsForRelation(relOID uint32, schema *Schema) {
 				delete(c.indexes, idx.OID)
 				c.removeComments('i', idx.OID)
 				c.removeDepsOf('i', idx.OID)
+				c.removeDepsOn('i', idx.OID)
+				c.removeDepsOn('r', idx.OID)
 			}
 		}
 		delete(c.constraints, con.OID)
 		c.removeComments('c', con.OID)
 		c.removeDepsOf('c', con.OID)
+		c.removeDepsOn('c', con.OID)
 	}
 	delete(c.consByRel, relOID)
 }
@@ -920,8 +969,13 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 		if con == nil {
 			return
 		}
+		c.dropDependents('c', con.OID)
+		if con.IndexOID != 0 {
+			c.dropDependents('r', con.IndexOID)
+			c.dropDependents('i', con.IndexOID)
+		}
 		// Find the schema of the owning relation to remove indexes.
-		if ownerRel := c.relationByOID[con.RelOID]; ownerRel != nil {
+		if ownerRel := c.relationByOID[con.RelOID]; ownerRel != nil && c.constraints[con.OID] != nil {
 			c.removeConstraint(ownerRel.Schema, con)
 		}
 	case 'r':
@@ -942,26 +996,51 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			c.dropDependentObject('c', con.OID)
 			return
 		}
-		c.removeIndex(idx.Schema, idx.Name, idx)
+		var childIdxOIDs []uint32
+		for oid, child := range c.indexes {
+			if child.ParentIndexOID == idx.OID && oid != idx.OID {
+				childIdxOIDs = append(childIdxOIDs, oid)
+			}
+		}
+		sort.Slice(childIdxOIDs, func(i, j int) bool { return childIdxOIDs[i] < childIdxOIDs[j] })
+		for _, childOID := range childIdxOIDs {
+			c.dropDependentObject('i', childOID)
+		}
+		c.dropDependents('r', idx.OID)
+		c.dropDependents('i', idx.OID)
+		if c.indexes[idx.OID] == idx {
+			c.removeIndex(idx.Schema, idx.Name, idx)
+		}
 	case 's':
 		seq := c.sequenceByOID[objOID]
 		if seq == nil {
 			return
 		}
-		c.removeSequence(seq.Schema, seq)
+		c.dropDependents('s', seq.OID)
+		if c.sequenceByOID[seq.OID] == seq {
+			c.removeSequence(seq.Schema, seq)
+		}
 	case 'f':
 		up := c.userProcs[objOID]
 		if up == nil {
 			return
 		}
 		c.dropDependents('f', up.OID)
-		c.removeFunction(up.OID, up.Name)
+		if c.userProcs[up.OID] != nil {
+			c.removeFunction(up.OID, up.Name)
+		}
 	case 'g':
 		trig := c.triggers[objOID]
 		if trig == nil {
 			return
 		}
 		c.removeTrigger(trig)
+	case 'p':
+		pol := c.policies[objOID]
+		if pol == nil {
+			return
+		}
+		c.removePolicy(pol)
 	case 'E':
 		evt := c.eventTriggers[objOID]
 		if evt == nil {
@@ -970,31 +1049,15 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 		c.removeEventTrigger(evt)
 	case 'O':
 		if c.operByOID[objOID] != nil {
+			c.dropDependents('O', objOID)
 			c.removeOperator(objOID)
 		}
 	case 'm':
-		for _, user := range c.findNormalDependents('m', objOID) {
-			switch user.ObjType {
-			case 'r':
-				if rel := c.relationByOID[user.ObjOID]; rel != nil {
-					c.cascadeDropRelation(rel)
-				}
-			case 'i':
-				if idx := c.indexes[user.ObjOID]; idx != nil {
-					c.removeIndex(idx.Schema, idx.Name, idx)
-				}
-			case 'q', 'Q':
-				c.removeAMUser(user)
-			}
-		}
-		if am := c.accessMethods[objOID]; am != nil {
-			delete(c.accessMethods, am.OID)
-			delete(c.accessMethodByName, am.Name)
-		}
+		c.cascadeDropAccessMethod(objOID)
 	case 'q':
-		c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: objOID})
+		c.cascadeDropOpClass(objOID)
 	case 'Q':
-		c.removeAMUser(DepEntry{ObjType: 'Q', ObjOID: objOID})
+		c.cascadeDropOpFamily(objOID)
 	case 't':
 		bt := c.typeByOID[objOID]
 		if bt == nil {

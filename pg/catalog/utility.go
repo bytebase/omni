@@ -384,7 +384,7 @@ func (c *Catalog) processSetDefaultTablespace(s *nodes.VariableSetStmt) error {
 			if !ok {
 				continue
 			}
-			if sv.Str != "" && !c.snapshot && !c.tablespaces[sv.Str] {
+			if sv.Str != "" && c.checkTablespace(sv.Str) != nil {
 				return errInvalidParameterValue(fmt.Sprintf("invalid value for parameter \"default_tablespace\": %q", sv.Str))
 			}
 			c.defaultTablespace = sv.Str

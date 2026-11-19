@@ -2671,6 +2671,223 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if code := simulationCatalogCode(t, c12, "CREATE TYPE sh_t (INPUT = sh_t_in, OUTPUT = sh_t_out)"); code != CodeInsufficientPrivilege {
 			t.Fatalf("shell completion by non-owner answered %s, want %s", code, CodeInsufficientPrivilege)
 		}
+
+		// #218: operator class and family ownership is tracked across DROP ROLE,
+		// ALTER ... OWNER TO, RENAME ROLE, REASSIGN OWNED, and DROP OWNED.
+		c78 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE opc_owner",
+			"CREATE ROLE opc_new",
+			"SET ROLE opc_owner",
+			"CREATE OPERATOR FAMILY own_fam USING btree",
+			"CREATE OPERATOR CLASS own_cls FOR TYPE int USING btree FAMILY own_fam AS OPERATOR 1 <, FUNCTION 1 btint4cmp(int, int)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c78, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c78, "DROP ROLE opc_owner"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE owning opclass/opfamily answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c78, "ALTER OPERATOR CLASS own_cls USING btree OWNER TO opc_new"); code != "0" {
+			t.Fatalf("ALTER OPERATOR CLASS OWNER TO: %s", code)
+		}
+		if code := simulationCatalogCode(t, c78, "DROP ROLE opc_owner"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE still owning opfamily answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c78, "ALTER OPERATOR FAMILY own_fam USING btree OWNER TO opc_new"); code != "0" {
+			t.Fatalf("ALTER OPERATOR FAMILY OWNER TO: %s", code)
+		}
+		if code := simulationCatalogCode(t, c78, "DROP ROLE opc_owner"); code != "0" {
+			t.Fatalf("DROP ROLE after transferring opclass/opfamily answered %s, want 0", code)
+		}
+		for _, stmt := range []string{
+			"ALTER ROLE opc_new RENAME TO opc_renamed",
+			"REASSIGN OWNED BY opc_renamed TO postgres",
+			"DROP ROLE opc_renamed",
+		} {
+			if code := simulationCatalogCode(t, c78, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+
+		c78b := New()
+		for _, stmt := range []string{
+			"CREATE ROLE fam_drop_role",
+			"SET ROLE fam_drop_role",
+			"CREATE SCHEMA fam_drop_s",
+			"CREATE OPERATOR FAMILY fam_drop_s.f1 USING btree",
+			"RESET ROLE",
+			"DROP OWNED BY fam_drop_role RESTRICT",
+			"DROP ROLE fam_drop_role",
+		} {
+			if code := simulationCatalogCode(t, c78b, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+
+		// #219: DROP OWNED CASCADE on an owned schema's operator family cascades
+		// external Q -> q operator classes and their o -> i indexes + constraints,
+		// and clears dependency rows.
+		c79 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE fam_schema_owner",
+			"CREATE SCHEMA owned_fam_s AUTHORIZATION fam_schema_owner",
+			"CREATE OPERATOR FAMILY owned_fam_s.fam USING gist",
+			"CREATE OPERATOR CLASS public.ext_gist_ops FOR TYPE int USING gist FAMILY owned_fam_s.fam AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE public.fam_idx_t (a int, CONSTRAINT fam_excl EXCLUDE USING gist (a public.ext_gist_ops WITH &&))",
+		} {
+			if code := simulationCatalogCode(t, c79, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c79, "DROP OWNED BY fam_schema_owner RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED RESTRICT with external opclass in schema family answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c79, "DROP OWNED BY fam_schema_owner CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED CASCADE: %s", code)
+		}
+		if len(c79.opFamilies) != 0 || len(c79.opClasses) != 0 {
+			t.Fatalf("DROP OWNED CASCADE left opfamilies=%d opclasses=%d", len(c79.opFamilies), len(c79.opClasses))
+		}
+		if rel := c79.schemaByName["public"].Relations["fam_idx_t"]; rel != nil && (len(c79.indexesByRel[rel.OID]) != 0 || len(c79.consByRel[rel.OID]) != 0) {
+			t.Fatal("DROP OWNED CASCADE left index or backing exclusion constraint")
+		}
+		for _, d := range c79.deps {
+			if d.ObjType == 'Q' || d.RefType == 'Q' || d.ObjType == 'q' || d.RefType == 'q' || d.RefType == 'o' {
+				t.Fatalf("DROP OWNED CASCADE left stale opclass/opfamily dependency: %+v", d)
+			}
+		}
+
+		// #220: DROP EXTENSION clears dependency rows for member opclasses,
+		// opfamilies, and access methods.
+		RegisterExtensionSQL("test_ext_dep_clean", `
+			CREATE FUNCTION test_iam_h(internal) RETURNS index_am_handler LANGUAGE internal AS 'bthandler';
+			CREATE ACCESS METHOD ext_iam TYPE INDEX HANDLER test_iam_h;
+			CREATE OPERATOR FAMILY ext_iam_fam USING ext_iam;
+			CREATE OPERATOR CLASS ext_iam_ops DEFAULT FOR TYPE int4 USING ext_iam FAMILY ext_iam_fam AS STORAGE int4;
+		`)
+		defer delete(extensionScripts, "test_ext_dep_clean")
+		c80 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_ext_dep_clean",
+			"DROP EXTENSION test_ext_dep_clean",
+		} {
+			if code := simulationCatalogCode(t, c80, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		for _, d := range c80.deps {
+			if d.ObjType == 'q' || d.RefType == 'q' || d.ObjType == 'Q' || d.RefType == 'Q' || d.ObjType == 'm' || d.RefType == 'm' || d.RefType == 'o' {
+				t.Fatalf("DROP EXTENSION left stale AM/opclass/opfamily dependency row: %+v", d)
+			}
+		}
+
+		// #221: LIKE ... INCLUDING INDEXES records default (column-type-resolved)
+		// operator class dependencies on cloned indexes when idx.OpClasses is nil.
+		RegisterExtensionSQL("test_like_def_opc_ext", `
+			CREATE TYPE like_dom AS (v int4);
+			CREATE OPERATOR CLASS like_dom_ops DEFAULT FOR TYPE int4 USING gist AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int4, int4);
+		`)
+		defer delete(extensionScripts, "test_like_def_opc_ext")
+		c81 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_like_def_opc_ext",
+			"CREATE TABLE like_src (a int4)",
+			"CREATE INDEX like_src_gist ON like_src USING gist (a)",
+			"CREATE TABLE like_dst (LIKE like_src INCLUDING INDEXES)",
+			"DROP TABLE like_src",
+		} {
+			if code := simulationCatalogCode(t, c81, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c81, "DROP EXTENSION test_like_def_opc_ext RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION RESTRICT over LIKE-cloned default-opclass index answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c81, "DROP EXTENSION test_like_def_opc_ext CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION CASCADE: %s", code)
+		}
+		if dst := c81.schemaByName["public"].Relations["like_dst"]; dst != nil && len(c81.indexesByRel[dst.OID]) != 0 {
+			t.Fatal("DROP EXTENSION CASCADE left LIKE-cloned index")
+		}
+
+		// Extension OpFamily external class dependent in DropOwned + 3-hop grant
+		// chain + snapshot role/tablespace tombstones + SET SCHEMA preflights.
+		RegisterExtensionSQL("test_owned_fam_ext", "CREATE OPERATOR FAMILY owned_ext_fam USING btree;")
+		defer delete(extensionScripts, "test_owned_fam_ext")
+		c82 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE ext_fam_r",
+			"SET ROLE ext_fam_r",
+			"CREATE EXTENSION test_owned_fam_ext",
+			"RESET ROLE",
+			"CREATE OPERATOR CLASS ext_fam_user_opc FOR TYPE int4 USING btree FAMILY owned_ext_fam AS OPERATOR 1 <, FUNCTION 1 btint4cmp(int4, int4)",
+		} {
+			if code := simulationCatalogCode(t, c82, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c82, "DROP OWNED BY ext_fam_r RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED RESTRICT with external opclass in owned ext family answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c82, "DROP OWNED BY ext_fam_r CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED CASCADE: %s", code)
+		}
+		if len(c82.opClasses) != 0 {
+			t.Fatal("DROP OWNED CASCADE left external opclass in owned ext family")
+		}
+
+		c83 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE hop1",
+			"CREATE ROLE hop2",
+			"CREATE ROLE hop3",
+			"CREATE TABLE hop_t (a int)",
+			"GRANT SELECT ON hop_t TO hop1 WITH GRANT OPTION",
+			"SET ROLE hop1",
+			"GRANT SELECT ON hop_t TO hop2 WITH GRANT OPTION",
+			"SET ROLE hop2",
+			"GRANT SELECT ON hop_t TO hop3",
+			"RESET ROLE",
+			"DROP OWNED BY hop1 CASCADE",
+			"DROP ROLE hop2",
+		} {
+			if code := simulationCatalogCode(t, c83, stmt); code != "0" {
+				t.Fatalf("3-hop grant revocation failed on %s with %s", stmt, code)
+			}
+		}
+
+		c84 := New()
+		c84.snapshot = true
+		for _, stmt := range []string{
+			"CREATE ROLE snap_r",
+			"DROP ROLE snap_r",
+		} {
+			if code := simulationCatalogCode(t, c84, stmt); code != "0" {
+				t.Fatalf("snapshot role setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c84, "DROP ROLE snap_r"); code != CodeUndefinedObject {
+			t.Fatalf("second DROP ROLE on snapshot answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if code := simulationCatalogCode(t, c84, "ALTER ROLE unobs_r RENAME TO unobs_r"); code != CodeDuplicateObject {
+			t.Fatalf("self RENAME ROLE on snapshot answered %s, want %s", code, CodeDuplicateObject)
+		}
+
+		c85 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA mv_s1",
+			"CREATE SCHEMA mv_s2",
+			"CREATE TYPE mv_s1.rng AS RANGE (SUBTYPE = int4)",
+			"ALTER TYPE mv_s1.rng SET SCHEMA mv_s2",
+			"DROP SCHEMA mv_s1 RESTRICT",
+		} {
+			if code := simulationCatalogCode(t, c85, stmt); code != "0" {
+				t.Fatalf("range SET SCHEMA + DROP SCHEMA failed on %s with %s", stmt, code)
+			}
+		}
 	})
 
 	for _, tc := range cases {

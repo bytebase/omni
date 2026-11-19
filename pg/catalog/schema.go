@@ -1,5 +1,7 @@
 package catalog
 
+import "sort"
+
 // Schema represents a PostgreSQL namespace.
 type Schema struct {
 	OID       uint32
@@ -58,16 +60,30 @@ func (c *Catalog) schemaHasObjects(s *Schema) bool {
 	return false
 }
 
-// removeFunctionsInSchema removes all user functions in the given schema.
+// removeFunctionsInSchema removes all user functions in the given schema,
+// cascading to any remaining dependents.
 func (c *Catalog) removeFunctionsInSchema(s *Schema) {
+	var oids []uint32
 	for oid, up := range c.userProcs {
 		if up.Schema.OID == s.OID {
+			oids = append(oids, oid)
+		}
+	}
+	sort.Slice(oids, func(i, j int) bool { return oids[i] < oids[j] })
+	for _, oid := range oids {
+		up := c.userProcs[oid]
+		if up == nil {
+			continue
+		}
+		c.dropDependents('f', oid)
+		if c.userProcs[oid] != nil {
 			c.removeFunction(oid, up.Name)
 		}
 	}
 }
 
-// removeTypesInSchema removes all user-created types in the given schema.
+// removeTypesInSchema removes all user-created types in the given schema,
+// cascading to any remaining dependents.
 func (c *Catalog) removeTypesInSchema(s *Schema) {
 	var types []*BuiltinType
 	for _, bt := range c.typeByOID {
@@ -76,7 +92,17 @@ func (c *Catalog) removeTypesInSchema(s *Schema) {
 		}
 		types = append(types, bt)
 	}
+	sort.Slice(types, func(i, j int) bool { return types[i].OID < types[j].OID })
 	for _, bt := range types {
+		if c.typeByOID[bt.OID] == nil {
+			continue
+		}
+		for _, depRelOID := range c.typeRelationDependents(bt) {
+			if depRel := c.relationByOID[depRelOID]; depRel != nil {
+				c.cascadeDropRelation(depRel)
+			}
+		}
+		c.dropTypeDependents(bt)
 		if c.typeByOID[bt.OID] != nil {
 			c.deleteUserType(bt)
 		}

@@ -86,6 +86,9 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 		castsBefore[key] = true
 	}
 
+	// Snapshot catalog state before executing script so a mid-script error rolls back cleanly.
+	saved := c.Clone()
+
 	// Temporarily prepend target schema to search path so unqualified types
 	// and functions land in the extension's schema.
 	// pg: src/backend/commands/extension.c — execute_extension_script (line 973)
@@ -113,7 +116,7 @@ func (c *Catalog) CreateExtension(stmt *nodes.CreateExtensionStmt) error {
 				node = item.(nodes.Node)
 			}
 			if err := c.ProcessUtility(node); err != nil {
-				c.searchPath = origSearchPath
+				*c = *saved
 				return fmt.Errorf("extension %q: %w", stmt.Extname, err)
 			}
 		}
@@ -406,9 +409,9 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		case 'm':
 			return inExtDrop(objOID)
 		case 'q':
-			return inExtDrop(objOID) || (c.opClasses[objOID] != nil && inExtDrop(c.opClasses[objOID].AMOID))
+			return inExtDrop(objOID)
 		case 'Q':
-			return inExtDrop(objOID) || (c.opFamilies[objOID] != nil && inExtDrop(c.opFamilies[objOID].AMOID))
+			return inExtDrop(objOID)
 		case 'O':
 			return inExtDrop(objOID)
 		}
@@ -489,9 +492,11 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			if !dropExtNames[extName] {
 				continue
 			}
-			for _, dep := range c.findNormalDependents('o', oid) {
-				if !inDropSet(dep.ObjType, dep.ObjOID) {
-					return errDependentObjects("extension", extLabel)
+			for _, refClass := range []byte{'o', 'q', 'Q', 'O'} {
+				for _, dep := range c.findNormalDependents(refClass, oid) {
+					if !inDropSet(dep.ObjType, dep.ObjOID) {
+						return errDependentObjects("extension", extLabel)
+					}
 				}
 			}
 		}
@@ -530,7 +535,11 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	}
 	for _, x := range idxs {
 		if x.schema.Indexes[x.idx.Name] == x.idx {
-			c.removeIndex(x.schema, x.idx.Name, x.idx)
+			if cascade {
+				c.dropDependentObject('i', x.idx.OID)
+			} else {
+				c.removeIndex(x.schema, x.idx.Name, x.idx)
+			}
 		}
 	}
 	if cascade {
@@ -541,53 +550,41 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		}
 		for _, idx := range amIdx {
 			if c.indexes[idx.OID] == idx {
-				c.removeIndex(idx.Schema, idx.Name, idx)
+				c.dropDependentObject('i', idx.OID)
 			}
 		}
 		for _, opOID := range opDepOIDs {
+			c.dropDependents('O', opOID)
 			c.removeOperator(opOID)
 		}
 		for _, key := range externalCasts {
 			delete(c.castIndex, key)
+			delete(c.extensionCasts, key)
 		}
 		for _, dep := range extAMUsers {
 			switch dep.ObjType {
 			case 'm':
-				// The external access method may itself have table, index, or
-				// operator-class users; take them with the method.
-				for _, user := range c.findNormalDependents('m', dep.ObjOID) {
-					switch user.ObjType {
-					case 'r':
-						if rel := c.relationByOID[user.ObjOID]; rel != nil {
-							c.cascadeDropRelation(rel)
-						}
-					case 'i':
-						if idx := c.indexes[user.ObjOID]; idx != nil {
-							c.removeIndex(idx.Schema, idx.Name, idx)
-						}
-					case 'q', 'Q':
-						c.removeAMUser(user)
-					}
-				}
-				if am := c.accessMethods[dep.ObjOID]; am != nil {
-					delete(c.accessMethods, am.OID)
-					delete(c.accessMethodByName, am.Name)
-				}
+				c.cascadeDropAccessMethod(dep.ObjOID)
 			case 'q':
-				if opc := c.opClasses[dep.ObjOID]; opc != nil {
-					if opc.IsDefault {
-						delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
-					}
-					delete(c.opClasses, opc.OID)
-				}
+				c.cascadeDropOpClass(dep.ObjOID)
 			case 'Q':
-				delete(c.opFamilies, dep.ObjOID)
+				c.cascadeDropOpFamily(dep.ObjOID)
 			}
+		}
+		var extOpOIDs []uint32
+		for oid, extName := range c.extensionMembers {
+			if dropExtNames[extName] && c.operByOID[oid] != nil && oid >= FirstNormalObjectId {
+				extOpOIDs = append(extOpOIDs, oid)
+			}
+		}
+		sort.Slice(extOpOIDs, func(i, j int) bool { return extOpOIDs[i] < extOpOIDs[j] })
+		for _, opOID := range extOpOIDs {
+			c.dropDependents('O', opOID)
 		}
 	}
 	for _, idx := range cascadeIdxs {
 		if c.indexes[idx.OID] == idx {
-			c.removeIndex(idx.Schema, idx.Name, idx)
+			c.dropDependentObject('i', idx.OID)
 		}
 	}
 	for _, x := range seqs {
@@ -662,35 +659,24 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 				c.removeTrigger(trig)
 			}
 			if pol := c.policies[oid]; pol != nil {
-				delete(c.policies, pol.OID)
-				c.removeDepsOf('p', pol.OID)
-				c.removeComments('p', pol.OID)
-				plist := c.policiesByRel[pol.RelOID]
-				for i, item := range plist {
-					if item.OID == pol.OID {
-						c.policiesByRel[pol.RelOID] = append(plist[:i], plist[i+1:]...)
-						break
-					}
-				}
+				c.removePolicy(pol)
 			}
 			if con := c.constraints[oid]; con != nil {
 				if ownerRel := c.relationByOID[con.RelOID]; ownerRel != nil {
 					c.removeConstraint(ownerRel.Schema, con)
 				}
 			}
-			if opc := c.opClasses[oid]; opc != nil {
-				if opc.IsDefault {
-					delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
-				}
-				delete(c.opClasses, oid)
+			if c.opClasses[oid] != nil {
+				c.removeOpClass(oid)
 			}
-			delete(c.opFamilies, oid)
+			if c.opFamilies[oid] != nil {
+				c.removeOpFamily(oid)
+			}
 			if c.operByOID[oid] != nil {
 				c.removeOperator(oid)
 			}
-			if am := c.accessMethods[oid]; am != nil && oid >= FirstNormalObjectId {
-				delete(c.accessMethods, oid)
-				delete(c.accessMethodByName, am.Name)
+			if c.accessMethods[oid] != nil && oid >= FirstNormalObjectId {
+				c.removeAccessMethod(oid)
 			}
 		}
 	}
@@ -774,6 +760,10 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 	if newSchema == nil {
 		return errUndefinedSchema(stmt.Newschema)
 	}
+	if !ext.Relocatable {
+		return &Error{Code: CodeFeatureNotSupported,
+			Message: fmt.Sprintf("extension %q does not support SET SCHEMA", ext.Name)}
+	}
 	oldOID := ext.SchemaOID
 	if oldOID == newSchema.OID {
 		return nil
@@ -846,7 +836,7 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 				if other.OID == opc.OID || other.Schema != newSchema.OID || other.AMOID != opc.AMOID {
 					continue
 				}
-				if other.Name == opc.Name && other.TypeOID == opc.TypeOID {
+				if other.Name == opc.Name {
 					return errDuplicateObject("operator class", opc.Name)
 				}
 			}
@@ -863,7 +853,11 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 		}
 		if op := c.operByOID[oid]; op != nil && c.operatorSchemas[oid] == oldOID {
 			for _, other := range c.operByKey[operKey{name: op.Name, left: op.Left, right: op.Right}] {
-				if other.OID != op.OID && other.OID >= FirstNormalObjectId && c.operatorSchemas[other.OID] == newSchema.OID {
+				otherNS := uint32(PGCatalogNamespace)
+				if other.OID >= FirstNormalObjectId {
+					otherNS = c.operatorSchemas[other.OID]
+				}
+				if other.OID != op.OID && otherNS == newSchema.OID {
 					return errDuplicateObject("operator", op.Name)
 				}
 			}
@@ -875,6 +869,9 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 			delete(oldSchema.Relations, rel.Name)
 			newSchema.Relations[rel.Name] = rel
 			rel.Schema = newSchema
+			for _, con := range c.consByRel[rel.OID] {
+				con.Namespace = newSchema.OID
+			}
 		}
 		if idx := c.indexes[oid]; idx != nil && oldSchema != nil && idx.Schema == oldSchema {
 			delete(oldSchema.Indexes, idx.Name)
@@ -890,6 +887,9 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 			delete(c.typeByName, typeKey{ns: oldOID, name: bt.TypeName})
 			bt.Namespace = newSchema.OID
 			c.typeByName[typeKey{ns: newSchema.OID, name: bt.TypeName}] = bt
+			if rt := c.rangeTypes[oid]; rt != nil {
+				rt.Namespace = newSchema.OID
+			}
 		}
 		if up := c.userProcs[oid]; up != nil && oldSchema != nil && up.Schema == oldSchema {
 			up.Schema = newSchema

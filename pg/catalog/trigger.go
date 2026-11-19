@@ -322,6 +322,10 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 
 	// pg: src/backend/commands/trigger.c:1074 — trigger auto-drops with table
 	c.recordDependency('g', trigOID, 0, 'r', rel.OID, 0, DepAuto)
+	if constraintRelOID != 0 && constraintRelOID != rel.OID {
+		// pg: src/backend/commands/trigger.c:1084 — auto-drop with referenced relation
+		c.recordDependency('g', trigOID, 0, 'r', constraintRelOID, 0, DepAuto)
+	}
 	// pg: src/backend/commands/trigger.c:1049 — trigger depends on function
 	c.recordDependency('g', trigOID, 0, 'f', funcBP.OID, 0, DepNormal)
 
@@ -363,14 +367,114 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		c.recordDependency('c', conOID, 0, 'r', rel.OID, 0, DepAuto)
 	}
 
+	// Clone FOR EACH ROW triggers onto any existing partitions.
+	// pg: src/backend/commands/trigger.c — CreateTriggerRecurse (line 1143)
+	if rel.RelKind == 'p' && forEachRow && !isConstraint {
+		c.cloneSingleTriggerToPartitions(rel, trig)
+	}
+
 	return nil
+}
+
+func (c *Catalog) cloneSingleTriggerToPartitions(parent *Relation, trig *Trigger) {
+	for _, childOID := range c.findPartitionChildRelations(parent.OID) {
+		partition := c.relationByOID[childOID]
+		if partition == nil {
+			continue
+		}
+		var partCols []int16
+		if trig.Columns != nil {
+			partCols = c.mapColumnAttnums(parent, partition, trig.Columns)
+		}
+		var partArgs []string
+		if trig.Args != nil {
+			partArgs = make([]string, len(trig.Args))
+			copy(partArgs, trig.Args)
+		}
+		partTrig := &Trigger{
+			OID:               c.oidGen.Next(),
+			Name:              trig.Name,
+			RelOID:            partition.OID,
+			FuncOID:           trig.FuncOID,
+			Timing:            trig.Timing,
+			Events:            trig.Events,
+			ForEachRow:        true,
+			WhenExpr:          trig.WhenExpr,
+			Columns:           partCols,
+			Enabled:           trig.Enabled,
+			OldTransitionName: trig.OldTransitionName,
+			NewTransitionName: trig.NewTransitionName,
+			Args:              partArgs,
+			ParentTriggerOID:  trig.OID,
+		}
+		c.triggers[partTrig.OID] = partTrig
+		c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
+		c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, 0, DepAuto)
+		var colDeps, extDeps []DepEntry
+		for _, d := range c.deps {
+			if d.ObjType != 'g' || d.ObjOID != trig.OID {
+				continue
+			}
+			if d.RefType == 'r' && d.RefOID == parent.OID && d.RefSubID > 0 {
+				colDeps = append(colDeps, d)
+			} else if d.DepType == DepNormal && !(d.RefType == 'r' && d.RefOID == parent.OID) {
+				extDeps = append(extDeps, d)
+			}
+		}
+		for _, d := range colDeps {
+			if m := c.mapColumnAttnums(parent, partition, []int16{int16(d.RefSubID)}); len(m) == 1 && m[0] != 0 {
+				c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, int32(m[0]), d.DepType)
+			}
+		}
+		for _, d := range extDeps {
+			c.recordDependency('g', partTrig.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+		}
+		if partition.RelKind == 'p' {
+			c.cloneSingleTriggerToPartitions(partition, partTrig)
+		}
+	}
 }
 
 // removeTrigger removes a trigger from all catalog maps.
 func (c *Catalog) removeTrigger(trig *Trigger) {
+	if trig == nil {
+		return
+	}
+	// Recursively remove partition child triggers cloned from this trigger.
+	var children []*Trigger
+	for _, t := range c.triggers {
+		if t.ParentTriggerOID == trig.OID {
+			children = append(children, t)
+		}
+	}
+	for _, child := range children {
+		c.removeTrigger(child)
+	}
+
+	// Remove internal pg_constraint entry created for constraint triggers.
+	if trig.IsConstraint {
+		var conOIDs []uint32
+		for _, d := range c.deps {
+			if d.ObjType == 'g' && d.ObjOID == trig.OID && d.RefType == 'c' && d.DepType == DepInternal {
+				conOIDs = append(conOIDs, d.RefOID)
+			}
+		}
+		for _, conOID := range conOIDs {
+			if con := c.constraints[conOID]; con != nil {
+				var conSchema *Schema
+				if rel := c.relationByOID[con.RelOID]; rel != nil {
+					conSchema = rel.Schema
+				}
+				c.removeConstraint(conSchema, con)
+			}
+		}
+	}
+
 	delete(c.triggers, trig.OID)
+	delete(c.extensionMembers, trig.OID)
 	c.removeComments('g', trig.OID)
 	c.removeDepsOf('g', trig.OID)
+	c.removeDepsOn('g', trig.OID)
 
 	// Remove from triggersByRel.
 	list := c.triggersByRel[trig.RelOID]

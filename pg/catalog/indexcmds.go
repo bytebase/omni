@@ -133,6 +133,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			if !ok {
 				continue
 			}
+			var opClassTypeOID uint32
 			if elem.Name == "" {
 				// Expression index element: store attnum=0 (PG convention).
 				attnums = append(attnums, 0)
@@ -144,6 +145,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 						rte := c.buildRelationRTE(rel)
 						exprTexts = append(exprTexts, c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true))
 						analyzedExprs = append(analyzedExprs, analyzed)
+						if analyzed != nil {
+							opClassTypeOID = analyzed.exprType()
+						}
 					} else {
 						return fmt.Errorf("failed to analyze index expression: %w", aErr)
 					}
@@ -161,6 +165,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				}
 				attnums = append(attnums, rel.Columns[idx].AttNum)
 				colNames = append(colNames, elem.Name)
+				opClassTypeOID = rel.Columns[idx].TypeOID
 			}
 
 			// Compute indoption flags: bit0=DESC, bit1=NULLS_FIRST.
@@ -187,12 +192,6 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				}
 			}
 			if len(opClass) > 0 {
-				var opClassTypeOID uint32
-				if elem.Name != "" {
-					if ci, ok := rel.colByName[elem.Name]; ok {
-						opClassTypeOID = rel.Columns[ci].TypeOID
-					}
-				}
 				opClassRefs = append(opClassRefs, opClassRef{
 					schema:  strings.Join(opClass[:len(opClass)-1], "."),
 					name:    opClass[len(opClass)-1],
@@ -200,13 +199,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				})
 			} else {
 				// No opclass named: PostgreSQL still picks the default one for
-				// the access method and column type, and depends on it.
-				var opClassTypeOID uint32
-				if elem.Name != "" {
-					if ci, ok := rel.colByName[elem.Name]; ok {
-						opClassTypeOID = rel.Columns[ci].TypeOID
-					}
-				}
+				// the access method and column/expression type, and depends on it.
 				opClassRefs = append(opClassRefs, opClassRef{typeOID: opClassTypeOID})
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
@@ -365,6 +358,7 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 		IsPrimary:     isPrimary,
 		ConstraintOID: constraintOID,
 		AccessMethod:  "btree",
+		OwnerName:     rel.OwnerName,
 		NKeyColumns:   len(attnums),
 		IndOption:     indOption,
 	}
@@ -373,6 +367,7 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 	if am := c.accessMethodByName[idx.AccessMethod]; am != nil {
 		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
 	}
+	c.recordOpClassDependencies('i', idx.OID, c.indexOpClassRefs(rel, attnums, len(attnums), nil), idx.AccessMethod)
 	// pg: index_create() — whole-relation dep + per-column deps
 	c.recordDependency('i', idx.OID, 0, 'r', rel.OID, 0, DepAuto)
 	for _, attnum := range attnums {
@@ -382,6 +377,33 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 	}
 
 	return idx
+}
+
+// indexOpClassRefs builds per-key-column operator-class references (including
+// column types for default or overloaded operator-class lookup) for indexes
+// constructed from resolved column attnums.
+func (c *Catalog) indexOpClassRefs(rel *Relation, attnums []int16, nKeyColumns int, opClasses []string) []opClassRef {
+	nKey := nKeyColumns
+	if nKey <= 0 || nKey > len(attnums) {
+		nKey = len(attnums)
+	}
+	refs := make([]opClassRef, 0, nKey)
+	for i := 0; i < nKey; i++ {
+		var ref opClassRef
+		if i < len(opClasses) && opClasses[i] != "" {
+			ref.schema, ref.name = "", opClasses[i]
+			if dot := strings.LastIndexByte(opClasses[i], '.'); dot >= 0 {
+				ref.schema, ref.name = opClasses[i][:dot], opClasses[i][dot+1:]
+			}
+		}
+		if rel != nil && attnums[i] > 0 {
+			if ci := indexOfAttNum(rel, attnums[i]); ci >= 0 {
+				ref.typeOID = rel.Columns[ci].TypeOID
+			}
+		}
+		refs = append(refs, ref)
+	}
+	return refs
 }
 
 // registerIndex adds an index to all catalog maps.
@@ -512,6 +534,8 @@ func (c *Catalog) removeIndex(schema *Schema, name string, idx *Index) {
 
 	c.removeComments('i', idx.OID)
 	c.removeDepsOf('i', idx.OID)
+	c.removeDepsOn('i', idx.OID)
+	c.removeDepsOn('r', idx.OID)
 }
 
 // removeIndexesForRelation removes all indexes belonging to a relation.
@@ -521,6 +545,8 @@ func (c *Catalog) removeIndexesForRelation(relOID uint32, schema *Schema) {
 		delete(c.indexes, idx.OID)
 		c.removeComments('i', idx.OID)
 		c.removeDepsOf('i', idx.OID)
+		c.removeDepsOn('i', idx.OID)
+		c.removeDepsOn('r', idx.OID)
 	}
 	delete(c.indexesByRel, relOID)
 }

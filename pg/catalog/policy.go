@@ -96,6 +96,12 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 	c.policies[policy.OID] = policy
 	c.policiesByRel[rel.OID] = append(c.policiesByRel[rel.OID], policy)
 	c.recordDependency('p', policy.OID, 0, 'r', rel.OID, 0, DepAuto)
+	if policy.UsingAnalyzed != nil {
+		c.recordDependencyOnSingleRelExpr('p', policy.OID, policy.UsingAnalyzed, rel.OID, DepNormal, DepNormal)
+	}
+	if policy.CheckAnalyzed != nil {
+		c.recordDependencyOnSingleRelExpr('p', policy.OID, policy.CheckAnalyzed, rel.OID, DepNormal, DepNormal)
+	}
 
 	return nil
 }
@@ -144,6 +150,8 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 		c.recordPolicyRoles(policy.Roles)
 	}
 	if stmt.Qual != nil {
+		policy.UsingAnalyzed = nil
+		policy.UsingExpr = ""
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
 			policy.UsingAnalyzed = analyzed
 			rte := c.buildRelationRTE(rel)
@@ -151,10 +159,22 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 		}
 	}
 	if stmt.WithCheck != nil {
+		policy.CheckAnalyzed = nil
+		policy.CheckExpr = ""
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.WithCheck, rel); err == nil && analyzed != nil {
 			policy.CheckAnalyzed = analyzed
 			rte := c.buildRelationRTE(rel)
 			policy.CheckExpr = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, false)
+		}
+	}
+	if stmt.Qual != nil || stmt.WithCheck != nil {
+		c.removeDepsOf('p', policy.OID)
+		c.recordDependency('p', policy.OID, 0, 'r', rel.OID, 0, DepAuto)
+		if policy.UsingAnalyzed != nil {
+			c.recordDependencyOnSingleRelExpr('p', policy.OID, policy.UsingAnalyzed, rel.OID, DepNormal, DepNormal)
+		}
+		if policy.CheckAnalyzed != nil {
+			c.recordDependencyOnSingleRelExpr('p', policy.OID, policy.CheckAnalyzed, rel.OID, DepNormal, DepNormal)
 		}
 	}
 
@@ -197,11 +217,33 @@ func (c *Catalog) extractPolicyRoles(roleList *nodes.List) []string {
 	return roles
 }
 
+// removePolicy removes a single policy from all catalog maps and cleans its dependencies.
+func (c *Catalog) removePolicy(pol *Policy) {
+	if pol == nil {
+		return
+	}
+	delete(c.policies, pol.OID)
+	delete(c.extensionMembers, pol.OID)
+	c.removeDepsOf('p', pol.OID)
+	c.removeDepsOn('p', pol.OID)
+	c.removeComments('p', pol.OID)
+	plist := c.policiesByRel[pol.RelOID]
+	for i, p := range plist {
+		if p.OID == pol.OID {
+			c.policiesByRel[pol.RelOID] = append(plist[:i], plist[i+1:]...)
+			break
+		}
+	}
+}
+
 // removePoliciesForRelation removes all policies belonging to a relation.
 func (c *Catalog) removePoliciesForRelation(relOID uint32) {
 	for _, p := range c.policiesByRel[relOID] {
 		delete(c.policies, p.OID)
+		delete(c.extensionMembers, p.OID)
 		c.removeDepsOf('p', p.OID)
+		c.removeDepsOn('p', p.OID)
+		c.removeComments('p', p.OID)
 	}
 	delete(c.policiesByRel, relOID)
 }

@@ -190,7 +190,7 @@ func missingObject(err error) bool {
 		return false
 	}
 	switch e.Code {
-	case CodeUndefinedTable, CodeUndefinedObject, CodeUndefinedSchema:
+	case CodeUndefinedTable, CodeUndefinedObject, CodeUndefinedSchema, CodeUndefinedFunction:
 		return true
 	}
 	return false

@@ -107,7 +107,24 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 
 	// Look up the implementing function.
 	// pg: DefineOperator → OperatorCreate → OperatorLookup (function resolution)
-	funcOID := c.findOperatorFunc(functionName, typeId1, typeId2)
+	var funcSchema string
+	if stmt.Definition != nil {
+		for _, item := range stmt.Definition.Items {
+			de, ok := item.(*nodes.DefElem)
+			if !ok {
+				continue
+			}
+			if low := strings.ToLower(de.Defname); low == "function" || low == "procedure" {
+				if l, ok := de.Arg.(*nodes.List); ok {
+					funcSchema, _ = qualifiedName(l)
+				}
+			}
+		}
+	}
+	funcOID, funcErr := c.findOperatorFuncInSchema(funcSchema, functionName, typeId1, typeId2)
+	if funcErr != nil {
+		return funcErr
+	}
 	if funcOID == 0 {
 		var argOIDs []uint32
 		if typeId1 != 0 {
@@ -115,6 +132,19 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 		}
 		argOIDs = append(argOIDs, typeId2)
 		return errUndefinedFunction(functionName, argOIDs)
+	}
+
+	// Duplicate check in target schema.
+	// pg: src/backend/catalog/pg_operator.c — OperatorCreate (42723 ERRCODE_DUPLICATE_FUNCTION)
+	key := operKey{name: oprName, left: typeId1, right: typeId2}
+	for _, existing := range c.operByKey[key] {
+		existingNS := uint32(PGCatalogNamespace)
+		if existing.OID >= FirstNormalObjectId {
+			existingNS = c.operatorSchemas[existing.OID]
+		}
+		if existingNS == opSchema.OID {
+			return errDuplicateFunction(oprName)
+		}
 	}
 
 	// Determine result type from function return type.
@@ -176,11 +206,11 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 			c.recordDependency('O', op.OID, 0, 't', typeOID, 0, DepNormal)
 		}
 	}
-	key := operKey{name: oprName, left: typeId1, right: typeId2}
 	c.operByKey[key] = append(c.operByKey[key], op)
 
-	// Cross-link commutator if found.
-	if commutatorOID != 0 {
+	// Cross-link commutator if found (only on user-defined operators so shared
+	// built-in operator entries are never mutated).
+	if commutatorOID >= FirstNormalObjectId {
 		if comOp := c.operByOID[commutatorOID]; comOp != nil && comOp.Com == 0 {
 			comOp.Com = op.OID
 		}
@@ -192,13 +222,66 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 	}
 
 	// Cross-link negator if found.
-	if negatorOID != 0 {
+	if negatorOID >= FirstNormalObjectId {
 		if negOp := c.operByOID[negatorOID]; negOp != nil && negOp.Negate == 0 {
 			negOp.Negate = op.OID
 		}
 	}
 
 	return nil
+}
+
+func (c *Catalog) findOperatorFuncInSchema(schemaName, name string, leftType, rightType uint32) (uint32, error) {
+	var argOIDs []uint32
+	if leftType != 0 {
+		argOIDs = []uint32{leftType, rightType}
+	} else {
+		argOIDs = []uint32{rightType}
+	}
+	matchBuiltin := func() uint32 {
+		for _, p := range c.procByName[name] {
+			if p.OID >= FirstNormalObjectId || int(p.NArgs) != len(argOIDs) {
+				continue
+			}
+			ok := true
+			for i, a := range argOIDs {
+				if p.ArgTypes[i] != a {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				return p.OID
+			}
+		}
+		return 0
+	}
+	if schemaName != "" {
+		schema, err := c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return 0, err
+		}
+		if bp := c.findExactProc(schema, name, argOIDs); bp != nil {
+			return bp.OID, nil
+		}
+		if schema.OID == PGCatalogNamespace {
+			return matchBuiltin(), nil
+		}
+		return 0, nil
+	}
+	for _, nsOID := range c.searchPathWithCatalog() {
+		if ns := c.schemas[nsOID]; ns != nil {
+			if bp := c.findExactProc(ns, name, argOIDs); bp != nil {
+				return bp.OID, nil
+			}
+		}
+		if nsOID == PGCatalogNamespace {
+			if oid := matchBuiltin(); oid != 0 {
+				return oid, nil
+			}
+		}
+	}
+	return c.findOperatorFunc(name, leftType, rightType), nil
 }
 
 // findOperatorFunc finds a function suitable for an operator implementation.
@@ -236,14 +319,113 @@ func (c *Catalog) lookupOperatorByName(name string, left, right uint32) uint32 {
 	return 0
 }
 
+// lookupUserOperator resolves an ObjectWithArgs to a user-defined operator.
+func (c *Catalog) lookupUserOperator(owa *nodes.ObjectWithArgs) (*BuiltinOperator, error) {
+	if owa == nil {
+		return nil, errUndefinedObject("operator", "")
+	}
+	schemaName, oprName := qualifiedName(owa.Objname)
+	var opSchema *Schema
+	if schemaName != "" {
+		var err error
+		opSchema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var left, right uint32
+	if owa.Objargs != nil {
+		var oids []uint32
+		for _, item := range owa.Objargs.Items {
+			tn, ok := item.(*nodes.TypeName)
+			if !ok {
+				oids = append(oids, 0)
+				continue
+			}
+			oid, _, err := c.resolveTypeName(tn)
+			if err != nil {
+				return nil, err
+			}
+			oids = append(oids, oid)
+		}
+		if len(oids) == 1 {
+			right = oids[0]
+		} else if len(oids) >= 2 {
+			left, right = oids[0], oids[1]
+		}
+	}
+	var found *BuiltinOperator
+	rank := func(op *BuiltinOperator) int {
+		if op.OID < FirstNormalObjectId {
+			return -1
+		}
+		nsOID, ok := c.operatorSchemas[op.OID]
+		if !ok {
+			return -1
+		}
+		if opSchema != nil {
+			if opSchema.OID == nsOID {
+				return 0
+			}
+			return -1
+		}
+		for i, visible := range c.searchPathWithCatalog() {
+			if visible == nsOID {
+				return i
+			}
+		}
+		return -1
+	}
+	bestRank := -1
+	for _, op := range c.operByKey[operKey{name: oprName, left: left, right: right}] {
+		if r := rank(op); r >= 0 && (bestRank < 0 || r < bestRank) {
+			bestRank = r
+			found = op
+		}
+	}
+	if found == nil {
+		return nil, errUndefinedObject("operator", oprName)
+	}
+	return found, nil
+}
+
+func (c *Catalog) alterOperatorNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchema *Schema) error {
+	owa, ok := stmt.Object.(*nodes.ObjectWithArgs)
+	if !ok {
+		return nil
+	}
+	op, err := c.lookupUserOperator(owa)
+	if err != nil {
+		return err
+	}
+	oldNS := c.operatorSchemas[op.OID]
+	if oldNS == newSchema.OID {
+		return nil
+	}
+	for _, other := range c.operByKey[operKey{name: op.Name, left: op.Left, right: op.Right}] {
+		otherNS := uint32(PGCatalogNamespace)
+		if other.OID >= FirstNormalObjectId {
+			otherNS = c.operatorSchemas[other.OID]
+		}
+		if other.OID != op.OID && otherNS == newSchema.OID {
+			return errDuplicateObject("operator", op.Name)
+		}
+	}
+	c.operatorSchemas[op.OID] = newSchema.OID
+	return nil
+}
+
 // removeOperator forgets a user-defined operator, clearing the commutator and
 // negator links other operators hold on it.
 func (c *Catalog) removeOperator(oid uint32) {
 	op := c.operByOID[oid]
-	if op == nil {
+	if op == nil || oid < FirstNormalObjectId {
 		return
 	}
-	for _, other := range c.operByOID {
+	for otherOID, other := range c.operByOID {
+		if otherOID < FirstNormalObjectId {
+			continue
+		}
 		if other.Com == oid {
 			other.Com = 0
 		}
@@ -254,6 +436,8 @@ func (c *Catalog) removeOperator(oid uint32) {
 	delete(c.operByOID, oid)
 	delete(c.operatorOwners, oid)
 	delete(c.operatorSchemas, oid)
+	delete(c.extensionMembers, oid)
+	c.removeComments('O', oid)
 	c.removeDepsOf('O', oid)
 	c.removeDepsOn('O', oid)
 	for key, ops := range c.operByKey {

@@ -3,6 +3,7 @@ package catalog
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -301,6 +302,8 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	var relOwners map[*Relation]string
 	var idxOwners map[*Index]string
 	var seqOwners map[*Sequence]string
+	var savedTypeOwners map[uint32]string
+	var savedGrants []Grant
 	restore := func() {}
 	if needsRollback {
 		rels := []*Relation{rel}
@@ -314,6 +317,17 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		idxTablespaces = map[*Index]string{}
 		idxOwners = map[*Index]string{}
 		seqOwners = map[*Sequence]string{}
+		savedTypeOwners = make(map[uint32]string, len(c.typeOwners))
+		for oid, owner := range c.typeOwners {
+			savedTypeOwners[oid] = owner
+		}
+		if c.grants != nil {
+			savedGrants = make([]Grant, len(c.grants))
+			for i, g := range c.grants {
+				savedGrants[i] = g
+				savedGrants[i].Columns = slices.Clone(g.Columns)
+			}
+		}
 		for _, r := range rels {
 			relTablespaces[r] = r.Tablespace
 			relOwners[r] = r.OwnerName
@@ -343,6 +357,8 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			for seq, owner := range seqOwners {
 				seq.OwnerName = owner
 			}
+			c.typeOwners = savedTypeOwners
+			c.grants = savedGrants
 		}
 	}
 
@@ -703,12 +719,26 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			}
 			rel.OwnerName = owner
 			c.transferACLs('r', rel.OID, oldOwner, owner)
+			if rel.RowTypeOID != 0 {
+				if _, ok := c.typeOwners[rel.RowTypeOID]; ok {
+					c.typeOwners[rel.RowTypeOID] = owner
+				}
+				c.transferACLs('T', rel.RowTypeOID, oldOwner, owner)
+			}
+			if rel.ArrayOID != 0 {
+				if _, ok := c.typeOwners[rel.ArrayOID]; ok {
+					c.typeOwners[rel.ArrayOID] = owner
+				}
+				c.transferACLs('T', rel.ArrayOID, oldOwner, owner)
+			}
 			for _, idx := range c.indexesByRel[rel.OID] {
 				idx.OwnerName = rel.OwnerName
 			}
 			for _, seq := range c.sequenceByOID {
 				if seq.OwnerRelOID == rel.OID {
+					oldSeqOwner := seq.OwnerName
 					seq.OwnerName = rel.OwnerName
+					c.transferACLs('s', seq.OID, oldSeqOwner, rel.OwnerName)
 				}
 			}
 		}
@@ -921,8 +951,12 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameEventTrigger(stmt)
 	case nodes.OBJECT_TABCONSTRAINT:
 		return c.renameConstraint(stmt)
-	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE:
+	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
 		return c.renameFunction(stmt)
+	case nodes.OBJECT_OPCLASS:
+		return c.renameOpClass(stmt)
+	case nodes.OBJECT_OPFAMILY:
+		return c.renameOpFamily(stmt)
 	case nodes.OBJECT_POLICY:
 		return c.renamePolicy(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
@@ -983,12 +1017,43 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 	}
 }
 
+// ensureArrayTypeNameFree implements PostgreSQL's moveArrayTypeName: if nsOID
+// already holds an auto-generated array type with arrayName, shift that array
+// type to "_" + arrayName recursively; if a non-array type holds arrayName,
+// refuse with duplicate type.
+func (c *Catalog) ensureArrayTypeNameFree(nsOID uint32, arrayName string) error {
+	existing := c.typeByName[typeKey{ns: nsOID, name: arrayName}]
+	if existing == nil {
+		return nil
+	}
+	if existing.Category == 'A' && existing.Elem != 0 {
+		if elem := c.typeByOID[existing.Elem]; elem != nil && elem.Array == existing.OID {
+			if err := c.ensureArrayTypeNameFree(nsOID, "_"+arrayName); err != nil {
+				return err
+			}
+			delete(c.typeByName, typeKey{ns: nsOID, name: existing.TypeName})
+			existing.TypeName = "_" + arrayName
+			c.typeByName[typeKey{ns: nsOID, name: existing.TypeName}] = existing
+			return nil
+		}
+	}
+	return errDuplicateObject("type", arrayName)
+}
+
 // renameRelation renames a relation (table or view) and updates associated types.
 //
 // (pgddl helper — generalizes PG's RenameRelationInternal)
 func (c *Catalog) renameRelation(schema *Schema, rel *Relation, newName string) error {
-	if _, exists := schema.Relations[newName]; exists {
+	if _, exists := relationNamespaceKind(schema, newName); exists {
 		return errDuplicateTable(newName)
+	}
+	if c.typeByName[typeKey{ns: schema.OID, name: newName}] != nil {
+		return errDuplicateObject("type", newName)
+	}
+	if rel.ArrayOID != 0 {
+		if err := c.ensureArrayTypeNameFree(schema.OID, "_"+newName); err != nil {
+			return err
+		}
 	}
 
 	oldName := rel.Name
@@ -1062,22 +1127,35 @@ func (c *Catalog) renameSchema(stmt *nodes.RenameStmt) error {
 func (c *Catalog) renameType(stmt *nodes.RenameStmt) error {
 	var schemaName, typeName string
 	if stmt.Object != nil {
-		// Object is a qualified name list.
 		if list, ok := stmt.Object.(*nodes.List); ok {
 			schemaName, typeName = qualifiedName(list)
+		} else if tn, ok := stmt.Object.(*nodes.TypeName); ok {
+			schemaName, typeName = qualifiedName(tn.Names)
 		} else {
 			typeName = stringVal(stmt.Object)
 		}
 	}
 	newName := stmt.Newname
 
-	schema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		return err
+	var schema *Schema
+	var bt *BuiltinType
+	if schemaName != "" {
+		var err error
+		schema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
+		bt = c.typeByName[typeKey{ns: schema.OID, name: typeName}]
+	} else {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if found := c.typeByName[typeKey{ns: nsOID, name: typeName}]; found != nil {
+				bt = found
+				schema = c.schemas[nsOID]
+				break
+			}
+		}
 	}
-
-	bt := c.typeByName[typeKey{ns: schema.OID, name: typeName}]
-	if bt == nil {
+	if bt == nil || schema == nil {
 		return errUndefinedType(typeName)
 	}
 
@@ -1085,19 +1163,24 @@ func (c *Catalog) renameType(stmt *nodes.RenameStmt) error {
 	if stmt.RenameType == nodes.OBJECT_DOMAIN && bt.Type != 'd' {
 		return errWrongObjectType(typeName, "a domain")
 	}
-	if stmt.RenameType == nodes.OBJECT_TYPE && bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && bt.Type != 'c' {
+	if stmt.RenameType == nodes.OBJECT_TYPE && bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && bt.Type != 'c' && !(bt.OID >= FirstNormalObjectId && bt.Elem == 0) {
 		return errWrongObjectType(typeName, "a type")
-	}
-
-	// Check for duplicate name.
-	if c.typeByName[typeKey{ns: schema.OID, name: newName}] != nil {
-		return errDuplicateObject("type", newName)
 	}
 
 	// For composite types, rename the backing relation too.
 	if bt.Type == 'c' && bt.RelID != 0 {
 		if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
 			return c.renameRelation(rel.Schema, rel, newName)
+		}
+	}
+
+	// Check for duplicate name.
+	if c.typeByName[typeKey{ns: schema.OID, name: newName}] != nil {
+		return errDuplicateObject("type", newName)
+	}
+	if bt.Array != 0 {
+		if err := c.ensureArrayTypeNameFree(schema.OID, "_"+newName); err != nil {
+			return err
 		}
 	}
 
@@ -1224,9 +1307,9 @@ func (c *Catalog) renameSequence(stmt *nodes.RenameStmt) error {
 		return err
 	}
 
-	// Check for duplicate name.
-	if _, exists := seq.Schema.Sequences[newName]; exists {
-		return errDuplicateObject("sequence", newName)
+	// Check for duplicate name in the relation namespace.
+	if _, exists := relationNamespaceKind(seq.Schema, newName); exists {
+		return errDuplicateTable(newName)
 	}
 
 	delete(seq.Schema.Sequences, seqName)
@@ -1318,10 +1401,38 @@ func (c *Catalog) renameConstraint(stmt *nodes.RenameStmt) error {
 	return nil
 }
 
-// renameFunction renames a user-defined function.
+// renameFunction renames a user-defined routine (function, procedure, routine, or aggregate).
 //
-// pg: src/backend/commands/alter.c — ExecRenameStmt (OBJECT_FUNCTION case)
+// pg: src/backend/commands/functioncmds.c — RenameFunction
 func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
+	newName := stmt.Newname
+	if owa, ok := stmt.Object.(*nodes.ObjectWithArgs); ok {
+		schema, bp, up, err := c.resolveRoutineTarget(stmt.RenameType, owa)
+		if err != nil {
+			return err
+		}
+		for _, other := range c.findUserProcsByName(schema, newName) {
+			if slices.Equal(c.procByOID[other.OID].ArgTypes, bp.ArgTypes) {
+				return errDuplicateFunction(newName)
+			}
+		}
+		oldName := up.Name
+		list := c.procByName[oldName]
+		for i, p := range list {
+			if p.OID == bp.OID {
+				c.procByName[oldName] = append(list[:i], list[i+1:]...)
+				break
+			}
+		}
+		if len(c.procByName[oldName]) == 0 {
+			delete(c.procByName, oldName)
+		}
+		bp.Name = newName
+		up.Name = newName
+		c.procByName[newName] = append(c.procByName[newName], bp)
+		return nil
+	}
+
 	schemaName, funcName := extractObjectName(stmt.Object)
 	schema, err := c.resolveTargetSchema(schemaName)
 	if err != nil {
@@ -1332,27 +1443,31 @@ func (c *Catalog) renameFunction(stmt *nodes.RenameStmt) error {
 	if len(procs) == 0 {
 		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("function %s does not exist", funcName)}
 	}
-
-	newName := stmt.Newname
-	for _, up := range procs {
-		bp := c.procByOID[up.OID]
-		if bp != nil {
-			// Remove from old name list.
-			list := c.procByName[funcName]
-			for i, p := range list {
-				if p.OID == bp.OID {
-					c.procByName[funcName] = append(list[:i], list[i+1:]...)
-					break
-				}
-			}
-			if len(c.procByName[funcName]) == 0 {
-				delete(c.procByName, funcName)
-			}
-			bp.Name = newName
-			c.procByName[newName] = append(c.procByName[newName], bp)
-		}
-		up.Name = newName
+	if len(procs) > 1 {
+		return errAmbiguousFunction(funcName)
 	}
+	up := procs[0]
+	bp := c.procByOID[up.OID]
+	for _, other := range c.findUserProcsByName(schema, newName) {
+		if bp != nil && slices.Equal(c.procByOID[other.OID].ArgTypes, bp.ArgTypes) {
+			return errDuplicateFunction(newName)
+		}
+	}
+	if bp != nil {
+		list := c.procByName[funcName]
+		for i, p := range list {
+			if p.OID == bp.OID {
+				c.procByName[funcName] = append(list[:i], list[i+1:]...)
+				break
+			}
+		}
+		if len(c.procByName[funcName]) == 0 {
+			delete(c.procByName, funcName)
+		}
+		bp.Name = newName
+		c.procByName[newName] = append(c.procByName[newName], bp)
+	}
+	up.Name = newName
 	return nil
 }
 
@@ -2191,17 +2306,48 @@ func (c *Catalog) atExecDetachPartition(parent *Relation, pc *nodes.PartitionCmd
 		return errInvalidObjectDefinition(fmt.Sprintf("relation %q is not a partition of %q", part.Name, parent.Name))
 	}
 
-	// Clear partition info.
+	// Clear partition info and parent links on cloned indexes, constraints, and triggers.
 	part.PartitionBound = nil
 	part.PartitionOf = 0
 	part.InhParents = nil
 	part.InhCount = 0
+	for _, idx := range c.indexesByRel[part.OID] {
+		if parentIdx := c.indexes[idx.ParentIndexOID]; parentIdx != nil && parentIdx.RelOID == parent.OID {
+			idx.ParentIndexOID = 0
+		}
+	}
+	for _, con := range c.consByRel[part.OID] {
+		if parentCon := c.constraints[con.ConParentID]; parentCon != nil && parentCon.RelOID == parent.OID {
+			con.ConParentID = 0
+		}
+	}
+	for _, trig := range c.triggersByRel[part.OID] {
+		if parentTrig := c.triggers[trig.ParentTriggerOID]; parentTrig != nil && parentTrig.RelOID == parent.OID {
+			trig.ParentTriggerOID = 0
+		}
+	}
 
-	// Remove inheritance entry.
-	c.removeInhEntries(part.OID)
+	// Remove inheritance entry between part and parent.
+	nInh := 0
+	for _, e := range c.inhEntries {
+		if e.InhRelID == part.OID && e.InhParent == parent.OID {
+			continue
+		}
+		c.inhEntries[nInh] = e
+		nInh++
+	}
+	c.inhEntries = c.inhEntries[:nInh]
 
-	// Remove dependency.
-	c.removeDepsOf('r', part.OID)
+	// Remove only the partition-to-parent relation dependency (preserve column/type/AM deps).
+	nDep := 0
+	for _, d := range c.deps {
+		if d.ObjType == 'r' && d.ObjOID == part.OID && d.RefType == 'r' && d.RefOID == parent.OID {
+			continue
+		}
+		c.deps[nDep] = d
+		nDep++
+	}
+	c.deps = c.deps[:nDep]
 
 	return nil
 }
@@ -2379,10 +2525,16 @@ func (c *Catalog) ExecAlterObjectSchemaStmt(stmt *nodes.AlterObjectSchemaStmt) e
 	switch stmt.ObjectType {
 	case nodes.OBJECT_TABLE, nodes.OBJECT_VIEW, nodes.OBJECT_MATVIEW, nodes.OBJECT_SEQUENCE, nodes.OBJECT_FOREIGN_TABLE:
 		return c.alterRelationNamespace(stmt, newSchema)
-	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE:
+	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
 		return c.alterFunctionNamespace(stmt, newSchema)
 	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
 		return c.alterTypeNamespace(stmt, newSchema)
+	case nodes.OBJECT_OPERATOR:
+		return c.alterOperatorNamespace(stmt, newSchema)
+	case nodes.OBJECT_OPCLASS:
+		return c.alterOpClassNamespace(stmt, newSchema)
+	case nodes.OBJECT_OPFAMILY:
+		return c.alterOpFamilyNamespace(stmt, newSchema)
 	default:
 		return nil // no-op for unsupported object types
 	}
@@ -2432,6 +2584,77 @@ func (c *Catalog) checkSchemaMoveObject(stmt *nodes.AlterObjectSchemaStmt) (skip
 				return false, errWrongObjectType(name, "a foreign table")
 			}
 		}
+	case nodes.OBJECT_FUNCTION, nodes.OBJECT_PROCEDURE, nodes.OBJECT_ROUTINE, nodes.OBJECT_AGGREGATE:
+		if owa, ok := stmt.Object.(*nodes.ObjectWithArgs); ok {
+			if _, _, _, err := c.resolveRoutineTarget(stmt.ObjectType, owa); err != nil {
+				if stmt.MissingOk && missingObject(err) {
+					return true, nil
+				}
+				return false, err
+			}
+		}
+	case nodes.OBJECT_TYPE, nodes.OBJECT_DOMAIN:
+		sName, tName := extractObjectName(stmt.Object)
+		var bt *BuiltinType
+		if sName != "" {
+			s, err := c.resolveTargetSchema(sName)
+			if err != nil {
+				if stmt.MissingOk && missingObject(err) {
+					return true, nil
+				}
+				return false, err
+			}
+			bt = c.typeByName[typeKey{ns: s.OID, name: tName}]
+		} else {
+			for _, nsOID := range c.searchPathWithCatalog() {
+				if found := c.typeByName[typeKey{ns: nsOID, name: tName}]; found != nil {
+					bt = found
+					break
+				}
+			}
+		}
+		if bt == nil {
+			if stmt.MissingOk {
+				return true, nil
+			}
+			return false, errUndefinedType(tName)
+		}
+		if stmt.ObjectType == nodes.OBJECT_DOMAIN && bt.Type != 'd' {
+			return false, errWrongObjectType(tName, "a domain")
+		}
+	case nodes.OBJECT_OPERATOR:
+		if owa, ok := stmt.Object.(*nodes.ObjectWithArgs); ok {
+			if _, err := c.lookupUserOperator(owa); err != nil {
+				if stmt.MissingOk && missingObject(err) {
+					return true, nil
+				}
+				return false, err
+			}
+		}
+	case nodes.OBJECT_OPCLASS:
+		amName, opcSchema, opcName := extractOpClassObject(stmt.Object)
+		am, err := c.lookupIndexAccessMethod(amName)
+		if err != nil {
+			return false, err
+		}
+		if _, err := c.lookupOpClass(am, opcSchema, opcName); err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return true, nil
+			}
+			return false, err
+		}
+	case nodes.OBJECT_OPFAMILY:
+		amName, famSchema, famName := extractOpClassObject(stmt.Object)
+		am, err := c.lookupIndexAccessMethod(amName)
+		if err != nil {
+			return false, err
+		}
+		if _, err := c.lookupOpFamily(am, famSchema, famName); err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return true, nil
+			}
+			return false, err
+		}
 	}
 	return false, nil
 }
@@ -2455,8 +2678,11 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 			}
 			return err
 		}
-		if _, exists := newSchema.Sequences[seq.Name]; exists {
-			return errDuplicateObject("sequence", seq.Name)
+		if seq.Schema.OID == newSchema.OID {
+			return nil
+		}
+		if _, exists := relationNamespaceKind(newSchema, seq.Name); exists {
+			return errDuplicateTable(seq.Name)
 		}
 		delete(seq.Schema.Sequences, seq.Name)
 		newSchema.Sequences[seq.Name] = seq
@@ -2471,10 +2697,39 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		}
 		return err
 	}
+	if oldSchema.OID == newSchema.OID {
+		return nil
+	}
 
-	// Check for name conflict in target schema.
-	if _, exists := newSchema.Relations[rel.Name]; exists {
+	// Preflight relation, row/array types, indexes, and owned sequences in target schema.
+	if _, exists := relationNamespaceKind(newSchema, rel.Name); exists {
 		return errDuplicateTable(rel.Name)
+	}
+	if rel.RowTypeOID != 0 && c.typeByName[typeKey{ns: newSchema.OID, name: rel.Name}] != nil {
+		return errDuplicateObject("type", rel.Name)
+	}
+	for _, idx := range c.indexesByRel[rel.OID] {
+		if idx.Schema == oldSchema {
+			if _, exists := relationNamespaceKind(newSchema, idx.Name); exists {
+				return errDuplicateTable(idx.Name)
+			}
+		}
+	}
+	var ownedSeqs []*Sequence
+	for _, seq := range c.sequenceByOID {
+		if seq.OwnerRelOID == rel.OID && seq.Schema == oldSchema {
+			if _, exists := relationNamespaceKind(newSchema, seq.Name); exists {
+				return errDuplicateTable(seq.Name)
+			}
+			ownedSeqs = append(ownedSeqs, seq)
+		}
+	}
+	if rel.ArrayOID != 0 {
+		if at := c.typeByOID[rel.ArrayOID]; at != nil {
+			if err := c.ensureArrayTypeNameFree(newSchema.OID, at.TypeName); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Move relation.
@@ -2494,6 +2749,11 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		c.typeByName[typeKey{ns: newSchema.OID, name: at.TypeName}] = at
 	}
 
+	// Update constraint namespaces.
+	for _, con := range c.consByRel[rel.OID] {
+		con.Namespace = newSchema.OID
+	}
+
 	// Move indexes.
 	for _, idx := range c.indexesByRel[rel.OID] {
 		if idx.Schema == oldSchema {
@@ -2503,13 +2763,40 @@ func (c *Catalog) alterRelationNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		}
 	}
 
+	// Move owned sequences.
+	for _, seq := range ownedSeqs {
+		delete(oldSchema.Sequences, seq.Name)
+		newSchema.Sequences[seq.Name] = seq
+		seq.Schema = newSchema
+	}
+
 	return nil
 }
 
-// alterFunctionNamespace moves a function to a new schema.
+// alterFunctionNamespace moves a routine to a new schema.
 //
 // pg: src/backend/commands/functioncmds.c — AlterFunctionNamespace
 func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchema *Schema) error {
+	if owa, ok := stmt.Object.(*nodes.ObjectWithArgs); ok {
+		oldSchema, bp, up, err := c.resolveRoutineTarget(stmt.ObjectType, owa)
+		if err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return nil
+			}
+			return err
+		}
+		if oldSchema.OID == newSchema.OID {
+			return nil
+		}
+		for _, other := range c.findUserProcsByName(newSchema, up.Name) {
+			if other.OID != up.OID && slices.Equal(c.procByOID[other.OID].ArgTypes, bp.ArgTypes) {
+				return errDuplicateFunction(up.Name)
+			}
+		}
+		up.Schema = newSchema
+		return nil
+	}
+
 	schemaName, funcName := extractObjectName(stmt.Object)
 	oldSchema, err := c.resolveTargetSchema(schemaName)
 	if err != nil {
@@ -2519,7 +2806,6 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		return err
 	}
 
-	// Find all matching user procs in the old schema.
 	procs := c.findUserProcsByName(oldSchema, funcName)
 	if len(procs) == 0 {
 		if stmt.MissingOk {
@@ -2527,10 +2813,20 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 		}
 		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("function %s does not exist", funcName)}
 	}
-
-	for _, up := range procs {
-		up.Schema = newSchema
+	if len(procs) > 1 {
+		return errAmbiguousFunction(funcName)
 	}
+	up := procs[0]
+	if oldSchema.OID == newSchema.OID {
+		return nil
+	}
+	bp := c.procByOID[up.OID]
+	for _, other := range c.findUserProcsByName(newSchema, up.Name) {
+		if other.OID != up.OID && bp != nil && slices.Equal(c.procByOID[other.OID].ArgTypes, bp.ArgTypes) {
+			return errDuplicateFunction(up.Name)
+		}
+	}
+	up.Schema = newSchema
 	return nil
 }
 
@@ -2539,25 +2835,76 @@ func (c *Catalog) alterFunctionNamespace(stmt *nodes.AlterObjectSchemaStmt, newS
 // pg: src/backend/commands/typecmds.c — AlterTypeNamespace
 func (c *Catalog) alterTypeNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchema *Schema) error {
 	schemaName, typeName := extractObjectName(stmt.Object)
-	oldSchema, err := c.resolveTargetSchema(schemaName)
-	if err != nil {
-		if stmt.MissingOk {
-			return nil
+	var oldSchema *Schema
+	var bt *BuiltinType
+	if schemaName != "" {
+		var err error
+		oldSchema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			if stmt.MissingOk && missingObject(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		bt = c.typeByName[typeKey{ns: oldSchema.OID, name: typeName}]
+	} else {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			if found := c.typeByName[typeKey{ns: nsOID, name: typeName}]; found != nil {
+				bt = found
+				oldSchema = c.schemas[nsOID]
+				break
+			}
+		}
 	}
-
-	bt := c.typeByName[typeKey{ns: oldSchema.OID, name: typeName}]
-	if bt == nil {
+	if bt == nil || oldSchema == nil {
 		if stmt.MissingOk {
 			return nil
 		}
 		return errUndefinedType(typeName)
 	}
+	if stmt.ObjectType == nodes.OBJECT_DOMAIN && bt.Type != 'd' {
+		return errWrongObjectType(typeName, "a domain")
+	}
+	if oldSchema.OID == newSchema.OID {
+		return nil
+	}
 
-	// Check for name conflict.
+	// Check for name conflicts (including composite backing relation and range multirange).
 	if c.typeByName[typeKey{ns: newSchema.OID, name: typeName}] != nil {
 		return errDuplicateObject("type", typeName)
+	}
+	if bt.Type == 'c' && bt.RelID != 0 {
+		if rel := c.relationByOID[bt.RelID]; rel != nil && rel.Schema == oldSchema {
+			if _, exists := relationNamespaceKind(newSchema, rel.Name); exists {
+				return errDuplicateTable(rel.Name)
+			}
+		}
+	}
+	var mr, mra *BuiltinType
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil && rt.MultirangeOID != 0 {
+			mr = c.typeByOID[rt.MultirangeOID]
+			if mr != nil {
+				if c.typeByName[typeKey{ns: newSchema.OID, name: mr.TypeName}] != nil {
+					return errDuplicateObject("type", mr.TypeName)
+				}
+				if mr.Array != 0 {
+					mra = c.typeByOID[mr.Array]
+				}
+			}
+		}
+	}
+	if bt.Array != 0 {
+		if at := c.typeByOID[bt.Array]; at != nil {
+			if err := c.ensureArrayTypeNameFree(newSchema.OID, at.TypeName); err != nil {
+				return err
+			}
+		}
+	}
+	if mra != nil {
+		if err := c.ensureArrayTypeNameFree(newSchema.OID, mra.TypeName); err != nil {
+			return err
+		}
 	}
 
 	// Move type.
@@ -2574,12 +2921,32 @@ func (c *Catalog) alterTypeNamespace(stmt *nodes.AlterObjectSchemaStmt, newSchem
 		}
 	}
 
+	// Move range metadata and companion multirange + multirange array.
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil {
+			rt.Namespace = newSchema.OID
+		}
+		if mr != nil {
+			delete(c.typeByName, typeKey{ns: oldSchema.OID, name: mr.TypeName})
+			mr.Namespace = newSchema.OID
+			c.typeByName[typeKey{ns: newSchema.OID, name: mr.TypeName}] = mr
+		}
+		if mra != nil {
+			delete(c.typeByName, typeKey{ns: oldSchema.OID, name: mra.TypeName})
+			mra.Namespace = newSchema.OID
+			c.typeByName[typeKey{ns: newSchema.OID, name: mra.TypeName}] = mra
+		}
+	}
+
 	// For composite types, move the backing relation too.
 	if bt.Type == 'c' && bt.RelID != 0 {
 		if rel := c.relationByOID[bt.RelID]; rel != nil && rel.Schema == oldSchema {
 			delete(oldSchema.Relations, rel.Name)
 			newSchema.Relations[rel.Name] = rel
 			rel.Schema = newSchema
+			for _, con := range c.consByRel[rel.OID] {
+				con.Namespace = newSchema.OID
+			}
 		}
 	}
 
@@ -2780,18 +3147,18 @@ func (c *Catalog) removeDep(objType byte, objOID uint32, refType byte, refOID ui
 //
 // pg: src/backend/commands/tablecmds.c — ATExecClusterOn
 func (c *Catalog) atClusterOn(rel *Relation, indexName string) error {
-	// Clear IsClustered on all indexes first.
-	for _, idx := range c.indexesByRel[rel.OID] {
-		idx.IsClustered = false
-	}
-	// Find and set the named index. PostgreSQL resolves the name in the
-	// relation namespace, so a table or sequence of that name is 42809.
+	// Find and validate the named index first before mutating existing flags.
+	// PostgreSQL resolves the name in the relation namespace, so a table or
+	// sequence of that name is 42809.
 	idx, err := c.findNamedIndex(rel.Schema, indexName)
 	if err != nil {
 		return err
 	}
 	if idx.RelOID != rel.OID {
 		return errUndefinedObject("index", indexName)
+	}
+	for _, existing := range c.indexesByRel[rel.OID] {
+		existing.IsClustered = false
 	}
 	idx.IsClustered = true
 	return nil
@@ -2811,13 +3178,8 @@ func (c *Catalog) atDropCluster(rel *Relation) error {
 //
 // pg: src/backend/commands/tablecmds.c — ATExecReplicaIdentity
 func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) error {
-	// Clear IsReplicaIdent on all indexes.
-	for _, idx := range c.indexesByRel[rel.OID] {
-		idx.IsReplicaIdent = false
-	}
-
 	if atc.Name != "" {
-		// USING INDEX variant.
+		// USING INDEX variant — validate before clearing any existing flag.
 		idx, err := c.findNamedIndex(rel.Schema, atc.Name)
 		if err != nil {
 			return err
@@ -2828,11 +3190,17 @@ func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) err
 		if !idx.IsUnique {
 			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", atc.Name))
 		}
+		for _, existing := range c.indexesByRel[rel.OID] {
+			existing.IsReplicaIdent = false
+		}
 		rel.ReplicaIdentity = 'i'
 		idx.IsReplicaIdent = true
 		return nil
 	}
 
+	for _, existing := range c.indexesByRel[rel.OID] {
+		existing.IsReplicaIdent = false
+	}
 	// DEFAULT/FULL/NOTHING — pgparser doesn't distinguish, default to 'd'.
 	rel.ReplicaIdentity = 'd'
 	return nil

@@ -961,6 +961,7 @@ func (c *Catalog) typeShellMake(name string, namespace uint32) uint32 {
 func (c *Catalog) removeFunction(procOID uint32, name string) {
 	delete(c.userProcs, procOID)
 	delete(c.procByOID, procOID)
+	delete(c.extensionMembers, procOID)
 
 	// Remove from procByName.
 	list := c.procByName[name]
@@ -974,10 +975,103 @@ func (c *Catalog) removeFunction(procOID uint32, name string) {
 		delete(c.procByName, name)
 	}
 
+	for key, cast := range c.castIndex {
+		if cast.Func == procOID {
+			delete(c.castIndex, key)
+			delete(c.extensionCasts, key)
+		}
+	}
+
 	c.removeGrantsForObject('f', procOID)
 	c.removeComments('f', procOID)
 	c.removeDepsOf('f', procOID)
 	c.removeDepsOn('f', procOID)
+}
+
+// resolveRoutineTarget resolves an ObjectWithArgs to a user-defined routine,
+// searching search_path when unqualified and enforcing routine-kind rules.
+func (c *Catalog) resolveRoutineTarget(objType nodes.ObjectType, owa *nodes.ObjectWithArgs) (*Schema, *BuiltinProc, *UserProc, error) {
+	kindStr := "function"
+	switch objType {
+	case nodes.OBJECT_PROCEDURE:
+		kindStr = "procedure"
+	case nodes.OBJECT_AGGREGATE:
+		kindStr = "aggregate"
+	case nodes.OBJECT_ROUTINE:
+		kindStr = "routine"
+	}
+	schemaName, funcName := qualifiedName(owa.Objname)
+	argOIDs, argErr := c.routineArgOIDs(owa)
+	if argErr != nil {
+		return nil, nil, nil, argErr
+	}
+	var schema *Schema
+	if schemaName == "" {
+		for _, nsOID := range c.searchPathWithCatalog() {
+			ns := c.schemas[nsOID]
+			if ns == nil {
+				continue
+			}
+			if argOIDs == nil {
+				if len(c.findUserProcsByName(ns, funcName)) > 0 {
+					schema = ns
+					break
+				}
+				continue
+			}
+			if c.findExactProc(ns, funcName, argOIDs) != nil {
+				schema = ns
+				break
+			}
+		}
+	} else {
+		var err error
+		schema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	if schema == nil {
+		return nil, nil, nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+	}
+	var bp *BuiltinProc
+	if argOIDs != nil {
+		bp = c.findExactProc(schema, funcName, argOIDs)
+	} else {
+		candidates := c.findUserProcsByName(schema, funcName)
+		if len(candidates) > 1 {
+			return nil, nil, nil, errAmbiguousFunction(funcName)
+		}
+		if len(candidates) == 1 {
+			bp = c.procByOID[candidates[0].OID]
+		}
+	}
+	if bp == nil {
+		return nil, nil, nil, &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", kindStr, funcName)}
+	}
+	up := c.userProcs[bp.OID]
+	if up == nil {
+		return nil, nil, nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%s %q is not user-defined", kindStr, funcName)}
+	}
+	switch objType {
+	case nodes.OBJECT_PROCEDURE:
+		if bp.Kind != 'p' {
+			return nil, nil, nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a procedure", funcName)}
+		}
+	case nodes.OBJECT_FUNCTION:
+		if bp.Kind == 'p' {
+			return nil, nil, nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not a function", funcName)}
+		}
+		if bp.Kind == PROKIND_AGGREGATE {
+			return nil, nil, nil, &Error{Code: CodeWrongObjectType,
+				Message: fmt.Sprintf("%q is an aggregate function\nHint: Use DROP AGGREGATE to drop aggregate functions.", funcName)}
+		}
+	case nodes.OBJECT_AGGREGATE:
+		if bp.Kind != PROKIND_AGGREGATE {
+			return nil, nil, nil, &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not an aggregate", funcName)}
+		}
+	}
+	return schema, bp, up, nil
 }
 
 // findExactProc finds a proc in a specific schema with exact arg type match.
@@ -1024,33 +1118,14 @@ func (c *Catalog) AlterFunction(stmt *nodes.AlterFunctionStmt) error {
 		return errInvalidParameterValue("ALTER FUNCTION requires a function name")
 	}
 
-	schemaName, funcName := qualifiedName(stmt.Func.Objname)
-	schema, err := c.resolveTargetSchema(schemaName)
+	objType := stmt.Objtype
+	if objType == 0 {
+		objType = nodes.OBJECT_ROUTINE
+	}
+	_, bp, up, err := c.resolveRoutineTarget(objType, stmt.Func)
 	if err != nil {
 		return err
 	}
-
-	// Resolve argument types.
-	var argOIDs []uint32
-	if stmt.Func.Objargs != nil {
-		for _, item := range stmt.Func.Objargs.Items {
-			if tn, ok := item.(*nodes.TypeName); ok {
-				argType := convertTypeNameToInternal(tn)
-				oid, _, err := c.ResolveType(argType)
-				if err != nil {
-					return err
-				}
-				argOIDs = append(argOIDs, oid)
-			}
-		}
-	}
-
-	bp := c.findExactProc(schema, funcName, argOIDs)
-	if bp == nil {
-		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("function %s does not exist", funcName)}
-	}
-
-	up := c.userProcs[bp.OID]
 
 	// Process actions.
 	if stmt.Actions != nil {
