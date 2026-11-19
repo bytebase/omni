@@ -122,8 +122,11 @@ func checkTemporalDefaultFsp(colName string, dt *nodes.DataType, defaultExpr nod
 	default:
 		return nil
 	}
-	fn, ok := defaultExpr.(*nodes.FuncCallExpr)
-	if !ok || !nowFamilyDefaultFuncs[strings.ToLower(fn.Name)] {
+	// The function is read through the parentheses it may be written in:
+	// DATETIME DEFAULT(CURRENT_TIMESTAMP(1)) is the same mismatch as the bare
+	// form, and TiDB answers 1067 to both (read on v8.5.5).
+	fn, ok := nowDefaultCall(defaultExpr)
+	if !ok {
 		return nil
 	}
 	funcFsp := 0
@@ -751,6 +754,28 @@ func checkColumnDefaultValue(colDef *nodes.ColumnDef, dataType string, tableCons
 		return errInvalidDefault(colDef.Name)
 	}
 	return nil
+}
+
+// checkExistingColumnNowDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT
+// (CURRENT_TIMESTAMP) to the rule checkNowDefaultColumnType states for a column
+// definition, judged against the type the catalog already holds for c: a column
+// that is neither DATETIME nor TIMESTAMP is 1067. Only the CURRENT_TIMESTAMP
+// spelling is this rule's here; SET DEFAULT (NOW()) and SET DEFAULT (LOCALTIME)
+// are general default expressions, which TiDB refuses with 3770 whatever the
+// column's type (all read on v8.5.5).
+func checkExistingColumnNowDefault(col *Column, expr nodes.ExprNode) error {
+	if col == nil {
+		return nil
+	}
+	fn, ok := nowDefaultCall(expr)
+	if !ok || !strings.EqualFold(fn.Name, "current_timestamp") {
+		return nil
+	}
+	switch strings.ToLower(col.DataType) {
+	case "datetime", "timestamp":
+		return nil
+	}
+	return errInvalidDefault(col.Name)
 }
 
 // checkExistingColumnDefault holds ALTER TABLE ... ALTER COLUMN c SET DEFAULT

@@ -1121,6 +1121,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := checkExistingColumnDefault(tbl, col, cmd.DefaultExpr); err != nil {
 			return err
 		}
+		if err := checkExistingColumnNowDefault(col, cmd.DefaultExpr); err != nil {
+			return err
+		}
 		col.Default = &s
 		col.DefaultDropped = false
 	} else {

@@ -110,23 +110,35 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	return nil
 }
 
-// checkViewBodyStar refuses a view body whose star has no table to expand.
-// Each query block with no FROM is judged: a bare `*` there names the empty
-// table TiDB reports as "Unknown table ”", and `t.*` names t, which the body
-// reads nowhere. TiDB resolves the body before the view's own name, so
-// `CREATE VIEW a AS SELECT *` is 1051 even over an existing table a, where the
-// name collision alone would be 1050 (read on v8.5.5). A FROM-less SELECT that
-// names no star is left alone: `CREATE VIEW v AS SELECT count(*)` and
+// checkViewBodyStar refuses a view body whose star has no table to expand. Every
+// query block the body holds is judged, as TiDB resolves each of them: the ones
+// a set operation, a parenthesis, a CTE body, a derived table and a subquery
+// expression reach alike. A bare `*` in a block with no FROM names a table with
+// no name, which TiDB reports as an unknown table, and `t.*` there names t,
+// which the block reads nowhere. TiDB resolves the body before the view's name,
+// so `CREATE VIEW a AS SELECT *` is 1051 even over an existing table a, where
+// the name collision alone would be 1050 (read on v8.5.5). A FROM-less block
+// that names no star is left alone: `CREATE VIEW v AS SELECT count(*)` and
 // `... SELECT 1` are both views TiDB takes.
 func checkViewBodyStar(sel *nodes.SelectStmt) error {
 	if sel == nil {
 		return nil
 	}
-	for _, inner := range []*nodes.SelectStmt{sel.ParenSource, sel.Left, sel.Right} {
-		if err := checkViewBodyStar(inner); err != nil {
-			return err
+	var refusal error
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if refusal != nil {
+			return false
 		}
-	}
+		if block, ok := n.(*nodes.SelectStmt); ok {
+			refusal = viewBlockStar(block)
+		}
+		return refusal == nil
+	})
+	return refusal
+}
+
+// viewBlockStar reports the star of one query block that reads no table.
+func viewBlockStar(sel *nodes.SelectStmt) error {
 	if len(sel.From) > 0 {
 		return nil
 	}

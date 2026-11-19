@@ -24,7 +24,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -824,6 +824,26 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code: 4028,
 		},
 		{
+			name:  "CREATE VIEW whose derived table expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM (SELECT *) d",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM c",
+			code:  1096,
+		},
+		{
+			// MySQL resolves a CTE only where the body reads it, so a body it
+			// never names is not judged.
+			name:  "CREATE VIEW whose unreferenced CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT 1",
+			code:  0,
+		},
+		{
 			name:  "CREATE TABLE LIKE over a table",
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE z (LIKE a);",
@@ -871,6 +891,23 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{
 			name: "CREATE TABLE with a NOW() default on a DATETIME column",
 			stmt: "CREATE TABLE z (a DATETIME DEFAULT NOW());",
+			code: 0,
+		},
+		{
+			// 4028 asks for a column a reader may see, not merely for a column.
+			name: "CREATE TABLE whose only column is invisible",
+			stmt: "CREATE TABLE z (a INT INVISIBLE);",
+			code: 4028,
+		},
+		{
+			name:  "CREATE TABLE whose only column is invisible, with a generated primary key",
+			setup: []string{"SET SESSION sql_generate_invisible_primary_key = ON"},
+			stmt:  "CREATE TABLE z (a INT INVISIBLE);",
+			code:  4028,
+		},
+		{
+			name: "CREATE TABLE with an invisible and a visible column",
+			stmt: "CREATE TABLE z (a INT INVISIBLE, b INT);",
 			code: 0,
 		},
 	}

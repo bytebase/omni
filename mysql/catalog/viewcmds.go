@@ -122,24 +122,52 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 	return nil, nil
 }
 
-// checkViewBodyStar refuses a view body whose star has no table to expand. Each
-// query block with no FROM is judged: mysql:8.0.46 answers 1096 "No tables
-// used" for a bare star, and 1051 "Unknown table 't'" for a qualified one,
-// whose table the body reads nowhere. Both answer before the view's own name is
-// looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an existing table
-// a (1050). A FROM-less SELECT naming no star is left alone: `CREATE VIEW v AS
-// SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
+// checkViewBodyStar refuses a view body whose star has no table to expand. Every
+// query block MySQL resolves is judged: the ones a set operation, a parenthesis,
+// a derived table, a subquery expression and a CTE body reach. MySQL resolves a
+// CTE only where the body reads it — `WITH c AS (SELECT *) SELECT 1` is a view it
+// takes — so a CTE the body never names is left alone. In a block with no FROM, a
+// bare star is 1096 "No tables used" and a qualified one is 1051 "Unknown table
+// 't'", whose table the block reads nowhere. Both answer before the view's own
+// name is looked up, so `CREATE VIEW a AS SELECT *` is 1096 even over an existing
+// table a (1050). A FROM-less block naming no star is left alone: `CREATE VIEW v
+// AS SELECT 1` and `... SELECT count(*)` are both views MySQL takes.
 func checkViewBodyStar(sel *nodes.SelectStmt) error {
 	if sel == nil {
 		return nil
 	}
-	// A set operation's root carries no FROM or target list of its own; each arm
-	// is a scope of its own.
-	for _, inner := range []*nodes.SelectStmt{sel.ParenSource, sel.Left, sel.Right} {
-		if err := checkViewBodyStar(inner); err != nil {
-			return err
+	named := bodyTableNames(sel)
+	var refusal error
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if refusal != nil {
+			return false
 		}
-	}
+		switch e := n.(type) {
+		case *nodes.CommonTableExpr:
+			return e.Name != "" && named[toLower(e.Name)]
+		case *nodes.SelectStmt:
+			refusal = viewBlockStar(e)
+		}
+		return refusal == nil
+	})
+	return refusal
+}
+
+// bodyTableNames is every name the body reads in a FROM clause, at any depth,
+// which is the set of CTEs MySQL resolves.
+func bodyTableNames(sel *nodes.SelectStmt) map[string]bool {
+	names := make(map[string]bool)
+	nodes.Inspect(sel, func(n nodes.Node) bool {
+		if ref, ok := n.(*nodes.TableRef); ok && ref.Name != "" {
+			names[toLower(ref.Name)] = true
+		}
+		return true
+	})
+	return names
+}
+
+// viewBlockStar reports the star of one query block that reads no table.
+func viewBlockStar(sel *nodes.SelectStmt) error {
 	if len(sel.From) != 0 {
 		return nil
 	}

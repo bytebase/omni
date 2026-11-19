@@ -765,12 +765,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		ensureFKBackingIndex(tbl, fk.conName, fk.cols, fk.idxCols)
 	}
 
-	// A table with no column at all is 4028. MySQL answers it after the name
-	// collision (1050) and after a key's own columns are resolved (1072), and
-	// before the partition clause, whose alone cannot make a column:
-	// `CREATE TABLE q (KEY (x))` is 1072, `CREATE TABLE q (KEY (b, x))` 1072,
-	// `CREATE TABLE q PARTITION BY KEY()` 4028 (mysql:8.0.46).
-	if len(tbl.Columns) == 0 {
+	// A table with no visible column is 4028, not only one with no column at
+	// all: `CREATE TABLE q (a INT INVISIBLE)` is refused, and so it is with
+	// sql_generate_invisible_primary_key on, where the only column is the
+	// invisible my_row_id. MySQL answers it after the name collision (1050) and
+	// after a key's own columns are resolved (1072), and before the partition
+	// clause, which alone cannot make a column: `CREATE TABLE q (KEY (x))` is
+	// 1072 and `CREATE TABLE q PARTITION BY KEY()` 4028 (mysql:8.0.46).
+	if !tableHasVisibleColumn(tbl) {
 		return errTableMustHaveColumns()
 	}
 
@@ -795,6 +797,18 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 
 	db.Tables[key] = tbl
 	return nil
+}
+
+// tableHasVisibleColumn reports whether the table keeps a column a SELECT * and
+// a reader may see. my_row_id is invisible, so a table the generated invisible
+// primary key alone fills has none.
+func tableHasVisibleColumn(tbl *Table) bool {
+	for _, col := range tbl.Columns {
+		if col != nil && !col.Invisible {
+			return true
+		}
+	}
+	return false
 }
 
 func errGIPKPartitioned() error {

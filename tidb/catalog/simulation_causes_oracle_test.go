@@ -202,6 +202,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code: 1113,
 		},
 		{
+			name:  "CREATE VIEW whose derived table expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM (SELECT *) d",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT 1",
+			code:  1051,
+		},
+		{
 			name:  "CREATE TABLE LIKE over a table",
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE z (LIKE a)",
@@ -255,6 +267,33 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name: "CREATE TABLE with a NOW() default on a DATETIME column",
 			stmt: "CREATE TABLE z (a DATETIME DEFAULT NOW())",
 			code: 0,
+		},
+		{
+			// A parenthesized NOW()-family call is the same default, and its
+			// precision is held to the column's own either way.
+			name: "CREATE TABLE with a parenthesized precision past the column's",
+			stmt: "CREATE TABLE z (a DATETIME DEFAULT(CURRENT_TIMESTAMP(1)))",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE with a parenthesized precision at the column's",
+			stmt: "CREATE TABLE z (a DATETIME(1) DEFAULT(CURRENT_TIMESTAMP(1)))",
+			code: 0,
+		},
+		{
+			// SET DEFAULT is judged against the type the column already has,
+			// and only the CURRENT_TIMESTAMP spelling is this rule's:
+			// SET DEFAULT (NOW()) is a general expression TiDB refuses as 3770.
+			name:  "SET DEFAULT CURRENT_TIMESTAMP on an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER b SET DEFAULT (CURRENT_TIMESTAMP)",
+			code:  1067,
+		},
+		{
+			name:  "SET DEFAULT CURRENT_TIMESTAMP on a DATETIME column",
+			setup: []string{oneTable, "ALTER TABLE a ADD dt DATETIME"},
+			stmt:  "ALTER TABLE a ALTER dt SET DEFAULT (CURRENT_TIMESTAMP)",
+			code:  0,
 		},
 	}
 
