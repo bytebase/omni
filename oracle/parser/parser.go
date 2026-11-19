@@ -797,7 +797,9 @@ func (s *extraCloseShape) allowsExtraClose() bool {
 // where it reports anything else.
 func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (open int, err error) {
 	depth := 0
-	openAt := make([]int, 0, 8)
+	// openAt is the byte of the outermost parenthesis still open, the one a
+	// group that never closes started at.
+	openAt := -1
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
 	var shape extraCloseShape
@@ -854,18 +856,18 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) (ope
 				}
 			}
 			if depth > 0 && settled() {
-				return openAt[0], &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
+				return openAt, &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
 			return -1, nil
 		case '(':
+			if depth == 0 {
+				openAt = tok.Loc
+			}
 			depth++
-			openAt = append(openAt, tok.Loc)
 		case ')':
 			depth--
-			if depth >= 0 {
-				openAt = openAt[:depth]
-			} else {
-				openAt = openAt[:0]
+			if depth <= 0 {
+				openAt = -1
 			}
 			if depth < 0 {
 				// Only a closing parenthesis that ends the statement may be
