@@ -99,6 +99,17 @@ func writeGroupingSetExprQ(b *strings.Builder, g *GroupingSetExprQ, q *deparseSc
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		if row, ok := arg.(*RowExprQ); ok {
+			b.WriteString("(")
+			for j, inner := range row.Args {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeAnalyzedExpr(b, inner, q)
+			}
+			b.WriteString(")")
+			continue
+		}
 		writeAnalyzedExpr(b, arg, q)
 	}
 	b.WriteString(")")

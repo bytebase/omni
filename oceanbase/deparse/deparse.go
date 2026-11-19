@@ -2308,6 +2308,19 @@ func writeGroupingSet(b *strings.Builder, n *ast.GroupingSet) {
 		if i > 0 {
 			b.WriteString(", ")
 		}
+		// A tuple of one grouping set is written with the parenthesis the
+		// grammar's '(' expr_list ',' expr ')' arm has, not as a ROW (...).
+		if row, ok := item.(*ast.RowExpr); ok {
+			b.WriteString("(")
+			for j, inner := range row.Items {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeExpr(b, inner)
+			}
+			b.WriteString(")")
+			continue
+		}
 		writeExpr(b, item)
 	}
 	b.WriteString(")")

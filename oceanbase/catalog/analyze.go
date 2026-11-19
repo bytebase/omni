@@ -494,7 +494,7 @@ func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Col
 	// catalog's: its columns are unknown, and a local table of the same name is
 	// a different table.
 	if ref.Catalog != "" || ref.Dblink != "" {
-		erei := ref.Name + ref.Dblink
+		erei := ref.Name
 		if ref.Alias != "" {
 			erei = ref.Alias
 		}
@@ -730,6 +730,14 @@ func exprContainsAggregate(expr AnalyzedExpr) bool {
 		}
 		for _, arg := range e.Args {
 			if exprContainsAggregate(arg) {
+				return true
+			}
+		}
+	case *OdbcEscapeExprQ:
+		return exprContainsAggregate(e.Arg)
+	case *GroupingSetExprQ:
+		for _, item := range e.Args {
+			if exprContainsAggregate(item) {
 				return true
 			}
 		}
