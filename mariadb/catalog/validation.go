@@ -425,7 +425,8 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 	// mariadb:11.8.8, `ENUM('s','S') COLLATE utf8mb4_bin`, `BINARY` and a
 	// table's `COLLATE utf8mb4_bin` are all accepted, where the default
 	// utf8mb4_uca1400_ai_ci answers 1291.
-	fold := !collationCaseSensitive(enumCollation(colDef, tableCollation))
+	collation := enumCollation(colDef, tableCollation)
+	fold := !collationCaseSensitive(collation)
 	seen := make(map[string]string, len(colDef.TypeName.EnumValues))
 	for _, value := range colDef.TypeName.EnumValues {
 		// A trailing space is the collation's: MariaDB stores `ENUM('a ','b ')`
@@ -433,7 +434,7 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 		// collation. Measured on mariadb:11.8.8, a tab being kept.
 		key := strings.TrimRight(value, " ")
 		if fold {
-			key = strings.ToLower(key)
+			key = foldEnumValue(key, collation)
 		}
 		if first, ok := seen[key]; ok {
 			// The message names the first spelling: `ENUM('s','S')` over a
@@ -443,6 +444,19 @@ func validateEnumSetValues(colDef *nodes.ColumnDef, tableCollation string) error
 		seen[key] = value
 	}
 	return nil
+}
+
+// foldEnumValue folds one value the way a case-insensitive collation reads it.
+// Turkish is its own case mapping: "I" and "i" are different letters there, the
+// pairs being I with ı (dotless) and İ with i (dotted). Measured on
+// mariadb:11.8.8 under utf8mb4_turkish_ci: `ENUM('I','i')` runs, `('i','İ')` and
+// `('s','S')` answer 1291.
+func foldEnumValue(value, collation string) string {
+	if strings.Contains(strings.ToLower(collation), "turkish") {
+		value = strings.ReplaceAll(value, "I", "ı")
+		value = strings.ReplaceAll(value, "İ", "i")
+	}
+	return strings.ToLower(value)
 }
 
 // enumCollation is the collation an ENUM or SET column's values are compared

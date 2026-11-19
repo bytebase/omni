@@ -246,6 +246,7 @@ func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *node
 		!alterAddsSystemVersioning(stmt.Commands) {
 		return errNotSystemVersioned(tbl.Name)
 	}
+	systemTimeRepartition := repartition != nil && repartition.Type == nodes.PartitionSystemTime
 	if tbl.Partitioning == nil && repartition == nil {
 		return c.alterTableCommands(db, tbl, key, stmt)
 	}
@@ -260,6 +261,13 @@ func (c *Catalog) alterTableRun(db *Database, tbl *Table, key string, stmt *node
 	snapshot := cloneTable(tbl)
 	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
 		return err
+	}
+	// The table the statement leaves is the one SYSTEM_TIME partitioning needs
+	// versioned: `ALTER TABLE t DROP SYSTEM VERSIONING PARTITION BY SYSTEM_TIME`
+	// answers 4124, where the ADD form runs (measured on mariadb:11.8.8).
+	if systemTimeRepartition && !tbl.SystemVersioned {
+		undoAlter(db, key, tbl, snapshot)
+		return errNotSystemVersioned(tbl.Name)
 	}
 	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
 		undoAlter(db, key, tbl, snapshot)
@@ -315,6 +323,21 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 
 	if err := checkAddIfNotExistsTwice(tbl, stmt.Commands); err != nil {
 		return err
+	}
+
+	// The keys IF NOT EXISTS finds are notes whose definitions are never read,
+	// and which is found is the table the statement began with.
+	skippedKeys := map[*nodes.Constraint]bool{}
+	for _, cmd := range stmt.Commands {
+		cons := cmd.Constraints
+		if cmd.Constraint != nil {
+			cons = append([]*nodes.Constraint{cmd.Constraint}, cons...)
+		}
+		for _, con := range cons {
+			if con != nil && con.IfNotExists && addedConstraintExists(tbl, con, extractColumnNames(con)) {
+				skippedKeys[con] = true
+			}
+		}
 	}
 
 	// A key part a statement adds WITHOUT OVERLAPS names a period, and MariaDB
@@ -378,7 +401,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			*tbl = snapshot
 			return err
 		}
-		if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands); err != nil {
+		if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands, skippedKeys); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -415,7 +438,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		rollback()
 		return err
 	}
-	if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands); err != nil {
+	if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands, skippedKeys); err != nil {
 		rollback()
 		return err
 	}

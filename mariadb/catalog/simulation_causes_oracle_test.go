@@ -1001,6 +1001,54 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD KEY IF NOT EXISTS idx_d (d) x = 1",
 			code:  0,
 		},
+		// The table the statement leaves decides SYSTEM_TIME partitioning: one
+		// that drops the versioning is 4124.
+		{
+			name:        "DROP SYSTEM VERSIONING with PARTITION BY SYSTEM_TIME",
+			setup:       []string{"CREATE TABLE a (b INT) WITH SYSTEM VERSIONING"},
+			stmt:        "ALTER TABLE a DROP SYSTEM VERSIONING PARTITION BY SYSTEM_TIME",
+			code:        4124,
+			keepsSchema: true,
+		},
+		// Turkish is its own case mapping: I and i are different letters, and
+		// i and İ are the same one.
+		{
+			name: "ENUM of I and i under a Turkish collation",
+			stmt: "CREATE TABLE a (e ENUM('I', 'i') COLLATE utf8mb4_turkish_ci)",
+			code: 0,
+		},
+		{
+			name: "ENUM of i and İ under a Turkish collation",
+			stmt: "CREATE TABLE a (e ENUM('i', 'İ') COLLATE utf8mb4_turkish_ci)",
+			code: 1291,
+		},
+		// A FULLTEXT key's parser is looked up before its columns.
+		{
+			name:   "FULLTEXT key over a missing column with an unknown parser",
+			stmt:   "CREATE TABLE a (b TEXT, FULLTEXT KEY f (missing) WITH PARSER unavailable)",
+			code:   1128,
+			absent: "a",
+		},
+		{
+			name:   "FULLTEXT key over a missing column",
+			stmt:   "CREATE TABLE a (b TEXT, FULLTEXT KEY f (missing))",
+			code:   1072,
+			absent: "a",
+		},
+		// ENGINE='DEFAULT' is InnoDB's list, and a key IF NOT EXISTS adds is a
+		// new key whose definition is read.
+		{
+			name:   "key option on an ENGINE='DEFAULT' table",
+			stmt:   "CREATE TABLE a (b INT, KEY k (b) x = 1) ENGINE='DEFAULT'",
+			code:   1911,
+			absent: "a",
+		},
+		{
+			name:  "ADD KEY IF NOT EXISTS of a name the table does not hold, with an option",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY IF NOT EXISTS j (d) x = 1",
+			code:  1911,
+		},
 		// A column the table already holds is 1060 before the key it would be
 		// is read, where the same statement over a free name is 1068.
 		{

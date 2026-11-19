@@ -678,6 +678,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if err := validateKeyTypeArguments(resolveConstraintIndexType(con)); err != nil {
 			return err
 		}
+		// A FULLTEXT key's parser is looked up before its columns, as the ALTER
+		// path's is: measured on mariadb:11.8.8,
+		// `CREATE TABLE t (a TEXT, FULLTEXT KEY f (missing) WITH PARSER
+		// unavailable)` answers 1128, and the same key without a parser 1072.
+		if con.Type == nodes.ConstrFulltextIndex {
+			if err := validateFulltextParser(con.IndexOptions); err != nil {
+				return err
+			}
+		}
 		// A key part naming no column of the table is 1072, before the repeated
 		// name a key like `PRIMARY KEY (missing, missing)` carries is 1060:
 		// measured on mariadb:11.8.8.
@@ -2430,8 +2439,8 @@ func validateKeyTypeArguments(indexType string) error {
 // measured, `ADD KEY(c) a = 1, ADD KEY(nosuch)` answers 1072.
 func (c *Catalog) validateKeyEngineOptions(tbl *Table, opts []*nodes.IndexOption, vector bool) error {
 	engine := toLower(tbl.Engine)
-	if engine == "" {
-		engine = "innodb"
+	if engine == "" || engine == "default" {
+		engine = "innodb" // ENGINE='DEFAULT' is the server's own engine
 	}
 	// An engine the catalog does not model keeps its own list, and
 	// IGNORE_BAD_TABLE_OPTIONS turns the refusal into a warning, as it does for a
@@ -2453,7 +2462,7 @@ func (c *Catalog) validateKeyEngineOptions(tbl *Table, opts []*nodes.IndexOption
 
 // validateAddedKeyEngineOptions holds the keys a statement adds to
 // validateKeyEngineOptions.
-func (c *Catalog) validateAddedKeyEngineOptions(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+func (c *Catalog) validateAddedKeyEngineOptions(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.Constraint]bool) error {
 	for _, cmd := range cmds {
 		cons := cmd.Constraints
 		if cmd.Constraint != nil {
@@ -2465,8 +2474,10 @@ func (c *Catalog) validateAddedKeyEngineOptions(tbl *Table, cmds []*nodes.AlterT
 			}
 			// A key IF NOT EXISTS finds is a note, and the definition beside it
 			// is never read: measured on mariadb:11.8.8, `ADD KEY IF NOT EXISTS k
-			// (b) x = 1` over a table that holds k runs.
-			if con.IfNotExists && addedConstraintExists(tbl, con, extractColumnNames(con)) {
+			// (b) x = 1` over a table that holds k runs, where the same statement
+			// naming a key it does not hold answers 1911. Whether it found one is
+			// the state the statement began with, which skippedKeys records.
+			if skipped[con] {
 				continue
 			}
 			if err := c.validateKeyEngineOptions(tbl, con.IndexOptions, con.Type == nodes.ConstrVector); err != nil {
