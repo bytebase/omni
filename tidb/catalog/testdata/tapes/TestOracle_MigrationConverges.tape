@@ -88,15 +88,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -145,8 +145,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -158,15 +158,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -174,8 +174,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -197,11 +197,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -235,14 +235,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -266,15 +266,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -323,8 +323,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -336,15 +336,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -352,8 +352,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -375,11 +375,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -413,14 +413,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -578,15 +578,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -614,8 +614,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -627,15 +627,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -643,8 +643,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -666,11 +666,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -704,14 +704,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -735,15 +735,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -771,8 +771,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -784,15 +784,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -800,8 +800,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -823,11 +823,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -861,14 +861,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -1024,15 +1024,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -1060,8 +1060,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -1073,15 +1073,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1089,8 +1089,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -1112,11 +1112,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -1150,14 +1150,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -1181,15 +1181,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -1217,8 +1217,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -1230,15 +1230,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1246,8 +1246,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -1269,11 +1269,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -1307,14 +1307,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -1471,15 +1471,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -1530,8 +1530,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -1543,15 +1543,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1559,8 +1559,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -1582,11 +1582,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -1620,14 +1620,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -1651,15 +1651,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -1710,8 +1710,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -1723,15 +1723,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1739,8 +1739,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -1762,11 +1762,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -1800,14 +1800,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -1966,15 +1966,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -2023,8 +2023,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -2036,15 +2036,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -2052,8 +2052,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -2075,11 +2075,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -2113,14 +2113,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -2144,15 +2144,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -2201,8 +2201,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -2214,15 +2214,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -2230,8 +2230,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -2253,11 +2253,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -2291,14 +2291,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -2469,15 +2469,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -2505,8 +2505,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -2518,15 +2518,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -2534,8 +2534,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -2557,11 +2557,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -2595,14 +2595,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -2638,15 +2638,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -2674,8 +2674,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -2687,15 +2687,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -2703,8 +2703,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -2726,11 +2726,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -2764,14 +2764,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -2956,15 +2956,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -3013,8 +3013,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -3026,15 +3026,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -3042,8 +3042,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -3065,11 +3065,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -3103,14 +3103,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -3158,15 +3158,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -3215,8 +3215,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -3228,15 +3228,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -3244,8 +3244,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -3267,11 +3267,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -3305,14 +3305,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -3487,15 +3487,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -3523,8 +3523,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -3536,15 +3536,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -3552,8 +3552,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -3575,11 +3575,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -3613,14 +3613,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -3656,15 +3656,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -3692,8 +3692,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -3705,15 +3705,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -3721,8 +3721,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -3744,11 +3744,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -3782,14 +3782,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -3947,15 +3947,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -3983,8 +3983,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -3996,15 +3996,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -4012,8 +4012,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -4035,11 +4035,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -4073,14 +4073,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -4104,15 +4104,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -4140,8 +4140,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -4153,15 +4153,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -4169,8 +4169,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -4192,11 +4192,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -4230,14 +4230,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -4406,15 +4406,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -4442,8 +4442,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -4455,15 +4455,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -4471,8 +4471,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -4494,11 +4494,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -4532,14 +4532,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -4575,15 +4575,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -4611,8 +4611,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -4624,15 +4624,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -4640,8 +4640,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -4663,11 +4663,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -4701,14 +4701,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -4866,15 +4866,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -4902,8 +4902,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -4915,15 +4915,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -4931,8 +4931,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -4954,11 +4954,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -4992,14 +4992,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -5023,15 +5023,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -5059,8 +5059,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -5072,15 +5072,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -5088,8 +5088,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -5111,11 +5111,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -5149,14 +5149,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -5313,15 +5313,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -5349,8 +5349,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -5362,15 +5362,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -5378,8 +5378,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -5445,11 +5445,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -5483,14 +5483,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -5514,15 +5514,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -5550,8 +5550,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -5563,15 +5563,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -5579,8 +5579,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -5646,11 +5646,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -5684,14 +5684,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -5862,15 +5862,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -5898,8 +5898,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -5911,15 +5911,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -5927,8 +5927,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -5950,11 +5950,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -5988,14 +5988,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -6031,15 +6031,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -6067,8 +6067,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -6080,15 +6080,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -6096,8 +6096,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -6119,11 +6119,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -6157,14 +6157,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -6323,15 +6323,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -6359,8 +6359,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -6372,15 +6372,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -6388,8 +6388,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -6418,11 +6418,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -6456,14 +6456,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -6487,15 +6487,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -6523,8 +6523,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -6536,15 +6536,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -6552,8 +6552,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -6582,11 +6582,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -6620,14 +6620,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -6759,7 +6759,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -6823,15 +6823,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -6880,8 +6880,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -6898,15 +6898,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -6914,8 +6914,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -6937,11 +6937,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -6990,14 +6990,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -7021,15 +7021,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -7078,8 +7078,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -7096,15 +7096,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -7112,8 +7112,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -7135,11 +7135,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -7188,14 +7188,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -7238,7 +7238,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -7321,7 +7321,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -7422,23 +7422,23 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -7450,15 +7450,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -7466,8 +7466,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -7489,11 +7489,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -7527,14 +7527,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -7569,23 +7569,23 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -7597,15 +7597,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -7613,8 +7613,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -7636,11 +7636,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -7674,14 +7674,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -7908,15 +7908,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -7986,8 +7986,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -7999,15 +7999,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -8034,8 +8034,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -8057,11 +8057,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -8110,14 +8110,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -8177,15 +8177,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -8255,8 +8255,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -8268,15 +8268,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -8303,8 +8303,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -8326,11 +8326,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -8379,14 +8379,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -8589,15 +8589,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -8626,8 +8626,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -8639,15 +8639,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -8655,8 +8655,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -8678,11 +8678,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -8716,14 +8716,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -8747,15 +8747,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -8784,8 +8784,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -8797,15 +8797,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -8813,8 +8813,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -8836,11 +8836,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -8874,14 +8874,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -9043,15 +9043,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -9079,8 +9079,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -9092,15 +9092,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -9108,8 +9108,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -9131,11 +9131,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -9169,14 +9169,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -9200,15 +9200,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -9236,8 +9236,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -9249,15 +9249,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -9265,8 +9265,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -9288,11 +9288,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -9326,14 +9326,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -9495,15 +9495,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -9531,8 +9531,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -9544,15 +9544,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -9560,8 +9560,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -9583,11 +9583,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -9621,14 +9621,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -9652,15 +9652,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -9688,8 +9688,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -9701,15 +9701,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -9717,8 +9717,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -9740,11 +9740,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -9778,14 +9778,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -9947,15 +9947,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -9984,8 +9984,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -9997,15 +9997,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -10013,8 +10013,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -10036,11 +10036,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -10074,14 +10074,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -10105,15 +10105,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -10142,8 +10142,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -10155,15 +10155,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -10171,8 +10171,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -10194,11 +10194,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -10232,14 +10232,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -10401,15 +10401,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -10437,8 +10437,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -10450,15 +10450,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -10466,8 +10466,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -10489,11 +10489,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -10527,14 +10527,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -10558,15 +10558,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -10594,8 +10594,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -10607,15 +10607,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -10623,8 +10623,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -10646,11 +10646,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -10684,14 +10684,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -10853,15 +10853,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -10889,8 +10889,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -10902,15 +10902,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -10918,8 +10918,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -10941,11 +10941,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -10979,14 +10979,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -11010,15 +11010,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -11046,8 +11046,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -11059,15 +11059,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -11075,8 +11075,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -11098,11 +11098,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -11136,14 +11136,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -11305,15 +11305,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -11342,8 +11342,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -11355,15 +11355,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -11371,8 +11371,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -11394,11 +11394,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -11432,14 +11432,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -11463,15 +11463,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -11500,8 +11500,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -11513,15 +11513,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -11529,8 +11529,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -11552,11 +11552,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -11590,14 +11590,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -11760,15 +11760,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -11817,8 +11817,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -11830,15 +11830,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -11846,8 +11846,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -11869,11 +11869,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -11907,14 +11907,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -11938,15 +11938,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -11995,8 +11995,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -12008,15 +12008,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -12024,8 +12024,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -12047,11 +12047,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -12085,14 +12085,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -12257,15 +12257,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -12293,8 +12293,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -12306,15 +12306,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -12322,8 +12322,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -12345,11 +12345,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -12383,14 +12383,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -12414,15 +12414,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -12471,8 +12471,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -12484,15 +12484,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -12500,8 +12500,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -12523,11 +12523,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -12561,14 +12561,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -12746,15 +12746,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -12803,8 +12803,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -12816,15 +12816,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -12832,8 +12832,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -12855,11 +12855,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -12893,14 +12893,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -12948,15 +12948,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -13005,8 +13005,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -13018,15 +13018,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -13034,8 +13034,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -13057,11 +13057,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -13095,14 +13095,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -13287,15 +13287,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -13323,8 +13323,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -13336,15 +13336,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -13352,8 +13352,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -13375,11 +13375,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -13413,14 +13413,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -13456,15 +13456,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -13492,8 +13492,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -13505,15 +13505,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -13521,8 +13521,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -13544,11 +13544,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -13582,14 +13582,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -13772,15 +13772,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -13808,8 +13808,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -13821,15 +13821,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -13837,8 +13837,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -13860,11 +13860,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -13898,14 +13898,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -13941,15 +13941,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -13977,8 +13977,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -13990,15 +13990,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -14006,8 +14006,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -14029,11 +14029,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -14067,14 +14067,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -14205,15 +14205,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -14241,8 +14241,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -14254,15 +14254,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -14270,8 +14270,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -14293,11 +14293,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -14331,14 +14331,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -14374,15 +14374,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -14410,8 +14410,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -14423,15 +14423,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -14439,8 +14439,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -14462,11 +14462,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -14500,14 +14500,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -14690,15 +14690,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -14726,8 +14726,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -14739,15 +14739,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -14755,8 +14755,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -14778,11 +14778,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -14816,14 +14816,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -14859,15 +14859,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -14895,8 +14895,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -14908,15 +14908,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -14924,8 +14924,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -14947,11 +14947,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -14985,14 +14985,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -15176,15 +15176,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -15212,8 +15212,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -15225,15 +15225,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -15241,8 +15241,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -15264,11 +15264,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -15302,14 +15302,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -15346,15 +15346,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -15382,8 +15382,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -15395,15 +15395,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -15411,8 +15411,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -15434,11 +15434,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -15472,14 +15472,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -15662,15 +15662,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -15698,8 +15698,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -15711,15 +15711,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -15727,8 +15727,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -15750,11 +15750,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -15788,14 +15788,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -15831,15 +15831,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -15867,8 +15867,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -15880,15 +15880,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -15896,8 +15896,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -15919,11 +15919,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -15957,14 +15957,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -16143,15 +16143,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -16179,8 +16179,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -16192,15 +16192,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -16208,8 +16208,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -16231,11 +16231,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -16269,14 +16269,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -16312,15 +16312,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -16348,8 +16348,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -16361,15 +16361,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -16377,8 +16377,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -16400,11 +16400,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -16438,14 +16438,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -16609,15 +16609,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -16645,8 +16645,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -16658,15 +16658,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -16674,8 +16674,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -16697,11 +16697,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -16735,14 +16735,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -16766,15 +16766,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -16802,8 +16802,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -16815,15 +16815,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -16831,8 +16831,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -16854,11 +16854,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -16892,14 +16892,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -17061,15 +17061,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -17097,8 +17097,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -17110,15 +17110,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -17126,8 +17126,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -17149,11 +17149,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -17187,14 +17187,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -17218,15 +17218,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -17254,8 +17254,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -17267,15 +17267,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -17283,8 +17283,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -17306,11 +17306,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -17344,14 +17344,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -17465,15 +17465,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -17501,8 +17501,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -17514,15 +17514,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -17530,8 +17530,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -17553,11 +17553,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -17591,14 +17591,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -17622,15 +17622,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -17658,8 +17658,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -17671,15 +17671,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -17687,8 +17687,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -17710,11 +17710,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -17748,14 +17748,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -17869,15 +17869,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -17905,8 +17905,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -17918,15 +17918,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -17934,8 +17934,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -17957,11 +17957,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -17995,14 +17995,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -18026,15 +18026,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -18062,8 +18062,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -18075,15 +18075,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -18091,8 +18091,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -18114,11 +18114,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -18152,14 +18152,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -18321,15 +18321,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -18357,8 +18357,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -18370,15 +18370,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -18386,8 +18386,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -18409,11 +18409,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -18447,14 +18447,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -18478,15 +18478,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -18514,8 +18514,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -18527,15 +18527,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -18543,8 +18543,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -18566,11 +18566,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -18604,14 +18604,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -18774,15 +18774,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -18810,8 +18810,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -18823,15 +18823,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -18839,8 +18839,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -18906,11 +18906,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -18944,14 +18944,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -18975,15 +18975,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -19011,8 +19011,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -19024,15 +19024,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -19040,8 +19040,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -19151,11 +19151,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -19189,14 +19189,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -19362,15 +19362,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -19398,8 +19398,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -19411,15 +19411,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -19427,8 +19427,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -19461,11 +19461,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -19499,14 +19499,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -19530,15 +19530,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -19566,8 +19566,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -19579,15 +19579,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -19595,8 +19595,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -19629,11 +19629,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -19667,14 +19667,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -19892,15 +19892,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -19949,8 +19949,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -19962,15 +19962,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -19997,8 +19997,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -20020,11 +20020,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -20073,14 +20073,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -20128,15 +20128,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -20185,8 +20185,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -20198,15 +20198,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -20233,8 +20233,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -20256,11 +20256,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -20309,14 +20309,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -20528,15 +20528,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -20564,8 +20564,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -20577,15 +20577,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -20593,8 +20593,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -20623,11 +20623,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -20661,14 +20661,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -20692,15 +20692,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -20728,8 +20728,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -20741,15 +20741,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -20757,8 +20757,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -20787,11 +20787,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -20825,14 +20825,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -21003,15 +21003,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -21039,8 +21039,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -21052,15 +21052,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -21068,8 +21068,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -21098,11 +21098,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -21136,14 +21136,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -21167,15 +21167,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -21203,8 +21203,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -21216,15 +21216,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -21232,8 +21232,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -21262,11 +21262,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -21300,14 +21300,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -21400,7 +21400,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -21464,15 +21464,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -21542,8 +21542,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -21560,15 +21560,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -21576,8 +21576,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -21599,11 +21599,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -21652,14 +21652,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -21683,15 +21683,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -21761,8 +21761,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -21779,15 +21779,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -21795,8 +21795,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -21818,11 +21818,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -21871,14 +21871,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -21922,7 +21922,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -22006,7 +22006,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -22083,7 +22083,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | LOCAL
@@ -22147,15 +22147,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -22204,8 +22204,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -22222,15 +22222,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -22238,8 +22238,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -22261,11 +22261,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -22314,14 +22314,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -22345,15 +22345,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -22402,8 +22402,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -22420,15 +22420,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -22436,8 +22436,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -22459,11 +22459,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -22512,14 +22512,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -22562,7 +22562,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | LOCAL
@@ -22639,7 +22639,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -22700,15 +22700,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -22736,8 +22736,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -22749,15 +22749,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -22765,8 +22765,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -22788,11 +22788,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -22826,14 +22826,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -22857,15 +22857,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -22914,8 +22914,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -22932,15 +22932,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -22948,8 +22948,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -22971,11 +22971,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -23024,14 +23024,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -23074,7 +23074,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -23154,7 +23154,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -23255,23 +23255,23 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -23283,15 +23283,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -23299,8 +23299,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -23322,11 +23322,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23360,14 +23360,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23402,23 +23402,23 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -23430,15 +23430,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -23446,8 +23446,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -23469,11 +23469,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23507,14 +23507,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23681,23 +23681,23 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -23709,15 +23709,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -23725,8 +23725,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -23748,11 +23748,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23786,14 +23786,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23828,23 +23828,23 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -23856,15 +23856,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -23872,8 +23872,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -23895,11 +23895,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -23933,14 +23933,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -24107,23 +24107,23 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -24135,15 +24135,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -24151,8 +24151,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -24174,11 +24174,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -24212,14 +24212,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -24254,23 +24254,23 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -24282,15 +24282,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -24298,8 +24298,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -24321,11 +24321,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -24359,14 +24359,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -24559,15 +24559,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -24595,8 +24595,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -24608,15 +24608,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -24624,8 +24624,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -24647,11 +24647,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -24685,14 +24685,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -24716,15 +24716,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -24752,8 +24752,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -24765,15 +24765,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -24781,8 +24781,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -24804,11 +24804,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -24857,14 +24857,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -25087,15 +25087,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -25123,8 +25123,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -25136,15 +25136,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -25152,8 +25152,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -25175,11 +25175,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -25213,14 +25213,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -25244,15 +25244,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -25301,8 +25301,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -25314,15 +25314,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -25330,8 +25330,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -25353,11 +25353,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -25406,14 +25406,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -25615,15 +25615,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -25672,8 +25672,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -25685,15 +25685,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -25701,8 +25701,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -25724,11 +25724,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -25762,14 +25762,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -25793,15 +25793,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -25871,8 +25871,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -25884,15 +25884,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -25900,8 +25900,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -25923,11 +25923,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -25961,14 +25961,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -26138,15 +26138,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -26174,8 +26174,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -26187,15 +26187,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -26203,8 +26203,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -26226,11 +26226,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -26264,14 +26264,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -26295,15 +26295,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -26415,8 +26415,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -26428,15 +26428,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -26444,8 +26444,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -26467,11 +26467,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -26505,14 +26505,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -26724,15 +26724,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -26781,8 +26781,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -26794,15 +26794,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -26810,8 +26810,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -26833,11 +26833,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -26871,14 +26871,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -26902,15 +26902,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -26938,8 +26938,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -26951,15 +26951,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -26967,8 +26967,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -26990,11 +26990,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -27028,14 +27028,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -27228,15 +27228,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -27285,8 +27285,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -27298,15 +27298,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -27314,8 +27314,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -27337,11 +27337,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -27375,14 +27375,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -27418,15 +27418,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -27454,8 +27454,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -27467,15 +27467,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -27483,8 +27483,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -27506,11 +27506,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -27544,14 +27544,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -27741,15 +27741,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -27777,8 +27777,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -27790,15 +27790,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -27806,8 +27806,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -27829,11 +27829,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -27867,14 +27867,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -27922,15 +27922,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -27979,8 +27979,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -27992,15 +27992,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -28008,8 +28008,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -28031,11 +28031,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -28069,14 +28069,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -28274,15 +28274,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -28310,8 +28310,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -28323,15 +28323,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -28339,8 +28339,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -28362,11 +28362,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -28400,14 +28400,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -28444,15 +28444,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -28480,8 +28480,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -28493,15 +28493,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -28509,8 +28509,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -28532,11 +28532,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -28570,14 +28570,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -28817,15 +28817,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -28895,8 +28895,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -28908,15 +28908,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -28943,8 +28943,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -28966,11 +28966,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -29019,14 +29019,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -29086,15 +29086,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -29164,8 +29164,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -29177,15 +29177,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -29212,8 +29212,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -29235,11 +29235,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -29288,14 +29288,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -29559,15 +29559,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -29616,8 +29616,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -29629,15 +29629,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -29645,8 +29645,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -29668,11 +29668,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -29706,14 +29706,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -29773,15 +29773,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -29851,8 +29851,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -29864,15 +29864,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -29899,8 +29899,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -29922,11 +29922,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -29975,14 +29975,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -30260,15 +30260,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -30359,8 +30359,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -30372,15 +30372,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | a
@@ -30426,8 +30426,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -30449,11 +30449,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | a
@@ -30502,14 +30502,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -30533,15 +30533,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -30569,8 +30569,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -30582,15 +30582,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -30598,8 +30598,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -30621,11 +30621,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | keep
@@ -30659,14 +30659,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -30913,15 +30913,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -30949,8 +30949,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -30962,15 +30962,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -30978,8 +30978,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -31001,11 +31001,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | keep
@@ -31039,14 +31039,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -31118,15 +31118,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -31238,8 +31238,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -31251,15 +31251,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | a
@@ -31305,8 +31305,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -31328,11 +31328,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | a
@@ -31396,14 +31396,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -31735,15 +31735,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -31792,8 +31792,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -31805,15 +31805,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -31840,8 +31840,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -31863,11 +31863,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -31916,14 +31916,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -31959,15 +31959,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -32016,8 +32016,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -32029,15 +32029,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -32045,8 +32045,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -32068,11 +32068,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | c
@@ -32121,14 +32121,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -32349,15 +32349,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -32406,8 +32406,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -32419,15 +32419,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -32435,8 +32435,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -32458,11 +32458,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -32496,14 +32496,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -32551,15 +32551,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -32608,8 +32608,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -32621,15 +32621,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -32637,8 +32637,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -32660,11 +32660,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -32698,14 +32698,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -32873,7 +32873,7 @@
 : string
 | va
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -32900,7 +32900,7 @@
 : string
 | vb
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -32927,7 +32927,7 @@
 : string
 | vc
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -32988,15 +32988,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -33024,8 +33024,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -33037,15 +33037,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -33053,8 +33053,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -33076,11 +33076,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -33114,14 +33114,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -33145,15 +33145,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -33244,8 +33244,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | va
@@ -33272,15 +33272,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -33288,8 +33288,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -33311,11 +33311,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -33394,14 +33394,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -33460,7 +33460,7 @@
 : string
 | va
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33487,7 +33487,7 @@
 : string
 | vb
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33514,7 +33514,7 @@
 : string
 | vc
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33610,7 +33610,7 @@
 : string
 | va
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33637,7 +33637,7 @@
 : string
 | vb
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33664,7 +33664,7 @@
 : string
 | vc
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33742,7 +33742,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -33806,15 +33806,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -33863,8 +33863,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -33881,15 +33881,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -33897,8 +33897,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -33920,11 +33920,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -33973,14 +33973,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -34004,15 +34004,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -34103,8 +34103,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | v
@@ -34121,15 +34121,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -34137,8 +34137,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -34160,11 +34160,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -34213,14 +34213,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -34267,7 +34267,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -34354,7 +34354,7 @@
 : string
 | v
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -34431,7 +34431,7 @@
 : string
 | x
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -34495,15 +34495,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -34552,8 +34552,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -34565,15 +34565,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -34581,8 +34581,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -34604,11 +34604,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | base
@@ -34657,14 +34657,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -34688,15 +34688,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -34745,8 +34745,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | x
@@ -34763,15 +34763,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -34779,8 +34779,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -34802,11 +34802,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | base
@@ -34855,14 +34855,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -34908,7 +34908,7 @@
 : string
 | x
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -34994,7 +34994,7 @@
 : string
 | x
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -35120,15 +35120,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -35177,8 +35177,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | x
@@ -35195,15 +35195,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -35211,8 +35211,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -35234,11 +35234,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | base
@@ -35287,14 +35287,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -35318,15 +35318,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -35375,8 +35375,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -35388,15 +35388,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -35404,8 +35404,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -35427,11 +35427,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | base
@@ -35480,14 +35480,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -35694,15 +35694,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -35730,8 +35730,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -35743,15 +35743,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -35759,8 +35759,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -35782,11 +35782,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | x
@@ -35820,14 +35820,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -35851,23 +35851,23 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -35879,15 +35879,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -35895,8 +35895,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -35918,11 +35918,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | x
@@ -35956,14 +35956,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | x
@@ -36136,23 +36136,23 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -36164,15 +36164,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -36180,8 +36180,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -36203,11 +36203,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -36241,14 +36241,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -36283,23 +36283,23 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 | SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -36311,15 +36311,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -36327,8 +36327,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -36350,11 +36350,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -36388,14 +36388,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -36602,15 +36602,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -36638,8 +36638,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -36651,15 +36651,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -36667,8 +36667,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -36690,11 +36690,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | keep
@@ -36728,14 +36728,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -36759,15 +36759,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -36817,8 +36817,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -36830,15 +36830,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -36846,8 +36846,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -36869,11 +36869,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | keep
@@ -36937,14 +36937,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 < row
 : bytes
 | s
@@ -37110,15 +37110,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -37146,8 +37146,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -37159,15 +37159,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -37175,8 +37175,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -37209,11 +37209,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -37247,14 +37247,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -37278,15 +37278,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -37314,8 +37314,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -37327,15 +37327,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -37343,8 +37343,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -37399,11 +37399,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -37437,14 +37437,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -37617,15 +37617,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -37653,8 +37653,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -37666,15 +37666,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -37682,8 +37682,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -37716,11 +37716,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -37754,14 +37754,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -37785,15 +37785,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -37821,8 +37821,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -37834,15 +37834,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -37850,8 +37850,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -37895,11 +37895,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -37933,14 +37933,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -38109,15 +38109,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -38145,8 +38145,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -38158,15 +38158,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -38174,8 +38174,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -38197,11 +38197,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -38235,14 +38235,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -38266,15 +38266,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -38302,8 +38302,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -38315,15 +38315,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -38331,8 +38331,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -38387,11 +38387,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -38425,14 +38425,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -38596,15 +38596,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -38632,8 +38632,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -38645,15 +38645,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -38661,8 +38661,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -38717,11 +38717,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -38755,14 +38755,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -38786,15 +38786,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -38822,8 +38822,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -38835,15 +38835,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -38851,8 +38851,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -38874,11 +38874,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -38912,14 +38912,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -39084,15 +39084,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -39120,8 +39120,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -39133,15 +39133,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -39149,8 +39149,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -39205,11 +39205,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -39243,14 +39243,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -39274,15 +39274,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -39310,8 +39310,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -39323,15 +39323,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -39339,8 +39339,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -39384,11 +39384,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -39422,14 +39422,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -39601,15 +39601,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -39637,8 +39637,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -39650,15 +39650,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -39666,8 +39666,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -39689,11 +39689,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -39727,14 +39727,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -39758,15 +39758,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -39794,8 +39794,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -39807,15 +39807,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -39823,8 +39823,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -39846,11 +39846,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -39884,14 +39884,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -40011,15 +40011,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -40047,8 +40047,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -40060,15 +40060,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -40076,8 +40076,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -40099,11 +40099,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -40137,14 +40137,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -40168,15 +40168,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -40204,8 +40204,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -40217,15 +40217,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -40233,8 +40233,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -40256,11 +40256,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -40294,14 +40294,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -40416,15 +40416,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -40473,8 +40473,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -40486,15 +40486,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -40502,8 +40502,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -40525,11 +40525,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -40563,14 +40563,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -40594,15 +40594,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -40651,8 +40651,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -40664,15 +40664,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -40680,8 +40680,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -40703,11 +40703,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -40741,14 +40741,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -40786,6 +40786,820 @@
 |   `a` int DEFAULT NULL,
 |   `b` varchar(5) DEFAULT NULL
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /*T![auto_id_cache] AUTO_ID_CACHE=10 */ /*T! SHARD_ROW_ID_BITS=3 */ COMMENT='it''s \\ x'
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| ALTER TABLE t CACHE
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /* CACHED ON */
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` CACHE
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin /* CACHED ON */
+> exec
+| DROP DATABASE IF EXISTS omni_mig_b
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_b
+< ok 0 0
+> exec
+| USE omni_mig_b
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+> exec
+| DROP DATABASE IF EXISTS omni_mig_a
+< ok 0 0
+> exec
+| CREATE DATABASE omni_mig_a
+< ok 0 0
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a int)
+< ok 0 0
+> exec
+| ALTER TABLE t CACHE
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_a
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_a
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
+> query
+| SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
+| 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "KEY_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR"
+< column "NON_UNIQUE" "BIGINT"
+< column "INDEX_COMMENT" "VARCHAR"
+< column "SUB_PART" "BIGINT"
+< column "EXPRESSION" "VARCHAR"
+> query
+| SELECT TABLE_NAME, IFNULL(COLUMN_NAME, ''), ORDINAL_POSITION,
+| 			CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END,
+| 			IS_NULLABLE, COLUMN_TYPE, IFNULL(CHARACTER_SET_NAME, ''), IFNULL(COLLATION_NAME, ''),
+| 			QUOTE(COLUMN_COMMENT), GENERATION_EXPRESSION, EXTRA
+| 		FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "BIGINT"
+< column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
+< column "IS_NULLABLE" "VARCHAR"
+< column "COLUMN_TYPE" "TEXT"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
+< column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
+< column "EXTRA" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| a
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| int
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+> query
+| SELECT TABLE_NAME, VIEW_DEFINITION FROM information_schema.VIEWS WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+> query
+| SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
+| 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
+| 		FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fks
+| 			JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+| 			ON fks.CONSTRAINT_SCHEMA = kcu.TABLE_SCHEMA AND fks.TABLE_NAME = kcu.TABLE_NAME AND fks.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+| 		WHERE kcu.POSITION_IN_UNIQUE_CONSTRAINT IS NOT NULL AND fks.CONSTRAINT_SCHEMA = ?
+| 		ORDER BY fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "REFERENCED_COLUMN_NAME" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
+> query
+| SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
+| 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
+> query
+| SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME, PARTITION_ORDINAL_POSITION
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+> query
+| SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
+| 			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+| 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_b
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+> query
+| SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?
+: string
+| omni_mig_b
+< result
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< row
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+> query
+| SELECT SEQUENCE_NAME, START, MIN_VALUE, MAX_VALUE, INCREMENT, CYCLE, CACHE_VALUE, IFNULL(COMMENT, '')
+| 		FROM information_schema.SEQUENCES WHERE SEQUENCE_SCHEMA = ? ORDER BY SEQUENCE_NAME
+: string
+| omni_mig_b
+< result
+< column "SEQUENCE_NAME" "VARCHAR" "string"
+< column "START" "BIGINT"
+< column "MIN_VALUE" "BIGINT"
+< column "MAX_VALUE" "BIGINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
+< column "CACHE_VALUE" "BIGINT"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
+> exec
+| USE omni_mig_a
+< ok 0 0
+> exec
+| ALTER TABLE `omni_mig_a`.`t` NOCACHE
+< ok 0 0
+> query
+| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
+: string
+| omni_mig_a
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 > exec
 | DROP DATABASE IF EXISTS omni_mig_b
 < ok 0 0
@@ -40873,15 +41687,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -40930,8 +41744,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -40943,15 +41757,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -40959,8 +41773,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -40989,11 +41803,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -41027,14 +41841,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -41058,15 +41872,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -41115,8 +41929,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -41128,15 +41942,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -41144,8 +41958,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | t
@@ -41188,11 +42002,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -41226,14 +42040,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -41423,15 +42237,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -41501,8 +42315,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -41514,15 +42328,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -41530,8 +42344,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -41553,11 +42367,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -41591,14 +42405,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -41622,15 +42436,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -41703,8 +42517,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -41716,15 +42530,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -41732,8 +42546,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -41755,11 +42569,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -41793,14 +42607,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -41979,15 +42793,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -42036,8 +42850,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -42049,15 +42863,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -42065,8 +42879,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -42088,11 +42902,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -42126,14 +42940,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -42157,15 +42971,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -42214,8 +43028,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -42227,15 +43041,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -42243,8 +43057,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -42266,11 +43080,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -42304,14 +43118,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -42493,15 +43307,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -42592,8 +43406,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -42605,15 +43419,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -42621,8 +43435,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -42644,11 +43458,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -42682,14 +43496,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -42713,15 +43527,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -42749,8 +43563,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -42762,15 +43576,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -42778,8 +43592,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -42801,11 +43615,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -42839,14 +43653,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -43002,7 +43816,7 @@
 : string
 | va
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -43029,7 +43843,7 @@
 : string
 | vb
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -43090,15 +43904,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -43126,8 +43940,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -43139,15 +43953,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -43155,8 +43969,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -43178,11 +43992,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -43216,14 +44030,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -43247,15 +44061,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -43325,8 +44139,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
 | va
@@ -43348,15 +44162,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -43364,8 +44178,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -43387,11 +44201,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -43455,14 +44269,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -43513,7 +44327,7 @@
 : string
 | va
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -43540,7 +44354,7 @@
 : string
 | vb
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -43628,7 +44442,7 @@
 : string
 | va
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -43655,7 +44469,7 @@
 : string
 | vb
 < result
-< column "CHECK_OPTION" "VARCHAR"
+< column "CHECK_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | CASCADED
@@ -43760,15 +44574,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -43817,8 +44631,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -43830,15 +44644,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -43846,8 +44660,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -43891,11 +44705,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -43929,14 +44743,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -43972,15 +44786,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -44029,8 +44843,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -44042,15 +44856,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -44058,8 +44872,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -44081,11 +44895,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -44119,14 +44933,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -44301,15 +45115,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -44358,8 +45172,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -44371,15 +45185,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -44387,8 +45201,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -44432,11 +45246,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -44470,14 +45284,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -44513,15 +45327,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -44570,8 +45384,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -44583,15 +45397,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -44599,8 +45413,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -44655,11 +45469,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -44693,14 +45507,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -44881,15 +45695,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -44959,8 +45773,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -44972,15 +45786,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -44988,8 +45802,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -45011,11 +45825,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -45049,14 +45863,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -45080,15 +45894,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -45137,8 +45951,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -45150,15 +45964,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -45166,8 +45980,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -45189,11 +46003,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -45227,14 +46041,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -45405,15 +46219,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -45441,8 +46255,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -45454,15 +46268,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -45470,8 +46284,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -45493,11 +46307,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -45531,14 +46345,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -45562,15 +46376,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -45619,8 +46433,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -45632,15 +46446,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -45648,8 +46462,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -45671,11 +46485,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -45709,14 +46523,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -45837,15 +46651,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -45873,8 +46687,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -45886,15 +46700,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -45902,8 +46716,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -45925,11 +46739,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -45963,14 +46777,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -45994,15 +46808,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -46030,8 +46844,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -46043,15 +46857,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -46059,8 +46873,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -46082,11 +46896,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -46120,14 +46934,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -46246,15 +47060,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -46282,8 +47096,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -46295,15 +47109,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -46311,8 +47125,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -46334,11 +47148,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -46372,14 +47186,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -46403,15 +47217,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -46439,8 +47253,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -46452,15 +47266,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -46468,8 +47282,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -46491,11 +47305,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -46529,14 +47343,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -46655,15 +47469,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -46712,8 +47526,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -46725,15 +47539,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -46741,8 +47555,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -46764,11 +47578,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -46802,14 +47616,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -46833,15 +47647,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -46869,8 +47683,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -46882,15 +47696,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -46898,8 +47712,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -46921,11 +47735,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -46959,14 +47773,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -47084,15 +47898,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -47141,8 +47955,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -47154,15 +47968,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -47170,8 +47984,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -47193,11 +48007,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -47231,14 +48045,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -47262,15 +48076,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -47319,8 +48133,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -47332,15 +48146,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -47348,8 +48162,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -47371,11 +48185,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -47409,14 +48223,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -47532,15 +48346,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -47610,8 +48424,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -47623,15 +48437,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -47639,8 +48453,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -47662,11 +48476,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -47700,14 +48514,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -47731,15 +48545,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -47788,8 +48602,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -47801,15 +48615,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -47817,8 +48631,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -47840,11 +48654,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -47878,14 +48692,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -48060,15 +48874,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -48138,8 +48952,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -48151,15 +48965,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -48186,8 +49000,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -48209,11 +49023,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -48262,14 +49076,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -48329,15 +49143,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -48407,8 +49221,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -48420,15 +49234,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -48455,8 +49269,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -48478,11 +49292,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -48531,14 +49345,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -48814,15 +49628,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -48892,8 +49706,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -48905,15 +49719,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -48940,8 +49754,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -48963,11 +49777,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -49016,14 +49830,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -49083,15 +49897,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -49161,8 +49975,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -49174,15 +49988,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -49209,8 +50023,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -49232,11 +50046,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | ch
@@ -49285,14 +50099,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -49519,15 +50333,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -49555,8 +50369,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -49568,15 +50382,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -49584,8 +50398,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -49607,11 +50421,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -49645,14 +50459,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -49688,15 +50502,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -49745,8 +50559,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -49758,15 +50572,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -49774,8 +50588,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -49797,11 +50611,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -49835,14 +50649,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -50015,15 +50829,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -50072,8 +50886,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -50085,15 +50899,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -50101,8 +50915,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -50124,11 +50938,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -50162,14 +50976,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -50193,15 +51007,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -50250,8 +51064,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -50263,15 +51077,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -50279,8 +51093,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -50302,11 +51116,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -50340,14 +51154,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -50514,15 +51328,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -50550,8 +51364,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -50563,15 +51377,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -50579,8 +51393,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -50602,11 +51416,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -50640,14 +51454,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -50671,15 +51485,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -50728,8 +51542,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -50741,15 +51555,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -50757,8 +51571,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -50780,11 +51594,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -50818,14 +51632,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -51002,15 +51816,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -51038,8 +51852,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -51051,15 +51865,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -51067,8 +51881,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -51090,11 +51904,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -51128,14 +51942,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -51171,15 +51985,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -51207,8 +52021,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -51220,15 +52034,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -51236,8 +52050,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -51259,11 +52073,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -51297,14 +52111,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -51483,15 +52297,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -51519,8 +52333,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -51532,15 +52346,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -51548,8 +52362,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -51571,11 +52385,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -51609,14 +52423,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -51652,15 +52466,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -51688,8 +52502,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -51701,15 +52515,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -51717,8 +52531,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -51740,11 +52554,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -51778,14 +52592,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -51964,15 +52778,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -52000,8 +52814,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -52013,15 +52827,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -52029,8 +52843,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -52052,11 +52866,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -52090,14 +52904,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -52133,15 +52947,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -52169,8 +52983,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -52182,15 +52996,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -52198,8 +53012,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -52221,11 +53035,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -52259,14 +53073,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -52432,15 +53246,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -52468,8 +53282,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -52481,15 +53295,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -52497,8 +53311,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -52520,11 +53334,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -52558,14 +53372,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -52589,15 +53403,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -52625,8 +53439,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -52638,15 +53452,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -52654,8 +53468,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -52677,11 +53491,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -52715,14 +53529,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -52912,15 +53726,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -52969,8 +53783,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -52982,15 +53796,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -52998,8 +53812,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -53021,11 +53835,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -53059,14 +53873,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -53114,15 +53928,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -53171,8 +53985,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -53184,15 +53998,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -53200,8 +54014,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -53223,11 +54037,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -53261,14 +54075,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -53453,15 +54267,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -53489,8 +54303,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -53502,15 +54316,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -53518,8 +54332,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -53541,11 +54355,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -53579,14 +54393,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -53622,15 +54436,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -53658,8 +54472,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -53671,15 +54485,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -53687,8 +54501,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -53710,11 +54524,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -53748,14 +54562,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -53922,15 +54736,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -53979,8 +54793,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -53992,15 +54806,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -54008,8 +54822,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -54031,11 +54845,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -54069,14 +54883,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -54100,15 +54914,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -54157,8 +54971,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -54170,15 +54984,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -54186,8 +55000,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -54209,11 +55023,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -54247,14 +55061,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
@@ -54421,15 +55235,15 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -54457,8 +55271,8 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -54470,15 +55284,15 @@
 : string
 | omni_mig_a
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -54486,8 +55300,8 @@
 | omni_mig_a
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -54509,11 +55323,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -54547,14 +55361,14 @@
 : string
 | omni_mig_a
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, KEY_NAME, COLUMN_NAME, NON_UNIQUE, INDEX_COMMENT, SUB_PART, EXPRESSION
 | 		FROM information_schema.TIDB_INDEXES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME, KEY_NAME, SEQ_IN_INDEX
@@ -54590,15 +55404,15 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -54626,8 +55440,8 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 | SELECT fks.TABLE_NAME, fks.CONSTRAINT_NAME, kcu.COLUMN_NAME, kcu.REFERENCED_TABLE_SCHEMA,
 | 			fks.REFERENCED_TABLE_NAME, kcu.REFERENCED_COLUMN_NAME, fks.DELETE_RULE, fks.UPDATE_RULE, fks.MATCH_OPTION
@@ -54639,15 +55453,15 @@
 : string
 | omni_mig_b
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 | SELECT TABLE_NAME, CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS
 | 		WHERE CONSTRAINT_SCHEMA = ? ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -54655,8 +55469,8 @@
 | omni_mig_b
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 | SELECT TABLE_NAME, PARTITION_NAME, PARTITION_METHOD, PARTITION_EXPRESSION, PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
@@ -54678,11 +55492,11 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | t
@@ -54716,14 +55530,14 @@
 : string
 | omni_mig_b
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > exec
 | USE omni_mig_a
 < ok 0 0
