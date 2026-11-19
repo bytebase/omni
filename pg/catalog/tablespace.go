@@ -197,6 +197,14 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 		return nil
 	}
 	schemaName, oprName := qualifiedName(owa.Objname)
+	var opSchema *Schema
+	if schemaName != "" {
+		var err error
+		opSchema, err = c.resolveTargetSchema(schemaName)
+		if err != nil {
+			return err
+		}
+	}
 	var left, right uint32
 	if owa.Objargs != nil {
 		var oids []uint32
@@ -226,8 +234,8 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 		if !ok {
 			return -1
 		}
-		if schemaName != "" {
-			if ns := c.schemaByName[schemaName]; ns != nil && ns.OID == nsOID {
+		if opSchema != nil {
+			if opSchema.OID == nsOID {
 				return 0
 			}
 			return -1
@@ -933,8 +941,8 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 	for key, cast := range c.castIndex {
-		if c.extensionCasts[key] != "" {
-			continue
+		if owner := c.extensionCasts[key]; owner != "" && ownedExtNames[owner] {
+			continue // the cast goes with the extension that created it
 		}
 		if name := cmp.Or(extTypeOIDs[cast.Source], extTypeOIDs[cast.Target], extFuncOIDs[cast.Func]); name != "" {
 			externalCasts = append(externalCasts, castExt{key: key, extName: name})
@@ -1258,6 +1266,9 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			}
 		}
 		for _, x := range amUsers {
+			if inOwnedExt(x.dep.ObjOID) {
+				continue // part of the same extension's drop set
+			}
 			return errDependentObjects("extension", x.extName)
 		}
 		for _, x := range externalCasts {

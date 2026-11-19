@@ -232,6 +232,9 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 		delete(c.typeByOID, rel.ArrayOID)
 		delete(c.typeOwners, rel.ArrayOID)
 		c.removeGrantsForObject('T', rel.ArrayOID)
+		c.removeComments('t', rel.ArrayOID)
+		c.removeDepsOf('t', rel.ArrayOID)
+		c.removeDepsOn('t', rel.ArrayOID)
 	}
 }
 

@@ -2241,6 +2241,108 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("cross-kind SET SCHEMA collision answered %s, want %s", code, CodeDuplicateFunction)
 		}
 
+		// #193: a schema holding only an operator class or family is not empty.
+		c57 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA only_opc",
+			"CREATE OPERATOR FAMILY only_opc.only_fam USING gist",
+		} {
+			if code := simulationCatalogCode(t, c57, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c57, "DROP SCHEMA only_opc"); code != CodeSchemaNotEmpty {
+			t.Fatalf("DROP SCHEMA over an operator family answered %s, want %s", code, CodeSchemaNotEmpty)
+		}
+		if code := simulationCatalogCode(t, c57, "DROP SCHEMA only_opc CASCADE"); code != "0" {
+			t.Fatalf("DROP SCHEMA only_opc CASCADE: %s", code)
+		}
+		for _, fam := range c57.opFamilies {
+			if fam.Schema == c57.schemaByName["only_opc"].OID {
+				t.Fatal("CASCADE left an operator family in the dropped schema")
+			}
+		}
+
+		// #194: an extension's own opclass of its own access method does not
+		// block DROP OWNED of the extension owner.
+		RegisterExtensionSQL("test_self_am", "CREATE ACCESS METHOD self_am TYPE INDEX HANDLER btbuild; CREATE OPERATOR FAMILY self_fam USING self_am;")
+		defer delete(extensionScripts, "test_self_am")
+		c58 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE self_owner",
+			"SET ROLE self_owner",
+			"CREATE EXTENSION test_self_am",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c58, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c58, "DROP OWNED BY self_owner RESTRICT"); code != "0" {
+			t.Fatalf("DROP OWNED over a self-contained extension answered %s, want 0", code)
+		}
+
+		// #195: an operator class/family name collision blocks SET SCHEMA.
+		RegisterExtensionSQL("test_opc_ext", "CREATE OPERATOR FAMILY shared_fam USING gist;")
+		defer delete(extensionScripts, "test_opc_ext")
+		c59 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA osrc",
+			"CREATE SCHEMA odst",
+			"CREATE EXTENSION test_opc_ext SCHEMA osrc",
+			"CREATE OPERATOR FAMILY odst.shared_fam USING gist",
+		} {
+			if code := simulationCatalogCode(t, c59, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c59, "ALTER EXTENSION test_opc_ext SET SCHEMA odst"); code != CodeDuplicateObject {
+			t.Fatalf("SET SCHEMA with an opfamily collision answered %s, want %s", code, CodeDuplicateObject)
+		}
+
+		// #198: a qualified ALTER OPERATOR names a missing schema with 3F000.
+		c60 := New()
+		if code := simulationCatalogCode(t, c60, "ALTER OPERATOR missing.@@ (int, int) OWNER TO postgres"); code != CodeUndefinedSchema {
+			t.Fatalf("qualified ALTER OPERATOR on a missing schema answered %s, want %s", code, CodeUndefinedSchema)
+		}
+
+		// #199: an operator on an extension type keeps the extension in use.
+		c61 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION citext",
+			"CREATE FUNCTION ct_cmp(citext, citext) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"CREATE OPERATOR &&&& (LEFTARG = citext, RIGHTARG = citext, PROCEDURE = ct_cmp)",
+		} {
+			if code := simulationCatalogCode(t, c61, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c61, "DROP EXTENSION citext"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION over an operator on its type answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		// #200: dropping a relation clears its array type's comments and deps.
+		c62 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE arr_t (a int)",
+			"COMMENT ON TYPE _arr_t IS 'array'",
+			"DROP TABLE arr_t",
+		} {
+			if code := simulationCatalogCode(t, c62, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		for key := range c62.comments {
+			if key.ObjType == 't' {
+				t.Fatalf("DROP TABLE left a type comment: %+v", key)
+			}
+		}
+		for _, d := range c62.deps {
+			if d.ObjType == 't' || d.RefType == 't' {
+				t.Fatalf("DROP TABLE left a type dependency: %+v", d)
+			}
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

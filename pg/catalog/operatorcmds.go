@@ -171,6 +171,11 @@ func (c *Catalog) DefineOperator(stmt *nodes.DefineStmt) error {
 			c.recordDependency('O', op.OID, 0, 'f', fnOID, 0, DepNormal)
 		}
 	}
+	for _, typeOID := range []uint32{typeId1, typeId2, rettype} {
+		if typeOID != 0 {
+			c.recordDependency('O', op.OID, 0, 't', typeOID, 0, DepNormal)
+		}
+	}
 	key := operKey{name: oprName, left: typeId1, right: typeId2}
 	c.operByKey[key] = append(c.operByKey[key], op)
 

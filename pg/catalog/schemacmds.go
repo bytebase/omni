@@ -166,6 +166,16 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			for _, oid := range opOIDs {
 				c.removeOperator(oid)
 			}
+			for oid, opc := range c.opClasses {
+				if opc.Schema == s.OID {
+					c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: oid})
+				}
+			}
+			for oid, fam := range c.opFamilies {
+				if fam.Schema == s.OID {
+					c.removeAMUser(DepEntry{ObjType: 'Q', ObjOID: oid})
+				}
+			}
 		}
 
 		c.removeGrantsForObject('n', s.OID)

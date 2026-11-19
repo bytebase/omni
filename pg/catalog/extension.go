@@ -349,8 +349,8 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	// external dependent too, though it carries no OID of its own.
 	var externalCasts []castKey
 	for key, cast := range c.castIndex {
-		if c.extensionCasts[key] != "" {
-			continue
+		if owner := c.extensionCasts[key]; owner != "" && dropExtNames[owner] {
+			continue // the cast goes with the extension that created it
 		}
 		if inExtDrop(cast.Source) || inExtDrop(cast.Target) || (cast.Func != 0 && inExtDrop(cast.Func)) {
 			externalCasts = append(externalCasts, key)
@@ -795,6 +795,26 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 				}
 				if slices.Equal(c.procByOID[other.OID].ArgTypes, c.procByOID[up.OID].ArgTypes) {
 					return errDuplicateFunction(up.Name)
+				}
+			}
+		}
+		if opc := c.opClasses[oid]; opc != nil && opc.Schema == oldOID {
+			for _, other := range c.opClasses {
+				if other.OID == opc.OID || other.Schema != newSchema.OID || other.AMOID != opc.AMOID {
+					continue
+				}
+				if other.Name == opc.Name && other.TypeOID == opc.TypeOID {
+					return errDuplicateObject("operator class", opc.Name)
+				}
+			}
+		}
+		if fam := c.opFamilies[oid]; fam != nil && fam.Schema == oldOID {
+			for _, other := range c.opFamilies {
+				if other.OID == fam.OID || other.Schema != newSchema.OID || other.AMOID != fam.AMOID {
+					continue
+				}
+				if other.Name == fam.Name {
+					return errDuplicateObject("operator family", fam.Name)
 				}
 			}
 		}

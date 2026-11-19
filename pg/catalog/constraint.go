@@ -973,6 +973,20 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			c.removeOperator(objOID)
 		}
 	case 'm':
+		for _, user := range c.findNormalDependents('m', objOID) {
+			switch user.ObjType {
+			case 'r':
+				if rel := c.relationByOID[user.ObjOID]; rel != nil {
+					c.cascadeDropRelation(rel)
+				}
+			case 'i':
+				if idx := c.indexes[user.ObjOID]; idx != nil {
+					c.removeIndex(idx.Schema, idx.Name, idx)
+				}
+			case 'q', 'Q':
+				c.removeAMUser(user)
+			}
+		}
 		if am := c.accessMethods[objOID]; am != nil {
 			delete(c.accessMethods, am.OID)
 			delete(c.accessMethodByName, am.Name)

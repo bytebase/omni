@@ -45,6 +45,16 @@ func (c *Catalog) schemaHasObjects(s *Schema) bool {
 			return true
 		}
 	}
+	for _, opc := range c.opClasses {
+		if opc.Schema == s.OID {
+			return true
+		}
+	}
+	for _, fam := range c.opFamilies {
+		if fam.Schema == s.OID {
+			return true
+		}
+	}
 	return false
 }
 
