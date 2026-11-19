@@ -68,6 +68,9 @@ func rewriteResultLimitInline(statement string, limitCount int) (string, error) 
 		if stmt.Limit != nil {
 			return rewriteExistingLimit(statement, stmt.Limit, limitCount)
 		}
+		if stmt.Into != nil {
+			return statement[:stmt.Into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + statement[stmt.Into.Loc.Start:], nil
+		}
 		// No wrapper LIMIT: append one at the wrapper level, which covers
 		// any paren nesting depth — ((SELECT 1)) LIMIT n and
 		// (SELECT 1) ORDER BY 1 LIMIT n are engine-valid — instead of

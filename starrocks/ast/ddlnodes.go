@@ -156,10 +156,11 @@ var _ Node = (*PartitionDesc)(nil)
 // For IN: PARTITION name VALUES IN ((values), (values))
 // For step: FROM (values) TO (values) INTERVAL n [unit]
 type PartitionItem struct {
-	Name       string     // partition name (empty for step partitions)
-	IsMaxValue bool       // VALUES LESS THAN MAXVALUE
-	Values     []string   // raw value strings for LESS THAN / fixed
-	InValues   [][]string // for IN partitions: list of value lists
+	Name          string     // partition name (empty for step partitions)
+	IsMaxValue    bool       // VALUES LESS THAN MAXVALUE
+	Values        []string   // raw value strings for LESS THAN / fixed
+	InValues      [][]string // for IN partitions: list of value values
+	InValuesValid bool       // every IN value is NULL or a quoted string
 	// Step partition fields
 	IsStep       bool
 	FromStep     bool // Doris's FROM ... TO ... INTERVAL form, not StarRocks's START ... END ... EVERY

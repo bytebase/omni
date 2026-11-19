@@ -715,9 +715,14 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 							return p.syntaxErrorAtCur()
 						}
 					case "LIST":
-						if len(item.InValues) == 0 || item.IsMaxValue || len(item.Values) > 0 || item.IsStep {
+						if len(item.InValues) == 0 || !item.InValuesValid ||
+							item.IsMaxValue || len(item.Values) > 0 || item.IsStep {
 							return p.syntaxErrorAtCur()
 						}
+					}
+					if item.IsStep && !item.FromStep && item.IntervalUnit != "" &&
+						!isTaskIntervalUnit(item.IntervalUnit) {
+						return p.syntaxErrorAtCur()
 					}
 				}
 			}
@@ -1001,6 +1006,17 @@ func (p *Parser) rangeScalarBeforeDefinitions() bool {
 	return next == kwPARTITION || next == kwSTART || next == int(')')
 }
 
+// isTaskIntervalUnit reports whether unit is one of StarRocks's unitIdentifier
+// values.
+func isTaskIntervalUnit(unit string) bool {
+	switch strings.ToUpper(unit) {
+	case "YEAR", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND",
+		"QUARTER", "MILLISECOND", "MICROSECOND":
+		return true
+	}
+	return false
+}
+
 // isPartitionExprStart reports whether kind can start a functionCall or
 // partitionExpr.
 func isPartitionExprStart(kind TokenKind) bool {
@@ -1140,11 +1156,12 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 		case kwIN:
 			// IN ((val1, val2), (val3, val4)) or IN (val1, val2)
 			p.advance() // consume IN
-			inVals, endLoc, err := p.parseInPartitionValues()
+			inVals, endLoc, valid, err := p.parseInPartitionValues()
 			if err != nil {
 				return nil, err
 			}
 			item.InValues = inVals
+			item.InValuesValid = valid
 			item.Loc.End = endLoc
 
 		case int('['):
@@ -1384,26 +1401,31 @@ func (p *Parser) parsePartitionValueDef() (string, error) {
 
 // parseInPartitionValues parses IN partition values:
 // '(' (value_list) [, (value_list)]* ')' or '(' value [, value]* ')'
-func (p *Parser) parseInPartitionValues() ([][]string, int, error) {
+func (p *Parser) parseInPartitionValues() ([][]string, int, bool, error) {
 	if _, err := p.expect(int('(')); err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
 	var result [][]string
+	valid := true
 
 	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 		if p.cur.Kind == int('(') {
 			// Parenthesized value list
-			vals, _, err := p.parsePartitionValueList()
+			vals, _, listValid, err := p.parseListValueList()
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
+			valid = valid && listValid
 			result = append(result, vals)
 		} else {
 			// Single value
+			if p.cur.Kind != tokString && p.cur.Kind != kwNULL {
+				valid = false
+			}
 			val, err := p.parsePartitionValueDef()
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
 			result = append(result, []string{val})
 		}
@@ -1411,22 +1433,51 @@ func (p *Parser) parseInPartitionValues() ([][]string, int, error) {
 		if p.cur.Kind == int(',') {
 			p.advance()
 			if p.strictCTAS && p.cur.Kind == int(')') {
-				return nil, 0, p.syntaxErrorAtCur()
+				return nil, 0, false, p.syntaxErrorAtCur()
 			}
 			continue
 		}
 		if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-			return nil, 0, p.syntaxErrorAtCur()
+			return nil, 0, false, p.syntaxErrorAtCur()
 		}
 		break
 	}
 
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
-	return result, closeTok.Loc.End, nil
+	return result, closeTok.Loc.End, valid, nil
+}
+
+// parseListValueList parses a parenthesized list partition value list, whose
+// entries are NULL or quoted strings.
+func (p *Parser) parseListValueList() ([]string, int, bool, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, 0, false, err
+	}
+	var vals []string
+	valid := true
+	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind != tokString && p.cur.Kind != kwNULL {
+			valid = false
+		}
+		val, err := p.parsePartitionValueDef()
+		if err != nil {
+			return nil, 0, false, err
+		}
+		vals = append(vals, val)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance()
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, 0, false, err
+	}
+	return vals, closeTok.Loc.End, valid, nil
 }
 
 // parseFixedRangePartition parses: '[' lower_values ',' upper_values ')'
