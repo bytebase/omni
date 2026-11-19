@@ -1356,6 +1356,17 @@ func checkSomeColumnVisible(stmt *nodes.CreateTableStmt) error {
 }
 
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := checkPartitionStructure(tbl, pc, false); err != nil {
+		return err
+	}
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+}
+
+// checkPartitionStructure checks the partitioning itself, before any unique key's
+// coverage. repartition is ALTER TABLE ... PARTITION BY, which takes RANGE() with no
+// partition list as automatic range partitioning: the engine gives it a default
+// split size instead of answering 1492.
+func checkPartitionStructure(tbl *Table, pc *nodes.PartitionClause, repartition bool) error {
 	if err := checkPartitionNames(tbl, pc); err != nil {
 		return err
 	}
@@ -1371,7 +1382,7 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 	// size and no list is the same form: the pinned server reads ALTER TABLE a
 	// PARTITION BY RANGE() back as `partition by range() size ('2048MB')`, and
 	// the catalog must load what the engine stores.
-	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" && pc.SplitSize == "" {
+	if !repartition && (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" && pc.SplitSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
@@ -1405,7 +1416,7 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+	return nil
 }
 
 func containsPartitionDefaultExpr(n nodes.Node) bool {

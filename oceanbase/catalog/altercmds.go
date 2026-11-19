@@ -42,7 +42,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
-		if err := checkPartitionNames(tbl, repartition); err != nil {
+		if err := checkPartitionStructure(tbl, repartition, true); err != nil {
 			return err
 		}
 		if err := checkRepartitionPrimaryKeyPrefix(tbl, repartition); err != nil {
@@ -250,22 +250,8 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
-	if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
-		idxName := allocIndexName(tbl, colDef.Name)
-		tbl.Indexes = append(tbl.Indexes, &Index{
-			Name:    idxName,
-			Table:   tbl,
-			Columns: []*IndexColumn{{Name: colDef.Name}},
-			Unique:  true,
-			Visible: true,
-		})
-		tbl.Constraints = append(tbl.Constraints, &Constraint{
-			Name:      idxName,
-			Type:      ConUniqueKey,
-			Table:     tbl,
-			Columns:   []string{colDef.Name},
-			IndexName: idxName,
-		})
+	if isSerialColumn(colDef) {
+		ensureSerialUniqueKey(tbl, colDef.Name)
 	}
 
 	// Process column-level constraints that produce indexes/constraints.
@@ -498,6 +484,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	// Update index/constraint column references if name changed.
 	if newKey != oldKey {
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
+	}
+	if isSerialColumn(colDef) {
+		ensureSerialUniqueKey(tbl, colDef.Name)
 	}
 
 	// Handle repositioning.
@@ -956,15 +945,23 @@ func checkCharsetName(charset string) error {
 	return nil
 }
 
-// checkCollationName reads a table's COLLATE name as OceanBase does: 1273
-// "Unknown collation" for a name whose character-set prefix is one the server
-// does not have. The full collation list is not carried, so a name built on a
-// known character set is taken as written; only a name with no such prefix, as
-// the simulate.tsv row's bare `a`, is refused here.
+// checkCollationName reads a table's COLLATE name as OceanBase does: a name
+// SHOW COLLATION does not list is 1273 "Unknown collation". oceanBaseCollations
+// is that list, and TestCollationsMatchOceanBase holds it to the pin.
 func checkCollationName(collation string) error {
-	charset := normalizeCharsetName(charsetForCollation(collation))
-	if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
+	if _, ok := oceanBaseCollations[normalizeCollationName(collation)]; !ok {
 		return &Error{Code: 1273, SQLState: "HY000", Message: fmt.Sprintf("Unknown collation: '%s'", collation)}
+	}
+	return nil
+}
+
+// checkCharsetCollationPair refuses a COLLATE that belongs to another character
+// set: OceanBase answers 1253 "COLLATION ... is not valid for CHARACTER SET".
+func checkCharsetCollationPair(charset, collation string) error {
+	declared := normalizeCollationName(collation)
+	want, ok := oceanBaseCollations[declared]
+	if ok && !strings.EqualFold(normalizeCharsetName(charset), want) {
+		return &Error{Code: 1253, SQLState: "42000", Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", collation, charset)}
 	}
 	return nil
 }
@@ -1122,6 +1119,41 @@ func rebuildColIndex(tbl *Table) {
 }
 
 // buildColumnFromDef builds a catalog Column from an AST ColumnDef.
+// isSerialColumn reports whether the definition's type is SERIAL, which stands
+// for BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE.
+func isSerialColumn(colDef *nodes.ColumnDef) bool {
+	return colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
+}
+
+// ensureSerialUniqueKey adds the unique key SERIAL implies when the column has
+// none, as CREATE TABLE and ALTER TABLE ... ADD do. A MODIFY or CHANGE that
+// replaces a column with SERIAL keeps its key if it already has one.
+func ensureSerialUniqueKey(tbl *Table, name string) {
+	for _, idx := range tbl.Indexes {
+		if !idx.Unique || idx.Primary || len(idx.Columns) != 1 {
+			continue
+		}
+		if col := idx.Columns[0].Name; col != "" && toLower(col) == toLower(name) {
+			return
+		}
+	}
+	idxName := allocIndexName(tbl, name)
+	tbl.Indexes = append(tbl.Indexes, &Index{
+		Name:    idxName,
+		Table:   tbl,
+		Columns: []*IndexColumn{{Name: name}},
+		Unique:  true,
+		Visible: true,
+	})
+	tbl.Constraints = append(tbl.Constraints, &Constraint{
+		Name:      idxName,
+		Type:      ConUniqueKey,
+		Table:     tbl,
+		Columns:   []string{name},
+		IndexName: idxName,
+	})
+}
+
 func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	col := &Column{
 		Name:     colDef.Name,
@@ -1338,6 +1370,9 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	}
 	if collation != "" {
 		if err := checkCollationName(collation); err != nil {
+			return err
+		}
+		if err := checkCharsetCollationPair(charset, collation); err != nil {
 			return err
 		}
 	}

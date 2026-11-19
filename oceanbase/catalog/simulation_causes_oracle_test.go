@@ -100,6 +100,23 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{aColumnTable},
 			stmt:  "ALTER TABLE a ADD KEY(a) STORING(a)",
 		},
+		{
+			name:  "a collation the server does not have under a charset it does",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4_not_a_collation",
+			code:  1273,
+		},
+		{
+			name:  "a collation of another character set",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a CONVERT TO CHARACTER SET latin1 COLLATE utf8mb4_general_ci",
+			code:  1253,
+		},
+		{
+			name:  "a SERIAL replacement of an unindexed column",
+			setup: []string{aColumnTable},
+			stmt:  "ALTER TABLE a MODIFY a SERIAL",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

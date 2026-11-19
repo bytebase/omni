@@ -246,3 +246,58 @@
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation
 < ok 3 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a COLLATE utf8mb4_not_a_collation
+< error
+| 1273 HY000 Unknown collation: 'utf8mb4_not_a_collation'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a CONVERT TO CHARACTER SET latin1 COLLATE utf8mb4_general_ci
+< error
+| 1253 42000 COLLATION 'utf8mb4_general_ci' is not valid for CHARACTER SET 'latin1'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 2 0
+> exec
+| CREATE DATABASE omni_t_simulation DEFAULT CHARSET=utf8mb4; USE omni_t_simulation;
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER TABLE a MODIFY a SERIAL
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int(11) NOT NULL,
+|   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+|   `d` int(11) DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   UNIQUE KEY `a` (`a`) BLOCK_SIZE 16384 LOCAL,
+|   KEY `idx_d` (`d`) BLOCK_SIZE 16384 LOCAL
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation
+< ok 3 0
