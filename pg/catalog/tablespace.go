@@ -1165,6 +1165,22 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			return inOwnedExt(objOID) || c.operatorOwners[objOID] != "" && owners[c.operatorOwners[objOID]]
 		case 'm':
 			return inOwnedExt(objOID)
+		case 'q':
+			if inOwnedExt(objOID) {
+				return true
+			}
+			if opc := c.opClasses[objOID]; opc != nil && inOwnedExt(opc.AMOID) {
+				return true
+			}
+			return false
+		case 'Q':
+			if inOwnedExt(objOID) {
+				return true
+			}
+			if fam := c.opFamilies[objOID]; fam != nil && inOwnedExt(fam.AMOID) {
+				return true
+			}
+			return false
 		}
 		return false
 	}

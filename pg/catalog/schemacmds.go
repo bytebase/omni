@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -166,10 +167,24 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			for _, oid := range opOIDs {
 				c.removeOperator(oid)
 			}
+			opcOIDs := make([]uint32, 0, len(c.opClasses))
 			for oid, opc := range c.opClasses {
 				if opc.Schema == s.OID {
-					c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: oid})
+					opcOIDs = append(opcOIDs, oid)
 				}
+			}
+			sort.Slice(opcOIDs, func(i, j int) bool { return opcOIDs[i] < opcOIDs[j] })
+			for _, oid := range opcOIDs {
+				// An index elsewhere that uses the class goes with it.
+				for _, dep := range c.findNormalDependents('o', oid) {
+					if dep.ObjType != 'i' {
+						continue
+					}
+					if idx := c.indexes[dep.ObjOID]; idx != nil {
+						c.removeIndex(idx.Schema, idx.Name, idx)
+					}
+				}
+				c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: oid})
 			}
 			for oid, fam := range c.opFamilies {
 				if fam.Schema == s.OID {

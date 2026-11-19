@@ -54,14 +54,26 @@ func (c *Catalog) CreateAccessMethod(stmt *nodes.CreateAmStmt) error {
 		return errDuplicateObject("access method", stmt.Amname)
 	}
 
-	// Resolve handler function OID (best effort — handler may not exist in pgddl).
+	// Resolve the handler function by its declared schema and signature: a
+	// table access method's handler takes one `internal` argument and an
+	// index access method's takes none.
+	// pg: src/backend/commands/amcmds.c — CreateAccessMethod (lookup_am_handler)
 	var handlerOID uint32
 	if stmt.HandlerName != nil {
-		_, funcName := qualifiedName(stmt.HandlerName)
+		schemaName, funcName := qualifiedName(stmt.HandlerName)
 		if funcName != "" {
-			procs := c.LookupProcByName(funcName)
-			if len(procs) > 0 {
-				handlerOID = procs[0].OID
+			schema, err := c.resolveTargetSchema(schemaName)
+			if err != nil {
+				return err
+			}
+			var want []uint32
+			if stmt.Amtype == 't' {
+				want = []uint32{INTERNALOID}
+			}
+			if bp := c.findExactProc(schema, funcName, want); bp != nil {
+				handlerOID = bp.OID
+			} else if candidates := c.findUserProcsByName(schema, funcName); len(candidates) == 1 {
+				handlerOID = candidates[0].OID
 			}
 		}
 	}
@@ -183,6 +195,9 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 	}
 	c.opClasses[opc.OID] = opc
 	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)
+	if typeOID != 0 {
+		c.recordDependency('q', opc.OID, 0, 't', typeOID, 0, DepNormal)
+	}
 
 	// Register as default for (AM, type) pair.
 

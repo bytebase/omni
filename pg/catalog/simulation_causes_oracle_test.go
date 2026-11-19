@@ -2343,6 +2343,40 @@ func TestSimulationCausesOracle(t *testing.T) {
 			}
 		}
 
+		// #201: an operator class on an extension type keeps the extension in
+		// use, and #202 an external index on a schema's opclass goes with the
+		// schema's CASCADE.
+		c63 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION citext",
+			"CREATE OPERATOR CLASS ct_ops FOR TYPE citext USING btree AS OPERATOR 1 <, FUNCTION 1 bttextcmp(text, text)",
+		} {
+			if code := simulationCatalogCode(t, c63, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c63, "DROP EXTENSION citext"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION over an opclass on its type answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		c64 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA opc_s",
+			"CREATE OPERATOR CLASS opc_s.sops FOR TYPE int USING btree AS OPERATOR 1 <, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE opc_t (a int)",
+			"CREATE INDEX opc_idx ON opc_t USING btree (a opc_s.sops)",
+		} {
+			if code := simulationCatalogCode(t, c64, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c64, "DROP SCHEMA opc_s CASCADE"); code != "0" {
+			t.Fatalf("DROP SCHEMA opc_s CASCADE answered %s", code)
+		}
+		if c64.schemaByName["public"].Indexes["opc_idx"] != nil {
+			t.Fatal("DROP SCHEMA CASCADE left the index that used the schema's opclass")
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

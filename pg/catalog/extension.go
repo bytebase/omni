@@ -386,6 +386,10 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			return c.policies[objOID] != nil && relOIDs[c.policies[objOID].RelOID]
 		case 'm':
 			return inExtDrop(objOID)
+		case 'q':
+			return inExtDrop(objOID) || (c.opClasses[objOID] != nil && inExtDrop(c.opClasses[objOID].AMOID))
+		case 'Q':
+			return inExtDrop(objOID) || (c.opFamilies[objOID] != nil && inExtDrop(c.opFamilies[objOID].AMOID))
 		case 'O':
 			return inExtDrop(objOID)
 		}
