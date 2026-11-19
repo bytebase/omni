@@ -762,8 +762,8 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if err := c.DefineRelation(stmt, 'r'); err != nil {
 			return err
 		}
-		c.setSnapshotTableOwner(o)
 		c.ownSerialSequences(o)
+		c.setSnapshotTableOwner(o)
 		return nil
 	case metadataView:
 		if o.body == nil {
@@ -1297,6 +1297,11 @@ func (c *Catalog) setSnapshotTableOwner(o *metadataObject) {
 	for _, idx := range c.indexesByRel[rel.OID] {
 		idx.OwnerName = owner
 	}
+	for _, seq := range c.sequenceByOID {
+		if seq.OwnerRelOID == rel.OID {
+			seq.OwnerName = owner
+		}
+	}
 }
 
 // installStandIn installs o's stand-in, or returns errNoStandIn for a kind
@@ -1318,8 +1323,8 @@ func (c *Catalog) installStandIn(o *metadataObject) error {
 		if err := c.DefineRelation(standInTableStmt(o.schema, o.name, tableColumnNames(o.table)), 'r'); err != nil {
 			return err
 		}
-		c.setSnapshotTableOwner(o)
 		c.ownSerialSequences(o)
+		c.setSnapshotTableOwner(o)
 		return nil
 	case metadataView:
 		stmt, err := standInViewStmt(o.schema, o.name, standInColumnNames(o))

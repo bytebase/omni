@@ -109,6 +109,9 @@ func (c *Catalog) DefineTablespace(stmt *nodes.CreateTableSpaceStmt) error {
 			return err
 		}
 	}
+	if !strings.HasPrefix(stmt.Location, "/") {
+		return errInvalidParameterValue("tablespace location must be an absolute path")
+	}
 	if strings.HasPrefix(name, "pg_") {
 		return &Error{Code: CodeReservedName,
 			Message: fmt.Sprintf("unacceptable tablespace name %q", name)}
@@ -208,6 +211,30 @@ func (c *Catalog) checkRole(name string) error {
 
 // DefineRole records a CREATE ROLE.
 func (c *Catalog) DefineRole(stmt *nodes.CreateRoleStmt) error {
+	if stmt.Options != nil {
+		for _, item := range stmt.Options.Items {
+			d, ok := item.(*nodes.DefElem)
+			if !ok {
+				continue
+			}
+			switch d.Defname {
+			case "addroleto", "rolemembers", "adminmembers":
+				list, ok := d.Arg.(*nodes.List)
+				if !ok {
+					continue
+				}
+				for _, member := range list.Items {
+					name := stringVal(member)
+					if rs, ok := member.(*nodes.RoleSpec); ok {
+						name = c.ownerRoleName(rs)
+					}
+					if err := c.checkRole(name); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 	if strings.HasPrefix(stmt.Role, "pg_") {
 		return &Error{Code: CodeReservedName,
 			Message: fmt.Sprintf("role name %q is reserved", stmt.Role)}

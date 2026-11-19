@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -152,6 +153,29 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 
 	schema, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		// OWNER TO and SET TABLESPACE resolve their role or tablespace before
+		// the relation's kind, so on an index they report that object first.
+		var refusal *Error
+		if errors.As(err, &refusal) && refusal.Code == CodeWrongObjectType && stmt.Cmds != nil {
+			for _, item := range stmt.Cmds.Items {
+				atc, ok := item.(*nodes.AlterTableCmd)
+				if !ok {
+					continue
+				}
+				switch nodes.AlterTableType(atc.Subtype) {
+				case nodes.AT_ChangeOwner:
+					if atc.Newowner != nil {
+						if roleErr := c.checkRole(c.ownerRoleName(atc.Newowner)); roleErr != nil {
+							return roleErr
+						}
+					}
+				case nodes.AT_SetTableSpace:
+					if tsErr := c.checkRelationTablespace(atc.Name); tsErr != nil {
+						return tsErr
+					}
+				}
+			}
+		}
 		return err
 	}
 	// Validate the object type matches the relation kind.
