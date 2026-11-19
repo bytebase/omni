@@ -53,6 +53,14 @@ FROM ANALYTIC VIEW (
 	if !ok || filter.Items == nil || filter.Items.Len() != 1 || filter.Items.Items[0] == nil {
 		t.Fatalf("filter clause = %#v, want its parsed condition", ref.Clause.Options.Items[1])
 	}
+	// A calculated measure names a column the derived view adds.
+	measures, ok := ref.Clause.Options.Items[2].(*ast.DDLOption)
+	if !ok || measures.Items == nil || measures.Items.Len() != 1 {
+		t.Fatalf("add measures clause = %#v, want its measure", ref.Clause.Options.Items[2])
+	}
+	if measure, ok := measures.Items.Items[0].(*ast.ResTarget); !ok || measure.Name != "LAG_SALES" {
+		t.Fatalf("measure = %#v, want LAG_SALES", measures.Items.Items[0])
+	}
 	if ref.Alias == nil || ref.Alias.Name != "AV" {
 		t.Fatalf("Alias = %#v, want AV", ref.Alias)
 	}

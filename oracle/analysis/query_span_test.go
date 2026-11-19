@@ -146,6 +146,11 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V) SELECT A FROM AV")
 	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
 	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	// ADD MEASURES adds a column to the derived view, beside the base's.
+	span = resolve(t, "SELECT S, LAG_SALES FROM ANALYTIC VIEW(USING V ADD MEASURES(LAG_SALES AS(1)))")
+	require.Equal(t, []string{"S", "LAG_SALES"}, []string{span.Results[0].Name, span.Results[1].Name})
+	require.Empty(t, span.Results[1].SourceColumns)
 }
 
 func TestResolveQuerySpanDatabaseLink(t *testing.T) {

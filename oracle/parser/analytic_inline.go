@@ -217,10 +217,14 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 	if err := p.anExpect('('); err != nil {
 		return err
 	}
+	var measures []nodes.Node
 	for {
-		if _, err := p.anParseName(); err != nil {
+		measureStart := p.pos()
+		measure, err := p.anParseName()
+		if err != nil {
 			return err
 		}
+		measures = append(measures, &nodes.ResTarget{Name: measure, Loc: nodes.Loc{Start: measureStart, End: p.prev.End}})
 		switch {
 		case p.cur.Type == kwAS:
 			p.advance()
@@ -252,6 +256,10 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 	if err := p.anExpect(')'); err != nil {
 		return err
 	}
-	clause.Options = anAppendItems(clause.Options, &nodes.List{Items: []nodes.Node{p.anOption("ADD MEASURES", optStart)}})
+	// Each measure names a column the derived view adds; its expression is
+	// kept as text, since analytic_view_expression has no quoted grammar.
+	option := p.anOption("ADD MEASURES", optStart)
+	option.Items = &nodes.List{Items: measures}
+	clause.Options = anAppendItems(clause.Options, &nodes.List{Items: []nodes.Node{option}})
 	return nil
 }

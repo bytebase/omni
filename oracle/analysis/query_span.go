@@ -769,12 +769,12 @@ func (q *querySpanExtractor) extractCTE(cte *oracleast.CTE) (*pseudoTable, error
 	// A WITH subav_factoring_clause names a persistent analytic view, so its
 	// element is that view's span under the element's name.
 	if cte.SubAV != nil {
-		if cte.SubAV.Using == nil || cte.SubAV.Using.Name == "" {
-			return &pseudoTable{Name: name}, nil
-		}
-		tableSource, err := q.plsqlFindTableSchema(nil, q.databaseOf(cte.SubAV.Using), cte.SubAV.Using.Name)
+		tableSource, err := q.subAVTableSource(cte.SubAV)
 		if err != nil {
 			return nil, err
+		}
+		if tableSource == nil {
+			return &pseudoTable{Name: name}, nil
 		}
 		columns := cloneQuerySpanResults(tableSource.GetQuerySpanResult())
 		applyColumnAliases(columns, columnNames)
@@ -1653,14 +1653,55 @@ func extractJSONTableColumns(list *oracleast.List, sourceColumns ColumnSet) []Qu
 // extractInlineAnalyticView reads a derived analytic view: its span is the
 // persistent analytic view it names under USING, under the reference's alias.
 func (q *querySpanExtractor) extractInlineAnalyticView(ref *oracleast.InlineAnalyticView) (spanTable, error) {
-	if ref.Clause == nil || ref.Clause.Using == nil || ref.Clause.Using.Name == "" {
-		return nil, nil
-	}
-	tableSource, err := q.plsqlFindTableSchema(nil, q.databaseOf(ref.Clause.Using), ref.Clause.Using.Name)
-	if err != nil {
+	tableSource, err := q.subAVTableSource(ref.Clause)
+	if err != nil || tableSource == nil {
 		return nil, err
 	}
 	return aliasTableSource(tableSource, ref.Alias), nil
+}
+
+// subAVTableSource is the span of the persistent analytic view a sub_av_clause
+// names, with the columns its ADD MEASURES adds to the derived view. A
+// calculated measure's expression is not parsed (its grammar is no page's
+// here), so its column carries no source columns.
+func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (spanTable, error) {
+	if clause == nil || clause.Using == nil || clause.Using.Name == "" {
+		return nil, nil
+	}
+	tableSource, err := q.plsqlFindTableSchema(nil, q.databaseOf(clause.Using), clause.Using.Name)
+	if err != nil {
+		return nil, err
+	}
+	if tableSource == nil {
+		return nil, nil
+	}
+	added := subAVMeasures(clause)
+	if len(added) == 0 {
+		return tableSource, nil
+	}
+	columns := cloneQuerySpanResults(tableSource.GetQuerySpanResult())
+	columns = append(columns, added...)
+	return &pseudoTable{Columns: columns}, nil
+}
+
+// subAVMeasures returns the columns an ADD MEASURES clause adds.
+func subAVMeasures(clause *oracleast.SubAVClause) []QuerySpanResult {
+	for _, node := range listItems(clause.Options) {
+		option, ok := node.(*oracleast.DDLOption)
+		if !ok || option.Key != "ADD MEASURES" {
+			continue
+		}
+		var measures []QuerySpanResult
+		for _, item := range listItems(option.Items) {
+			measure, ok := item.(*oracleast.ResTarget)
+			if !ok || measure.Name == "" {
+				continue
+			}
+			measures = append(measures, QuerySpanResult{Name: measure.Name, SourceColumns: ColumnSet{}})
+		}
+		return measures
+	}
+	return nil
 }
 
 // databaseOf is the database a name reads from: its own schema, or the
