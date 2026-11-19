@@ -659,9 +659,7 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+		endLoc = p.prev.Loc // the closing ')'
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
@@ -796,9 +794,7 @@ func (p *Parser) parseAlterUser(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+		endLoc = p.prev.Loc // the closing ')'
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

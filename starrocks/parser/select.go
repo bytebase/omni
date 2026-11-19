@@ -1716,9 +1716,15 @@ func (p *Parser) parseQueryRelation() (ast.Node, error) {
 // (StarRocks.g4:2144). On entry QUALIFY has been consumed.
 func (p *Parser) parseQualifyClause() (ast.Node, error) {
 	// The selectItem stops before the comparison operator the clause reads
-	// itself, so the operand cannot be read as a comparison.
+	// itself, so the operand cannot be read as a comparison. A selectItem may
+	// carry an alias (`QUALIFY ROW_NUMBER() OVER() AS rn = 1`, engine-verified)
+	// which names the qualify column and is not part of the tree StarRocks
+	// keeps, whose Qualify holds the function expression alone.
 	left, err := p.parseExprPrec(bpCmp + 1)
 	if err != nil {
+		return nil, err
+	}
+	if _, _, err := p.parseOptionalAlias(true); err != nil {
 		return nil, err
 	}
 	// comparisonOperator (:2141): EQ | NEQ | LT | LTE | GT | GTE | EQ_FOR_NULL.

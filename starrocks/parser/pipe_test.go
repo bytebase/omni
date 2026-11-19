@@ -263,3 +263,62 @@ func TestDescFilesNamesNoTarget(t *testing.T) {
 		t.Errorf("stmt = %+v, want the files form with one property", stmt)
 	}
 }
+
+func TestQualifySelectItemTakesAnAlias(t *testing.T) {
+	// querySpecification's QUALIFY operand is a selectItem, so the alias the
+	// rule allows is read: the server takes all four.
+	for _, sql := range []string{
+		`SELECT a FROM t QUALIFY ROW_NUMBER() OVER() AS rn = 1`,
+		`SELECT a FROM t QUALIFY a AS rn = 1`,
+		`SELECT a FROM t QUALIFY a rn = 1`,
+		`SELECT a FROM t QUALIFY a AS 'rn' <= 2`,
+	} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Fatalf("parseForTest(%q): %v", sql, errs)
+		}
+		sel := file.Stmts[0].(*ast.SelectStmt)
+		bin, ok := sel.Qualify.(*ast.BinaryExpr)
+		if !ok {
+			t.Fatalf("%q: Qualify = %T, want a comparison", sql, sel.Qualify)
+		}
+		if lit, ok := bin.Right.(*ast.Literal); !ok || lit.Kind != ast.LitInt {
+			t.Errorf("%q: right = %T, want an integer bound", sql, bin.Right)
+		}
+	}
+}
+
+func TestStatementSpanEndsAtTheClosingParen(t *testing.T) {
+	for sql, want := range map[string]int{
+		`CREATE RESOURCE GROUP g WITH ('a'='b')`:                       len(`CREATE RESOURCE GROUP g WITH ('a'='b')`),
+		`ALTER RESOURCE GROUP g WITH ('a'='b')`:                        len(`ALTER RESOURCE GROUP g WITH ('a'='b')`),
+		`ALTER PIPE p SET('a'='b')`:                                    len(`ALTER PIPE p SET('a'='b')`),
+		`CREATE PIPE p PROPERTIES('a'='b') AS INSERT INTO t VALUES(1)`: len(`CREATE PIPE p PROPERTIES('a'='b') AS INSERT INTO t VALUES(1)`),
+		`CREATE USER 'u' PROPERTIES('a'='b')`:                          len(`CREATE USER 'u' PROPERTIES('a'='b')`),
+		`ALTER USER 'u' SET PROPERTIES('a'='b')`:                       len(`ALTER USER 'u' SET PROPERTIES('a'='b')`),
+	} {
+		if got := ast.NodeLoc(parseOne(t, sql)).End; got != want {
+			t.Errorf("%q: Loc.End = %d, want %d", sql, got, want)
+		}
+	}
+}
+
+func TestExternalCatalogsAreWalked(t *testing.T) {
+	// A visitor must reach each catalog of BACKUP's and RESTORE's scope,
+	// aliases included.
+	for _, sql := range []string{
+		`BACKUP EXTERNAL CATALOG(a, b) SNAPSHOT s TO r`,
+		`RESTORE SNAPSHOT s FROM r EXTERNAL CATALOG(a AS b)`,
+	} {
+		var seen []string
+		ast.Inspect(parseOne(t, sql), func(n ast.Node) bool {
+			if ref, ok := n.(*ast.ExternalCatalogRef); ok {
+				seen = append(seen, ref.Name)
+			}
+			return true
+		})
+		if len(seen) == 0 {
+			t.Errorf("%q: Walk saw no ExternalCatalogRef", sql)
+		}
+	}
+}

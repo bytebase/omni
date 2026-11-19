@@ -986,6 +986,9 @@ func walkChildren(v Visitor, node Node) {
 
 	// Utility / admin command nodes (T7.5).
 	case *BackupStmt:
+		for _, catalog := range n.ExternalCatalogs {
+			Walk(v, catalog)
+		}
 		for _, tbl := range n.Tables {
 			Walk(v, tbl)
 		}
@@ -993,6 +996,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, prop)
 		}
 	case *RestoreStmt:
+		for _, catalog := range n.ExternalCatalogs {
+			Walk(v, catalog)
+		}
 		for _, tbl := range n.Tables {
 			Walk(v, tbl)
 		}

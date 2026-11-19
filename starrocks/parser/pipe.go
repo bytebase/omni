@@ -40,9 +40,7 @@ func (p *Parser) parseCreatePipe(startLoc ast.Loc, orReplace bool) (ast.Node, er
 			return nil, err
 		}
 		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+		endLoc = p.prev.Loc // the closing ')'
 	}
 
 	if _, err := p.expect(kwAS); err != nil {
@@ -138,9 +136,7 @@ func (p *Parser) parseAlterPipe(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.Action = "SET"
 		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+		endLoc = p.prev.Loc // the closing ')'
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}

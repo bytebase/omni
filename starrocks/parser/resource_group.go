@@ -65,9 +65,9 @@ func (p *Parser) parseCreateResourceGroup(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	stmt.Properties = props
-	if len(props) > 0 {
-		endLoc = ast.NodeLoc(props[len(props)-1])
-	}
+	// parsePropertyList leaves p.prev at the closing ')', which ends the
+	// statement even though the property before it starts later.
+	endLoc = p.prev.Loc
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
@@ -185,9 +185,7 @@ func (p *Parser) parseAlterResourceGroup(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+		endLoc = p.prev.Loc // the closing ')'
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -273,9 +271,7 @@ func (p *Parser) parseCreateDataCacheRule(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
+		endLoc = p.prev.Loc // the closing ')'
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
