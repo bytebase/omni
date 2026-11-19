@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -171,5 +172,23 @@ func TestContainerPartitionKeyCoverage(t *testing.T) {
 				t.Errorf("TiDB message = %q, want %q", myErr.Message, cs.msg)
 			}
 		})
+	}
+}
+
+// TestAlterPartitionByKeyEmptyUndoesUpdateIndexes: a repartition refused for
+// naming no partitioning column leaves the UPDATE INDEXES settings it read
+// alone. v8.5.5 answers 1105 and keeps the index as it was (read on
+// 2026-11-19), and a single-command ALTER takes no rollback of its own.
+func TestAlterPartitionByKeyEmptyUndoesUpdateIndexes(t *testing.T) {
+	c := newCatalogWithTable(t, "(b INT, KEY u (b))")
+	err := execExpectError(t, c, "ALTER TABLE t PARTITION BY KEY() UPDATE INDEXES (u GLOBAL);")
+	if err == nil {
+		t.Fatalf("PARTITION BY KEY() over a table with no primary key was accepted")
+	}
+	if !strings.Contains(err.Error(), "1105") {
+		t.Errorf("error = %v, want 1105", err)
+	}
+	if ddl := c.ShowCreateTable("d", "t"); strings.Contains(ddl, "GLOBAL") {
+		t.Errorf("the refused statement left a GLOBAL behind:\n%s", ddl)
 	}
 }

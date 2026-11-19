@@ -3,7 +3,6 @@ package analysis
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/bytebase/omni/redshift"
 	"github.com/bytebase/omni/redshift/ast"
@@ -39,11 +38,6 @@ var parseRedshiftSpan = redshift.Parse
 
 // GetQuerySpan parses and analyzes a single Redshift SELECT statement.
 func GetQuerySpan(c *catalog.Catalog, sql string) (*QuerySpan, error) {
-	// Keep the pre-parse rejections in place: a statement the span cannot
-	// support fails the same way whether or not it also parses.
-	if strings.Contains(strings.ToLower(sql), "connect by") {
-		return nil, fmt.Errorf("Redshift CONNECT BY query span is not supported")
-	}
 	if c == nil {
 		return nil, fmt.Errorf("catalog is nil")
 	}
@@ -64,9 +58,6 @@ func GetQuerySpan(c *catalog.Catalog, sql string) (*QuerySpan, error) {
 // getQuerySpanFromSelect analyzes an already-parsed SELECT. Callers that parsed
 // a statement to classify it pass the same AST here, so it is parsed once.
 func getQuerySpanFromSelect(c *catalog.Catalog, sql string, stmt *ast.SelectStmt) (*QuerySpan, error) {
-	if strings.Contains(strings.ToLower(sql), "connect by") {
-		return nil, fmt.Errorf("Redshift CONNECT BY query span is not supported")
-	}
 	if c == nil {
 		return nil, fmt.Errorf("catalog is nil")
 	}
@@ -181,6 +172,10 @@ func collectPredicateColumnsInto(c *catalog.Catalog, stack []*catalog.Query, see
 			collectJoinPredicateColumns(c, stack, node, seen, cols)
 		}
 	}
+	// Redshift's hierarchical-query conditions filter the rows the way WHERE
+	// does, so their columns are predicate columns too.
+	appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.StartWithQual)...)
+	appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.ConnectByQual)...)
 	appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.HavingQual)...)
 	appendSeenColumns(cols, seen, collectExprColumns(c, stack, q.QualifyQual)...)
 }

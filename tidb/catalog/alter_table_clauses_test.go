@@ -254,9 +254,7 @@ func TestAlterTableGlobalLocalIndexOption(t *testing.T) {
 // action that errored here would make every statement carrying it fail.
 func TestAlterTableNoEffectClauses(t *testing.T) {
 	for _, sql := range []string{
-		"ALTER TABLE t CACHE",
 		"ALTER TABLE t NOCACHE",
-		"ALTER TABLE t CACHE, NOCACHE",
 		"ALTER TABLE t READ ONLY",
 		"ALTER TABLE t READ WRITE",
 		"ALTER TABLE t COMPACT",
@@ -280,6 +278,60 @@ func TestAlterTableNoEffectClauses(t *testing.T) {
 				t.Errorf("%q changed the table:\nbefore:\n%s\nafter:\n%s", sql, before, after)
 			}
 		})
+	}
+}
+
+// TestAlterTableCache: CACHE is not a no-effect clause. SHOW CREATE TABLE
+// writes the attribute back as `/* CACHED ON */` (read on v8.5.5, 2026-11-19),
+// so a table that carries it is not the same schema as one that does not, and
+// NOCACHE takes it away again.
+func TestAlterTableCache(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "ALTER TABLE t CACHE;")
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "/* CACHED ON */") {
+		t.Errorf("ALTER TABLE t CACHE wrote no marker:\n%s", ddl)
+	}
+	execAll(t, c, "ALTER TABLE t NOCACHE;")
+	if ddl := c.ShowCreateTable("d", "t"); strings.Contains(ddl, "CACHED") {
+		t.Errorf("ALTER TABLE t NOCACHE left the marker:\n%s", ddl)
+	}
+}
+
+// TestCachedTableTakesOnlyNoCache: v8.5.5 answers 8242 to every statement
+// against a cached table but CACHE and NOCACHE, so the catalog refuses them
+// too; NOCACHE is the way out (read on 2026-11-19).
+func TestCachedTableTakesOnlyNoCache(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t ADD COLUMN b INT",
+		"ALTER TABLE t NOCACHE, ADD COLUMN b INT",
+		"DROP TABLE t",
+		"TRUNCATE TABLE t",
+		"CREATE INDEX i ON t (a)",
+		"RENAME TABLE t TO t2",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			c := newCatalogWithTable(t, "(a INT, KEY i (a))")
+			execAll(t, c, "ALTER TABLE t CACHE;")
+			err := execExpectError(t, c, sql+";")
+			if err == nil {
+				t.Fatalf("%q was accepted on a cached table", sql)
+			}
+			if !strings.Contains(err.Error(), "8242") {
+				t.Errorf("error = %v, want 8242", err)
+			}
+			// The refused statement left the table as it was.
+			if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "/* CACHED ON */") {
+				t.Errorf("%q changed a cached table:\n%s", sql, ddl)
+			}
+		})
+	}
+
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "ALTER TABLE t CACHE;")
+	execAll(t, c, "ALTER TABLE t NOCACHE;")
+	execAll(t, c, "ALTER TABLE t ADD COLUMN b INT;")
+	if ddl := c.ShowCreateTable("d", "t"); !strings.Contains(ddl, "`b` int") {
+		t.Errorf("ADD COLUMN after NOCACHE did not apply:\n%s", ddl)
 	}
 }
 
@@ -668,5 +720,52 @@ func TestAlterTableAddColumnWithConstraintIsAtomic(t *testing.T) {
 	execAll(t, c, "ALTER TABLE t ADD c INT;")
 	if !strings.Contains(c.ShowCreateTable("d", "t"), "`c` int") {
 		t.Errorf("ADD c INT applied nothing:\n%s", c.ShowCreateTable("d", "t"))
+	}
+}
+
+// TestRenameTableIsAtomic: RENAME TABLE is one statement, so a pair that
+// cannot go leaves every table under its own name (read on v8.5.5).
+func TestRenameTableIsAtomic(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "CREATE TABLE s (b INT);")
+	execAll(t, c, "ALTER TABLE s CACHE;")
+	err := execExpectError(t, c, "RENAME TABLE t TO t2, s TO s2;")
+	if err == nil {
+		t.Fatalf("RENAME TABLE of a cached table was accepted")
+	}
+	if !strings.Contains(err.Error(), "8242") {
+		t.Errorf("error = %v, want 8242", err)
+	}
+	db := c.GetDatabase("d")
+	if db.GetTable("t") == nil || db.GetTable("t2") != nil {
+		t.Errorf("the refused statement renamed t: %v", db.Tables)
+	}
+	if db.GetTable("s") == nil || db.GetTable("s2") != nil {
+		t.Errorf("the refused statement renamed s: %v", db.Tables)
+	}
+}
+
+// TestRenameTableReservesItsTargets: a destination another pair already took
+// is 1050 and nothing moves, while a pair may read the name a pair before it
+// left behind (both read on v8.5.5).
+func TestRenameTableReservesItsTargets(t *testing.T) {
+	c := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c, "CREATE TABLE s (b INT);")
+	err := execExpectError(t, c, "RENAME TABLE t TO x, s TO x;")
+	if err == nil {
+		t.Fatalf("RENAME TABLE with one destination twice was accepted")
+	}
+	if !strings.Contains(err.Error(), "1050") {
+		t.Errorf("error = %v, want 1050", err)
+	}
+	db := c.GetDatabase("d")
+	if db.GetTable("t") == nil || db.GetTable("s") == nil || db.GetTable("x") != nil {
+		t.Errorf("the refused statement moved tables: %v", db.Tables)
+	}
+
+	c2 := newCatalogWithTable(t, "(a INT)")
+	execAll(t, c2, "RENAME TABLE t TO t2, t2 TO t;")
+	if db := c2.GetDatabase("d"); db.GetTable("t") == nil || db.GetTable("t2") != nil {
+		t.Errorf("the chained rename left %v", db.Tables)
 	}
 }

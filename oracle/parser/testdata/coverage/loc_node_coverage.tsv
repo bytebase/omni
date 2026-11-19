@@ -35,7 +35,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.AlterViewStmt	statement	covered	ALTER VIEW v COMPILE	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.AlterSequenceStmt	statement	covered	ALTER SEQUENCE s INCREMENT BY 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.AlterSessionStmt	statement	covered	ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY'	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
-*nodes.AlterSystemStmt	statement	covered	ALTER SYSTEM SET p = 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.AlterSystemStmt	statement	covered	ALTER SYSTEM SET open_cursors = 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.AlterRoleStmt	statement	covered	ALTER ROLE r IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.AlterUserStmt	statement	covered	ALTER USER u IDENTIFIED BY p	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.AlterProfileStmt	statement	covered	ALTER PROFILE p LIMIT SESSIONS_PER_USER 1	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard

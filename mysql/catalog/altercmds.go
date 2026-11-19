@@ -36,6 +36,15 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	key := toLower(tableName)
 	tbl := db.Tables[key]
 	if tbl == nil {
+		// ANALYZE, CHECK, OPTIMIZE and REPAIR PARTITION do not open the table
+		// when it is the statement's only action: mysql:8.0.46 takes each on a
+		// table that is not there, naming ALL or a partition alike. A view of
+		// the name is taken too: the server answers no SQL error for these four
+		// and reports an operation-failed status row instead, so the statement
+		// leaves the view as it was.
+		if alterIsPartitionMaintenanceOnly(stmt.Commands) {
+			return nil
+		}
 		return errNoSuchTable(db.Name, tableName)
 	}
 	// PERFORMANCE_SCHEMA holds the performance schema's own tables: on a table
@@ -64,8 +73,25 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 	}
+	// A ROW_FORMAT FIXED or COMPRESSION the statement writes is the engine's to
+	// take, and InnoDB refuses it with 1478 — after the statement's other
+	// commands, which answer first: `ROW_FORMAT FIXED, ADD KEY(zzz)` is 1072.
+	// MySQL leaves the table as it found it, so hold a copy to put back when the
+	// row option is what the statement fails on.
+	rowOption := refusedRowOption(tbl, stmt.Commands)
+	var rowOptionSnapshot Table
+	if rowOption != "" {
+		rowOptionSnapshot = cloneTable(tbl)
+	}
+	afterCommands := func(err error) error {
+		if err != nil || rowOption == "" {
+			return err
+		}
+		undoAlter(db, key, tbl, rowOptionSnapshot)
+		return errUnsupportedRowOption(rowOption)
+	}
 	if tbl.Partitioning == nil && repartition == nil {
-		return c.alterTableCommands(db, tbl, key, stmt)
+		return afterCommands(c.alterTableCommands(db, tbl, key, stmt))
 	}
 	// A unique key on a partitioned table must cover the partitioning columns. MySQL
 	// checks the table the statement leaves, after every other error (1060, 1061 and
@@ -76,7 +102,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		before[idx] = true
 	}
 	snapshot := cloneTable(tbl)
-	if err := c.alterTableCommands(db, tbl, key, stmt); err != nil {
+	if err := afterCommands(c.alterTableCommands(db, tbl, key, stmt)); err != nil {
 		return err
 	}
 	if err := validateAlteredUniqueKeys(tbl, before, repartition); err != nil {
@@ -92,6 +118,67 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		tbl.Partitioning = buildPartitionInfo(tbl, repartition, true)
 	}
 	return nil
+}
+
+// refusedRowOption names the option the statement writes that the engine it
+// leaves does not take: InnoDB answers 1478, "Table storage engine 'InnoDB' does
+// not support the create option 'ROW_TYPE'" for ROW_FORMAT FIXED and "... does
+// not support the create option 'COMPRESSION'" for a COMPRESSION value it does
+// not take (mysql:8.0.46). The engine is the one the statement leaves, so
+// `ROW_FORMAT FIXED ENGINE=MyISAM` runs, and a statement writing both is refused
+// for COMPRESSION whichever order it writes them in.
+func refusedRowOption(tbl *Table, commands []*nodes.AlterTableCmd) string {
+	engine, rowFormat, compression := tbl.Engine, "", ""
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		switch {
+		case engineOptionName(cmd.Option.Name):
+			engine = storedEngineName(cmd.Option.Value)
+		case eqFoldStr(cmd.Option.Name, "ROW_FORMAT"):
+			rowFormat = cmd.Option.Value
+		case eqFoldStr(cmd.Option.Name, "COMPRESSION"):
+			compression = cmd.Option.Value
+		}
+	}
+	if !engineRefusesRowOptions(engine) {
+		return ""
+	}
+	if compression != "" && !innodbCompressionValue(compression) {
+		return "COMPRESSION"
+	}
+	if strings.EqualFold(strings.TrimSpace(rowFormat), "FIXED") {
+		return "ROW_TYPE"
+	}
+	return ""
+}
+
+// innodbCompressionValue reports whether a COMPRESSION value is one InnoDB
+// takes. It takes ZLIB, LZ4 and NONE in any case, which are page compression and
+// its off switch, and the empty string, which is the option written with no
+// value; `COMPRESSION='y'`, `='n'` and `='s'` are all 1478 (mysql:8.0.46).
+func innodbCompressionValue(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "zlib", "lz4", "none":
+		return true
+	}
+	return false
+}
+
+// engineRefusesRowOptions reports whether the engine refuses the two options
+// above. Only InnoDB does on mysql:8.0.46: MyISAM, MEMORY, CSV, ARCHIVE and
+// MRG_MyISAM take both, and a table that names no engine is InnoDB's. An engine
+// the pin was not asked about is left alone rather than refused unmeasured.
+func engineRefusesRowOptions(engine string) bool {
+	return engine == "" || strings.EqualFold(engine, "InnoDB")
+}
+
+// errUnsupportedRowOption is the 1478 an engine that does not take a row option
+// answers with; option is the word MySQL names, ROW_TYPE or COMPRESSION.
+func errUnsupportedRowOption(option string) error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: fmt.Sprintf("Table storage engine 'InnoDB' does not support the create option '%s'", option)}
 }
 
 // validateTableEngineReplaceable refuses an ENGINE the table cannot take:
@@ -294,6 +381,25 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 	return nil
 }
 
+// alterIsPartitionMaintenanceOnly reports whether every command is one of the
+// partition-maintenance actions MySQL runs without opening the table.
+func alterIsPartitionMaintenanceOnly(commands []*nodes.AlterTableCmd) bool {
+	if len(commands) == 0 {
+		return false
+	}
+	for _, cmd := range commands {
+		if cmd == nil {
+			return false
+		}
+		switch cmd.Type {
+		case nodes.ATAnalyzePartition, nodes.ATCheckPartition, nodes.ATOptimizePartition, nodes.ATRepairPartition:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // alterExchangeSelf refuses an EXCHANGE PARTITION that names the table being
 // altered as the table to swap with: 1066 "Not unique table/alias", answered
 // before either table is looked up (measured on mysql:8.0.46). A name in another
@@ -345,11 +451,28 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 			if err := validateColumnDisplayWidth(colDef); err != nil {
 				return err
 			}
+			// A SRID clause belongs to a geometry column, and MySQL judges it
+			// while preparing the statement: `ALTER TABLE missing ADD a INT
+			// SRID 1` is 1221, not 1146, and a duplicate column follows it.
+			if colDef.TypeName != nil && colDef.TypeName.HasSRID && !isGeometryColumnType(colDef.TypeName.Name) {
+				return errIncorrectSRIDUsage()
+			}
 			// A bare NOW()-family DEFAULT the column's type cannot hold is
 			// 1067 here, with the other prepare-time answers.
 			if err := validateBareNowDefault(colDef); err != nil {
 				return err
 			}
+		}
+		// START TRANSACTION is not an ALTER TABLE option the server takes; it
+		// answers 3979 while preparing the statement, before the table lookup.
+		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && strings.EqualFold(cmd.Option.Name, "START TRANSACTION") {
+			return errStartTransactionInAlter()
+		}
+		// WITH VALIDATION and WITHOUT VALIDATION belong to EXCHANGE PARTITION.
+		// A bare one is 1221 while the statement is prepared, before the table
+		// it names is looked up: `ALTER TABLE missing WITH VALIDATION` is 1221.
+		if cmd.Type == nodes.ATWithValidation || cmd.Type == nodes.ATWithoutValidation {
+			return errIncorrectValidationUsage()
 		}
 		if cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
 			if err := validateStorageEngine(cmd.Option.Value, c.noEngineSubstitution()); err != nil {
@@ -565,9 +688,26 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if err := validateColumnDefSemantics(colDef); err != nil {
 		return err
 	}
+	// A column-level CHECK's expression is judged while the statement is
+	// prepared, so a non-boolean one is 3812 before the duplicate-column check:
+	// mysql:8.0.46 answers 3812 for `ADD a INT CHECK(a)` even when a already
+	// exists (1060 would follow).
+	for _, cc := range colDef.Constraints {
+		if cc.Type != nodes.ColConstrCheck || cc.Expr == nil || checkExprIsBoolean(cc.Expr) {
+			continue
+		}
+		conName := cc.Name
+		if conName == "" {
+			conName = fmt.Sprintf("%s_chk_%d", tbl.Name, nextCheckNumber(tbl))
+		}
+		return errCheckNotBoolean(conName)
+	}
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
+	}
+	if err := validateGeneratedColumnSelfReference(colDef); err != nil {
+		return err
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
@@ -878,6 +1018,21 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	return nil
 }
 
+// duplicateKeyColumnName names the second spelling of a column a key lists
+// twice, or "". MySQL answers 1060 "Duplicate column name" for it after the key's
+// columns exist (1072 first) and after a prefix's own check (1089 first).
+func duplicateKeyColumnName(con *nodes.Constraint) string {
+	seen := make(map[string]bool, len(con.IndexColumns)+len(con.Columns))
+	for _, name := range extractColumnNames(con) {
+		key := toLower(name)
+		if seen[key] {
+			return name
+		}
+		seen[key] = true
+	}
+	return ""
+}
+
 // alterAddConstraint adds a constraint or index to the table.
 func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
 	con := cmd.Constraint
@@ -951,6 +1106,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
+		}
 		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
@@ -980,6 +1138,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		}
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
+		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
 		}
 		refDBName := ""
 		refTable := ""
@@ -1047,6 +1208,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
 		if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 			return err
+		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
 		}
 		keyIdx := &Index{
 			Name:      idxName,
@@ -1170,20 +1334,41 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	name := cmd.Name
 	key := toLower(name)
 
+	// Each keyword names one kind of object, measured on mysql:8.0.46: DROP
+	// CHECK of an index, a column or a foreign key's name answers 3821 and
+	// leaves the table as it was, and DROP FOREIGN KEY of a check's name
+	// answers 1091 and leaves the check. DROP CONSTRAINT takes any constraint
+	// of that name, a foreign key, a unique key or a check.
+	checkOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck
+	foreignOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordForeignKey
+
 	found := false
 	isForeignKey := false
 	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		if toLower(con.Name) != key {
+			continue
 		}
+		if (checkOnly && con.Type != ConCheck) || (foreignOnly && con.Type != ConForeignKey) {
+			continue
+		}
+		isForeignKey = (con.Type == ConForeignKey)
+		tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+		found = true
+		break
 	}
 
 	if !found {
 		if cmd.IfExists {
 			return nil
+		}
+		// The engine names the spelling it was given, so a name no
+		// constraint has reports a check constraint for DROP CHECK and a
+		// constraint for DROP CONSTRAINT (measured on mysql:8.0.46).
+		switch cmd.ConstraintKeyword {
+		case nodes.ConstraintKeywordCheck:
+			return errCheckConstraintNotFound(name)
+		case nodes.ConstraintKeywordConstraint:
+			return errConstraintDoesNotExist(name)
 		}
 		return errCantDropKey(name)
 	}
@@ -1254,11 +1439,7 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 	}
 
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // alterRenameTable moves a table to a new name.
@@ -1329,6 +1510,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "compression":
 		tbl.Compression = opt.Value
 	case "encryption":
+		if !strings.EqualFold(opt.Value, "Y") && !strings.EqualFold(opt.Value, "N") {
+			return errInvalidEncryptionOption()
+		}
 		tbl.Encryption = opt.Value
 	case "stats_persistent":
 		tbl.StatsPersistent = opt.Value
@@ -1400,11 +1584,7 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 			return nil
 		}
 	}
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // insertColumn inserts col into tbl at the position specified by first/after.
@@ -1638,11 +1818,13 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return nil
 		}
 	}
-	return &Error{
-		Code:     3940,
-		SQLState: "HY000",
-		Message:  fmt.Sprintf("Constraint '%s' does not exist.", cmd.Name),
+	// ALTER CHECK reports a missing check constraint, ALTER CONSTRAINT a
+	// missing constraint; both spellings alter a check (measured on
+	// mysql:8.0.46).
+	if cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck {
+		return errCheckConstraintNotFound(cmd.Name)
 	}
+	return errConstraintDoesNotExist(cmd.Name)
 }
 
 // alterConvertCharset handles CONVERT TO CHARACTER SET charset [COLLATE collation].

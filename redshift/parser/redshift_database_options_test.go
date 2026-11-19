@@ -72,3 +72,26 @@ func assertDatabaseOptionString(t *testing.T, opts *nodes.List, option string, w
 		t.Fatalf("expected option %q=%q, got %q", option, wantValue, value.Str)
 	}
 }
+
+// TestRedshiftDropDatabaseForceParse pins r_DROP_DATABASE's optional FORCE,
+// which Redshift writes as a bare keyword after the name and PostgreSQL writes
+// as a drop option inside WITH (...).
+func TestRedshiftDropDatabaseForceParse(t *testing.T) {
+	for _, tc := range []struct {
+		sql   string
+		force bool
+	}{
+		{"DROP DATABASE a FORCE;", true},
+		{"DROP DATABASE IF EXISTS a FORCE;", true},
+		{"DROP DATABASE a;", false},
+		{"DROP DATABASE a WITH (FORCE);", true},
+	} {
+		stmt, ok := singleStmt(t, tc.sql).(*nodes.DropdbStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected DropdbStmt, got %T", tc.sql, singleStmt(t, tc.sql))
+		}
+		if got := findDefElem(stmt.Options, "force") != nil; got != tc.force {
+			t.Fatalf("Parse(%q): force = %v, want %v", tc.sql, got, tc.force)
+		}
+	}
+}

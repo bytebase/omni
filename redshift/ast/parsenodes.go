@@ -21,8 +21,11 @@ type SelectStmt struct {
 	FromClause     *List       // the FROM clause
 	WhereClause    Node        // WHERE qualification
 	GroupClause    *List       // GROUP BY clauses
+	GroupAll       bool        // Is this GROUP BY ALL?
 	GroupDistinct  bool        // Is this GROUP BY DISTINCT?
 	HavingClause   Node        // HAVING conditional-expression
+	StartWith      Node        // Redshift START WITH condition of a hierarchical query
+	ConnectBy      Node        // Redshift CONNECT BY condition of a hierarchical query
 	QualifyClause  Node        // Redshift QUALIFY conditional-expression
 	WindowClause   *List       // WINDOW window_name AS (...), ...
 	ExcludeList    *List       // Redshift SELECT * EXCLUDE (...) result names
@@ -240,15 +243,18 @@ func (n *Alias) Tag() NodeTag { return T_Alias }
 
 // IntoClause represents SELECT INTO clause.
 type IntoClause struct {
-	Rel            *RangeVar      // target relation name
-	ColNames       *List          // column names to assign, or NIL
-	AccessMethod   string         // table access method
-	Options        *List          // options from WITH clause
-	OnCommit       OnCommitAction // what to do at commit time
-	TableSpaceName string         // table space to use, or NULL
-	ViewQuery      Node           // materialized view's SELECT query
-	SkipData       bool           // true for WITH NO DATA
-	Loc            Loc            // token location
+	Rel          *RangeVar // target relation name
+	ColNames     *List     // column names to assign, or NIL
+	AccessMethod string    // table access method
+	// AccessMethodQuoted records that the name was written as a delimited
+	// identifier, which the parser folds and the deparser must quote again.
+	AccessMethodQuoted bool
+	Options            *List          // options from WITH clause
+	OnCommit           OnCommitAction // what to do at commit time
+	TableSpaceName     string         // table space to use, or NULL
+	ViewQuery          Node           // materialized view's SELECT query
+	SkipData           bool           // true for WITH NO DATA
+	Loc                Loc            // token location
 }
 
 func (n *IntoClause) Tag() NodeTag { return T_IntoClause }
@@ -256,7 +262,10 @@ func (n *IntoClause) Tag() NodeTag { return T_IntoClause }
 // ColumnRef represents a column reference (foo.bar.baz).
 type ColumnRef struct {
 	Fields *List // field names (String nodes) or A_Star
-	Loc    Loc   // token location, or -1 if unknown
+	// Quoted records that a one-name reference was written as a delimited
+	// identifier, whose spelling the parser keeps as written.
+	Quoted bool
+	Loc    Loc // token location, or -1 if unknown
 }
 
 func (n *ColumnRef) Tag() NodeTag { return T_ColumnRef }

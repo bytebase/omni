@@ -91,7 +91,7 @@ func (c *Catalog) DefineTable(stmt *nodes.CreateTableStmt) error {
 	}
 	// A loader's statement lists the keys in its snapshot's order, so it cannot
 	// tell which UNIQUE key the server takes for the implicit primary key.
-	return c.createTable(stmt, false)
+	return c.createTable(stmt, false, "")
 }
 
 // DefineView installs a view. stmt.Name and stmt.Name.Name must be

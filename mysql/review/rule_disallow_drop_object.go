@@ -74,7 +74,7 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 				if cmd == nil {
 					continue
 				}
-				switch dropKindOf(sql, cmd) {
+				switch dropKindOf(cmd) {
 				case dropColumn:
 					reportAt(review.DropCode("column"), rangeOf(cmd.Loc), dropsOf("column", table(v.Table), ident(cmd.Name)))
 				case dropIndex:

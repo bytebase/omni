@@ -155,6 +155,16 @@ func simulationForms(ctx context.Context, db *sql.DB) ([]simulate.Form, error) {
 	return forms, nil
 }
 
+// parseCode is the code the server answers a statement it does not read with:
+// the parser's own lookup refusal where it made one (1273 for a collation no
+// server of the pin has), and 1064 for a syntax error.
+func parseCode(pe *mysqlparser.ParseError) string {
+	if pe.Code != 0 {
+		return strconv.Itoa(pe.Code)
+	}
+	return "1064"
+}
+
 // simulationOmni runs the row in the catalog. The catalog stores what MySQL
 // stores when a catalog loaded from MySQL's SHOW CREATE texts differs from it
 // in neither direction: Diff under the 8.0 normalizer is what this package's
@@ -171,7 +181,7 @@ func simulationOmni(fx simulate.Fixture, statement string, engine simulate.Answe
 	var syntax *mysqlparser.ParseError
 	switch {
 	case errors.As(err, &syntax):
-		return simulate.Omni{Code: "1064", Why: err.Error()}
+		return simulate.Omni{Code: parseCode(syntax), Why: err.Error()}
 	case err != nil:
 		return simulate.Omni{Code: simulate.NoCode, Why: err.Error()}
 	}

@@ -80,14 +80,15 @@ const (
 	// ErrUnknownSequence 4139, for DROP SEQUENCE of a missing one.
 	ErrSequenceInvalidData = 4136
 	ErrUnknownSequence     = 4139
-	// TiDB error codes. 8239 is the closest match in TiDB's error
-	// catalog for "Placement policy <name> already exists" (err.go:261
-	// upstream). 8241 covers "unknown placement policy" (err.go:266).
-	// 8240 covers "policy still in use" — surfaced on DROP PLACEMENT
-	// POLICY when a database/table still references the policy.
-	ErrPlacementPolicyExists  = 8239
-	ErrPlacementPolicyInUse   = 8240
-	ErrPlacementPolicyMissing = 8241
+	// TiDB's placement-policy codes, read on v8.5.5: a second CREATE of a
+	// policy is 8238, a policy a statement names and the catalog does not
+	// have is 8239 ("Unknown placement policy '<name>'"), and DROP of one a
+	// database or table still references is 8241 ("Placement policy '<name>'
+	// is still in use by <ref>"). 8240 is TiDB's placement-rule check, which
+	// no catalog path answers.
+	ErrPlacementPolicyExists  = 8238
+	ErrPlacementPolicyMissing = 8239
+	ErrPlacementPolicyInUse   = 8241
 	// Column type / default validation (measured on TiDB v8.5.5, 2026-11-09).
 	// 1171 rejects a PRIMARY KEY part declared explicitly NULL; 1425/1426/1427
 	// bound a DECIMAL's scale/precision; 3770 rejects a DEFAULT expression whose
@@ -141,6 +142,41 @@ const (
 	// ErrTableMustHaveColumns is 1113, which TiDB answers for a CREATE TABLE
 	// that lists no column at all (measured on v8.5.5, 2026-11-19).
 	ErrTableMustHaveColumns = 1113
+	// ErrWrongObject is 1347, "'<db>.<name>' is not VIEW" or "is not SEQUENCE":
+	// an object of the name exists and is of another kind, which DROP VIEW and
+	// a sequence reference refuse even under IF EXISTS (measured on v8.5.5,
+	// 2026-11-19).
+	ErrWrongObject = 1347
+	// ErrKeyDoesNotExist is 1176, "Key '<name>' doesn't exist in table
+	// '<table>'", which ALTER TABLE RENAME KEY/INDEX and ALTER INDEX ...
+	// VISIBLE/INVISIBLE answer for a name the table has no index under
+	// (measured on v8.5.5, 2026-11-19).
+	ErrKeyDoesNotExist = 1176
+	// ErrDupEnumValue is 1291, a duplicated member in an ENUM or SET type
+	// (measured on v8.5.5, 2026-11-19).
+	ErrDupEnumValue = 1291
+	// ErrTTLColumnType is 8148, a TTL config whose column is not a DATETIME,
+	// DATE or TIMESTAMP one (measured on v8.5.5, 2026-11-19).
+	ErrTTLColumnType = 8148
+	// ErrAutoRandom is 8216, TiDB's "Invalid auto random" for an ADD COLUMN
+	// carrying AUTO_RANDOM and for AUTO_RANDOM_BASE on a table that has no
+	// auto-random column (measured on v8.5.5, 2026-11-19).
+	ErrAutoRandom = 8216
+	// ErrFKKeyRefMismatch is 1239 for a table-level FOREIGN KEY that names no
+	// referenced column, which TiDB answers whether or not the referenced
+	// table exists (measured on v8.5.5, 2026-11-19).
+	ErrFKKeyRefMismatch = 1239
+	// ErrPartitionFieldNotFound is 1488, a partition clause naming a column the
+	// table does not have (measured on v8.5.5, 2026-11-19).
+	ErrPartitionFieldNotFound = 1488
+	// ErrSequenceDefaultInAddColumn is 8230: a sequence cannot back an ADD
+	// COLUMN's default, though it can back a CREATE TABLE's or a SET DEFAULT
+	// (measured on v8.5.5, 2026-11-19).
+	ErrSequenceDefaultInAddColumn = 8230
+	// ErrCacheTableUnsupported is 8242, a cached table an operation cannot
+	// touch: every DDL statement but NOCACHE, and CACHE itself on a
+	// partitioned table (measured on v8.5.5, 2026-11-19).
+	ErrCacheTableUnsupported = 8242
 )
 
 var sqlStateMap = map[int]string{
@@ -202,6 +238,15 @@ var sqlStateMap = map[int]string{
 	ErrKeyColumnDoesNotExist:               "42000",
 	ErrIncorrectTableDefinition:            "42000",
 	ErrTableMustHaveColumns:                "42000",
+	ErrWrongObject:                         "HY000",
+	ErrKeyDoesNotExist:                     "42000",
+	ErrDupEnumValue:                        "HY000",
+	ErrTTLColumnType:                       "HY000",
+	ErrAutoRandom:                          "HY000",
+	ErrFKKeyRefMismatch:                    "42000",
+	ErrPartitionFieldNotFound:              "HY000",
+	ErrCacheTableUnsupported:               "HY000",
+	ErrSequenceDefaultInAddColumn:          "HY000",
 }
 
 func sqlState(code int) string {
@@ -229,6 +274,63 @@ func errDupPlacementPolicy(name string) error {
 func errUnknownPlacementPolicy(name string) error {
 	return &Error{Code: ErrPlacementPolicyMissing, SQLState: sqlState(ErrPlacementPolicyMissing),
 		Message: fmt.Sprintf("Unknown placement policy '%s'", name)}
+}
+
+// errWrongObjectKind is 1347 for a name that exists as another kind of object.
+// The message names the object by its schema, as TiDB's does: `DROP VIEW a`
+// over the table a answers "'d.a' is not VIEW".
+func errWrongObjectKind(db, name, kind string) error {
+	return &Error{Code: ErrWrongObject, SQLState: sqlState(ErrWrongObject),
+		Message: fmt.Sprintf("'%s.%s' is not %s", db, name, kind)}
+}
+
+// errKeyDoesNotExist is 1176 for an index name the table has no index under.
+func errKeyDoesNotExist(name, table string) error {
+	return &Error{Code: ErrKeyDoesNotExist, SQLState: sqlState(ErrKeyDoesNotExist),
+		Message: fmt.Sprintf("Key '%s' doesn't exist in table '%s'", name, table)}
+}
+
+// errDupEnumValue is 1291 for a duplicated ENUM or SET member.
+func errDupEnumValue(col, value, kind string) error {
+	return &Error{Code: ErrDupEnumValue, SQLState: sqlState(ErrDupEnumValue),
+		Message: fmt.Sprintf("Column '%s' has duplicated value '%s' in %s", col, value, kind)}
+}
+
+// errTTLColumnType is 8148 for a TTL column whose type the config cannot use.
+func errTTLColumnType(col string) error {
+	return &Error{Code: ErrTTLColumnType, SQLState: sqlState(ErrTTLColumnType),
+		Message: fmt.Sprintf("Field '%s' is of a not supported type for TTL config, expect DATETIME, DATE or TIMESTAMP", col)}
+}
+
+// errAutoRandomAddColumn is 8216 for an ADD COLUMN that carries AUTO_RANDOM,
+// which TiDB refuses whatever the column's type: the row handle is fixed once
+// the table exists.
+func errAutoRandomAddColumn(col, db, table string) error {
+	return &Error{Code: ErrAutoRandom, SQLState: sqlState(ErrAutoRandom),
+		Message: fmt.Sprintf("Invalid auto random: unsupported add column '%s' constraint AUTO_RANDOM when altering '%s.%s'", col, db, table)}
+}
+
+// errAutoRandomBaseNoColumn is 8216 for AUTO_RANDOM_BASE on a table with no
+// auto-random column.
+func errAutoRandomBaseNoColumn() error {
+	return &Error{Code: ErrAutoRandom, SQLState: sqlState(ErrAutoRandom),
+		Message: "Invalid auto random: alter auto_random_base of a non auto_random table"}
+}
+
+// errCachedTable is 8242 for a statement a cached table cannot take. TiDB names
+// the operation that was refused: "'Alter Table' is unsupported on cache
+// tables." NOCACHE is the one statement it takes (read on v8.5.5).
+func errCachedTable(op string) error {
+	return &Error{Code: ErrCacheTableUnsupported, SQLState: sqlState(ErrCacheTableUnsupported),
+		Message: fmt.Sprintf("'%s' is unsupported on cache tables.", op)}
+}
+
+// errFKKeyRefMismatch is 1239 for a table-level FOREIGN KEY that names no
+// referenced column: TiDB requires the referenced column list there, and
+// answers this whether or not the referenced table exists.
+func errFKKeyRefMismatch(name string) error {
+	return &Error{Code: ErrFKKeyRefMismatch, SQLState: sqlState(ErrFKKeyRefMismatch),
+		Message: fmt.Sprintf("Incorrect foreign key definition for '%s': Key reference and table reference don't match", name)}
 }
 
 func errRangeNameNotSupported() error {

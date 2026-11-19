@@ -35,6 +35,28 @@ func generateIndexDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		case DiffModify:
+			// A modified materialized view is dropped and re-created, so its
+			// indexes go with it: every index the target has is created again,
+			// whether or not its definition changed.
+			if relEntry.To != nil && relEntry.To.RelKind == 'm' {
+				for _, idx := range to.IndexesOf(relEntry.To.OID) {
+					if idx.ConstraintOID != 0 {
+						continue // managed by constraint DDL
+					}
+					ops = append(ops, MigrationOp{
+						Type:          OpCreateIndex,
+						SchemaName:    relEntry.SchemaName,
+						ObjectName:    idx.Name,
+						SQL:           buildCreateIndexSQL(idx, relEntry.To, relEntry.SchemaName),
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'i',
+						ObjOID:        idx.OID,
+						Priority:      PriorityIndex,
+					})
+				}
+				continue
+			}
 			for _, idxEntry := range relEntry.Indexes {
 				switch idxEntry.Action {
 				case DiffAdd:

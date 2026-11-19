@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
@@ -385,60 +387,364 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	if err != nil {
 		return nil, err
 	}
+	// USING ICEBERG is the docs' other alternative: it takes LOCATION,
+	// PARTITIONED BY and TABLE PROPERTIES, and neither PostgreSQL's reloptions
+	// nor a table space. ICEBERG is the unquoted keyword there, so a quoted
+	// "iceberg" is a table access method's name.
+	iceberg := p.cur.Type == USING && p.redshiftTokIsWord(p.peekNext(), "iceberg")
+	accessMethodQuoted := p.cur.Type == USING && p.isDelimitedIdentToken(p.peekNext())
 	accessMethod, err := p.parseOptAccessMethod()
 	if err != nil {
 		return nil, err
 	}
-	options, err := p.parseOptReloptions()
+	var options *nodes.List
+	if !iceberg {
+		if options, err = p.parseOptReloptions(); err != nil {
+			return nil, err
+		}
+	}
+	options, err = p.parseRedshiftMaterializedViewOptionsInto(options, iceberg)
 	if err != nil {
 		return nil, err
 	}
-	options, err = p.parseRedshiftMaterializedViewOptionsInto(options)
-	if err != nil {
-		return nil, err
-	}
-	tableSpace, err := p.parseOptTableSpace()
-	if err != nil {
-		return nil, err
+	tableSpace := ""
+	if !iceberg {
+		if tableSpace, err = p.parseOptTableSpace(); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.IntoClause{
-		Rel:            rv,
-		ColNames:       colNames,
-		AccessMethod:   accessMethod,
-		Options:        options,
-		TableSpaceName: tableSpace,
-		Loc:            nodes.Loc{Start: loc, End: p.prev.End},
+		Rel:                rv,
+		ColNames:           colNames,
+		AccessMethod:       accessMethod,
+		AccessMethodQuoted: accessMethodQuoted,
+		Options:            options,
+		TableSpaceName:     tableSpace,
+		Loc:                nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
-func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List) (*nodes.List, error) {
+// parseRedshiftMaterializedViewOptionsInto parses the clauses
+// r_CREATE_MATERIALIZED_VIEW puts after the view's name, its column list and
+// its access method: BACKUP, DISTSTYLE, DISTKEY, SORTKEY and AUTO REFRESH,
+// plus the LOCATION, PARTITIONED BY and TABLE PROPERTIES tail that only the
+// USING ICEBERG form takes.
+//
+// Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
+func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, iceberg bool) (*nodes.List, error) {
+	if iceberg {
+		// The Iceberg form is the docs' other alternative: it takes LOCATION,
+		// PARTITIONED BY and TABLE PROPERTIES in that order, and none of the
+		// ordinary clauses below.
+		return p.parseRedshiftIcebergMaterializedViewOptions(options)
+	}
+	return p.parseRedshiftMatViewTableOptions(options)
+}
+
+// parseRedshiftMatViewTableOptions parses the clauses
+// materializedViewCreateSqlCommand puts after the view's name, each at most
+// once and in this order:
+//
+//	[ BACKUP { YES | NO } ]
+//	[ DISTSTYLE { EVEN | ALL | KEY } ]
+//	[ DISTKEY ( column_name ) ]
+//	[ [ COMPOUND | INTERLEAVED ] SORTKEY ( column_name [, ...] ) ]
+//	[ AUTO REFRESH { YES [ INTERVAL number ] | NO } ]
+//
+// These are not CREATE TABLE's attributes: ENCODE, SORTKEY AUTO and a bare
+// DISTKEY are no part of the production, so they are not read here.
+func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.List, error) {
+	// stage records how far the last clause read got, which decides the clauses
+	// still open: BACKUP, DISTSTYLE, DISTKEY, SORTKEY, AUTO REFRESH, in order.
+	stage := -1
 	for {
-		consumed := false
-		attrs, err := p.parseRedshiftCreateTableAttributes()
-		if err != nil {
-			return nil, err
+		if p.collectMode() {
+			// The cursor is past the clause leads: offer what a stage allows.
+			p.addRedshiftMatViewTableOptionCandidates(stage)
+			return options, nil
 		}
-		if attrs != nil {
-			options = appendNodeLists(options, attrs)
-			consumed = true
-		}
-		if p.redshiftWordEqual("auto") {
+		switch {
+		case stage <= 0 && p.redshiftKeywordIs("backup"):
+			p.advance()
+			if p.collectMode() {
+				// BACKUP takes YES or NO, and the cursor is after the word.
+				p.addWordCandidate("YES")
+				p.addWordCandidate("NO")
+				return options, nil
+			}
+			// BACKUP takes YES or NO, and neither is a name.
+			if !p.redshiftKeywordIs("yes") && !p.redshiftKeywordIs("no") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			backup := strings.ToLower(p.advance().Str)
+			options = appendToList(options, makeDefElem("backup", &nodes.String{Str: backup}))
+			stage = 1
+		case stage <= 1 && p.redshiftKeywordIs("diststyle"):
+			p.advance()
+			if p.collectMode() {
+				// DISTSTYLE takes EVEN, ALL or KEY.
+				p.addWordCandidate("EVEN")
+				p.addWordCandidate("ALL")
+				p.addWordCandidate("KEY")
+				return options, nil
+			}
+			// DISTSTYLE takes EVEN, ALL or KEY, and none of them is a name.
+			var style string
+			switch {
+			case p.redshiftKeywordIs("even"):
+				style = "even"
+			case p.redshiftKeywordIs("all"):
+				style = "all"
+			case p.redshiftKeywordIs("key"):
+				style = "key"
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			options = appendToList(options, makeDefElem("diststyle", &nodes.String{Str: style}))
+			stage = 2
+		case stage <= 2 && p.redshiftKeywordIs("distkey"):
+			p.advance()
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("distkey", cols))
+			stage = 3
+		case stage <= 3 && (p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") || p.redshiftKeywordIs("sortkey")):
+			sortStyle := ""
+			if p.redshiftKeywordIs("compound") || p.redshiftKeywordIs("interleaved") {
+				sortStyle = strings.ToLower(p.advance().Str)
+				if p.collectMode() {
+					// The style goes on with SORTKEY, which alone is left.
+					p.addWordCandidate("SORTKEY")
+					return options, nil
+				}
+			}
+			if !p.acceptRedshiftKeyword("sortkey") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return nil, err
+			}
+			if sortStyle != "" {
+				options = appendToList(options, makeDefElem("sortstyle", &nodes.String{Str: sortStyle}))
+			}
+			options = appendToList(options, makeDefElem("sortkey", cols))
+			stage = 4
+		case stage <= 4 && p.redshiftKeywordIs("auto"):
 			p.advance()
 			if _, err := p.expect(REFRESH); err != nil {
 				return nil, err
 			}
-			enabled, err := p.parseRedshiftYesNo()
+			if p.collectMode() {
+				// AUTO REFRESH takes YES or NO.
+				p.addWordCandidate("YES")
+				p.addWordCandidate("NO")
+				return options, nil
+			}
+			enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
 			if err != nil {
 				return nil, err
 			}
 			options = appendToList(options, makeDefElem("auto_refresh", &nodes.Boolean{Boolval: enabled}))
-			consumed = true
-		}
-		if !consumed {
+			if interval != nil {
+				options = appendToList(options, makeDefElem("auto_refresh_interval", interval))
+			}
+			stage = 5
+		default:
 			return options, nil
 		}
 	}
+}
+
+// addRedshiftMatViewTableOptionCandidates registers the ordinary clauses a
+// cursor after stage may still write. None of their words is a keyword token,
+// so each is a word candidate; AUTO stands for AUTO REFRESH.
+func (p *Parser) addRedshiftMatViewTableOptionCandidates(stage int) {
+	if stage <= 0 {
+		p.addWordCandidate("BACKUP")
+	}
+	if stage <= 1 {
+		p.addWordCandidate("DISTSTYLE")
+	}
+	if stage <= 2 {
+		p.addWordCandidate("DISTKEY")
+	}
+	if stage <= 3 {
+		p.addWordCandidate("SORTKEY")
+		p.addWordCandidate("COMPOUND SORTKEY")
+		p.addWordCandidate("INTERLEAVED SORTKEY")
+	}
+	if stage <= 4 {
+		p.addWordCandidate("AUTO REFRESH")
+	}
+}
+
+// parseRedshiftIcebergMaterializedViewOptions parses the clauses the docs put
+// after USING ICEBERG on r_CREATE_MATERIALIZED_VIEW, each optional and in this
+// order:
+//
+//	[ LOCATION 's3://bucket/folder/' ]
+//	[ PARTITIONED BY ( partition_transform [, ...] ) ]
+//	[ TABLE PROPERTIES ( 'name' = 'value' [, ...] ) ]
+//
+// The table properties keep the shape ALTER TABLE ... SET TABLE PROPERTIES
+// gives them: a list of one DefElem per 'name' = 'value' pair.
+func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List) (*nodes.List, error) {
+	// The clauses come in this order and each once, so stage records how far
+	// the last one read got: 0 before LOCATION, 1 before PARTITIONED BY, 2
+	// before TABLE PROPERTIES and 3 after it.
+	stage := 0
+	for p.isRedshiftIcebergMaterializedViewOptionStart() {
+		switch {
+		case p.cur.Type == LOCATION && stage == 0:
+			stage = 1
+			p.advance()
+			location, err := p.parseRedshiftStringLiteral()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("location", &nodes.String{Str: location}))
+		case p.redshiftKeywordIs("partitioned") && stage <= 1:
+			// PARTITIONED BY is not a PostgreSQL clause; both words are names
+			// there, so neither is a keyword token in this package.
+			stage = 2
+			p.advance()
+			if _, err := p.expect(BY); err != nil {
+				return nil, err
+			}
+			transforms, err := p.parseRedshiftPartitionTransforms()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("partitioned_by", transforms))
+		case p.cur.Type == TABLE && stage <= 2:
+			stage = 3
+			p.advance()
+			if p.collectMode() {
+				// TABLE takes PROPERTIES, and the cursor is after TABLE.
+				p.addWordCandidate("PROPERTIES")
+				return options, nil
+			}
+			if !p.acceptRedshiftKeyword("properties") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			properties, err := p.parseRedshiftStringOptionList()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, makeDefElem("table_properties", properties))
+		default:
+			// A clause out of order or repeated: no Iceberg clause starts at
+			// this stage, so whatever follows is the caller's.
+			return options, nil
+		}
+	}
+	if p.collectMode() {
+		p.addRedshiftIcebergMaterializedViewCandidates(stage)
+	}
+	return options, nil
+}
+
+// addRedshiftIcebergMaterializedViewCandidates registers the Iceberg clauses a
+// cursor at stage may still write. LOCATION is a keyword, TABLE is the first
+// word of TABLE PROPERTIES, and PARTITIONED BY is text no token type names.
+func (p *Parser) addRedshiftIcebergMaterializedViewCandidates(stage int) {
+	switch stage {
+	case 0:
+		p.addTokenCandidate(LOCATION)
+		p.addWordCandidate("PARTITIONED BY")
+		p.addTokenCandidate(TABLE)
+	case 1:
+		p.addWordCandidate("PARTITIONED BY")
+		p.addTokenCandidate(TABLE)
+	case 2:
+		p.addTokenCandidate(TABLE)
+	}
+}
+
+// parseRedshiftPartitionTransforms parses the partition_transform list after
+// PARTITIONED BY:
+//
+//	( partition_transform [, ...] )
+func (p *Parser) parseRedshiftPartitionTransforms() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var items []nodes.Node
+	for {
+		transform, err := p.parseRedshiftPartitionTransform()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, transform)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// parseRedshiftPartitionTransform parses one partition_transform. The
+// Parameters section of materialized-view-create-sql-command lists it, and
+// docs-fixes.tsv has the converter read that section as its definition:
+//
+//	column_name | YEAR( column_name ) | MONTH( column_name ) |
+//	DAY( column_name ) | HOUR( column_name ) |
+//	BUCKET( number, column_name ) | TRUNCATE( number, column_name )
+//
+// Only those calls are transforms, so only those parse; a column is a ColumnRef
+// and a call is a FuncCall of that name, which is what the transform means.
+func (p *Parser) parseRedshiftPartitionTransform() (nodes.Node, error) {
+	loc := p.pos()
+	if p.isRedshiftPartitionTransformCallStart() {
+		name := strings.ToLower(p.advance().Str)
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var args []nodes.Node
+		if name == "bucket" || name == "truncate" {
+			// BUCKET ( number, column_name )
+			if !p.isRedshiftNumberStart() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			args = append(args, p.parseNumericOnly())
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+		}
+		column, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, &nodes.ColumnRef{
+			Fields: &nodes.List{Items: []nodes.Node{&nodes.String{Str: column}}},
+			Loc:    nodes.Loc{Start: p.prev.Loc, End: p.prev.End},
+		})
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.FuncCall{
+			Funcname: makeFuncName(name),
+			Args:     &nodes.List{Items: args},
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+		}, nil
+	}
+	column, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.ColumnRef{
+		Fields: &nodes.List{Items: []nodes.Node{&nodes.String{Str: column}}},
+		Loc:    nodes.Loc{Start: loc, End: p.prev.End},
+	}, nil
 }
 
 // parseOptWithData parses opt_with_data. It ends its statement, so WITH

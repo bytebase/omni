@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
@@ -45,15 +46,23 @@ var allowedPartitionFuncs = map[string]bool{
 //     integer-valued expression the engine allows — a function outside
 //     allowedPartitionFuncs (1564) or a bare column of a non-integer type
 //     (1659);
+//   - a column the partitioning function names that the table does not have:
+//     1054 "Unknown column '<name>' in 'partition function'" for the
+//     expression form, 1488 "Field in list of fields for partition function
+//     not found in table" for a COLUMNS or KEY column list (measured on
+//     v8.5.5, 2026-11-19);
 //   - a bare MAXVALUE bound before the last RANGE partition (1481).
 //
-// COLUMNS partitioning accepts string and temporal columns, so it is left
-// alone, and a form the catalog cannot judge (an unknown column, an expression
-// that is neither a lone column nor a flagged function) is accepted, so no valid
-// scheme is refused.
+// COLUMNS partitioning accepts string and temporal columns, so its types are
+// left alone, and a form the catalog cannot judge (an expression that is
+// neither a lone column nor a flagged function) is accepted, so no valid scheme
+// is refused.
 func validatePartitionExpr(tbl *Table, pc *nodes.PartitionClause) error {
 	if pc == nil {
 		return nil
+	}
+	if err := checkPartitionColumnsExist(tbl, pc); err != nil {
+		return err
 	}
 	if len(pc.Columns) == 0 {
 		switch pc.Type {
@@ -67,6 +76,45 @@ func validatePartitionExpr(tbl *Table, pc *nodes.PartitionClause) error {
 		if err := checkRangeMaxValuePosition(pc.Partitions); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// checkPartitionColumnsExist resolves the columns a partition clause names
+// against the table: an expression's column references answer 1054, a COLUMNS
+// or KEY column list answers 1488 (both read on v8.5.5, 2026-11-19).
+func checkPartitionColumnsExist(tbl *Table, pc *nodes.PartitionClause) error {
+	if pc == nil {
+		return nil
+	}
+	if len(pc.Columns) > 0 {
+		for _, name := range pc.Columns {
+			if tbl.GetColumn(name) == nil {
+				return &Error{Code: ErrPartitionFieldNotFound, SQLState: sqlState(ErrPartitionFieldNotFound),
+					Message: "Field in list of fields for partition function not found in table"}
+			}
+		}
+		return nil
+	}
+	if pc.Expr == nil {
+		return nil
+	}
+	var missing string
+	nodes.Inspect(pc.Expr, func(n nodes.Node) bool {
+		if missing != "" {
+			return false
+		}
+		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+			if tbl.GetColumn(ref.Column) == nil {
+				missing = ref.Column
+				return false
+			}
+		}
+		return true
+	})
+	if missing != "" {
+		return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
+			Message: fmt.Sprintf("Unknown column '%s' in 'partition function'", missing)}
 	}
 	return nil
 }

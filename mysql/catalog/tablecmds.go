@@ -15,7 +15,9 @@ const generatedInvisiblePrimaryKeyColumnName = "my_row_id"
 // createTable installs the table stmt defines. declared is true when stmt lists
 // its keys in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
-func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
+// source is the text the statement was parsed from, which a CREATE TABLE ...
+// SELECT body is judged against (isDualRef), or "" when there is none.
+func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source string) error {
 	// MySQL checks a FULLTEXT key's parser, a column's display width and an
 	// ENGINE while preparing the statement, so each answers ahead of the
 	// database and the table it names: 1128 for a FULLTEXT key whose parser it
@@ -71,6 +73,21 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
+	// A CREATE TABLE ... LIKE that names its own source is 1066, "Not unique
+	// table/alias", before the table it would create is looked up: mysql:8.0.46
+	// answers it whether the target exists (where 1050 would follow) or not
+	// (where the source's 1146 would). Only the self case is decided here; every
+	// other source is resolved after the target's collision checks, as before.
+	if stmt.Like != nil {
+		srcDB := c.GetDatabase(c.currentDB)
+		if stmt.Like.Schema != "" {
+			srcDB = c.GetDatabase(stmt.Like.Schema)
+		}
+		if srcDB == db && toLower(stmt.Like.Name) == key {
+			return errNonUniqueTable(stmt.Like.Name)
+		}
+	}
+
 	// Check for duplicate table or view with the same name.
 	if db.Tables[key] != nil {
 		if stmt.IfNotExists {
@@ -87,9 +104,24 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		return c.createTableLike(db, tableName, key, stmt)
 	}
 
-	// CREATE TABLE ... AS SELECT (CTAS) — not supported yet, skip silently
-	if stmt.Select != nil && len(stmt.Columns) == 0 {
-		return nil
+	// CREATE TABLE ... AS SELECT (CTAS). MySQL reads the body after the table's
+	// own name, which the checks above answer 1050 for: over a table that is not
+	// there, `CREATE TABLE z SELECT nosuch` is 1054 `Unknown column 'nosuch' in
+	// 'field list'`, and a star with no table to expand is 1096 (`SELECT *` and
+	// `SELECT * FROM DUAL` alike). Both are a view body's refusals, so the body
+	// is read as one (analyzeViewBody), whether or not the statement declares its
+	// columns: `CREATE TABLE z (a INT) AS SELECT nosuch` is the same 1054. The
+	// catalog does not model the table a body makes without declared columns, so
+	// one that reads installs nothing.
+	if stmt.Select != nil {
+		if declared {
+			if _, err := c.analyzeViewBody(stmt.Select, source); err != nil {
+				return err
+			}
+		}
+		if len(stmt.Columns) == 0 {
+			return nil
+		}
 	}
 
 	tbl := &Table{

@@ -23,7 +23,7 @@ reject	reject	engine	simple_statement/alter_database_stmt!drop-2	ALTER COLLATE u
 reject	reject	engine	simple_statement/alter_database_stmt!drop-3	ALTER DATABASE utf8mb4;
 reject	reject	engine	simple_statement/alter_database_stmt!drop-4	ALTER DATABASE COLLATE;
 reject	reject	engine	simple_statement/alter_database_stmt!truncate	ALTER DATABASE COLLATE
-reject	accept	engine	simple_statement/alter_database_stmt!insert	ALTER DATABASE COLLATE utf8mb4 zzz;
+accept	accept	engine	simple_statement/alter_database_stmt!insert	ALTER DATABASE COLLATE utf8mb4 zzz;
 reject	reject	engine	simple_statement/alter_database_stmt!swap	ALWAYS DATABASE COLLATE utf8mb4;
 reject	reject	engine	simple_statement/alter_event_stmt	ALTER EVENT utf8mb4;
 reject	reject	engine	simple_statement/alter_event_stmt!drop-1	EVENT utf8mb4;
@@ -3060,10 +3060,10 @@ accept	accept	engine	alter_database_options/alter_database_option	ALTER DATABASE
 reject	reject	engine	alter_database_options/alter_database_option!swap	ALTER DATABASE COLLATION utf8mb4;
 accept	accept	engine	alter_database_options/alter_database_options_alter_database_option	ALTER DATABASE COLLATE utf8mb4 COLLATE utf8mb4;
 reject	reject	engine	alter_database_options/alter_database_options_alter_database_option!drop-2	ALTER DATABASE COLLATE COLLATE utf8mb4;
-reject	accept	engine	alter_database_options/alter_database_options_alter_database_option!drop-3	ALTER DATABASE COLLATE utf8mb4 utf8mb4;
-reject	accept	engine	alter_database_options/alter_database_options_alter_database_option!drop-4	ALTER DATABASE COLLATE utf8mb4 COLLATE;
-reject	accept	engine	alter_database_options/alter_database_options_alter_database_option!truncate	ALTER DATABASE COLLATE utf8mb4 COLLATE
-reject	accept	engine	alter_database_options/alter_database_options_alter_database_option!insert	ALTER DATABASE COLLATE utf8mb4 COLLATE utf8mb4 zzz;
+accept	accept	engine	alter_database_options/alter_database_options_alter_database_option!drop-3	ALTER DATABASE COLLATE utf8mb4 utf8mb4;
+accept	accept	engine	alter_database_options/alter_database_options_alter_database_option!drop-4	ALTER DATABASE COLLATE utf8mb4 COLLATE;
+accept	accept	engine	alter_database_options/alter_database_options_alter_database_option!truncate	ALTER DATABASE COLLATE utf8mb4 COLLATE
+accept	accept	engine	alter_database_options/alter_database_options_alter_database_option!insert	ALTER DATABASE COLLATE utf8mb4 COLLATE utf8mb4 zzz;
 reject	reject	engine	alter_database_options/alter_database_options_alter_database_option!swap	ALTER DATABASE COLLATION utf8mb4 COLLATE utf8mb4;
 accept	accept	engine	alter_database_option/create_database_option	ALTER DATABASE COLLATE utf8mb4;
 accept	accept	engine	alter_database_option/READ_SYM_ONLY_SYM_opt_equal_ternary_option	ALTER DATABASE READ ONLY 1;
@@ -3078,16 +3078,16 @@ accept	accept	engine	opt_create_database_options/create_database_options	CREATE 
 reject	reject	engine	opt_create_database_options/create_database_options!drop-1	CREATE DATABASE utf8mb4 utf8mb4;
 reject	reject	engine	opt_create_database_options/create_database_options!drop-2	CREATE DATABASE utf8mb4 COLLATE;
 reject	reject	engine	opt_create_database_options/create_database_options!truncate	CREATE DATABASE utf8mb4 COLLATE
-reject	accept	engine	opt_create_database_options/create_database_options!insert	CREATE DATABASE utf8mb4 COLLATE utf8mb4 zzz;
+accept	accept	engine	opt_create_database_options/create_database_options!insert	CREATE DATABASE utf8mb4 COLLATE utf8mb4 zzz;
 reject	reject	engine	opt_create_database_options/create_database_options!swap	CREATE DATABASE utf8mb4 COLLATION utf8mb4;
 accept	accept	engine	create_database_options/create_database_option	CREATE DATABASE utf8mb4 COLLATE utf8mb4;
 accept	accept	engine	create_database_options/create_database_options_create_database_option	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE utf8mb4;
 reject	reject	engine	create_database_options/create_database_options_create_database_option!drop-1	CREATE DATABASE utf8mb4 utf8mb4 COLLATE utf8mb4;
 reject	reject	engine	create_database_options/create_database_options_create_database_option!drop-2	CREATE DATABASE utf8mb4 COLLATE COLLATE utf8mb4;
-reject	accept	engine	create_database_options/create_database_options_create_database_option!drop-3	CREATE DATABASE utf8mb4 COLLATE utf8mb4 utf8mb4;
-reject	accept	engine	create_database_options/create_database_options_create_database_option!drop-4	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE;
-reject	accept	engine	create_database_options/create_database_options_create_database_option!truncate	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE
-reject	accept	engine	create_database_options/create_database_options_create_database_option!insert	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE utf8mb4 zzz;
+accept	accept	engine	create_database_options/create_database_options_create_database_option!drop-3	CREATE DATABASE utf8mb4 COLLATE utf8mb4 utf8mb4;
+accept	accept	engine	create_database_options/create_database_options_create_database_option!drop-4	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE;
+accept	accept	engine	create_database_options/create_database_options_create_database_option!truncate	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE
+accept	accept	engine	create_database_options/create_database_options_create_database_option!insert	CREATE DATABASE utf8mb4 COLLATE utf8mb4 COLLATE utf8mb4 zzz;
 reject	reject	engine	create_database_options/create_database_options_create_database_option!swap	CREATE DATABASE utf8mb4 COLLATION utf8mb4 COLLATE utf8mb4;
 accept	accept	engine	create_database_option/default_collation	ALTER DATABASE COLLATE utf8mb4;
 reject	reject	engine	create_database_option/default_charset	ALTER DATABASE CHARSET utf8mb4;
@@ -3246,7 +3246,7 @@ reject	reject	engine	create_table_option/default_charset!swap	ALTER TABLE utf8mb
 accept	accept	engine	create_table_option/default_collation	ALTER TABLE utf8mb4 COLLATE utf8mb4;
 reject	reject	engine	create_table_option/default_collation!drop-2	ALTER TABLE utf8mb4 COLLATE;
 reject	reject	engine	create_table_option/default_collation!truncate	ALTER TABLE utf8mb4 COLLATE
-reject	accept	engine	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
+accept	accept	engine	create_table_option/default_collation!insert	ALTER TABLE utf8mb4 COLLATE utf8mb4 zzz;
 reject	reject	engine	create_table_option/default_collation!swap	ALTER TABLE utf8mb4 COLLATION utf8mb4;
 accept	accept	engine	create_table_option/INSERT_METHOD_opt_equal_merge_insert_types	ALTER TABLE utf8mb4 INSERT_METHOD NO;
 reject	reject	engine	create_table_option/INSERT_METHOD_opt_equal_merge_insert_types!drop-1	ALTER TABLE utf8mb4 NO;
@@ -3868,7 +3868,7 @@ reject	reject	engine	column_attribute/COMMENT_SYM_TEXT_STRING_sys!swap	ALTER TAB
 accept	accept	engine	column_attribute/COLLATE_SYM_collation_name	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4;
 reject	reject	engine	column_attribute/COLLATE_SYM_collation_name!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE;
 reject	reject	engine	column_attribute/COLLATE_SYM_collation_name!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE
-reject	accept	engine	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
+accept	accept	engine	column_attribute/COLLATE_SYM_collation_name!insert	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATE utf8mb4 zzz;
 reject	reject	engine	column_attribute/COLLATE_SYM_collation_name!swap	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLLATION utf8mb4;
 accept	accept	engine	column_attribute/COLUMN_FORMAT_SYM_column_format	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT DEFAULT;
 reject	reject	engine	column_attribute/COLUMN_FORMAT_SYM_column_format!drop-2	ALTER TABLE utf8mb4 ADD utf8mb4 INT COLUMN_FORMAT;
@@ -3969,7 +3969,7 @@ accept	accept	engine	opt_collate/COLLATE_SYM_collation_name	SET NAMES utf8mb4 CO
 reject	reject	engine	opt_collate/COLLATE_SYM_collation_name!drop-1	SET NAMES utf8mb4 utf8mb4;
 reject	reject	engine	opt_collate/COLLATE_SYM_collation_name!drop-2	SET NAMES utf8mb4 COLLATE;
 reject	reject	engine	opt_collate/COLLATE_SYM_collation_name!truncate	SET NAMES utf8mb4 COLLATE
-reject	accept	engine	opt_collate/COLLATE_SYM_collation_name!insert	SET NAMES utf8mb4 COLLATE utf8mb4 zzz;
+accept	accept	engine	opt_collate/COLLATE_SYM_collation_name!insert	SET NAMES utf8mb4 COLLATE utf8mb4 zzz;
 reject	reject	engine	opt_collate/COLLATE_SYM_collation_name!swap	SET NAMES utf8mb4 COLLATION utf8mb4;
 accept	accept	engine	opt_default/%empty	ALTER DATABASE COLLATE utf8mb4;
 accept	accept	engine	opt_default/%empty!insert	ALTER DATABASE zzz COLLATE utf8mb4;
@@ -8515,9 +8515,9 @@ reject	accept	engine	equal/EQ!insert	SET utf8mb4 = zzz utf8mb4;
 accept	accept	engine	equal/SET_VAR	SET utf8mb4 := utf8mb4;
 reject	accept	engine	equal/SET_VAR!insert	SET utf8mb4 := zzz utf8mb4;
 accept	accept	engine	opt_equal/%empty	ALTER DATABASE COLLATE utf8mb4;
-reject	accept	engine	opt_equal/%empty!insert	ALTER DATABASE COLLATE zzz utf8mb4;
+accept	accept	engine	opt_equal/%empty!insert	ALTER DATABASE COLLATE zzz utf8mb4;
 accept	accept	engine	opt_equal/equal	ALTER DATABASE COLLATE = utf8mb4;
-reject	accept	engine	opt_equal/equal!insert	ALTER DATABASE COLLATE = zzz utf8mb4;
+accept	accept	engine	opt_equal/equal!insert	ALTER DATABASE COLLATE = zzz utf8mb4;
 accept	accept	engine	row_value/(_opt_values_)	INSERT utf8mb4 VALUE();
 accept	accept	engine	row_value_explicit/ROW_SYM_(_opt_values_)	VALUES ROW();
 accept	accept	engine	opt_values/%empty	VALUES ROW();

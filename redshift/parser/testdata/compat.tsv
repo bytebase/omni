@@ -1662,7 +1662,7 @@ accept	accept	docs	alterMaterializedView(YES_(INTERVAL_NUMBER)?|NO)/NO	ALTER MAT
 reject	undocumented	docs	alterMaterializedView(YES_(INTERVAL_NUMBER)?|NO)/NO!insert	ALTER MATERIALIZED VIEW a AUTO REFRESH NO zzz
 reject	undocumented	docs	alterMaterializedView(YES_(INTERVAL_NUMBER)?|NO)/NO!swap	ALTER MATERIALIZED VIEW a AUTO REFRESH NOCREATEDB
 accept	accept	docs	alterMaterializedView(INTERVAL_NUMBER)?/%empty	ALTER MATERIALIZED VIEW a AUTO REFRESH YES
-reject	accept	docs	alterMaterializedView(INTERVAL_NUMBER)?/INTERVAL_NUMBER	ALTER MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL 1
+accept	accept	docs	alterMaterializedView(INTERVAL_NUMBER)?/INTERVAL_NUMBER	ALTER MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL 1
 reject	undocumented	docs	alterMaterializedView(INTERVAL_NUMBER)?/INTERVAL_NUMBER!drop-1	ALTER MATERIALIZED VIEW a AUTO REFRESH YES 1
 reject	undocumented	docs	alterMaterializedView(INTERVAL_NUMBER)?/INTERVAL_NUMBER!drop-2	ALTER MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL
 reject	undocumented	docs	alterMaterializedView(INTERVAL_NUMBER)?/INTERVAL_NUMBER!insert	ALTER MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL 1 zzz
@@ -1719,7 +1719,7 @@ reject	undocumented	docs	alterRole(RENAME_TO_ID|OWNER_TO_ID)/OWNER_TO_ID!drop-3	
 reject	undocumented	docs	alterRole(RENAME_TO_ID|OWNER_TO_ID)/OWNER_TO_ID!insert	ALTER ROLE a OWNER TO a zzz
 reject	undocumented	docs	alterRole(RENAME_TO_ID|OWNER_TO_ID)/OWNER_TO_ID!swap	ALTER ROLE a PARALLEL TO a
 accept	accept	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/%empty	ALTER ROLE a RENAME TO a
-reject	accept	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*	ALTER ROLE a RENAME TO a, RENAME TO a
+accept	accept	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*	ALTER ROLE a RENAME TO a, RENAME TO a
 reject	undocumented	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*!drop-1	ALTER ROLE a RENAME TO a RENAME TO a
 reject	undocumented	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*!drop-2	ALTER ROLE a RENAME TO a, TO a
 reject	undocumented	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*!drop-3	ALTER ROLE a RENAME TO a, RENAME a
@@ -1727,7 +1727,7 @@ reject	undocumented	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_I
 reject	undocumented	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*!insert	ALTER ROLE a RENAME TO a, RENAME TO a zzz
 reject	undocumented	docs	alterRole(,_(RENAME_TO_ID|OWNER_TO_ID))*/,_(RENAME_TO_ID|OWNER_TO_ID)_(,_(RENAME_TO_ID|OWNER_TO_ID))*!swap	ALTER ROLE a RENAME TO a, REPEATABLE TO a
 accept	accept	docs	alterRole(EXTERNALID_TO_ID)?/%empty	ALTER ROLE a RENAME TO a
-reject	accept	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID	ALTER ROLE a RENAME TO a EXTERNALID TO a
+accept	accept	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID	ALTER ROLE a RENAME TO a EXTERNALID TO a
 reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!drop-1	ALTER ROLE a RENAME TO a TO a
 reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!drop-2	ALTER ROLE a RENAME TO a EXTERNALID a
 reject	undocumented	docs	alterRole(EXTERNALID_TO_ID)?/EXTERNALID_TO_ID!drop-3	ALTER ROLE a RENAME TO a EXTERNALID TO
@@ -2140,7 +2140,7 @@ reject	undocumented	docs	alterTable_external_table_action/SET_TABLE_PROPERTIES_(
 reject	undocumented	docs	alterTable_external_table_action/SET_TABLE_PROPERTIES_(_STRING_=_STRING_)!drop-8	ALTER TABLE a SET TABLE PROPERTIES('s' = 's'
 reject	undocumented	docs	alterTable_external_table_action/SET_TABLE_PROPERTIES_(_STRING_=_STRING_)!insert	ALTER TABLE a SET TABLE PROPERTIES('s' = 's') zzz
 reject	undocumented	docs	alterTable_external_table_action/SET_TABLE_PROPERTIES_(_STRING_=_STRING_)!swap	ALTER TABLE a SETTINGS TABLE PROPERTIES('s' = 's')
-reject	accept	docs	alterTable_external_table_action/PARTITION_(_ID_=_ID_(,_ID_=_ID)*_)_SET_LOCATION_STRING	ALTER TABLE a PARTITION(a = a) SET LOCATION 's'
+accept	accept	docs	alterTable_external_table_action/PARTITION_(_ID_=_ID_(,_ID_=_ID)*_)_SET_LOCATION_STRING	ALTER TABLE a PARTITION(a = a) SET LOCATION 's'
 reject	undocumented	docs	alterTable_external_table_action/PARTITION_(_ID_=_ID_(,_ID_=_ID)*_)_SET_LOCATION_STRING!drop-1	ALTER TABLE a(a = a) SET LOCATION 's'
 reject	undocumented	docs	alterTable_external_table_action/PARTITION_(_ID_=_ID_(,_ID_=_ID)*_)_SET_LOCATION_STRING!drop-2	ALTER TABLE a PARTITION a = a) SET LOCATION 's'
 reject	undocumented	docs	alterTable_external_table_action/PARTITION_(_ID_=_ID_(,_ID_=_ID)*_)_SET_LOCATION_STRING!drop-3	ALTER TABLE a PARTITION(= a) SET LOCATION 's'
@@ -2192,7 +2192,7 @@ reject	undocumented	docs	alterTable_external_table_action(IF_NOT_EXISTS)?/IF_NOT
 reject	undocumented	docs	alterTable_external_table_action(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	ALTER TABLE a ADD IF NOT EXISTS zzz PARTITION(a = a) LOCATION 's'
 reject	undocumented	docs	alterTable_external_table_action(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	ALTER TABLE a ADD IGNORE NOT EXISTS PARTITION(a = a) LOCATION 's'
 accept	accept	docs	alterTable_external_table_action(,_STRING)*/%empty	ALTER TABLE a ADD PARTITION(a = a) LOCATION 's'
-reject	accept	docs	alterTable_external_table_action(,_STRING)*/,_STRING_(,_STRING)*	ALTER TABLE a ADD PARTITION(a = a) LOCATION 's', 's'
+accept	accept	docs	alterTable_external_table_action(,_STRING)*/,_STRING_(,_STRING)*	ALTER TABLE a ADD PARTITION(a = a) LOCATION 's', 's'
 reject	undocumented	docs	alterTable_external_table_action(,_STRING)*/,_STRING_(,_STRING)*!drop-1	ALTER TABLE a ADD PARTITION(a = a) LOCATION 's' 's'
 reject	undocumented	docs	alterTable_external_table_action(,_STRING)*/,_STRING_(,_STRING)*!drop-2	ALTER TABLE a ADD PARTITION(a = a) LOCATION 's',
 reject	undocumented	docs	alterTable_external_table_action(,_STRING)*/,_STRING_(,_STRING)*!insert	ALTER TABLE a ADD PARTITION(a = a) LOCATION 's', 's' zzz
@@ -2258,11 +2258,11 @@ accept	accept	docs	alterUser(WITH)?/WITH	ALTER USER a WITH CREATEDB
 reject	undocumented	docs	alterUser(WITH)?/WITH!insert	ALTER USER a WITH zzz CREATEDB
 reject	undocumented	docs	alterUser(WITH)?/WITH!swap	ALTER USER a WORK CREATEDB
 accept	accept	docs	alterUser(,_alterUser_option)*/%empty	ALTER USER a CREATEDB
-reject	accept	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*	ALTER USER a CREATEDB, CREATEDB
+accept	accept	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*	ALTER USER a CREATEDB, CREATEDB
 accept	undocumented	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*!drop-1	ALTER USER a CREATEDB CREATEDB
 reject	undocumented	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*!drop-2	ALTER USER a CREATEDB,
 reject	undocumented	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*!insert	ALTER USER a CREATEDB, CREATEDB zzz
-reject	accept	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*!swap	ALTER USER a CREATEDB, CREATEUSER
+accept	accept	docs	alterUser(,_alterUser_option)*/,_alterUser_option_(,_alterUser_option)*!swap	ALTER USER a CREATEDB, CREATEUSER
 accept	accept	docs	alterUser_option/CREATEDB	ALTER USER a CREATEDB
 accept	accept	docs	alterUser_option/NOCREATEDB	ALTER USER a NOCREATEDB
 reject	undocumented	docs	alterUser_option/NOCREATEDB!insert	ALTER USER a NOCREATEDB zzz
@@ -2397,14 +2397,14 @@ accept	accept	docs	analyzeCompression(ID)?/%empty	ANALYZE COMPRESSION
 accept	accept	docs	analyzeCompression(ID)?/ID	ANALYZE COMPRESSION a
 reject	undocumented	docs	analyzeCompression(ID)?/ID!insert	ANALYZE COMPRESSION a zzz
 accept	accept	docs	analyzeCompression((_ID_(,_ID)*_))?/%empty	ANALYZE COMPRESSION
-reject	accept	docs	analyzeCompression((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ANALYZE COMPRESSION(a)
+accept	accept	docs	analyzeCompression((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	ANALYZE COMPRESSION(a)
 reject	undocumented	docs	analyzeCompression((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-1	ANALYZE COMPRESSION a)
 reject	undocumented	docs	analyzeCompression((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-2	ANALYZE COMPRESSION()
 reject	undocumented	docs	analyzeCompression((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!drop-3	ANALYZE COMPRESSION(a
 reject	undocumented	docs	analyzeCompression((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)!insert	ANALYZE COMPRESSION(a) zzz
-reject	accept	docs	analyzeCompression(,_ID)*/%empty	ANALYZE COMPRESSION(a)
+accept	accept	docs	analyzeCompression(,_ID)*/%empty	ANALYZE COMPRESSION(a)
 reject	undocumented	docs	analyzeCompression(,_ID)*/%empty!insert	ANALYZE COMPRESSION(a zzz)
-reject	accept	docs	analyzeCompression(,_ID)*/,_ID_(,_ID)*	ANALYZE COMPRESSION(a, a)
+accept	accept	docs	analyzeCompression(,_ID)*/,_ID_(,_ID)*	ANALYZE COMPRESSION(a, a)
 reject	undocumented	docs	analyzeCompression(,_ID)*/,_ID_(,_ID)*!drop-1	ANALYZE COMPRESSION(a a)
 reject	undocumented	docs	analyzeCompression(,_ID)*/,_ID_(,_ID)*!drop-2	ANALYZE COMPRESSION(a,)
 reject	undocumented	docs	analyzeCompression(,_ID)*/,_ID_(,_ID)*!truncate	ANALYZE COMPRESSION(a,
@@ -3300,7 +3300,7 @@ reject	undocumented	docs	createGroup(USER_ID)?/USER_ID!drop-2	CREATE GROUP a WIT
 reject	undocumented	docs	createGroup(USER_ID)?/USER_ID!insert	CREATE GROUP a WITH USER a zzz
 reject	undocumented	docs	createGroup(USER_ID)?/USER_ID!swap	CREATE GROUP a WITH USING a
 accept	accept	docs	createGroup(,_WITH_(USER_ID)?)*/%empty	CREATE GROUP a WITH
-reject	accept	docs	createGroup(,_WITH_(USER_ID)?)*/,_WITH_(USER_ID)?_(,_WITH_(USER_ID)?)*	CREATE GROUP a WITH, WITH
+accept	accept	docs	createGroup(,_WITH_(USER_ID)?)*/,_WITH_(USER_ID)?_(,_WITH_(USER_ID)?)*	CREATE GROUP a WITH, WITH
 reject	undocumented	docs	createGroup(,_WITH_(USER_ID)?)*/,_WITH_(USER_ID)?_(,_WITH_(USER_ID)?)*!drop-1	CREATE GROUP a WITH WITH
 reject	undocumented	docs	createGroup(,_WITH_(USER_ID)?)*/,_WITH_(USER_ID)?_(,_WITH_(USER_ID)?)*!drop-2	CREATE GROUP a WITH,
 reject	undocumented	docs	createGroup(,_WITH_(USER_ID)?)*/,_WITH_(USER_ID)?_(,_WITH_(USER_ID)?)*!insert	CREATE GROUP a WITH, WITH zzz
@@ -3417,10 +3417,10 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(BACKUP_(YES|NO))?/BACK
 reject	undocumented	docs	materializedViewCreateSqlCommand(BACKUP_(YES|NO))?/BACKUP_(YES|NO)!insert	CREATE MATERIALIZED VIEW a BACKUP YES zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(BACKUP_(YES|NO))?/BACKUP_(YES|NO)!swap	CREATE MATERIALIZED VIEW a BEDROCK YES AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(YES|NO)/YES	CREATE MATERIALIZED VIEW a BACKUP YES AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/YES!swap	CREATE MATERIALIZED VIEW a BACKUP ZSTD AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/YES!swap	CREATE MATERIALIZED VIEW a BACKUP ZSTD AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(YES|NO)/NO	CREATE MATERIALIZED VIEW a BACKUP NO AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/NO!insert	CREATE MATERIALIZED VIEW a BACKUP NO zzz AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/NO!swap	CREATE MATERIALIZED VIEW a BACKUP NOCREATEDB AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/NO!swap	CREATE MATERIALIZED VIEW a BACKUP NOCREATEDB AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)	CREATE MATERIALIZED VIEW a DISTSTYLE EVEN AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)!drop-1	CREATE MATERIALIZED VIEW a EVEN AS SELECT 1
@@ -3429,13 +3429,13 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KE
 reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)!insert	CREATE MATERIALIZED VIEW a DISTSTYLE EVEN zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)!swap	CREATE MATERIALIZED VIEW a DROP EVEN AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/EVEN	CREATE MATERIALIZED VIEW a DISTSTYLE EVEN AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/EVEN!swap	CREATE MATERIALIZED VIEW a DISTSTYLE EXCEPT AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/EVEN!swap	CREATE MATERIALIZED VIEW a DISTSTYLE EXCEPT AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL	CREATE MATERIALIZED VIEW a DISTSTYLE ALL AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL!insert	CREATE MATERIALIZED VIEW a DISTSTYLE ALL zzz AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL!swap	CREATE MATERIALIZED VIEW a DISTSTYLE ALLOWOVERWRITE AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL!swap	CREATE MATERIALIZED VIEW a DISTSTYLE ALLOWOVERWRITE AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY	CREATE MATERIALIZED VIEW a DISTSTYLE KEY AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY!insert	CREATE MATERIALIZED VIEW a DISTSTYLE KEY zzz AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY!swap	CREATE MATERIALIZED VIEW a DISTSTYLE KEYS AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY!swap	CREATE MATERIALIZED VIEW a DISTSTYLE KEYS AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTKEY_(_ID_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTKEY_(_ID_))?/DISTKEY_(_ID_)	CREATE MATERIALIZED VIEW a DISTKEY(a) AS SELECT 1
 accept	undocumented	docs	materializedViewCreateSqlCommand(DISTKEY_(_ID_))?/DISTKEY_(_ID_)!drop-1	CREATE MATERIALIZED VIEW a(a) AS SELECT 1
@@ -3474,7 +3474,7 @@ accept	accept	docs	materializedViewCreateSqlCommand(YES_(INTERVAL_NUMBER)?|NO)/N
 reject	undocumented	docs	materializedViewCreateSqlCommand(YES_(INTERVAL_NUMBER)?|NO)/NO!insert	CREATE MATERIALIZED VIEW a AUTO REFRESH NO zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(YES_(INTERVAL_NUMBER)?|NO)/NO!swap	CREATE MATERIALIZED VIEW a AUTO REFRESH NOCREATEDB AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/%empty	CREATE MATERIALIZED VIEW a AUTO REFRESH YES AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTERVAL_NUMBER	CREATE MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL 1 AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTERVAL_NUMBER	CREATE MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL 1 AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTERVAL_NUMBER!drop-1	CREATE MATERIALIZED VIEW a AUTO REFRESH YES 1 AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTERVAL_NUMBER!drop-2	CREATE MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTERVAL_NUMBER!truncate	CREATE MATERIALIZED VIEW a AUTO REFRESH YES INTERVAL
@@ -3482,14 +3482,14 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTE
 reject	undocumented	docs	materializedViewCreateSqlCommand(INTERVAL_NUMBER)?/INTERVAL_NUMBER!swap	CREATE MATERIALIZED VIEW a AUTO REFRESH YES INTO 1 AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/%empty!insert	CREATE MATERIALIZED VIEW a USING ICEBERG zzz AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING	CREATE MATERIALIZED VIEW a USING ICEBERG LOCATION 's' AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING	CREATE MATERIALIZED VIEW a USING ICEBERG LOCATION 's' AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG 's' AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG LOCATION AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG LOCATION
 reject	undocumented	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING!insert	CREATE MATERIALIZED VIEW a USING ICEBERG LOCATION 's' zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(LOCATION_STRING)?/LOCATION_STRING!swap	CREATE MATERIALIZED VIEW a USING ICEBERG LOCK 's' AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG BY(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY a) AS SELECT 1
@@ -3498,15 +3498,15 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_mater
 reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a
 reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(PARTITIONED_BY_(_materializedViewCre~015f8bfb)?/PARTITIONED_BY_(_materializedViewCreateSqlCommand_parti~d9134a6b!swap	CREATE MATERIALIZED VIEW a USING ICEBERG PASSWORD BY(a) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/%empty!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a zzz) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/,_materializedViewCreateSqlCommand_partition_transform_~6d13ee00	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a, a) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/,_materializedViewCreateSqlCommand_partition_transform_~6d13ee00	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a, a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/,_materializedViewCreateSqlCommand_partition_transform_~6d13ee00!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/,_materializedViewCreateSqlCommand_partition_transform_~6d13ee00!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a,) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/,_materializedViewCreateSqlCommand_partition_transform_~6d13ee00!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a,
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_materializedViewCreateSqlCommand_p~4ca0126c)*/,_materializedViewCreateSqlCommand_partition_transform_~6d13ee00!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a, a zzz) AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's') AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG PROPERTIES('s' = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE('s' = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES 's' = 's') AS SELECT 1
@@ -3517,18 +3517,18 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STR
 reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's'
 reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!insert	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's') zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(TABLE_PROPERTIES_(_STRING_=_STRING_(~12e7ec47)?/TABLE_PROPERTIES_(_STRING_=_STRING_(,_STRING_=_STRING)*_)!swap	CREATE MATERIALIZED VIEW a USING ICEBERG TABLES PROPERTIES('s' = 's') AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's') AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/%empty	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/%empty!insert	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's' zzz) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', 's' = 's') AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', 's' = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's' 's' = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', = 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', 's' 's') AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!drop-4	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', 's' =) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', 's' =
 reject	undocumented	docs	materializedViewCreateSqlCommand(,_STRING_=_STRING)*/,_STRING_=_STRING_(,_STRING_=_STRING)*!insert	CREATE MATERIALIZED VIEW a USING ICEBERG TABLE PROPERTIES('s' = 's', 's' = 's' zzz) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/ID	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/ID	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/ID!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR(a)) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR(a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY((a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR()) AS SELECT 1
@@ -3536,28 +3536,28 @@ reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YE
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR(a
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YEAR(a) zzz) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/YEAR_(_ID_)!swap	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(YES(a)) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH(a)) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH(a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH()) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)!drop-4	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH(a
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MONTH(a) zzz) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/MONTH_(_ID_)!swap	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(MSK(a)) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY(a)) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY(a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY()) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)!drop-4	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY(a
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DAY(a) zzz) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/DAY_(_ID_)!swap	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(DEALLOCATE(a)) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR(a)) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR(a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR()) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)!drop-4	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR(a) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR(a
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HOUR(a) zzz) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/HOUR_(_ID_)!swap	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(HYPERPARAMETERS(a)) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(1, a)) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(1, a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)!drop-1	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY((1, a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET 1, a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(, a)) AS SELECT 1
@@ -3567,7 +3567,7 @@ reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BU
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)!truncate	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(1, a
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)!insert	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(1, a) zzz) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/BUCKET_(_NUMBER_,_ID_)!swap	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BY(1, a)) AS SELECT 1
-reject	accept	docs	materializedViewCreateSqlCommand_partition_transform/TRUNCATE_(_NUMBER_,_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(TRUNCATE(1, a)) AS SELECT 1
+accept	accept	docs	materializedViewCreateSqlCommand_partition_transform/TRUNCATE_(_NUMBER_,_ID_)	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(TRUNCATE(1, a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/TRUNCATE_(_NUMBER_,_ID_)!drop-2	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(TRUNCATE 1, a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/TRUNCATE_(_NUMBER_,_ID_)!drop-3	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(TRUNCATE(, a)) AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand_partition_transform/TRUNCATE_(_NUMBER_,_ID_)!drop-4	CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(TRUNCATE(1 a)) AS SELECT 1
@@ -4036,15 +4036,15 @@ accept	accept	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_)
 accept	accept	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)	CREATE TABLE a(a INT IDENTITY(1, 1))
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-1	CREATE TABLE a(a INT(1, 1))
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-2	CREATE TABLE a(a INT IDENTITY 1, 1))
-accept	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-3	CREATE TABLE a(a INT IDENTITY(, 1))
+reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-3	CREATE TABLE a(a INT IDENTITY(, 1))
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-4	CREATE TABLE a(a INT IDENTITY(1 1))
-accept	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-5	CREATE TABLE a(a INT IDENTITY(1,))
+reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-5	CREATE TABLE a(a INT IDENTITY(1,))
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!drop-6	CREATE TABLE a(a INT IDENTITY(1, 1)
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!truncate	CREATE TABLE a(a INT IDENTITY(1, 1
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!insert	CREATE TABLE a(a INT IDENTITY(1, 1) zzz)
 reject	undocumented	docs	createTableNew_column_attributes(IDENTITY_(_NUMBER_,_NUMBER_))?/IDENTITY_(_NUMBER_,_NUMBER_)!swap	CREATE TABLE a(a INT IF(1, 1))
 accept	accept	docs	createTableNew_column_attributes(GENERATED_BY_DEFAULT_AS_IDENTITY_(_N~04eb07ff)?/%empty	CREATE TABLE a(a INT)
-reject	accept	docs	createTableNew_column_attributes(GENERATED_BY_DEFAULT_AS_IDENTITY_(_N~04eb07ff)?/GENERATED_BY_DEFAULT_AS_IDENTITY_(_NUMBER_,_NUMBER_)	CREATE TABLE a(a INT GENERATED BY DEFAULT AS IDENTITY(1, 1))
+accept	accept	docs	createTableNew_column_attributes(GENERATED_BY_DEFAULT_AS_IDENTITY_(_N~04eb07ff)?/GENERATED_BY_DEFAULT_AS_IDENTITY_(_NUMBER_,_NUMBER_)	CREATE TABLE a(a INT GENERATED BY DEFAULT AS IDENTITY(1, 1))
 reject	undocumented	docs	createTableNew_column_attributes(GENERATED_BY_DEFAULT_AS_IDENTITY_(_N~04eb07ff)?/GENERATED_BY_DEFAULT_AS_IDENTITY_(_NUMBER_,_NUMBER_)!drop-1	CREATE TABLE a(a INT BY DEFAULT AS IDENTITY(1, 1))
 reject	undocumented	docs	createTableNew_column_attributes(GENERATED_BY_DEFAULT_AS_IDENTITY_(_N~04eb07ff)?/GENERATED_BY_DEFAULT_AS_IDENTITY_(_NUMBER_,_NUMBER_)!drop-2	CREATE TABLE a(a INT GENERATED DEFAULT AS IDENTITY(1, 1))
 reject	undocumented	docs	createTableNew_column_attributes(GENERATED_BY_DEFAULT_AS_IDENTITY_(_N~04eb07ff)?/GENERATED_BY_DEFAULT_AS_IDENTITY_(_NUMBER_,_NUMBER_)!drop-3	CREATE TABLE a(a INT GENERATED BY AS IDENTITY(1, 1))
@@ -4561,7 +4561,7 @@ accept	undocumented	docs	detachRlsPolicy(,_(ID|ROLE_ID|PUBLIC))*/,_(ID|ROLE_ID|P
 accept	undocumented	docs	detachRlsPolicy(,_(ID|ROLE_ID|PUBLIC))*/,_(ID|ROLE_ID|PUBLIC)_(,_(ID|ROLE_ID|PUBLIC))*!insert	DETACH RLS POLICY a ON a FROM a, a zzz
 accept	accept	docs	dropDatabase/DROP_DATABASE_ID_(FORCE)?	DROP DATABASE a
 accept	accept	docs	dropDatabase(FORCE)?/%empty	DROP DATABASE a
-reject	accept	docs	dropDatabase(FORCE)?/FORCE	DROP DATABASE a FORCE
+accept	accept	docs	dropDatabase(FORCE)?/FORCE	DROP DATABASE a FORCE
 reject	undocumented	docs	dropDatabase(FORCE)?/FORCE!insert	DROP DATABASE a FORCE zzz
 reject	undocumented	docs	dropDatabase(FORCE)?/FORCE!swap	DROP DATABASE a FORECAST
 accept	accept	docs	dropDatashare/DROP_DATASHARE_ID	DROP DATASHARE a
@@ -7064,7 +7064,7 @@ reject	undocumented	docs	selectSynopsis(,_EXPR_(AS_ID)?)*/,_EXPR_(AS_ID)?_(,_EXP
 reject	undocumented	docs	selectSynopsis(,_EXPR_(AS_ID)?)*/,_EXPR_(AS_ID)?_(,_EXPR_(AS_ID)?)*!drop-2	SELECT 1,
 accept	undocumented	docs	selectSynopsis(,_EXPR_(AS_ID)?)*/,_EXPR_(AS_ID)?_(,_EXPR_(AS_ID)?)*!insert	SELECT 1, 1 zzz
 accept	accept	docs	selectSynopsis(EXCLUDE_ID)?/%empty	SELECT *
-reject	accept	docs	selectSynopsis(EXCLUDE_ID)?/EXCLUDE_ID	SELECT * EXCLUDE a
+accept	accept	docs	selectSynopsis(EXCLUDE_ID)?/EXCLUDE_ID	SELECT * EXCLUDE a
 reject	undocumented	docs	selectSynopsis(EXCLUDE_ID)?/EXCLUDE_ID!drop-2	SELECT * EXCLUDE
 reject	undocumented	docs	selectSynopsis(EXCLUDE_ID)?/EXCLUDE_ID!insert	SELECT * EXCLUDE a zzz
 reject	undocumented	docs	selectSynopsis(EXCLUDE_ID)?/EXCLUDE_ID!swap	SELECT * EXCLUDING a
@@ -7085,15 +7085,15 @@ reject	undocumented	docs	selectSynopsis(WHERE_EXPR)?/WHERE_EXPR!drop-2	SELECT * 
 reject	undocumented	docs	selectSynopsis(WHERE_EXPR)?/WHERE_EXPR!insert	SELECT * WHERE 1 zzz
 reject	undocumented	docs	selectSynopsis(WHERE_EXPR)?/WHERE_EXPR!swap	SELECT * WITH 1
 accept	accept	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/%empty	SELECT *
-reject	accept	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR	SELECT * CONNECT BY 1
+accept	accept	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR	SELECT * CONNECT BY 1
 reject	undocumented	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!drop-1	SELECT * BY 1
 reject	undocumented	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!drop-2	SELECT * CONNECT 1
 reject	undocumented	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!drop-3	SELECT * CONNECT BY
 reject	undocumented	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!insert	SELECT * CONNECT BY 1 zzz
 reject	undocumented	docs	selectSynopsis((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!swap	SELECT * CONNECTION BY 1
-reject	accept	docs	selectSynopsis(START_WITH_EXPR)?/%empty	SELECT * CONNECT BY 1
+accept	accept	docs	selectSynopsis(START_WITH_EXPR)?/%empty	SELECT * CONNECT BY 1
 reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/%empty!insert	SELECT * zzz CONNECT BY 1
-reject	accept	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR	SELECT * START WITH 1 CONNECT BY 1
+accept	accept	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR	SELECT * START WITH 1 CONNECT BY 1
 reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR!drop-1	SELECT * WITH 1 CONNECT BY 1
 reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR!drop-2	SELECT * START 1 CONNECT BY 1
 reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR!drop-3	SELECT * START WITH CONNECT BY 1
@@ -7101,13 +7101,13 @@ reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR!trunca
 reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR!insert	SELECT * START WITH 1 zzz CONNECT BY 1
 reject	undocumented	docs	selectSynopsis(START_WITH_EXPR)?/START_WITH_EXPR!swap	SELECT * STORED WITH 1 CONNECT BY 1
 accept	accept	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/%empty	SELECT *
-reject	accept	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)	SELECT * GROUP BY ALL
+accept	accept	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)	SELECT * GROUP BY ALL
 reject	undocumented	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!drop-1	SELECT * BY ALL
 reject	undocumented	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!drop-2	SELECT * GROUP ALL
 reject	undocumented	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!drop-3	SELECT * GROUP BY
 accept	undocumented	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!insert	SELECT * GROUP BY ALL zzz
 reject	undocumented	docs	selectSynopsis(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!swap	SELECT * GROUPS BY ALL
-reject	accept	docs	selectSynopsis(ALL|EXPR_(,_EXPR)*)/ALL	SELECT * GROUP BY ALL
+accept	accept	docs	selectSynopsis(ALL|EXPR_(,_EXPR)*)/ALL	SELECT * GROUP BY ALL
 accept	undocumented	docs	selectSynopsis(ALL|EXPR_(,_EXPR)*)/ALL!swap	SELECT * GROUP BY ALLOWOVERWRITE
 accept	accept	docs	selectSynopsis(ALL|EXPR_(,_EXPR)*)/EXPR_(,_EXPR)*	SELECT * GROUP BY 1
 reject	undocumented	docs	selectSynopsis(ALL|EXPR_(,_EXPR)*)/EXPR_(,_EXPR)*!insert	SELECT * GROUP BY 1 zzz
@@ -7216,7 +7216,7 @@ reject	undocumented	docs	selectInto(,_EXPR_(AS_ID)?)*/,_EXPR_(AS_ID)?_(,_EXPR_(A
 reject	undocumented	docs	selectInto(,_EXPR_(AS_ID)?)*/,_EXPR_(AS_ID)?_(,_EXPR_(AS_ID)?)*!drop-2	SELECT 1, INTO a
 accept	undocumented	docs	selectInto(,_EXPR_(AS_ID)?)*/,_EXPR_(AS_ID)?_(,_EXPR_(AS_ID)?)*!insert	SELECT 1, 1 zzz INTO a
 accept	accept	docs	selectInto(EXCLUDE_ID)?/%empty	SELECT * INTO a
-reject	accept	docs	selectInto(EXCLUDE_ID)?/EXCLUDE_ID	SELECT * EXCLUDE a INTO a
+accept	accept	docs	selectInto(EXCLUDE_ID)?/EXCLUDE_ID	SELECT * EXCLUDE a INTO a
 reject	undocumented	docs	selectInto(EXCLUDE_ID)?/EXCLUDE_ID!drop-1	SELECT * a INTO a
 reject	undocumented	docs	selectInto(EXCLUDE_ID)?/EXCLUDE_ID!drop-2	SELECT * EXCLUDE INTO a
 reject	undocumented	docs	selectInto(EXCLUDE_ID)?/EXCLUDE_ID!insert	SELECT * EXCLUDE a zzz INTO a
@@ -7251,15 +7251,15 @@ reject	undocumented	docs	selectInto(WHERE_EXPR)?/WHERE_EXPR!drop-2	SELECT * INTO
 reject	undocumented	docs	selectInto(WHERE_EXPR)?/WHERE_EXPR!insert	SELECT * INTO a WHERE 1 zzz
 reject	undocumented	docs	selectInto(WHERE_EXPR)?/WHERE_EXPR!swap	SELECT * INTO a WITH 1
 accept	accept	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/%empty	SELECT * INTO a
-reject	accept	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR	SELECT * INTO a CONNECT BY 1
+accept	accept	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR	SELECT * INTO a CONNECT BY 1
 reject	undocumented	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!drop-1	SELECT * INTO a BY 1
 reject	undocumented	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!drop-2	SELECT * INTO a CONNECT 1
 reject	undocumented	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!drop-3	SELECT * INTO a CONNECT BY
 reject	undocumented	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!insert	SELECT * INTO a CONNECT BY 1 zzz
 reject	undocumented	docs	selectInto((START_WITH_EXPR)?_CONNECT_BY_EXPR)?/(START_WITH_EXPR)?_CONNECT_BY_EXPR!swap	SELECT * INTO a CONNECTION BY 1
-reject	accept	docs	selectInto(START_WITH_EXPR)?/%empty	SELECT * INTO a CONNECT BY 1
+accept	accept	docs	selectInto(START_WITH_EXPR)?/%empty	SELECT * INTO a CONNECT BY 1
 reject	undocumented	docs	selectInto(START_WITH_EXPR)?/%empty!insert	SELECT * INTO a zzz CONNECT BY 1
-reject	accept	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR	SELECT * INTO a START WITH 1 CONNECT BY 1
+accept	accept	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR	SELECT * INTO a START WITH 1 CONNECT BY 1
 reject	undocumented	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR!drop-1	SELECT * INTO a WITH 1 CONNECT BY 1
 reject	undocumented	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR!drop-2	SELECT * INTO a START 1 CONNECT BY 1
 reject	undocumented	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR!drop-3	SELECT * INTO a START WITH CONNECT BY 1
@@ -7267,13 +7267,13 @@ reject	undocumented	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR!truncate	S
 reject	undocumented	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR!insert	SELECT * INTO a START WITH 1 zzz CONNECT BY 1
 reject	undocumented	docs	selectInto(START_WITH_EXPR)?/START_WITH_EXPR!swap	SELECT * INTO a STORED WITH 1 CONNECT BY 1
 accept	accept	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/%empty	SELECT * INTO a
-reject	accept	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)	SELECT * INTO a GROUP BY ALL
+accept	accept	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)	SELECT * INTO a GROUP BY ALL
 reject	undocumented	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!drop-1	SELECT * INTO a BY ALL
 reject	undocumented	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!drop-2	SELECT * INTO a GROUP ALL
 reject	undocumented	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!drop-3	SELECT * INTO a GROUP BY
 accept	undocumented	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!insert	SELECT * INTO a GROUP BY ALL zzz
 reject	undocumented	docs	selectInto(GROUP_BY_(ALL|EXPR_(,_EXPR)*))?/GROUP_BY_(ALL|EXPR_(,_EXPR)*)!swap	SELECT * INTO a GROUPS BY ALL
-reject	accept	docs	selectInto(ALL|EXPR_(,_EXPR)*)/ALL	SELECT * INTO a GROUP BY ALL
+accept	accept	docs	selectInto(ALL|EXPR_(,_EXPR)*)/ALL	SELECT * INTO a GROUP BY ALL
 accept	undocumented	docs	selectInto(ALL|EXPR_(,_EXPR)*)/ALL!swap	SELECT * INTO a GROUP BY ALLOWOVERWRITE
 accept	accept	docs	selectInto(ALL|EXPR_(,_EXPR)*)/EXPR_(,_EXPR)*	SELECT * INTO a GROUP BY 1
 reject	undocumented	docs	selectInto(ALL|EXPR_(,_EXPR)*)/EXPR_(,_EXPR)*!insert	SELECT * INTO a GROUP BY 1 zzz
@@ -8042,11 +8042,11 @@ accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/
 accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/FULL!swap	VACUUM FUNCTION
 accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/SORT_ONLY	VACUUM SORT ONLY
 reject	undocumented	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/SORT_ONLY!drop-1	VACUUM ONLY
-reject	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/SORT_ONLY!drop-2	VACUUM SORT
+accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/SORT_ONLY!drop-2	VACUUM SORT
 accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/SORT_ONLY!insert	VACUUM SORT ONLY zzz
 reject	undocumented	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/SORT_ONLY!swap	VACUUM SORTKEY ONLY
 accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/DELETE_ONLY	VACUUM DELETE ONLY
-reject	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/DELETE_ONLY!drop-2	VACUUM DELETE
+accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/DELETE_ONLY!drop-2	VACUUM DELETE
 accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/DELETE_ONLY!insert	VACUUM DELETE ONLY zzz
 reject	undocumented	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/DELETE_ONLY!swap	VACUUM DELIMITED ONLY
 accept	accept	docs	vacuumCommand(FULL|SORT_ONLY|DELETE_ONLY|REINDEX|RECLUSTER)?/REINDEX	VACUUM REINDEX

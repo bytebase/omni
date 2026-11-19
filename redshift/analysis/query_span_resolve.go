@@ -416,6 +416,10 @@ func (q *querySpanResolver) collectAccessTablesFromSelect(selectStmt *ast.Select
 
 	for _, node := range []ast.Node{
 		selectStmt.WhereClause,
+		// Redshift's hierarchical-query clauses: a subquery in either one reads
+		// tables the rest of the statement may not name.
+		selectStmt.StartWith,
+		selectStmt.ConnectBy,
 		selectStmt.HavingClause,
 		selectStmt.QualifyClause,
 		selectStmt.LimitOffset,
@@ -1430,6 +1434,8 @@ func (q *querySpanResolver) collectSelectClauseSources(selectStmt *ast.SelectStm
 		selectStmt.DistinctClause,
 		selectStmt.ValuesLists,
 		selectStmt.WhereClause,
+		selectStmt.StartWith,
+		selectStmt.ConnectBy,
 		selectStmt.GroupClause,
 		selectStmt.HavingClause,
 		selectStmt.WindowClause,

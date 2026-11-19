@@ -1,6 +1,9 @@
 package parser
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // parseRefusalForms records what MySQL 8.0 reads while it parses: whether each statement
 // gets through the parser, which is a syntax error's 1064, or a code the parser's actions
@@ -2335,11 +2338,20 @@ var parseRefusalForms = []struct {
 	{"CREATE DEFINER = u SQL SECURITY u VIEW v AS SELECT 1", false},
 }
 
-// TestParseRefusalForms holds Parse to the table.
+// TestParseRefusalForms holds Parse to the table. A name the server looks up
+// while it parses counts as read, as prepareParses reads the same code:
+// `CREATE TABLE t (a INT) COLLATE nosuch` is 1273 on the server, and the parser
+// refuses it with that code in ParseError.Code.
 func TestParseRefusalForms(t *testing.T) {
 	for _, c := range parseRefusalForms {
 		t.Run(c.sql, func(t *testing.T) {
-			if _, err := Parse(c.sql); (err == nil) != c.accept {
+			_, err := Parse(c.sql)
+			read := err == nil
+			var pe *ParseError
+			if errors.As(err, &pe) && pe.Code != 0 {
+				read = true
+			}
+			if read != c.accept {
 				t.Errorf("Parse(%q) error = %v, want accept=%v", c.sql, err, c.accept)
 			}
 		})
