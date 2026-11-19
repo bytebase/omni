@@ -1015,6 +1015,11 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		writeExprAlias(b, n.Expr)
 		b.WriteString(" AS ")
 		b.WriteString(typeName)
+		// sys_view_cast_opt's IGNORE is part of the cast, so the name the
+		// server gives an unaliased cast includes it.
+		if n.Ignore {
+			b.WriteString(" IGNORE")
+		}
 		b.WriteString(")")
 	case *ast.ConvertExpr:
 		b.WriteString("CONVERT(")

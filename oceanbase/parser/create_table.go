@@ -709,32 +709,51 @@ func (p *Parser) parseNowOrSignedLiteralValue() (nodes.ExprNode, error) {
 // parseNowOrSignedLiteralInto reads now_or_signed_literal, storing the
 // expression it reads in *out where the caller wants it.
 func (p *Parser) parseNowOrSignedLiteralInto(out *nodes.ExprNode) error {
-	fsp := func(required bool) error {
+	// fspArg reads the precision a call writes, which the retained expression
+	// keeps as its argument: `ORIG_DEFAULT NOW(3)` and `ORIG_DEFAULT NOW()` are
+	// different clauses.
+	fspArg := func(required bool) (nodes.ExprNode, error) {
 		if p.cur.Type != '(' {
 			if required {
-				return p.syntaxErrorAtCur()
+				return nil, p.syntaxErrorAtCur()
 			}
-			return nil
+			return nil, nil
 		}
 		p.advance()
+		var arg nodes.ExprNode
 		if p.cur.Type == tokICONST {
+			arg = &nodes.IntLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Ival, Text: p.cur.Str}
 			p.advance()
 		}
-		_, err := p.expect(')')
-		return err
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return arg, nil
 	}
 	switch {
 	case p.cur.Type == '+' || p.cur.Type == '-':
 		start := p.pos()
+		op := nodes.UnaryPlus
+		if p.cur.Type == '-' {
+			op = nodes.UnaryMinus
+		}
 		p.advance()
 		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 			return p.syntaxErrorAtCur()
 		}
 		if out != nil {
+			// The literal keeps its kind: a decimal stays a FloatLit, whose text
+			// deparses as written, and the sign is the one written.
+			var operand nodes.ExprNode
+			if p.cur.Type == tokFCONST {
+				operand = &nodes.FloatLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Str}
+			} else {
+				operand = &nodes.IntLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Ival, Text: p.cur.Str}
+			}
 			*out = &nodes.UnaryExpr{
 				Loc:     nodes.Loc{Start: start, End: p.cur.End},
-				Op:      nodes.UnaryMinus,
-				Operand: &nodes.IntLit{Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}, Value: p.cur.Ival, Text: p.cur.Str},
+				Op:      op,
+				Operand: operand,
 			}
 		}
 		p.advance()
@@ -742,22 +761,32 @@ func (p *Parser) parseNowOrSignedLiteralInto(out *nodes.ExprNode) error {
 	case p.isBareWord("NOW"):
 		start := p.pos()
 		p.advance()
-		if err := fsp(true); err != nil {
+		arg, err := fspArg(true)
+		if err != nil {
 			return err
 		}
 		if out != nil {
-			*out = &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NOW", HasParens: true}
+			call := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: "NOW", HasParens: true}
+			if arg != nil {
+				call.Args = []nodes.ExprNode{arg}
+			}
+			*out = call
 		}
 		return nil
 	case p.isBareWord("CURRENT_TIMESTAMP"), p.isBareWord("LOCALTIME"), p.isBareWord("LOCALTIMESTAMP"):
 		start := p.pos()
 		name := strings.ToUpper(p.cur.Str)
 		p.advance()
-		if err := fsp(false); err != nil {
+		arg, err := fspArg(false)
+		if err != nil {
 			return err
 		}
 		if out != nil {
-			*out = &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, HasParens: p.byteAt(p.prev.Loc) == ')'}
+			call := &nodes.FuncCallExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}, Name: name, HasParens: p.byteAt(p.prev.Loc) == ')'}
+			if arg != nil {
+				call.Args = []nodes.ExprNode{arg}
+			}
+			*out = call
 		}
 		return nil
 	}

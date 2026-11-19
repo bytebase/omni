@@ -513,6 +513,12 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return false
 	case *nodes.ParenExpr:
 		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.OdbcEscapeExpr:
+		// The escape is a wrapper around its expression, so the result's
+		// nullability is the payload's.
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.QuantifiedExpr:
+		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.BinaryExpr:
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
 	case *nodes.UnaryExpr:
@@ -664,6 +670,13 @@ func inferViewExprCollation(expr nodes.ExprNode, relations map[string]viewRelati
 		}
 		return out, nil
 	case *nodes.ParenExpr:
+		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.OdbcEscapeExpr:
+		// The escape's word says how its expression is read, and its result
+		// carries that expression's character set. The payload is checked too,
+		// so an illegal collation inside the braces is refused.
+		return inferViewExprCollation(e.Expr, relations)
+	case *nodes.QuantifiedExpr:
 		return inferViewExprCollation(e.Expr, relations)
 	case *nodes.BinaryExpr:
 		return inferViewBinaryCollation(e, relations)

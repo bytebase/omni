@@ -140,3 +140,34 @@ func TestWindowModifierAlias(t *testing.T) {
 		})
 	}
 }
+
+// TestCastIgnoreAndGroupingSetRewrite pin that a cast's IGNORE reaches the alias
+// the server would generate, and that a grouping set's items go through the
+// ordinary rewrites (IF to CASE here).
+func TestCastIgnoreAndGroupingSetRewrite(t *testing.T) {
+	list, err := parser.Parse("SELECT CAST(a AS SIGNED IGNORE) FROM t")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	resolved := (&Resolver{Lookup: func(string) *ResolverTable {
+		return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "a", Position: 1}}}
+	}}).Resolve(list.Items[0].(*ast.SelectStmt))
+	if got, want := DeparseSelect(resolved), "select cast(`t`.`a` as signed ignore) AS `CAST(a AS SIGNED IGNORE)` from `t`"; got != want {
+		t.Errorf("DeparseSelect(cast)\n got %s\nwant %s", got, want)
+	}
+
+	// ROLLUP(IF(c, a, b)) rewrites the IF to a CASE inside the grouping set.
+	list, err = parser.Parse("SELECT a FROM t GROUP BY ROLLUP(IF(c, a, b))")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel := list.Items[0].(*ast.SelectStmt)
+	RewriteSelectStmt(sel)
+	set, ok := sel.GroupBy[0].Expr.(*ast.GroupingSet)
+	if !ok {
+		t.Fatalf("GROUP BY item = %T, want *ast.GroupingSet", sel.GroupBy[0].Expr)
+	}
+	if _, ok := set.Items[0].(*ast.CaseExpr); !ok {
+		t.Errorf("grouping set item = %T, want the IF rewritten to *ast.CaseExpr", set.Items[0])
+	}
+}

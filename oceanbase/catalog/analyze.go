@@ -291,23 +291,20 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 	}
 
 	// A FULL join merges its key into one column either side may fill, so the
-	// star expansion of the surviving column is COALESCE(left, right). The
-	// surviving left column may sit under a nested join, whose own FULL keys
-	// are already recorded.
+	// star expansion of the surviving column is COALESCE(left, right). Either
+	// operand may sit under a nested join whose own FULL keys are already
+	// recorded, which then supply that side's expression.
 	if joinType == JoinFull && len(usingCols) > 0 {
 		for _, col := range usingCols {
-			rightVar, ok := joinKeyVar(q, right, col)
+			leftEntry, leftExpr, ok := fullJoinKeySource(q, scope, left, col)
 			if !ok {
 				continue
 			}
-			entryName, leftExpr, ok := fullJoinKeySource(q, left, col)
+			_, rightExpr, ok := fullJoinKeySource(q, scope, right, col)
 			if !ok {
 				continue
 			}
-			if prior, ok := scope.fullJoinExpr(entryName, col); ok {
-				leftExpr = prior
-			}
-			scope.addFullJoinExpr(entryName, col, &CoalesceExprQ{Args: []AnalyzedExpr{leftExpr, rightVar}})
+			scope.addFullJoinExpr(leftEntry, col, &CoalesceExprQ{Args: []AnalyzedExpr{leftExpr, rightExpr}})
 		}
 	}
 
@@ -335,16 +332,21 @@ func analyzeJoinClause(c *Catalog, jc *nodes.JoinClause, q *Query, scope *analyz
 }
 
 // fullJoinKeySource returns the scope entry whose star expansion holds a join
-// operand's surviving column and the expression that column has there, which a
-// nested FULL join has already wrapped in COALESCE. It follows the input that
-// lists the column first: a RIGHT join's right input, any other join's left.
-func fullJoinKeySource(q *Query, node JoinNode, column string) (string, AnalyzedExpr, bool) {
+// operand's surviving column and the expression that column has there: a nested
+// FULL join's own COALESCE when it recorded one, the plain variable otherwise.
+// It follows the input that lists the column first: a RIGHT join's right input,
+// any other join's left.
+func fullJoinKeySource(q *Query, scope *analyzerScope, node JoinNode, column string) (string, AnalyzedExpr, bool) {
 	switch n := node.(type) {
 	case *RangeTableRefQ:
 		rte := q.RangeTable[n.RTIndex]
 		for i, name := range rte.ColNames {
 			if strings.EqualFold(name, column) {
-				return rte.ERef, &VarExprQ{RangeIdx: n.RTIndex, AttNum: i + 1}, true
+				var expr AnalyzedExpr = &VarExprQ{RangeIdx: n.RTIndex, AttNum: i + 1}
+				if merged, ok := scope.fullJoinExpr(rte.ERef, column); ok {
+					expr = merged
+				}
+				return rte.ERef, expr, true
 			}
 		}
 	case *JoinExprNodeQ:
@@ -352,10 +354,10 @@ func fullJoinKeySource(q *Query, node JoinNode, column string) (string, Analyzed
 		if n.JoinType == JoinRight {
 			first, second = second, first
 		}
-		if entry, expr, ok := fullJoinKeySource(q, first, column); ok {
+		if entry, expr, ok := fullJoinKeySource(q, scope, first, column); ok {
 			return entry, expr, true
 		}
-		return fullJoinKeySource(q, second, column)
+		return fullJoinKeySource(q, scope, second, column)
 	}
 	return "", nil, false
 }
@@ -889,9 +891,11 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 
 		switch n := item.Expr.(type) {
 		case *nodes.IntLit:
-			// Ordinal reference: ORDER BY 1 means first SELECT column.
+			// Ordinal reference: ORDER BY 1 means first SELECT column. The junk
+			// entries a grouping set or an ORDER BY reference adds are no columns
+			// of the select list, so the ordinal counts only the others.
 			idx := int(n.Value)
-			if idx < 1 || idx > len(q.TargetList) {
+			if idx < 1 || idx > visibleTargetCount(q) {
 				return fmt.Errorf("ORDER BY position %d is not in select list", idx)
 			}
 			q.SortClause = append(q.SortClause, &SortGroupClauseQ{

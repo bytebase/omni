@@ -73,6 +73,15 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		n.Expr = rewriteExpr(n.Expr)
 		return n
 
+	case *ast.GroupingSet:
+		// A grouping set's items are expressions like any other, so IF, NOT,
+		// BETWEEN and date arithmetic inside ROLLUP (...) rewrite as they do
+		// elsewhere.
+		for i, item := range n.Items {
+			n.Items[i] = rewriteExpr(item)
+		}
+		return n
+
 	case *ast.InExpr:
 		n.Expr = rewriteExpr(n.Expr)
 		for i, item := range n.List {

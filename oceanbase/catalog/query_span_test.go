@@ -552,3 +552,56 @@ func TestCorrelatedUnqualifiedRemoteColumn(t *testing.T) {
 		t.Errorf("DeparseQuery(v_correlated) =\n  %s\nwant\n  %s", got, want)
 	}
 }
+
+func TestOrderByOrdinalCountsVisibleTargets(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, "CREATE TABLE t (a INT, b INT)")
+
+	// ROLLUP(a) adds a junk target that is no select-list column, so ORDER BY 2
+	// is out of range over a one-column select list.
+	if _, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT a FROM t GROUP BY ROLLUP(a) ORDER BY 2")); err == nil {
+		t.Fatal("expected ORDER BY position error for a one-column select list")
+	}
+	// ORDER BY 1, the one visible column, still resolves.
+	if _, err := c.AnalyzeSelectStmt(parseSelect(t, "SELECT a FROM t GROUP BY ROLLUP(a) ORDER BY 1")); err != nil {
+		t.Fatalf("ORDER BY 1 over one visible column: %v", err)
+	}
+
+	// A RIGHT-nested FULL join keeps the inner merge, so an r-only row still has r.id.
+	wtExec(t, c, `CREATE TABLE l (id INT, lx INT);
+		CREATE TABLE m (id INT, mx INT);
+		CREATE TABLE r (id INT, rx INT);
+		CREATE VIEW v_right_nested AS SELECT * FROM l FULL JOIN (m FULL JOIN r USING(id)) USING(id);`)
+	if got, want := DeparseQuery(c.GetDatabase("testdb").Views["v_right_nested"].AnalyzedQuery),
+		"select coalesce(`l`.`id`, coalesce(`m`.`id`, `r`.`id`)) as `id`, `l`.`lx`, `m`.`mx`, `r`.`rx` from `testdb`.`l` full join `testdb`.`m` full join `testdb`.`r` using (`id`) using (`id`)"; got != want {
+		t.Errorf("DeparseQuery(v_right_nested) =\n  %s\nwant\n  %s", got, want)
+	}
+}
+
+func TestOdbcEscapeViewMetadata(t *testing.T) {
+	c := wtSetup(t)
+	wtExec(t, c, `
+		CREATE TABLE t (s VARCHAR(10) NULL);
+		CREATE VIEW v_escape AS SELECT {fn CONCAT(t.s, 'x')} AS e FROM t;
+	`)
+
+	v := c.GetDatabase("testdb").Views["v_escape"]
+	if v == nil {
+		t.Fatal("missing v_escape")
+	}
+	if len(v.Columns) != 1 {
+		t.Fatalf("v_escape columns = %v, want one", v.Columns)
+	}
+	// The escape wraps the call, whose argument is a nullable column, so the
+	// view column is nullable; the collation comes from that argument too.
+	if len(v.ColumnMetadata) != 1 {
+		t.Fatalf("v_escape metadata = %+v, want one column", v.ColumnMetadata)
+	}
+	col := v.ColumnMetadata[0]
+	if !col.Nullable {
+		t.Errorf("v_escape column %q recorded NOT NULL", col.Name)
+	}
+	if col.Collation == "" {
+		t.Errorf("v_escape column %q recorded no collation", col.Name)
+	}
+}

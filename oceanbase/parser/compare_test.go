@@ -12816,3 +12816,20 @@ func TestLoadDataRemoteOSSTakesNoS3Source(t *testing.T) {
 	}
 	ParseAndCheck(t, "LOAD DATA REMOTE_OSS INFILE 'remote/x.csv' INTO TABLE t")
 }
+
+func TestOrigDefaultKeepsSignKindAndPrecision(t *testing.T) {
+	uplus := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT +1").Items[0])
+	uminus := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT -1").Items[0])
+	if uplus == uminus || !strings.Contains(uplus, ":op +") || !strings.Contains(uminus, ":op -") {
+		t.Errorf("sign lost in ORIG_DEFAULT: +1=%s -1=%s", uplus, uminus)
+	}
+	frac := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT -1.5").Items[0])
+	if !strings.Contains(frac, "1.5") {
+		t.Errorf("decimal value lost in ORIG_DEFAULT: %s", frac)
+	}
+	now3 := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT NOW(3)").Items[0])
+	now0 := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT NOW()").Items[0])
+	if now3 == now0 || !strings.Contains(now3, ":args ") {
+		t.Errorf("NOW precision lost in ORIG_DEFAULT: NOW(3)=%s NOW()=%s", now3, now0)
+	}
+}
