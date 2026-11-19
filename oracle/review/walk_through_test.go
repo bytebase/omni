@@ -506,8 +506,26 @@ var walkForms = []walktest.Form{
 	{SQL: "INSERT INTO nokey VALUES (1);\nUPDATE t SET n = 1;\nDELETE FROM p WHERE id = 1;\nMERGE INTO nokey USING p ON (nokey.a = p.id) WHEN MATCHED THEN UPDATE SET nokey.a = 1;"},
 	{SQL: "INSERT ALL INTO nokey (a) VALUES (1) INTO p (id) VALUES (2) SELECT * FROM dual;"},
 	{SQL: "SELECT upper(note), count(*) FROM p GROUP BY note;"},
+	{SQL: "SELECT av.sales FROM ANALYTIC VIEW (USING sales_av) av;"},
+	// A derived analytic view's own columns: its ADD MEASURES names and a
+	// base measure's fact column, which the synced relation lacks.
+	{SQL: "SELECT av.lag_sales, lag_sales FROM ANALYTIC VIEW (USING sales_av ADD MEASURES(lag_sales AS(1))) av;"},
+	{SQL: "WITH av ANALYTIC VIEW AS (USING sales_av ADD MEASURES(lag_sales AS(1))) SELECT lag_sales FROM av;"},
+	// The element's columns are its USING relation's, under the element's
+	// name or the FROM alias.
+	{SQL: "SELECT note FROM p;"},
+	{SQL: "WITH av ANALYTIC VIEW AS (USING p) SELECT av.note FROM av;"},
+	{SQL: "WITH av ANALYTIC VIEW AS (USING p) SELECT note FROM av x;"},
+	// An INSERT's own query reads the element the same way.
+	{SQL: "INSERT INTO nokey WITH av ANALYTIC VIEW AS (USING p ADD MEASURES(m AS(1))) SELECT m FROM av;"},
+	// A name the statement qualifies is a table, not the element.
+	{SQL: "WITH av ANALYTIC VIEW AS (USING p ADD MEASURES(f AS(1))) SELECT f FROM shop.p;", Last: true},
 	// Ends the walk after its checks: it may run code of a schema.
 	{SQL: "SELECT f(1) FROM dual;", Last: true},
+	// An unused element's ADD MEASURES is no column of the query: F may be
+	// a schema function.
+	{SQL: "WITH av ANALYTIC VIEW AS (USING sales_av ADD MEASURES(f AS(1))) SELECT f FROM p;", Last: true},
+	{SQL: "SELECT m FROM ANALYTIC VIEW(USING av ADD MEASURES(m AS(pkg.f())));", Last: true},
 	{SQL: "INSERT INTO pv VALUES (1, 'a');", Last: true},
 	{SQL: "CREATE TABLE x AS SELECT f(1) a FROM dual;", Last: true},
 	{SQL: "CREATE INDEX i ON nokey (f(a));", Last: true},

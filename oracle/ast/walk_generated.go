@@ -380,6 +380,9 @@ func walkChildren(v Visitor, node Node) {
 	case *CTE:
 		walkList(v, n.Columns)
 		Walk(v, n.Query)
+		if n.SubAV != nil {
+			Walk(v, n.SubAV)
+		}
 		if n.Search != nil {
 			Walk(v, n.Search)
 		}
@@ -1025,6 +1028,19 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *InlineAnalyticView:
+		if n.Clause != nil {
+			Walk(v, n.Clause)
+		}
+		if n.Flashback != nil {
+			Walk(v, n.Flashback)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+		if n.Alias != nil {
+			Walk(v, n.Alias)
+		}
 	case *InlineExternalTable:
 		walkList(v, n.Columns)
 		Walk(v, n.RejectLimit)
@@ -1468,6 +1484,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *StreamingClause:
 		walkList(v, n.Columns)
+	case *SubAVClause:
+		if n.Using != nil {
+			Walk(v, n.Using)
+		}
+		walkList(v, n.Options)
 	case *SubqueryExpr:
 		Walk(v, n.Subquery)
 	case *SubqueryRef:
