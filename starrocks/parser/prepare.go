@@ -50,6 +50,11 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 				Message: "PREPARE FROM string must hold one statement",
 			}
 		}
+		// The tree is kept as well as the text: a query span reads a prepared
+		// statement's tables off the tree, and an analyst must see the reads
+		// `PREPARE p FROM 'SELECT * FROM t'` makes. Its Locs are offsets into
+		// the string's decoded text, not the statement's.
+		stmt.Query = nested.File.Stmts[0]
 		stmt.SQL = p.cur.Str
 		stmt.Loc = startLoc.Merge(p.cur.Loc)
 		p.advance()

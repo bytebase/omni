@@ -145,6 +145,13 @@ func (p *Parser) parseAlterPlanAdvisor(startLoc ast.Loc) (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// queryRelation is withClause? queryNoWith, so the body is a query; a
+		// WITH prefix that opens a DELETE or UPDATE is what queryStatement
+		// never holds here, and the server refuses
+		// `ALTER PLAN ADVISOR ADD WITH c AS (SELECT 1) DELETE FROM t`.
+		if !isQueryBody(query) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Query = query
 		stmt.Loc = startLoc.Merge(ast.NodeLoc(query))
 	case kwDROP:

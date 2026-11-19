@@ -19,10 +19,11 @@ func TestPrepare(t *testing.T) {
 		t.Errorf("Query = %T, want *ast.SelectStmt", stmt.Query)
 	}
 
-	// prepareSql's string is SQL as well, so its text is parsed too.
+	// prepareSql's string is SQL as well, so its text is parsed too and the
+	// tree kept beside it.
 	stmt = parseOne(t, `PREPARE p FROM 'SELECT 1'`).(*ast.PrepareStmt)
-	if stmt.Query != nil || stmt.SQL != "SELECT 1" {
-		t.Errorf("stmt = %+v, want the string SELECT 1", stmt)
+	if _, ok := stmt.Query.(*ast.SelectStmt); !ok || stmt.SQL != "SELECT 1" {
+		t.Errorf("stmt = %+v, want the string SELECT 1 and its tree", stmt)
 	}
 	for _, sql := range []string{
 		`PREPARE p FROM 'a'`,
@@ -114,5 +115,22 @@ func TestPrepareStringSharesTheNestingDepth(t *testing.T) {
 	inner := "SELECT " + strings.Repeat("(", 10001) + "1" + strings.Repeat(")", 10001)
 	if _, err := Parse("PREPARE p FROM '" + inner + "'"); err == nil {
 		t.Error("a PREPARE string deeper than the limit parsed, want an error")
+	}
+}
+
+func TestPrepareStringKeepsItsTree(t *testing.T) {
+	// A string body is SQL too, and its tree is kept, so a query span sees the
+	// tables `PREPARE p FROM 'SELECT * FROM secret'` reads. The tree's Locs
+	// are offsets into the string's decoded text, not the statement.
+	stmt := parseOne(t, `PREPARE p FROM 'SELECT * FROM secret'`).(*ast.PrepareStmt)
+	if stmt.SQL != `SELECT * FROM secret` {
+		t.Errorf("SQL = %q", stmt.SQL)
+	}
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+	if len(sel.From) != 1 {
+		t.Errorf("From = %v, want the one table", sel.From)
 	}
 }

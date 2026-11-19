@@ -575,3 +575,14 @@ func TestQualifiedLabelNeedsTheWholeSnapshot(t *testing.T) {
 		}
 	}
 }
+
+func TestPlanAdvisorBodyIsAQuery(t *testing.T) {
+	// queryRelation is withClause? queryNoWith, so a WITH prefix cannot open a
+	// DELETE or UPDATE here; the server refuses that body.
+	if _, errs := parseForTest(`ALTER PLAN ADVISOR ADD WITH c AS (SELECT 1) SELECT a FROM t`); len(errs) != 0 {
+		t.Errorf("a WITH query body: %v", errs)
+	}
+	if _, errs := parseForTest(`ALTER PLAN ADVISOR ADD WITH c AS (SELECT 1) DELETE FROM t WHERE a = 1`); len(errs) == 0 {
+		t.Error("a WITH DELETE body parsed, want a syntax error")
+	}
+}
