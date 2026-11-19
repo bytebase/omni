@@ -529,6 +529,8 @@ func TestGetQuerySpan_GraphSubqueryExpression(t *testing.T) {
 		// graph tree's expressions are walked even though its patterns name labels.
 		{"SELECT EXISTS { LET a = (SELECT MAX(x) FROM secret) RETURN a }", []string{"secret"}, 1},
 		{"SELECT EXISTS { MATCH (n) WHERE n.id IN (SELECT id FROM secret) RETURN n }", []string{"secret"}, 1},
+		// The IN form's graph subquery is walked like the others.
+		{"SELECT 1 IN { LET x = (SELECT id FROM secret) RETURN x }", []string{"secret"}, 1},
 		// A graph predicate's operands are walked: neither names a table here.
 		{"SELECT a FROM t WHERE a IS SOURCE b", []string{"t"}, 1},
 	}

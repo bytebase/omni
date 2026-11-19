@@ -1270,16 +1270,32 @@ func firstPathOf(t *testing.T, sql string) *ast.GraphPathPattern {
 }
 
 func TestGraphQuantifier(t *testing.T) {
-	// `+`, `*`, `{n}`, `{n,}`, `{,m}` and `{n,m}` are all quantifiers on an edge,
-	// and each keeps the edge pattern as the factor.
+	// `+`, `*`, `{n}`, `{n,}`, `{,m}` and `{n,m}` are all quantifiers on an edge.
+	// The grammar wraps a quantified edge in a path pattern, so the factor is a
+	// one-factor *GraphPathPattern whose own factor is the edge.
 	for _, pattern := range []string{"- +", "- *", "- { 1 }", "- { 1, }", "- {, 2 }", "- { 1, 2 }"} {
 		path := firstPathOf(t, "SELECT EXISTS { "+pattern+" }")
 		if len(path.Factors) != 1 {
 			t.Fatalf("%q: %d factors, want 1", pattern, len(path.Factors))
 		}
-		if _, ok := path.Factors[0].(*ast.GraphEdgePattern); !ok {
-			t.Errorf("%q: factor is %T, want *ast.GraphEdgePattern", pattern, path.Factors[0])
+		wrapped, ok := path.Factors[0].(*ast.GraphPathPattern)
+		if !ok {
+			t.Fatalf("%q: factor is %T, want *ast.GraphPathPattern", pattern, path.Factors[0])
 		}
+		if len(wrapped.Factors) != 1 {
+			t.Fatalf("%q: quantified path has %d factors, want 1", pattern, len(wrapped.Factors))
+		}
+		if _, ok := wrapped.Factors[0].(*ast.GraphEdgePattern); !ok {
+			t.Errorf("%q: quantified factor is %T, want *ast.GraphEdgePattern", pattern, wrapped.Factors[0])
+		}
+		if wrapped.Loc.End == nodeLoc(wrapped.Factors[0]).End {
+			t.Errorf("%q: quantified path Loc does not span the quantifier", pattern)
+		}
+	}
+	// A quantifier on a parenthesized path keeps the path itself.
+	path := firstPathOf(t, "SELECT EXISTS { (-)+ }")
+	if _, ok := path.Factors[0].(*ast.GraphPathPattern); !ok {
+		t.Errorf("quantified parenthesized path is %T, want *ast.GraphPathPattern", path.Factors[0])
 	}
 	// A quantifier on a node pattern is refused, as the grammar's action does.
 	if _, errs := parseForTest("SELECT EXISTS { (a)* }"); len(errs) == 0 {
@@ -1319,6 +1335,17 @@ func TestGraphHintPlacement(t *testing.T) {
 	if _, errs := parseForTest("SELECT EXISTS { -@1 - }"); len(errs) == 0 {
 		t.Error("parseForTest accepted a hint between two edge patterns")
 	}
+	// A quantified edge is a path pattern, not an edge factor, so a hint beside
+	// one is not the edge-edge case.
+	for _, sql := range []string{
+		"SELECT EXISTS { -+ @1 - }",
+		"SELECT EXISTS { - @1 -+ }",
+		"SELECT EXISTS { -+ @1 -+ }",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
 	// A hint may not open a parenthesized path pattern.
 	if _, errs := parseForTest("SELECT EXISTS { (@1 -) }"); len(errs) == 0 {
 		t.Error("parseForTest accepted a hint at the beginning of a path pattern")
@@ -1351,6 +1378,46 @@ func TestGraphKeywordIdentifiers(t *testing.T) {
 		"SELECT a QUALIFY ROW_NUMBER() OVER () = 1",
 		"SELECT SAFE_CAST(a AS INT64) FROM t",
 		"SELECT REPLACE_FIELDS(a, b AS c) FROM t",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+}
+
+func TestGraphCallOpAndPrefixStrictness(t *testing.T) {
+	// OPTIONAL is the call's first token and its Loc must span it.
+	call := firstLinearOp(t, "SELECT EXISTS { OPTIONAL CALL a() }")
+	c, ok := call.(*ast.GraphCallOp)
+	if !ok {
+		t.Fatalf("operator is %T, want *ast.GraphCallOp", call)
+	}
+	if !c.Optional {
+		t.Error("Optional = false, want true")
+	}
+	if got := c.Loc.End - c.Loc.Start; got != len("OPTIONAL CALL a()") {
+		t.Errorf("Loc spans %d bytes, want %d (the whole operator)", got, len("OPTIONAL CALL a()"))
+	}
+	// The grammar's strict shapes: no ALL count, no trailing comma in a
+	// parenthesized identifier list, and no hint on an IN graph subquery.
+	for _, sql := range []string{
+		"SELECT EXISTS { ALL 2 - }",
+		"SELECT EXISTS { CALL PER(a,) a() }",
+		"SELECT EXISTS { CALL(a,) { RETURN NULL } }",
+		"SELECT 1 IN @1 { RETURN NULL }",
+		"SELECT EXISTS { (a)* }",
+		"SELECT EXISTS { - { } }",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) accepted text the grammar refuses", sql)
+		}
+	}
+	for _, sql := range []string{
+		"SELECT EXISTS { ANY 2 - }",
+		"SELECT EXISTS { SHORTEST 2 - }",
+		"SELECT EXISTS { CHEAPEST 2 - }",
+		"SELECT EXISTS { CALL PER() a() }",
+		"SELECT EXISTS { CALL(a) { RETURN NULL } }",
 	} {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)

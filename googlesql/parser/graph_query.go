@@ -209,8 +209,15 @@ func (p *Parser) parseGraphLinearOperator() (ast.Node, error) {
 		// OPTIONAL introduces graph_optional_match_operator or the OPTIONAL form
 		// of graph_call_operator; no other linear operator takes it.
 		if p.peekNext().Type == kwCALL {
-			p.advance() // OPTIONAL
-			return p.parseGraphCallOp(true)
+			optional := p.advance() // OPTIONAL
+			op, err := p.parseGraphCallOp(true)
+			if err != nil {
+				return nil, err
+			}
+			// The node spans OPTIONAL, its first token.
+			call := op.(*ast.GraphCallOp)
+			call.Loc.Start = optional.Loc.Start
+			return call, nil
 		}
 		return p.parseGraphMatchOp(true)
 	case kwCALL:
@@ -951,37 +958,48 @@ func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
 	// '@' for the caller (which would have its own hint position). Because the only
 	// position a trailing '@' could be consumed is here, we detect it and demand a
 	// factor.
+	factor, err := p.parseGraphPathFactor()
+	if err != nil {
+		return nil, err
+	}
+	pp.Factors = append(pp.Factors, factor)
+	pp.Loc.End = nodeLoc(factor).End
 	for {
-		factor, err := p.parseGraphPathFactor()
+		// A '@' here opens a `hint? graph_path_factor` continuation. Consume the
+		// hint, then REQUIRE a following factor (F5).
+		hintLoc := ast.Loc{}
+		hasHint := false
+		if p.cur.Type == int('@') {
+			hintLoc = p.cur.Loc
+			if herr := p.skipHint(); herr != nil {
+				return nil, herr
+			}
+			hasHint = true
+			if !p.atGraphPathFactor() {
+				return nil, p.syntaxErrorAtCur()
+			}
+		} else if !p.atGraphPathFactor() {
+			break
+		}
+		next, err := p.parseGraphPathFactor()
 		if err != nil {
 			return nil, err
 		}
-		pp.Factors = append(pp.Factors, factor)
-		pp.Loc.End = nodeLoc(factor).End
-		if p.cur.Type != int('@') {
-			if !p.atGraphPathFactor() {
-				break
-			}
-			continue
-		}
-		// A '@' here opens a `hint? graph_path_factor` continuation. Consume the
-		// hint, then REQUIRE a following factor (F5).
-		hintStart := p.cur.Loc
-		if herr := p.skipHint(); herr != nil {
-			return nil, herr
-		}
-		if !p.atGraphPathFactor() {
-			return nil, p.syntaxErrorAtCur()
-		}
 		// A hint between two EDGE patterns is ambiguous and the grammar refuses it
-		// ("Hint cannot be used in between two …"), so `- @1 -` rejects.
-		if _, lastIsEdge := pp.Factors[len(pp.Factors)-1].(*ast.GraphEdgePattern); lastIsEdge && atGraphEdgeStart(p.cur.Type) {
-			return nil, &ParseError{
-				Position: hintStart.Start,
-				End:      hintStart.End,
-				Message:  "Syntax error: Hint cannot be used in between two edge patterns",
+		// ("Hint cannot be used in between two …"), so `- @1 -` rejects while a
+		// quantified edge (a one-factor path pattern) or a node pattern does not.
+		if hasHint {
+			_, lastIsEdge := pp.Factors[len(pp.Factors)-1].(*ast.GraphEdgePattern)
+			if _, nextIsEdge := next.(*ast.GraphEdgePattern); lastIsEdge && nextIsEdge {
+				return nil, &ParseError{
+					Position: hintLoc.Start,
+					End:      hintLoc.End,
+					Message:  "Syntax error: Hint cannot be used in between two edge patterns",
+				}
 			}
 		}
+		pp.Factors = append(pp.Factors, next)
+		pp.Loc.End = nodeLoc(next).End
 	}
 	pp.Loc.Start = start
 	return pp, nil
@@ -1090,12 +1108,18 @@ func (p *Parser) parseGraphQuantifier(primary ast.Node) (ast.Node, error) {
 			return nil, err
 		}
 	}
-	// Extend the primary's Loc to include the quantifier so the factor spans it.
+	// Extend the primary's Loc to include the quantifier so the factor spans it. A
+	// quantified EDGE becomes a one-factor graph_path_pattern, as the grammar's
+	// action wraps it (`quantifier_container = MakeNode<ASTGraphPathPattern>`), so a
+	// quantified edge is a path and not a bare edge factor — which is what keeps
+	// the hint rule below from reading `-+ @1 -` as a hint between two edges.
 	switch n := primary.(type) {
-	case *ast.GraphNodePattern:
-		n.Loc.End = closeTok.Loc.End
 	case *ast.GraphEdgePattern:
 		n.Loc.End = closeTok.Loc.End
+		return &ast.GraphPathPattern{
+			Factors: []ast.Node{n},
+			Loc:     ast.Loc{Start: n.Loc.Start, End: closeTok.Loc.End},
+		}, nil
 	case *ast.GraphPathPattern:
 		n.Loc.End = closeTok.Loc.End
 	}
@@ -1299,7 +1323,9 @@ func (p *Parser) parseGraphSearchPrefix() (string, error) {
 	case p.curIsGraphWord("CHEAPEST"):
 		p.advance()
 		return lead + " CHEAPEST", nil
-	case atIntLiteralOrParameter(p.cur.Type):
+	case lead != "ALL" && atIntLiteralOrParameter(p.cur.Type):
+		// Counts follow ANY, SHORTEST and CHEAPEST only: graph_search_prefix has no
+		// `ALL <count>` alternative, so `ALL 2 -` is not a path.
 		start := p.cur.Loc.Start
 		if _, err := p.parseGraphIntLiteralOrParameter(); err != nil {
 			return "", err
@@ -2010,6 +2036,10 @@ func (p *Parser) parseGraphIdentifierList() ([]string, int, error) {
 			break
 		}
 		p.advance() // ,
+		// parenthesized_identifier_list is an identifier_list: no trailing comma.
+		if p.cur.Type == int(')') {
+			return nil, 0, p.syntaxErrorAtCur()
+		}
 	}
 	closeTok, err := p.expect(int(')'))
 	if err != nil {

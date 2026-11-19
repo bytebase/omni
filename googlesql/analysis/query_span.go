@@ -2194,6 +2194,11 @@ func (ew *exprWalk) walk(node ast.Node) {
 		ew.walkList(e.Values)
 		ew.walk(e.Unnest)
 		ew.walk(e.Subquery)
+		// The braced graph subquery RHS (graph_expression's `expr IN { … }`): its
+		// patterns name labels, but a nested scalar subquery is still an access.
+		if e.GraphSubquery != nil {
+			ew.walk(e.GraphSubquery)
+		}
 	case *ast.BetweenExpr:
 		ew.walk(e.Expr)
 		ew.walk(e.Low)

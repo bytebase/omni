@@ -486,8 +486,15 @@ func (p *Parser) parseIn(left ast.Node, not bool) (ast.Node, error) {
 	}
 
 	// `expr [NOT] IN { <graph subquery> }` (graph_expression's IN over a
-	// braced_graph_subquery).
+	// braced_graph_subquery). The production takes no hint, so a `@1` before the
+	// brace is a syntax error rather than a hint on the subquery.
 	if p.cur.Type == int('{') {
+		if hadHint {
+			return nil, &ParseError{
+				Position: inTok.Loc.Start, End: inTok.Loc.End,
+				Message: "Syntax error: HINTs cannot be specified on IN clause with a graph subquery",
+			}
+		}
 		sub, err := p.parseGraphBracedSubquery()
 		if err != nil {
 			return nil, err
