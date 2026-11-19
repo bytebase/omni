@@ -389,7 +389,7 @@ func unwrapParenColumnRef(expr nodes.ExprNode) (*nodes.ColumnRef, bool) {
 // leaves: measured on mariadb:11.8.8,
 // `ALTER TABLE t ADD a INT CHECK (a > b), ADD b INT CHECK (b < a)` runs over a
 // table with neither column, where a name no column of the result has is 1054.
-func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool) error {
 	for _, cmd := range cmds {
 		if cmd == nil {
 			continue
@@ -400,7 +400,9 @@ func validateAlteredColumnExprColumns(tbl *Table, cmds []*nodes.AlterTableCmd) e
 			continue
 		}
 		for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
-			if colDef == nil {
+			// A column IF NOT EXISTS finds is a note whose definition is never
+			// read.
+			if colDef == nil || skipped[colDef] {
 				continue
 			}
 			if err := validateColumnExprColumns(tbl, colDef); err != nil {

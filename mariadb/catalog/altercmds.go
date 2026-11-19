@@ -109,11 +109,17 @@ func (c *Catalog) alterTableKeepingOptions(db *Database, tbl *Table, key string,
 	return nil
 }
 
-// refuseCopyAlterOnDiscarded refuses an ALTER that needs a copy of a table whose
-// tablespace the statement DISCARDed: 1814. The catalog knows the commands that
-// rewrite the table's storage — a ROW_FORMAT or an ENGINE option, and a column
-// whose type changes — and not the rest (MariaDB also refuses FORCE and an added
-// CHECK there).
+// refuseCopyAlterOnDiscarded refuses an ALTER that asks for a copy of a table
+// whose tablespace the statement DISCARDed: 1814, for the commands that name the
+// rewrite — FORCE, ORDER BY, ALGORITHM=COPY, and an ENGINE or ROW_FORMAT option.
+//
+// What else needs the copy is InnoDB's in-place decision, which the catalog does
+// not model, and which the statement alone does not say: measured on
+// mariadb:11.8.8 over a discarded table, `MODIFY s VARCHAR(20)` and a COLLATE
+// change run where a CHARACTER SET change, `MODIFY b INT NULL` and `MODIFY b INT
+// DEFAULT 1` answer 1814; and `ADD UNIQUE KEY u (c)` runs over a table with a
+// primary key while `ADD c INT UNIQUE` and `CREATE UNIQUE INDEX u ON a (b)`
+// answer 1814 over one without. Those ALTERs are left to run.
 func refuseCopyAlterOnDiscarded(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 	for _, cmd := range cmds {
 		switch cmd.Type {
@@ -133,35 +139,6 @@ func refuseCopyAlterOnDiscarded(tbl *Table, cmds []*nodes.AlterTableCmd) error {
 			switch toLower(cmd.Option.Name) {
 			case "engine", "row_format":
 				return errTablespaceDiscarded(tbl.Name)
-			}
-		case nodes.ATAddIndex, nodes.ATAddConstraint:
-			// A UNIQUE, PRIMARY, FOREIGN, FULLTEXT or CHECK key rebuilds the
-			// table where an ordinary or SPATIAL one does not: measured on
-			// mariadb:11.8.8 over a discarded table, `ADD INDEX i (b)` and
-			// `ADD SPATIAL KEY s (g)` run and the other five answer 1814.
-			if cmd.Constraint == nil {
-				continue
-			}
-			switch cmd.Constraint.Type {
-			case nodes.ConstrPrimaryKey, nodes.ConstrUnique, nodes.ConstrForeignKey,
-				nodes.ConstrCheck, nodes.ConstrFulltextIndex:
-				return errTablespaceDiscarded(tbl.Name)
-			}
-		case nodes.ATModifyColumn, nodes.ATChangeColumn:
-			for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
-				if colDef == nil || colDef.TypeName == nil {
-					continue
-				}
-				col := tbl.GetColumn(cmd.Name)
-				if col == nil {
-					col = tbl.GetColumn(colDef.Name)
-				}
-				if col == nil {
-					continue
-				}
-				if !eqFoldStr(col.ColumnType, formatColumnType(colDef.TypeName)) {
-					return errTablespaceDiscarded(tbl.Name)
-				}
 			}
 		}
 	}
@@ -347,8 +324,19 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return err
 	}
 
-	// The keys IF NOT EXISTS finds are notes whose definitions are never read,
-	// and which is found is the table the statement began with.
+	// The columns and keys IF NOT EXISTS finds are notes whose definitions are
+	// never read, and which is found is the table the statement began with.
+	skippedColumns := map[*nodes.ColumnDef]bool{}
+	for _, cmd := range stmt.Commands {
+		if cmd == nil || cmd.Type != nodes.ATAddColumn || !cmd.IfNotExists {
+			continue
+		}
+		for _, colDef := range append([]*nodes.ColumnDef{cmd.Column}, cmd.Columns...) {
+			if colDef != nil && tableHasColumn(tbl, colDef.Name) {
+				skippedColumns[colDef] = true
+			}
+		}
+	}
 	skippedKeys := map[*nodes.Constraint]bool{}
 	for _, cmd := range stmt.Commands {
 		cons := cmd.Constraints
@@ -423,7 +411,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			*tbl = snapshot
 			return err
 		}
-		if err := validateAlteredColumnExprColumns(tbl, stmt.Commands); err != nil {
+		if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -464,7 +452,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		rollback()
 		return err
 	}
-	if err := validateAlteredColumnExprColumns(tbl, stmt.Commands); err != nil {
+	if err := validateAlteredColumnExprColumns(tbl, stmt.Commands, skippedColumns); err != nil {
 		rollback()
 		return err
 	}

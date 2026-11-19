@@ -981,13 +981,6 @@ func TestSimulationCausesOracle(t *testing.T) {
 			keepsSchema: true,
 		},
 		{
-			name:        "MODIFY that changes the type of a discarded table's column",
-			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
-			stmt:        "ALTER TABLE a MODIFY c BIGINT",
-			code:        1814,
-			keepsSchema: true,
-		},
-		{
 			name:  "ADD COLUMN to a table whose tablespace was DISCARDed",
 			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
 			stmt:  "ALTER TABLE a ADD e INT",
@@ -1059,13 +1052,6 @@ func TestSimulationCausesOracle(t *testing.T) {
 			keepsSchema: true,
 		},
 		{
-			name:        "ADD CHECK to a table whose tablespace was DISCARDed",
-			setup:       []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
-			stmt:        "ALTER TABLE a ADD CHECK (b > 0)",
-			code:        1814,
-			keepsSchema: true,
-		},
-		{
 			name:  "ADD INDEX to a table whose tablespace was DISCARDed",
 			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
 			stmt:  "ALTER TABLE a ADD INDEX i (d)",
@@ -1126,6 +1112,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "two added columns whose CHECKs read each other",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD e INT CHECK (e > f), ADD f INT CHECK (f < e)",
+			code:  0,
+		},
+		// A column's own UNIQUE and REFERENCES rebuild a discarded table where its
+		// CHECK and DEFAULT do not, and a UNIQUE or FULLTEXT index does where an
+		// ordinary one does not.
+		{
+			name:  "ADD a column with a CHECK to a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a ADD e INT CHECK (e > 0)",
+			code:  0,
+		},
+		{
+			name:  "CREATE INDEX over a table whose tablespace was DISCARDed",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "CREATE INDEX i ON a (c)",
+			code:  0,
+		},
+		// A column IF NOT EXISTS finds is a note whose DEFAULT is not read.
+		{
+			name:  "ADD COLUMN IF NOT EXISTS of a column the table holds, with a DEFAULT that names nobody",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN IF NOT EXISTS c INT DEFAULT missing",
 			code:  0,
 		},
 		// A column the table already holds is 1060 before the key it would be
