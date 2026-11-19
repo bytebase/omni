@@ -878,6 +878,12 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 // collation's own, and a name no character set starts is a lookup omni does not
 // make (1273 on the server).
 //
+// MariaDB's list of collations is not in the parser, so a name carrying a character
+// set's prefix that the server does not have — an invented `utf8mb4_codex_missing`
+// — reads as that character set's own here and answers 1253 where the server answers
+// 1273. Both refuse the statement; a name the server does not have is a lookup the
+// catalog does not model either, which is why compat.tsv counts 1273 as parsed.
+//
 // Ref: merge_charset_and_collation in MariaDB 11.8 sql/sql_yacc.yy and
 // sql/lex_charset.cc, read against mariadb:11.8.8.
 func collationCharsetRefusal(charset, collation string, pos int) *ParseError {

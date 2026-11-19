@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"testing"
 )
@@ -15,6 +16,17 @@ import (
 // SPATIAL key over a column whose type it cannot index, and the table options
 // MariaDB stores differently from the text it was given: ROW_FORMAT DEFAULT,
 // TABLESPACE, SERIAL, CHAR BYTE, CHAR COLLATE BINARY, and MAX_ROWS.
+// mariadbShowCreate reads the server's SHOW CREATE TABLE of a table in the test's
+// database.
+func mariadbShowCreate(t *testing.T, conn *sql.DB, name string) string {
+	t.Helper()
+	var table, create string
+	if err := conn.QueryRow("SHOW CREATE TABLE "+name).Scan(&table, &create); err != nil {
+		t.Fatalf("SHOW CREATE TABLE %s: %v", name, err)
+	}
+	return normalizeShowCreate(create)
+}
+
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := mariadbDatabase(t)
 	ctx := context.Background()
@@ -49,6 +61,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// absent names a table both sides must leave absent, for a statement a
 		// missing table takes silently.
 		absent string
+		// keepsSchema holds the case whose statement fails with the table as it
+		// was, which both sides must then still show: table a, or keptTable.
+		keepsSchema bool
+		keptTable   string
 		// contains and omits are text both SHOW CREATE TABLE texts must hold
 		// and must not hold.
 		contains []string
@@ -650,6 +666,36 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ROW_FORMAT FIXED",
 			code:  0,
 		},
+		// The columns a statement adds are read before any of them is built, so a
+		// generated one may not read a generated column added after it; a plain
+		// column added later is fine. The statement leaves the table as it was.
+		{
+			name:        "ADD two generated columns that read each other",
+			setup:       []string{"CREATE TABLE x (k INT PRIMARY KEY)"},
+			stmt:        "ALTER TABLE x ADD q INT AS(r), ADD r INT AS(q)",
+			code:        4029,
+			keepsSchema: true,
+			keptTable:   "x",
+		},
+		{
+			name:  "ADD two generated columns that read each other in one list",
+			setup: []string{"CREATE TABLE x (k INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE x ADD (q INT AS(r), r INT AS(q))",
+			code:  4029,
+		},
+		{
+			name:  "ADD a generated column reading a plain column added after it",
+			setup: []string{"CREATE TABLE x (k INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE x ADD q INT AS(r), ADD r INT",
+			code:  0,
+		},
+		{
+			name:        "ROW_FORMAT FIXED with the engine the table has",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ENGINE=InnoDB ROW_FORMAT FIXED",
+			code:        1478,
+			keepsSchema: true,
+		},
 		// A partition maintenance command takes a table that is not there
 		// silently, where REBUILD PARTITION and REMOVE PARTITIONING are 1146.
 		{
@@ -691,15 +737,32 @@ func TestSimulationCausesOracle(t *testing.T) {
 			if engineCode != tc.code {
 				t.Fatalf("mariadb: %s answered %d, want %d", tc.stmt, engineCode, tc.code)
 			}
+			keptTable := tc.keptTable
+			if keptTable == "" {
+				keptTable = "a"
+			}
+			beforeEngine := ""
+			if tc.keepsSchema {
+				beforeEngine = mariadbShowCreate(t, conn, keptTable)
+			}
 
 			c := New()
 			execAlterClauses(t, c, "CREATE DATABASE d; USE d;")
 			for _, stmt := range tc.setup {
 				execAlterClauses(t, c, stmt)
 			}
+			beforeCatalog := c.ShowCreateTable("d", keptTable)
 			catalogCode, _ := catalogErr(t, c, tc.stmt)
 			if catalogCode != engineCode {
 				t.Fatalf("catalog: %s answered %d, mariadb answered %d", tc.stmt, catalogCode, engineCode)
+			}
+			if tc.keepsSchema {
+				if got := mariadbShowCreate(t, conn, keptTable); got != beforeEngine {
+					t.Fatalf("mariadb kept\n%s\nafter %s, where it had\n%s", got, tc.stmt, beforeEngine)
+				}
+				if got := c.ShowCreateTable("d", keptTable); got != beforeCatalog {
+					t.Fatalf("catalog kept\n%s\nafter %s, where it had\n%s", got, tc.stmt, beforeCatalog)
+				}
 			}
 			if tc.refs != "" {
 				want := tc.refs
