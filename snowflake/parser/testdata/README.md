@@ -24,7 +24,7 @@ generated grammar and rows moved with them.
 
 `undocumented` rows are the near-misses the docs do not derive; docs say what is
 valid, not what Snowflake refuses, so they pass whatever omni says. The new pin
-has 53,144 of them; the converter and parser changes below leave 53,222.
+has 53,144 of them; the converter and parser changes below leave 53,289.
 
 ## The grammar and its fixes
 
@@ -117,31 +117,43 @@ OMNI_RECORD=1 go test ./snowflake/parser/ -run '^TestCompatibility$'
 go test ./snowflake/parser/ -run '^TestCompatibility$' -update-compat
 ```
 
-## What is left: 49 rows
+## What is left: 31 rows
 
 After the pin bump the docs judged 118 rows that omni rejects. The converter
-and parser changes above close 69 of them. Every remaining row is `reject` in
-omni and `accept` in the docs, grouped here by the page whose notation or
-reading leaves it. No alternative row that agreed with the docs stopped
-agreeing; the only rows whose expected moved from `accept` to `undocumented`
-are near-misses that write a name other than the sample (81), as the name
-sample says above.
+and parser changes above closed 69; #1459 left 49. This pass closes 18 more:
 
-| Page | Rows | What remains |
+- **`execute-dbt-project` (11).** The page writes two forms, and the second
+  brackets `FROM WORKSPACE` and still lists `IMPORTS`, so
+  `EXECUTE DBT PROJECT IMPORTS = (...)` with no project at all is the page's
+  shape. `dbtExecuteWorkspaceProps` now takes `IMPORTS` beside `PROJECT_ROOT`.
+- **`show-semantic-dimensions`, `-facts`, `-metrics` (3).** The pages' `IN`
+  choice takes a `<semantic_view_name>`, a QNAME, before the `ACCOUNT`,
+  `DATABASE` and `SCHEMA` scopes. Snowflake does not reserve `SCHEMA`, so
+  `IN SCHEMA.a` is a semantic view named `a` in database `SCHEMA`, not the
+  `SCHEMA` scope with a stray `.a`; `parseShowScope` reads a scope keyword
+  followed by `.` as the first part of the name.
+- **The property runs (4).** `create-interactive-warehouse`'s
+  `objectProperties` and `objectParams`, and `create-` and
+  `alter-organization-user`'s `objectProperties`, list their properties one
+  per line, and the converter read that as `( ... )+`: any number of them,
+  so a sampled run could name the same property twice. The page's examples
+  never repeat one and its parameters say nothing about setting one twice, so
+  `docs-fixes.tsv` rewrites each list as the alternatives that start at each
+  property and take the later ones optionally, in the page's order, as the
+  ALTER RESOURCE MONITOR fix already does. No parser change was made to fit
+  the samples.
+
+The remaining rows are all `reject` in omni and `accept` in the docs, grouped
+by the page whose notation or reading leaves them:
+
+| Page | Rows | What remains, in the page's words |
 | --- | --- | --- |
-| alter-stage | 19 | `ALTER STAGE <name> SET` with no property, which the `statement` rule holds as `statement/alterStage` too; the external form's `SET { [ externalStageParams ] [ FILE_FORMAT ] [ COMMENT ] }` and its all-optional GCS/Azure `externalStageParams` have no notation for "at least one", so a page-local fix would invent a required parameter. |
-| execute-dbt-project | 11 | `EXECUTE DBT PROJECT IMPORTS = (...)` with no project: the page's `FROM WORKSPACE` is optional, and omni does not read these targetless forms. The system-function calls are the five the parameters name, not a bare identifier. |
-| alter-task-graph | 9 | `<property> = <value>`, `<default_property>` and a repeated property run. The page says the properties are the ones in CREATE TASK GRAPH rather than listing them, and no grammar can stop `SET a = a` or a property named twice. `UNSET a` is the same: `a` is not one of the page's properties. |
-| create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> )`; the page's list of supported default properties is prose, and the run may repeat one. |
-| create-interactive-warehouse | 2 | A property run `( ... )+` may name the same property twice. |
-| show-semantic-dimensions, -facts, -metrics | 3 | `IN SCHEMA.a` with the database part dropped; the page also lets `IN` take a `<semantic_view_name>`, a qualified name, and `SCHEMA.a` is one, so the docs say this is valid. |
-| alter-organization-user | 1 | `SET EMAIL = 's' EMAIL = 's'`: the property run repeats a property. |
-| create-organization-user | 1 | A property run may name the same property twice. |
+| alter-stage | 19 | `ALTER STAGE [ IF EXISTS ] <name> SET { [ externalStageParams ] [ FILE_FORMAT = ( ... ) ] [ COMMENT = '<string_literal>' ] }`, and the external stage's Amazon S3, Google Cloud Storage and Microsoft Azure `externalStageParams` are all optional too, as the page writes them (the Amazon S3 one after docs-fixes lets an ALTER change the credentials or encryption and keep the URL). Nothing says "at least one", so `ALTER STAGE a SET` is the page's own shape; a page-local fix would invent a required parameter ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-stage)). The `statement` rule holds the same form as `statement/alterStage`. |
+| alter-task-graph | 9 | `SET <property> = <value> [ , <property> = <value> ... ]`, `UNSET <property> [ , ... ]`, `SET TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )` and its UNSET. The page says the properties are "the ones listed in CREATE TASK GRAPH" and lists the defaults only in prose, so its notation derives any name, `SET a = a` and a repeated property alike; omni checks the names, which no grammar there can ([page](https://docs.snowflake.com/en/sql-reference/sql/alter-task-graph)). |
+| create-task-graph | 3 | `TASK_DEFAULTS ( <default_property> = <value> [ , ... ] )`: the page's list of supported default properties is prose in its TASK_DEFAULTS parameter, so `a = a` and a repeated one are the notation's, not a stated form ([page](https://docs.snowflake.com/en/sql-reference/sql/create-task-graph)). |
 
-The agree count moved from 20,486 to 20,472 and the `undocumented` count from
-53,144 to 53,222; the total moved from 73,748 to 73,743. The object-type choice
-lost its `ACCOUNT` alternative on four rules, the search-optimization actions
-lost their trailing `EQUALITY` (with four `suite:` rows keeping the SUSPEND and
-RESUME targets), and `use-schema` gained the page's qualified form
-(`USE <db_name>.<schema_name>`) beside the `USE SCHEMA` one, as its parameters
-say.
+The agree count moved from 20,472 to 20,529 and the `undocumented` count from
+53,222 to 53,289; the total moved from 73,743 to 73,849, because the four
+property-list rules now have one alternative per property instead of the two
+a `( ... )+` run had. The pin is the same: `docs-fixes.tsv` changed, the pages
+did not. No alternative row that agreed with the docs stopped agreeing.

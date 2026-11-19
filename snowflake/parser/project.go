@@ -308,13 +308,14 @@ var dbtExecuteProps = map[string]execValue{
 }
 
 // dbtExecuteWorkspaceProps are the properties EXECUTE DBT PROJECT [ FROM
-// WORKSPACE <name> ] takes: PROJECT_ROOT in place of IMPORTS and WRITEBACK.
+// WORKSPACE <name> ] takes: CREATE's but WRITEBACK, and PROJECT_ROOT.
 var dbtExecuteWorkspaceProps = map[string]execValue{
 	"ARGS":                         execString,
 	"DBT_VERSION":                  execString,
 	"EXTERNAL_ACCESS_INTEGRATIONS": execNames,
 	"ENVIRONMENT":                  execString,
 	"ENV_VARS":                     execEnvVars,
+	"IMPORTS":                      execImports,
 	"PROJECT_ROOT":                 execString,
 }
 
@@ -329,9 +330,11 @@ var dbtExecuteWorkspaceProps = map[string]execValue{
 //	  [ WRITEBACK = { TRUE | FALSE } ]
 //	EXECUTE DBT PROJECT [ IF EXISTS ] [ FROM WORKSPACE <name> ]
 //	  [ ARGS = ... ] [ DBT_VERSION = ... ] [ EXTERNAL_ACCESS_INTEGRATIONS = ... ]
-//	  [ ENVIRONMENT = ... ] [ ENV_VARS = ... ] [ PROJECT_ROOT = '<subdirectory_path>' ]
+//	  [ ENVIRONMENT = ... ] [ ENV_VARS = ... ]
+//	  [ IMPORTS = ( ... ) ] [ PROJECT_ROOT = '<subdirectory_path>' ]
 //
-// The second form brackets FROM WORKSPACE, so it may name no project at all.
+// The second form brackets FROM WORKSPACE, so it may name no project at all,
+// and it takes IMPORTS as the page writes it, beside PROJECT_ROOT.
 //
 // https://docs.snowflake.com/en/sql-reference/sql/execute-dbt-project
 func (p *Parser) parseExecuteDbtProject(s *ast.ObjectStmt) error {

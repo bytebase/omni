@@ -148,8 +148,10 @@ func TestParseExecuteDbtProject(t *testing.T) {
 		"EXECUTE DBT PROJECT IF EXISTS":      0,
 		"EXECUTE DBT PROJECT ARGS = 'build'": 1,
 		"EXECUTE DBT PROJECT FROM WORKSPACE \"USER$\".PUBLIC.\"ws\" PROJECT_ROOT = 'p'": 2,
-		"EXECUTE DBT PROJECT p":  0,
-		"EXECUTE DBT PROJECT if": 0, // a project named IF
+		"EXECUTE DBT PROJECT FROM WORKSPACE w IMPORTS = ('s')":                          2, // the workspace form's
+		"EXECUTE DBT PROJECT IMPORTS = ('s')":                                           1, // no project at all
+		"EXECUTE DBT PROJECT p":                                                         0,
+		"EXECUTE DBT PROJECT if":                                                        0, // a project named IF
 	} {
 		if s := mustExecuteStmt(t, in, "DBT PROJECT"); len(s.Clauses) != clauses {
 			t.Errorf("%q: clauses = %q", in, clauseKeywords(s))
@@ -158,8 +160,7 @@ func TestParseExecuteDbtProject(t *testing.T) {
 
 	for _, in := range []string{
 		"EXECUTE DBT PROJECT p PROJECT_ROOT = 'x'",              // the workspace form's
-		"EXECUTE DBT PROJECT FROM WORKSPACE w IMPORTS = ('s')",  // the named form's
-		"EXECUTE DBT PROJECT FROM WORKSPACE w WRITEBACK = TRUE", // likewise
+		"EXECUTE DBT PROJECT FROM WORKSPACE w WRITEBACK = TRUE", // the named form's
 		"EXECUTE DBT PROJECT p ARGS = 'a' ARGS = 'b'",
 		"EXECUTE DBT PROJECT p ARGS = run",
 		"EXECUTE DBT PROJECT p IMPORTS = (a)",
