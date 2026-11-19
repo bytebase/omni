@@ -2523,7 +2523,9 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	p.parseGrantOptWith()
-	if p.cur.Type == RENAME || p.cur.Type == OWNER {
+	// OWNER TO is an alterRole production; r_ALTER_USER's options have RENAME TO
+	// and no OWNER.
+	if p.cur.Type == RENAME || (!isUser && p.cur.Type == OWNER) {
 		return p.parseRedshiftAlterRoleClauses(role, loc, isUser)
 	}
 	if (!isUser && (p.cur.Type == SET || p.cur.Type == RESET)) || p.cur.Type == IN_P {

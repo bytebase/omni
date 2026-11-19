@@ -388,3 +388,85 @@ CREATE VIEW v_keep AS SELECT id FROM mv;`)
 		t.Fatalf("v_keep is created %d times, want once after the new view", creates)
 	}
 }
+
+// TestMigrationMatViewReplaceKeepsGrants pins the grants a re-created dependent
+// keeps: DROP VIEW takes them with it, and an unchanged grant has no diff op of
+// its own, so the replacement writes it back.
+func TestMigrationMatViewReplaceKeepsGrants(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;
+GRANT SELECT ON v_read TO PUBLIC;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;
+GRANT SELECT ON v_read TO PUBLIC;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	recreated, granted := false, false
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateView && strings.Contains(op.SQL, `"v_read"`) {
+			recreated = true
+		}
+		if op.Type == OpGrant && strings.Contains(op.SQL, "v_read") && strings.Contains(op.SQL, "PUBLIC") {
+			granted = true
+		}
+	}
+	if !recreated || !granted {
+		t.Fatalf("plan = %v, want the view re-created and its grant written again", plan.Ops)
+	}
+}
+
+// TestMigrationMatViewReplaceFindsDependentsByDependency pins the dependents the
+// replacement takes to the recorded dependencies: a view that reads a column
+// ending in the relation's name is not one of them.
+func TestMigrationMatViewReplaceFindsDependentsByDependency(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int, customer_id int);
+CREATE MATERIALIZED VIEW id BACKUP NO AS SELECT customer_id FROM t;
+CREATE VIEW v_other AS SELECT customer_id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int, customer_id int);
+CREATE MATERIALIZED VIEW id BACKUP YES AS SELECT customer_id FROM t;
+CREATE VIEW v_other AS SELECT customer_id FROM t;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	for _, op := range plan.Ops {
+		if strings.Contains(op.SQL, `"v_other"`) {
+			t.Fatalf("v_other is treated as a dependent of the materialized view id: %s", op.SQL)
+		}
+	}
+}
+
+// TestViewQuotedLevelColumn pins LEVEL to the unquoted pseudocolumn: a quoted
+// "LEVEL" is the column of that spelling.
+func TestViewQuotedLevelColumn(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int, parent_id int, "LEVEL" int);`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+	}
+	for _, stmt := range parseStmts(t, `CREATE VIEW v_quoted_level AS SELECT "LEVEL" FROM t CONNECT BY PRIOR id = parent_id;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("create view: %v", err)
+		}
+	}
+	def, err := c.GetViewDefinition("", "v_quoted_level")
+	if err != nil {
+		t.Fatalf("GetViewDefinition: %v", err)
+	}
+	if !strings.Contains(def, `"LEVEL"`) {
+		t.Fatalf("view definition = %q, want the quoted column", def)
+	}
+}

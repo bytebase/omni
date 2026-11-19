@@ -238,3 +238,20 @@ func TestRedshiftCreateGroupWithListParse(t *testing.T) {
 		}
 	}
 }
+
+// TestRedshiftAlterUserOwnerRejected pins OWNER TO to ALTER ROLE: r_ALTER_USER
+// has RENAME TO among its options and no OWNER.
+func TestRedshiftAlterUserOwnerRejected(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER USER a OWNER TO b",
+		"ALTER USER a WITH OWNER TO b",
+		"ALTER USER a RENAME TO b, OWNER TO c",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	if _, err := Parse("ALTER ROLE a OWNER TO b"); err != nil {
+		t.Errorf("Parse(ALTER ROLE a OWNER TO b): %v", err)
+	}
+}

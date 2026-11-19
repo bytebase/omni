@@ -266,7 +266,7 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 	// Only the ones the target keeps unchanged are ours: a removed or changed
 	// dependent has a diff of its own, which would duplicate this work.
 	var dependents []viewRef
-	for _, dep := range dependentViewsInDropOrder(from, entry.SchemaName, entry.Name) {
+	for _, dep := range dependentViewsInDropOrder(from, entry.From) {
 		fromRel, toRel := from.GetRelation(dep.schema, dep.name), to.GetRelation(dep.schema, dep.name)
 		if fromRel == nil || toRel == nil || toRel.RelKind != 'v' || fromRel.CheckOption != toRel.CheckOption {
 			continue
@@ -335,9 +335,31 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 
 	ops = append(ops, dropOp, createOp)
 
-	// The dependents read the view again, shallowest first.
+	// The dependents read the view again, shallowest first, with the grants
+	// the drop took with it.
 	for i := len(dependents) - 1; i >= 0; i-- {
-		ops = append(ops, buildRecreateViewOp(from, dependents[i]))
+		dep := dependents[i]
+		ops = append(ops, buildRecreateViewOp(from, dep))
+		rel := to.GetRelation(dep.schema, dep.name)
+		if rel == nil {
+			continue
+		}
+		for _, g := range to.grants {
+			if g.ObjType != 'r' || g.ObjOID != rel.OID {
+				continue
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpGrant,
+				SchemaName:    dep.schema,
+				ObjectName:    dep.name,
+				SQL:           formatGrantSQL(g, rel.Name),
+				Transactional: grantTransactional(g),
+				Phase:         PhaseMain,
+				ObjType:       g.ObjType,
+				ObjOID:        g.ObjOID,
+				Priority:      PriorityMetadata,
+			})
+		}
 	}
 	return ops
 }
@@ -378,22 +400,35 @@ func buildRecreateViewOp(from *Catalog, ref viewRef) MigrationOp {
 
 // dependentViewsInDropOrder returns the views that depend on a relation,
 // transitively and each once, deepest first: a view that depends on another
-// comes before it.
-func dependentViewsInDropOrder(c *Catalog, schemaName, relName string) []viewRef {
+// comes before it. A dependency is the one the catalog records for the view's
+// definition, not a name in its text, which would take a view reading a column
+// such as customer_id for one reading a relation named id.
+func dependentViewsInDropOrder(c *Catalog, rel *Relation) []viewRef {
 	seen := make(map[viewRef]bool)
 	var ordered []viewRef
-	var visit func(schema, name string)
-	visit = func(schema, name string) {
-		for _, dep := range findDependentViews(c, schema, name) {
-			if seen[dep] {
+	var visit func(rel *Relation)
+	visit = func(rel *Relation) {
+		if rel == nil {
+			return
+		}
+		for _, dep := range c.findNormalDependents('r', rel.OID) {
+			if dep.ObjType != 'r' {
 				continue
 			}
-			seen[dep] = true
-			visit(dep.schema, dep.name)
-			ordered = append(ordered, dep)
+			child := c.relationByOID[dep.ObjOID]
+			if child == nil || child.RelKind != 'v' || child.Schema == nil {
+				continue
+			}
+			ref := viewRef{schema: child.Schema.Name, name: child.Name}
+			if seen[ref] {
+				continue
+			}
+			seen[ref] = true
+			visit(child)
+			ordered = append(ordered, ref)
 		}
 	}
-	visit(schemaName, relName)
+	visit(rel)
 	return ordered
 }
 

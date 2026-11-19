@@ -1830,8 +1830,9 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 	}
 
 	// Redshift's hierarchical queries expose LEVEL as an integer pseudocolumn:
-	// the depth of the row in the hierarchy CONNECT BY builds.
-	if tableName == "" && ac.hierarchical && strings.EqualFold(colName, "level") {
+	// the depth of the row in the hierarchy CONNECT BY builds. An unquoted name
+	// reaches here folded, so a quoted "LEVEL" is the column of that spelling.
+	if tableName == "" && ac.hierarchical && colName == "level" {
 		return &SQLValueFuncExpr{Op: SVFLevel, TypeOID: INT4OID}, nil
 	}
 
