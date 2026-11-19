@@ -53,6 +53,11 @@ type Parser struct {
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
 
+	// lookupRefusal is the first name the statement made the server look up and
+	// not find, which is the code it answers with when the statement does not
+	// parse in the end. See noteLookup and preferLookup.
+	lookupRefusal *ParseError
+
 	noBareDefault bool // inside an expression that takes DEFAULT(col) but no bare DEFAULT
 
 	newlines []int // offsets of the input's newlines, found on first use (see lineCol)
@@ -118,7 +123,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			if lexErr := p.lexerError(); lexErr != nil {
 				return nil, p.enrichError(lexErr)
 			}
-			return nil, p.enrichError(err)
+			return nil, p.enrichError(p.preferLookup(err))
 		}
 		if stmt == nil {
 			// parseStmt returned nil without error — unconsumed tokens remain.
@@ -126,12 +131,18 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 				return nil, p.enrichError(lexErr)
 			}
 			if p.cur.Type != tokEOF {
-				return nil, p.syntaxErrorAtCur()
+				return nil, p.enrichError(p.preferLookup(p.syntaxErrorAtCur()))
 			}
 			break
 		}
 		if treeTooHigh(stmt, p.prev.End-stmtStart) {
 			return nil, p.enrichError(nestedTooDeeply(stmtStart))
+		}
+		// The server resolved every name it looks up as it reduced the clause, so
+		// a statement that parses can still be refused here: `ALTER TABLE a
+		// COLLATE utf8mb4` reads as a statement and is 1273 all the same.
+		if p.lookupRefusal != nil {
+			return nil, p.enrichError(p.lookupRefusal)
 		}
 		stmts = append(stmts, stmt)
 		// A statement ends at a ';' or at the end of the text. Any other token
@@ -144,7 +155,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			if lexErr := p.lexerError(); lexErr != nil {
 				return nil, p.enrichError(lexErr)
 			}
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.enrichError(p.preferLookup(p.syntaxErrorAtCur()))
 		}
 	}
 
@@ -259,8 +270,15 @@ func (p *Parser) inputText(start, end int) string {
 
 // ParseError represents a parse error with position information.
 type ParseError struct {
-	Message     string
-	Position    int
+	Message  string
+	Position int
+	// Code is the error number MySQL answers with where the refusal is a name
+	// it looks up while it parses and does not find, rather than a syntax
+	// error: 1273 for a collation no server of the pin has. 0 is a syntax
+	// error, which the server answers with 1064. A caller that reports the
+	// server's code reads this field. compat.tsv's judge counts these answers
+	// as parsed, and mysql/parser's omniVerdict reads them the same way.
+	Code        int
 	Line        int    // 1-based line number
 	Column      int    // 1-based column number
 	RelatedText string // source text of the line where the error occurred
@@ -352,6 +370,48 @@ func lineColStatic(input string, offset int) (int, int) {
 	}
 	col := offset - lastNewline
 	return line, col
+}
+
+// noteLookup records a check the server makes while it parses and answers with
+// the code of the name it looked up. The first one is the one the server reports,
+// since it stops there.
+func (p *Parser) noteLookup(pe *ParseError) {
+	if p.lookupRefusal == nil {
+		p.lookupRefusal = pe
+	}
+}
+
+// preferLookup reports the lookup refusal the statement reached before the error
+// that ended its parse. MySQL raises that code at the name itself, so nothing
+// after it is read: `ALTER TABLE a COLLATE utf8mb4 zzz` is 1273 and not the 1064
+// the trailing zzz is. parseSingle reads a refusal it recorded on a statement
+// that did parse as well, since the server refuses that statement too.
+func (p *Parser) preferLookup(err error) error {
+	if p.lookupRefusal == nil {
+		return err
+	}
+	if pe, ok := err.(*ParseError); ok && pe.Code != 0 {
+		return pe
+	}
+	return p.lookupRefusal
+}
+
+// checkCollation records the lookup MySQL makes while it parses a collation
+// name: the name is resolved then, and one the server does not have is 1273,
+// ER_UNKNOWN_COLLATION, whatever the rest of the statement would answer.
+//
+// Ref: opt_collate, collation_name, collate_clause and the expression's
+// COLLATE_SYM arm in MySQL 8.0.46 sql/sql_yacc.yy, all of which resolve the
+// name through the server's charset list as they reduce.
+func (p *Parser) checkCollation(name string, pos int) {
+	if knownCollation(name) {
+		return
+	}
+	p.noteLookup(&ParseError{
+		Message:  "Unknown collation: '" + name + "'",
+		Position: pos,
+		Code:     1273,
+	})
 }
 
 // enrichError fills in Line/Column and RelatedText on a ParseError using the parser's input.

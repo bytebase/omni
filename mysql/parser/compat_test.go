@@ -32,8 +32,18 @@ func TestCompatibility(t *testing.T) {
 	})
 }
 
+// omniVerdict is what omni reads syntactically, and it reads a name the server
+// looks up while it parses the way the judge does (enginetest/compat's
+// lookupErrorCodes): `ALTER DATABASE COLLATE utf8mb4` is text MySQL reads and
+// refuses on the name, so the row stays accept/accept, and the parser's Code
+// says which name it refused. Without that, asking omni the name would count as
+// a rejection and the rows would read as a regression.
 func omniVerdict(sql string) string {
 	if _, err := Parse(sql); err != nil {
+		var pe *ParseError
+		if errors.As(err, &pe) && pe.Code != 0 {
+			return compat.Accept
+		}
 		return compat.Reject
 	}
 	return compat.Accept
