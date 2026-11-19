@@ -2169,7 +2169,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						return nil
 					}
 				case "INMEMORY":
-					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
+					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable, false); err != nil {
 						return err
 					}
 				case "LOB":
@@ -2201,7 +2201,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						}
 						stmt.FlashbackArchive = "NO FLASHBACK ARCHIVE"
 					} else if isCreateTableWordTok(next, "INMEMORY") {
-						if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
+						if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable, false); err != nil {
 							return err
 						}
 					} else {

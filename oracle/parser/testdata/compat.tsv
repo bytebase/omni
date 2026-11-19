@@ -304,7 +304,7 @@ reject@21	reject@21	engine	statement/alterView!insert	ALTER VIEW a COMPILE zzz
 reject@0	reject@0	engine	statement/alterView!swap	ALTERNATE VIEW a COMPILE
 accept	accept	engine	statement/analyze	ANALYZE TABLE a VALIDATE STRUCTURE
 reject@0	reject@0	engine	statement/analyze!drop-1	TABLE a VALIDATE STRUCTURE
-accept	reject@10	engine	statement/analyze!drop-2	ANALYZE a VALIDATE STRUCTURE
+reject@10	reject@10	engine	statement/analyze!drop-2	ANALYZE a VALIDATE STRUCTURE
 reject@23	reject@14	engine	statement/analyze!drop-3	ANALYZE TABLE VALIDATE STRUCTURE
 reject@16	reject@16	engine	statement/analyze!drop-4	ANALYZE TABLE a STRUCTURE
 reject@24	reject@24	engine	statement/analyze!drop-5	ANALYZE TABLE a VALIDATE
@@ -665,7 +665,7 @@ reject@0	reject@0	engine	statement/createRollbackSegment!swap	CREATE_FILE_DEST R
 accept	accept	engine	statement/createSchema	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER)
 reject@0	reject@0	engine	statement/createSchema!drop-1	SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER)
 reject@7	reject@7	engine	statement/createSchema!drop-2	CREATE AUTHORIZATION a CREATE TABLE a (a NUMBER)
-accept	reject@14	engine	statement/createSchema!drop-3	CREATE SCHEMA a CREATE TABLE a (a NUMBER)
+reject@14	reject@14	engine	statement/createSchema!drop-3	CREATE SCHEMA a CREATE TABLE a (a NUMBER)
 reject@35	reject@28	engine	statement/createSchema!drop-4	CREATE SCHEMA AUTHORIZATION CREATE TABLE a (a NUMBER)
 accept	accept	engine	statement/createSchema!drop-5	CREATE SCHEMA AUTHORIZATION a
 reject@56	accept	engine	statement/createSchema!insert	CREATE SCHEMA AUTHORIZATION a CREATE TABLE a (a NUMBER) zzz
@@ -770,7 +770,7 @@ reject@0	reject@0	engine	statement/dropAttributeDimension!swap	DUALITY ATTRIBUTE
 accept	accept	engine	statement/dropAuditPolicyUnifiedAuditing	DROP AUDIT POLICY a
 reject@5	reject@5	engine	statement/dropAuditPolicyUnifiedAuditing!drop-2	DROP POLICY a
 reject@11	reject@11	engine	statement/dropAuditPolicyUnifiedAuditing!drop-3	DROP AUDIT a
-accept	reject@17	engine	statement/dropAuditPolicyUnifiedAuditing!drop-4	DROP AUDIT POLICY
+reject@17	reject@17	engine	statement/dropAuditPolicyUnifiedAuditing!drop-4	DROP AUDIT POLICY
 reject@20	reject@20	engine	statement/dropAuditPolicyUnifiedAuditing!insert	DROP AUDIT POLICY a zzz
 reject@0	reject@0	engine	statement/dropAuditPolicyUnifiedAuditing!swap	DUALITY AUDIT POLICY a
 accept	accept	engine	statement/dropCluster	DROP CLUSTER a
@@ -970,7 +970,7 @@ reject@9	reject@9	engine	statement/dropType!drop-3	DROP TYPE
 reject@12	reject@12	engine	statement/dropType!insert	DROP TYPE a zzz
 reject@0	reject@0	engine	statement/dropType!swap	DUALITY TYPE a
 accept	accept	engine	statement/dropUser	DROP USER a
-accept	reject@9	engine	statement/dropUser!drop-3	DROP USER
+reject@9	reject@9	engine	statement/dropUser!drop-3	DROP USER
 reject@12	reject@12	engine	statement/dropUser!insert	DROP USER a zzz
 reject@0	reject@0	engine	statement/dropUser!swap	DUALITY USER a
 accept	accept	engine	statement/dropView	DROP VIEW a
@@ -8502,7 +8502,7 @@ reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterM
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-1	ALTER MATERIALIZED VIEW a PARTITIONING AUTOMATIC
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-2	ALTER MATERIALIZED VIEW a SET AUTOMATIC
-accept	reject@0	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-3	ALTER MATERIALIZED VIEW a SET PARTITIONING
+reject@42	reject@0	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!drop-3	ALTER MATERIALIZED VIEW a SET PARTITIONING
 reject@53	reject@53	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!insert	ALTER MATERIALIZED VIEW a SET PARTITIONING AUTOMATIC zzz
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_automatic_partitioning!swap	ALTER MATERIALIZED VIEW a SETS PARTITIONING AUTOMATIC
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_interval_partitioning	ALTER MATERIALIZED VIEW a SET INTERVAL()
@@ -13616,7 +13616,7 @@ reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify
 accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning	ALTER TABLE a SET PARTITIONING AUTOMATIC
 reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-1	ALTER TABLE a PARTITIONING AUTOMATIC
 accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-2	ALTER TABLE a SET AUTOMATIC
-accept	reject@0	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-3	ALTER TABLE a SET PARTITIONING
+reject@30	reject@0	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!drop-3	ALTER TABLE a SET PARTITIONING
 reject@41	reject@41	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!insert	ALTER TABLE a SET PARTITIONING AUTOMATIC zzz
 reject@14	reject@14	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_automatic_partitioning!swap	ALTER TABLE a SETS PARTITIONING AUTOMATIC
 accept	accept	engine	alterTable_alter_table_partitioning(alterTable_modify_table_default_attr~6613a821)/alterTable_alter_interval_partitioning	ALTER TABLE a SET INTERVAL()
@@ -20397,7 +20397,7 @@ reject@16	reject@16	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149
 accept	accept	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID	ALTER TRIGGER a RENAME TO a
 reject@16	reject@16	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID!drop-1	ALTER TRIGGER a TO a
 reject@23	reject@23	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID!drop-2	ALTER TRIGGER a RENAME a
-accept	reject@25	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID!drop-3	ALTER TRIGGER a RENAME TO
+reject@25	reject@25	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID!drop-3	ALTER TRIGGER a RENAME TO
 reject@28	reject@28	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID!insert	ALTER TRIGGER a RENAME TO a zzz
 reject@16	reject@16	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/RENAME_TO_ID!swap	ALTER TRIGGER a REPAIR TO a
 accept	accept	engine	alterTrigger(alterTrigger_trigger_compile_clause|~149b2061)/EDITIONABLE	ALTER TRIGGER a EDITIONABLE
@@ -23861,7 +23861,7 @@ accept	accept	engine	createFunction(IF_NOT_EXISTS)?/%empty	CREATE FUNCTION a RET
 accept	accept	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS	CREATE FUNCTION IF NOT EXISTS a RETURN NUMBER IS BEGIN RETURN 1; END;
 reject@16	reject@16	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-1	CREATE FUNCTION NOT EXISTS a RETURN NUMBER IS BEGIN RETURN 1; END;
 reject@19	reject@16	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-2	CREATE FUNCTION IF EXISTS a RETURN NUMBER IS BEGIN RETURN 1; END;
-accept	reject@16	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE FUNCTION IF NOT a RETURN NUMBER IS BEGIN RETURN 1; END;
+reject@23	reject@16	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!drop-3	CREATE FUNCTION IF NOT a RETURN NUMBER IS BEGIN RETURN 1; END;
 reject@22	reject@16	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!truncate	CREATE FUNCTION IF NOT
 reject@34	reject	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!insert	CREATE FUNCTION IF NOT EXISTS zzz a RETURN NUMBER IS BEGIN RETURN 1; END;
 reject@23	reject	engine	createFunction(IF_NOT_EXISTS)?/IF_NOT_EXISTS!swap	CREATE FUNCTION IGNORE NOT EXISTS a RETURN NUMBER IS BEGIN RETURN 1; END;
@@ -27407,13 +27407,13 @@ accept	reject@65	engine	createMaterializedView_inmemory_table_clause(createMater
 reject@37	reject@36	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-1	CREATE MATERIALIZED VIEW a INMEMORY a) INMEMORY AS SELECT 1 FROM dual
 reject@36	reject@36	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-2	CREATE MATERIALIZED VIEW a INMEMORY() INMEMORY AS SELECT 1 FROM dual
 reject@68	reject@38	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-3	CREATE MATERIALIZED VIEW a INMEMORY(a INMEMORY AS SELECT 1 FROM dual
-accept	reject@56	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-4	CREATE MATERIALIZED VIEW a INMEMORY(a) AS SELECT 1 FROM dual
+reject@39	reject@56	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!drop-4	CREATE MATERIALIZED VIEW a INMEMORY(a) AS SELECT 1 FROM dual
 reject@38	reject@38	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!truncate	CREATE MATERIALIZED VIEW a INMEMORY(a)
 reject@48	reject@48	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!insert	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY zzz AS SELECT 1 FROM dual
 reject@39	reject@39	engine	createMaterializedView_inmemory_table_clause(createMaterializedView_inmemory_colu~a85c2048)*/createMaterializedView_inmemory_column_clause_(,_create~a15e2850!swap	CREATE MATERIALIZED VIEW a INMEMORY(a) INNER AS SELECT 1 FROM dual
 accept	reject@65	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/%empty	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 reject@47	reject@48	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY,(a) INMEMORY AS SELECT 1 FROM dual
-accept	reject@77	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-1	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
+reject@47	reject@77	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-1	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY(a) INMEMORY AS SELECT 1 FROM dual
 reject@50	reject@49	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-2	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY, a) INMEMORY AS SELECT 1 FROM dual
 reject@47	reject@48	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-3	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY,() INMEMORY AS SELECT 1 FROM dual
 reject@81	reject@48	engine	createMaterializedView_inmemory_table_clause(,_createMaterializedView_inmemory_co~161aa8e0)?/,_createMaterializedView_inmemory_column_clause!drop-4	CREATE MATERIALIZED VIEW a INMEMORY(a) INMEMORY,(a INMEMORY AS SELECT 1 FROM dual
@@ -41074,28 +41074,28 @@ reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!drop-2	NOAUDIT POL
 reject@22	reject@22	engine	noauditUnifiedAuditing(,_ID)?/,_ID!insert	NOAUDIT POLICY a BY a WITH ROLE a, a zzz
 accept	accept	engine	purge/PURGE_(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)	PURGE RECYCLEBIN
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID	PURGE TABLE a
-accept	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!drop-1	PURGE a
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!drop-1	PURGE a
 reject@11	reject@11	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!drop-2	PURGE TABLE
 reject@14	reject@14	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!insert	PURGE TABLE a zzz
-reject@13	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!swap	PURGE TABLES a
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLE_(ID_.)?_ID!swap	PURGE TABLES a
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/INDEX_(ID_.)?_ID	PURGE INDEX a
 reject@11	reject@11	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/INDEX_(ID_.)?_ID!drop-2	PURGE INDEX
 reject@14	reject@14	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/INDEX_(ID_.)?_ID!insert	PURGE INDEX a zzz
-reject@14	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/INDEX_(ID_.)?_ID!swap	PURGE INDEXES a
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/INDEX_(ID_.)?_ID!swap	PURGE INDEXES a
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_ID_(USER_ID)?	PURGE TABLESPACE a
 reject@16	reject@16	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_ID_(USER_ID)?!drop-2	PURGE TABLESPACE
 reject@19	reject@19	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_ID_(USER_ID)?!insert	PURGE TABLESPACE a zzz
-reject@10	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_ID_(USER_ID)?!swap	PURGE TAG a
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_ID_(USER_ID)?!swap	PURGE TAG a
 reject@21	reject@21	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?	PURGE TABLESPACE SET a
-reject@10	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!drop-1	PURGE SET a
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!drop-1	PURGE SET a
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!drop-3	PURGE TABLESPACE SET
 reject@21	reject@21	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!insert	PURGE TABLESPACE SET a zzz
-reject@10	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!swap	PURGE TAG SET a
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/TABLESPACE_SET_ID_(USER_ID)?!swap	PURGE TAG SET a
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/RECYCLEBIN	PURGE RECYCLEBIN
-accept	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/RECYCLEBIN!swap	PURGE REDO
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/RECYCLEBIN!swap	PURGE REDO
 accept	accept	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/DBA_RECYCLEBIN	PURGE DBA_RECYCLEBIN
 reject@21	reject@21	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/DBA_RECYCLEBIN!insert	PURGE DBA_RECYCLEBIN zzz
-accept	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/DBA_RECYCLEBIN!swap	PURGE DBTIMEZONE
+reject@6	reject@6	engine	purge(TABLE_(ID_.)?_ID|INDEX_(ID_.)?_ID|TA~8f47112d)/DBA_RECYCLEBIN!swap	PURGE DBTIMEZONE
 accept	accept	engine	purge(ID_.)?/%empty	PURGE TABLE a
 reject@16	reject@16	engine	purge(ID_.)?/%empty!insert	PURGE TABLE zzz a
 accept	accept	engine	purge(ID_.)?/ID_.	PURGE TABLE a.a
@@ -45732,7 +45732,7 @@ accept	accept	engine	suite:lexer	SELECT a$b, a#c, a_1 FROM dual
 accept	accept	engine	suite:lexer	SELECT "a" FROM dual
 accept	accept	engine	suite:lexer	SELECT 1 "a b" FROM dual
 accept	accept	engine	suite:lexer	SELECT 1 "select" FROM dual
-accept	reject@9	engine	suite:lexer	SELECT 1 "a""b" FROM dual
+reject@9	reject@9	engine	suite:lexer	SELECT 1 "a""b" FROM dual
 reject@7	reject@9	engine	suite:lexer	SELECT 1 "" FROM dual
 reject@7	reject@9	engine	suite:lexer	SELECT 1 "a FROM dual
 reject@9	reject@9	engine	suite:lexer	SELECT 1 _a FROM dual
@@ -45790,7 +45790,7 @@ reject@23	reject@23	engine	suite:lexer	SELECT 1 FROM dual REM a
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 != 2
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 ^= 2
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 <> 2
-accept	reject@27	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 ~= 2
+reject@27	reject@27	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 ~= 2
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 < > 2
 accept	accept	engine	suite:lexer	SELECT 1 FROM dual WHERE 1 ! = 2
 accept	accept	engine	suite:lexer	SELECT 'a' || 'b' FROM dual

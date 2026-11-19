@@ -286,7 +286,14 @@ func (p *Parser) isCreateTableInmemoryStart() bool {
 // keyword (its attributes, or its compression and columns), or NO INMEMORY
 // with its columns. tableClause tells whether the table has its
 // inmemory_table_clause yet.
-func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumns bool, tableClause *bool) error {
+//
+// A materialized view's page writes its inmemory_column_clause the other
+// way round, "( column [, column ] ... ) { INMEMORY [ inmemory_memcompress ]
+// | NO INMEMORY }", so after its columns the keyword is required: without
+// one (CREATE MATERIALIZED VIEW a INMEMORY(a) AS SELECT 1 FROM dual) the
+// server answers ORA-00922 where the query starts, and the page derives no
+// such clause either. mview says which page is read.
+func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumns bool, tableClause *bool, mview bool) error {
 	optStart := p.pos()
 	key := "INMEMORY"
 	columnClause := false
@@ -297,6 +304,9 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 		p.advance() // consume NO
 		p.advance() // consume INMEMORY
 		if p.cur.Type == '(' {
+			if mview {
+				return p.syntaxErrorAtCur()
+			}
 			if err := p.parseCreateTableColumnNames(); err != nil {
 				return err
 			}
@@ -317,6 +327,15 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 				return err
 			}
 			columnClause = true
+			if mview {
+				// A materialized view's columns belong to its one
+				// inmemory_table_clause, which the columns do not count
+				// without.
+				if err := p.parseMviewInmemoryColumnKeyword(); err != nil {
+					return err
+				}
+				*tableClause = true
+			}
 		} else if !*tableClause {
 			if err := p.parseCreateTableInmemoryAttributes(memcompress); err != nil {
 				return err
@@ -335,6 +354,25 @@ func (p *Parser) parseCreateTableInmemory(stmt *nodes.CreateTableStmt, hasColumn
 		return p.syntaxErrorAtCur()
 	}
 	return nil
+}
+
+// parseMviewInmemoryColumnKeyword reads the { INMEMORY [ inmemory_memcompress ]
+// | NO INMEMORY } that follows a materialized view's inmemory_column_clause
+// columns, and fails where neither stands.
+func (p *Parser) parseMviewInmemoryColumnKeyword() error {
+	switch {
+	case p.isKeywordStr("INMEMORY"):
+		p.advance() // consume INMEMORY
+		if p.isCreateTableMemcompressStart() {
+			return p.parseCreateTableMemcompress()
+		}
+		return nil
+	case p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "INMEMORY"):
+		p.advance() // consume NO
+		p.advance() // consume INMEMORY
+		return nil
+	}
+	return p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------

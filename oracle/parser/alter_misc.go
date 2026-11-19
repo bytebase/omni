@@ -681,6 +681,11 @@ func (p *Parser) parseAlterTriggerStmt(start int) (nodes.StmtNode, error) {
 		if parseErr100 != nil {
 			return nil, parseErr100
 		}
+		// A new name is required: ALTER TRIGGER a RENAME TO answers
+		// ORA-04070, an invalid trigger name, at the end.
+		if stmt.NewName == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	case p.isIdentLikeStr("EDITIONABLE"):
 		stmt.Action = "EDITIONABLE"
 		p.advance()

@@ -33,13 +33,14 @@ const (
 	tokEXPON      // **
 	tokLESSEQ     // <=
 	tokGREATEQ    // >=
-	tokNOTEQ      // != or <> or ~= or ^=
+	tokNOTEQ      // != or <> or ^=, or PL/SQL's ~=
 	tokLABELOPEN  // <<
 	tokLABELCLOSE // >>
 	tokOP         // generic operator
 	tokHINT       // /*+ hint text */
 	tokDIRECTIVE  // $IF, $THEN, $ELSIF, $ELSE, $END, or $ERROR; never returned by NextToken
 	tokINQUIRY    // $$name inquiry directive, a literal the compiler substitutes
+	tokILLEGAL    // a token no production takes: a quoted identifier holding a "
 )
 
 // Token represents a lexical token.
@@ -1063,6 +1064,8 @@ func (l *Lexer) lexInitial() Token {
 			l.pos += 2
 			return Token{Type: tokNOTEQ, Str: "<>", Loc: l.start}
 		case "~=":
+			// PL/SQL's lexer reads ~= as one operator and SQL's does not;
+			// infixInfo refuses it where the SQL parser reads it.
 			l.pos += 2
 			return Token{Type: tokNOTEQ, Str: "~=", Loc: l.start}
 		case "^=":
@@ -1279,16 +1282,23 @@ func (l *Lexer) lexQQuote() Token {
 	return Token{Type: tokEOF, Loc: l.start}
 }
 
-// lexDoubleQuotedIdent handles "..." identifiers.
+// lexDoubleQuotedIdent handles "..." identifiers. A " may not stand in
+// one, doubled or not: Oracle answers "The identifier contains a double
+// quotation mark" (ORA-25716) at the identifier, where standard SQL reads
+// "" as one. Such an identifier is tokILLEGAL, which no production takes,
+// rather than a lexer error, so that Split, which lexes past a statement it
+// cannot read, keeps finding the ';' after it. A closing " ends the
+// identifier.
 func (l *Lexer) lexDoubleQuotedIdent() Token {
 	l.pos++ // skip opening "
 	var buf strings.Builder
+	quote := false
 
 	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == '"' {
-			// Check for "" (escaped quote)
 			if l.pos+1 < l.end && l.input[l.pos+1] == '"' {
+				quote = true
 				buf.WriteByte('"')
 				l.pos += 2
 				continue
@@ -1298,6 +1308,9 @@ func (l *Lexer) lexDoubleQuotedIdent() Token {
 			if str == "" {
 				l.Err = fmt.Errorf("zero-length delimited identifier")
 				return Token{Type: tokEOF, Loc: l.start}
+			}
+			if quote {
+				return Token{Type: tokILLEGAL, Str: str, Loc: l.start, End: l.pos}
 			}
 			return Token{Type: tokQIDENT, Str: str, Loc: l.start}
 		}

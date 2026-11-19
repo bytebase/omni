@@ -317,6 +317,14 @@ func (p *Parser) infixInfo() (int, string, bool) {
 	case '=':
 		return precComp, "=", false
 	case tokNOTEQ:
+		// Oracle's SQL lexer reads ~= as ~ then =, and answers ORA-00911 at
+		// the ~; its PL/SQL lexer takes the operator whole, so a PL/SQL
+		// expression has it and a SQL one does not (BEGIN IF 1 ~= 2 THEN
+		// NULL; END IF; END; is accepted, and SELECT 1 FROM dual WHERE 1 ~=
+		// 2 is refused).
+		if p.cur.Str == "~=" && !p.plsqlCode {
+			return precNone, "", false
+		}
 		return precComp, p.cur.Str, false
 	case '<':
 		return precComp, "<", false
