@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
 )
@@ -70,6 +71,10 @@ func (c *Catalog) checkTableAccessMethod(name string) error {
 // pg: src/backend/commands/tablespace.c — CreateTableSpace
 func (c *Catalog) DefineTablespace(stmt *nodes.CreateTableSpaceStmt) error {
 	name := stmt.Tablespacename
+	if strings.HasPrefix(name, "pg_") {
+		return &Error{Code: CodeReservedName,
+			Message: fmt.Sprintf("unacceptable tablespace name %q", name)}
+	}
 	if c.tablespaces[name] {
 		return errDuplicateObject("tablespace", name)
 	}
@@ -107,6 +112,10 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 // pg: src/backend/commands/tablespace.c — RenameTableSpace
 func (c *Catalog) RenameTablespace(stmt *nodes.RenameStmt) error {
 	oldName := stmt.Subname
+	if strings.HasPrefix(stmt.Newname, "pg_") {
+		return &Error{Code: CodeReservedName,
+			Message: fmt.Sprintf("unacceptable tablespace name %q", stmt.Newname)}
+	}
 	if oldName == "pg_default" || oldName == "pg_global" {
 		return &Error{Code: CodeInsufficientPrivilege,
 			Message: fmt.Sprintf("permission denied for tablespace %s", oldName)}
@@ -141,6 +150,43 @@ func (c *Catalog) AlterTablespaceOptions(stmt *nodes.AlterTableSpaceOptionsStmt)
 	return c.checkTablespace(stmt.Tablespacename)
 }
 
+// currentOwner is the role a new object belongs to. A catalog with no
+// session user is the server's bootstrap superuser, postgres.
+func (c *Catalog) currentOwner() string {
+	if c.currentUser != "" {
+		return c.currentUser
+	}
+	return "postgres"
+}
+
+// moveAllOwners reads the OWNED BY list of a bulk move. Nil means every
+// owner.
+func (c *Catalog) moveAllOwners(roles *nodes.List) map[string]bool {
+	if roles == nil || len(roles.Items) == 0 {
+		return nil
+	}
+	owners := make(map[string]bool, len(roles.Items))
+	for _, item := range roles.Items {
+		rs, ok := item.(*nodes.RoleSpec)
+		if !ok {
+			continue
+		}
+		name := roleSpecName(rs)
+		switch name {
+		case "CURRENT_USER", "SESSION_USER":
+			name = c.currentOwner()
+		}
+		owners[name] = true
+	}
+	return owners
+}
+
+// ownerMatches reports whether an object's owner is in a bulk move's OWNED
+// BY list. A nil list takes every owner.
+func ownerMatches(owner string, owners map[string]bool) bool {
+	return owners == nil || owners[owner]
+}
+
 // MoveAllTablespaces checks both tablespaces an ALTER TABLE/INDEX/
 // MATERIALIZED VIEW ALL IN TABLESPACE statement names, then moves the
 // relations and indexes the source holds. PostgreSQL validates the
@@ -158,23 +204,24 @@ func (c *Catalog) MoveAllTablespaces(stmt *nodes.AlterTableMoveAllStmt) error {
 		return errInvalidParameterValue("cannot move relations in to or out of pg_global tablespace")
 	}
 	target := normalizeTablespace(stmt.NewTablespacename)
+	owners := c.moveAllOwners(stmt.Roles)
 	for _, schema := range c.schemas {
 		switch nodes.ObjectType(stmt.ObjType) {
 		case nodes.OBJECT_TABLE:
 			for _, rel := range schema.Relations {
-				if (rel.RelKind == 'r' || rel.RelKind == 'p' || rel.RelKind == 'f') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) {
+				if (rel.RelKind == 'r' || rel.RelKind == 'p' || rel.RelKind == 'f') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
 					rel.Tablespace = target
 				}
 			}
 		case nodes.OBJECT_MATVIEW:
 			for _, rel := range schema.Relations {
-				if rel.RelKind == 'm' && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) {
+				if rel.RelKind == 'm' && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
 					rel.Tablespace = target
 				}
 			}
 		case nodes.OBJECT_INDEX:
 			for _, idx := range schema.Indexes {
-				if tablespaceMatches(idx.Tablespace, stmt.OrigTablespacename) {
+				if tablespaceMatches(idx.Tablespace, stmt.OrigTablespacename) && ownerMatches(idx.OwnerName, owners) {
 					idx.Tablespace = target
 				}
 			}

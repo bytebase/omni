@@ -121,6 +121,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE OPERATOR FAMILY using a table access method", "missing", "CREATE OPERATOR FAMILY f USING heap", CodeObjectNotInPrerequisiteState},
 		{"CREATE OPERATOR CLASS using a table access method", "missing", "CREATE OPERATOR CLASS c FOR TYPE int USING heap AS STORAGE int", CodeObjectNotInPrerequisiteState},
 		{"ALTER OPERATOR FAMILY using a table access method", "missing", "ALTER OPERATOR FAMILY f USING heap ADD OPERATOR 1 < (int, int)", CodeObjectNotInPrerequisiteState},
+		{"CREATE TABLESPACE with a reserved name", "missing", "CREATE TABLESPACE pg_fast LOCATION '/tmp'", CodeReservedName},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -165,6 +166,78 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if c.schemaByName["public"].Relations["t"] == nil {
 			t.Fatal("a failed DROP removed t")
+		}
+	})
+
+	// OWNED BY limits a bulk move to the named owners.
+	t.Run("a bulk move honors OWNED BY", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLESPACE ts2 LOCATION '/tmp/ts2'",
+			"CREATE TABLE a (b int) TABLESPACE ts",
+			"CREATE TABLE b (b int) TABLESPACE ts",
+			"ALTER TABLE a OWNER TO alice",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "ALTER TABLE ALL IN TABLESPACE ts OWNED BY alice SET TABLESPACE ts2"); code != "0" {
+			t.Fatalf("catalog refused the owned move with %s", code)
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.Tablespace != "ts2" {
+			t.Fatal("the owned move missed the owner's table")
+		}
+		if rel := c.schemaByName["public"].Relations["b"]; rel == nil || rel.Tablespace != "ts" {
+			t.Fatal("the owned move moved another owner's table")
+		}
+	})
+
+	// A partition with no tablespace of its own takes its parent's.
+	t.Run("a partition inherits its parent's tablespace", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE p (b int) PARTITION BY RANGE (b) TABLESPACE ts",
+			"CREATE TABLE c PARTITION OF p FOR VALUES FROM (0) TO (10)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["c"]; rel == nil || rel.Tablespace != "ts" {
+			t.Fatal("the partition did not inherit the parent's tablespace")
+		}
+	})
+
+	// A constraint's tablespace is checked before a SERIAL sequence is made.
+	t.Run("a constraint tablespace error leaves no implicit sequence", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, "CREATE TABLESPACE ts LOCATION '/tmp/ts'"); code != "0" {
+			t.Fatalf("catalog refused CREATE TABLESPACE with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "CREATE TABLE a (id serial, UNIQUE(id) USING INDEX TABLESPACE missing)"); code != CodeUndefinedObject {
+			t.Fatalf("catalog answered %s, want %s", code, CodeUndefinedObject)
+		}
+		if c.schemaByName["public"].Sequences["a_id_seq"] != nil {
+			t.Fatal("a failed CREATE TABLE left a_id_seq behind")
+		}
+	})
+
+	// SET TABLESPACE is only for tables, materialized views and indexes.
+	t.Run("SET TABLESPACE on a view", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLE a (b int)",
+			"CREATE VIEW v AS SELECT b FROM a",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "ALTER VIEW v SET TABLESPACE pg_default"); code != CodeWrongObjectType {
+			t.Fatalf("catalog answered %s, want %s", code, CodeWrongObjectType)
 		}
 	})
 

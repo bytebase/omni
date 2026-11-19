@@ -89,6 +89,8 @@ type Relation struct {
 	// Tablespace is the tablespace the relation was created in, or "" for
 	// the database default. It is not part of the schema a sync reads.
 	Tablespace string
+	// OwnerName is the role that owns the relation, for ALTER ... OWNED BY.
+	OwnerName string
 
 	// Relation flags (pg_class).
 	Owner       uint32 // relowner

@@ -542,7 +542,10 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return nil
 
 	case nodes.AT_ChangeOwner:
-		return nil // OWNER TO: no-op for pgddl (no ACL)
+		if atc.Newowner != nil {
+			rel.OwnerName = roleSpecName(atc.Newowner)
+		}
+		return nil
 
 	case nodes.AT_SetRelOptions, nodes.AT_ResetRelOptions, nodes.AT_ReplaceRelOptions:
 		return nil // SET/RESET storage parameters: no-op for pgddl
@@ -661,6 +664,9 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropExpression(rel, atc.Name, atc.Missing_ok)
 
 	case nodes.AT_SetTableSpace:
+		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
+			return errWrongObjectType(relName, "a table, materialized view, or index")
+		}
 		if err := c.checkRelationTablespace(atc.Name); err != nil {
 			return err
 		}

@@ -688,3 +688,13 @@
 | ALTER OPERATOR FAMILY f USING heap ADD OPERATOR 1 < (int, int)
 < error
 | 55000 access method "heap" is not of type INDEX
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLESPACE pg_fast LOCATION '/tmp'
+< error
+| 42939 unacceptable tablespace name "pg_fast"
+| detail: The prefix "pg_" is reserved for system tablespaces.

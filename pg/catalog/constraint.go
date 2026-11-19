@@ -140,6 +140,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
 		idx.Tablespace = normalizeTablespace(def.IndexSpace)
+		idx.OwnerName = rel.OwnerName
 	} else {
 		idx.IsUnique = true
 		idx.IsPrimary = isPrimary
@@ -616,6 +617,7 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		ConstraintOID: conOID,
 		AccessMethod:  accessMethod,
 		Tablespace:    normalizeTablespace(def.IndexSpace),
+		OwnerName:     rel.OwnerName,
 		NKeyColumns:   len(attnums),
 		IndOption:     indOption,
 	}

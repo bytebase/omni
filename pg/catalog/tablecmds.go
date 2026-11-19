@@ -503,6 +503,16 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		return err
 	}
 
+	// Constraint indexes may name a tablespace; refuse one the catalog cannot
+	// place before any implicit sequence is made.
+	for _, def := range constraintDefs {
+		if def.IndexSpace != "" {
+			if err := c.checkRelationTablespace(def.IndexSpace); err != nil {
+				return err
+			}
+		}
+	}
+
 	// Create implicit sequences for SERIAL and identity columns.
 	var createdSeqs []*Sequence
 	for _, si := range serials {
@@ -548,6 +558,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		InhCount:   len(parentOIDs),
 		OfTypeOID:  ofTypeOID,
 		Tablespace: normalizeTablespace(stmt.Tablespacename),
+		OwnerName:  c.currentOwner(),
 	}
 
 	// Parse persistence from RangeVar.
@@ -611,6 +622,13 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 		for _, parentOID := range parentOIDs {
 			c.recordDependency('r', relOID, 0, 'r', parentOID, 0, depType)
+		}
+	}
+
+	// A partition with no TABLESPACE of its own takes its parent's.
+	if rel.Tablespace == "" && isPartition && len(parentOIDs) > 0 {
+		if parent := c.relationByOID[parentOIDs[0]]; parent != nil {
+			rel.Tablespace = parent.Tablespace
 		}
 	}
 

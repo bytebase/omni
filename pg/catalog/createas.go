@@ -179,6 +179,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		Schema:        schema,
 		RelKind:       relkind,
 		Tablespace:    normalizeTablespace(into.TableSpaceName),
+		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,
 		RowTypeOID:    rowTypeOID,
