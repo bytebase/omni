@@ -169,6 +169,60 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
+	// A table owner transfer reaches the table's indexes, and a new index
+	// takes the table's owner.
+	t.Run("indexes follow the table owner", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLE a (b int)",
+			"CREATE INDEX a_b_idx ON a(b)",
+			"ALTER TABLE a OWNER TO alice",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if idx := c.schemaByName["public"].Indexes["a_b_idx"]; idx == nil || idx.OwnerName != "alice" {
+			t.Fatal("the table owner transfer did not reach the index")
+		}
+		if code := simulationCatalogCode(t, c, "CREATE INDEX a_b_idx2 ON a(b)"); code != "0" {
+			t.Fatalf("catalog refused the second index with %s", code)
+		}
+		if idx := c.schemaByName["public"].Indexes["a_b_idx2"]; idx == nil || idx.OwnerName != "alice" {
+			t.Fatal("a new index did not take the table's owner")
+		}
+	})
+
+	// default_tablespace places a relation with no TABLESPACE clause.
+	t.Run("default_tablespace places new relations", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"SET default_tablespace = ts",
+			"CREATE TABLE a (b int)",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c.schemaByName["public"].Relations["a"]; rel == nil || rel.Tablespace != "ts" {
+			t.Fatal("the table did not take default_tablespace")
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLESPACE ts"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("catalog answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
+		}
+	})
+
+	// A catalog loaded from a snapshot does not know the server's custom
+	// tablespaces, so it does not reject them.
+	t.Run("a snapshot catalog allows an unobserved tablespace", func(t *testing.T) {
+		c := New()
+		c.snapshot = true
+		if code := simulationCatalogCode(t, c, "CREATE TABLE a (b int) TABLESPACE fast"); code != "0" {
+			t.Fatalf("snapshot catalog refused an unobserved tablespace with %s", code)
+		}
+	})
+
 	// OWNED BY limits a bulk move to the named owners.
 	t.Run("a bulk move honors OWNED BY", func(t *testing.T) {
 		c := New()

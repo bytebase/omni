@@ -101,8 +101,15 @@ type Catalog struct {
 	extensionComments map[commentKey]string
 
 	// Tablespaces: the two the server starts with and the ones CREATE
-	// TABLESPACE names. Objects store no tablespace of their own.
+	// TABLESPACE names.
 	tablespaces map[string]bool
+	// defaultTablespace is the session's default_tablespace setting, "" for
+	// the database default.
+	defaultTablespace string
+	// snapshot marks a catalog loaded from a live schema. A snapshot carries
+	// no tablespace or access-method objects, so a name it does not hold may
+	// still exist on the server the snapshot came from.
+	snapshot bool
 
 	// Access methods, operator families, and operator classes.
 	accessMethods      map[uint32]*AccessMethod

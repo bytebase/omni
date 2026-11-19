@@ -326,6 +326,8 @@ func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 	switch s.Name {
 	case "search_path":
 		return c.processSetSearchPath(s)
+	case "default_tablespace":
+		return c.processSetDefaultTablespace(s)
 	case "role":
 		return c.processSetRole(s)
 	}
@@ -359,6 +361,31 @@ func (c *Catalog) processSetSearchPath(s *nodes.VariableSetStmt) error {
 		// RESET search_path / SET search_path TO DEFAULT
 		// pg: GUC default for search_path is '"$user", public'
 		c.SetSearchPath([]string{"$user", "public"})
+	}
+	return nil
+}
+
+// processSetDefaultTablespace handles SET default_tablespace = ...
+func (c *Catalog) processSetDefaultTablespace(s *nodes.VariableSetStmt) error {
+	switch s.Kind {
+	case nodes.VAR_SET_VALUE:
+		if s.Args == nil {
+			c.defaultTablespace = ""
+			return nil
+		}
+		for _, arg := range s.Args.Items {
+			ac, ok := arg.(*nodes.A_Const)
+			if !ok {
+				continue
+			}
+			sv, ok := ac.Val.(*nodes.String)
+			if !ok {
+				continue
+			}
+			c.defaultTablespace = sv.Str
+		}
+	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+		c.defaultTablespace = ""
 	}
 	return nil
 }

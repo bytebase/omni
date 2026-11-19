@@ -14,7 +14,19 @@ func (c *Catalog) checkTablespace(name string) error {
 	if name == "" || c.tablespaces[name] {
 		return nil
 	}
+	if c.snapshot {
+		return nil
+	}
 	return errUndefinedObject("tablespace", name)
+}
+
+// effectiveTablespace returns the tablespace an object with an optional
+// TABLESPACE clause lands in: the clause, else the session default.
+func (c *Catalog) effectiveTablespace(name string) string {
+	if name != "" {
+		return name
+	}
+	return c.defaultTablespace
 }
 
 // normalizeTablespace stores the default tablespace as "", the way a
@@ -57,6 +69,9 @@ func (c *Catalog) checkTableAccessMethod(name string) error {
 	}
 	am := c.accessMethodByName[name]
 	if am == nil {
+		if c.snapshot {
+			return nil
+		}
 		return errUndefinedObject("access method", name)
 	}
 	if am.Type != 't' {
@@ -209,7 +224,7 @@ func (c *Catalog) MoveAllTablespaces(stmt *nodes.AlterTableMoveAllStmt) error {
 		switch nodes.ObjectType(stmt.ObjType) {
 		case nodes.OBJECT_TABLE:
 			for _, rel := range schema.Relations {
-				if (rel.RelKind == 'r' || rel.RelKind == 'p' || rel.RelKind == 'f') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
+				if (rel.RelKind == 'r' || rel.RelKind == 'p') && tablespaceMatches(rel.Tablespace, stmt.OrigTablespacename) && ownerMatches(rel.OwnerName, owners) {
 					rel.Tablespace = target
 				}
 			}

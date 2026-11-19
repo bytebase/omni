@@ -85,7 +85,8 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		}
 		return errDuplicateTable(mvName)
 	}
-	if err := c.checkRelationTablespace(into.TableSpaceName); err != nil {
+	effectiveTablespace := c.effectiveTablespace(into.TableSpaceName)
+	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
 	if err := c.checkTableAccessMethod(into.AccessMethod); err != nil {
@@ -178,7 +179,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		Name:          mvName,
 		Schema:        schema,
 		RelKind:       relkind,
-		Tablespace:    normalizeTablespace(into.TableSpaceName),
+		Tablespace:    normalizeTablespace(effectiveTablespace),
 		OwnerName:     c.currentOwner(),
 		Columns:       columns,
 		colByName:     colByName,

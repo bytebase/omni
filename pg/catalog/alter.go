@@ -544,6 +544,9 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 	case nodes.AT_ChangeOwner:
 		if atc.Newowner != nil {
 			rel.OwnerName = roleSpecName(atc.Newowner)
+			for _, idx := range c.indexesByRel[rel.OID] {
+				idx.OwnerName = rel.OwnerName
+			}
 		}
 		return nil
 

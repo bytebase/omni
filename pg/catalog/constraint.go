@@ -131,7 +131,8 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 
 	idx := existingIdx
 	if idx == nil {
-		if err := c.checkRelationTablespace(def.IndexSpace); err != nil {
+		effectiveTablespace := c.effectiveTablespace(def.IndexSpace)
+		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 			return err
 		}
 		idxName := name
@@ -139,7 +140,7 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 			idxName = generateIndexName(rel.Name, def.Columns, isPrimary)
 		}
 		idx = c.createIndexInternal(schema, rel, idxName, attnums, true, isPrimary, conOID)
-		idx.Tablespace = normalizeTablespace(def.IndexSpace)
+		idx.Tablespace = normalizeTablespace(effectiveTablespace)
 		idx.OwnerName = rel.OwnerName
 	} else {
 		idx.IsUnique = true
@@ -601,7 +602,8 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 	}
 
 	// Create backing index.
-	if err := c.checkRelationTablespace(def.IndexSpace); err != nil {
+	effectiveTablespace := c.effectiveTablespace(def.IndexSpace)
+	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
 	idxName := name
@@ -616,7 +618,7 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		IsPrimary:     false,
 		ConstraintOID: conOID,
 		AccessMethod:  accessMethod,
-		Tablespace:    normalizeTablespace(def.IndexSpace),
+		Tablespace:    normalizeTablespace(effectiveTablespace),
 		OwnerName:     rel.OwnerName,
 		NKeyColumns:   len(attnums),
 		IndOption:     indOption,

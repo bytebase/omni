@@ -496,7 +496,8 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			return errDuplicateTable(relName)
 		}
 	}
-	if err := c.checkRelationTablespace(stmt.Tablespacename); err != nil {
+	effectiveTablespace := c.effectiveTablespace(stmt.Tablespacename)
+	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
 	if err := c.checkTableAccessMethod(stmt.AccessMethod); err != nil {
@@ -506,8 +507,8 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Constraint indexes may name a tablespace; refuse one the catalog cannot
 	// place before any implicit sequence is made.
 	for _, def := range constraintDefs {
-		if def.IndexSpace != "" {
-			if err := c.checkRelationTablespace(def.IndexSpace); err != nil {
+		if def.IndexSpace != "" || c.defaultTablespace != "" {
+			if err := c.checkRelationTablespace(c.effectiveTablespace(def.IndexSpace)); err != nil {
 				return err
 			}
 		}
@@ -557,7 +558,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		InhParents: parentOIDs,
 		InhCount:   len(parentOIDs),
 		OfTypeOID:  ofTypeOID,
-		Tablespace: normalizeTablespace(stmt.Tablespacename),
+		Tablespace: normalizeTablespace(effectiveTablespace),
 		OwnerName:  c.currentOwner(),
 	}
 
@@ -626,7 +627,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	}
 
 	// A partition with no TABLESPACE of its own takes its parent's.
-	if rel.Tablespace == "" && isPartition && len(parentOIDs) > 0 {
+	if stmt.Tablespacename == "" && isPartition && len(parentOIDs) > 0 {
 		if parent := c.relationByOID[parentOIDs[0]]; parent != nil {
 			rel.Tablespace = parent.Tablespace
 		}

@@ -382,6 +382,8 @@ func (c *Catalog) Clone() *Catalog {
 	for name := range c.tablespaces {
 		clone.tablespaces[name] = true
 	}
+	clone.defaultTablespace = c.defaultTablespace
+	clone.snapshot = c.snapshot
 
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))
 	clone.accessMethodByName = make(map[string]*AccessMethod, len(c.accessMethodByName))

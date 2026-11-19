@@ -61,7 +61,10 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	// Validate AM exists in registry and is an index access method.
 	am := c.accessMethodByName[accessMethod]
 	if am == nil {
-		return errUndefinedObject("access method", accessMethod)
+		if !c.snapshot {
+			return errUndefinedObject("access method", accessMethod)
+		}
+		am = &AccessMethod{Name: accessMethod, Type: 'i', OID: c.oidGen.Next()}
 	}
 	if am.Type != 'i' {
 		return &Error{Code: CodeInternalError,
@@ -275,7 +278,8 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		}
 		return errDuplicateObject("index", name)
 	}
-	if err := c.checkRelationTablespace(stmt.TableSpace); err != nil {
+	effectiveTablespace := c.effectiveTablespace(stmt.TableSpace)
+	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
 
@@ -288,8 +292,8 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		IsUnique:         stmt.Unique,
 		IsPrimary:        stmt.Primary,
 		AccessMethod:     accessMethod,
-		Tablespace:       normalizeTablespace(stmt.TableSpace),
-		OwnerName:        c.currentOwner(),
+		Tablespace:       normalizeTablespace(effectiveTablespace),
+		OwnerName:        rel.OwnerName,
 		NKeyColumns:      nKeyColumns,
 		WhereClause:      whereClause,
 		IndOption:        indOption,
