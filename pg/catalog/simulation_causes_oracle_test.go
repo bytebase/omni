@@ -616,8 +616,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 	})
 
-	// An index with no tablespace follows its table's tablespace.
-	t.Run("an index follows its table's tablespace", func(t *testing.T) {
+	// An index with no tablespace uses the database default, not its table's.
+	t.Run("an index uses the database default tablespace", func(t *testing.T) {
 		c := New()
 		for _, stmt := range []string{
 			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
@@ -628,8 +628,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 				t.Fatalf("catalog refused %s with %s", stmt, code)
 			}
 		}
-		if idx := c.schemaByName["public"].Indexes["a_b_idx"]; idx == nil || idx.Tablespace != "ts" {
-			t.Fatal("the index did not take its table's tablespace")
+		if idx := c.schemaByName["public"].Indexes["a_b_idx"]; idx == nil || idx.Tablespace != "" {
+			t.Fatal("the index did not use the database default tablespace")
 		}
 	})
 
@@ -639,7 +639,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		for _, stmt := range []string{
 			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
 			"CREATE TABLE p (b int) PARTITION BY RANGE (b) TABLESPACE ts",
-			"CREATE INDEX p_b_idx ON p(b)",
+			"CREATE INDEX p_b_idx ON p(b) TABLESPACE ts",
 			"CREATE TABLE c PARTITION OF p FOR VALUES FROM (0) TO (10)",
 		} {
 			if code := simulationCatalogCode(t, c, stmt); code != "0" {

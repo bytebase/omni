@@ -41,13 +41,7 @@ func (c *Catalog) effectiveIndexTablespace(name string, rel *Relation) string {
 	if rel != nil && rel.Persistence == 't' {
 		return rel.Tablespace
 	}
-	if fallback := c.effectiveTablespace(""); fallback != "" {
-		return fallback
-	}
-	if rel != nil {
-		return rel.Tablespace
-	}
-	return ""
+	return c.effectiveTablespace("")
 }
 
 // normalizeTablespace stores the default tablespace as "", the way a
@@ -154,6 +148,23 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 	}
 	delete(c.tablespaces, name)
 	delete(c.tablespaceOwners, name)
+	return nil
+}
+
+// AlterTablespaceOwner changes the owner recorded for a tablespace.
+func (c *Catalog) AlterTablespaceOwner(stmt *nodes.AlterOwnerStmt) error {
+	name := extractSimpleObjectName(stmt.Object)
+	if err := c.checkTablespace(name); err != nil {
+		return err
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	c.tablespaceOwners[name] = owner
 	return nil
 }
 
@@ -469,9 +480,9 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 			c.typeOwners[oid] = newOwner
 		}
 	}
-	for i := range c.grants {
-		if owners[c.grants[i].Grantee] {
-			c.grants[i].Grantee = newOwner
+	for name, owner := range c.tablespaceOwners {
+		if owners[owner] {
+			c.tablespaceOwners[name] = newOwner
 		}
 	}
 	return nil

@@ -66,7 +66,10 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.AlterObjectSchemaStmt:
 		return c.ExecAlterObjectSchemaStmt(s)
 	case *nodes.AlterOwnerStmt:
-		return nil // no-op: pgddl has no ownership tracking
+		if nodes.ObjectType(s.ObjectType) == nodes.OBJECT_TABLESPACE {
+			return c.AlterTablespaceOwner(s)
+		}
+		return nil // no-op: pgddl has no ownership tracking for other objects
 	case *nodes.TruncateStmt:
 		return c.ExecuteTruncate(s)
 	case *nodes.AlterTypeStmt:
