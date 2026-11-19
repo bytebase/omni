@@ -41,14 +41,8 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 		// and a comment for holding no statement, and
 		// `PREPARE p FROM 'SELECT 1; SELECT 2'` with "only single statement is
 		// supported". The nested parse starts at this parser's nesting depth,
-		// so a string of wrappers cannot stack deeper than the limit.
-		//
-		// A literal written without escapes is parsed where it stands, so the
-		// tree's Locs are the statement's and a query span reports the tables
-		// it reads at their own bytes. An escaped literal's decoded text does
-		// not map onto the source byte for byte, and rewriting a tree's Locs is
-		// not a thing this parser does, so that form keeps the text and no
-		// tree.
+		// so a string of wrappers cannot stack deeper than the limit, and the
+		// tree's Locs are mapped back onto the statement's own bytes.
 		node, err := p.parsePreparedString()
 		if err != nil {
 			return nil, err
@@ -82,27 +76,113 @@ func (p *Parser) parsePreparedString() (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	text, at := decodePreparedString(p.input[rel+1:end-1], p.cur.Loc.Start+1)
-	node, errs := parseSingle(text, 0, true, p.depth, false)
-	if len(errs) > 0 || node == nil {
+	if !hasSinglePreparedSegment(text) {
 		return nil, &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: "PREPARE FROM string must hold one statement",
 		}
 	}
-	ast.Inspect(node, func(n ast.Node) bool {
-		loc := ast.NodeLoc(n)
-		if loc.IsValid() {
-			ast.SetNodeLoc(n, ast.Loc{Start: at(loc.Start), End: at(loc.End)})
+	nested := parseAll(text, true, p.depth)
+	if len(nested.Errors) > 0 || nested.File == nil || len(nested.File.Stmts) != 1 {
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "PREPARE FROM string must hold one statement",
 		}
-		return true
-	})
+	}
+	node := nested.File.Stmts[0]
+	remapTreeLocs(node, at)
 	return node, nil
+}
+
+// hasSinglePreparedSegment reports whether text splits as a single statement
+// with at most one trailing semicolon (and optional trivia after it), matching
+// StarRocks's SqlParser.parseSingleStatement, which counts each extra `;` as an
+// EmptyStmt and rejects more than one singleStatement.
+func hasSinglePreparedSegment(text string) bool {
+	segs := SplitAll(text)
+	if len(segs) == 0 || segs[0].Empty() {
+		return false
+	}
+	if len(segs) == 1 {
+		return true
+	}
+	return len(segs) == 2 && segs[1].Empty() && segs[1].ByteEnd == len(text)
+}
+
+// remapTreeLocs maps every byte offset under root through at, walking with an
+// explicit stack so a deep chain cannot overflow the Go stack and a shared
+// child is never mapped twice. It also reaches the placeholder query bodies
+// and non-Node sub-structs that Walk leaves out.
+func remapTreeLocs(root ast.Node, at func(int) int) {
+	if root == nil {
+		return
+	}
+	mapLoc := func(loc ast.Loc) ast.Loc {
+		if !loc.IsValid() {
+			return loc
+		}
+		return ast.Loc{Start: at(loc.Start), End: at(loc.End)}
+	}
+	seen := make(map[ast.Node]bool)
+	stack := []ast.Node{root}
+	var kids childLister
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if n == nil || seen[n] {
+			continue
+		}
+		kids.entered, kids.children = false, kids.children[:0]
+		ast.Walk(&kids, n)
+		if !kids.entered {
+			continue
+		}
+		seen[n] = true
+		if loc := ast.NodeLoc(n); loc.IsValid() {
+			ast.SetNodeLoc(n, mapLoc(loc))
+		}
+		switch v := n.(type) {
+		case *ast.SubqueryExpr:
+			if v.TextStart >= 0 {
+				v.TextStart = at(v.TextStart)
+			}
+			if v.Query != nil {
+				kids.children = append(kids.children, v.Query)
+			}
+		case *ast.RawQuery:
+			if v.TextStart >= 0 {
+				v.TextStart = at(v.TextStart)
+			}
+			if v.Query != nil {
+				kids.children = append(kids.children, v.Query)
+			}
+		case *ast.TableRef:
+			if v.Subquery != nil && v.Name != nil && !seen[v.Name] {
+				seen[v.Name] = true
+				v.Name.Loc = mapLoc(v.Name.Loc)
+			}
+		case *ast.TypeName:
+			for _, f := range v.Fields {
+				if f != nil {
+					f.Loc = mapLoc(f.Loc)
+				}
+			}
+		case *ast.FuncCallExpr:
+			if v.Over != nil {
+				v.Over.Loc = mapLoc(v.Over.Loc)
+				if v.Over.Frame != nil {
+					v.Over.Frame.Loc = mapLoc(v.Over.Frame.Loc)
+				}
+			}
+		}
+		stack = append(stack, kids.children...)
+	}
 }
 
 // decodePreparedString decodes a single-quoted literal's content and returns,
 // for every byte of the result, the byte of the source it came from, base being
 // the source offset of the content. A doubled quote decodes to one quote at the
-// offset of the pair, and a backslash escape to the character after it.
+// offset of the pair, and a backslash escape uses the lexer's escape table.
 func decodePreparedString(raw string, base int) (string, func(int) int) {
 	var b strings.Builder
 	b.Grow(len(raw))
@@ -112,7 +192,7 @@ func decodePreparedString(raw string, base int) (string, func(int) int) {
 		switch {
 		case raw[i] == '\\' && i+1 < len(raw):
 			starts = append(starts, base+i)
-			b.WriteByte(raw[i+1])
+			b.WriteByte(unescapeStringByte(raw[i+1]))
 			i++
 		case raw[i] == '\'' && i+1 < len(raw) && raw[i+1] == '\'':
 			starts = append(starts, base+i)
@@ -133,7 +213,10 @@ func decodePreparedString(raw string, base int) (string, func(int) int) {
 		}
 		return starts[pos]
 	}
-} // parseExecute parses executeStatement (StarRocks.g4:2291):
+}
+
+// parseExecute parses executeStatement (StarRocks.g4:2291):
+//
 //	EXECUTE identifier [USING '@'identifierOrString [',' '@'identifierOrString]*]
 //
 // On entry EXECUTE has NOT been consumed.

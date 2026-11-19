@@ -223,6 +223,11 @@ type RawQuery struct {
 	// back into the outer statement's coordinates.
 	TextStart int
 
+	// Query is the body as the strict parser validated it, with locations in
+	// the parser's input like the rest of the tree. Walk does not visit it,
+	// matching SubqueryExpr.Query.
+	Query Node
+
 	Loc Loc
 }
 

@@ -282,29 +282,7 @@ func (l *Lexer) scanString(quote byte) Token {
 			if l.pos >= len(l.input) {
 				break
 			}
-			esc := l.input[l.pos]
-			switch esc {
-			case 'n':
-				sb.WriteByte('\n')
-			case 't':
-				sb.WriteByte('\t')
-			case 'r':
-				sb.WriteByte('\r')
-			case '0':
-				sb.WriteByte(0)
-			case '\\':
-				sb.WriteByte('\\')
-			case '\'':
-				sb.WriteByte('\'')
-			case '"':
-				sb.WriteByte('"')
-			case 'b':
-				sb.WriteByte(0x08)
-			case 'Z':
-				sb.WriteByte(0x1A)
-			default:
-				sb.WriteByte(esc)
-			}
+			sb.WriteByte(unescapeStringByte(l.input[l.pos]))
 			l.pos++
 			continue
 		}
@@ -314,6 +292,31 @@ func (l *Lexer) scanString(quote byte) Token {
 	}
 	l.errors = append(l.errors, LexError{Loc: ast.Loc{Start: start, End: l.pos}, Msg: errUnterminatedString})
 	return Token{Kind: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}
+}
+
+func unescapeStringByte(esc byte) byte {
+	switch esc {
+	case 'n':
+		return '\n'
+	case 't':
+		return '\t'
+	case 'r':
+		return '\r'
+	case '0':
+		return 0
+	case '\\':
+		return '\\'
+	case '\'':
+		return '\''
+	case '"':
+		return '"'
+	case 'b':
+		return 0x08
+	case 'Z':
+		return 0x1A
+	default:
+		return esc
+	}
 }
 
 // scanBacktickIdent reads a backtick-quoted identifier. Only doubled-backtick

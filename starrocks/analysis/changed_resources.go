@@ -145,9 +145,16 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 
 	case *ast.CreatePipeStmt:
 		// The pipe's body is the statement that writes, on the schedule the
-		// pipe keeps; the wrapper only names and describes it.
+		// pipe keeps; a qualified pipe name also records its database and
+		// scopes an unqualified target table, which StarRocks requires to live
+		// in the pipe's database.
+		pipeDatabase := database
+		if pipeDB, _ := objectName(n.Name, ""); pipeDB != "" {
+			pipeDatabase = pipeDB
+			changes.Resources = append(changes.Resources, ChangedResource{Database: pipeDB, DatabaseOnly: true})
+		}
 		if n.Insert != nil {
-			inner := ExtractChangedResources(n.Insert, database, text)
+			inner := ExtractChangedResources(n.Insert, pipeDatabase, text)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
 			changes.DMLCount += inner.DMLCount
@@ -194,6 +201,10 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 	case *ast.DropProcedureStmt:
 		addObjectDatabase(n.Name)
 	case *ast.DropTaskStmt:
+		addObjectDatabase(n.Name)
+	case *ast.DropPipeStmt:
+		addObjectDatabase(n.Name)
+	case *ast.AlterPipeStmt:
 		addObjectDatabase(n.Name)
 	case *ast.AlterLoadStmt:
 		addObjectDatabase(n.Name)

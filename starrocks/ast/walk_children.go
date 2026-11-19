@@ -24,6 +24,9 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *DropIndexStmt:
 		Walk(v, n.Name)
 		Walk(v, n.Table)
@@ -709,6 +712,9 @@ func walkChildren(v Visitor, node Node) {
 	case *DropCatalogStmt:
 		// leaf-ish node, name stored as string
 	case *RefreshCatalogStmt:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	// DDL — STORAGE VAULT nodes (T5.3).
 
 	// DDL — STORAGE VOLUME nodes (StarRocks.g4:782-822).

@@ -118,8 +118,6 @@ func (p *Parser) replayParen(r parenReplay) {
 	p.cur, p.prev, p.nextBuf, p.hasNext = r.end.cur, r.end.prev, r.end.nextBuf, r.end.hasNext
 }
 
-// rawQuery is a query body captured as raw text: the text and the absolute
-// byte offset of its first character in the parser's input.
 // rawQuery is a query body captured as raw text: the text, the absolute
 // byte offset of its first character in the parser's input, and the nesting
 // depth it was captured at, which the nested parse that validates it starts
@@ -132,6 +130,8 @@ type rawQuery struct {
 	// the optimizerTrace prefix. An expression subquery is a queryRelation and
 	// does not.
 	allowTrace bool
+	sub        *ast.SubqueryExpr
+	raw        *ast.RawQuery
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -1170,8 +1170,19 @@ func (p *Parser) validateRawQueries() []ParseError {
 		if q.allowTrace {
 			body = isQueryStatementBody
 		}
-		if !body(res.File.Stmts[0]) {
+		stmt := res.File.Stmts[0]
+		if !body(stmt) {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+			continue
+		}
+		if q.start != 0 {
+			remapTreeLocs(stmt, func(pos int) int { return pos + q.start })
+		}
+		if q.sub != nil {
+			q.sub.Query = stmt
+		}
+		if q.raw != nil {
+			q.raw.Query = stmt
 		}
 	}
 	return out

@@ -153,16 +153,14 @@ func (p *Parser) parseAlterPlanAdvisor(startLoc ast.Loc) (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		// queryStatement's outfile is part of the body: `ADD SELECT 1 INTO
-		// OUTFILE '/x'` is accepted, and a plan writes nothing.
-		if p.cur.Kind == kwINTO {
-			if queryHasInto(query) {
-				return nil, p.syntaxErrorAtCur()
-			}
-			into, err := p.parseIntoOutfileClause()
-			if err != nil {
-				return nil, err
-			}
-			attachInto(query, into)
+		// OUTFILE '/x'` is accepted, and a plan writes nothing. Settle any
+		// outfile parsed inside a set-op arm or parenthesized group first, just
+		// as EXPLAIN and CTEs do.
+		if err := p.settleQueryInto(query); err != nil {
+			return nil, err
+		}
+		if err := p.parseQuerySuffixInto(query); err != nil {
+			return nil, err
 		}
 		stmt.Query = query
 		stmt.Loc = startLoc.Merge(ast.NodeLoc(query))

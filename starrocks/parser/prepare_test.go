@@ -167,4 +167,60 @@ func TestPrepareStringTreeIsAtItsOwnBytes(t *testing.T) {
 	if got := escaped[ast.NodeLoc(sel).Start:ast.NodeLoc(sel).End]; got != `SELECT ''x'' FROM secret` {
 		t.Errorf("the tree slices %q, want the prepared statement", got)
 	}
+
+	// Subqueries inside an escaped PREPARE literal keep outer-statement bytes
+	// even though Walk treats SubqueryExpr as a placeholder leaf.
+	const subEscaped = `PREPARE p FROM 'SELECT ''x'' FROM (SELECT * FROM secret) sub'`
+	stmt = parseOne(t, subEscaped).(*ast.PrepareStmt)
+	sel = stmt.Query.(*ast.SelectStmt)
+	subRef := sel.From[0].(*ast.TableRef)
+	innerSel := subRef.Subquery.Query.(*ast.SelectStmt)
+	want = strings.Index(subEscaped, "secret")
+	if got := ast.NodeLoc(innerSel.From[0]); got.Start != want || got.End != want+len("secret") {
+		t.Errorf("subquery table Loc = %+v, want {%d %d}", got, want, want+len("secret"))
+	}
+
+	// Backslash escapes (\n, \t) decode with the lexer's escape table so a
+	// line comment inside a prepared string ends at \n rather than swallowing
+	// the rest of the query, and trailing ';' inside the literal is accepted
+	// while multiple statements or empty ';' segments are rejected.
+	const nlEscaped = `PREPARE p FROM 'SELECT 1 -- c\nFROM secret;'`
+	stmt = parseOne(t, nlEscaped).(*ast.PrepareStmt)
+	sel = stmt.Query.(*ast.SelectStmt)
+	want = strings.Index(nlEscaped, "secret")
+	if got := ast.NodeLoc(sel.From[0]); got.Start != want || got.End != want+len("secret") {
+		t.Errorf("newline-escaped table Loc = %+v, want {%d %d}", got, want, want+len("secret"))
+	}
+	if _, err := Parse(`PREPARE p FROM 'TRANSLATE presto;'`); err != nil {
+		t.Errorf("PREPARE TRANSLATE with terminator failed: %v", err)
+	}
+	for _, bad := range []string{
+		`PREPARE p FROM ';'`,
+		`PREPARE p FROM '; SELECT 1'`,
+		`PREPARE p FROM 'SELECT 1;;'`,
+		`PREPARE p FROM 'TRANSLATE presto'`,
+	} {
+		if _, err := Parse(bad); err == nil {
+			t.Errorf("Parse(%q) succeeded, want an error", bad)
+		}
+	}
+}
+
+func TestWalkIndexAndRefreshCatalogProperties(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE INDEX idx ON t (a) USING BITMAP ('k' = 'v')`,
+		`REFRESH CATALOG cat PROPERTIES ('k' = 'v')`,
+	} {
+		node := parseOne(t, sql)
+		found := false
+		ast.Inspect(node, func(n ast.Node) bool {
+			if prop, ok := n.(*ast.Property); ok && prop.Key == "k" && prop.Value == "v" {
+				found = true
+			}
+			return true
+		})
+		if !found {
+			t.Errorf("Inspect(%q) did not visit Property k=v", sql)
+		}
+	}
 }

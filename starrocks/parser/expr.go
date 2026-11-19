@@ -1557,7 +1557,7 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 		}
 	}
 	sub := p.finishSubqueryPlaceholder(startOffset, subStart)
-	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart, depth: p.depth})
+	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart, depth: p.depth, sub: sub})
 	return sub, nil
 }
 

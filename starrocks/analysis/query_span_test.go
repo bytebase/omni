@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bytebase/omni/enginetest/cputime"
+	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
 )
 
@@ -1310,5 +1311,51 @@ func TestGetQuerySpanViewCTEBodyBeforeName(t *testing.T) {
 	}
 	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "c" {
 		t.Errorf("AccessTables = %+v, want c", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpanPreparedStringLocationsAndScopes(t *testing.T) {
+	for _, sql := range []string{
+		`PREPARE p FROM 'SELECT ''x'' FROM secret'`,
+		`PREPARE p FROM 'SELECT ''x'' FROM (SELECT * FROM secret) sub'`,
+		`PREPARE p FROM 'SELECT 1 -- comment\nFROM secret;'`,
+		`PREPARE p FROM 'CREATE TABLE dst AS SELECT ''x'' FROM secret'`,
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q): %v", sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+			t.Fatalf("GetQuerySpan(%q) AccessTables = %+v, want [secret]", sql, span.AccessTables)
+		}
+		loc := span.AccessTables[0].Loc
+		if got := sql[loc.Start:loc.End]; got != "secret" {
+			t.Errorf("GetQuerySpan(%q) Loc %+v slices %q, want \"secret\"", sql, loc, got)
+		}
+	}
+
+	// A CTE-prefixed DELETE or UPDATE inside PREPARE must walk its CTE body
+	// and keep the CTE name out of physical AccessTables.
+	const cteDelete = `PREPARE p FROM 'WITH c AS (SELECT * FROM secret) DELETE FROM target USING extra WHERE a IN (SELECT a FROM c)'`
+	span, err := GetQuerySpan(cteDelete)
+	if err != nil {
+		t.Fatalf("GetQuerySpan(cteDelete): %v", err)
+	}
+	got := map[string]ast.Loc{}
+	for _, tbl := range span.AccessTables {
+		got[tbl.Table] = tbl.Loc
+	}
+	if _, hasC := got["c"]; hasC {
+		t.Errorf("AccessTables = %+v, must not include CTE c", span.AccessTables)
+	}
+	for _, name := range []string{"secret", "extra"} {
+		loc, ok := got[name]
+		if !ok {
+			t.Errorf("AccessTables = %+v, missing %s", span.AccessTables, name)
+			continue
+		}
+		if sliced := cteDelete[loc.Start:loc.End]; sliced != name {
+			t.Errorf("%s Loc %+v slices %q, want %q", name, loc, sliced, name)
+		}
 	}
 }
