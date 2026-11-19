@@ -217,10 +217,12 @@ var _ Node = (*AlterLoadStmt)(nil)
 //	    [WITH BROKER name (...)]
 type ExportStmt struct {
 	Target           *ObjectName // table to export
-	Partition        []string    // optional PARTITION(...)
-	Where            Node        // optional WHERE clause
+	Partition        []string    // optional partitionNames
+	ColumnAliases    []string    // optional columnAliases
 	Path             string      // TO 'path'
-	Properties       []*Property // optional PROPERTIES(...)
+	Mode             string      // WITH SYNC MODE / WITH ASYNC MODE
+	Properties       []*Property // optional properties
+	Broker           bool        // WITH BROKER seen
 	BrokerName       string      // optional WITH BROKER name
 	BrokerProperties []*Property // optional WITH BROKER name (...) list
 	Loc              Loc

@@ -150,8 +150,10 @@ func (p *Parser) parseDeleteStmt(deleteStart int) (*ast.DeleteStmt, error) {
 	}
 	stmt.Target = target
 
-	// optional AS alias (or bare alias) — but not PARTITION/PARTITIONS/USING/WHERE
-	stmt.TargetAlias = p.parseDMLTargetAlias()
+	// deleteStatement (StarRocks.g4:2197) names no alias for its target:
+	// `DELETE FROM a a` and `DELETE FROM a AS b` are syntax errors on the
+	// pinned server, while `DELETE a FROM ...` is another statement Doris has
+	// and StarRocks does not.
 
 	// optional PARTITION(p1, p2, ...) or PARTITIONS (p1, p2, ...)
 	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {

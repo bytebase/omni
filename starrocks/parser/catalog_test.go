@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestCreateCatalog_Basic(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG hive_catalog PROPERTIES("type"="hms", "hive.metastore.uris"="thrift://127.0.0.1:7004")`)
+	file, errs := parseForTest(`CREATE EXTERNAL CATALOG hive_catalog PROPERTIES("type"="hms", "hive.metastore.uris"="thrift://127.0.0.1:7004")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -25,8 +25,8 @@ func TestCreateCatalog_Basic(t *testing.T) {
 	if stmt.Name != "hive_catalog" {
 		t.Errorf("Name = %q, want %q", stmt.Name, "hive_catalog")
 	}
-	if stmt.External {
-		t.Error("External should be false")
+	if !stmt.External {
+		t.Error("External should be true")
 	}
 	if stmt.IfNotExists {
 		t.Error("IfNotExists should be false")
@@ -66,7 +66,7 @@ func TestCreateCatalog_External(t *testing.T) {
 }
 
 func TestCreateCatalog_IfNotExists(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG IF NOT EXISTS my_catalog PROPERTIES("type"="hms")`)
+	file, errs := parseForTest(`CREATE EXTERNAL CATALOG IF NOT EXISTS my_catalog PROPERTIES("type"="hms")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -80,7 +80,7 @@ func TestCreateCatalog_IfNotExists(t *testing.T) {
 }
 
 func TestCreateCatalog_WithComment(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG hive COMMENT 'hive catalog' PROPERTIES('type'='hms', 'hive.metastore.uris'='thrift://127.0.0.1:7004')`)
+	file, errs := parseForTest(`CREATE EXTERNAL CATALOG hive COMMENT 'hive catalog' PROPERTIES('type'='hms', 'hive.metastore.uris'='thrift://127.0.0.1:7004')`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -96,36 +96,24 @@ func TestCreateCatalog_WithComment(t *testing.T) {
 	}
 }
 
-func TestCreateCatalog_NoProperties(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG my_catalog`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.CreateCatalogStmt)
-	if stmt.Name != "my_catalog" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "my_catalog")
-	}
-	if len(stmt.Properties) != 0 {
-		t.Errorf("expected 0 properties, got %d", len(stmt.Properties))
-	}
-}
-
-func TestCreateCatalog_WithResource(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG hms_catalog WITH RESOURCE hms_resource`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.CreateCatalogStmt)
-	if stmt.Name != "hms_catalog" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "hms_catalog")
-	}
-	if stmt.WithResource != "hms_resource" {
-		t.Errorf("WithResource = %q, want %q", stmt.WithResource, "hms_resource")
+func TestCreateCatalog_Refused(t *testing.T) {
+	// createExternalCatalogStatement (StarRocks.g4:760) requires EXTERNAL and
+	// a properties list, and has no WITH RESOURCE; the pinned server refuses
+	// each of these.
+	for _, sql := range []string{
+		`CREATE CATALOG my_catalog PROPERTIES("type"="hms")`,
+		`CREATE EXTERNAL CATALOG my_catalog`,
+		`CREATE EXTERNAL CATALOG hms_catalog WITH RESOURCE hms_resource`,
+		`CREATE EXTERNAL CATALOG hms_catalog PROPERTIES("type"="hms") WITH RESOURCE hms_resource`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 
 func TestCreateCatalog_ES(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG es PROPERTIES ("type"="es", "hosts"="http://127.0.0.1:9200")`)
+	file, errs := parseForTest(`CREATE EXTERNAL CATALOG es PROPERTIES ("type"="es", "hosts"="http://127.0.0.1:9200")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -139,7 +127,7 @@ func TestCreateCatalog_ES(t *testing.T) {
 }
 
 func TestCreateCatalog_JDBC(t *testing.T) {
-	input := `CREATE CATALOG jdbc PROPERTIES (
+	input := `CREATE EXTERNAL CATALOG jdbc PROPERTIES (
 		"type"="jdbc",
 		"user"="root",
 		"password"="123456",
@@ -161,7 +149,7 @@ func TestCreateCatalog_JDBC(t *testing.T) {
 }
 
 func TestCreateCatalog_Tag(t *testing.T) {
-	file, errs := parseForTest(`CREATE CATALOG c PROPERTIES("type"="hms")`)
+	file, errs := parseForTest(`CREATE EXTERNAL CATALOG c PROPERTIES("type"="hms")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -174,31 +162,8 @@ func TestCreateCatalog_Tag(t *testing.T) {
 // ALTER CATALOG
 // ---------------------------------------------------------------------------
 
-func TestAlterCatalog_Rename(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG ctlg_hive RENAME hive`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	if len(file.Stmts) != 1 {
-		t.Fatalf("expected 1 stmt, got %d", len(file.Stmts))
-	}
-	stmt, ok := file.Stmts[0].(*ast.AlterCatalogStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AlterCatalogStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "ctlg_hive" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "ctlg_hive")
-	}
-	if stmt.Action != ast.AlterCatalogRename {
-		t.Errorf("Action = %v, want AlterCatalogRename", stmt.Action)
-	}
-	if stmt.NewName != "hive" {
-		t.Errorf("NewName = %q, want %q", stmt.NewName, "hive")
-	}
-}
-
-func TestAlterCatalog_SetProperties(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
+func TestAlterCatalog_Set(t *testing.T) {
+	file, errs := parseForTest(`ALTER CATALOG hive SET ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -208,9 +173,6 @@ func TestAlterCatalog_SetProperties(t *testing.T) {
 	}
 	if stmt.Name != "hive" {
 		t.Errorf("Name = %q, want %q", stmt.Name, "hive")
-	}
-	if stmt.Action != ast.AlterCatalogSetProperties {
-		t.Errorf("Action = %v, want AlterCatalogSetProperties", stmt.Action)
 	}
 	if len(stmt.Properties) != 1 {
 		t.Fatalf("expected 1 property, got %d", len(stmt.Properties))
@@ -220,48 +182,25 @@ func TestAlterCatalog_SetProperties(t *testing.T) {
 	}
 }
 
-func TestAlterCatalog_ModifyComment(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.AlterCatalogStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AlterCatalogStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Name != "hive" {
-		t.Errorf("Name = %q, want %q", stmt.Name, "hive")
-	}
-	if stmt.Action != ast.AlterCatalogModifyComment {
-		t.Errorf("Action = %v, want AlterCatalogModifyComment", stmt.Action)
-	}
-	if stmt.Comment != "new catalog comment" {
-		t.Errorf("Comment = %q, want %q", stmt.Comment, "new catalog comment")
-	}
-}
-
-func TestAlterCatalog_Property(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG c PROPERTY ("key"="value")`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt, ok := file.Stmts[0].(*ast.AlterCatalogStmt)
-	if !ok {
-		t.Fatalf("expected *ast.AlterCatalogStmt, got %T", file.Stmts[0])
-	}
-	if stmt.Action != ast.AlterCatalogSetProperty {
-		t.Errorf("Action = %v, want AlterCatalogSetProperty", stmt.Action)
-	}
-	if len(stmt.Properties) != 1 {
-		t.Fatalf("expected 1 property, got %d", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "key" || stmt.Properties[0].Value != "value" {
-		t.Errorf("unexpected property: key=%q val=%q", stmt.Properties[0].Key, stmt.Properties[0].Value)
+func TestAlterCatalog_Refused(t *testing.T) {
+	// alterCatalogStatement (StarRocks.g4:2152) has one clause, SET with a
+	// property list; the fork's RENAME, SET PROPERTIES, MODIFY COMMENT and
+	// PROPERTY are refused by the pinned server.
+	for _, sql := range []string{
+		`ALTER CATALOG ctlg_hive RENAME hive`,
+		`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`,
+		`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`,
+		`ALTER CATALOG c PROPERTY ("key"="value")`,
+		`ALTER CATALOG c SET 'key'='value'`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 
 func TestAlterCatalog_Tag(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG c RENAME c2`)
+	file, errs := parseForTest(`ALTER CATALOG c SET ('key'='value')`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -377,7 +316,7 @@ func TestRefreshCatalog_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateCatalog_Legacy_HiveWithHAFS(t *testing.T) {
-	input := `CREATE CATALOG hive COMMENT 'hive catalog' PROPERTIES (
+	input := `CREATE EXTERNAL CATALOG hive COMMENT 'hive catalog' PROPERTIES (
 		'type'='hms',
 		'hive.metastore.uris' = 'thrift://127.0.0.1:7004',
 		'dfs.nameservices'='HANN',
@@ -403,7 +342,7 @@ func TestCreateCatalog_Legacy_HiveWithHAFS(t *testing.T) {
 }
 
 func TestCreateCatalog_Legacy_JdbcPostgres(t *testing.T) {
-	input := `CREATE CATALOG jdbc_pg PROPERTIES (
+	input := `CREATE EXTERNAL CATALOG jdbc_pg PROPERTIES (
 		"type"="jdbc",
 		"user"="postgres",
 		"password"="123456",
@@ -427,39 +366,6 @@ func TestCreateCatalog_Legacy_JdbcPostgres(t *testing.T) {
 // ---------------------------------------------------------------------------
 // Legacy corpus — catalog_alter.sql
 // ---------------------------------------------------------------------------
-
-func TestAlterCatalog_Legacy_Rename(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG ctlg_hive RENAME hive`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AlterCatalogStmt)
-	if stmt.Name != "ctlg_hive" || stmt.NewName != "hive" {
-		t.Errorf("Name=%q NewName=%q", stmt.Name, stmt.NewName)
-	}
-}
-
-func TestAlterCatalog_Legacy_SetProperties(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AlterCatalogStmt)
-	if stmt.Action != ast.AlterCatalogSetProperties {
-		t.Errorf("Action = %v, want AlterCatalogSetProperties", stmt.Action)
-	}
-}
-
-func TestAlterCatalog_Legacy_ModifyComment(t *testing.T) {
-	file, errs := parseForTest(`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`)
-	if len(errs) != 0 {
-		t.Fatalf("unexpected errors: %v", errs)
-	}
-	stmt := file.Stmts[0].(*ast.AlterCatalogStmt)
-	if stmt.Comment != "new catalog comment" {
-		t.Errorf("Comment = %q, want %q", stmt.Comment, "new catalog comment")
-	}
-}
 
 // ---------------------------------------------------------------------------
 // Legacy corpus — catalog_drop.sql
@@ -492,7 +398,7 @@ func TestDropCatalog_Legacy_IfExists(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCatalog_MultiStatement(t *testing.T) {
-	input := `CREATE CATALOG c1 PROPERTIES("type"="hms"); DROP CATALOG c1`
+	input := `CREATE EXTERNAL CATALOG c1 PROPERTIES("type"="hms"); DROP CATALOG c1`
 	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)

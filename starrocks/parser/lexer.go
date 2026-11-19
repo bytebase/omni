@@ -112,6 +112,12 @@ func (l *Lexer) nextTokenInner() Token {
 	case ch >= '0' && ch <= '9':
 		return l.scanNumber()
 	case ch == '.' && l.peekDigit():
+		// DOT_IDENTIFIER is '.' DIGIT_IDENTIFIER (StarRocksLex.g4:574) and
+		// wins the longest match over DECIMAL_VALUE, so '.1a' is one token
+		// and '.1' is a number.
+		if _, ok := l.dotIdentEnd(); ok {
+			return l.scanDotIdent()
+		}
 		return l.scanNumber()
 	case (ch == 'X' || ch == 'x') && (l.peek(1) == '\'' || l.peek(1) == '"'):
 		// BINARY_SINGLE_QUOTED_TEXT and BINARY_DOUBLE_QUOTED_TEXT (StarRocksLex.g4).
@@ -446,6 +452,13 @@ func (l *Lexer) scanNumber() Token {
 	if isFloat {
 		return Token{Kind: tokFloat, Str: text, Loc: loc}
 	}
+	// DIGIT_IDENTIFIER (StarRocksLex.g4:564) is DIGIT (LETTER | DIGIT | '_')+
+	// and outruns INTEGER_VALUE, so '1a' is one identifier. LETTER covers
+	// U+0080-U+FFFF, so '1　AS' is one too.
+	if end, ok := l.digitIdentEnd(); ok {
+		l.pos = end
+		return Token{Kind: tokIdent, Str: l.input[start:end], Loc: ast.Loc{Start: start, End: end}}
+	}
 	val, err := strconv.ParseInt(text, 10, 64)
 	if err != nil {
 		return Token{Kind: tokFloat, Str: text, Loc: loc}
@@ -455,6 +468,71 @@ func (l *Lexer) scanNumber() Token {
 
 func isHexDigit(ch byte) bool {
 	return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+}
+
+// digitIdentEnd reports where the DIGIT_IDENTIFIER that starts at the digits
+// just scanned ends, if one starts there: DIGIT (LETTER | DIGIT | '_')+ needs
+// a LETTER, '_' or another digit after the digits already scanned.
+func (l *Lexer) digitIdentEnd() (int, bool) {
+	if l.pos >= len(l.input) {
+		return 0, false
+	}
+	r, size := utf8.DecodeRuneInString(l.input[l.pos:])
+	if !isIdentRune(r) {
+		return 0, false
+	}
+	return l.identRunEnd(l.pos + size), true
+}
+
+// dotIdentEnd reports where the DOT_IDENTIFIER (StarRocksLex.g4:574) that
+// would start at the current '.' ends, if the text there is one: '.' and a
+// DIGIT_IDENTIFIER. DECIMAL_VALUE also matches '.1', so the identifier wins
+// only while it is the longer match; DOUBLE_VALUE's exponent ('.1E5') comes
+// first in the lexer and keeps the text a number.
+func (l *Lexer) dotIdentEnd() (int, bool) {
+	i := l.pos + 1
+	for i < len(l.input) && l.input[i] >= '0' && l.input[i] <= '9' {
+		i++
+	}
+	if i >= len(l.input) {
+		return 0, false
+	}
+	r, size := utf8.DecodeRuneInString(l.input[i:])
+	if r == 'E' {
+		j := i + 1
+		if j < len(l.input) && (l.input[j] == '+' || l.input[j] == '-') {
+			j++
+		}
+		if j < len(l.input) && l.input[j] >= '0' && l.input[j] <= '9' {
+			return 0, false
+		}
+	}
+	if !isIdentRune(r) {
+		return 0, false
+	}
+	return l.identRunEnd(i + size), true
+}
+
+// identRunEnd scans the identifier characters from i and returns where they
+// end.
+func (l *Lexer) identRunEnd(i int) int {
+	for i < len(l.input) {
+		r, size := utf8.DecodeRuneInString(l.input[i:])
+		if !isIdentRune(r) {
+			break
+		}
+		i += size
+	}
+	return i
+}
+
+// scanDotIdent scans a DOT_IDENTIFIER. Str holds the text after the '.', so
+// the token names the identifier part it stands for.
+func (l *Lexer) scanDotIdent() Token {
+	end, _ := l.dotIdentEnd()
+	start := l.pos
+	l.pos = end
+	return Token{Kind: tokDotIdent, Str: l.input[start+1 : end], Loc: ast.Loc{Start: start, End: end}}
 }
 
 // --- Identifier / Keyword Scanning -----------------------------------------

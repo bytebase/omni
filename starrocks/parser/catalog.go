@@ -19,10 +19,15 @@ func (p *Parser) parseCreateCatalog() (ast.Node, error) {
 	stmt := &ast.CreateCatalogStmt{}
 
 	// Optional EXTERNAL
-	if p.cur.Kind == kwEXTERNAL {
-		stmt.External = true
-		p.advance()
+	// createExternalCatalogStatement (StarRocks.g4:760) is the only CREATE
+	// CATALOG rule: the pinned server answers `CREATE CATALOG a` with "No
+	// viable statement for input 'CREATE CATALOG'", and its PROPERTIES are not
+	// optional.
+	if p.cur.Kind != kwEXTERNAL {
+		return nil, p.syntaxErrorAtCur()
 	}
+	stmt.External = true
+	p.advance() // consume EXTERNAL
 
 	// CATALOG keyword
 	if _, err := p.expect(kwCATALOG); err != nil {
@@ -69,33 +74,23 @@ func (p *Parser) parseCreateCatalog() (ast.Node, error) {
 			if len(props) > 0 {
 				endLoc = ast.NodeLoc(props[len(props)-1])
 			}
-		case kwWITH:
-			p.advance() // consume WITH
-			if _, err := p.expect(kwRESOURCE); err != nil {
-				return nil, err
-			}
-			resourceName, resourceLoc, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			stmt.WithResource = resourceName
-			endLoc = resourceLoc
 		default:
 			goto done
 		}
 	}
 done:
+	if stmt.Properties == nil {
+		// properties is not optional in createExternalCatalogStatement: the
+		// pinned server refuses `CREATE EXTERNAL CATALOG a`.
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
 }
 
-// parseAlterCatalog parses:
+// parseAlterCatalog parses alterCatalogStatement (StarRocks.g4:2152):
 //
-//	ALTER CATALOG catalog_name
-//	    { RENAME new_name
-//	    | SET PROPERTIES ("key"="value", ...)
-//	    | MODIFY COMMENT 'text'
-//	    | PROPERTY ("key"="value") }
+//	ALTER CATALOG catalog_name SET '(' property [',' property]* ')'
 //
 // The ALTER keyword has already been consumed; cur is CATALOG.
 func (p *Parser) parseAlterCatalog() (ast.Node, error) {
@@ -106,71 +101,22 @@ func (p *Parser) parseAlterCatalog() (ast.Node, error) {
 
 	stmt := &ast.AlterCatalogStmt{}
 
-	// Catalog name — single identifier
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
 
-	endLoc := startLoc
-
-	switch p.cur.Kind {
-	case kwRENAME:
-		p.advance() // consume RENAME
-		newName, newNameLoc, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Action = ast.AlterCatalogRename
-		stmt.NewName = newName
-		endLoc = newNameLoc
-
-	case kwSET:
-		p.advance() // consume SET
-		if p.cur.Kind != kwPROPERTIES {
-			return nil, p.syntaxErrorAtCur()
-		}
-		props, err := p.parseProperties()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Action = ast.AlterCatalogSetProperties
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
-
-	case kwMODIFY:
-		p.advance() // consume MODIFY
-		if _, err := p.expect(kwCOMMENT); err != nil {
-			return nil, err
-		}
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.Action = ast.AlterCatalogModifyComment
-		stmt.Comment = p.cur.Str
-		endLoc = p.cur.Loc
-		p.advance()
-
-	case kwPROPERTY:
-		// PROPERTY ("key"="value") — singular, no SET prefix
-		props, err := p.parsePropertyClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Action = ast.AlterCatalogSetProperty
-		stmt.Properties = props
-		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
-		}
-
-	default:
-		return nil, p.syntaxErrorAtCur()
+	if _, err := p.expect(kwSET); err != nil {
+		return nil, err
 	}
+	props, err := p.parsePropertyList()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Properties = props
 
-	stmt.Loc = startLoc.Merge(endLoc)
+	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
 }
 
@@ -243,18 +189,43 @@ func (p *Parser) parseRefreshCatalog() (ast.Node, error) {
 	return stmt, nil
 }
 
-// parsePropertyClause parses:
+// parseRefreshExternalTable parses refreshTableStatement (StarRocks.g4:550):
 //
-//	PROPERTY ("key"="value" [, "key"="value" ...])
+//	REFRESH EXTERNAL TABLE qualifiedName [(PARTITION '(' string [',' string]* ')')]
 //
-// cur must be kwPROPERTY on entry; it is consumed here.
-// This is the singular form used in ALTER CATALOG ... PROPERTY (...).
-func (p *Parser) parsePropertyClause() ([]*ast.Property, error) {
-	p.advance() // consume PROPERTY
-
-	if _, err := p.expect(int('(')); err != nil {
+// On entry REFRESH has been consumed; cur is EXTERNAL.
+func (p *Parser) parseRefreshExternalTable(startLoc ast.Loc) (ast.Node, error) {
+	p.advance() // consume EXTERNAL
+	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}
-
-	return p.parsePropertyItems(p.parseStringProperty)
+	name, err := p.parseMultipartIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.RefreshExternalTableStmt{Name: name}
+	endLoc := name.Loc
+	if p.cur.Kind == kwPARTITION {
+		p.advance() // consume PARTITION
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		for {
+			if p.cur.Kind != tokString {
+				return nil, p.syntaxErrorAtCur()
+			}
+			stmt.Partitions = append(stmt.Partitions, p.cur.Str)
+			endLoc = p.cur.Loc
+			p.advance()
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+	stmt.Loc = startLoc.Merge(endLoc)
+	return stmt, nil
 }

@@ -386,6 +386,44 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DropProcedureStmt:
 		return v.Loc
+	case *RefreshExternalTableStmt:
+		return v.Loc
+	case *CreateResourceGroupStmt:
+		return v.Loc
+	case *DropResourceGroupStmt:
+		return v.Loc
+	case *AlterResourceGroupStmt:
+		return v.Loc
+	case *CreateDataCacheRuleStmt:
+		return v.Loc
+	case *DropDataCacheRuleStmt:
+		return v.Loc
+	case *ClearDataCacheRulesStmt:
+		return v.Loc
+	case *CreatePipeStmt:
+		return v.Loc
+	case *DropPipeStmt:
+		return v.Loc
+	case *AlterPipeStmt:
+		return v.Loc
+	case *DescPipeStmt:
+		return v.Loc
+	case *AlterPlanAdvisorStmt:
+		return v.Loc
+	case *TruncatePlanAdvisorStmt:
+		return v.Loc
+	case *TranslateStmt:
+		return v.Loc
+	case *PrepareStmt:
+		return v.Loc
+	case *ExecuteStmt:
+		return v.Loc
+	case *DeallocateStmt:
+		return v.Loc
+	case *ExecuteAsStmt:
+		return v.Loc
+	case *BlacklistStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}

@@ -4,4 +4,4 @@ CREATE USER jack@'172.10.1.10' IDENTIFIED BY PASSWORD '*6BB4837EB74329105EE4568D
 CREATE USER 'jack'@'192.168.%' DEFAULT ROLE 'example_role';
 CREATE USER 'jack'@'example_domain' IDENTIFIED BY '12345';
 CREATE USER 'jack'@'%' IDENTIFIED BY '12345' DEFAULT ROLE 'my_role';
-CREATE USER 'jack' COMMENT "this is my first user"
+CREATE USER 'jack' PROPERTIES("password_history" = "8");

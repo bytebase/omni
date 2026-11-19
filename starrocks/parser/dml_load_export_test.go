@@ -418,11 +418,11 @@ func TestExportWithPartition(t *testing.T) {
 	}
 }
 
-func TestExportWithWhere(t *testing.T) {
-	stmt := mustParseExport(t,
-		`EXPORT TABLE t WHERE id > 100 TO '/path/'`)
-	if stmt.Where == nil {
-		t.Error("WHERE should not be nil")
+func TestExportWithWhereRefused(t *testing.T) {
+	// exportStatement (StarRocks.g4:1873) has no WHERE clause; the fork's
+	// EXPORT TABLE ... WHERE is a syntax error on the pinned server.
+	if _, errs := parseForTest(`EXPORT TABLE t WHERE id > 100 TO '/path/'`); len(errs) == 0 {
+		t.Error("EXPORT ... WHERE parsed, want a syntax error")
 	}
 }
 

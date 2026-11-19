@@ -135,9 +135,9 @@ var _ Node = (*AlterDictionaryStmt)(nil)
 //
 //	DROP DICTIONARY [IF EXISTS] name
 type DropDictionaryStmt struct {
-	Name     *ObjectName
-	IfExists bool
-	Loc      Loc
+	Name  *ObjectName
+	Cache bool // DROP DICTIONARY ... CACHE
+	Loc   Loc
 }
 
 // Tag implements Node.
@@ -162,11 +162,11 @@ var _ Node = (*RefreshDictionaryStmt)(nil)
 // ROLE
 // ---------------------------------------------------------------------------
 
-// CreateRoleStmt represents:
+// CreateRoleStmt represents createRoleStatement (StarRocks.g4:1651):
 //
-//	CREATE ROLE [IF NOT EXISTS] name [COMMENT 'text']
+//	CREATE ROLE [IF NOT EXISTS] roleList [comment]
 type CreateRoleStmt struct {
-	Name        string
+	Names       []string
 	IfNotExists bool
 	Comment     string
 	Loc         Loc
@@ -177,13 +177,14 @@ func (n *CreateRoleStmt) Tag() NodeTag { return T_CreateRoleStmt }
 
 var _ Node = (*CreateRoleStmt)(nil)
 
-// AlterRoleStmt represents:
+// AlterRoleStmt represents alterRoleStatement (StarRocks.g4:1654):
 //
-//	ALTER ROLE name COMMENT 'text'
+//	ALTER ROLE [IF EXISTS] roleList SET COMMENT '=' string
 type AlterRoleStmt struct {
-	Name    string
-	Comment string
-	Loc     Loc
+	Names    []string
+	IfExists bool
+	Comment  string
+	Loc      Loc
 }
 
 // Tag implements Node.
@@ -191,11 +192,11 @@ func (n *AlterRoleStmt) Tag() NodeTag { return T_AlterRoleStmt }
 
 var _ Node = (*AlterRoleStmt)(nil)
 
-// DropRoleStmt represents:
+// DropRoleStmt represents dropRoleStatement (StarRocks.g4:1658):
 //
-//	DROP ROLE [IF EXISTS] name
+//	DROP ROLE [IF EXISTS] roleList
 type DropRoleStmt struct {
-	Name     string
+	Names    []string
 	IfExists bool
 	Loc      Loc
 }
@@ -222,19 +223,19 @@ func (n *UserIdentity) Tag() NodeTag { return T_UserIdentity }
 
 var _ Node = (*UserIdentity)(nil)
 
-// CreateUserStmt represents:
+// CreateUserStmt represents createUserStatement (StarRocks.g4:1623):
 //
-//	CREATE USER [IF NOT EXISTS] 'user'@'host'
-//	    [IDENTIFIED BY 'password' | IDENTIFIED BY PASSWORD 'hash']
-//	    [DEFAULT ROLE 'role']
-//	    [COMMENT 'text']
+//	CREATE USER [IF NOT EXISTS] user [authOption] [DEFAULT ROLE roleList] [properties]
 type CreateUserStmt struct {
 	Name         *UserIdentity
 	IfNotExists  bool
-	Password     string // IDENTIFIED BY 'password'
-	PasswordHash string // IDENTIFIED BY PASSWORD 'hash'
-	DefaultRole  string
-	Comment      string
+	Password     string      // IDENTIFIED BY 'password'
+	PasswordHash string      // IDENTIFIED BY PASSWORD 'hash'
+	Plugin       string      // IDENTIFIED WITH plugin
+	AuthBy       string      // authOption's (BY | AS) string: "BY", "AS" or ""
+	AuthString   string      // the string the plugin's credentials were given as
+	DefaultRoles []string    // DEFAULT ROLE roleList
+	Properties   []*Property // properties
 	Loc          Loc
 }
 
@@ -243,21 +244,22 @@ func (n *CreateUserStmt) Tag() NodeTag { return T_CreateUserStmt }
 
 var _ Node = (*CreateUserStmt)(nil)
 
-// AlterUserStmt represents:
+// AlterUserStmt represents alterUserStatement (StarRocks.g4:1631):
 //
-//	ALTER USER [IF EXISTS] 'user'@'host'
-//	    [IDENTIFIED BY 'password']
-//	    [ACCOUNT_LOCK | ACCOUNT_UNLOCK]
-//	    [COMMENT 'text']
+//	ALTER USER [IF EXISTS] user authOption
+//	ALTER USER [IF EXISTS] user DEFAULT ROLE (NONE | ALL | roleList)
+//	ALTER USER [IF EXISTS] user SET properties
 type AlterUserStmt struct {
-	Name          *UserIdentity
-	IfExists      bool
-	Password      string
-	PasswordHash  string
-	Comment       string
-	AccountLock   bool // ACCOUNT_LOCK
-	AccountUnlock bool // ACCOUNT_UNLOCK
-	Loc           Loc
+	Name         *UserIdentity
+	IfExists     bool
+	Password     string      // authOption: IDENTIFIED BY 'password'
+	PasswordHash string      // authOption: IDENTIFIED BY PASSWORD 'hash'
+	Plugin       string      // authOption: IDENTIFIED WITH plugin
+	AuthBy       string      // authOption's (BY | AS) string: "BY", "AS" or ""
+	AuthString   string      // the string the plugin's credentials were given as
+	DefaultRole  string      // DEFAULT ROLE's NONE, ALL or role list text
+	Properties   []*Property // SET properties
+	Loc          Loc
 }
 
 // Tag implements Node.

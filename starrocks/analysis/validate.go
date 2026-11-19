@@ -172,6 +172,9 @@ func isReadOnlyAST(node ast.Node) bool {
 		// DESC STORAGE VOLUME answers with the volume's settings, like DESC
 		// over a table.
 		return n.Name != ""
+	case *ast.DescPipeStmt:
+		// DESC PIPE answers with the pipe's definition, like DESC over a table.
+		return n.Name != nil
 	case *ast.OptimizerTraceStmt:
 		// TRACE only plans the query it wraps; it never runs it. Even an
 		// INTO OUTFILE body writes nothing under TRACE, so the wrapper stays

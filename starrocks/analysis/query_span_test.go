@@ -473,17 +473,22 @@ func TestGetQuerySpan_SetOpOuterOrderBySubquery(t *testing.T) {
 	}
 }
 
-func TestGetQuerySpan_SetOpOuterLimitSubquery(t *testing.T) {
-	// Subquery in LIMIT expression on a set-op must be walked.
-	span, err := GetQuerySpan("SELECT a FROM t1 UNION SELECT b FROM t2 LIMIT (SELECT max(c) FROM t3)")
+func TestGetQuerySpan_SetOpOuterLimitInteger(t *testing.T) {
+	// limitElement (StarRocks.g4:2135) takes INTEGER_VALUE, so a set-op's
+	// outer limit holds no subquery to walk; the subquery cases above cover
+	// the outer clauses that do.
+	span, err := GetQuerySpan("SELECT a FROM t1 UNION SELECT b FROM t2 LIMIT 10")
 	if err != nil {
 		t.Fatalf("GetQuerySpan returned error: %v", err)
 	}
 	sigs := toSigs(span.AccessTables)
-	for _, want := range []string{"t1", "t2", "t3"} {
+	for _, want := range []string{"t1", "t2"} {
 		if !containsSig(sigs, tableSig{Table: want}) {
 			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
 		}
+	}
+	if _, err := GetQuerySpan("SELECT a FROM t1 UNION SELECT b FROM t2 LIMIT (SELECT max(c) FROM t3)"); err == nil {
+		t.Error("a subquery LIMIT parsed, want a syntax error")
 	}
 }
 

@@ -57,9 +57,17 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 		// come before it in primaryExpression (:2408-2409): !a MATCH b is
 		// (!a) MATCH b.
 		if minBP <= bpMatch && (p.cur.Kind == kwMATCH || (p.cur.Kind == kwNOT && p.peekNext().Kind == kwMATCH)) {
-			if left, err = p.parseMatchExpr(left, p.cur.Kind == kwNOT); err != nil {
-				return nil, err
+			// MATCH is nonReserved (StarRocks.g4:2930), so where no primary
+			// expression follows it the engine reads it as a column label:
+			// `SELECT 1 MATCH` is one item aliased MATCH. The alternative
+			// cannot hold then, so the token is left to the label reader.
+			mark := p.save()
+			matched, matchErr := p.parseMatchExpr(left, p.cur.Kind == kwNOT)
+			if matchErr != nil {
+				p.restore(mark)
+				break
 			}
+			left = matched
 			continue
 		}
 		// primaryExpression COLLATE (StarRocks.g4:2403) binds before any operator.
@@ -392,16 +400,15 @@ func (p *Parser) parsePostfixSuffixes(node ast.Node) (ast.Node, error) {
 			}
 			node = arrow
 
-		case p.cur.Kind == tokFloat && isDotDigits(p.cur.Str) &&
-			isIdentifierTokenQualified(p.peekNext().Kind) && p.peekNext().Loc.Start == p.cur.Loc.End:
-			// DOT_IDENTIFIER (StarRocks.g4:2406, StarRocksLex.g4:574): a field
-			// name that opens with digits, which omni lexes as .1 then a.
-			digits := p.advance()
-			rest := p.advance()
+		case p.cur.Kind == tokDotIdent:
+			// primaryExpression DOT_IDENTIFIER (StarRocks.g4:2406,
+			// StarRocksLex.g4:574): a field name that opens with digits, which
+			// the lexer reads as one token, as '.1a' is.
+			field := p.advance()
 			node = &ast.DereferenceExpr{
 				Expr:  node,
-				Field: digits.Str[1:] + rest.Str,
-				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: rest.Loc.End},
+				Field: field.Str,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: field.Loc.End},
 			}
 
 		case p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind):
@@ -945,6 +952,14 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 	}
 
+	if fc.Distinct && p.cur.Kind == int(')') {
+		// A setQuantifier quantifies arguments, and DISTINCT needs one:
+		// `COUNT(DISTINCT)` is "Incorrect number of arguments in expr
+		// 'count'" on the pinned server, while `COUNT()` and `COUNT(ALL)`
+		// are accepted.
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	if p.cur.Kind != int(')') || needArg {
 		args, err := p.parseFuncArgList()
 		if err != nil {
@@ -1003,6 +1018,12 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 	fc.Loc.End = closeTok.Loc.End
 
+	// A named function's production fixes how many arguments it takes
+	// (StarRocks.g4:2477-2542); the parser refuses the others.
+	if err := p.checkFuncArity(name, fc); err != nil {
+		return nil, err
+	}
+
 	// Optional IGNORE NULLS after the closing paren, e.g.
 	// LEAD(v, 1) IGNORE NULLS OVER (...).
 	if !fc.IgnoreNulls && p.consumeIgnoreNulls() {
@@ -1031,6 +1052,55 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 
 	return fc, nil
+}
+
+// funcArity is how many arguments the named function production of
+// StarRocks.g4 takes, for the names that only that production reads:
+// informationFunctionExpression (:2477), specialFunctionExpression (:2493),
+// the GROUPING forms (:2442) and windowFunction (:2521). -1 as the maximum
+// means unbounded.
+//
+// A name nonReserved makes an identifier is not here: it is also an ordinary
+// function call, which takes any arguments, so the engine accepts `YEAR()`,
+// `PASSWORD()` and `FLOOR()` while it refuses `CHAR()` and `LEFT()`
+// (StarRocks.g4:2951 and the pinned server).
+var funcArity = map[string][2]int{
+	// informationFunctionExpression.
+	"DATABASE": {0, 0}, "SCHEMA": {0, 0},
+	"CURRENT_USER": {0, 0}, "CURRENT_ROLE": {0, 0},
+	// specialFunctionExpression.
+	"CHAR": {1, 1}, "LEFT": {2, 2}, "RIGHT": {2, 2}, "LIKE": {2, 2},
+	"RLIKE": {2, 2}, "REGEXP": {2, 2}, "MOD": {2, 2},
+	"IF": {0, -1}, "REPLACE": {0, -1},
+	// groupingOperation.
+	"GROUPING": {0, -1}, "GROUPING_ID": {0, -1},
+	// windowFunction.
+	"ROW_NUMBER": {0, 0}, "DENSE_RANK": {0, 0}, "NTILE": {0, 1},
+	"LEAD": {0, -1}, "LAG": {0, -1}, "FIRST_VALUE": {0, -1},
+	"LAST_VALUE": {0, -1},
+}
+
+// checkFuncArity refuses a call to a named function with an argument count its
+// production does not take. Only an unqualified reserved name is held to it: a
+// qualified call is an ordinary function, and a non-reserved name is an
+// identifier the grammar reads as one.
+func (p *Parser) checkFuncArity(name *ast.ObjectName, fc *ast.FuncCallExpr) error {
+	if len(name.Parts) != 1 || fc.Star {
+		return nil
+	}
+	upper := strings.ToUpper(name.Parts[0])
+	arity, ok := funcArity[upper]
+	if !ok {
+		return nil
+	}
+	if kind, isKeyword := KeywordToken(upper); !isKeyword || !IsReserved(kind) {
+		return nil
+	}
+	n := len(fc.Args)
+	if n < arity[0] || arity[1] >= 0 && n > arity[1] {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // isIgnoreNullsWindowFunc reports whether name is one of the window value
@@ -1232,7 +1302,7 @@ func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
 		}
 		p.advance() // consume ','
 	}
-	if len(params) < 2 || p.cur.Kind != int(')') {
+	if len(params) < 1 || p.cur.Kind != int(')') {
 		p.restore(saved)
 		return nil, false, nil
 	}
@@ -1241,7 +1311,28 @@ func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
 		p.restore(saved)
 		return nil, false, nil
 	}
+	// A '->' followed by a string literal is the JSON arrow, which the engine
+	// reads even when the left side is a one-name identifier list:
+	// `array_map((x) -> '$.a', [1,2])` is the arrow (see parseJSONArrow).
+	if len(params) == 1 && p.peekNext().Kind == tokString {
+		p.restore(saved)
+		return nil, false, nil
+	}
 	p.advance() // consume '->'
+
+	// identifierList '->' '(' (expressionList)? ')' (StarRocks.g4:2424) takes an
+	// empty body, which the pinned server accepts (`SELECT (a) -> ()`) and
+	// omni keeps as a row of no expression.
+	if p.cur.Kind == int('(') && p.peekNext().Kind == int(')') {
+		openTok := p.advance() // consume '('
+		closeTok := p.advance()
+		empty := &ast.RowExpr{Loc: ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}}
+		return &ast.LambdaExpr{
+			Params: params,
+			Body:   empty,
+			Loc:    ast.Loc{Start: start, End: closeTok.Loc.End},
+		}, true, nil
+	}
 
 	// Past the arrow the shape is unambiguous, so a bad body is a real error
 	// rather than a reason to backtrack.
@@ -1857,20 +1948,17 @@ func (p *Parser) parseNilaryFunction() (ast.Node, error) {
 	}
 	if p.cur.Kind == int('(') {
 		p.advance() // consume '('
-		// Only CURRENT_TIMESTAMP takes a fractional-seconds precision, and only
-		// one. The rest are strictly nilary: the engine rejects CURRENT_TIME(3),
-		// LOCALTIME(3), CURRENT_DATE(1) and CURRENT_USER(1, 2) alike. Parsing a
-		// single expression also rejects CURRENT_TIMESTAMP(foo, bar), since the
-		// closing paren is then expected at the comma.
+		// Only CURRENT_TIMESTAMP takes a fraction of a second of precision,
+		// and only an integer: `CURRENT_TIMESTAMP ( '(' (INTEGER_VALUE)? ')' )?`
+		// (StarRocks.g4:2540). The pinned server refuses CURRENT_TIMESTAMP(zzz),
+		// and CURRENT_TIME(3), LOCALTIME(3), CURRENT_DATE(1) and
+		// CURRENT_USER(1, 2) alike.
 		if p.cur.Kind != int(')') {
-			if name != "CURRENT_TIMESTAMP" {
+			if name != "CURRENT_TIMESTAMP" || p.cur.Kind != tokInt {
 				return nil, p.syntaxErrorAtCur()
 			}
-			arg, err := p.parseExpr()
-			if err != nil {
-				return nil, err
-			}
-			fc.Args = []ast.Node{arg}
+			arg := p.advance()
+			fc.Args = []ast.Node{&ast.Literal{Kind: ast.LitInt, Value: arg.Str, Loc: arg.Loc}}
 		}
 		closeTok, err := p.expect(int(')'))
 		if err != nil {
@@ -2298,19 +2386,6 @@ func (p *Parser) parseTupleInSubquery(start int, first ast.Node) (ast.Node, erro
 		Not:    not,
 		Loc:    ast.Loc{Start: start, End: sub.Loc.End},
 	}, nil
-}
-
-// isDotDigits reports whether s is '.' and one or more digits.
-func isDotDigits(s string) bool {
-	if len(s) < 2 || s[0] != '.' {
-		return false
-	}
-	for i := 1; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 // tryParseNameLambda reads identifier '->' expression (StarRocks.g4:2423) at

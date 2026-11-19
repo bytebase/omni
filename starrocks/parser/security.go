@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -310,9 +312,13 @@ func (p *Parser) parseDictionaryColumns() ([]*ast.DictionaryColumn, ast.Loc, err
 
 		cols = append(cols, col)
 
-		if p.cur.Kind == int(',') {
-			p.advance()
+		// dictionaryColumnDesc (',' dictionaryColumnDesc)* (StarRocks.g4:845):
+		// the comma is required, so the pinned server refuses
+		// `CREATE DICTIONARY a USING a(a KEY a KEY)`.
+		if p.cur.Kind != int(',') {
+			break
 		}
+		p.advance() // consume ','
 	}
 
 	rparen, err := p.expect(int(')'))
@@ -355,9 +361,11 @@ func (p *Parser) parseAlterDictionary(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseDropDictionary parses:
+// parseDropDictionary parses dropDictionaryStatement (StarRocks.g4:848):
 //
-//	DROP DICTIONARY [IF EXISTS] name
+//	DROP DICTIONARY qualifiedName CACHE?
+//
+// The fork's IF EXISTS is not in the rule and the pinned server refuses it.
 //
 // On entry, DROP has been consumed; cur is DICTIONARY.
 func (p *Parser) parseDropDictionary(startLoc ast.Loc) (ast.Node, error) {
@@ -365,21 +373,20 @@ func (p *Parser) parseDropDictionary(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.DropDictionaryStmt{}
 
-	if p.cur.Kind == kwIF {
-		p.advance()
-		if _, err := p.expect(kwEXISTS); err != nil {
-			return nil, err
-		}
-		stmt.IfExists = true
-	}
-
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
+	endLoc := ast.NodeLoc(name)
 
-	stmt.Loc = startLoc.Merge(ast.NodeLoc(name))
+	if p.cur.Kind == kwCACHE {
+		stmt.Cache = true
+		endLoc = p.cur.Loc
+		p.advance()
+	}
+
+	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
 }
 
@@ -407,9 +414,9 @@ func (p *Parser) parseRefreshDictionary(startLoc ast.Loc) (ast.Node, error) {
 // ROLE
 // ---------------------------------------------------------------------------
 
-// parseCreateRole parses:
+// parseCreateRole parses createRoleStatement (StarRocks.g4:1651):
 //
-//	CREATE ROLE [IF NOT EXISTS] name [COMMENT 'text']
+//	CREATE ROLE [IF NOT EXISTS] roleList [comment]
 //
 // On entry, CREATE has been consumed; cur is ROLE.
 func (p *Parser) parseCreateRole(startLoc ast.Loc) (ast.Node, error) {
@@ -428,11 +435,11 @@ func (p *Parser) parseCreateRole(startLoc ast.Loc) (ast.Node, error) {
 		stmt.IfNotExists = true
 	}
 
-	name, nameLoc, err := p.parseIdentifier()
+	names, nameLoc, err := p.parseRoleList()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
+	stmt.Names = names
 	endLoc := nameLoc
 
 	if p.cur.Kind == kwCOMMENT {
@@ -449,9 +456,29 @@ func (p *Parser) parseCreateRole(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseAlterRole parses:
+// parseRoleList parses roleList (StarRocks.g4:1648):
+// identifierOrString (',' identifierOrString)*.
+func (p *Parser) parseRoleList() ([]string, ast.Loc, error) {
+	var names []string
+	var endLoc ast.Loc
+	for {
+		name, loc, err := p.parseIdentifierOrString()
+		if err != nil {
+			return nil, ast.NoLoc(), err
+		}
+		names = append(names, name)
+		endLoc = loc
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return names, endLoc, nil
+}
+
+// parseAlterRole parses alterRoleStatement (StarRocks.g4:1654):
 //
-//	ALTER ROLE name COMMENT 'text'
+//	ALTER ROLE [IF EXISTS] roleList SET COMMENT '=' string
 //
 // On entry, ALTER has been consumed; cur is ROLE.
 func (p *Parser) parseAlterRole(startLoc ast.Loc) (ast.Node, error) {
@@ -459,29 +486,43 @@ func (p *Parser) parseAlterRole(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.AlterRoleStmt{}
 
-	name, _, err := p.parseIdentifier()
+	if p.cur.Kind == kwIF {
+		p.advance()
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfExists = true
+	}
+
+	names, endLoc, err := p.parseRoleList()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
+	stmt.Names = names
 
+	if _, err := p.expect(kwSET); err != nil {
+		return nil, err
+	}
 	if _, err := p.expect(kwCOMMENT); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('=')); err != nil {
 		return nil, err
 	}
 	if p.cur.Kind != tokString {
 		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Comment = p.cur.Str
-	endLoc := p.cur.Loc
+	endLoc = p.cur.Loc
 	p.advance()
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
 }
 
-// parseDropRole parses:
+// parseDropRole parses dropRoleStatement (StarRocks.g4:1658):
 //
-//	DROP ROLE [IF EXISTS] name
+//	DROP ROLE [IF EXISTS] roleList
 //
 // On entry, DROP has been consumed; cur is ROLE.
 func (p *Parser) parseDropRole(startLoc ast.Loc) (ast.Node, error) {
@@ -497,13 +538,13 @@ func (p *Parser) parseDropRole(startLoc ast.Loc) (ast.Node, error) {
 		stmt.IfExists = true
 	}
 
-	name, nameLoc, err := p.parseIdentifier()
+	names, endLoc, err := p.parseRoleList()
 	if err != nil {
 		return nil, err
 	}
-	stmt.Name = name
+	stmt.Names = names
 
-	stmt.Loc = startLoc.Merge(nameLoc)
+	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
 }
 
@@ -526,18 +567,33 @@ func (p *Parser) parseUserIdentity() (*ast.UserIdentity, error) {
 
 	host := "%"
 
-	// Optional @'host'
+	// Optional @'host', or @['host'] (StarRocks.g4:2892, user's third form,
+	// which brackets the host as `userWithHostAndBlanket`).
 	if p.cur.Kind == int('@') {
 		p.advance() // consume @
-		if p.cur.Kind != tokString && !isIdentifierToken(p.cur.Kind) {
-			return nil, p.syntaxErrorAtCur()
+		if p.cur.Kind == int('[') {
+			p.advance() // consume '['
+			bracketHost, _, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			closeTok, err := p.expect(int(']'))
+			if err != nil {
+				return nil, err
+			}
+			host = bracketHost
+			endLoc = closeTok.Loc
+		} else {
+			if p.cur.Kind != tokString && !isIdentifierToken(p.cur.Kind) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			plainHost, hostLoc, err := p.parseIdentifierOrString()
+			if err != nil {
+				return nil, err
+			}
+			host = plainHost
+			endLoc = hostLoc
 		}
-		var hostLoc ast.Loc
-		host, hostLoc, err = p.parseIdentifierOrString()
-		if err != nil {
-			return nil, err
-		}
-		endLoc = hostLoc
 	}
 
 	return &ast.UserIdentity{
@@ -547,16 +603,9 @@ func (p *Parser) parseUserIdentity() (*ast.UserIdentity, error) {
 	}, nil
 }
 
-// parseCreateUser parses:
+// parseCreateUser parses createUserStatement (StarRocks.g4:1623):
 //
-//	CREATE USER [IF NOT EXISTS] 'user'@'host'
-//	    [IDENTIFIED BY 'password' | IDENTIFIED BY PASSWORD 'hash']
-//	    [DEFAULT ROLE 'role']
-//	    [PASSWORD_EXPIRE [INTERVAL n DAY]]
-//	    [FAILED_LOGIN_ATTEMPTS n]
-//	    [PASSWORD_LOCK_TIME n DAY]
-//	    [PASSWORD_HISTORY n]
-//	    [COMMENT 'text']
+//	CREATE USER [IF NOT EXISTS] user [authOption] [DEFAULT ROLE roleList] properties?
 //
 // On entry, CREATE has been consumed; cur is USER.
 func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
@@ -582,69 +631,115 @@ func (p *Parser) parseCreateUser(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Name = identity
 	endLoc := identity.Loc
 
-	// Optional IDENTIFIED BY ['PASSWORD'] 'value'
 	if p.cur.Kind == kwIDENTIFIED {
-		p.advance() // consume IDENTIFIED
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		if p.cur.Kind == kwPASSWORD {
-			// IDENTIFIED BY PASSWORD 'hash'
-			p.advance()
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.PasswordHash = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
-		} else {
-			// IDENTIFIED BY 'password'
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Password = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
-		}
-	}
-
-	// Optional DEFAULT ROLE 'role'
-	if p.cur.Kind == kwDEFAULT {
-		p.advance()
-		if _, err := p.expect(kwROLE); err != nil {
-			return nil, err
-		}
-		roleName, roleLoc, err := p.parseIdentifierOrString()
+		auth, end, err := p.parseAuthOption()
 		if err != nil {
 			return nil, err
 		}
-		stmt.DefaultRole = roleName
-		endLoc = roleLoc
+		auth.intoCreateUser(stmt)
+		endLoc = end
 	}
 
-	// Optional COMMENT
-	if p.cur.Kind == kwCOMMENT {
-		p.advance()
-		if p.cur.Kind != tokString {
-			return nil, p.syntaxErrorAtCur()
+	if p.cur.Kind == kwDEFAULT {
+		p.advance() // consume DEFAULT
+		if _, err := p.expect(kwROLE); err != nil {
+			return nil, err
 		}
-		stmt.Comment = p.cur.Str
-		endLoc = p.cur.Loc
-		p.advance()
+		names, loc, err := p.parseRoleList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.DefaultRoles = names
+		endLoc = loc
+	}
+
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		if len(props) > 0 {
+			endLoc = ast.NodeLoc(props[len(props)-1])
+		}
 	}
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil
 }
 
-// parseAlterUser parses:
+// authOption holds the pieces of authOption (StarRocks.g4:1627):
 //
-//	ALTER USER [IF EXISTS] 'user'@'host'
-//	    [IDENTIFIED BY 'password']
-//	    [FAILED_LOGIN_ATTEMPTS n]
-//	    [PASSWORD_LOCK_TIME n DAY]
-//	    [ACCOUNT_LOCK | ACCOUNT_UNLOCK]
-//	    [COMMENT 'text']
+//	IDENTIFIED BY PASSWORD? string
+//	IDENTIFIED WITH identifierOrString ((BY | AS) string)?
+type authOption struct {
+	password string
+	hash     string
+	plugin   string
+	by       string
+	authStr  string
+}
+
+// intoCreateUser copies the option into a CREATE USER.
+func (a authOption) intoCreateUser(stmt *ast.CreateUserStmt) {
+	stmt.Password, stmt.PasswordHash = a.password, a.hash
+	stmt.Plugin, stmt.AuthBy, stmt.AuthString = a.plugin, a.by, a.authStr
+}
+
+// parseAuthOption parses authOption (StarRocks.g4:1627) after IDENTIFIED.
+func (p *Parser) parseAuthOption() (authOption, ast.Loc, error) {
+	var a authOption
+	p.advance() // consume IDENTIFIED
+
+	switch p.cur.Kind {
+	case kwBY:
+		p.advance() // consume BY
+		if p.cur.Kind == kwPASSWORD {
+			// IDENTIFIED BY PASSWORD 'hash'
+			p.advance()
+			if p.cur.Kind != tokString {
+				return a, ast.NoLoc(), p.syntaxErrorAtCur()
+			}
+			a.hash = p.cur.Str
+			loc := p.cur.Loc
+			p.advance()
+			return a, loc, nil
+		}
+		if p.cur.Kind != tokString {
+			return a, ast.NoLoc(), p.syntaxErrorAtCur()
+		}
+		a.password = p.cur.Str
+		loc := p.cur.Loc
+		p.advance()
+		return a, loc, nil
+	case kwWITH:
+		p.advance() // consume WITH
+		plugin, pluginLoc, err := p.parseIdentifierOrString()
+		if err != nil {
+			return a, ast.NoLoc(), err
+		}
+		a.plugin = plugin
+		endLoc := pluginLoc
+		if p.cur.Kind == kwBY || p.cur.Kind == kwAS {
+			a.by = strings.ToUpper(p.cur.Str)
+			p.advance()
+			if p.cur.Kind != tokString {
+				return a, ast.NoLoc(), p.syntaxErrorAtCur()
+			}
+			a.authStr = p.cur.Str
+			endLoc = p.cur.Loc
+			p.advance()
+		}
+		return a, endLoc, nil
+	}
+	return a, ast.NoLoc(), p.syntaxErrorAtCur()
+}
+
+// parseAlterUser parses alterUserStatement (StarRocks.g4:1631):
+//
+//	ALTER USER [IF EXISTS] user authOption
+//	ALTER USER [IF EXISTS] user DEFAULT ROLE (NONE | ALL | roleList)
+//	ALTER USER [IF EXISTS] user SET properties
 //
 // On entry, ALTER has been consumed; cur is USER.
 func (p *Parser) parseAlterUser(startLoc ast.Loc) (ast.Node, error) {
@@ -667,54 +762,46 @@ func (p *Parser) parseAlterUser(startLoc ast.Loc) (ast.Node, error) {
 	stmt.Name = identity
 	endLoc := identity.Loc
 
-	// Optional IDENTIFIED BY ['PASSWORD'] 'value'
-	if p.cur.Kind == kwIDENTIFIED {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
+	switch p.cur.Kind {
+	case kwIDENTIFIED:
+		auth, end, err := p.parseAuthOption()
+		if err != nil {
 			return nil, err
 		}
-		if p.cur.Kind == kwPASSWORD {
-			p.advance()
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.PasswordHash = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
-		} else {
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Password = p.cur.Str
-			endLoc = p.cur.Loc
-			p.advance()
+		stmt.Password, stmt.PasswordHash = auth.password, auth.hash
+		stmt.Plugin, stmt.AuthBy, stmt.AuthString = auth.plugin, auth.by, auth.authStr
+		endLoc = end
+	case kwDEFAULT:
+		p.advance() // consume DEFAULT
+		if _, err := p.expect(kwROLE); err != nil {
+			return nil, err
 		}
-	}
-
-	// Optional password policy / account clauses
-	for {
 		switch p.cur.Kind {
-		case kwACCOUNT_LOCK:
-			stmt.AccountLock = true
-			endLoc = p.cur.Loc
-			p.advance()
-		case kwACCOUNT_UNLOCK:
-			stmt.AccountUnlock = true
-			endLoc = p.cur.Loc
-			p.advance()
-		case kwCOMMENT:
-			p.advance()
-			if p.cur.Kind != tokString {
-				return nil, p.syntaxErrorAtCur()
-			}
-			stmt.Comment = p.cur.Str
+		case kwNONE, kwALL:
+			stmt.DefaultRole = strings.ToUpper(p.cur.Str)
 			endLoc = p.cur.Loc
 			p.advance()
 		default:
-			goto doneAlterUser
+			names, loc, err := p.parseRoleList()
+			if err != nil {
+				return nil, err
+			}
+			stmt.DefaultRole = strings.Join(names, ",")
+			endLoc = loc
 		}
+	case kwSET:
+		p.advance() // consume SET
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+		if len(props) > 0 {
+			endLoc = ast.NodeLoc(props[len(props)-1])
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
-doneAlterUser:
 
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil

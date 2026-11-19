@@ -85,10 +85,26 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.Having = having
 	}
 
-	// QUALIFY clause (Doris extension)
+	// QUALIFY clause (StarRocks.g4:2144):
+	//
+	//	QUALIFY selectItem comparisonOperator INTEGER_VALUE
+	//
+	// The engine reads the clause as a bound on a ranked column: the select
+	// list must hold columns only ("Can't support result other than
+	// column." for `SELECT * FROM t QUALIFY a = 1` and `SELECT a + 1 ...`),
+	// the operand before the operator is any select item, the operator is a
+	// comparison, and the bound is an integer literal.
 	if p.cur.Kind == kwQUALIFY {
+		for _, item := range stmt.Items {
+			if _, ok := item.Expr.(*ast.ColumnRef); !ok {
+				return nil, &ParseError{
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: "QUALIFY needs a select list of columns",
+				}
+			}
+		}
 		p.advance() // consume QUALIFY
-		qualify, err := p.parseExpr()
+		qualify, err := p.parseQualifyClause()
 		if err != nil {
 			return nil, err
 		}
@@ -1616,6 +1632,15 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// CUBE takes an expression list, so `GROUP BY CUBE()` is a syntax error
+		// on the pinned server while `SELECT CUBE()` (a call to the reserved
+		// word) is not even that.
+		if len(fc.Args) == 0 {
+			return nil, &ParseError{
+				Position: fc.Loc.Start, End: fc.Loc.End,
+				Message: "GROUP BY CUBE takes an expression list",
+			}
+		}
 		// CUBE(...) is the entire grouping specification — the engine rejects
 		// both `GROUP BY CUBE(a), b` and `GROUP BY CUBE(a), CUBE(b)`. Without
 		// this check, returning here would silently discard everything after
@@ -1642,7 +1667,92 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 		return []ast.Node{gs}, nil
 	}
 
-	return p.parseExprList()
+	items, err := p.parseExprList()
+	if err != nil {
+		return nil, err
+	}
+	// ROLLUP and CUBE take an expression list (groupingElement, StarRocks.g4:
+	// 2151), so an empty one is a syntax error in GROUP BY — the pinned server
+	// refuses `GROUP BY ROLLUP()` and `GROUP BY CUBE()` while it takes
+	// `SELECT ROLLUP()` as an ordinary call.
+	for _, item := range items {
+		if fc, ok := item.(*ast.FuncCallExpr); ok && len(fc.Args) == 0 && len(fc.Name.Parts) == 1 {
+			switch strings.ToUpper(fc.Name.Parts[0]) {
+			case "ROLLUP", "CUBE":
+				return nil, &ParseError{
+					Position: fc.Loc.Start, End: fc.Loc.End,
+					Message: "GROUP BY " + strings.ToUpper(fc.Name.Parts[0]) + " takes an expression list",
+				}
+			}
+		}
+	}
+	return items, nil
+}
+
+// parseQueryRelation parses queryRelation (StarRocks.g4:2096):
+//
+//	withClause? queryNoWith
+//
+// which is the body ALTER PLAN ADVISOR ADD and other statement rules take.
+func (p *Parser) parseQueryRelation() (ast.Node, error) {
+	if p.cur.Kind == kwWITH {
+		return p.parseWithStatement()
+	}
+	if p.cur.Kind == int('(') {
+		paren, err := p.parseParenSelect()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseSetOpTail(paren)
+	}
+	left, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseSetOpTail(left)
+}
+
+// parseQualifyClause parses QUALIFY selectItem comparisonOperator INTEGER_VALUE
+// (StarRocks.g4:2144). On entry QUALIFY has been consumed.
+func (p *Parser) parseQualifyClause() (ast.Node, error) {
+	// The selectItem stops before the comparison operator the clause reads
+	// itself, so the operand cannot be read as a comparison.
+	left, err := p.parseExprPrec(bpCmp + 1)
+	if err != nil {
+		return nil, err
+	}
+	// comparisonOperator (:2141): EQ | NEQ | LT | LTE | GT | GTE | EQ_FOR_NULL.
+	var op ast.BinaryOp
+	switch p.cur.Kind {
+	case int('='):
+		op = ast.BinEq
+	case tokNotEq:
+		op = ast.BinNe
+	case int('<'):
+		op = ast.BinLt
+	case tokLessEq:
+		op = ast.BinLe
+	case int('>'):
+		op = ast.BinGt
+	case tokGreaterEq:
+		op = ast.BinGe
+	case tokNullSafeEq:
+		op = ast.BinNullSafeEq
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume the comparison operator
+	if p.cur.Kind != tokInt {
+		return nil, p.syntaxErrorAtCur()
+	}
+	bound := p.advance()
+	right := &ast.Literal{Kind: ast.LitInt, Value: bound.Str, Loc: bound.Loc}
+	return &ast.BinaryExpr{
+		Op:    op,
+		Left:  left,
+		Right: right,
+		Loc:   ast.Loc{Start: ast.NodeLoc(left).Start, End: bound.Loc.End},
+	}, nil
 }
 
 // parseGroupingSets parses GROUPING SETS ((a, b), (a), ()). On entry cur is
@@ -1659,18 +1769,29 @@ func (p *Parser) parseGroupingSets() (ast.Node, error) {
 		if _, err := p.expect(int('(')); err != nil {
 			return nil, err
 		}
-		var set []ast.Node
-		if p.cur.Kind != int(')') {
+		// groupingSet (:2157): '(' expression? (',' expression)* ')'. Only
+		// the first expression may be absent, so `(, a)` is accepted and
+		// `(a,)` is not (engine-verified).
+		switch p.cur.Kind {
+		case int(')'):
+			gs.Sets = append(gs.Sets, nil)
+		case int(','):
+			p.advance() // consume ','
 			exprs, err := p.parseExprList()
 			if err != nil {
 				return nil, err
 			}
-			set = exprs
+			gs.Sets = append(gs.Sets, exprs)
+		default:
+			exprs, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			gs.Sets = append(gs.Sets, exprs)
 		}
 		if _, err := p.expect(int(')')); err != nil {
 			return nil, err
 		}
-		gs.Sets = append(gs.Sets, set)
 		if p.cur.Kind != int(',') {
 			break
 		}
@@ -1689,12 +1810,15 @@ func (p *Parser) parseGroupingSets() (ast.Node, error) {
 // LIMIT / OFFSET clause
 // ---------------------------------------------------------------------------
 
-// parseLimitClause parses LIMIT count [OFFSET offset].
+// parseLimitClause parses LIMIT count [OFFSET offset] and its MySQL form
+// LIMIT offset, count (limitElement, StarRocks.g4:2135). Both take
+// INTEGER_VALUE: the pinned server refuses a parameter ("using parameter(?) as
+// limit or offset not supported") and any other expression.
 // Returns (limit, offset, error) where offset may be nil.
 func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	p.advance() // consume LIMIT
 
-	limitExpr, err := p.parseExpr()
+	limitExpr, err := p.parseLimitValue()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1706,19 +1830,42 @@ func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 		// the offset and the one after the comma is the count.
 		p.advance() // consume ','
 		offsetExpr = limitExpr
-		limitExpr, err = p.parseExpr()
+		limitExpr, err = p.parseLimitValue()
 		if err != nil {
 			return nil, nil, err
 		}
 	case kwOFFSET:
 		p.advance() // consume OFFSET
-		offsetExpr, err = p.parseExpr()
+		offsetExpr, err = p.parseLimitValue()
 		if err != nil {
 			return nil, nil, err
 		}
 	}
 
 	return limitExpr, offsetExpr, nil
+}
+
+// parseLimitValue reads one INTEGER_VALUE of a limitElement. An integer too
+// large for an int64 is lexed as a float of digits only, and is one too.
+func (p *Parser) parseLimitValue() (ast.Node, error) {
+	if p.cur.Kind != tokInt && !(p.cur.Kind == tokFloat && isAllDigits(p.cur.Str)) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	tok := p.advance()
+	return &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Loc: tok.Loc}, nil
+}
+
+// isAllDigits reports whether s is one or more ASCII digits.
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -1751,13 +1898,13 @@ func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	// Optional: FORMAT AS format_type
+	// fileFormat (StarRocks.g4:2258): FORMAT AS (identifier | string).
 	if p.cur.Kind == kwFORMAT {
 		p.advance() // consume FORMAT
 		if _, err := p.expect(kwAS); err != nil {
 			return nil, err
 		}
-		if p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent || p.cur.Kind >= 700 {
+		if isIdentifierToken(p.cur.Kind) || p.cur.Kind == tokString {
 			clause.Format = p.cur.Str
 			p.advance()
 		} else {

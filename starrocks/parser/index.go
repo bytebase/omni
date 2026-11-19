@@ -75,6 +75,16 @@ func (p *Parser) parseCreateIndex(startLoc ast.Loc) (ast.Node, error) {
 			// Normalize to lowercase for case-insensitive comparison.
 			indexType = strings.ToLower(typeTok.Str)
 			p.advance()
+			// (indexType propertyList?)? (StarRocks.g4:2255): the index's own
+			// properties follow its type without the PROPERTIES keyword, as
+			// `USING BITMAP('a' = 'a')` does.
+			if p.cur.Kind == int('(') {
+				props, err := p.parsePropertyList()
+				if err != nil {
+					return nil, err
+				}
+				properties = props
+			}
 			continue
 		case kwCOMMENT:
 			p.advance()

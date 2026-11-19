@@ -1,3 +1,2 @@
-ALTER CATALOG ctlg_hive RENAME hive;
-ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083');
-ALTER CATALOG hive MODIFY COMMENT "new catalog comment"
+ALTER CATALOG hive SET ('hive.metastore.uris'='thrift://172.21.0.1:9083');
+ALTER CATALOG hive SET ('type'='hms', 'hive.metastore.uris'='thrift://127.0.0.1:7004');

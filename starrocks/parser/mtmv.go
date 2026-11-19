@@ -96,6 +96,22 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		break
 	}
 
+	// A PARTITION BY needs a refresh scheme that can be partitioned: with
+	// none the view refreshes SYNC, and the AST builder answers
+	// "'SYNC refresh type' cannot support 'PARTITION BY' in materialized
+	// view." REFRESH ASYNC, ASYNC EVERY, INCREMENTAL and MANUAL are taken
+	// (engine-verified).
+	if stmt.PartitionBy != nil {
+		switch stmt.RefreshMethod {
+		case "ASYNC", "INCREMENTAL", "MANUAL":
+		default:
+			return nil, &ParseError{
+				Position: ast.NodeLoc(stmt.PartitionBy).Start, End: ast.NodeLoc(stmt.PartitionBy).End,
+				Message: "PARTITION BY needs REFRESH ASYNC, INCREMENTAL or MANUAL",
+			}
+		}
+	}
+
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}

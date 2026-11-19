@@ -559,9 +559,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
-		if n.Where != nil {
-			Walk(v, n.Where)
-		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
@@ -935,6 +932,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *ExplainStmt:
 		if n.Query != nil {
 			Walk(v, n.Query)
@@ -1126,6 +1126,81 @@ func walkChildren(v Visitor, node Node) {
 	case *DropProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+
+	// Statement families the fork's tail added.
+	case *RefreshExternalTableStmt:
+		Walk(v, n.Name)
+	case *CreateResourceGroupStmt:
+		Walk(v, n.Name)
+		walkNodeLists(v, n.Classifiers)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropResourceGroupStmt:
+		Walk(v, n.Name)
+	case *AlterResourceGroupStmt:
+		Walk(v, n.Name)
+		walkNodeLists(v, n.Classifiers)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *CreateDataCacheRuleStmt:
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DropDataCacheRuleStmt, *ClearDataCacheRulesStmt, *TruncatePlanAdvisorStmt:
+		// leaf nodes, no children
+	case *CreatePipeStmt:
+		Walk(v, n.Name)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+		if n.Insert != nil {
+			Walk(v, n.Insert)
+		}
+	case *DropPipeStmt:
+		Walk(v, n.Name)
+	case *AlterPipeStmt:
+		Walk(v, n.Name)
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
+	case *DescPipeStmt:
+		Walk(v, n.Name)
+	case *AlterPlanAdvisorStmt:
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *TranslateStmt:
+		// leaf node, no children
+	case *PrepareStmt:
+		Walk(v, n.Name)
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+	case *ExecuteStmt:
+		Walk(v, n.Name)
+	case *DeallocateStmt:
+		Walk(v, n.Name)
+	case *ExecuteAsStmt:
+		if n.User != nil {
+			Walk(v, n.User)
+		}
+	case *BlacklistStmt:
+		// leaf node, no children
+	}
+}
+
+// walkNodeLists walks a list of expression lists, as a resource group's
+// classifiers are.
+func walkNodeLists(v Visitor, lists [][]Node) {
+	for _, list := range lists {
+		for _, n := range list {
+			Walk(v, n)
 		}
 	}
 }

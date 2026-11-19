@@ -10,18 +10,23 @@ package ast
 // BACKUP / RESTORE SNAPSHOT
 // ---------------------------------------------------------------------------
 
-// BackupStmt represents:
+// BackupStmt represents backupStatement (StarRocks.g4:1765):
 //
-//	BACKUP SNAPSHOT [db.]label TO repo_name
+//	BACKUP [ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierList]
+//	    [DATABASE name]
+//	    SNAPSHOT label TO repo_name
 //	    [ON (tbl [PARTITION(p1,...)], ...)]
 //	    [PROPERTIES("key"="value", ...)]
 type BackupStmt struct {
-	Label      string        // snapshot label (may be db.label)
-	LabelParts []string      // raw parts: [db, label] or [label]
-	Repo       string        // repository name
-	Tables     []*ObjectName // optional ON clause table list
-	Properties []*Property
-	Loc        Loc
+	Label               string        // snapshot label (may be db.label)
+	LabelParts          []string      // raw parts: [db, label] or [label]
+	Repo                string        // repository name
+	AllExternalCatalogs bool          // ALL EXTERNAL CATALOGS
+	ExternalCatalogs    []string      // EXTERNAL CATALOG(S) identifierList
+	Database            string        // DATABASE name
+	Tables              []*ObjectName // optional ON clause table list
+	Properties          []*Property
+	Loc                 Loc
 }
 
 // Tag implements Node.
@@ -29,18 +34,24 @@ func (n *BackupStmt) Tag() NodeTag { return T_BackupStmt }
 
 var _ Node = (*BackupStmt)(nil)
 
-// RestoreStmt represents:
+// RestoreStmt represents restoreStatement (StarRocks.g4:1780):
 //
-//	RESTORE SNAPSHOT [db.]label FROM repo_name
+//	RESTORE SNAPSHOT label FROM repo_name
+//	    [ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierWithAliasList]
+//	    [DATABASE name [AS alias]]
 //	    [ON (tbl [PARTITION(p1,...)], ...)]
 //	    [PROPERTIES("key"="value", ...)]
 type RestoreStmt struct {
-	Label      string
-	LabelParts []string
-	Repo       string
-	Tables     []*ObjectName
-	Properties []*Property
-	Loc        Loc
+	Label               string
+	LabelParts          []string
+	Repo                string
+	AllExternalCatalogs bool
+	ExternalCatalogs    []string // each as written: "name" or "name AS alias"
+	Database            string
+	DatabaseAlias       string
+	Tables              []*ObjectName
+	Properties          []*Property
+	Loc                 Loc
 }
 
 // Tag implements Node.
