@@ -519,7 +519,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 	tableAccessMethod := stmt.AccessMethod
-	if tableAccessMethod == "" && relkind != 'f' {
+	if tableAccessMethod == "" && (relkind == 'r' || relkind == 'p' || relkind == 'm') {
 		tableAccessMethod = c.defaultTableAccessMethod
 	}
 	if err := c.checkTableAccessMethod(tableAccessMethod); err != nil {

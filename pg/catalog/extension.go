@@ -284,6 +284,13 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 			extFunctionOIDs = append(extFunctionOIDs, oid)
 		}
 	}
+	var extFamilyOIDs []uint32
+	for oid, extName := range c.extensionMembers {
+		if dropExtNames[extName] && c.opFamilies[oid] != nil {
+			extFamilyOIDs = append(extFamilyOIDs, oid)
+		}
+	}
+	sort.Slice(extFamilyOIDs, func(i, j int) bool { return extFamilyOIDs[i] < extFamilyOIDs[j] })
 	sort.Slice(extAccessMethodOIDs, func(i, j int) bool { return extAccessMethodOIDs[i] < extAccessMethodOIDs[j] })
 	sort.Slice(extFunctionOIDs, func(i, j int) bool { return extFunctionOIDs[i] < extFunctionOIDs[j] })
 	var amRelOIDs, amIdxOIDs []uint32
@@ -294,6 +301,18 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	opDepSeen := map[uint32]bool{}
 	var extAMUsers []DepEntry
 	amUserSeen := map[[2]uint32]bool{}
+	for _, famOID := range extFamilyOIDs {
+		for _, dep := range c.findNormalDependents('Q', famOID) {
+			if dep.ObjType != 'q' || inExtDrop(dep.ObjOID) {
+				continue
+			}
+			key := [2]uint32{uint32(dep.ObjType), dep.ObjOID}
+			if !amUserSeen[key] {
+				amUserSeen[key] = true
+				extAMUsers = append(extAMUsers, dep)
+			}
+		}
+	}
 	for _, amOID := range extAccessMethodOIDs {
 		for _, dep := range c.findNormalDependents('m', amOID) {
 			switch dep.ObjType {

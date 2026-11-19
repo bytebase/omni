@@ -195,6 +195,9 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 	}
 	c.opClasses[opc.OID] = opc
 	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)
+	if familyOID != 0 {
+		c.recordDependency('q', opc.OID, 0, 'Q', familyOID, 0, DepNormal)
+	}
 	if typeOID != 0 {
 		c.recordDependency('q', opc.OID, 0, 't', typeOID, 0, DepNormal)
 	}

@@ -919,6 +919,13 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				amUsers = append(amUsers, ownerAMUser{dep: dep, extName: extName})
 			}
 		}
+		if c.opFamilies[oid] != nil {
+			for _, dep := range c.findNormalDependents('Q', oid) {
+				if dep.ObjType == 'q' {
+					amUsers = append(amUsers, ownerAMUser{dep: dep, extName: extName})
+				}
+			}
+		}
 	}
 	// externalCasts holds user-created casts that reference an owned
 	// extension's type or function.
@@ -1224,13 +1231,13 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 			}
 			if !cascade {
-				for _, opc := range c.opClasses {
-					if opc.Schema == s.OID {
+				for oid, opc := range c.opClasses {
+					if opc.Schema == s.OID && !inDropSet('q', oid) {
 						return errDependentObjects("schema", s.Name)
 					}
 				}
-				for _, fam := range c.opFamilies {
-					if fam.Schema == s.OID {
+				for oid, fam := range c.opFamilies {
+					if fam.Schema == s.OID && !inDropSet('Q', oid) {
 						return errDependentObjects("schema", s.Name)
 					}
 				}
@@ -1422,14 +1429,23 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		c.removeOperator(oid)
 	}
 	for _, s := range ownedSchemas {
+		opcOIDs := make([]uint32, 0, len(c.opClasses))
 		for oid, opc := range c.opClasses {
-			if opc.Schema != s.OID {
-				continue
+			if opc.Schema == s.OID {
+				opcOIDs = append(opcOIDs, oid)
 			}
-			if opc.IsDefault {
-				delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
+		}
+		sort.Slice(opcOIDs, func(i, j int) bool { return opcOIDs[i] < opcOIDs[j] })
+		for _, oid := range opcOIDs {
+			for _, dep := range c.findNormalDependents('o', oid) {
+				if dep.ObjType != 'i' {
+					continue
+				}
+				if idx := c.indexes[dep.ObjOID]; idx != nil {
+					c.removeIndex(idx.Schema, idx.Name, idx)
+				}
 			}
-			delete(c.opClasses, oid)
+			c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: oid})
 		}
 		for oid, fam := range c.opFamilies {
 			if fam.Schema == s.OID {
@@ -1452,6 +1468,20 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		delete(c.schemaByName, s.Name)
 	}
 
+	if !cascade {
+		// Revoking a grant option the dropped role holds abandons the grants it
+		// passed on: RESTRICT refuses that, CASCADE revokes both.
+		for _, g := range c.grants {
+			if !owners[g.Grantee] || !g.WithGrant {
+				continue
+			}
+			for _, dependent := range c.grants {
+				if dependent.Grantor == g.Grantee && dependent.Grantee != g.Grantee && dependent.Grantee != "" {
+					return errDependentObjects("grant", g.Grantee)
+				}
+			}
+		}
+	}
 	kept := c.grants[:0]
 	for _, g := range c.grants {
 		if owners[g.Grantee] || owners[g.Grantor] {

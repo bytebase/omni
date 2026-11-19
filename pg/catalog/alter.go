@@ -696,11 +696,13 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_ChangeOwner:
 		if atc.Newowner != nil {
+			oldOwner := rel.OwnerName
 			owner := c.ownerRoleName(atc.Newowner)
 			if err := c.checkRole(owner); err != nil {
 				return err
 			}
 			rel.OwnerName = owner
+			c.transferACLs('r', rel.OID, oldOwner, owner)
 			for _, idx := range c.indexesByRel[rel.OID] {
 				idx.OwnerName = rel.OwnerName
 			}
@@ -2597,6 +2599,25 @@ func extractObjectName(obj nodes.Node) (schema, name string) {
 		return "", n.Str
 	default:
 		return "", ""
+	}
+}
+
+// transferACLs moves the grants on an object from its old owner to its new one,
+// as PostgreSQL's aclnewowner does in both ACL positions.
+func (c *Catalog) transferACLs(objType byte, objOID uint32, oldOwner, newOwner string) {
+	if oldOwner == "" || newOwner == "" || oldOwner == newOwner {
+		return
+	}
+	for i := range c.grants {
+		if c.grants[i].ObjType != objType || c.grants[i].ObjOID != objOID {
+			continue
+		}
+		if c.grants[i].Grantee == oldOwner {
+			c.grants[i].Grantee = newOwner
+		}
+		if c.grants[i].Grantor == oldOwner {
+			c.grants[i].Grantor = newOwner
+		}
 	}
 }
 
