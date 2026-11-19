@@ -69,22 +69,6 @@ func containsFold(names []string, name string) bool {
 	return false
 }
 
-// primaryKeyColumns returns the primary key's columns, in key order, and nil when
-// the table has no primary key.
-func primaryKeyColumns(tbl *Table) []string {
-	for _, idx := range tbl.Indexes {
-		if !idx.Primary {
-			continue
-		}
-		cols := make([]string, 0, len(idx.Columns))
-		for _, ic := range idx.Columns {
-			cols = append(cols, ic.Name)
-		}
-		return cols
-	}
-	return nil
-}
-
 // effectivePrimaryKeyColumns returns the columns KEY () partitions by: the primary
 // key's, or else those of the first unique key whose parts are all whole NOT NULL
 // columns.
@@ -306,12 +290,16 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 		undo()
 		return err
 	}
-	// KEY () partitions by the primary key, and the ALTER path stores the
-	// columns it stands for, where CREATE TABLE keeps the empty list. A table
-	// with no primary key has no column to partition by and v8.5.5 refuses the
-	// clause with an uncoded 1105 (read on v8.5.5).
+	// KEY () partitions by the primary key, or else by the first whole unique
+	// key of NOT NULL columns, and the ALTER path stores the columns it stands
+	// for where CREATE TABLE keeps the empty list (both read on v8.5.5: a table
+	// with `UNIQUE KEY u (b)` over a NOT NULL b reads back as `PARTITION BY KEY
+	// (b) PARTITIONS 1`). A table with neither has no column to partition by,
+	// and the clause is an uncoded 1105 -- after the coverage check, which
+	// answers 8264 first when a second unique key does not cover the columns
+	// the first one stands for.
 	if pi.Type == "KEY" && len(pi.Columns) == 0 {
-		pi.Columns = primaryKeyColumns(tbl)
+		pi.Columns = effectivePrimaryKeyColumns(tbl)
 		if len(pi.Columns) == 0 {
 			undo()
 			return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),

@@ -731,21 +731,46 @@ func checkSetDefaultColumnRef(tbl *Table, col *Column, expr nodes.ExprNode) erro
 		return nil
 	}
 	var missing string
-	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if missing != "" {
-			return false
-		}
-		if ref, ok := n.(*nodes.ColumnRef); ok && ref.Column != "" {
+	for _, ref := range columnRefsOutsideSequenceCalls(expr) {
+		if ref.Column != "" {
 			missing = ref.Column
-			return false
+			break
 		}
-		return true
-	})
+	}
 	if missing == "" {
 		return nil
 	}
 	return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn),
 		Message: fmt.Sprintf("Unknown column '%s' in 'expression'", missing)}
+}
+
+// columnRefsOutsideSequenceCalls returns the column references of a default
+// expression, leaving out the sequence a NEXT VALUE FOR / NEXTVAL names: the
+// parser holds that name as a column reference too, and it is looked up as a
+// sequence rather than seen as a column (read on v8.5.5: SET DEFAULT
+// (NEXTVAL(s)) is accepted).
+func columnRefsOutsideSequenceCalls(expr nodes.ExprNode) []*nodes.ColumnRef {
+	sequences := make(map[*nodes.ColumnRef]bool)
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		fn, ok := n.(*nodes.FuncCallExpr)
+		if !ok || !strings.EqualFold(fn.Name, "nextval") {
+			return true
+		}
+		for _, arg := range fn.Args {
+			if ref, ok := arg.(*nodes.ColumnRef); ok {
+				sequences[ref] = true
+			}
+		}
+		return true
+	})
+	var refs []*nodes.ColumnRef
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if ref, ok := n.(*nodes.ColumnRef); ok && !sequences[ref] {
+			refs = append(refs, ref)
+		}
+		return true
+	})
+	return refs
 }
 
 // checkColumnSequenceDefault resolves the sequence a column definition's DEFAULT

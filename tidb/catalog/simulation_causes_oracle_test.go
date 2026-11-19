@@ -697,10 +697,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1105,
 		},
 		{
-			name:  "PARTITION BY KEY with no column on a table with only a unique key",
+			// A unique key of a nullable column is no key to partition by.
+			name:  "PARTITION BY KEY with no column on a table with only a nullable unique key",
 			setup: []string{"CREATE TABLE a (b INT, UNIQUE KEY u (b))"},
 			stmt:  "ALTER TABLE a PARTITION BY KEY()",
 			code:  1105,
+		},
+		{
+			// A whole unique key of NOT NULL columns is, and the ALTER stores
+			// the columns it stands for.
+			name:       "PARTITION BY KEY with no column on a table with a NOT NULL unique key",
+			setup:      []string{"CREATE TABLE a (b INT NOT NULL, UNIQUE KEY u (b))"},
+			stmt:       "ALTER TABLE a PARTITION BY KEY()",
+			code:       0,
+			sameSchema: true,
+		},
+		{
+			// The coverage check answers first when a second unique key does not
+			// cover the columns the first one stands for.
+			name:  "PARTITION BY KEY with no column and two unique keys",
+			setup: []string{"CREATE TABLE a (x INT NOT NULL, y INT NOT NULL, UNIQUE KEY ux (x), UNIQUE KEY uy (y))"},
+			stmt:  "ALTER TABLE a PARTITION BY KEY()",
+			code:  8264,
 		},
 	}
 

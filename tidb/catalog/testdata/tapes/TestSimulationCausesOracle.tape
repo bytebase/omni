@@ -2526,3 +2526,66 @@
 > exec
 | DROP TABLE IF EXISTS `dual`
 < ok 0 0
+> exec
+| CREATE TABLE a (b INT NOT NULL, UNIQUE KEY u (b))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION BY KEY()
+< ok 0 0
+> query
+| SHOW CREATE TABLE `a`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `b` int NOT NULL,
+|   UNIQUE KEY `u` (`b`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| PARTITION BY KEY (`b`) PARTITIONS 1
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT NOT NULL, y INT NOT NULL, UNIQUE KEY ux (x), UNIQUE KEY uy (y))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION BY KEY()
+< error
+| 8264 HY000 Global Index is needed for index 'uy', since the unique index is not including all partitioning columns, and GLOBAL is not given as IndexOption
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
