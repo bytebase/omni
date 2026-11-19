@@ -1361,6 +1361,30 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:     0,
 			contains: []string{"VECTOR KEY `i` (`v`) `M`=6 `DISTANCE`=cosine /* `x`=1 */"},
 		},
+		// A CREATE INDEX name the table holds is 1061 before the unknown engine
+		// option is 1911, where a free name answers 1911, and a missing key column
+		// answers 1072 before either.
+		{
+			name:        "CREATE INDEX of a name the table holds, with an engine-defined option",
+			setup:       []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"},
+			stmt:        "CREATE INDEX idx_d ON a (c) x = 1",
+			code:        1061,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX of a free name, with an engine-defined option",
+			setup:       []string{oneTable},
+			stmt:        "CREATE INDEX i ON a (c) x = 1",
+			code:        1911,
+			keepsSchema: true,
+		},
+		{
+			name:        "CREATE INDEX of a name the table holds, over a missing column, with an engine-defined option",
+			setup:       []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"},
+			stmt:        "CREATE INDEX idx_d ON a (missing) x = 1",
+			code:        1072,
+			keepsSchema: true,
+		},
 	}
 
 	for _, tc := range cases {
