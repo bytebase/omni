@@ -247,8 +247,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// ALTER SYSTEM: no-op for pgddl
 		return nil
 	case *nodes.DropOwnedStmt:
-		// DROP OWNED: no-op for pgddl
-		return nil
+		return c.DropOwned(s)
 	case *nodes.ReassignOwnedStmt:
 		// REASSIGN OWNED: no-op for pgddl
 		return nil

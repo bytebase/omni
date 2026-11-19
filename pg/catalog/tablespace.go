@@ -224,6 +224,35 @@ func (c *Catalog) roleInUse(name string) bool {
 	return false
 }
 
+// DropOwned releases the ownership a DROP OWNED BY names. The catalog keeps
+// the objects, but a later DROP ROLE no longer sees them as dependents.
+func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
+	if stmt.Roles == nil {
+		return nil
+	}
+	owners := map[string]bool{}
+	for _, item := range stmt.Roles.Items {
+		rs, ok := item.(*nodes.RoleSpec)
+		if !ok {
+			continue
+		}
+		owners[c.ownerRoleName(rs)] = true
+	}
+	for _, schema := range c.schemas {
+		for _, rel := range schema.Relations {
+			if owners[rel.OwnerName] {
+				rel.OwnerName = ""
+			}
+		}
+		for _, idx := range schema.Indexes {
+			if owners[idx.OwnerName] {
+				idx.OwnerName = ""
+			}
+		}
+	}
+	return nil
+}
+
 // RemoveRoles forgets DROP ROLE.
 func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
 	if stmt.Roles == nil {
