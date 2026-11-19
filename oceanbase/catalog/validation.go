@@ -46,6 +46,11 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if colDef.HasOrigDefault {
 		return &Error{Code: 1067, SQLState: "42000", Message: "Invalid default value"}
 	}
+	// data_type's STRING_VALUE arm is a quoted literal in the type's place, which
+	// the pinned server parses and refuses: 5874, invalid datatype.
+	if colDef.TypeName.FromStringValue {
+		return &Error{Code: 5874, SQLState: "HY000", Message: "invalid datatype"}
+	}
 	if err := checkCollectionElements(colDef.TypeName); err != nil {
 		return err
 	}

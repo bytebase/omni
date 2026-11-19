@@ -60,6 +60,15 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		}
 	}
 
+	// opt_table_id pins the view's id, which the pinned server parses and refuses
+	// to run. This catalog cannot model that id, so the statement fails rather
+	// than install a view the server would not have made. It is checked after the
+	// body, so the errors the body itself raises come first, as they do on the
+	// server.
+	if stmt.HasTableID {
+		return errNotSupported("view table id")
+	}
+
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
 	definer := stmt.Definer
 	if definer == "" {
@@ -328,6 +337,11 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 	analyzedQuery, err := c.resolveQueryFirst(stmt.Select)
 	if err != nil {
 		return err
+	}
+	// opt_table_id pins the view's id, which the pinned server parses and refuses
+	// to run; this catalog cannot model it.
+	if stmt.HasTableID {
+		return errNotSupported("view table id")
 	}
 	key := toLower(stmt.Name.Name)
 	// ALTER VIEW requires an ordinary view to exist.

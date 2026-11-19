@@ -1677,6 +1677,13 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 		if n.Kind == "TABLE" {
 			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
 		}
+	case *ast.FlashbackStmt:
+		// FLASHBACK restores the table it names, and may rename it: both names
+		// are resources the statement touches.
+		if n.Kind == "TABLE" {
+			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+			collectAccessTablesFromTableRef(result, n.RenameTo, defaultDatabase)
+		}
 	case *ast.ExplainStmt:
 		collectAccessTablesFromNode(result, n.Stmt, defaultDatabase)
 	case *ast.InsertStmt:

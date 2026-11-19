@@ -245,3 +245,21 @@ func TestResolveQuerySpanMethodOptClassified(t *testing.T) {
 		t.Errorf("FOR COLUMNS is QueryTypeUnknown, want a class")
 	}
 }
+
+// TestFlashbackAccessResources pins that FLASHBACK's restored table, and the
+// name it is restored under, are access resources of the statement.
+func TestFlashbackAccessResources(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		sources   string
+	}{
+		{"FLASHBACK TABLE db.t1 TO BEFORE DROP", "db.t1."},
+		{"FLASHBACK TABLE db.t1 TO BEFORE DROP RENAME TO db.t2", "db.t1.,db.t2."},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span, err := resolve(t, tc.statement)
+			require.NoError(t, err)
+			require.Equal(t, tc.sources, renderSet(span.SourceColumns))
+		})
+	}
+}

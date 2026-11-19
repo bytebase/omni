@@ -876,6 +876,9 @@ type DataType struct {
 	// CREATE echoes `/*!80003 SRID 0 */`; information_schema reports SRS_ID=0 vs NULL), so
 	// presence cannot be inferred from SRID != 0 — a `SRID 0` column has SRID==0 yet is set.
 	HasSRID bool
+	// FromStringValue is data_type's STRING_VALUE arm, a quoted literal in the
+	// type's place: the parser takes it and the resolver refuses it with 5874.
+	FromStringValue bool
 }
 
 func (t *DataType) nodeTag() {}

@@ -690,7 +690,7 @@ ok:7ed82b4befd0	ok:7ed82b4befd0	engine	one_table@table	data_type/blob_type_i_opt
 ok:c69cd6ca0ee3	ok:c69cd6ca0ee3	engine	one_table@table	data_type/text_type_i_opt_string_length_i_v2_opt_binary_opt_charset	ALTER TABLE a ADD a TINYTEXT
 ok:866bce9378bb	ok:866bce9378bb	engine	one_table@table	data_type/BINARY_opt_string_length_i	ALTER TABLE a ADD a BINARY
 ok:97ee6fba801b	ok:97ee6fba801b	engine	one_table@table	data_type/VARBINARY_string_length_i	ALTER TABLE a ADD a VARBINARY(1)
-ok	5874	engine	one_table@table	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
+5874	5874	engine	one_table@table	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
 ok:2ce34b63b72f	ok:2ce34b63b72f	engine	one_table@table	data_type/BIT_opt_bit_length_i	ALTER TABLE a ADD a BIT
 ok:b44776328393	ok:b44776328393	engine	one_table@table	data_type/ENUM_(_string_list_)_opt_binary_opt_charset	ALTER TABLE a ADD a ENUM('s')
 ok:1bc8ecae0873	ok:1bc8ecae0873	engine	one_table@table	data_type/SET_(_string_list_)_opt_binary_opt_charset	ALTER TABLE a ADD a SET('s')
@@ -1107,8 +1107,8 @@ ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_P
 4185	4185	engine	one_table@table	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
 ok:c334bb7a669b	ok:c334bb7a669b	engine	one_table@table	alter_column_option/ADD_COLUMN_(_column_definition_list_)	ALTER TABLE a ADD COLUMN(a TINYINT)
-ok	1210	engine	one_table@table	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
-ok	1210	engine	one_table@table	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+1210	1210	engine	one_table@table	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+1210	1210	engine	one_table@table	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 1091	1091	engine	one_table@table	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
 1091	1091	engine	one_table@table	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
 1054	1054	engine	one_table@table	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
@@ -1259,7 +1259,7 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	stmt/truncate_table_stmt
 1060	1060	engine	one_table@column	data_type/text_type_i_opt_string_length_i_v2_opt_binary_opt_charset	ALTER TABLE a ADD a TINYTEXT
 1060	1060	engine	one_table@column	data_type/BINARY_opt_string_length_i	ALTER TABLE a ADD a BINARY
 1060	1060	engine	one_table@column	data_type/VARBINARY_string_length_i	ALTER TABLE a ADD a VARBINARY(1)
-1060	5874	engine	one_table@column	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
+5874	5874	engine	one_table@column	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
 1060	1060	engine	one_table@column	data_type/BIT_opt_bit_length_i	ALTER TABLE a ADD a BIT
 1060	1060	engine	one_table@column	data_type/ENUM_(_string_list_)_opt_binary_opt_charset	ALTER TABLE a ADD a ENUM('s')
 1060	1060	engine	one_table@column	data_type/SET_(_string_list_)_opt_binary_opt_charset	ALTER TABLE a ADD a SET('s')
@@ -1676,8 +1676,8 @@ ok:6b3ca7ee0aaa	ok:6b3ca7ee0aaa	engine	one_table@column	add_constraint_uniq_key/
 4185	4185	engine	one_table@column	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 1060	1060	engine	one_table@column	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
 1060	1060	engine	one_table@column	alter_column_option/ADD_COLUMN_(_column_definition_list_)	ALTER TABLE a ADD COLUMN(a TINYINT)
-1060	1210	engine	one_table@column	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
-1060	1210	engine	one_table@column	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+1210	1210	engine	one_table@column	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+1210	1210	engine	one_table@column	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
 ok:c01edfd1e4f1	ok:c01edfd1e4f1	engine	one_table@column	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT
@@ -1828,7 +1828,7 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	stmt/truncate_table_stmt	
 1060	1060	engine	one_table@index	data_type/text_type_i_opt_string_length_i_v2_opt_binary_opt_charset	ALTER TABLE a ADD a TINYTEXT
 1060	1060	engine	one_table@index	data_type/BINARY_opt_string_length_i	ALTER TABLE a ADD a BINARY
 1060	1060	engine	one_table@index	data_type/VARBINARY_string_length_i	ALTER TABLE a ADD a VARBINARY(1)
-1060	5874	engine	one_table@index	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
+5874	5874	engine	one_table@index	data_type/STRING_VALUE	ALTER TABLE a ADD a 's'
 1060	1060	engine	one_table@index	data_type/BIT_opt_bit_length_i	ALTER TABLE a ADD a BIT
 1060	1060	engine	one_table@index	data_type/ENUM_(_string_list_)_opt_binary_opt_charset	ALTER TABLE a ADD a ENUM('s')
 1060	1060	engine	one_table@index	data_type/SET_(_string_list_)_opt_binary_opt_charset	ALTER TABLE a ADD a SET('s')
@@ -2245,8 +2245,8 @@ ok:ef33c88e5b07	ok:ef33c88e5b07	engine	one_table@index	visibility_option/INVISIB
 4185	4185	engine	one_table@index	alter_column_group_option/DROP_COLUMN_GROUP_(_column_group_list_)_alter_column_group_delayed_desc	ALTER TABLE a DROP COLUMN GROUP(ALL COLUMNS)
 1060	1060	engine	one_table@index	alter_column_option/ADD_COLUMN_column_definition	ALTER TABLE a ADD COLUMN a TINYINT
 1060	1060	engine	one_table@index	alter_column_option/ADD_COLUMN_(_column_definition_list_)	ALTER TABLE a ADD COLUMN(a TINYINT)
-1060	1210	engine	one_table@index	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
-1060	1210	engine	one_table@index	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+1210	1210	engine	one_table@index	alter_column_option/ADD_COLUMN_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD COLUMN(a TINYINT) JSON(a) STORE AS(CHUNK 1)
+1210	1210	engine	one_table@index	alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause	ALTER TABLE a ADD(a TINYINT) JSON(a) STORE AS(CHUNK 1)
 ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP a
 ok:da2f5f1a9a72	ok:da2f5f1a9a72	engine	one_table@index	alter_column_option/DROP_COLUMN_column_definition_ref_opt_drop_behavior	ALTER TABLE a DROP COLUMN a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_column_option/alter_with_opt_hint_COLUMN_column_definition_ref_alter_column_behavior	ALTER TABLE a ALTER COLUMN a DROP DEFAULT

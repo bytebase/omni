@@ -12804,3 +12804,15 @@ func TestReviewTailAttributesAndColumnRefForms(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadDataRemoteOSSTakesNoS3Source(t *testing.T) {
+	// opt_load_local's REMOTE_OSS is followed by INFILE, never by the inherited
+	// Aurora S3 source, in either spelling.
+	for _, sql := range []string{
+		"LOAD DATA REMOTE_OSS FROM S3 FILE 's3://b/x' INTO TABLE t",
+		"LOAD DATA REMOTE_OSS S3 FILE 's3://b/x' INTO TABLE t",
+	} {
+		ParseExpectError(t, sql)
+	}
+	ParseAndCheck(t, "LOAD DATA REMOTE_OSS INFILE 'remote/x.csv' INTO TABLE t")
+}

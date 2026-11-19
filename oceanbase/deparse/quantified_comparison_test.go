@@ -1,6 +1,11 @@
 package deparse
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/bytebase/omni/oceanbase/ast"
+	"github.com/bytebase/omni/oceanbase/parser"
+)
 
 // TestQuantifiedComparison pins that a comparison keeps its quantifier through the
 // rewrite and the writer, in OceanBase 4.3.5's stored form. Dropping ALL reads `a > ALL
@@ -101,6 +106,36 @@ func TestQuantifiedExprDeparse(t *testing.T) {
 			got := Deparse(RewriteExpr(parseExpr(t, c.input)))
 			if got != c.want {
 				t.Errorf("Deparse(RewriteExpr(%q)) = %q, want %q", c.input, got, c.want)
+			}
+		})
+	}
+}
+
+// TestWindowModifierAlias pins that an unaliased window call names its column
+// after the modifiers the statement wrote, not the default FROM FIRST/RESPECT
+// NULLS form.
+func TestWindowModifierAlias(t *testing.T) {
+	for _, c := range []struct{ input, want string }{
+		{
+			"SELECT NTH_VALUE(a, 1) FROM LAST IGNORE NULLS OVER () FROM t",
+			"select nth_value(`t`.`a`,1) from last ignore nulls OVER ( )  AS `NTH_VALUE(a, 1) FROM LAST IGNORE NULLS OVER ()` from `t`",
+		},
+		{
+			"SELECT LEAD(a IGNORE NULLS, 2) OVER () FROM t",
+			"select lead(`t`.`a` ignore nulls,2) OVER ( )  AS `LEAD(a IGNORE NULLS, 2) OVER ()` from `t`",
+		},
+	} {
+		t.Run(c.input, func(t *testing.T) {
+			list, err := parser.Parse(c.input)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", c.input, err)
+			}
+			sel := list.Items[0].(*ast.SelectStmt)
+			resolved := (&Resolver{Lookup: func(string) *ResolverTable {
+				return &ResolverTable{Name: "t", Columns: []ResolverColumn{{Name: "a", Position: 1}}}
+			}}).Resolve(sel)
+			if got := DeparseSelect(resolved); got != c.want {
+				t.Errorf("DeparseSelect(%q)\n got %s\nwant %s", c.input, got, c.want)
 			}
 		})
 	}

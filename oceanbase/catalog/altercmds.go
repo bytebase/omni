@@ -339,6 +339,13 @@ func alterCarriesColumnID(cmd *nodes.AlterTableCmd) bool {
 
 // alterAddColumn adds a new column to the table.
 func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// lob_storage_clause follows the ADD's column list, and the pinned server
+	// parses it and refuses to run it: 1210 on a table that exists
+	// (testdata/simulate.tsv, rule
+	// alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause).
+	if cmd.LobStorage != nil {
+		return &Error{Code: 1210, SQLState: "HY000", Message: "Invalid argument"}
+	}
 	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
 	if len(cmd.Columns) > 0 {
 		for _, colDef := range cmd.Columns {

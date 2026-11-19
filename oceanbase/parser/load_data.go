@@ -100,13 +100,14 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 
 	// INFILE 'file_name' | [FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
 	// The FROM-less spelling is documented for LOAD DATA only; LOAD XML
-	// always takes FROM S3.
+	// always takes FROM S3. REMOTE_OSS is opt_load_local's, which the grammar
+	// follows with INFILE: `LOAD DATA REMOTE_OSS FROM S3 FILE 's'` is no arm.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwINFILE)
-		// LOCAL is incompatible with an S3 source, so after LOCAL the only
-		// valid continuation is INFILE.
-		if !stmt.Local {
+		// LOCAL and REMOTE_OSS each name where a local file is, so only INFILE
+		// follows them.
+		if !stmt.Local && !stmt.RemoteOSS {
 			p.addTokenCandidate(kwFROM)
 			if !isXML {
 				p.addTokenCandidate(kwS3)
@@ -114,8 +115,9 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		}
 		return nil, &ParseError{Message: "collecting"}
 	}
+	s3 := !stmt.RemoteOSS && !stmt.Local && (p.cur.Type == kwFROM || (p.cur.Type == kwS3 && !isXML))
 	switch {
-	case p.cur.Type == kwFROM, p.cur.Type == kwS3 && !isXML:
+	case s3:
 		if err := p.parseLoadDataS3Source(stmt); err != nil {
 			return nil, err
 		}

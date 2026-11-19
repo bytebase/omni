@@ -62,6 +62,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		// data_type's STRING_VALUE arm: "wrong or unsupported data type", which
 		// the parser takes and the resolver refuses later.
 		dt.Name = p.advance().Str
+		dt.FromStringValue = true
 		return dt, nil
 	// Integer types
 	case kwINT, kwINTEGER:

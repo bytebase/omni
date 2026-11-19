@@ -971,6 +971,13 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 				b.WriteString(", ")
 			}
 			writeExprAlias(b, arg)
+			// LEAD and LAG write RESPECT/IGNORE NULLS after their first
+			// argument, so the alias keeps it in place.
+			if i == 0 && (upperName == "LEAD" || upperName == "LAG") && n.NullTreatment != "" {
+				b.WriteString(" ")
+				b.WriteString(strings.ToUpper(n.NullTreatment))
+				b.WriteString(" NULLS")
+			}
 		}
 		if n.Using != "" {
 			// The name keeps CHAR's USING clause as written, whatever the
@@ -979,6 +986,17 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 			b.WriteString(n.Using)
 		}
 		b.WriteString(")")
+		// NTH_VALUE's FROM FIRST/LAST and the trailing RESPECT/IGNORE NULLS
+		// follow the parameter list, as the statement wrote them.
+		if n.FromFirstLast != "" {
+			b.WriteString(" FROM ")
+			b.WriteString(strings.ToUpper(n.FromFirstLast))
+		}
+		if n.NullTreatment != "" && upperName != "LEAD" && upperName != "LAG" {
+			b.WriteString(" ")
+			b.WriteString(strings.ToUpper(n.NullTreatment))
+			b.WriteString(" NULLS")
+		}
 		if n.Over != nil {
 			b.WriteString(" ")
 			writeWindowDefAlias(b, n.Over)

@@ -466,3 +466,40 @@ func TestAlterTableDropConstraintListChecksOnlyAtomic(t *testing.T) {
 		t.Fatal("failed list-form DROP CONSTRAINT removed c1 instead of rolling back")
 	}
 }
+
+func TestAlterAddRejectsLobStorageAndQuotedType(t *testing.T) {
+	c := setupWithDB(t)
+	mustExec(t, c, "CREATE TABLE t (b INT)")
+
+	// The LOB storage clause follows ADD's column list and the server refuses it
+	// with 1210, so no column is added.
+	results, _ := c.Exec("ALTER TABLE t ADD (a TINYINT) JSON(a) STORE AS (CHUNK 1)", &ExecOptions{ContinueOnError: true})
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1210 {
+		t.Fatalf("expected error 1210, got %v", results[0].Error)
+	}
+	// data_type's STRING_VALUE arm is refused with 5874.
+	results, _ = c.Exec("ALTER TABLE t ADD a 's'", &ExecOptions{ContinueOnError: true})
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 5874 {
+		t.Fatalf("expected error 5874, got %v", results[0].Error)
+	}
+	if tbl := c.GetDatabase("testdb").GetTable("t"); len(tbl.Columns) != 1 {
+		t.Fatalf("failed ALTERs added columns: %+v", tbl.Columns)
+	}
+}
+
+func TestViewTableIDIsRefused(t *testing.T) {
+	c := setupWithDB(t)
+	results, _ := c.Exec("CREATE VIEW v TABLE_ID = 1 AS SELECT 1 AS a", &ExecOptions{ContinueOnError: true})
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1235 {
+		t.Fatalf("CREATE VIEW TABLE_ID: expected error 1235, got %v", results[0].Error)
+	}
+	if c.GetDatabase("testdb").Views["v"] != nil {
+		t.Fatal("CREATE VIEW TABLE_ID installed the view")
+	}
+
+	mustExec(t, c, "CREATE VIEW v AS SELECT 1 AS a")
+	results, _ = c.Exec("ALTER VIEW v TABLE_ID = 1 AS SELECT 2 AS a", &ExecOptions{ContinueOnError: true})
+	if catErr, ok := results[0].Error.(*Error); !ok || catErr.Code != 1235 {
+		t.Fatalf("ALTER VIEW TABLE_ID: expected error 1235, got %v", results[0].Error)
+	}
+}
