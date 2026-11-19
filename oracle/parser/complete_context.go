@@ -523,9 +523,12 @@ func (r *oracleRefReader) fromReferences(start, end, want, hi int) (int, []Range
 			continue
 		}
 		if expectingRef {
+			isInlineAV := oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && i+2 < hi && tokens[i+1].Type == kwVIEW && tokens[i+2].Type == '('
 			next, ref, ok := r.rangeReference(i, hi)
 			if ok && next <= end {
-				ref = resolveOracleCTEReference(ref, r.ctes)
+				if !isInlineAV {
+					ref = resolveOracleCTEReference(ref, r.ctes)
+				}
 				ref = r.markUnsupportedTransform(ref, next, end, want)
 				refs = append(refs, ref)
 				i = next
@@ -711,8 +714,12 @@ func oracleRangeReferenceMap(refs []RangeReference) map[string]RangeReference {
 	}
 	result := make(map[string]RangeReference, len(refs))
 	for _, ref := range refs {
-		if ref.Name != "" {
-			result[strings.ToLower(ref.Name)] = ref
+		key := ref.Alias
+		if key == "" {
+			key = ref.Name
+		}
+		if key != "" {
+			result[strings.ToLower(key)] = ref
 		}
 	}
 	return result
@@ -724,6 +731,17 @@ func resolveOracleCTEReference(ref RangeReference, ctes map[string]RangeReferenc
 	}
 	cte, ok := ctes[strings.ToLower(ref.Name)]
 	if !ok {
+		return ref
+	}
+	if cte.Kind == RangeReferenceRelation {
+		alias := ref.Alias
+		if alias == "" || strings.EqualFold(alias, cte.Alias) {
+			alias = cte.Alias
+		}
+		ref.Schema = cte.Schema
+		ref.Name = cte.Name
+		ref.Alias = alias
+		ref.BodyLoc = cte.BodyLoc
 		return ref
 	}
 	ref.Kind = RangeReferenceCTE
@@ -1275,7 +1293,18 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 		if closeIdx < 0 {
 			break
 		}
-		if !subAV && len(ref.Columns) == 0 {
+		if subAV {
+			if i+1 < closeIdx && tokens[i+1].Type == kwUSING {
+				parts := oracleObjectNameParts(tokens[i+2 : closeIdx])
+				if len(parts) > 0 {
+					ref.Kind = RangeReferenceRelation
+					ref.Name = parts[len(parts)-1].Str
+					if len(parts) > 1 {
+						ref.Schema = parts[len(parts)-2].Str
+					}
+				}
+			}
+		} else if len(ref.Columns) == 0 {
 			// seen grows after each CTE, so each body gets a reader, and
 			// columns read, of its own.
 			ref.Columns = r.reader(seen).selectListColumns(i+1, closeIdx)
@@ -1283,7 +1312,7 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 		ref.BodyLoc = nodes.Loc{Start: tokens[i].End, End: tokens[closeIdx].Loc}
 		ref.Loc.End = tokens[closeIdx].End
 		refs = append(refs, ref)
-		seen[strings.ToLower(ref.Name)] = ref
+		seen[strings.ToLower(ref.Alias)] = ref
 		i = closeIdx + 1
 		if i < len(tokens) && tokens[i].Type == ',' {
 			i++
@@ -1687,7 +1716,6 @@ func (r *oracleRefReader) starColumns(lo, hi, selectIdx int, qualifier string) [
 	refs := r.selectRefsInRange(selectIdx, r.armEnd(selectIdx, hi), r.depth[selectIdx], hi)
 	var names []string
 	for _, ref := range refs {
-		ref = resolveOracleCTEReference(ref, r.ctes)
 		if qualifier != "" && !strings.EqualFold(ref.Alias, qualifier) && !strings.EqualFold(ref.Name, qualifier) {
 			continue
 		}

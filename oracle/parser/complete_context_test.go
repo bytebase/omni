@@ -286,8 +286,12 @@ func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
 			requireLocalReferenceNames(t, flashCtx.Scope, []string{"av", "d"})
 		}
 
-		withCtx := collectCompletionMarked(t, "WITH my_av ANALYTIC VIEW AS (USING sales_av), other AS (SELECT c1 FROM t) SELECT | FROM my_av, other")
+		withCtx := collectCompletionMarked(t, "WITH my_av ANALYTIC VIEW AS (USING hr.sales_av), other AS (SELECT c1 FROM t) SELECT my_av.| FROM my_av, other")
 		requireLocalReferenceNames(t, withCtx.Scope, []string{"my_av", "other"})
+		myAVRef := requireLocalRangeReference(t, withCtx.Scope, "my_av")
+		if myAVRef.Kind != RangeReferenceRelation || !strings.EqualFold(myAVRef.Schema, "hr") || !strings.EqualFold(myAVRef.Name, "sales_av") {
+			t.Fatalf("WITH analytic view ref = %+v, want relation hr.sales_av aliased as my_av", myAVRef)
+		}
 		otherRef := requireLocalRangeReference(t, withCtx.Scope, "other")
 		requireColumns(t, otherRef.Columns, []string{"c1"})
 	})

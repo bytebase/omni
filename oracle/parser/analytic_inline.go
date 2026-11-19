@@ -189,11 +189,12 @@ func (p *Parser) parseSubAVHierarchies(clause *nodes.SubAVClause) error {
 }
 
 // parseSubAVFilters reads filter_clauses: one FILTER FACT clause around a
-// comma-separated list of filter_clause.
+// comma-separated list of filter_clause. On the pinned Oracle 23.26.3 each
+// filter_clause names one hierarchy (FILTER FACT(a, a TO 1 = 1) is refused
+// at the comma, byte 49).
 //
 //	FILTER FACT ( filter_clause [, filter_clause ]... )
-//	filter_clause: hier_ids TO condition
-//	hier_ids: hier_id [, hier_id ]...
+//	filter_clause: [ attr_dim_alias. ] hier_alias TO condition
 func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 	optStart := p.pos()
 	p.advance() // consume FILTER
@@ -205,16 +206,8 @@ func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 	}
 	var conditions []nodes.Node
 	for {
-		// hier_ids: a comma between names belongs to the group, since a
-		// filter_clause's own comma follows its condition.
-		for {
-			if _, err := p.anParseDottedName(2); err != nil {
-				return err
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
+		if _, err := p.anParseDottedName(2); err != nil {
+			return err
 		}
 		if err := p.anExpect(kwTO); err != nil {
 			return err
@@ -242,13 +235,13 @@ func (p *Parser) parseSubAVFilters(clause *nodes.SubAVClause) error {
 	return nil
 }
 
-// parseSubAVAddMeasures reads add_meas_clause, whose items are cube_meas:
-// a measure name and a base or calculated measure clause.
+// parseSubAVAddMeasures reads add_meas_clause, whose items are cube_meas.
+// On the pinned Oracle 23.26.3 an added base measure requires AGGREGATE BY
+// after its optional FACT column (ADD MEASURES(a), ADD MEASURES(a FACT a),
+// and ADD MEASURES(a SUM) are refused at bytes 50, 57, and 51).
 //
 //	ADD MEASURES ( cube_meas [, cube_meas ]... )
-//	cube_meas: meas_name { base_meas_clause | calc_meas_clause }
-//	base_meas_clause: [ FACT column_name ] [ aggr_function ]
-//	calc_meas_clause: AS ( expression )
+//	cube_meas: meas_name { [ FACT column_name ] AGGREGATE BY aggr_function | AS ( expression ) }
 func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 	optStart := p.pos()
 	p.advance() // consume ADD
@@ -279,12 +272,14 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 					return err
 				}
 			}
-			if p.cur.Type != tokQIDENT && p.isIdentLike() && analyticAggrFunctions[p.cur.Str] {
-				aggr, parseErr := p.parseAnalyticAggrFunction()
-				_ = aggr
-				if parseErr != nil {
-					return parseErr
-				}
+			if err := p.anExpectWord("AGGREGATE"); err != nil {
+				return err
+			}
+			if err := p.anExpect(kwBY); err != nil {
+				return err
+			}
+			if err := p.skipAnalyticAggrFunction(); err != nil {
+				return err
 			}
 		}
 		if p.cur.Type != ',' {

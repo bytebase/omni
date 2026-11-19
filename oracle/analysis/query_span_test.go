@@ -50,6 +50,7 @@ func testCatalog() Catalog {
 				},
 				views: map[string]*metadata.ViewMetadata{
 					"V":       {Name: "V", Definition: "SELECT A, A + B AS S FROM T"},
+					"AV_COLS": {Name: "AV_COLS", Columns: columns("A", "S")},
 					"V_EMPTY": {Name: "V_EMPTY"},
 					"V_MIXED": {Name: "V_MIXED", Definition: "SELECT * FROM T, SYS.DBA_USERS"},
 				},
@@ -165,10 +166,21 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	require.Equal(t, "NOPE", *span.NotFoundError.Table)
 
 	// A base view with no stored definition yields an empty span rather than
-	// cloning a nil source.
+	// cloning a nil source; one carrying synced column metadata resolves them.
 	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V_EMPTY) SELECT * FROM AV")
 	require.Equal(t, ColumnSet{{Database: "DB", Table: "V_EMPTY"}: true}, span.SourceColumns)
 	require.Empty(t, span.Results)
+
+	span = resolve(t, "SELECT S FROM ANALYTIC VIEW(USING AV_COLS)")
+	require.Equal(t, []QuerySpanResult{{Name: "S", SourceColumns: column("DB", "AV_COLS", "S")}}, span.Results)
+
+	// USING DUAL names a persistent analytic view rather than the pseudo-table.
+	span = resolve(t, "SELECT * FROM ANALYTIC VIEW(USING DUAL)")
+	require.NotNil(t, span.NotFoundError)
+	require.Equal(t, "DUAL", *span.NotFoundError.Table)
+
+	span = resolve(t, "DELETE T FROM ANALYTIC VIEW(USING DUAL)")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "T"}: true, {Database: "DB", Table: "DUAL"}: true}, span.SourceColumns)
 }
 
 func TestResolveQuerySpanDatabaseLink(t *testing.T) {

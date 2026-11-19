@@ -163,10 +163,9 @@ missing `DATAFILE` the truncated text leaves.
 
 ## Rows only omni accepts, measured
 
-The other direction: the 750 rows whose cells are `accept` where the pinned
-Oracle says `reject` (696 left of the 796 originally measured after the closed
-families below, #1475's 2 and #1480's 51, plus 54 from the derived analytic
-view below). Each was measured the same way, at judge revision 3,
+The other direction: the 696 rows whose cells are `accept` where the pinned
+Oracle says `reject` (left of the 796 originally measured after the closed
+families below, #1475's 2 and #1480's 51). Each was measured the same way, at judge revision 3,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
 `bnf/` quotes under it is the grammar omni must read, so a statement the page
@@ -176,7 +175,7 @@ closed, and so were the thirty-two `PARTITIONSET` rows: the page's clause is
 only reachable in a composite-sharded database, which `OracleDocs.g4` records
 where the converter could drop the rule (its `fix:` notes on
 `alter_table_partitioning_clauses`' neighbours) and this server is not. All
-750 here are a name Oracle looks up, a check of the parsed statement, or the
+696 here are a name Oracle looks up, a check of the parsed statement, or the
 server's own setup, and stay rows.
 
 ### Closed
@@ -279,7 +278,7 @@ closed.
 ## Rows both refuse, at another byte
 
 A row here is a statement omni and the pinned Oracle both refuse, at a
-different byte: 5,298 rows, 1,021 of them where omni stops first and 3,875
+different byte: 5,262 rows, 1,021 of them where omni stops first and 3,839
 where Oracle does. Omni's byte is the token its grammar cannot take. Oracle's
 is where its own parser stopped, which may be a name it looked up, a check of
 the parsed statement, or its own code failing, so a row is read from the
@@ -344,17 +343,14 @@ which both the server and the page's example write. `analytic_inline.go` reads
 the clause.
 
 All 103 rows the family was measured with are gone, at 28 on both sides. The
-corrected quote removed 221 rows and added 345: 231 of them agree (204 in an
-inline analytic view, 19 in a WITH element, 8 beside them), 54 are the "only
-omni accepts" rows below, and 60 are near-misses inside the clause, where the
-two sides stop at different tokens. 84 rows that had a row before and after
-closed, and 2 moved to another byte behind the delimiter scan.
+corrected quote removed 221 rows and added 345: 321 of them agree (294 in an
+inline analytic view, 19 in a WITH element, 8 beside them) and 24 are
+near-misses inside the clause, where the two sides stop at different tokens.
 
 | Cause | Rows | What moved |
 | --- | --- | --- |
-| `... FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)` | 204 | agree: the clause starts at `USING`, is read in a SELECT and a DELETE, with an alias, an empty HIERARCHIES list, a filter and a calculated measure |
+| `... FROM ANALYTIC VIEW(ANALYTIC VIEW USING a)` | 294 | agree: the clause starts at `USING`, is read in a SELECT and a DELETE, with an alias, an empty HIERARCHIES list, a single-hierarchy filter and a calculated or `AGGREGATE BY` measure |
 | `WITH a ANALYTIC VIEW AS(USING a) ...` | 19 | agree: the WITH element's `ANALYTIC VIEW` stands before `AS`, not inside the clause |
-| `... ADD MEASURES(a)`, `... ADD MEASURES(a SUM)`, `... FILTER FACT(a, a TO 1 = 1)` | 54 | the other way: the page derives them (a `base_meas_clause` holds both of its parts optionally, and `hier_ids` is a list) and this server answers at the ')' (50, 51) or at the second hierarchy name (49), so they stay rows |
 
 The parameter family moved. `parameters.go` carries the 566 names
 `V$PARAMETER` lists on the pinned server and the 7,137 hidden names `X$KSPPI`

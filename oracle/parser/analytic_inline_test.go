@@ -183,6 +183,12 @@ func TestDerivedAnalyticViewRefusals(t *testing.T) {
 		{`WITH a ANALYTIC VIEW AS(ANALYTIC VIEW USING a) SELECT *`, 24},
 		// ORA-00906, "missing left parenthesis", where the parens belong.
 		{`SELECT * FROM ANALYTIC VIEW USING a`, 28},
+		// Pinned Oracle 23.26.3 refuses multiple hierarchy IDs in one filter
+		// clause and added base measures without AGGREGATE BY.
+		{`SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(a, a TO 1 = 1))`, 49},
+		{`SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a))`, 50},
+		{`SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a FACT a))`, 57},
+		{`SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(a SUM))`, 51},
 	}
 	for _, tc := range refusedAt {
 		_, err := Parse(tc.sql)
@@ -206,6 +212,7 @@ func TestDerivedAnalyticViewRefusals(t *testing.T) {
 		`SELECT * FROM ANALYTIC VIEW(USING a HIERARCHIES(d.h, h))`,
 		`SELECT * FROM ANALYTIC VIEW(USING a FILTER FACT(h TO 1 = 1, d.h TO 2 = 2))`,
 		`SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(m AS(1)))`,
+		`SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(m FACT c AGGREGATE BY SUM))`,
 		`DELETE a FROM ANALYTIC VIEW(USING a)`,
 		`WITH a ANALYTIC VIEW AS(USING a) SELECT *`,
 		`WITH a ANALYTIC VIEW AS(USING a), b ANALYTIC VIEW AS(USING a) SELECT *`,

@@ -273,15 +273,29 @@ func (q *querySpanExtractor) findTableSchemaInMetadata(instance string, dbMetada
 		}, nil
 	}
 
-	if view != nil && view.Definition != "" {
-		columns, err := q.getColumnsForView(instance, databaseName, view.Definition)
-		if err != nil {
-			return nil, err
+	if view != nil {
+		if view.Definition != "" {
+			columns, err := q.getColumnsForView(instance, databaseName, view.Definition)
+			if err != nil {
+				return nil, err
+			}
+			return &pseudoTable{
+				Name:    view.Name,
+				Columns: columns,
+			}, nil
 		}
-		return &pseudoTable{
-			Name:    view.Name,
-			Columns: columns,
-		}, nil
+		if len(view.GetColumns()) > 0 {
+			var columns []string
+			for _, column := range view.GetColumns() {
+				columns = append(columns, column.Name)
+			}
+			return &physicalTable{
+				Server:   "",
+				Database: databaseName,
+				Name:     view.Name,
+				Columns:  columns,
+			}, nil
+		}
 	}
 
 	if materializedView != nil && materializedView.Definition != "" {
@@ -521,7 +535,7 @@ func (q *querySpanExtractor) findMissingAccessTable(stmt oracleast.StmtNode, acc
 			return false
 		}
 		clause, ok := node.(*oracleast.SubAVClause)
-		if !ok || clause.Using == nil || clause.Using.Name == "" || isDual(clause.Using) {
+		if !ok || clause.Using == nil || clause.Using.Name == "" {
 			return true
 		}
 		database := q.databaseOf(clause.Using)
@@ -622,9 +636,23 @@ func collectAccessTables(defaultDatabase string, stmt oracleast.StmtNode) (local
 		case *oracleast.ContainersExpr:
 			addTarget(node.Name)
 		// A derived analytic view, inline in a FROM clause or declared in a
-		// WITH element, reads the persistent analytic view it names.
+		// WITH element, reads the persistent analytic view it names; DUAL is a
+		// real object name there, not Oracle's pseudo-table.
 		case *oracleast.SubAVClause:
-			addTarget(node.Using)
+			if node.Using != nil && node.Using.Name != "" {
+				database := node.Using.Schema
+				if database == "" {
+					database = defaultDatabase
+				}
+				resource := accessResource{
+					Database: database,
+					Table:    node.Using.Name,
+				}
+				if !seen[resource] {
+					seen[resource] = true
+					local = append(local, resource)
+				}
+			}
 		// A DML target is an ObjectName, not a TableRef, so it is named here.
 		case *oracleast.InsertStmt:
 			addTarget(node.Table)
