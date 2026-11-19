@@ -164,17 +164,19 @@ missing `DATAFILE` the truncated text leaves.
 ## Rows only omni accepts, measured
 
 The other direction: the 750 rows whose cells are `accept` where the pinned
-Oracle says `reject`. Each was measured the same way, at judge revision 3,
+Oracle says `reject` (696 left of the 796 originally measured after the closed
+families below, #1475's 2 and #1480's 51, plus 54 from the derived analytic
+view below). Each was measured the same way, at judge revision 3,
 with the code `DBMS_SQL.PARSE` answers and `LAST_ERROR_POSITION`'s byte. The
 question a row asks is whether Oracle's refusal is the grammar's: the page
 `bnf/` quotes under it is the grammar omni must read, so a statement the page
 derives stays accepted even where this server refuses it, and is recorded
-here instead of closed. Fifteen rows are text the page refuses too, and are
-closed, and so are the thirty-two `PARTITIONSET` rows: the page's clause is
+here instead of closed. Fifteen rows were text the page refuses too, and were
+closed, and so were the thirty-two `PARTITIONSET` rows: the page's clause is
 only reachable in a composite-sharded database, which `OracleDocs.g4` records
 where the converter could drop the rule (its `fix:` notes on
-`alter_table_partitioning_clauses`' neighbours) and this server is not. The
-other 703 are a name Oracle looks up, a check of the parsed statement, or the
+`alter_table_partitioning_clauses`' neighbours) and this server is not. All
+750 here are a name Oracle looks up, a check of the parsed statement, or the
 server's own setup, and stay rows.
 
 ### Closed
@@ -372,7 +374,7 @@ largest, and a row may be one of several, so the counts are not disjoint.
 | --- | --- | --- |
 | `DELETE ... MATCH_RECOGNIZE (...)` | 252 | the byte is inside the clause: a DML `FROM` clause refuses the word, because Oracle 23ai fails in its own code on the form there (`Parser.engineCrash`), so its answer is no token of the grammar |
 | `... PARTITION BY CONSISTENT HASH (...) ...` behind a `)` | 80 | the delimiter scan answers for the `)` before the statement parsers run, so the reading above never reaches Oracle's token: 60 are the `MODIFY PARTITIONSET` family below, and 20 are near-misses that put `a)` or a `SUBPARTITION BY RANGE a)` where `(a)` belongs |
-| rows whose cell is `reject@0` | 458 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
+| rows whose cell is `reject@0` | 440 | Oracle's answer is at the start of the statement: no such form, or a name it looks up before reading the rest |
 | rows whose cell is `reject` | 402 | a stored unit compiled with errors, or a statement the engine never answered: no position to match |
 | `CREATE PLUGGABLE DATABASE a USING 's' ...` | 78 | `ORA-65125` at the file name (34), the engine's check on the name it is given |
 | `suite:reference` | 76 | these statements are the corpus's, so their cells move only with the corpus |

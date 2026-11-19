@@ -50,6 +50,7 @@ func testCatalog() Catalog {
 				},
 				views: map[string]*metadata.ViewMetadata{
 					"V":       {Name: "V", Definition: "SELECT A, A + B AS S FROM T"},
+					"V_EMPTY": {Name: "V_EMPTY"},
 					"V_MIXED": {Name: "V_MIXED", Definition: "SELECT * FROM T, SYS.DBA_USERS"},
 				},
 				materializedViews: map[string]*metadata.MaterializedViewMetadata{
@@ -147,10 +148,27 @@ func TestResolveQuerySpanDerivedAnalyticView(t *testing.T) {
 	require.Equal(t, ColumnSet{{Database: "DB", Table: "V"}: true}, span.SourceColumns)
 	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
 
-	// ADD MEASURES adds a column to the derived view, beside the base's.
-	span = resolve(t, "SELECT S, LAG_SALES FROM ANALYTIC VIEW(USING V ADD MEASURES(LAG_SALES AS(1)))")
+	// ADD MEASURES adds a column to the derived view, beside the base's, and
+	// keeps the base view's qualifier when no alias renames it.
+	span = resolve(t, "SELECT V.S, V.LAG_SALES FROM ANALYTIC VIEW(USING V ADD MEASURES(LAG_SALES AS(1)))")
 	require.Equal(t, []string{"S", "LAG_SALES"}, []string{span.Results[0].Name, span.Results[1].Name})
+	require.NotEmpty(t, span.Results[0].SourceColumns)
 	require.Empty(t, span.Results[1].SourceColumns)
+
+	// USING names a persistent analytic view in the schema, never a CTE of the
+	// same name.
+	span = resolve(t, "WITH V AS (SELECT 1 AS X FROM T) SELECT A FROM ANALYTIC VIEW(USING V)")
+	require.Equal(t, []QuerySpanResult{{Name: "A", SourceColumns: column("DB", "T", "A")}}, span.Results)
+
+	span = resolve(t, "WITH NOPE AS (SELECT 1 AS X FROM T) SELECT X FROM NOPE WHERE EXISTS (SELECT 1 FROM ANALYTIC VIEW(USING NOPE))")
+	require.NotNil(t, span.NotFoundError)
+	require.Equal(t, "NOPE", *span.NotFoundError.Table)
+
+	// A base view with no stored definition yields an empty span rather than
+	// cloning a nil source.
+	span = resolve(t, "WITH AV ANALYTIC VIEW AS(USING V_EMPTY) SELECT * FROM AV")
+	require.Equal(t, ColumnSet{{Database: "DB", Table: "V_EMPTY"}: true}, span.SourceColumns)
+	require.Empty(t, span.Results)
 }
 
 func TestResolveQuerySpanDatabaseLink(t *testing.T) {

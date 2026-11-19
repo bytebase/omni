@@ -1955,6 +1955,14 @@ func writeInlineAnalyticView(sb *strings.Builder, n *InlineAnalyticView) {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
 	}
+	if n.Sample != nil {
+		sb.WriteString(" :sample ")
+		writeNode(sb, n.Sample)
+	}
+	if n.Flashback != nil {
+		sb.WriteString(" :flashback ")
+		writeNode(sb, n.Flashback)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

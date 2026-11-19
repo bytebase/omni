@@ -515,7 +515,27 @@ func (q *querySpanExtractor) findMissingAccessTable(stmt oracleast.StmtNode, acc
 			Table:    &table,
 		}
 	}
-	return nil
+	var missing *NotFoundError
+	oracleast.Inspect(stmt, func(node oracleast.Node) bool {
+		if missing != nil {
+			return false
+		}
+		clause, ok := node.(*oracleast.SubAVClause)
+		if !ok || clause.Using == nil || clause.Using.Name == "" || isDual(clause.Using) {
+			return true
+		}
+		database := q.databaseOf(clause.Using)
+		if !q.existsTableMetadata(accessResource{Database: database, Table: clause.Using.Name}) {
+			table := clause.Using.Name
+			missing = &NotFoundError{
+				Database: &database,
+				Table:    &table,
+			}
+			return false
+		}
+		return true
+	})
+	return missing
 }
 
 func collectCTENames(stmt oracleast.StmtNode) map[string]bool {
@@ -1668,7 +1688,17 @@ func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (sp
 	if clause == nil || clause.Using == nil || clause.Using.Name == "" {
 		return nil, nil
 	}
-	tableSource, err := q.plsqlFindTableSchema(nil, q.databaseOf(clause.Using), clause.Using.Name)
+	schemaName := q.databaseOf(clause.Using)
+	dbMetadata, err := q.getDatabaseMetadata(schemaName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database metadata for: %s: %w", schemaName, err)
+	}
+	if dbMetadata == nil {
+		return nil, &NotFoundError{
+			Database: &schemaName,
+		}
+	}
+	tableSource, err := q.findTableSchemaInMetadata(q.instance, dbMetadata, schemaName, clause.Using.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -1681,7 +1711,7 @@ func (q *querySpanExtractor) subAVTableSource(clause *oracleast.SubAVClause) (sp
 	}
 	columns := cloneQuerySpanResults(tableSource.GetQuerySpanResult())
 	columns = append(columns, added...)
-	return &pseudoTable{Columns: columns}, nil
+	return &pseudoTable{Name: tableSource.GetTableName(), Columns: columns}, nil
 }
 
 // subAVMeasures returns the columns an ADD MEASURES clause adds.

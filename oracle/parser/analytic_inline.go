@@ -55,25 +55,64 @@ func (p *Parser) parseInlineAnalyticViewRef(start int) (nodes.TableExpr, error) 
 		Clause: clause,
 		Loc:    nodes.Loc{Start: start},
 	}
-	// The suffixes query_table_expression names after its source, before
-	// the reference's own alias.
+	parseAlias := func() error {
+		switch {
+		case p.cur.Type == kwAS && p.peekNext().Type != kwOF:
+			p.advance()
+			var err error
+			ref.Alias, err = p.parseAlias()
+			return err
+		case p.cur.Type == kwSAMPLE && ref.Sample == nil && !p.dmlFromClause && !p.isSelectSampleClauseAhead():
+			var err error
+			ref.Alias, err = p.parseAlias()
+			return err
+		case p.isTableAliasCandidate():
+			var err error
+			ref.Alias, err = p.parseAlias()
+			return err
+		}
+		return nil
+	}
+	// inline_analytic_view carries [ inline_av_alias ] of its own, and
+	// table_reference carries [ t_alias ] after query_table_expression's
+	// suffixes; at most one alias stands on the reference.
+	if err := parseAlias(); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == kwVERSIONS || (p.cur.Type == kwAS && p.peekNext().Type == kwOF) {
 		if ref.Flashback, err = p.parseFlashbackClause(); err != nil {
 			return nil, err
 		}
 	}
-	if p.cur.Type == kwSAMPLE {
+	if p.cur.Type == kwSAMPLE && p.dmlFromClause {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwSAMPLE && p.isSelectSampleClauseAhead() {
 		if ref.Sample, err = p.parseSampleClause(); err != nil {
 			return nil, err
 		}
 	}
-	if p.cur.Type == kwAS {
-		p.advance()
-		if ref.Alias, err = p.parseAlias(); err != nil {
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
+		ref.Loc.End = p.prev.End
+		return p.parsePivotSuffix(ref)
+	}
+	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
+		p.engineCrash = p.cur.Loc
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
+		ref.Loc.End = p.prev.End
+		mrRef, err := p.parseMatchRecognize(ref.Loc.Start)
+		if err != nil {
 			return nil, err
 		}
-	} else if p.isTableAliasCandidate() {
-		if ref.Alias, err = p.parseAlias(); err != nil {
+		if mrClause, ok := mrRef.(*nodes.MatchRecognizeClause); ok {
+			mrClause.Source = ref
+			return p.parsePivotSuffix(mrRef)
+		}
+	}
+	if ref.Alias == nil {
+		if err := parseAlias(); err != nil {
 			return nil, err
 		}
 	}

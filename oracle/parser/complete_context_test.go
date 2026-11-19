@@ -269,6 +269,20 @@ func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
 		requireLocalReferenceNames(t, ctx.Scope, []string{"employees"})
 	})
 
+	t.Run("derived analytic view exposes alias and WITH element keeps later CTEs", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT av.| FROM ANALYTIC VIEW(USING hr.sales_av) av, departments d")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"av", "d"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "av")
+		if !strings.EqualFold(ref.Schema, "hr") || !strings.EqualFold(ref.Name, "sales_av") {
+			t.Fatalf("inline analytic view base object = %q.%q, want hr.sales_av", ref.Schema, ref.Name)
+		}
+
+		withCtx := collectCompletionMarked(t, "WITH my_av ANALYTIC VIEW AS (USING sales_av), other AS (SELECT c1 FROM t) SELECT | FROM my_av, other")
+		requireLocalReferenceNames(t, withCtx.Scope, []string{"my_av", "other"})
+		otherRef := requireLocalRangeReference(t, withCtx.Scope, "other")
+		requireColumns(t, otherRef.Columns, []string{"c1"})
+	})
+
 	t.Run("lateral exposes alias columns and left refs to lateral body", func(t *testing.T) {
 		ctx := collectCompletionMarked(t, "SELECT l.| FROM employees e, LATERAL (SELECT employee_id, dept_name FROM departments d WHERE d.id = e.department_id) l")
 		requireLocalReferenceNames(t, ctx.Scope, []string{"e", "l"})

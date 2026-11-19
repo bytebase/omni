@@ -1454,6 +1454,9 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 	case *nodes.SubqueryRef:
 		n.Loc.Start = start
 		n.Loc.End = p.prev.End
+	case *nodes.InlineAnalyticView:
+		n.Loc.Start = start
+		n.Loc.End = p.prev.End
 	}
 	return p.parsePivotSuffix(tref)
 }

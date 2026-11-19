@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -80,12 +81,27 @@ func TestParseInlineAnalyticViewSuffixes(t *testing.T) {
 		return got
 	}
 
-	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) SAMPLE (10)`); got.Sample == nil {
-		t.Fatal("SAMPLE after an inline analytic view is not read")
+	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) SAMPLE (10)`); got.Sample == nil || !strings.Contains(ast.NodeToString(got), ":sample") {
+		t.Fatalf("SAMPLE after an inline analytic view = %s", ast.NodeToString(got))
 	}
-	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) AS OF SCN 1 av`); got.Flashback == nil || got.Alias == nil || got.Alias.Name != "AV" {
-		t.Fatalf("AS OF after an inline analytic view: flashback %#v, alias %#v", got.Flashback, got.Alias)
+	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) av SAMPLE (10)`); got.Sample == nil || got.Alias == nil || got.Alias.Name != "AV" {
+		t.Fatalf("inline_av_alias before SAMPLE: sample %#v, alias %#v", got.Sample, got.Alias)
 	}
+	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) SAMPLE`); got.Sample != nil || got.Alias == nil || got.Alias.Name != "SAMPLE" {
+		t.Fatalf("bare SAMPLE after an inline analytic view: sample %#v, alias %#v", got.Sample, got.Alias)
+	}
+	if got := ref(`SELECT * FROM ANALYTIC VIEW(USING a) AS OF SCN 1 av`); got.Flashback == nil || got.Alias == nil || got.Alias.Name != "AV" || !strings.Contains(ast.NodeToString(got), ":flashback") {
+		t.Fatalf("AS OF after an inline analytic view: %s", ast.NodeToString(got))
+	}
+	mrStmt := ParseAndCheck(t, `SELECT * FROM ANALYTIC VIEW(USING a) MATCH_RECOGNIZE (ORDER BY id PATTERN (p) DEFINE p AS p.n > 0) mr`).Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt)
+	mr, ok := mrStmt.FromClause.Items[0].(*ast.MatchRecognizeClause)
+	if !ok || mr.Alias == nil || mr.Alias.Name != "MR" {
+		t.Fatalf("MATCH_RECOGNIZE item = %#v", mrStmt.FromClause.Items[0])
+	}
+	if _, ok := mr.Source.(*ast.InlineAnalyticView); !ok {
+		t.Fatalf("MATCH_RECOGNIZE source = %T, want *ast.InlineAnalyticView", mr.Source)
+	}
+	ParseShouldFail(t, `DELETE a FROM ANALYTIC VIEW(USING a) SAMPLE (10)`)
 }
 
 // TestParseInlineAnalyticViewDelete reads the same reference where DELETE

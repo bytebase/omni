@@ -758,6 +758,9 @@ func (r *oracleRefReader) rangeReference(i, hi int) (int, RangeReference, bool) 
 	if oracleTokenIsIdentLikeStr(tokens[i], "EXTERNAL") && i+1 < hi && tokens[i+1].Type == '(' {
 		return r.inlineExternalReference(i, hi)
 	}
+	if oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && i+2 < hi && tokens[i+1].Type == kwVIEW && tokens[i+2].Type == '(' {
+		return r.inlineAnalyticViewReference(i, hi)
+	}
 	if (oracleTokenIsIdentLikeStr(tokens[i], "CONTAINERS") || oracleTokenIsIdentLikeStr(tokens[i], "SHARDS")) &&
 		i+1 < hi && tokens[i+1].Type == '(' {
 		return r.containersReference(i, hi)
@@ -911,6 +914,59 @@ func (r *oracleRefReader) containersReference(i, hi int) (int, RangeReference, b
 	return next, ref, true
 }
 
+func (r *oracleRefReader) inlineAnalyticViewReference(i, hi int) (int, RangeReference, bool) {
+	tokens := r.toks
+	closeIdx := r.closeOf(i+2, hi)
+	if closeIdx < 0 {
+		return i, RangeReference{}, false
+	}
+	if i+3 >= closeIdx || tokens[i+3].Type != kwUSING {
+		return closeIdx + 1, RangeReference{}, false
+	}
+	parts := oracleObjectNameParts(tokens[i+4 : closeIdx])
+	if len(parts) == 0 {
+		return closeIdx + 1, RangeReference{}, false
+	}
+	idx := closeIdx + 1
+	if idx < hi && tokens[idx].Type == kwSAMPLE {
+		sIdx := idx + 1
+		if sIdx < hi && oracleTokenIsIdentLikeStr(tokens[sIdx], "BLOCK") {
+			sIdx++
+		}
+		if sIdx < hi && tokens[sIdx].Type == '(' {
+			if sClose := r.closeOf(sIdx, hi); sClose >= 0 {
+				idx = sClose + 1
+				if idx+1 < hi && oracleTokenIsIdentLikeStr(tokens[idx], "SEED") && tokens[idx+1].Type == '(' {
+					if seedClose := r.closeOf(idx+1, hi); seedClose >= 0 {
+						idx = seedClose + 1
+					}
+				}
+			}
+		}
+	}
+	next, alias, hasAlias := parseOracleOptionalAlias(tokens[:hi], idx)
+	name := parts[len(parts)-1].Str
+	aliasName := name
+	locEnd := tokens[idx-1].End
+	if hasAlias {
+		aliasName = alias.Str
+		locEnd = alias.End
+	} else {
+		next = idx
+	}
+	ref := RangeReference{
+		Kind:    RangeReferenceRelation,
+		Name:    name,
+		Alias:   aliasName,
+		Loc:     nodes.Loc{Start: tokens[i].Loc, End: locEnd},
+		BodyLoc: nodes.Loc{Start: tokens[i+2].End, End: tokens[closeIdx].Loc},
+	}
+	if len(parts) > 1 {
+		ref.Schema = parts[len(parts)-2].Str
+	}
+	return next, ref, true
+}
+
 func (r *oracleRefReader) tableCollectionReference(i, hi int) (int, RangeReference, bool) {
 	tokens := r.toks
 	closeIdx := r.closeOf(i+1, hi)
@@ -984,7 +1040,11 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 			Loc:   nodes.Loc{Start: nameTok.Loc, End: nameTok.End},
 		}
 		i++
-		if i < len(tokens) && tokens[i].Type == '(' {
+		subAV := false
+		if i+1 < len(tokens) && oracleTokenIsIdentLikeStr(tokens[i], "ANALYTIC") && tokens[i+1].Type == kwVIEW {
+			subAV = true
+			i += 2
+		} else if i < len(tokens) && tokens[i].Type == '(' {
 			closeIdx := r.closeOf(i, len(tokens))
 			if closeIdx < 0 {
 				break
@@ -1004,7 +1064,7 @@ func (r *oracleRefReader) ctesOfQuery() []RangeReference {
 		if closeIdx < 0 {
 			break
 		}
-		if len(ref.Columns) == 0 {
+		if !subAV && len(ref.Columns) == 0 {
 			// seen grows after each CTE, so each body gets a reader, and
 			// columns read, of its own.
 			ref.Columns = r.reader(seen).selectListColumns(i+1, closeIdx)
