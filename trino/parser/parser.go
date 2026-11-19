@@ -443,8 +443,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		// Not an object Trino's statement rule takes: the rejection belongs to
 		// the object keyword, where Trino's parser stops (`CREATE a` reports
-		// the a).
-		return nil, p.syntaxErrorAt(p.createObjectToken())
+		// the a). The rest of the segment is drained as `unsupported` did, so
+		// the lazy lexer still reaches a lexical error in it (ParseBestEffort
+		// reports those; Parse lexes the whole input itself).
+		err := p.syntaxErrorAt(p.createObjectToken())
+		p.skipToNextStatement()
+		return nil, err
 	case kwDROP:
 		// DROP ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
 		// DROP FUNCTION is the parser-routines node (function_def.go); every
@@ -472,8 +476,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		// Not an object Trino's statement rule takes: the rejection belongs to
 		// the token after DROP, where Trino's parser stops (`DROP a` reports
-		// the a).
-		return nil, p.syntaxErrorAt(p.peekNext())
+		// the a). The segment is drained for the reason CREATE's is above.
+		err := p.syntaxErrorAt(p.peekNext())
+		p.skipToNextStatement()
+		return nil, err
 	case kwALTER:
 		// ALTER fans out on the object keyword (second token).
 		switch p.peekNext().Kind {
@@ -800,9 +806,11 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool, depth int)
 			}
 			if node != nil && p.deferred != nil {
 				// A check Trino makes after its parse, reached only now: every
-				// syntax error in the statement is reported before it.
+				// syntax error in the statement is reported before it. The node
+				// stays as parsed — the strict entry point drops every segment
+				// that carries an error, and best effort keeps the tree, as it
+				// does around an inner error of EXPLAIN's statement.
 				p.errors = append(p.errors, *p.deferred)
-				node = nil
 			}
 		}
 		result = node
