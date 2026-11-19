@@ -7209,7 +7209,7 @@ reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qua
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!insert	CREATE FILE 'a' FROM a zzz PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!swap	CREATE FILE 'a' FRONTEND a PROPERTIES('a' = 'a');
 reject	accept	engine	createFileStatement(FROM|IN)/FROM	CREATE FILE 'a' FROM a PROPERTIES('a' = 'a');
-accept	reject	engine	createFileStatement(FROM|IN)/FROM!truncate	CREATE FILE 'a'
+reject	reject	engine	createFileStatement(FROM|IN)/FROM!truncate	CREATE FILE 'a'
 reject	reject	engine	createFileStatement(FROM|IN)/FROM!insert	CREATE FILE 'a' FROM zzz a PROPERTIES('a' = 'a');
 accept	accept	engine	createFileStatement(FROM|IN)/IN	CREATE FILE 'a' IN a PROPERTIES('a' = 'a');
 reject	reject	engine	createFileStatement(FROM|IN)/IN!insert	CREATE FILE 'a' IN zzz a PROPERTIES('a' = 'a');
@@ -7224,7 +7224,7 @@ reject	reject	engine	dropFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_quali
 reject	reject	engine	dropFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!insert	DROP FILE 'a' FROM a zzz PROPERTIES('a' = 'a');
 reject	reject	engine	dropFileStatement((FROM|IN)_qualifiedName)?/(FROM|IN)_qualifiedName!swap	DROP FILE 'a' FRONTEND a PROPERTIES('a' = 'a');
 accept	accept	engine	dropFileStatement(FROM|IN)/FROM	DROP FILE 'a' FROM a PROPERTIES('a' = 'a');
-accept	reject	engine	dropFileStatement(FROM|IN)/FROM!truncate	DROP FILE 'a'
+reject	reject	engine	dropFileStatement(FROM|IN)/FROM!truncate	DROP FILE 'a'
 reject	reject	engine	dropFileStatement(FROM|IN)/FROM!insert	DROP FILE 'a' FROM zzz a PROPERTIES('a' = 'a');
 reject	accept	engine	dropFileStatement(FROM|IN)/IN	DROP FILE 'a' IN a PROPERTIES('a' = 'a');
 reject	reject	engine	dropFileStatement(FROM|IN)/IN!insert	DROP FILE 'a' IN zzz a PROPERTIES('a' = 'a');
@@ -7526,7 +7526,7 @@ reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!ins
 reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/FRONTEND!swap	ADMIN EXECUTE ON FRONTENDS 'a';
 accept	accept	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/INTEGER_VALUE	ADMIN EXECUTE ON 1 'a';
 reject	reject	engine	executeScriptStatement(FRONTEND|INTEGER_VALUE)/INTEGER_VALUE!insert	ADMIN EXECUTE ON 1 zzz 'a';
-reject	accept	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?	START TRANSACTION;
+accept	accept	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?	START TRANSACTION;
 reject	reject	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?!drop-2	START;
 reject	reject	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?!truncate	START
 reject	reject	engine	unsupportedStatement/START_TRANSACTION_(WITH_CONSISTENT_SNAPSHOT)?!insert	START TRANSACTION zzz;
@@ -7551,8 +7551,8 @@ reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!drop-2	UNLOCK;
 reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!truncate	UNLOCK
 reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!insert	UNLOCK TABLES zzz;
 reject	reject	engine	unsupportedStatement/UNLOCK_TABLES!swap	UNSET TABLES;
-reject	accept	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/%empty	START TRANSACTION;
-reject	accept	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT	START TRANSACTION WITH CONSISTENT SNAPSHOT;
+accept	accept	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/%empty	START TRANSACTION;
+accept	accept	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT	START TRANSACTION WITH CONSISTENT SNAPSHOT;
 reject	reject	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT!drop-1	START TRANSACTION CONSISTENT SNAPSHOT;
 reject	reject	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT!drop-2	START TRANSACTION WITH SNAPSHOT;
 reject	reject	engine	unsupportedStatement(WITH_CONSISTENT_SNAPSHOT)?/WITH_CONSISTENT_SNAPSHOT!drop-3	START TRANSACTION WITH CONSISTENT;
@@ -8069,7 +8069,7 @@ accept	accept	engine	selectItem(AS)?/AS	SELECT CURRENT_USER AS a;
 reject	reject	engine	selectItem(AS)?/AS!insert	SELECT CURRENT_USER AS zzz a;
 reject	reject	engine	selectItem(AS)?/AS!swap	SELECT CURRENT_USER ASC a;
 accept	accept	engine	selectItem(identifier|string)/identifier	SELECT CURRENT_USER a;
-reject	accept	engine	selectItem(identifier|string)/string	SELECT CURRENT_USER 'a';
+accept	accept	engine	selectItem(identifier|string)/string	SELECT CURRENT_USER 'a';
 reject	reject	engine	selectItem(identifier|string)/string!insert	SELECT CURRENT_USER 'a' zzz;
 accept	accept	engine	relations/relation_(,_LATERAL?_relation)*	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relations(,_LATERAL?_relation)*/%empty	SELECT CURRENT_USER FROM a;
@@ -8529,7 +8529,7 @@ reject	reject	engine	expressionsWithDefault(,_expressionOrDefault)*/,_expression
 accept	accept	engine	expressionsWithDefault(,_expressionOrDefault)*/,_expressionOrDefault_(,_expressionOrDefault)*!swap	INSERT INTO a VALUES(CURRENT_USER, DATA);
 accept	accept	engine	expressionOrDefault/expression	UPDATE a SET a = CURRENT_USER;
 accept	accept	engine	expressionOrDefault/expression!swap	UPDATE a SET a = DATA;
-reject	accept	engine	expressionOrDefault/DEFAULT	UPDATE a SET a = DEFAULT;
+accept	accept	engine	expressionOrDefault/DEFAULT	UPDATE a SET a = DEFAULT;
 reject	reject	engine	expressionOrDefault/DEFAULT!insert	UPDATE a SET a = DEFAULT zzz;
 reject	reject	engine	expressionOrDefault/DEFAULT!swap	UPDATE a SET a = DEFERRED;
 accept	accept	engine	mapExpressionList/mapExpression_(,_mapExpression)*	SELECT MAP { CURRENT_USER : CURRENT_USER };
@@ -9033,7 +9033,7 @@ reject	reject	engine	literalExpression(DATE|DATETIME)/DATE	SELECT DATE 'a';
 reject	reject	engine	literalExpression(DATE|DATETIME)/DATE!insert	SELECT DATE zzz 'a';
 reject	reject	engine	literalExpression(DATE|DATETIME)/DATETIME	SELECT DATETIME 'a';
 reject	reject	engine	literalExpression(DATE|DATETIME)/DATETIME!insert	SELECT DATETIME zzz 'a';
-reject	accept	engine	literalExpression(DATE|DATETIME)/DATETIME!swap	SELECT DAY 'a';
+accept	accept	engine	literalExpression(DATE|DATETIME)/DATETIME!swap	SELECT DAY 'a';
 accept	accept	engine	functionCall/EXTRACT_(_identifier_FROM_valueExpression_)	SELECT EXTRACT(a FROM CURRENT_USER);
 reject	reject	engine	functionCall/EXTRACT_(_identifier_FROM_valueExpression_)!drop-1	SELECT(a FROM CURRENT_USER);
 reject	reject	engine	functionCall/EXTRACT_(_identifier_FROM_valueExpression_)!drop-2	SELECT EXTRACT a FROM CURRENT_USER);
@@ -9226,7 +9226,7 @@ reject	reject	engine	systemVariable(varType_.)?/varType_.!drop-1	SELECT@@.a;
 accept	accept	engine	systemVariable(varType_.)?/varType_.!drop-2	SELECT@@GLOBAL a;
 accept	accept	engine	systemVariable(varType_.)?/varType_.!truncate	SELECT@@GLOBAL
 accept	accept	engine	systemVariable(varType_.)?/varType_.!insert	SELECT@@GLOBAL.zzz a;
-accept	reject	engine	systemVariable(varType_.)?/varType_.!swap	SELECT@@GRANT.a;
+reject	reject	engine	systemVariable(varType_.)?/varType_.!swap	SELECT@@GRANT.a;
 accept	accept	engine	columnReference/identifier	SELECT a;
 accept	accept	engine	informationFunctionExpression/CATALOG_(_)	SELECT CATALOG();
 reject	reject	engine	informationFunctionExpression/CATALOG_(_)!drop-2	SELECT CATALOG);

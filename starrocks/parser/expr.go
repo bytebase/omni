@@ -1789,8 +1789,7 @@ func (p *Parser) parseVariableRef(system bool) (ast.Node, error) {
 	atTok := p.advance() // consume '@@' or '@'
 
 	// A user variable name may also be a quoted string — @'name' / @"name"
-	// (grammar: ATSIGN identifierOrText; engine-verified accept on both
-	// engines). System variables stay identifier-shaped.
+	// (grammar: AT identifierOrText; engine-verified accept).
 	if !system && p.cur.Kind == tokString {
 		tok := p.advance()
 		return &ast.VariableRef{
@@ -1800,23 +1799,26 @@ func (p *Parser) parseVariableRef(system bool) (ast.Node, error) {
 		}, nil
 	}
 
-	first, ok := p.identOrKeywordToken()
-	if !ok {
+	// systemVariable is AT AT (varType '.')? identifier (StarRocks.g4:2469),
+	// and identifier accepts only non-reserved keywords. A reserved word is
+	// not a variable name, so @@GRANT.a is refused.
+	if !isIdentifierToken(p.cur.Kind) {
 		return nil, p.syntaxErrorAtCur()
 	}
+	first := p.advance()
 	v := &ast.VariableRef{
 		System: system,
 		Name:   first.Str,
 		Loc:    ast.Loc{Start: atTok.Loc.Start, End: first.Loc.End},
 	}
-	// @@session.x / @@global.x — the scope qualifier only exists for system
-	// variables.
-	if system && p.cur.Kind == int('.') {
+	// @@global.x / @@local.x / @@session.x — varType is the only scope.
+	if system && p.cur.Kind == int('.') &&
+		(first.Kind == kwGLOBAL || first.Kind == kwLOCAL || first.Kind == kwSESSION) {
 		p.advance() // consume '.'
-		second, ok := p.identOrKeywordToken()
-		if !ok {
+		if !isIdentifierToken(p.cur.Kind) {
 			return nil, p.syntaxErrorAtCur()
 		}
+		second := p.advance()
 		v.Scope = strings.ToUpper(v.Name)
 		v.Name = second.Str
 		v.Loc.End = second.Loc.End

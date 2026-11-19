@@ -848,26 +848,16 @@ func (p *Parser) parseIdentityOrFunctionList() ([]string, []string, error) {
 		if isIdentifierToken(p.cur.Kind) {
 			next := p.peekNext()
 			if next.Kind == int('(') {
-				// Function call -- capture raw text
+				// Function call -- parse it so the engine's own arguments decide
+				// what is valid (DorisParser.g4:1555 functionCallExpression), then
+				// keep its source text. A raw scan accepted INTERVAL units and
+				// argument lists the engine refuses.
 				funcStart := p.cur.Loc.Start
-				p.advance() // consume function name
-				p.advance() // consume '('
-				depth := 1
-				for depth > 0 && p.cur.Kind != tokEOF {
-					if p.cur.Kind == int('(') {
-						depth++
-					} else if p.cur.Kind == int(')') {
-						depth--
-						if depth == 0 {
-							break
-						}
-					}
-					p.advance()
+				node, err := p.parseIdentExpr()
+				if err != nil {
+					return nil, nil, err
 				}
-				funcEnd := p.cur.Loc.End
-				p.advance() // consume closing ')'
-				// Loc values are absolute (shifted by baseOffset); subtract to index into local p.input.
-				funcText := p.input[funcStart-p.baseOffset : funcEnd-p.baseOffset]
+				funcText := p.textBetween(funcStart, ast.NodeLoc(node).End)
 				funcs = append(funcs, strings.TrimSpace(funcText))
 			} else {
 				// Simple identifier

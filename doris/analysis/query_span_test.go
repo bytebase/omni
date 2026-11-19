@@ -559,9 +559,9 @@ func TestGetQuerySpan_SubqueryErrorLocationsAreOuter(t *testing.T) {
 	if !ok {
 		t.Fatalf("err = %T, want *parser.ParseError", err)
 	}
-	want := strings.Index(sql, "*/")
+	want := strings.Index(sql, "*/") + len("*/ ")
 	if pe.Position != want {
-		t.Errorf("error Loc.Start = %d, want %d (the */ in the outer text)", pe.Position, want)
+		t.Errorf("error Loc.Start = %d, want %d (the token after */ in the outer text)", pe.Position, want)
 	}
 }
 
@@ -586,7 +586,7 @@ func TestGetQuerySpan_NestedSubqueryErrorLocationsAccumulate(t *testing.T) {
 	if !ok {
 		t.Fatalf("err = %T, want *parser.ParseError", err)
 	}
-	if want := strings.Index(sql, "*/"); pe.Position != want {
+	if want := strings.Index(sql, "*/") + len("*/ "); pe.Position != want {
 		t.Errorf("error Loc.Start = %d, want %d", pe.Position, want)
 	}
 }
@@ -716,16 +716,11 @@ func TestGetQuerySpan_SetOpOuterOrderBySubquery(t *testing.T) {
 }
 
 func TestGetQuerySpan_SetOpOuterLimitSubquery(t *testing.T) {
-	// Subquery in a LIMIT expression on a set-op must be walked.
-	span, err := GetQuerySpan("SELECT a FROM t1 UNION (SELECT b FROM t2) LIMIT (SELECT max(c) FROM t3)")
-	if err != nil {
-		t.Fatalf("GetQuerySpan returned error: %v", err)
-	}
-	sigs := toSigs(span.AccessTables)
-	for _, want := range []string{"t1", "t2", "t3"} {
-		if !containsSig(sigs, tableSig{Table: want}) {
-			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
-		}
+	// limitClause's count is INTEGER_VALUE (DorisParser.g4:1324), and the
+	// pinned server refuses LIMIT CURRENT_DATE; a subquery in LIMIT is not a
+	// statement either.
+	if _, err := GetQuerySpan("SELECT a FROM t1 UNION (SELECT b FROM t2) LIMIT (SELECT max(c) FROM t3)"); err == nil {
+		t.Fatal("LIMIT subquery accepted, want a syntax error")
 	}
 }
 
@@ -1066,6 +1061,21 @@ func TestGetQuerySpan_LoadPropertyType(t *testing.T) {
 		}
 		if span.Type != QueryTypeDML {
 			t.Errorf("%q: Type = %v, want DML", sql, span.Type)
+		}
+	}
+}
+
+func TestGetQuerySpan_ExplainDescribeTarget(t *testing.T) {
+	// EXPLAIN a wraps a DescribeStmt, whose target is the table the statement
+	// reads; it must reach AccessTables like EXPLAIN SELECT * FROM a does.
+	for _, sql := range []string{"EXPLAIN a", "EXPLAIN a ALL", "EXPLAIN a PARTITION p"} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", sql, err)
+		}
+		sigs := toSigs(span.AccessTables)
+		if !containsSig(sigs, tableSig{Table: "a"}) {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %+v, want table a", sql, sigs)
 		}
 	}
 }

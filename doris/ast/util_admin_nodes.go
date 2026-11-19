@@ -19,7 +19,8 @@ type BackupStmt struct {
 	Label      string        // snapshot label (may be db.label)
 	LabelParts []string      // raw parts: [db, label] or [label]
 	Repo       string        // repository name
-	Tables     []*ObjectName // optional ON clause table list
+	Tables     []*ObjectName // optional ON/EXCLUDE clause table list
+	Exclude    bool          // the list is EXCLUDE rather than ON
 	Properties []*Property
 	Loc        Loc
 }
@@ -39,6 +40,7 @@ type RestoreStmt struct {
 	LabelParts []string
 	Repo       string
 	Tables     []*ObjectName
+	Exclude    bool // the list is EXCLUDE rather than ON
 	Properties []*Property
 	Loc        Loc
 }
@@ -118,8 +120,8 @@ var _ Node = (*UnlockTablesStmt)(nil)
 //	INSTALL PLUGIN FROM SONAME 'library_name'
 //	    [PROPERTIES("key"="value", ...)]
 type InstallPluginStmt struct {
-	Source     string      // path/URL or library name
-	IsSoname   bool        // true when SONAME keyword was present
+	Source     string // path/URL or library name
+	IsSoname   bool   // true when SONAME keyword was present
 	Properties []*Property
 	Loc        Loc
 }

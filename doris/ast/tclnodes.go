@@ -4,8 +4,9 @@ package ast
 
 // BeginStmt represents a BEGIN [WITH LABEL label_name] statement.
 type BeginStmt struct {
-	Label string // optional label name from WITH LABEL clause; empty if absent
-	Loc   Loc
+	Label     string // optional label name from WITH LABEL clause; empty if absent
+	WithLabel bool   // WITH LABEL was stated, even when its name was omitted
+	Loc       Loc
 }
 
 func (n *BeginStmt) Tag() NodeTag { return T_BeginStmt }
@@ -29,3 +30,14 @@ type RollbackStmt struct {
 }
 
 func (n *RollbackStmt) Tag() NodeTag { return T_RollbackStmt }
+
+// StartTransactionStmt represents START TRANSACTION [WITH CONSISTENT SNAPSHOT].
+type StartTransactionStmt struct {
+	ConsistentSnapshot bool // WITH CONSISTENT SNAPSHOT
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *StartTransactionStmt) Tag() NodeTag { return T_StartTransactionStmt }
+
+var _ Node = (*StartTransactionStmt)(nil)

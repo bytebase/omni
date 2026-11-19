@@ -16,6 +16,13 @@ import (
 //
 // The TRUNCATE keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseTruncateTable() (ast.Node, error) {
+	// opt_common_hints needs an ident_list between /*+ and */, and the engine
+	// refuses TRUNCATE TABLE a /*+ */ and TRUNCATE TABLE a /*+ a. The parser
+	// skips hint spans everywhere, so check the truncate statement's own text.
+	if hasMalformedCommonHint(p.input) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	truncateTok := p.advance() // consume TRUNCATE
 
 	// Required TABLE keyword
@@ -37,8 +44,8 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 
 	// Optional PARTITION(p1, p2, ...) or PARTITIONS(...)
 	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList()
+		keyword := p.advance().Kind // consume PARTITION / PARTITIONS
+		partitions, err := p.parsePartitionNameList(keyword == kwPARTITIONS, false)
 		if err != nil {
 			return nil, err
 		}
@@ -849,7 +856,7 @@ func (p *Parser) parseExport() (ast.Node, error) {
 	// Optional PARTITION(p1, p2, ...)
 	if p.cur.Kind == kwPARTITION {
 		p.advance() // consume PARTITION
-		parts, err := p.parsePartitionNameList()
+		parts, err := p.parsePartitionNameList(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -898,4 +905,44 @@ func (p *Parser) parseExport() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// hasMalformedCommonHint reports whether a /*+ ... */ common hint's body is
+// not the opt_common_hints rule's ident_list: empty, unclosed, or not a
+// comma-separated identifier sequence (TRUNCATE TABLE a /*+ 1 */). It reads
+// lexer tokens, so a /*+ inside a quoted identifier is a name, not a hint.
+func hasMalformedCommonHint(input string) bool {
+	lx := NewLexer(input)
+	inHint, expectIdent, sawIdent := false, false, false
+	for {
+		tok := lx.NextToken()
+		if tok.Kind == tokEOF {
+			return inHint
+		}
+		if !inHint {
+			if tok.Kind == tokHintStart {
+				inHint, expectIdent, sawIdent = true, true, false
+			}
+			continue
+		}
+		if tok.Kind == tokHintEnd {
+			if !sawIdent || expectIdent {
+				return true
+			}
+			inHint = false
+			continue
+		}
+		if expectIdent {
+			if tok.Kind != tokIdent && tok.Kind != tokQuotedIdent &&
+				!(tok.Kind >= 700 && !IsReserved(tok.Kind)) {
+				return true
+			}
+			sawIdent, expectIdent = true, false
+			continue
+		}
+		if tok.Kind != int(',') {
+			return true
+		}
+		expectIdent = true
+	}
 }
