@@ -744,6 +744,7 @@ func (p *Parser) parseDescribeTarget(stmt *ast.DescribeStmt) error {
 	// list rather than a tail on it (describe_stmt, DorisLegacyParser.g4:1629;
 	// DorisParser.g4:950-951 describes the table or ALL, not both).
 	if stmt.Partition == nil && !stmt.TempPartition && p.cur.Kind == kwALL {
+		stmt.All = true
 		p.advance() // consume ALL
 		if p.cur.Kind == kwVERBOSE {
 			p.advance() // consume VERBOSE

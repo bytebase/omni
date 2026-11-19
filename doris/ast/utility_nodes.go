@@ -57,6 +57,7 @@ var _ Node = (*ShowStmt)(nil)
 type DescribeStmt struct {
 	Target        *ObjectName
 	Full          bool        // DESCRIBE FULL ...
+	All           bool        // bare ALL suffix
 	AllVerbose    bool        // ALL VERBOSE suffix
 	Function      bool        // DESCRIBE FUNCTION name(...)
 	Args          []*Property // DESCRIBE FUNCTION's key=value arguments

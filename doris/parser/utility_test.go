@@ -612,3 +612,17 @@ func TestDescribePartitionAndAll(t *testing.T) {
 		}
 	}
 }
+
+func TestDescribeBareAll(t *testing.T) {
+	file, errs := parseForTest("DESCRIBE test_table ALL")
+	if len(errs) != 0 {
+		t.Fatalf("DESCRIBE test_table ALL errors: %v", errs)
+	}
+	n, ok := file.Stmts[0].(*ast.DescribeStmt)
+	if !ok {
+		t.Fatalf("Stmts[0] = %T, want *ast.DescribeStmt", file.Stmts[0])
+	}
+	if !n.All || n.AllVerbose {
+		t.Errorf("DESCRIBE ALL = (%v, %v), want (true, false)", n.All, n.AllVerbose)
+	}
+}
