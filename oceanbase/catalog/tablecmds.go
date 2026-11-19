@@ -1367,8 +1367,11 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	// Automatic partitioning (PARTITION SIZE ... PARTITIONS AUTO) lists no
-	// partitions: the engine makes them as the table grows.
-	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" {
+	// partitions: the engine makes them as the table grows. A RANGE with a split
+	// size and no list is the same form: the pinned server reads ALTER TABLE a
+	// PARTITION BY RANGE() back as `partition by range() size ('2048MB')`, and
+	// the catalog must load what the engine stores.
+	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" && pc.SplitSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
@@ -1954,6 +1957,29 @@ func validateStoringColumns(tbl *Table, opts []*nodes.IndexOption) error {
 		}
 	}
 	return nil
+}
+
+// dropStoringKeyColumns removes from a key's STORING the columns the key already
+// names. The pinned server takes ALTER TABLE a ADD KEY(a) STORING(a) and reads the
+// key back as KEY `a` (`a`), with no STORING (testdata/simulate.tsv).
+func dropStoringKeyColumns(idx *Index) {
+	if len(idx.Storing) == 0 {
+		return
+	}
+	kept := idx.Storing[:0]
+	for _, name := range idx.Storing {
+		keyColumn := false
+		for _, col := range idx.Columns {
+			if col.Name != "" && toLower(col.Name) == toLower(name) {
+				keyColumn = true
+				break
+			}
+		}
+		if !keyColumn {
+			kept = append(kept, name)
+		}
+	}
+	idx.Storing = kept
 }
 
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {
