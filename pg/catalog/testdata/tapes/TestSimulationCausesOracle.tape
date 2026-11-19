@@ -599,3 +599,22 @@
 > exec
 | ALTER INDEX IF EXISTS no_such.i RENAME TO j
 < ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| ALTER INDEX a_d_idx SET TABLESPACE a
+< error
+| 42704 tablespace "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, a int, d int); CREATE INDEX a ON t (d)
+< ok 0 -
+> exec
+| DROP TABLE IF EXISTS t, a
+< error
+| 42809 "a" is not a table
+| hint: Use DROP INDEX to remove an index.

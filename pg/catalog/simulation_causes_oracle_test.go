@@ -111,6 +111,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE INDEX into a missing tablespace", "table", "CREATE INDEX i ON a(b) TABLESPACE a", CodeUndefinedObject},
 		{"ALTER INDEX IF EXISTS in a missing schema", "missing", "ALTER INDEX IF EXISTS no_such.i SET (fillfactor = 80)", "0"},
 		{"ALTER INDEX IF EXISTS RENAME in a missing schema", "missing", "ALTER INDEX IF EXISTS no_such.i RENAME TO j", "0"},
+		{"ALTER INDEX SET TABLESPACE to a missing tablespace", "table", "ALTER INDEX a_d_idx SET TABLESPACE a", CodeUndefinedObject},
+		{"DROP TABLE IF EXISTS a valid table and an index", "index", "DROP TABLE IF EXISTS t, a", CodeWrongObjectType},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -125,6 +127,58 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if c.schemaByName["public"].Sequences["a_id_seq"] != nil {
 			t.Fatal("a failed CREATE TABLE left a_id_seq behind")
+		}
+	})
+
+	// A failed CREATE TABLE must not leave inheritance rows for a child that
+	// does not exist.
+	t.Run("a failed CREATE TABLE leaves no inheritance row", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, fixtures["index"]); code != "0" {
+			t.Fatalf("catalog refused fixture index with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "CREATE TABLE a (id int) INHERITS (t)"); code != CodeDuplicateTable {
+			t.Fatalf("catalog answered %s, want %s", code, CodeDuplicateTable)
+		}
+		if len(c.inhEntries) != 0 {
+			t.Fatalf("a failed CREATE TABLE left %d inheritance rows", len(c.inhEntries))
+		}
+	})
+
+	// A DROP whose second target is not a table leaves the first target in
+	// place.
+	t.Run("a failed DROP leaves the relation before the failure", func(t *testing.T) {
+		c := New()
+		if code := simulationCatalogCode(t, c, fixtures["index"]); code != "0" {
+			t.Fatalf("catalog refused fixture index with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLE IF EXISTS t, a"); code != CodeWrongObjectType {
+			t.Fatalf("catalog answered %s, want %s", code, CodeWrongObjectType)
+		}
+		if c.schemaByName["public"].Relations["t"] == nil {
+			t.Fatal("a failed DROP removed t")
+		}
+	})
+
+	// A tablespace that still holds a table cannot be dropped.
+	t.Run("a non-empty tablespace cannot be dropped", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLE a (b int) TABLESPACE ts",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLESPACE ts"); code != CodeObjectNotInPrerequisiteState {
+			t.Fatalf("catalog answered %s, want %s", code, CodeObjectNotInPrerequisiteState)
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLE a"); code != "0" {
+			t.Fatalf("catalog refused DROP TABLE a with %s", code)
+		}
+		if code := simulationCatalogCode(t, c, "DROP TABLESPACE ts"); code != "0" {
+			t.Fatalf("catalog refused the now-empty DROP TABLESPACE ts with %s", code)
 		}
 	})
 

@@ -285,6 +285,11 @@ func (c *Catalog) AlterIndexStmt(stmt *nodes.AlterTableStmt) error {
 			continue
 		}
 		switch nodes.AlterTableType(atc.Subtype) {
+		case nodes.AT_SetTableSpace:
+			if err := c.checkTablespace(atc.Name); err != nil {
+				return err
+			}
+			parentIdx.Tablespace = atc.Name
 		case nodes.AT_AttachPartition:
 			pc, ok := atc.Def.(*nodes.PartitionCmd)
 			if !ok {
@@ -656,7 +661,11 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropExpression(rel, atc.Name, atc.Missing_ok)
 
 	case nodes.AT_SetTableSpace:
-		return c.checkTablespace(atc.Name)
+		if err := c.checkTablespace(atc.Name); err != nil {
+			return err
+		}
+		rel.Tablespace = atc.Name
+		return nil
 
 	case nodes.AT_SetLogged:
 		rel.Persistence = 'p'

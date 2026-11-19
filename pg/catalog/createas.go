@@ -178,6 +178,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		Name:          mvName,
 		Schema:        schema,
 		RelKind:       relkind,
+		Tablespace:    into.TableSpaceName,
 		Columns:       columns,
 		colByName:     colByName,
 		RowTypeOID:    rowTypeOID,

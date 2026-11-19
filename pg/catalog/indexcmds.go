@@ -20,6 +20,7 @@ type Index struct {
 	IsReplicaIdent   bool     // indisreplident
 	ConstraintOID    uint32   // 0 if standalone
 	AccessMethod     string   // "btree" (default), "hash", "gist", "gin", "brin"
+	Tablespace       string   // tablespace the index was created in, or "" for the default
 	NKeyColumns      int      // number of key columns (rest are INCLUDE); 0 = all are key
 	WhereClause      string   // analyzed WHERE predicate text; empty = no partial index
 	IndOption        []int16  // per-column flags: bit0=DESC, bit1=NULLS_FIRST
@@ -286,6 +287,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		IsUnique:         stmt.Unique,
 		IsPrimary:        stmt.Primary,
 		AccessMethod:     accessMethod,
+		Tablespace:       stmt.TableSpace,
 		NKeyColumns:      nKeyColumns,
 		WhereClause:      whereClause,
 		IndOption:        indOption,

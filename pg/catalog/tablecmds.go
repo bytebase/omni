@@ -183,7 +183,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	isPartition := (stmt.Partbound != nil)
 	var conflictDefaults map[string]bool // column name → has conflicting defaults
 	if stmt.InhRelations != nil {
-		for seqNo, item := range stmt.InhRelations.Items {
+		for _, item := range stmt.InhRelations.Items {
 			rv, ok := item.(*nodes.RangeVar)
 			if !ok {
 				continue
@@ -342,12 +342,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				}
 			}
 
-			// Record inheritance entry.
-			c.inhEntries = append(c.inhEntries, InhEntry{
-				InhRelID:  0, // will be set after relation is created
-				InhParent: parent.OID,
-				InhSeqNo:  int32(seqNo + 1), // 1-based
-			})
+			// The inheritance entry is recorded only once the relation is
+			// registered, so a later error leaves no row for a child that
+			// does not exist.
 		}
 	}
 
@@ -541,6 +538,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		InhParents: parentOIDs,
 		InhCount:   len(parentOIDs),
 		OfTypeOID:  ofTypeOID,
+		Tablespace: stmt.Tablespacename,
 	}
 
 	// Parse persistence from RangeVar.
@@ -587,10 +585,14 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	schema.Relations[relName] = rel
 	c.relationByOID[relOID] = rel
 
-	// Fix up inheritance entries with the child's OID and record dependencies.
+	// Record inheritance entries and dependencies now that the child exists.
 	if len(parentOIDs) > 0 {
-		for i := len(c.inhEntries) - len(parentOIDs); i < len(c.inhEntries); i++ {
-			c.inhEntries[i].InhRelID = relOID
+		for i, parentOID := range parentOIDs {
+			c.inhEntries = append(c.inhEntries, InhEntry{
+				InhRelID:  relOID,
+				InhParent: parentOID,
+				InhSeqNo:  int32(i + 1),
+			})
 		}
 		// For PARTITION OF, use DepAuto (auto-dropped with parent).
 		// For regular INHERITS, use DepNormal (requires CASCADE).
@@ -864,6 +866,14 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 		return nil
 	}
 
+	// Resolve and validate every target before removing any, so a wrong kind
+	// later in the list leaves the catalog as PostgreSQL's rollback would.
+	type target struct {
+		schema *Schema
+		rel    *Relation
+		name   string
+	}
+	var targets []target
 	for _, obj := range stmt.Objects.Items {
 		// Objects are represented as a List of String nodes (schema-qualified name).
 		schemaName, relName := extractDropObjectName(obj)
@@ -909,11 +919,14 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 				}
 			}
 		}
+		targets = append(targets, target{schema: schema, rel: rel, name: relName})
+	}
 
+	for _, t := range targets {
 		// Check for normal dependents. The relation's own constraints,
 		// indexes and generated columns go with it.
 		// pg: src/backend/catalog/dependency.c — reportDependentObjects
-		if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
+		if hasNormalDependent(c.relationDependents(t.rel.OID, 0)) {
 			if !cascade {
 				kind := "table"
 				if removeType == nodes.OBJECT_VIEW {
@@ -921,16 +934,16 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 				} else if removeType == nodes.OBJECT_MATVIEW {
 					kind = "materialized view"
 				}
-				return errDependentObjects(kind, relName)
+				return errDependentObjects(kind, t.name)
 			}
 			if removeType == nodes.OBJECT_VIEW || removeType == nodes.OBJECT_MATVIEW {
-				c.dropViewDependents('r', rel.OID)
+				c.dropViewDependents('r', t.rel.OID)
 			} else {
-				c.dropDependents('r', rel.OID)
+				c.dropDependents('r', t.rel.OID)
 			}
 		}
 
-		c.removeRelation(schema, relName, rel)
+		c.removeRelation(t.schema, t.name, t.rel)
 	}
 	return nil
 }

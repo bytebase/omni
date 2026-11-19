@@ -86,6 +86,10 @@ type Relation struct {
 	// ON COMMIT behavior for temp tables.
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop
 
+	// Tablespace is the tablespace the relation was created in, or "" for
+	// the database default. It is not part of the schema a sync reads.
+	Tablespace string
+
 	// Relation flags (pg_class).
 	Owner       uint32 // relowner
 	HasRules    bool   // relhasrules

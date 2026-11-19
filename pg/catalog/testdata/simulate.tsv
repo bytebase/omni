@@ -473,7 +473,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropStmt/DROP_object_type
 42809	42809	engine	one_table@table	object_type_any_name/VIEW	DROP VIEW a
 42809	42809	engine	one_table@table	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
 42809	42809	engine	one_table@table	object_type_any_name/INDEX	DROP INDEX a
-42P01	ok:e3b0c44298fc	engine	one_table@table	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 ok:89dfe8890ac5	ok:89dfe8890ac5	engine	one_table@table	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
 42P01	42601	engine	one_table@table	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'
@@ -744,7 +744,7 @@ ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropStmt/DROP_object_typ
 42809	42809	engine	one_table@column	object_type_any_name/VIEW	DROP VIEW a
 42809	42809	engine	one_table@column	object_type_any_name/MATERIALIZED_VIEW	DROP MATERIALIZED VIEW a
 42809	42809	engine	one_table@column	object_type_any_name/INDEX	DROP INDEX a
-42P01	ok:e3b0c44298fc	engine	one_table@column	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
+ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	any_name_list/any_name_list_,_any_name	DROP TABLE a, a
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_restart_seqs/CONTINUE_P_IDENTITY_P	TRUNCATE a CONTINUE IDENTITY
 ok:43e147cb2649	ok:43e147cb2649	engine	one_table@column	opt_restart_seqs/RESTART_IDENTITY_P	TRUNCATE a RESTART IDENTITY
 42P01	42601	engine	one_table@column	CommentStmt/COMMENT_ON_COLUMN_any_name_IS_comment_text	COMMENT ON COLUMN a IS 's'

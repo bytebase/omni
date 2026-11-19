@@ -76,16 +76,20 @@ func (c *Catalog) removeIndexObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	type target struct {
+		schema *Schema
+		name   string
+		idx    *Index
+	}
+	var targets []target
 	for _, obj := range stmt.Objects.Items {
 		schemaName, idxName := extractDropObjectName(obj)
 
 		schema, err := c.resolveTargetSchema(schemaName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("index %q does not exist, skipping", idxName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("index %q does not exist, skipping", idxName))
+				continue
 			}
 			return err
 		}
@@ -105,8 +109,10 @@ func (c *Catalog) removeIndexObjects(stmt *nodes.DropStmt) error {
 				Message: fmt.Sprintf("cannot drop index %q because constraint requires it", idxName),
 			}
 		}
-
-		c.removeIndex(schema, idxName, idx)
+		targets = append(targets, target{schema: schema, name: idxName, idx: idx})
+	}
+	for _, t := range targets {
+		c.removeIndex(t.schema, t.name, t.idx)
 	}
 	return nil
 }
@@ -117,6 +123,11 @@ func (c *Catalog) removeSequenceObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	type target struct {
+		seq  *Sequence
+		name string
+	}
+	var targets []target
 	for _, obj := range stmt.Objects.Items {
 		schemaName, seqName := extractDropObjectName(obj)
 
@@ -128,16 +139,18 @@ func (c *Catalog) removeSequenceObjects(stmt *nodes.DropStmt) error {
 			}
 			return err
 		}
-
+		targets = append(targets, target{seq: seq, name: seqName})
+	}
+	for _, t := range targets {
 		// Check dependents.
-		if deps := c.findNormalDependents('s', seq.OID); len(deps) > 0 {
+		if deps := c.findNormalDependents('s', t.seq.OID); len(deps) > 0 {
 			if !cascade {
-				return errDependentObjects("sequence", seqName)
+				return errDependentObjects("sequence", t.name)
 			}
-			c.dropDependents('s', seq.OID)
+			c.dropDependents('s', t.seq.OID)
 		}
 
-		c.removeSequence(seq.Schema, seq)
+		c.removeSequence(t.seq.Schema, t.seq)
 	}
 	return nil
 }

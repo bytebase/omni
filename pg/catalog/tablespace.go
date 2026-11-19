@@ -63,6 +63,10 @@ func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 		}
 		return errUndefinedObject("tablespace", name)
 	}
+	if c.tablespaceInUse(name) {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: fmt.Sprintf("tablespace %q is not empty", name)}
+	}
 	delete(c.tablespaces, name)
 	return nil
 }
@@ -75,13 +79,47 @@ func (c *Catalog) AlterTablespaceOptions(stmt *nodes.AlterTableSpaceOptionsStmt)
 }
 
 // MoveAllTablespaces checks both tablespaces an ALTER TABLE/INDEX/
-// MATERIALIZED VIEW ALL IN TABLESPACE statement names. PostgreSQL validates
-// the destination first, then the source.
+// MATERIALIZED VIEW ALL IN TABLESPACE statement names, then moves the
+// relations and indexes the source holds. PostgreSQL validates the
+// destination first, then the source.
 //
 // pg: src/backend/commands/tablecmds.c — AlterTableMoveAll
 func (c *Catalog) MoveAllTablespaces(stmt *nodes.AlterTableMoveAllStmt) error {
 	if err := c.checkTablespace(stmt.NewTablespacename); err != nil {
 		return err
 	}
-	return c.checkTablespace(stmt.OrigTablespacename)
+	if err := c.checkTablespace(stmt.OrigTablespacename); err != nil {
+		return err
+	}
+	for _, schema := range c.schemas {
+		for _, rel := range schema.Relations {
+			if rel.Tablespace == stmt.OrigTablespacename {
+				rel.Tablespace = stmt.NewTablespacename
+			}
+		}
+		for _, idx := range schema.Indexes {
+			if idx.Tablespace == stmt.OrigTablespacename {
+				idx.Tablespace = stmt.NewTablespacename
+			}
+		}
+	}
+	return nil
+}
+
+// tablespaceInUse reports a relation or index the current schemas hold in a
+// tablespace.
+func (c *Catalog) tablespaceInUse(name string) bool {
+	for _, schema := range c.schemas {
+		for _, rel := range schema.Relations {
+			if rel.Tablespace == name {
+				return true
+			}
+		}
+		for _, idx := range schema.Indexes {
+			if idx.Tablespace == name {
+				return true
+			}
+		}
+	}
+	return false
 }
