@@ -1329,6 +1329,20 @@ func validateAddedKeyColumns(tbl *Table, cols []*nodes.IndexColumn) error {
 	return nil
 }
 
+// duplicateKeyColumnName names the second spelling of a column a key lists
+// twice, or "".
+func duplicateKeyColumnName(con *nodes.Constraint) string {
+	seen := make(map[string]bool, len(con.IndexColumns)+len(con.Columns))
+	for _, name := range extractColumnNames(con) {
+		key := toLower(name)
+		if seen[key] {
+			return name
+		}
+		seen[key] = true
+	}
+	return ""
+}
+
 func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, declaredChecks map[string]bool) error {
 	con := cmd.Constraint
 	if con == nil {
@@ -1516,6 +1530,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
+		}
+		// A key that lists the same column twice is 1060, after the columns
+		// exist, after a prefix's own 1089, and before the name it allocates.
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
 		}
 		keyIdx := &Index{
 			Name:      idxName,
@@ -1855,11 +1874,7 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 	}
 
-	return &Error{
-		Code:     ErrDupKeyName,
-		SQLState: sqlState(ErrDupKeyName),
-		Message:  fmt.Sprintf("Key '%s' doesn't exist in table '%s'", cmd.Name, tbl.Name),
-	}
+	return errKeyDoesNotExist(cmd.Name, tbl.Name)
 }
 
 // alterRenameTable moves a table to a new name.

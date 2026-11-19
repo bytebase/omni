@@ -1015,10 +1015,10 @@ func syncTiDBSnapshot(t *testing.T, ctr *mysqlContainer, name string) *metadata.
 
 	schema := &metadata.SchemaMetadata{Views: views}
 	query(`SELECT TABLE_NAME, TABLE_TYPE, IFNULL(ENGINE, ''), IFNULL(TABLE_COLLATION, ''), QUOTE(IFNULL(TABLE_COMMENT, '')),
-			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, '')
+			IFNULL(TIDB_ROW_ID_SHARDING_INFO, ''), IFNULL(TIDB_PK_TYPE, ''), IFNULL(CREATE_OPTIONS, '')
 		FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`, func(rows *sql.Rows) error {
-		var table, tableType, engine, collation, comment, shardingInfo, pkType string
-		if err := rows.Scan(&table, &tableType, &engine, &collation, &comment, &shardingInfo, &pkType); err != nil {
+		var table, tableType, engine, collation, comment, shardingInfo, pkType, createOptions string
+		if err := rows.Scan(&table, &tableType, &engine, &collation, &comment, &shardingInfo, &pkType, &createOptions); err != nil {
 			return err
 		}
 		if tableType != "BASE TABLE" {
@@ -1058,6 +1058,7 @@ func syncTiDBSnapshot(t *testing.T, ctr *mysqlContainer, name string) *metadata.
 			Comment:          strings.TrimSuffix(strings.TrimPrefix(comment, "'"), "'"),
 			ShardingInfo:     shardingInfo,
 			PrimaryKeyType:   pkType,
+			CreateOptions:    createOptions,
 		})
 		return nil
 	})
@@ -1142,5 +1143,30 @@ func TestLoadMetadataKeepsTableWhosePartitioningIsRefused(t *testing.T) {
 	tbl := requireTable(t, c, "sales")
 	if tbl.Partitioning != nil || len(tbl.Indexes) != 1 || tbl.Columns[1].DataType != "date" {
 		t.Errorf("sales = partitioning %+v, %d indexes, sold_on %s; want no partitioning, the index and a date column", tbl.Partitioning, len(tbl.Indexes), tbl.Columns[1].DataType)
+	}
+}
+
+// TestLoadMetadataReadsCachedCreateOptions: information_schema.TABLES'
+// CREATE_OPTIONS carries TiDB's `cached=on`, which CreateOptions in the
+// snapshot keeps, and SHOW CREATE TABLE writes the attribute back, so a synced
+// table has to hold it too (read on v8.5.5, 2026-11-19).
+func TestLoadMetadataReadsCachedCreateOptions(t *testing.T) {
+	meta := snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{
+		{Name: "cached", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}, CreateOptions: "cached=on"},
+		{Name: "plain", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}},
+		{Name: "other", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}, CreateOptions: "partitioned"},
+	}})
+	c, _ := loadTiDBSnapshot(t, meta)
+	if !requireTable(t, c, "cached").Cached {
+		t.Errorf("the synced table's cached=on did not reach the catalog:\n%s", c.ShowCreateTable(snapshotDB, "cached"))
+	}
+	if ddl := c.ShowCreateTable(snapshotDB, "cached"); !strings.Contains(ddl, "/* CACHED ON */") {
+		t.Errorf("SHOW CREATE TABLE lacks the marker:\n%s", ddl)
+	}
+	if requireTable(t, c, "plain").Cached {
+		t.Errorf("a table without CREATE_OPTIONS was cached")
+	}
+	if requireTable(t, c, "other").Cached {
+		t.Errorf("CREATE_OPTIONS %q is not cached=on", "partitioned")
 	}
 }

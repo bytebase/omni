@@ -147,6 +147,27 @@ func (c *Catalog) installedView(name string) *View {
 	return db.Views[toLower(name)]
 }
 
+// installedTable returns the table LoadMetadata just installed, or nil.
+func (c *Catalog) installedTable(name string) *Table {
+	db := c.GetDatabase(c.CurrentDatabase())
+	if db == nil {
+		return nil
+	}
+	return db.Tables[toLower(name)]
+}
+
+// isCachedCreateOptions reports whether information_schema.TABLES'
+// CREATE_OPTIONS marks the table cached, which TiDB writes as `cached=on`
+// (read on v8.5.5).
+func isCachedCreateOptions(options string) bool {
+	for _, opt := range strings.Split(options, " ") {
+		if strings.EqualFold(strings.TrimSpace(opt), "cached=on") {
+			return true
+		}
+	}
+	return false
+}
+
 // --- Objects ---
 
 // metadataObjectKind lists the kinds in the order they install. Nothing else
@@ -244,6 +265,17 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	}
 	o.incomplete = omitted
 	err = c.DefineTable(stmt)
+	if err == nil {
+		// CACHE is not a CREATE TABLE option the grammar takes, so the synced
+		// table's `cached=on` in CREATE_OPTIONS is read here rather than
+		// parsed: SHOW CREATE TABLE writes the attribute back, and a plan that
+		// follows it has to NOCACHE the table before any other DDL (8242).
+		if isCachedCreateOptions(o.table.GetCreateOptions()) {
+			if tbl := c.installedTable(o.name); tbl != nil {
+				tbl.Cached = true
+			}
+		}
+	}
 	if err != nil && stmt.Partitions != nil {
 		// The partitioning parsed but the catalog refuses it, as it does a RANGE
 		// whose MAXVALUE partition sync lists before another. The rest of the
