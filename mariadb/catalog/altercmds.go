@@ -370,7 +370,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// generated one may not read a generated column the same statement adds after
 	// it. That is a check over the whole statement, and it runs before any command
 	// changes the table.
-	if err := c.validateAddedColumnOrder(tbl, stmt.Commands); err != nil {
+	if err := c.validateAddedColumnOrder(tbl, stmt.Commands, skippedColumns); err != nil {
 		return err
 	}
 
@@ -2803,7 +2803,7 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 // so is a definition's own semantics, as `ADD a INT AS(a), ADD c INT NOT NULL DEFAULT
 // 'x'` answers 1067 for c. The statement's own commands then judge nothing again: what
 // a single ADD answers is checked where it is added (see addSingleColumn).
-func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableCmd, skipped map[*nodes.ColumnDef]bool) error {
 	type addedColumn struct {
 		def         *nodes.ColumnDef
 		ifNotExists bool
@@ -2840,6 +2840,10 @@ func (c *Catalog) validateAddedColumnOrder(tbl *Table, cmds []*nodes.AlterTableC
 	}
 	indexed := indexedColumnsOf(tbl)
 	for _, a := range added {
+		// A column IF NOT EXISTS finds is a note whose definition is never read.
+		if skipped[a.def] {
+			continue
+		}
 		if err := validateColumnDefSemantics(a.def, indexed, c.effectiveColumnCollation(a.def, tbl.Collation)); err != nil {
 			return err
 		}

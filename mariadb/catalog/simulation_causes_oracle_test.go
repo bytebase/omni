@@ -1129,7 +1129,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "CREATE INDEX i ON a (c)",
 			code:  0,
 		},
-		// A column IF NOT EXISTS finds is a note whose DEFAULT is not read.
+		{
+			name:  "CREATE UNIQUE INDEX over a table whose tablespace was DISCARDed, with a primary key",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "CREATE UNIQUE INDEX u ON a (c)",
+			code:  0,
+		},
+		// A column IF NOT EXISTS finds is a note whose definition is not read, its
+		// ENUM values and its DEFAULT alike.
+		{
+			name:  "ADD COLUMN IF NOT EXISTS of a column the table holds, with duplicated ENUM values",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN IF NOT EXISTS c ENUM('x', 'x'), ADD e INT AS (1)",
+			code:  0,
+		},
 		{
 			name:  "ADD COLUMN IF NOT EXISTS of a column the table holds, with a DEFAULT that names nobody",
 			setup: []string{oneTable},

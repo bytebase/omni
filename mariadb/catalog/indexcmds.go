@@ -25,14 +25,6 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		return err
 	}
 
-	// A UNIQUE or FULLTEXT index rebuilds a table whose tablespace was DISCARDed,
-	// an ordinary or SPATIAL one does not: measured on mariadb:11.8.8, where
-	// `CREATE UNIQUE INDEX u ON a (b)` and `CREATE FULLTEXT INDEX f ON a (t)`
-	// answer 1814 and `CREATE INDEX i ON a (b)` runs.
-	if tbl.TablespaceDiscarded && (stmt.Unique || stmt.Fulltext) {
-		return errTablespaceDiscarded(tbl.Name)
-	}
-
 	// A name the table holds is a note under IF NOT EXISTS, which MariaDB reads
 	// before the key: `CREATE INDEX IF NOT EXISTS k (nosuch)` over a table that
 	// has k runs. Otherwise the name waits for the key's own errors below (1061,
