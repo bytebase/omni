@@ -569,6 +569,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 	if cmd.After != "" {
+		if toLower(cmd.After) == oldKey {
+			return errNoSuchColumn(cmd.After, tbl.Name)
+		}
 		if _, ok := tbl.colByName[toLower(cmd.After)]; !ok {
 			return errNoSuchColumn(cmd.After, tbl.Name)
 		}

@@ -2364,17 +2364,21 @@ func (s *CatalogStmt) stmtNode() {}
 // Ref: create_dblink_stmt and drop_dblink_stmt in sql_parser_mysql_mode.y
 // (v4.3.5_CE_BP6, lines 17690-17730).
 type DatabaseLinkStmt struct {
-	Loc         Loc
-	Drop        bool   // DROP DATABASE LINK, where false is CREATE DATABASE LINK
-	Name        string // the link's name
-	User        string // CONNECT TO user
-	Tenant      string // the @tenant after it, with its @
-	Database    string // DATABASE name
-	Password    string // IDENTIFIED BY 'password'
-	Server      string // SERVER [=] 'host:port' or HOST 'host:port'
-	Cluster     string // CLUSTER 'name', or ""
-	IfNotExists bool
-	IfExists    bool
+	Loc      Loc
+	Drop     bool   // DROP DATABASE LINK, where false is CREATE DATABASE LINK
+	Name     string // the link's name
+	User     string // CONNECT TO user
+	Tenant   string // the @tenant after it, with its @
+	Database string // DATABASE name
+	// DatabaseCatalog is the catalog a `catalog.database` target names, apart
+	// from the database's own name: `DATABASE `cat.db`` has none, and its
+	// database is called cat.db.
+	DatabaseCatalog string
+	Password        string // IDENTIFIED BY 'password'
+	Server          string // SERVER [=] 'host:port' or HOST 'host:port'
+	Cluster         string // CLUSTER 'name', or ""
+	IfNotExists     bool
+	IfExists        bool
 }
 
 func (s *DatabaseLinkStmt) nodeTag()  {}

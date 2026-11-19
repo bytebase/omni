@@ -217,9 +217,7 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 		return nil, err
 	}
 	stmt.Database = db.Name
-	if db.Catalog != "" {
-		stmt.Database = db.Catalog + "." + db.Name
-	}
+	stmt.DatabaseCatalog = db.Catalog
 
 	if _, err := p.expect(kwIDENTIFIED); err != nil {
 		return nil, err

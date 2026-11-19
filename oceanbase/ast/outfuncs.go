@@ -303,6 +303,9 @@ func writeNode(sb *strings.Builder, node Node) {
 		if n.Tenant != "" {
 			fmt.Fprintf(sb, " :tenant %q", n.Tenant)
 		}
+		if n.DatabaseCatalog != "" {
+			fmt.Fprintf(sb, " :database_catalog %s", n.DatabaseCatalog)
+		}
 		if n.Database != "" {
 			fmt.Fprintf(sb, " :database %s", n.Database)
 		}
