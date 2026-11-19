@@ -631,6 +631,42 @@ func validateTemporalExprForColumn(colName, typeName string, colFsp int, expr no
 	return nil
 }
 
+// validateBareNowDefault rejects a bare NOW()-family DEFAULT on a column whose
+// type is neither DATETIME nor TIMESTAMP: mysql:8.0.46 reads such a default as a
+// current-timestamp value, which only those two types hold, and answers 1067
+// for a TINYINT, INT, DATE, TIME, YEAR or VARCHAR column alike. Judged while the
+// statement is prepared, before the database and the table are resolved and
+// before a duplicate column: `ALTER TABLE nodb.a ADD x INT DEFAULT NOW()`, and
+// the same over an existing table, are 1067 (read on mysql:8.0.46).
+//
+// Only the bare form is this rule's. A parenthesized `DEFAULT (NOW())` is a
+// general expression default, which the same server takes on those types, so
+// the parenthesis is not read through here.
+func validateBareNowDefault(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.TypeName == nil {
+		return nil
+	}
+	var now bool
+	for _, expr := range columnDefDefaultExprs(colDef) {
+		fn, ok := expr.(*nodes.FuncCallExpr)
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(fn.Name) {
+		case "now", "current_timestamp", "localtime", "localtimestamp":
+			now = true
+		}
+	}
+	if !now {
+		return nil
+	}
+	switch strings.ToLower(colDef.TypeName.Name) {
+	case "datetime", "timestamp":
+		return nil
+	}
+	return errInvalidDefault(colDef.Name)
+}
+
 func validateCheckExpr(name string, expr nodes.ExprNode) error {
 	var invalid bool
 	exprSQL := strings.ToLower(nodeToSQL(expr))

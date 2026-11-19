@@ -5,7 +5,7 @@
 1146	1146	engine	one_table@missing	simple_statement/alter_view_stmt!insert	ALTER VIEW utf8mb4 AS SELECT utf8mb4 zzz;
 1146	1146	engine	one_table@missing	simple_statement/create_index_stmt	CREATE INDEX utf8mb4 ON utf8mb4(utf8mb4);
 3708	3708	engine	one_table@missing	simple_statement/create_srs_stmt	CREATE SPATIAL REFERENCE SYSTEM 1;
-ok	4028	engine	one_table@missing	simple_statement/create_table_stmt	CREATE TABLE utf8mb4;
+4028	4028	engine	one_table@missing	simple_statement/create_table_stmt	CREATE TABLE utf8mb4;
 1146	1146	engine	one_table@missing	simple_statement/drop_index_stmt	DROP INDEX utf8mb4 ON utf8mb4;
 1051	1051	engine	one_table@missing	simple_statement/drop_table_stmt	DROP TABLE utf8mb4;
 1051	1051	engine	one_table@missing	simple_statement/drop_view_stmt	DROP VIEW utf8mb4;
@@ -24,7 +24,7 @@ ok:9b76765effba	ok:9b76765effba	engine	one_table@missing	create_table_stmt/CREAT
 1146	1146	engine	one_table@missing	create_index_stmt/CREATE_FULLTEXT_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_fulltext_index_options_opt_index_lock_and_algorithm	CREATE FULLTEXT INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1146	1146	engine	one_table@missing	create_index_stmt/CREATE_SPATIAL_SYM_INDEX_SYM_ident_ON_SYM_table_ident_(_key_list_with_expression_)_opt_spatial_index_options_opt_index_lock_and_algorithm	CREATE SPATIAL INDEX utf8mb4 ON utf8mb4(utf8mb4);
 1286	1286	engine	one_table@missing	opt_create_table_options_etc/create_table_options_opt_create_partitioning_etc	CREATE TABLE utf8mb4 ENGINE utf8mb4;
-ok	4028	engine	one_table@missing	opt_create_partitioning_etc/partition_clause_opt_duplicate_as_qe	CREATE TABLE utf8mb4 PARTITION BY KEY();
+4028	4028	engine	one_table@missing	opt_create_partitioning_etc/partition_clause_opt_duplicate_as_qe	CREATE TABLE utf8mb4 PARTITION BY KEY();
 ok	1054	engine	one_table@missing	opt_duplicate_as_qe/duplicate_as_create_query_expression	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4;
 ok	1054	engine	one_table@missing	opt_duplicate_as_qe/duplicate_as_create_query_expression!insert	CREATE TABLE utf8mb4 REPLACE SELECT utf8mb4 zzz;
 ok	1054	engine	one_table@missing	opt_duplicate_as_qe/as_create_query_expression	CREATE TABLE utf8mb4 SELECT utf8mb4;
@@ -214,7 +214,7 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 1146	1146	engine	one_table@missing	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 1146	1146	engine	one_table@missing	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
 1146	1146	engine	one_table@missing	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
-1146	1067	engine	one_table@missing	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
+1067	1067	engine	one_table@missing	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 1146	1146	engine	one_table@missing	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1146	1294	engine	one_table@missing	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
 1146	1146	engine	one_table@missing	column_attribute/AUTO_INC	ALTER TABLE utf8mb4 ADD utf8mb4 INT AUTO_INCREMENT;
@@ -391,7 +391,7 @@ ok	1054	engine	one_table@missing	as_create_query_expression/AS_query_expression_
 1146	1146	engine	one_table@missing	ulonglong_num/DECIMAL_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1.5;
 1146	1146	engine	one_table@missing	ulonglong_num/FLOAT_NUM	ALTER TABLE utf8mb4 MAX_ROWS 1e0;
 1146	1146	engine	one_table@missing	opt_table/TABLE_SYM	TRUNCATE TABLE utf8mb4;
-ok	4028	engine	one_table@missing	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
+4028	4028	engine	one_table@missing	duplicate/REPLACE_SYM!truncate	CREATE TABLE utf8mb4
 ok	1054	engine	one_table@missing	duplicate/IGNORE_SYM	CREATE TABLE utf8mb4 IGNORE SELECT utf8mb4;
 1146	1146	engine	one_table@missing	signed_literal/+_NUM_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT + 1;
 1146	1146	engine	one_table@missing	signed_literal/+_NUM_literal!drop-1	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT 1;
@@ -626,7 +626,7 @@ ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute_list/col
 ok:ef0ffd165948	ok:ef0ffd165948	engine	one_table@table	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 ok:995fc2f5fd23	ok:995fc2f5fd23	engine	one_table@table	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
 ok:c53e3a0fd93c	ok:c53e3a0fd93c	engine	one_table@table	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
-ok	1067	engine	one_table@table	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
+1067	1067	engine	one_table@table	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 ok	3767	engine	one_table@table	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1294	1294	engine	one_table@table	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
 ok	1075	engine	one_table@table	column_attribute/AUTO_INC	ALTER TABLE utf8mb4 ADD utf8mb4 INT AUTO_INCREMENT;
@@ -1038,7 +1038,7 @@ ok	3812	engine	one_table@column	opt_constraint_enforcement/constraint_enforcemen
 1060	1060	engine	one_table@column	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 1060	1060	engine	one_table@column	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
 1060	1060	engine	one_table@column	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
-1060	1067	engine	one_table@column	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
+1067	1067	engine	one_table@column	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 1060	1060	engine	one_table@column	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1294	1294	engine	one_table@column	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
 1060	1060	engine	one_table@column	column_attribute/AUTO_INC	ALTER TABLE utf8mb4 ADD utf8mb4 INT AUTO_INCREMENT;
@@ -1450,7 +1450,7 @@ ok	3812	engine	one_table@index	opt_constraint_enforcement/constraint_enforcement
 1060	1060	engine	one_table@index	column_attribute_list/column_attribute_list_column_attribute!truncate	ALTER TABLE utf8mb4 ADD utf8mb4 INT NULL
 1060	1060	engine	one_table@index	column_attribute/not_NULL_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT NULL;
 1060	1060	engine	one_table@index	column_attribute/not_SECONDARY_SYM	ALTER TABLE utf8mb4 ADD utf8mb4 INT NOT SECONDARY;
-1060	1067	engine	one_table@index	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
+1067	1067	engine	one_table@index	column_attribute/DEFAULT_SYM_now_or_signed_literal	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT CURRENT_TIMESTAMP;
 1060	1060	engine	one_table@index	column_attribute/DEFAULT_SYM_(_expr_)	ALTER TABLE utf8mb4 ADD utf8mb4 INT DEFAULT(utf8mb4);
 1294	1294	engine	one_table@index	column_attribute/ON_SYM_UPDATE_SYM_now	ALTER TABLE utf8mb4 ADD utf8mb4 INT ON UPDATE CURRENT_TIMESTAMP;
 1060	1060	engine	one_table@index	column_attribute/AUTO_INC	ALTER TABLE utf8mb4 ADD utf8mb4 INT AUTO_INCREMENT;
