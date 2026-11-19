@@ -1109,7 +1109,13 @@ func (p *Parser) isCreateTableConstraintStateStart() bool {
 //	)
 //
 // The opaque_format_spec is the access driver's, kept whole.
-func (p *Parser) parseCreateTableExternalData() error {
+//
+// An external table needs its column list before the clause: when
+// hasColumns is false, Oracle reads the access driver type and then refuses
+// the missing relational_properties with ORA-00906 at the table name
+// (nameLoc), before the rest of the clause. A clause that does not start
+// with TYPE is refused inside it, which is why the check follows TYPE.
+func (p *Parser) parseCreateTableExternalData(hasColumns bool, nameLoc nodes.Loc) error {
 	if err := p.expectCreateTableToken('('); err != nil {
 		return err
 	}
@@ -1117,6 +1123,9 @@ func (p *Parser) parseCreateTableExternalData() error {
 		p.advance() // consume TYPE
 		if err := p.parseCreateTableName(); err != nil {
 			return err
+		}
+		if !hasColumns {
+			return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: nameLoc.Start, End: nameLoc.End})
 		}
 	}
 	if p.cur.Type == kwDEFAULT {
@@ -1180,7 +1189,13 @@ func (p *Parser) parseCreateTableExternalData() error {
 			return err
 		}
 	}
-	return p.expectCreateTableToken(')')
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return err
+	}
+	if !hasColumns {
+		return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: nameLoc.Start, End: nameLoc.End})
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
