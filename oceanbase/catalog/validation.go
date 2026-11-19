@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oceanbase/ast"
@@ -81,6 +82,9 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 			return errPrimaryKeyOnGeneratedColumn(colDef.Name)
 		}
 	}
+	if strings.EqualFold(colDef.TypeName.Name, "serial") && hasColumnConstraint(colDef, nodes.ColConstrNull) {
+		return &Error{Code: 5252, SQLState: "HY000", Message: fmt.Sprintf("Column '%s' definition is ambiguous. Column has both NULL and NOT NULL attributes", colDef.Name)}
+	}
 	if hasExplicitNullPrimaryKey(colDef) {
 		return &Error{Code: 1171, SQLState: "42000", Message: "All parts of a PRIMARY KEY must be NOT NULL"}
 	}
@@ -117,6 +121,15 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 func columnDefHasPrimaryKey(colDef *nodes.ColumnDef) bool {
 	for _, cc := range colDef.Constraints {
 		if cc.Type == nodes.ColConstrPrimaryKey {
+			return true
+		}
+	}
+	return false
+}
+
+func hasColumnConstraint(colDef *nodes.ColumnDef, kind nodes.ColumnConstraintType) bool {
+	for _, cc := range colDef.Constraints {
+		if cc.Type == kind {
 			return true
 		}
 	}
