@@ -362,18 +362,26 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 	}
 
 	// Whatever the diff wrote for those relations is this function's, grants,
-	// comments and indexes included.
+	// comments and indexes included. An index op names the index, not the
+	// relation, so the indexes of each dependent are matched by OID.
 	owned := make(map[string]bool, len(dependents))
+	ownedIndexes := make(map[uint32]bool)
 	for _, rel := range dependents {
 		owned[rel.Schema.Name+"."+rel.Name] = true
+		for _, idx := range from.IndexesOf(rel.OID) {
+			ownedIndexes[idx.OID] = true
+		}
 	}
 	kept := ops[:0]
 	for _, op := range ops {
 		if owned[op.SchemaName+"."+op.ObjectName] {
 			switch op.Type {
-			case OpDropView, OpCreateView, OpAlterView, OpGrant, OpRevoke, OpComment, OpCreateIndex, OpDropIndex:
+			case OpDropView, OpCreateView, OpAlterView, OpGrant, OpRevoke, OpComment:
 				continue
 			}
+		}
+		if (op.Type == OpCreateIndex || op.Type == OpDropIndex) && ownedIndexes[op.ObjOID] {
+			continue
 		}
 		kept = append(kept, op)
 	}
@@ -399,8 +407,10 @@ func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, 
 
 	for _, rel := range dependents {
 		target := to.GetRelation(rel.Schema.Name, rel.Name)
-		if target == nil {
-			// The target drops it: this function's drop above is its whole story.
+		if target == nil || (target.RelKind != 'v' && target.RelKind != 'm') {
+			// The target drops it, or holds a table of that name now: this
+			// function's drop above is its whole story, and the table's own
+			// diff says the rest.
 			continue
 		}
 		extra = append(extra, buildRecreateRelationOps(to, target)...)
@@ -458,7 +468,11 @@ func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
 		Priority:      PriorityView,
 	}}
 
-	// A materialized view's indexes went with it too.
+	// The triggers a dropped view had, and a materialized view's indexes, went
+	// with it too.
+	for _, trig := range to.TriggersOf(rel.OID) {
+		ops = append(ops, buildCreateTriggerOp(to, rel.Schema.Name, rel.Name, trig))
+	}
 	if rel.RelKind == 'm' {
 		for _, idx := range to.IndexesOf(rel.OID) {
 			if idx.ConstraintOID != 0 {

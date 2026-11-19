@@ -595,3 +595,152 @@ CREATE VIEW v_read AS SELECT id, name FROM mv;`)
 		}
 	}
 }
+
+// TestMigrationMatViewReplaceKeepsTrigger pins the trigger a re-created
+// dependent view had: the drop takes it, and an unchanged one has no diff entry
+// to write it again.
+func TestMigrationMatViewReplaceKeepsTrigger(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;
+CREATE TABLE log (id int);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;
+CREATE TABLE log (id int);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An INSTEAD OF trigger on the view, registered in both catalogs.
+	for _, c := range []*Catalog{from, to} {
+		rel := c.GetRelation("", "v_read")
+		if rel == nil {
+			t.Fatal("v_read is missing")
+		}
+		trig := &Trigger{
+			OID:        c.oidGen.Next(),
+			Name:       "v_read_insert",
+			RelOID:     rel.OID,
+			Timing:     TriggerInsteadOf,
+			Events:     TriggerEventInsert,
+			ForEachRow: true,
+		}
+		c.triggers[trig.OID] = trig
+		c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	found := false
+	for _, op := range plan.Ops {
+		if strings.Contains(op.SQL, "CREATE TRIGGER") && strings.Contains(op.SQL, "v_read_insert") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("plan = %v, want the view's trigger created again", plan.Ops)
+	}
+}
+
+// TestMigrationMatViewReplaceSkipsDependentBecomeTable pins a dependent the
+// target holds as a table now: its table creation is the target's story, and no
+// view is synthesised beside it.
+func TestMigrationMatViewReplaceSkipsDependentBecomeTable(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE VIEW v_swap AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE TABLE v_swap (id int);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateView && strings.Contains(op.SQL, `"v_swap"`) {
+			t.Fatalf("the plan creates v_swap as a view though the target holds a table: %s", op.SQL)
+		}
+	}
+}
+
+// TestMigrationMatViewReplaceIndexesOncePerView pins the index a dependent
+// materialized view has when both it and the view it reads are replaced: the
+// index is created once, from the replacement chain, not twice.
+func TestMigrationMatViewReplaceIndexesOncePerView(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW base_mv BACKUP NO AS SELECT id FROM t;
+CREATE MATERIALIZED VIEW child_mv BACKUP NO AS SELECT id FROM base_mv;
+CREATE INDEX idx_child ON child_mv (id);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW base_mv BACKUP YES AS SELECT id FROM t;
+CREATE MATERIALIZED VIEW child_mv BACKUP YES AS SELECT id FROM base_mv;
+CREATE INDEX idx_child ON child_mv (id);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	creates := 0
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateIndex && strings.Contains(op.SQL, "idx_child") {
+			creates++
+		}
+	}
+	if creates != 1 {
+		t.Fatalf("CREATE INDEX idx_child appears %d times, want once", creates)
+	}
+}
+
+// TestFunctionDepsReachHierarchicalSubqueries pins a SQL function's dependency
+// on a table its hierarchical condition reads through a wrapped subquery.
+func TestFunctionDepsReachHierarchicalSubqueries(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int);
+CREATE FUNCTION f() RETURNS int AS $$ SELECT 1 FROM t CONNECT BY id > 0 AND EXISTS (SELECT 1 FROM sensitive) $$ LANGUAGE sql;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("create function: %v", err)
+		}
+	}
+	tbl := c.GetRelation("", "t")
+	if tbl == nil {
+		t.Fatal("table t is missing")
+	}
+	deps := c.findNormalDependents('r', tbl.OID)
+	if len(deps) == 0 {
+		t.Fatal("the function is no dependent of t")
+	}
+}
+
+// TestViewQuotedLowercaseLevelColumn pins a quoted "level" column: the
+// pseudocolumn is what an unresolved LEVEL becomes, so a table column of that
+// name is read as the column.
+func TestViewQuotedLowercaseLevelColumn(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int, parent_id int, "level" int);`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+	}
+	for _, stmt := range parseStmts(t, `CREATE VIEW v_lower_level AS SELECT "level" FROM t CONNECT BY PRIOR id = parent_id;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("create view: %v", err)
+		}
+	}
+	def, err := c.GetViewDefinition("", "v_lower_level")
+	if err != nil {
+		t.Fatalf("GetViewDefinition: %v", err)
+	}
+	// The column deparses as its own name; the pseudocolumn would be LEVEL.
+	if strings.Contains(def, "LEVEL") {
+		t.Fatalf("view definition = %q, want the column, not the pseudocolumn", def)
+	}
+}

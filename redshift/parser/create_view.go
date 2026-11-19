@@ -446,7 +446,7 @@ func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, a
 			options = appendNodeLists(options, attrs)
 			consumed = true
 		}
-		if p.redshiftWordEqual("auto") {
+		if p.redshiftKeywordIs("auto") {
 			p.advance()
 			if _, err := p.expect(REFRESH); err != nil {
 				return nil, err

@@ -1829,13 +1829,6 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 		return nil, errColumnReferenceInDefault()
 	}
 
-	// Redshift's hierarchical queries expose LEVEL as an integer pseudocolumn:
-	// the depth of the row in the hierarchy CONNECT BY builds. An unquoted name
-	// reaches here folded, so a quoted "LEVEL" is the column of that spelling.
-	if tableName == "" && ac.hierarchical && colName == "level" {
-		return &SQLValueFuncExpr{Op: SVFLevel, TypeOID: INT4OID}, nil
-	}
-
 	// pg: src/backend/commands/typecmds.c — replace_domain_constraint_value
 	// In domain CHECK constraints, "value" is replaced with CoerceToDomainValue.
 	if ac.domainConstraint && tableName == "" && strings.EqualFold(colName, "value") {
@@ -1846,7 +1839,18 @@ func (ac *analyzeCtx) transformColumnRef(cr *nodes.ColumnRef) (AnalyzedExpr, err
 		}, nil
 	}
 
-	return ac.resolveColumnRef(tableName, colName)
+	v, err := ac.resolveColumnRef(tableName, colName)
+	if err != nil && tableName == "" && ac.hierarchical && colName == "level" {
+		// Redshift's hierarchical queries expose LEVEL as an integer
+		// pseudocolumn — the depth of the row in the hierarchy CONNECT BY
+		// builds — when no column of that name resolves. A real column, quoted
+		// though it may be, is the column.
+		var catErr *Error
+		if errors.As(err, &catErr) && catErr.Code == CodeUndefinedColumn {
+			return &SQLValueFuncExpr{Op: SVFLevel, TypeOID: INT4OID}, nil
+		}
+	}
+	return v, err
 }
 
 // resolveColumnRef resolves a column name to a VarExpr.

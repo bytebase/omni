@@ -195,3 +195,28 @@ func TestRedshiftCreateMaterializedViewIcebergRejectsOtherTransforms(t *testing.
 		t.Errorf("Parse of bare column transforms: %v", err)
 	}
 }
+
+// TestRedshiftCreateMaterializedViewQuotedOptionWords pins the option leads to
+// the keywords: a quoted "auto" or "diststyle" is no clause.
+func TestRedshiftCreateMaterializedViewQuotedOptionWords(t *testing.T) {
+	for _, sql := range []string{
+		`CREATE MATERIALIZED VIEW m "auto" REFRESH YES AS SELECT 1`,
+		`CREATE MATERIALIZED VIEW m "diststyle" EVEN AS SELECT 1`,
+		`CREATE MATERIALIZED VIEW m "sortkey" (a) AS SELECT 1`,
+		`CREATE MATERIALIZED VIEW m BACKUP "yes" AS SELECT 1`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		"CREATE MATERIALIZED VIEW m AUTO REFRESH YES AS SELECT 1",
+		"CREATE MATERIALIZED VIEW m DISTSTYLE EVEN AS SELECT 1",
+		"CREATE MATERIALIZED VIEW m SORTKEY (a) AS SELECT 1",
+		"CREATE MATERIALIZED VIEW m BACKUP YES AS SELECT 1",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+}

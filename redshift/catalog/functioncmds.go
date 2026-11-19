@@ -769,6 +769,28 @@ func (c *Catalog) recordDepsFromNode(objType byte, objOID uint32, n nodes.Node) 
 		c.recordDepsFromNode(objType, objOID, v.Subquery)
 	case *nodes.SubLink:
 		c.recordDepsFromNode(objType, objOID, v.Subselect)
+	case *nodes.BoolExpr:
+		if v.Args != nil {
+			for _, arg := range v.Args.Items {
+				c.recordDepsFromNode(objType, objOID, arg)
+			}
+		}
+	case *nodes.A_Expr:
+		c.recordDepsFromNode(objType, objOID, v.Lexpr)
+		c.recordDepsFromNode(objType, objOID, v.Rexpr)
+	case *nodes.TypeCast:
+		c.recordDepsFromNode(objType, objOID, v.Arg)
+	case *nodes.CaseWhen:
+		c.recordDepsFromNode(objType, objOID, v.Expr)
+		c.recordDepsFromNode(objType, objOID, v.Result)
+	case *nodes.CaseExpr:
+		c.recordDepsFromNode(objType, objOID, v.Arg)
+		if v.Args != nil {
+			for _, arg := range v.Args.Items {
+				c.recordDepsFromNode(objType, objOID, arg)
+			}
+		}
+		c.recordDepsFromNode(objType, objOID, v.Defresult)
 	case *nodes.InsertStmt:
 		c.recordDepsFromNode(objType, objOID, v.Relation)
 		c.recordDepsFromNode(objType, objOID, v.SelectStmt)
