@@ -12723,11 +12723,11 @@ reject@37	reject@34	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID
 reject@18	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/TIME_ZONE_=_(STRING|LOCAL|DBTIMEZONE)!swap	ALTER SESSION SET TO = 's'
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-2	ALTER SESSION SET USE_PRIVATE_OUTLINES TRUE
-reject@40	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_PRIVATE_OUTLINES =
+accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_PRIVATE_OUTLINES =
 reject@49	reject@46	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_PRIVATE_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_PRIVATE_OUTLINES = TRUE zzz
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)	ALTER SESSION SET USE_STORED_OUTLINES = TRUE
 accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-2	ALTER SESSION SET USE_STORED_OUTLINES TRUE
-reject@39	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_STORED_OUTLINES =
+accept	accept	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!drop-3	ALTER SESSION SET USE_STORED_OUTLINES =
 reject@48	reject@45	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!insert	ALTER SESSION SET USE_STORED_OUTLINES = TRUE zzz
 accept	reject@18	engine	alterSession_alter_session_set_clause(ID_=_EXPR_(,_ID_=_EXPR)*|EDITION_=_I~ef6e689c)/USE_STORED_OUTLINES_=_(TRUE|FALSE|ID)!swap	ALTER SESSION SET USING = TRUE
 accept	reject@18	engine	alterSession_alter_session_set_clause(,_ID_=_EXPR)*/%empty	ALTER SESSION SET a = 1
@@ -13481,7 +13481,7 @@ accept	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alte
 reject@13	reject@13	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!drop-1	ALTER TABLE a(a NUMBER)
 reject@26	reject@26	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!drop-2	ALTER TABLE a ADD a NUMBER)
 reject@18	reject@18	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!drop-3	ALTER TABLE a ADD(NUMBER)
-reject@19	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!drop-4	ALTER TABLE a ADD(a)
+accept	accept	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!drop-4	ALTER TABLE a ADD(a)
 reject@26	reject@26	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!drop-5	ALTER TABLE a ADD(a NUMBER
 reject@28	reject@28	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!insert	ALTER TABLE a ADD(a NUMBER) zzz
 reject@14	reject@14	engine	alterTable_column_clauses(alterTable_add_column_clause|alterTa~8e01b512)/alterTable_add_column_clause!swap	ALTER TABLE a ADMIN(a NUMBER)
@@ -13573,7 +13573,7 @@ reject@26	reject@26	engine	alterTable_constraint_clauses(alterTable_out_of_line_
 reject@28	reject@28	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_constraint!insert	ALTER TABLE a ADD UNIQUE(a) zzz
 reject@23	reject@23	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_constraint!swap	ALTER TABLE a ADD UNITE(a)
 accept	accept	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint	ALTER TABLE a ADD REF(a) WITH ROWID
-reject@19	reject@21	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-1	ALTER TABLE a ADD(a) WITH ROWID
+reject@21	reject@21	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-1	ALTER TABLE a ADD(a) WITH ROWID
 reject@23	reject@23	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-2	ALTER TABLE a ADD REF a) WITH ROWID
 reject@22	reject@22	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-3	ALTER TABLE a ADD REF() WITH ROWID
 reject@34	reject@24	engine	alterTable_constraint_clauses(alterTable_out_of_line_constraint|al~40a10fc7)/alterTable_out_of_line_ref_constraint!drop-4	ALTER TABLE a ADD REF(a WITH ROWID
@@ -14354,7 +14354,7 @@ accept	accept	engine	alterTable_add_column_clause(,_(alterTable_column_definitio
 accept	reject@28	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71	ALTER TABLE a ADD(a NUMBER, a NUMBER)
 reject@27	reject@27	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!drop-1	ALTER TABLE a ADD(a NUMBER a NUMBER)
 reject@28	reject@28	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!drop-2	ALTER TABLE a ADD(a NUMBER, NUMBER)
-reject@29	reject@28	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!drop-3	ALTER TABLE a ADD(a NUMBER, a)
+reject@28	reject@28	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!drop-3	ALTER TABLE a ADD(a NUMBER, a)
 reject@29	accept	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!truncate	ALTER TABLE a ADD(a NUMBER, a
 reject@37	reject@28	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!insert	ALTER TABLE a ADD(a NUMBER, a NUMBER zzz)
 accept	reject@28	engine	alterTable_add_column_clause(,_(alterTable_column_definition|alte~139aa7ee)*/,_(alterTable_column_definition|alterTa~e292dc7c)_(,_(a~5c3cde71!swap	ALTER TABLE a ADD(a NUMBER, a OBJECT)
@@ -14491,9 +14491,9 @@ reject@28	reject@29	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/%em
 accept	accept	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a UNIQUE(a)
 reject@26	reject@27	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	ALTER TABLE a ADD a UNIQUE(a)
 reject@35	reject@29	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	ALTER TABLE a ADD CONSTRAINT UNIQUE(a)
-reject@28	accept	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	ALTER TABLE a ADD CONSTRAINT
+accept	accept	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	ALTER TABLE a ADD CONSTRAINT
 reject@31	reject@35	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	ALTER TABLE a ADD CONSTRAINT a zzz UNIQUE(a)
-reject@38	accept	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER TABLE a ADD CONSTRAINTS a UNIQUE(a)
+accept	accept	engine	alterTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER TABLE a ADD CONSTRAINTS a UNIQUE(a)
 accept	accept	engine	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/UNIQUE_(_ID_(,_ID)*_)	ALTER TABLE a ADD UNIQUE(a)
 accept	accept	engine	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER TABLE a ADD PRIMARY KEY(a)
 reject@21	reject@21	engine	alterTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!drop-1	ALTER TABLE a ADD KEY(a)
@@ -14580,7 +14580,7 @@ accept	accept	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONST
 reject@28	reject@28	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	ALTER TABLE a ADD a FOREIGN KEY(a) REFERENCES a
 reject@37	reject@40	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a
 reject@31	reject@43	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	ALTER TABLE a ADD CONSTRAINT a zzz FOREIGN KEY(a) REFERENCES a
-reject@32	accept	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER TABLE a ADD CONSTRAINTS a FOREIGN KEY(a) REFERENCES a
+accept	accept	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER TABLE a ADD CONSTRAINTS a FOREIGN KEY(a) REFERENCES a
 accept	accept	engine	alterTable_out_of_line_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/%empty	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 accept	accept	engine	alterTable_out_of_line_ref_constraint(ON_DELETE_(CASCADE|SET_NULL))?/ON_DELETE_(CASCADE|SET_NULL)	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
 accept	accept	engine	alterTable_out_of_line_ref_constraint(CASCADE|SET_NULL)/CASCADE	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a ON DELETE CASCADE
@@ -21031,7 +21031,7 @@ reject@17	reject@17	engine	alterView_out_of_line_constraint(CONSTRAINT_ID)?/CONS
 reject@34	reject@28	engine	alterView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	ALTER VIEW a ADD CONSTRAINT UNIQUE(a)
 reject@27	reject@27	engine	alterView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	ALTER VIEW a ADD CONSTRAINT
 reject@30	reject@30	engine	alterView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	ALTER VIEW a ADD CONSTRAINT a zzz UNIQUE(a)
-reject@17	reject@40	engine	alterView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER VIEW a ADD CONSTRAINTS a UNIQUE(a)
+reject@40	reject@40	engine	alterView_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER VIEW a ADD CONSTRAINTS a UNIQUE(a)
 reject@26	reject@26	engine	alterView_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/UNIQUE_(_ID_(,_ID)*_)	ALTER VIEW a ADD UNIQUE(a)
 reject@31	reject@31	engine	alterView_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	ALTER VIEW a ADD PRIMARY KEY(a)
 reject@17	reject@17	engine	alterView_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!drop-1	ALTER VIEW a ADD KEY(a)
@@ -25991,7 +25991,7 @@ accept	accept	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)
 reject@79	reject@79	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/%empty!insert	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a zzz)
 accept	accept	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a, a)
 reject@79	reject@79	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a a)
-reject@79	accept	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
+accept	accept	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 reject@79	reject@79	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!truncate	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,
 reject@82	reject@82	engine	createMaterializedViewLog_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!insert	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a, a zzz)
 accept	accept	engine	createMaterializedViewLog_subpartition_by_range/SUBPARTITION_BY_RANGE_(_ID_(,_ID)*_)_(createMaterialize~0f530894	CREATE MATERIALIZED VIEW LOG ON a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1
@@ -27487,12 +27487,12 @@ reject@48	reject@48	engine	createMaterializedView_column_properties(createMateri
 reject@51	reject@51	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/(createMaterializedView_varray_col_pr~f547f39c)_((_crea~85315171!insert	CREATE MATERIALIZED VIEW a VARRAY a STORE AS LOB a zzz AS SELECT 1 FROM dual
 reject@27	reject@27	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/(createMaterializedView_varray_col_pr~f547f39c)_((_crea~85315171!swap	CREATE MATERIALIZED VIEW a VARRAYS a STORE AS LOB a AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_xmltype_column_properties	CREATE MATERIALIZED VIEW a XMLTYPE a AS SELECT 1 FROM dual
-reject@44	accept	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause	CREATE MATERIALIZED VIEW a JSON(a) STORE AS AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause	CREATE MATERIALIZED VIEW a JSON(a) STORE AS AS SELECT 1 FROM dual
 reject@30	reject@30	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-1	CREATE MATERIALIZED VIEW a(a) STORE AS AS SELECT 1 FROM dual
 reject@33	reject@32	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-2	CREATE MATERIALIZED VIEW a JSON a) STORE AS AS SELECT 1 FROM dual
 reject@32	reject@32	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-3	CREATE MATERIALIZED VIEW a JSON() STORE AS AS SELECT 1 FROM dual
 reject@64	reject@34	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-4	CREATE MATERIALIZED VIEW a JSON(a STORE AS AS SELECT 1 FROM dual
-reject@35	accept	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-5	CREATE MATERIALIZED VIEW a JSON(a) AS AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-5	CREATE MATERIALIZED VIEW a JSON(a) AS AS SELECT 1 FROM dual
 reject@44	reject@44	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!drop-6	CREATE MATERIALIZED VIEW a JSON(a) STORE AS SELECT 1 FROM dual
 reject@40	reject@40	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!truncate	CREATE MATERIALIZED VIEW a JSON(a) STORE
 accept	accept	engine	createMaterializedView_column_properties(createMaterializedView_object_type_c~01de1145)/createMaterializedView_json_storage_clause!insert	CREATE MATERIALIZED VIEW a JSON(a) STORE AS zzz AS SELECT 1 FROM dual
@@ -27974,7 +27974,7 @@ reject@45	reject@45	engine	createMaterializedView_xmltype_column_properties(crea
 reject@44	reject@44	engine	createMaterializedView_xmltype_column_properties(createMaterializedView_xmlschema_spec)?/createMaterializedView_xmlschema_spec!truncate	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT
 reject@47	reject@47	engine	createMaterializedView_xmltype_column_properties(createMaterializedView_xmlschema_spec)?/createMaterializedView_xmlschema_spec!insert	CREATE MATERIALIZED VIEW a XMLTYPE a ELEMENT a zzz AS SELECT 1 FROM dual
 reject@37	reject@37	engine	createMaterializedView_xmltype_column_properties(createMaterializedView_xmlschema_spec)?/createMaterializedView_xmlschema_spec!swap	CREATE MATERIALIZED VIEW a XMLTYPE a ELSE a AS SELECT 1 FROM dual
-reject@44	accept	engine	createMaterializedView_json_storage_clause/JSON_(_ID_)_STORE_AS	CREATE MATERIALIZED VIEW a JSON(a) STORE AS AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_json_storage_clause/JSON_(_ID_)_STORE_AS	CREATE MATERIALIZED VIEW a JSON(a) STORE AS AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_range_partitions/PARTITION_BY_RANGE_(_ID_(,_ID)*_)_(INTERVAL_(_EXPR_)_(S~0bce5561	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_range_partitions(,_ID)*/%empty	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@48	reject@48	engine	createMaterializedView_range_partitions(,_ID)*/%empty!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a zzz)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
@@ -27994,14 +27994,14 @@ reject@59	reject@59	engine	createMaterializedView_range_partitions(INTERVAL_(_EX
 reject@61	reject@61	engine	createMaterializedView_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) zzz(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@49	reject@49	engine	createMaterializedView_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!swap	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTO(1)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	accept	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@61	reject@61	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) IN(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	reject@66	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+reject@66	reject@66	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@71	reject@70	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	reject@70	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN()(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+reject@70	reject@70	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN()(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@124	reject@71	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@71	reject@71	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!truncate	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a
-reject@61	reject@73	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+reject@73	reject@73	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@61	reject@61	engine	createMaterializedView_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STRICT IN(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_range_partitions(ID)?/%empty	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_range_partitions(ID)?/%empty!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a)(PARTITION zzz VALUES LESS THAN(1)) AS SELECT 1 FROM dual
@@ -28101,13 +28101,13 @@ reject@137	reject@60	engine	createMaterializedView_composite_range_partitions(IN
 reject@61	reject@61	engine	createMaterializedView_composite_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) zzz SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@49	reject@49	engine	createMaterializedView_composite_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!swap	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTO(1) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/%empty	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	accept	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@61	reject@61	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	reject@66	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+reject@66	reject@66	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@71	reject@70	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	reject@70	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN() SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+reject@70	reject@70	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN() SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@149	reject@72	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
-reject@61	reject@73	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
+reject@73	reject@73	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@61	reject@61	engine	createMaterializedView_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) INTERVAL(1) STRICT IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_composite_range_partitions(createMaterializedView_subpartition_~e7bcc38c)/createMaterializedView_subpartition_by_range	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1)) AS SELECT 1 FROM dual
 reject@72	reject@72	engine	createMaterializedView_composite_range_partitions(createMaterializedView_subpartition_~e7bcc38c)/createMaterializedView_subpartition_by_range!truncate	CREATE MATERIALIZED VIEW a PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a
@@ -28865,7 +28865,7 @@ accept	accept	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/%
 reject@72	reject@72	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/%empty!insert	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a zzz) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a, a) AS SELECT 1 FROM dual
 reject@72	reject@72	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a a) AS SELECT 1 FROM dual
-reject@72	accept	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
+accept	accept	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,) AS SELECT 1 FROM dual
 reject@72	reject@72	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!truncate	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,
 reject@75	reject@75	engine	createMaterializedView_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!insert	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a, a zzz) AS SELECT 1 FROM dual
 accept	accept	engine	createMaterializedView_subpartition_by_range/SUBPARTITION_BY_RANGE_(_ID_(,_ID)*_)_(createMaterialize~418030eb	CREATE MATERIALIZED VIEW a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 AS SELECT 1 FROM dual
@@ -32485,7 +32485,7 @@ reject@23	reject@23	engine	createTable_out_of_line_constraint(CONSTRAINT_ID)?/CO
 reject@32	reject@26	engine	createTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(CONSTRAINT UNIQUE(a))
 reject@25	reject@25	engine	createTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!truncate	CREATE TABLE a(CONSTRAINT
 reject@28	reject@32	engine	createTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(CONSTRAINT a zzz UNIQUE(a))
-reject@35	reject@38	engine	createTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(CONSTRAINTS a UNIQUE(a))
+reject@38	reject@38	engine	createTable_out_of_line_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(CONSTRAINTS a UNIQUE(a))
 reject@24	reject@24	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/UNIQUE_(_ID_(,_ID)*_)	CREATE TABLE a(UNIQUE(a))
 reject@29	reject@29	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)	CREATE TABLE a(PRIMARY KEY(a))
 reject@18	reject@18	engine	createTable_out_of_line_constraint(UNIQUE_(_ID_(,_ID)*_)|PRIMARY_KEY_(_~3b89409e)/PRIMARY_KEY_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a(KEY(a))
@@ -32581,7 +32581,7 @@ reject@55	reject@55	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)
 reject@17	reject@25	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	CREATE TABLE a(a FOREIGN KEY(a) REFERENCES a)
 reject@34	reject@37	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	CREATE TABLE a(CONSTRAINT FOREIGN KEY(a) REFERENCES a)
 reject@28	reject@40	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	CREATE TABLE a(CONSTRAINT a zzz FOREIGN KEY(a) REFERENCES a)
-reject@29	reject@56	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(CONSTRAINTS a FOREIGN KEY(a) REFERENCES a)
+reject@56	reject@56	engine	createTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	CREATE TABLE a(CONSTRAINTS a FOREIGN KEY(a) REFERENCES a)
 reject@42	reject@42	engine	createTable_out_of_line_ref_constraint((_ID_(,_ID)*_))?/%empty	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a)
 reject@45	reject@45	engine	createTable_out_of_line_ref_constraint((_ID_(,_ID)*_))?/(_ID_(,_ID)*_)	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
 reject@45	reject@45	engine	createTable_out_of_line_ref_constraint(,_ID)*/%empty	CREATE TABLE a(FOREIGN KEY(a) REFERENCES a(a))
@@ -33042,7 +33042,7 @@ reject@61	reject@61	engine	createTable_table_partitioning_clauses(createTable_ra
 reject@71	reject@71	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_composite_hash_partitions!drop-14	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS
 reject@74	reject@74	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_composite_hash_partitions!insert	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1 zzz
 reject@15	reject@15	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_composite_hash_partitions!swap	CREATE TABLE a PARTITIONING BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1
-reject@38	accept	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_reference_partitioning	CREATE TABLE a PARTITION BY REFERENCE(a)
+accept	accept	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_reference_partitioning	CREATE TABLE a PARTITION BY REFERENCE(a)
 reject@15	reject@15	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_reference_partitioning!drop-1	CREATE TABLE a BY REFERENCE(a)
 reject@25	reject@25	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_reference_partitioning!drop-2	CREATE TABLE a PARTITION REFERENCE(a)
 reject@27	reject@27	engine	createTable_table_partitioning_clauses(createTable_range_partitions|createT~90f0a052)/createTable_reference_partitioning!drop-3	CREATE TABLE a PARTITION BY(a)
@@ -33971,14 +33971,14 @@ reject@47	reject@47	engine	createTable_range_partitions(INTERVAL_(_EXPR_)_(STORE
 reject@49	reject@49	engine	createTable_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!insert	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) zzz(PARTITION VALUES LESS THAN(1))
 reject@37	reject@37	engine	createTable_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!swap	CREATE TABLE a PARTITION BY RANGE(a) INTO(1)(PARTITION VALUES LESS THAN(1))
 reject@15	reject@15	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/%empty	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@15	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a)(PARTITION VALUES LESS THAN(1))
+reject@15	reject@15	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a)(PARTITION VALUES LESS THAN(1))
 reject@49	reject@49	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) IN(a)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@54	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE(a)(PARTITION VALUES LESS THAN(1))
+reject@54	reject@54	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE(a)(PARTITION VALUES LESS THAN(1))
 reject@59	reject@58	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN a)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@58	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN()(PARTITION VALUES LESS THAN(1))
+reject@58	reject@58	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN()(PARTITION VALUES LESS THAN(1))
 reject@90	reject@59	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a(PARTITION VALUES LESS THAN(1))
 reject@59	reject@59	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!truncate	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a
-reject@49	reject@61	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz(PARTITION VALUES LESS THAN(1))
+reject@61	reject@61	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz(PARTITION VALUES LESS THAN(1))
 reject@49	reject@49	engine	createTable_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STRICT IN(a)(PARTITION VALUES LESS THAN(1))
 reject@15	reject@15	engine	createTable_range_partitions(ID)?/%empty	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@15	reject@15	engine	createTable_range_partitions(ID)?/%empty!insert	CREATE TABLE a PARTITION BY RANGE(a)(PARTITION zzz VALUES LESS THAN(1))
@@ -34077,13 +34077,13 @@ reject@103	reject@48	engine	createTable_composite_range_partitions(INTERVAL_(_EX
 reject@49	reject@49	engine	createTable_composite_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!insert	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) zzz SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@37	reject@37	engine	createTable_composite_range_partitions(INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?)?/INTERVAL_(_EXPR_)_(STORE_IN_(_ID_(,_ID)*_))?!swap	CREATE TABLE a PARTITION BY RANGE(a) INTO(1) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@15	reject@15	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/%empty	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@15	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
+reject@15	reject@15	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@49	reject@49	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@54	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
+reject@54	reject@54	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@59	reject@58	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@58	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN() SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
+reject@58	reject@58	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN() SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@115	reject@60	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
-reject@49	reject@61	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
+reject@61	reject@61	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a) zzz SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@49	reject@49	engine	createTable_composite_range_partitions(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	CREATE TABLE a PARTITION BY RANGE(a) INTERVAL(1) STRICT IN(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@15	reject@15	engine	createTable_composite_range_partitions(createTable_subpartition_by_range|cr~3280c885)/createTable_subpartition_by_range	CREATE TABLE a PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a)(PARTITION VALUES LESS THAN(1))
 reject@60	reject@60	engine	createTable_composite_range_partitions(createTable_subpartition_by_range|cr~3280c885)/createTable_subpartition_by_range!truncate	CREATE TABLE a PARTITION BY RANGE(a) SUBPARTITION BY RANGE(a
@@ -34269,8 +34269,8 @@ reject@72	reject@72	engine	createTable_composite_hash_partitions(createTable_ind
 reject@61	reject@61	engine	createTable_composite_hash_partitions(createTable_individual_hash_partitio~b3f7b654)/createTable_individual_hash_partitions!swap	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a)(PARTITIONING)
 reject@15	reject@15	engine	createTable_composite_hash_partitions(createTable_individual_hash_partitio~b3f7b654)/createTable_hash_partitions_by_quantity	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONS 1
 reject@61	reject@61	engine	createTable_composite_hash_partitions(createTable_individual_hash_partitio~b3f7b654)/createTable_hash_partitions_by_quantity!swap	CREATE TABLE a PARTITION BY HASH(a) SUBPARTITION BY RANGE(a) PARTITIONSET 1
-reject@38	accept	engine	createTable_reference_partitioning/PARTITION_BY_REFERENCE_(_ID_)_((_PARTITION_ID?_createTa~83246171	CREATE TABLE a PARTITION BY REFERENCE(a)
-reject@38	accept	engine	createTable_reference_partitioning((_PARTITION_ID?_createTable_table_pa~23401108)?/%empty	CREATE TABLE a PARTITION BY REFERENCE(a)
+accept	accept	engine	createTable_reference_partitioning/PARTITION_BY_REFERENCE_(_ID_)_((_PARTITION_ID?_createTa~83246171	CREATE TABLE a PARTITION BY REFERENCE(a)
+accept	accept	engine	createTable_reference_partitioning((_PARTITION_ID?_createTable_table_pa~23401108)?/%empty	CREATE TABLE a PARTITION BY REFERENCE(a)
 reject@38	reject@38	engine	createTable_reference_partitioning((_PARTITION_ID?_createTable_table_pa~23401108)?/(_PARTITION_(ID)?_(createTable_table_partition_descript~b105a962	CREATE TABLE a PARTITION BY REFERENCE(a)(PARTITION)
 reject@50	reject@38	engine	createTable_reference_partitioning((_PARTITION_ID?_createTable_table_pa~23401108)?/(_PARTITION_(ID)?_(createTable_table_partition_descript~b105a962!drop-1	CREATE TABLE a PARTITION BY REFERENCE(a) PARTITION)
 reject@38	reject@38	engine	createTable_reference_partitioning((_PARTITION_ID?_createTable_table_pa~23401108)?/(_PARTITION_(ID)?_(createTable_table_partition_descript~b105a962!drop-2	CREATE TABLE a PARTITION BY REFERENCE(a)()
@@ -35018,7 +35018,7 @@ reject@15	reject@15	engine	createTable_hash_partitions_by_quantity(,_ID)*/%empty
 reject@60	reject@60	engine	createTable_hash_partitions_by_quantity(,_ID)*/%empty!insert	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a zzz)
 reject@15	reject@15	engine	createTable_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a, a)
 reject@60	reject@60	engine	createTable_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-1	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a a)
-reject@60	reject@15	engine	createTable_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
+reject@15	reject@15	engine	createTable_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,)
 reject@60	reject@60	engine	createTable_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!truncate	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a,
 reject@63	reject@63	engine	createTable_hash_partitions_by_quantity(,_ID)*/,_ID_(,_ID)*!insert	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1 STORE IN(a, a zzz)
 reject@15	reject@15	engine	createTable_hash_partitions_by_quantity(createTable_table_compression|create~acf5ea29)?/%empty	CREATE TABLE a PARTITION BY HASH(a) PARTITIONS 1
@@ -38145,7 +38145,7 @@ reject@26	reject@26	engine	delete_inner_cross_join_clause(INNER?_JOIN_delete_tab
 accept	accept	engine	delete_inner_cross_join_clause(INNER)?/%empty	DELETE a FROM a NATURAL JOIN a
 reject@24	reject@24	engine	delete_inner_cross_join_clause(INNER)?/%empty!insert	DELETE a FROM a NATURAL zzz JOIN a
 accept	accept	engine	delete_inner_cross_join_clause(INNER)?/INNER	DELETE a FROM a NATURAL INNER JOIN a
-reject@23	accept	engine	delete_inner_cross_join_clause(INNER)?/INNER!truncate	DELETE a FROM a NATURAL
+accept	accept	engine	delete_inner_cross_join_clause(INNER)?/INNER!truncate	DELETE a FROM a NATURAL
 reject@30	reject@30	engine	delete_inner_cross_join_clause(INNER)?/INNER!insert	DELETE a FROM a NATURAL INNER zzz JOIN a
 reject@24	reject@24	engine	delete_inner_cross_join_clause(INNER)?/INNER!swap	DELETE a FROM a NATURAL INSERT JOIN a
 accept	accept	engine	delete_inner_cross_join_clause(ON_CONDITION|USING_(_ID_(,_ID)*_))/ON_CONDITION	DELETE a FROM a JOIN a ON 1 = 1
@@ -39658,10 +39658,10 @@ reject@22	reject@22	engine	dropMaterializedView(ID_.)?/ID_.!drop-1	DROP MATERIAL
 reject@25	reject@25	engine	dropMaterializedView(ID_.)?/ID_.!drop-2	DROP MATERIALIZED VIEW a a
 reject@29	reject@0	engine	dropMaterializedView(ID_.)?/ID_.!insert	DROP MATERIALIZED VIEW a.zzz a
 accept	accept	engine	dropMaterializedView(PRESERVE_TABLE)?/%empty	DROP MATERIALIZED VIEW a
-reject@25	accept	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE	DROP MATERIALIZED VIEW a PRESERVE TABLE
+accept	accept	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE	DROP MATERIALIZED VIEW a PRESERVE TABLE
 reject@25	reject@25	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE!drop-1	DROP MATERIALIZED VIEW a TABLE
-reject@25	reject@33	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE!drop-2	DROP MATERIALIZED VIEW a PRESERVE
-reject@25	reject@40	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE!insert	DROP MATERIALIZED VIEW a PRESERVE TABLE zzz
+reject@33	reject@33	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE!drop-2	DROP MATERIALIZED VIEW a PRESERVE
+reject@40	reject@40	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE!insert	DROP MATERIALIZED VIEW a PRESERVE TABLE zzz
 reject@25	reject@25	engine	dropMaterializedView(PRESERVE_TABLE)?/PRESERVE_TABLE!swap	DROP MATERIALIZED VIEW a PRIMARY TABLE
 accept	accept	engine	dropMaterializedZonemap/DROP_MATERIALIZED_ZONEMAP_(IF_EXISTS)?_(ID_.)?_ID	DROP MATERIALIZED ZONEMAP a
 accept	accept	engine	dropMaterializedZonemap(IF_EXISTS)?/%empty	DROP MATERIALIZED ZONEMAP a
@@ -39756,13 +39756,13 @@ reject@23	reject@23	engine	dropProfile(CASCADE)?/CASCADE!insert	DROP PROFILE a C
 reject@15	reject@15	engine	dropProfile(CASCADE)?/CASCADE!swap	DROP PROFILE a CASE
 accept	accept	engine	dropRestorePoint/DROP_RESTORE_POINT_ID_(FOR_PLUGGABLE_DATABASE_ID)?	DROP RESTORE POINT a
 accept	accept	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/%empty	DROP RESTORE POINT a
-reject@21	accept	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID	DROP RESTORE POINT a FOR PLUGGABLE DATABASE a
+accept	accept	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID	DROP RESTORE POINT a FOR PLUGGABLE DATABASE a
 reject@21	reject@21	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-1	DROP RESTORE POINT a PLUGGABLE DATABASE a
-reject@21	reject@25	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-2	DROP RESTORE POINT a FOR DATABASE a
-reject@21	reject@35	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-3	DROP RESTORE POINT a FOR PLUGGABLE a
-reject@21	reject@43	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-4	DROP RESTORE POINT a FOR PLUGGABLE DATABASE
-reject@21	reject@46	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!insert	DROP RESTORE POINT a FOR PLUGGABLE DATABASE a zzz
-reject@27	reject@21	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!swap	DROP RESTORE POINT a FORCE PLUGGABLE DATABASE a
+reject@25	reject@25	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-2	DROP RESTORE POINT a FOR DATABASE a
+reject@35	reject@35	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-3	DROP RESTORE POINT a FOR PLUGGABLE a
+reject@43	reject@43	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!drop-4	DROP RESTORE POINT a FOR PLUGGABLE DATABASE
+reject@46	reject@46	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!insert	DROP RESTORE POINT a FOR PLUGGABLE DATABASE a zzz
+reject@21	reject@21	engine	dropRestorePoint(FOR_PLUGGABLE_DATABASE_ID)?/FOR_PLUGGABLE_DATABASE_ID!swap	DROP RESTORE POINT a FORCE PLUGGABLE DATABASE a
 accept	accept	engine	dropRole/DROP_ROLE_ID	DROP ROLE a
 accept	accept	engine	dropRollbackSegment/DROP_ROLLBACK_SEGMENT_ID	DROP ROLLBACK SEGMENT a
 accept	accept	engine	dropSequence/DROP_SEQUENCE_(IF_EXISTS)?_(ID_.)?_ID	DROP SEQUENCE a
@@ -41103,10 +41103,10 @@ reject@11	reject@11	engine	purge(ID_.)?/ID_.!drop-1	PURGE TABLE.a
 reject@14	reject@14	engine	purge(ID_.)?/ID_.!drop-2	PURGE TABLE a a
 reject@18	reject@18	engine	purge(ID_.)?/ID_.!insert	PURGE TABLE a.zzz a
 accept	accept	engine	purge(USER_ID)?/%empty	PURGE TABLESPACE a
-reject@19	accept	engine	purge(USER_ID)?/USER_ID	PURGE TABLESPACE a USER a
+accept	accept	engine	purge(USER_ID)?/USER_ID	PURGE TABLESPACE a USER a
 reject@19	reject@19	engine	purge(USER_ID)?/USER_ID!drop-1	PURGE TABLESPACE a a
-reject@19	reject@23	engine	purge(USER_ID)?/USER_ID!drop-2	PURGE TABLESPACE a USER
-reject@19	reject@26	engine	purge(USER_ID)?/USER_ID!insert	PURGE TABLESPACE a USER a zzz
+reject@23	reject@23	engine	purge(USER_ID)?/USER_ID!drop-2	PURGE TABLESPACE a USER
+reject@26	reject@26	engine	purge(USER_ID)?/USER_ID!insert	PURGE TABLESPACE a USER a zzz
 reject@19	reject@19	engine	purge(USER_ID)?/USER_ID!swap	PURGE TABLESPACE a USERGROUP a
 accept	accept	engine	rename/RENAME_ID_TO_ID	RENAME a TO a
 reject@7	reject@7	engine	revoke/REVOKE_(revoke_revoke_system_privileges|revo~a1911384)_~11445325	REVOKE REVOKE a FROM a
@@ -42143,7 +42143,7 @@ reject@26	reject@26	engine	select_inner_cross_join_clause(INNER?_JOIN_select_tab
 accept	accept	engine	select_inner_cross_join_clause(INNER)?/%empty	SELECT * FROM a NATURAL JOIN a
 reject@24	reject@24	engine	select_inner_cross_join_clause(INNER)?/%empty!insert	SELECT * FROM a NATURAL zzz JOIN a
 accept	accept	engine	select_inner_cross_join_clause(INNER)?/INNER	SELECT * FROM a NATURAL INNER JOIN a
-reject@23	accept	engine	select_inner_cross_join_clause(INNER)?/INNER!truncate	SELECT * FROM a NATURAL
+accept	accept	engine	select_inner_cross_join_clause(INNER)?/INNER!truncate	SELECT * FROM a NATURAL
 reject@30	reject@30	engine	select_inner_cross_join_clause(INNER)?/INNER!insert	SELECT * FROM a NATURAL INNER zzz JOIN a
 reject@24	reject@24	engine	select_inner_cross_join_clause(INNER)?/INNER!swap	SELECT * FROM a NATURAL INSERT JOIN a
 accept	accept	engine	select_inner_cross_join_clause(ON_CONDITION|USING_(_ID_(,_ID)*_))/ON_CONDITION	SELECT * FROM a JOIN a ON 1 = 1
@@ -44230,7 +44230,7 @@ reject@36	reject@36	engine	update_inner_cross_join_clause(INNER?_JOIN_update_tab
 accept	accept	engine	update_inner_cross_join_clause(INNER)?/%empty	UPDATE a SET a = 1 FROM a NATURAL JOIN a
 reject@34	reject@34	engine	update_inner_cross_join_clause(INNER)?/%empty!insert	UPDATE a SET a = 1 FROM a NATURAL zzz JOIN a
 accept	accept	engine	update_inner_cross_join_clause(INNER)?/INNER	UPDATE a SET a = 1 FROM a NATURAL INNER JOIN a
-reject@33	accept	engine	update_inner_cross_join_clause(INNER)?/INNER!truncate	UPDATE a SET a = 1 FROM a NATURAL
+accept	accept	engine	update_inner_cross_join_clause(INNER)?/INNER!truncate	UPDATE a SET a = 1 FROM a NATURAL
 reject@40	reject@40	engine	update_inner_cross_join_clause(INNER)?/INNER!insert	UPDATE a SET a = 1 FROM a NATURAL INNER zzz JOIN a
 reject@34	reject@34	engine	update_inner_cross_join_clause(INNER)?/INNER!swap	UPDATE a SET a = 1 FROM a NATURAL INSERT JOIN a
 accept	accept	engine	update_inner_cross_join_clause(ON_CONDITION|USING_(_ID_(,_ID)*_))/ON_CONDITION	UPDATE a SET a = 1 FROM a JOIN a ON 1 = 1
@@ -45569,7 +45569,7 @@ reject@43	reject@38	engine	createVectorIndex(,_ID)*/,_ID_(,_ID)*!insert	CREATE V
 reject@29	reject@29	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/%empty	CREATE VECTOR INDEX a ON a(a)
 accept	accept	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause	CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS
 reject@30	reject@30	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause!drop-1	CREATE VECTOR INDEX a ON a(a) NEIGHBOR PARTITIONS
-reject@43	accept	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause!drop-2	CREATE VECTOR INDEX a ON a(a) ORGANIZATION PARTITIONS
+accept	accept	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause!drop-2	CREATE VECTOR INDEX a ON a(a) ORGANIZATION PARTITIONS
 reject@51	reject@51	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause!drop-3	CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR
 reject@63	reject@63	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause!insert	CREATE VECTOR INDEX a ON a(a) ORGANIZATION NEIGHBOR PARTITIONS zzz
 reject@30	reject@30	engine	createVectorIndex(createVectorIndex_vector_index_organ~bb3789c6)?/createVectorIndex_vector_index_organization_clause!swap	CREATE VECTOR INDEX a ON a(a) OTHERS NEIGHBOR PARTITIONS
@@ -46469,7 +46469,7 @@ reject@43	reject@43	engine	suite:manifest	CREATE TABLE compat_bad_comma_R1 (a NU
 reject@48	reject@48	engine	suite:manifest	CREATE TABLE compat_bad_check_R1 (a NUMBER CHECK)
 reject@51	reject@51	engine	suite:manifest	CREATE TABLE compat_bad_ref_R1 (a NUMBER REFERENCES)
 reject@80	reject@80	engine	suite:manifest	CREATE TABLE compat_bad_pk_R1 (a NUMBER, CONSTRAINT compat_bad_pk_R1 PRIMARY KEY)
-reject@28	accept	engine	suite:manifest	ALTER TABLE t ADD CONSTRAINT
+accept	accept	engine	suite:manifest	ALTER TABLE t ADD CONSTRAINT
 reject@25	reject@25	engine	suite:manifest	ALTER TABLE t DROP COLUMN
 reject@20	reject@20	engine	suite:manifest	ALTER TABLE t MODIFY
 reject@14	reject@14	engine	suite:manifest	ALTER SEQUENCE

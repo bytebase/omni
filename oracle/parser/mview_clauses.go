@@ -650,30 +650,70 @@ func (p *Parser) isMviewXmlschemaSpecStart() bool {
 
 // parseMviewJSONStorage reads a JSON_storage_clause.
 //
-//	JSON ( json_column [, json_column ] ... ) STORE AS
-//	    { LOB_segname [ ( JSON_parameters ) ] | ( JSON_parameters ) }
+//	JSON ( json_column [, json_column ] ... ) [ STORE ] AS
+//	    [ LOB_segname [ ( JSON_parameters ) ] | ( JSON_parameters ) ]
 //
 // JSON_parameters are the LOB_storage_parameters of a SECUREFILE LOB.
+// Oracle takes STORE and what follows AS as optional, the page's
+// json_storage_clause with its parameters left out: JSON (b) STORE AS
+// followed by the view's own AS SELECT parses on the pinned server
+// (ORA-00904 at the column it resolves), as JSON (b) AS AS SELECT does.
+// One AS alone is the clause's, and leaves the view without its own
+// (ORA-00906 at what follows).
 func (p *Parser) parseMviewJSONStorage() error {
 	p.advance() // consume JSON
 	if err := p.parseCreateTableColumnNames(); err != nil {
 		return err
 	}
-	if err := p.expectCreateTableWord("STORE"); err != nil {
-		return err
+	if p.isKeywordStr("STORE") {
+		p.advance()
 	}
 	if err := p.expectCreateTableToken(kwAS); err != nil {
 		return err
 	}
-	if p.cur.Type != '(' {
+	if p.cur.Type == '(' {
+		return p.parseCreateTableLobStorageParameters()
+	}
+	// A name here stands before the clause's parameters, before a
+	// materialized view clause that follows, or before the view's own AS.
+	// A word followed by anything else opens a clause that Oracle refuses
+	// there: JSON (b) AS BUILD IMMEDIATE AS SELECT ... answers ORA-02000 at
+	// the AS before the query, AS REFRESH FAST ORA-02000 at 48, AS USING
+	// INDEX ORA-02461 at 46, where AS seg CACHE AS SELECT, AS seg BUILD
+	// IMMEDIATE AS SELECT and AS BUILD AS SELECT name the segment (ORA-00904
+	// at the column they resolve).
+	if p.isCreateTableNameStart() {
+		if next := p.peekNext(); next.Type != '(' && next.Type != kwAS && !p.isMviewClauseStart(next) {
+			return p.syntaxErrorAtCur()
+		}
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
-		if p.cur.Type != '(' {
-			return nil
+		if p.cur.Type == '(' {
+			return p.parseCreateTableLobStorageParameters()
 		}
 	}
-	return p.parseCreateTableLobStorageParameters()
+	return nil
+}
+
+// isMviewClauseStart reports whether a clause of CREATE MATERIALIZED VIEW
+// starts at tok: what parseMviewProperties reads and what follows it.
+func (p *Parser) isMviewClauseStart(tok Token) bool {
+	switch tok.Type {
+	case kwTABLESPACE, kwLOGGING, kwNOLOGGING, kwCACHE, kwNOCACHE, kwPARALLEL, kwNOPARALLEL,
+		kwCLUSTER, kwPARTITION, kwJSON, kwUSING, kwREFRESH, kwFOR, kwENABLE, kwDISABLE, kwAS:
+		return true
+	}
+	for _, w := range []string{
+		"NESTED", "VARRAY", "LOB", "XMLTYPE", "BUILD", "INMEMORY", "PCTFREE", "PCTUSED",
+		"INITRANS", "MAXTRANS", "STORAGE", "COMPRESS", "NOCOMPRESS", "PCTTHRESHOLD", "MAPPING",
+		"NOMAPPING", "INCLUDING", "OVERFLOW", "NEVER", "EVALUATE", "ANNOTATIONS",
+	} {
+		if isCreateTableWordTok(tok, w) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseMviewUsingIndex reads the index attributes after USING INDEX.

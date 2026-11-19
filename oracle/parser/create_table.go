@@ -595,7 +595,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 // isTableConstraintStart checks if the current position starts a table-level constraint.
 func (p *Parser) isTableConstraintStart() bool {
 	switch p.cur.Type {
-	case kwCONSTRAINT:
+	case kwCONSTRAINT, kwCONSTRAINTS:
 		// A column named CONSTRAINT takes a reserved datatype word alone:
 		// Oracle 23ai reads CONSTRAINT NUMBER as a column and CONSTRAINT
 		// NCHAR(1), CLOB, or REF u as a constraint (ORA-03050, ORA-00931).
@@ -715,8 +715,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	// CREATE TABLE's column_definition takes its datatype as optional
 	// (CREATE TABLE t (a, b) AS SELECT ...); a bare column elsewhere is
 	// an error, but in ALTER TABLE ... ADD it is Oracle's ORA-02263, which
-	// the statement survives.
-	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns && !p.alterTableAddColumn {
+	// the statement survives, in a list as out of one (ADD (a)).
+	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns &&
+		!p.alterTableAddColumn && !p.alterTableAddList {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -1580,8 +1581,8 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Optional CONSTRAINT name
-	if p.cur.Type == kwCONSTRAINT {
+	// Optional CONSTRAINT name; Oracle takes CONSTRAINTS here too.
+	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
 		p.advance()
 		var // consume CONSTRAINT
 		parseErr529 error
@@ -2577,4 +2578,11 @@ func (p *Parser) parseOnCommitAction() (string, error) {
 		return "", err
 	}
 	return action, nil
+}
+
+// statementEndsAfterNext reports whether the statement's text ends right
+// after the current token.
+func (p *Parser) statementEndsAfterNext() bool {
+	next := p.peekNext()
+	return next.Type == ';' || next.Type == tokEOF
 }
