@@ -222,9 +222,11 @@ func (p *Parser) parseRefreshExternalTable(startLoc ast.Loc) (ast.Node, error) {
 			}
 			p.advance() // consume ','
 		}
-		if _, err := p.expect(int(')')); err != nil {
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
 			return nil, err
 		}
+		endLoc = closeTok.Loc
 	}
 	stmt.Loc = startLoc.Merge(endLoc)
 	return stmt, nil

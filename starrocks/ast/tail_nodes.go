@@ -24,6 +24,20 @@ func (n *RefreshExternalTableStmt) Tag() NodeTag { return T_RefreshExternalTable
 
 var _ Node = (*RefreshExternalTableStmt)(nil)
 
+// ExternalCatalogRef is one catalog of BACKUP's or RESTORE's optional scope
+// (identifierList :2855, identifierWithAliasList :2858): a catalog, and the
+// name RESTORE restores it as when AS names one.
+type ExternalCatalogRef struct {
+	Name  string
+	Alias string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ExternalCatalogRef) Tag() NodeTag { return T_ExternalCatalogRef }
+
+var _ Node = (*ExternalCatalogRef)(nil)
+
 // ---------------------------------------------------------------------------
 // RESOURCE GROUP (:1358)
 // ---------------------------------------------------------------------------

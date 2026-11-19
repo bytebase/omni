@@ -18,13 +18,13 @@ package ast
 //	    [ON (tbl [PARTITION(p1,...)], ...)]
 //	    [PROPERTIES("key"="value", ...)]
 type BackupStmt struct {
-	Label               string        // snapshot label (may be db.label)
-	LabelParts          []string      // raw parts: [db, label] or [label]
-	Repo                string        // repository name
-	AllExternalCatalogs bool          // ALL EXTERNAL CATALOGS
-	ExternalCatalogs    []string      // EXTERNAL CATALOG(S) identifierList
-	Database            string        // DATABASE name
-	Tables              []*ObjectName // optional ON clause table list
+	Label               string                // snapshot label (may be db.label)
+	LabelParts          []string              // raw parts: [db, label] or [label]
+	Repo                string                // repository name
+	AllExternalCatalogs bool                  // ALL EXTERNAL CATALOGS
+	ExternalCatalogs    []*ExternalCatalogRef // EXTERNAL CATALOG(S) identifierList
+	Database            string                // DATABASE name
+	Tables              []*ObjectName         // optional ON clause table list
 	Properties          []*Property
 	Loc                 Loc
 }
@@ -46,7 +46,7 @@ type RestoreStmt struct {
 	LabelParts          []string
 	Repo                string
 	AllExternalCatalogs bool
-	ExternalCatalogs    []string // each as written: "name" or "name AS alias"
+	ExternalCatalogs    []*ExternalCatalogRef
 	Database            string
 	DatabaseAlias       string
 	Tables              []*ObjectName

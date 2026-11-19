@@ -614,6 +614,9 @@ const (
 	// T_RefreshExternalTableStmt is the tag for *RefreshExternalTableStmt.
 	T_RefreshExternalTableStmt
 
+	// T_ExternalCatalogRef is the tag for *ExternalCatalogRef.
+	T_ExternalCatalogRef
+
 	// T_CreateResourceGroupStmt is the tag for *CreateResourceGroupStmt.
 	T_CreateResourceGroupStmt
 
@@ -1062,6 +1065,8 @@ func (t NodeTag) String() string {
 		return "DropProcedureStmt"
 	case T_RefreshExternalTableStmt:
 		return "RefreshExternalTableStmt"
+	case T_ExternalCatalogRef:
+		return "ExternalCatalogRef"
 	case T_CreateResourceGroupStmt:
 		return "CreateResourceGroupStmt"
 	case T_DropResourceGroupStmt:

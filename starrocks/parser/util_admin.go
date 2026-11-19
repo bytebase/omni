@@ -360,7 +360,7 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 // BACKUP lists the catalogs as identifierList; RESTORE leaves the '(' list to
 // the caller, so this reads identifierWithAliasList there through the same
 // parenthesized form.
-func (p *Parser) parseBackupScope(all *bool, catalogs *[]string, database *string, aliasable bool) (ast.Loc, error) {
+func (p *Parser) parseBackupScope(all *bool, catalogs *[]*ast.ExternalCatalogRef, database *string, aliasable bool) (ast.Loc, error) {
 	endLoc := ast.NoLoc()
 	switch p.cur.Kind {
 	case kwALL:
@@ -384,20 +384,21 @@ func (p *Parser) parseBackupScope(all *bool, catalogs *[]string, database *strin
 			return ast.NoLoc(), err
 		}
 		for {
-			name, _, err := p.parseIdentifier()
+			name, nameLoc, err := p.parseIdentifier()
 			if err != nil {
 				return ast.NoLoc(), err
 			}
-			entry := name
+			entry := &ast.ExternalCatalogRef{Name: name, Loc: nameLoc}
 			// Only restoreStatement's identifierWithAliasList takes an alias;
 			// the server refuses `BACKUP EXTERNAL CATALOG(a AS b)`.
 			if aliasable && p.cur.Kind == kwAS {
 				p.advance() // consume AS
-				alias, _, err := p.parseIdentifier()
+				alias, aliasLoc, err := p.parseIdentifier()
 				if err != nil {
 					return ast.NoLoc(), err
 				}
-				entry = name + " AS " + alias
+				entry.Alias = alias
+				entry.Loc = nameLoc.Merge(aliasLoc)
 			}
 			*catalogs = append(*catalogs, entry)
 			if p.cur.Kind != int(',') {

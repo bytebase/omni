@@ -37,6 +37,8 @@ func TestValidateQueryServerState(t *testing.T) {
 		{"SET GLOBAL query_timeout = 3600", false, false},
 		{"SET @@global.query_timeout = 3600", false, false},
 		{"SELECT 1", true, true},
+		{"DESC FILES('path' = 's3://x')", true, true},
+		{"DESC PIPE db.p", true, true},
 		{"ADMIN SHOW FRONTEND CONFIG", false, true},
 	}
 	for _, tc := range tests {

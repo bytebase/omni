@@ -167,7 +167,9 @@ func isReadOnlyAST(node ast.Node) bool {
 		return true
 	case *ast.DescribeStmt:
 		// Reject bare `DESCRIBE` / `DESC` (Target nil means no table named).
-		return n.Target != nil
+		// DESC FILES(propertyList) names no target: it describes a files()
+		// table function and answers with rows.
+		return n.Target != nil || n.Files
 	case *ast.DescStorageVolumeStmt:
 		// DESC STORAGE VOLUME answers with the volume's settings, like DESC
 		// over a table.

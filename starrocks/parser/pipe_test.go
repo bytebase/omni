@@ -180,6 +180,33 @@ func TestFileCatalogKeepsItsQualifiedName(t *testing.T) {
 	}
 }
 
+func TestNumericPrefixesStayNumbers(t *testing.T) {
+	// '.' and '+' are no DIGIT_IDENTIFIER characters, so '1.2a' is a decimal
+	// and its label rather than a column named 1.2a, and '1e+2a' alike; '.1E2a'
+	// is one DOT_IDENTIFIER because the identifier is the longer match. The
+	// server takes all three.
+	for _, sql := range []string{`SELECT 1.2a`, `SELECT 1e+2a`} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Fatalf("parseForTest(%q): %v", sql, errs)
+		}
+		sel := file.Stmts[0].(*ast.SelectStmt)
+		if lit, ok := sel.Items[0].Expr.(*ast.Literal); !ok || lit.Kind != ast.LitFloat {
+			t.Errorf("%q: item = %T, want a float literal", sql, sel.Items[0].Expr)
+		}
+	}
+
+	file, errs := parseForTest("SELECT named_struct('x', 1).1E2a")
+	if len(errs) != 0 {
+		t.Fatalf("dereference: %v", errs)
+	}
+	sel := file.Stmts[0].(*ast.SelectStmt)
+	deref, ok := sel.Items[0].Expr.(*ast.DereferenceExpr)
+	if !ok || deref.Field != "1E2a" {
+		t.Errorf("item = %#v, want the field 1E2a", sel.Items[0].Expr)
+	}
+}
+
 func TestDigitIdentifierSwallowsTheExponent(t *testing.T) {
 	// DIGIT_IDENTIFIER (StarRocksLex.g4:564) outruns DOUBLE_VALUE, so `1e2a`
 	// and `1E2a` are names rather than a float and its label; the server
@@ -193,5 +220,46 @@ func TestDigitIdentifierSwallowsTheExponent(t *testing.T) {
 		if col, ok := sel.Items[0].Expr.(*ast.ColumnRef); !ok || col.Name.Parts[0] != sql[len("SELECT "):] {
 			t.Errorf("%q: item = %T, want the column named %q", sql, sel.Items[0].Expr, sql[len("SELECT "):])
 		}
+	}
+}
+
+func TestRestoreCatalogAliasesAreStructural(t *testing.T) {
+	// identifierWithAliasList (:2858) keeps the catalog and the name it is
+	// restored as apart, so a catalog literally named `a AS b` is not the
+	// same input as renaming a to b.
+	stmt := parseOne(t, "RESTORE SNAPSHOT s FROM r EXTERNAL CATALOG(`a AS b`)").(*ast.RestoreStmt)
+	if len(stmt.ExternalCatalogs) != 1 {
+		t.Fatalf("ExternalCatalogs = %v, want one", stmt.ExternalCatalogs)
+	}
+	if ref := stmt.ExternalCatalogs[0]; ref.Name != "a AS b" || ref.Alias != "" {
+		t.Errorf("ref = %+v, want the name `a AS b` and no alias", ref)
+	}
+
+	stmt = parseOne(t, `RESTORE SNAPSHOT s FROM r EXTERNAL CATALOG(a AS b, c)`).(*ast.RestoreStmt)
+	if len(stmt.ExternalCatalogs) != 2 {
+		t.Fatalf("ExternalCatalogs = %v, want two", stmt.ExternalCatalogs)
+	}
+	if ref := stmt.ExternalCatalogs[0]; ref.Name != "a" || ref.Alias != "b" {
+		t.Errorf("ref = %+v, want a renamed to b", ref)
+	}
+	if ref := stmt.ExternalCatalogs[1]; ref.Name != "c" || ref.Alias != "" {
+		t.Errorf("ref = %+v, want c with no alias", ref)
+	}
+}
+
+func TestRefreshExternalTableSpanEndsAtTheParen(t *testing.T) {
+	sql := `REFRESH EXTERNAL TABLE hive.t PARTITION('p1')`
+	stmt := parseOne(t, sql).(*ast.RefreshExternalTableStmt)
+	if stmt.Loc.End != len(sql) {
+		t.Errorf("Loc.End = %d, want %d", stmt.Loc.End, len(sql))
+	}
+}
+
+func TestDescFilesNamesNoTarget(t *testing.T) {
+	// DESC FILES names no table: it describes a files() table function, which
+	// analysis reads as a read-only statement by Files.
+	stmt := parseOne(t, `DESC FILES('a' = 'b')`).(*ast.DescribeStmt)
+	if !stmt.Files || stmt.Target != nil || len(stmt.Properties) != 1 {
+		t.Errorf("stmt = %+v, want the files form with one property", stmt)
 	}
 }

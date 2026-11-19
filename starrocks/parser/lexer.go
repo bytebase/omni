@@ -113,12 +113,10 @@ func (l *Lexer) nextTokenInner() Token {
 		return l.scanNumberOrDigitIdent()
 	case ch == '.' && l.peekDigit():
 		// DOT_IDENTIFIER is '.' DIGIT_IDENTIFIER (StarRocksLex.g4:574) and
-		// wins the longest match over DECIMAL_VALUE, so '.1a' is one token
-		// and '.1' is a number.
-		if _, ok := l.dotIdentEnd(); ok {
-			return l.scanDotIdent()
-		}
-		return l.scanNumber()
+		// wins the longest match over DECIMAL_VALUE and DOUBLE_VALUE, so
+		// '.1a' and '.1E2a' are one token while '.1' and '.1E2' — a tie,
+		// which the numeric rule wins by coming first — are numbers.
+		return l.scanDotNumberOrIdent()
 	case (ch == 'X' || ch == 'x') && (l.peek(1) == '\'' || l.peek(1) == '"'):
 		// BINARY_SINGLE_QUOTED_TEXT and BINARY_DOUBLE_QUOTED_TEXT (StarRocksLex.g4).
 		return l.scanHexLiteral()
@@ -461,18 +459,37 @@ func (l *Lexer) scanNumber() Token {
 
 // scanNumberOrDigitIdent reads a number, or the DIGIT_IDENTIFIER it starts
 // (StarRocksLex.g4:564): DIGIT (LETTER | DIGIT | '_')+ outruns every numeric
-// rule when the digits run on into letters, so '1a' is one identifier and
-// neither '1e2a' nor '1E2a' is a float and a name. LETTER covers
-// U+0080-U+FFFF, so '1　AS' is one identifier too.
+// rule when what follows the digits is more identifier, so '1a', '1e2a' and
+// '1E2a' are one identifier while '1.2a' stays a decimal and its label,
+// since '.' is no DIGIT_IDENTIFIER character.
 func (l *Lexer) scanNumberOrDigitIdent() Token {
 	start := l.start
 	tok := l.scanNumber()
+	if !isDigitIdentText(tok.Str) {
+		return tok
+	}
 	end, ok := l.digitIdentEnd()
 	if !ok {
 		return tok
 	}
 	l.pos = end
 	return Token{Kind: tokIdent, Str: l.input[start:end], Loc: ast.Loc{Start: start, End: end}}
+}
+
+// isDigitIdentText reports whether a scanned number is spelled like the start
+// of a DIGIT_IDENTIFIER: digits, letters and '_' only, so '1e2' may run on
+// into a name and '1.2' or '1e+2' may not.
+func isDigitIdentText(text string) bool {
+	if text == "" || text[0] < '0' || text[0] > '9' {
+		return false
+	}
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_') {
+			return false
+		}
+	}
+	return true
 }
 
 func isHexDigit(ch byte) bool {
@@ -495,9 +512,7 @@ func (l *Lexer) digitIdentEnd() (int, bool) {
 
 // dotIdentEnd reports where the DOT_IDENTIFIER (StarRocksLex.g4:574) that
 // would start at the current '.' ends, if the text there is one: '.' and a
-// DIGIT_IDENTIFIER. DECIMAL_VALUE also matches '.1', so the identifier wins
-// only while it is the longer match; DOUBLE_VALUE's exponent ('.1E5') comes
-// first in the lexer and keeps the text a number.
+// DIGIT_IDENTIFIER.
 func (l *Lexer) dotIdentEnd() (int, bool) {
 	i := l.pos + 1
 	for i < len(l.input) && l.input[i] >= '0' && l.input[i] <= '9' {
@@ -507,19 +522,23 @@ func (l *Lexer) dotIdentEnd() (int, bool) {
 		return 0, false
 	}
 	r, size := utf8.DecodeRuneInString(l.input[i:])
-	if r == 'E' {
-		j := i + 1
-		if j < len(l.input) && (l.input[j] == '+' || l.input[j] == '-') {
-			j++
-		}
-		if j < len(l.input) && l.input[j] >= '0' && l.input[j] <= '9' {
-			return 0, false
-		}
-	}
 	if !isIdentRune(r) {
 		return 0, false
 	}
 	return l.identRunEnd(i + size), true
+}
+
+// scanDotNumberOrIdent scans the number at the current '.', or the
+// DOT_IDENTIFIER, whichever is the longer match.
+func (l *Lexer) scanDotNumberOrIdent() Token {
+	start := l.pos
+	identEnd, isIdent := l.dotIdentEnd()
+	tok := l.scanNumber()
+	if !isIdent || identEnd <= l.pos {
+		return tok
+	}
+	l.pos = identEnd
+	return Token{Kind: tokDotIdent, Str: l.input[start+1 : identEnd], Loc: ast.Loc{Start: start, End: identEnd}}
 }
 
 // identRunEnd scans the identifier characters from i and returns where they
@@ -533,15 +552,6 @@ func (l *Lexer) identRunEnd(i int) int {
 		i += size
 	}
 	return i
-}
-
-// scanDotIdent scans a DOT_IDENTIFIER. Str holds the text after the '.', so
-// the token names the identifier part it stands for.
-func (l *Lexer) scanDotIdent() Token {
-	end, _ := l.dotIdentEnd()
-	start := l.pos
-	l.pos = end
-	return Token{Kind: tokDotIdent, Str: l.input[start+1 : end], Loc: ast.Loc{Start: start, End: end}}
 }
 
 // --- Identifier / Keyword Scanning -----------------------------------------

@@ -388,6 +388,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *RefreshExternalTableStmt:
 		return v.Loc
+	case *ExternalCatalogRef:
+		return v.Loc
 	case *CreateResourceGroupStmt:
 		return v.Loc
 	case *DropResourceGroupStmt:

@@ -1137,6 +1137,8 @@ func walkChildren(v Visitor, node Node) {
 	// Statement families the fork's tail added.
 	case *RefreshExternalTableStmt:
 		Walk(v, n.Name)
+	case *ExternalCatalogRef:
+		// leaf node, no children
 	case *CreateResourceGroupStmt:
 		Walk(v, n.Name)
 		walkNodeLists(v, n.Classifiers)
