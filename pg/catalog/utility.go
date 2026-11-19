@@ -381,6 +381,9 @@ func (c *Catalog) processSetDefaultTablespace(s *nodes.VariableSetStmt) error {
 			if !ok {
 				continue
 			}
+			if err := c.checkTablespace(sv.Str); err != nil {
+				return err
+			}
 			c.defaultTablespace = sv.Str
 		}
 	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:

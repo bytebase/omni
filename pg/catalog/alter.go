@@ -218,14 +218,20 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// Validate every tablespace a subcommand names before any subcommand runs,
 	// so an invalid tablespace cannot leave an earlier mutation behind.
 	for _, p := range pending {
-		if nodes.AlterTableType(p.cmd.Subtype) != nodes.AT_SetTableSpace {
-			continue
-		}
-		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
-			return errWrongObjectType(relName, "a table, materialized view, or index")
-		}
-		if err := c.checkRelationTablespace(p.cmd.Name); err != nil {
-			return err
+		switch nodes.AlterTableType(p.cmd.Subtype) {
+		case nodes.AT_SetTableSpace:
+			if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
+				return errWrongObjectType(relName, "a table, materialized view, or index")
+			}
+			if err := c.checkRelationTablespace(p.cmd.Name); err != nil {
+				return err
+			}
+		case nodes.AT_ChangeOwner:
+			if p.cmd.Newowner != nil {
+				if err := c.checkRole(c.ownerRoleName(p.cmd.Newowner)); err != nil {
+					return err
+				}
+			}
 		}
 	}
 

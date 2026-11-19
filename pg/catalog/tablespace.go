@@ -350,8 +350,8 @@ func (c *Catalog) RenameRole(stmt *nodes.RenameStmt) error {
 	if oldName == c.currentOwner() || oldName == c.sessionUser {
 		return &Error{Code: CodeObjectNotInPrerequisiteState, Message: "current user cannot be renamed"}
 	}
-	if !c.roles[oldName] {
-		return errUndefinedObject("role", oldName)
+	if err := c.checkRole(oldName); err != nil {
+		return err
 	}
 	if c.roles[stmt.Newname] {
 		return errDuplicateObject("role", stmt.Newname)

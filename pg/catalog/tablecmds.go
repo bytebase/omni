@@ -500,6 +500,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	if stmt.Tablespacename == "" && rv.Relpersistence == 't' {
 		effectiveTablespace = ""
 	}
+	if stmt.Partspec != nil && effectiveTablespace == "pg_default" {
+		return &Error{Code: CodeFeatureNotSupported,
+			Message: "cannot specify default tablespace for partitioned relations"}
+	}
 	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
