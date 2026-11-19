@@ -175,21 +175,37 @@ func (c *Catalog) RemoveSchemas(stmt *nodes.DropStmt) error {
 			}
 			sort.Slice(opcOIDs, func(i, j int) bool { return opcOIDs[i] < opcOIDs[j] })
 			for _, oid := range opcOIDs {
-				// An index elsewhere that uses the class goes with it.
+				// An index elsewhere that uses the class goes with it, and so
+				// does the constraint that index backs.
 				for _, dep := range c.findNormalDependents('o', oid) {
-					if dep.ObjType != 'i' {
-						continue
-					}
-					if idx := c.indexes[dep.ObjOID]; idx != nil {
-						c.removeIndex(idx.Schema, idx.Name, idx)
+					if dep.ObjType == 'i' {
+						c.dropDependentObject('i', dep.ObjOID)
 					}
 				}
 				c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: oid})
 			}
+			famOIDs := make([]uint32, 0, len(c.opFamilies))
 			for oid, fam := range c.opFamilies {
 				if fam.Schema == s.OID {
-					c.removeAMUser(DepEntry{ObjType: 'Q', ObjOID: oid})
+					famOIDs = append(famOIDs, oid)
 				}
+			}
+			sort.Slice(famOIDs, func(i, j int) bool { return famOIDs[i] < famOIDs[j] })
+			for _, oid := range famOIDs {
+				// Classes elsewhere that joined the family go with it, and so
+				// do the indexes that use them.
+				for _, dep := range c.findNormalDependents('Q', oid) {
+					if dep.ObjType != 'q' {
+						continue
+					}
+					for _, idxDep := range c.findNormalDependents('o', dep.ObjOID) {
+						if idxDep.ObjType == 'i' {
+							c.dropDependentObject('i', idxDep.ObjOID)
+						}
+					}
+					c.removeAMUser(DepEntry{ObjType: 'q', ObjOID: dep.ObjOID})
+				}
+				c.removeAMUser(DepEntry{ObjType: 'Q', ObjOID: oid})
 			}
 		}
 

@@ -2499,6 +2499,133 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatal("DROP OWNED CASCADE left the external index")
 		}
 
+		// #210: a failed grant-chain preflight does not delete owned objects.
+		c71 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE chain_alice",
+			"CREATE ROLE chain_bob",
+			"SET ROLE chain_alice",
+			"CREATE TABLE chain_owned (id int)",
+			"RESET ROLE",
+			"CREATE TABLE chain_obj (id int)",
+			"GRANT SELECT ON chain_obj TO chain_alice WITH GRANT OPTION",
+			"SET ROLE chain_alice",
+			"GRANT SELECT ON chain_obj TO chain_bob",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c71, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c71, "DROP OWNED BY chain_alice RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED over a grant chain answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c71.schemaByName["public"].Relations["chain_owned"] == nil {
+			t.Fatal("a failed DROP OWNED deleted the owned table")
+		}
+
+		// #211: REASSIGN OWNED moves the ACL identities too.
+		c72 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE ra_alice",
+			"CREATE ROLE ra_bob",
+			"CREATE ROLE ra_user",
+			"CREATE TABLE ra_t (id int)",
+			"ALTER TABLE ra_t OWNER TO ra_alice",
+			"SET ROLE ra_alice",
+			"GRANT SELECT ON ra_t TO ra_user",
+			"RESET ROLE",
+			"REASSIGN OWNED BY ra_alice TO ra_bob",
+		} {
+			if code := simulationCatalogCode(t, c72, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c72, "DROP ROLE ra_alice"); code != "0" {
+			t.Fatalf("DROP ROLE ra_alice after REASSIGN answered %s, want 0", code)
+		}
+
+		// #212: removing an AM user clears its dependency rows.
+		c73 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA tmp_fam_s",
+			"CREATE OPERATOR FAMILY tmp_fam_s.tmp_fam USING gist",
+			"DROP SCHEMA tmp_fam_s CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c73, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		for _, d := range c73.deps {
+			if d.ObjType == 'Q' || d.RefType == 'Q' {
+				t.Fatalf("dropped family left a dependency row: %+v", d)
+			}
+		}
+
+		// #213: DROP SCHEMA CASCADE of an opclass removes the constraint that
+		// backed its index.
+		c74 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA excl_opc_s",
+			"CREATE OPERATOR CLASS excl_opc_s.excl_ops FOR TYPE int USING gist AS OPERATOR 1 &&, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE excl_opc_t (a int)",
+			"ALTER TABLE excl_opc_t ADD CONSTRAINT excl_opc_con EXCLUDE USING gist (a excl_opc_s.excl_ops WITH &&)",
+			"DROP SCHEMA excl_opc_s CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c74, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if rel := c74.schemaByName["public"].Relations["excl_opc_t"]; rel != nil && len(c74.consByRel[rel.OID]) != 0 {
+			t.Fatal("DROP SCHEMA CASCADE left the exclusion constraint behind")
+		}
+
+		// #214: DROP EXTENSION removes member triggers and policies.
+		RegisterExtensionSQL("test_member_ext", "CREATE FUNCTION member_fn() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'; CREATE TABLE pre_made (a int); CREATE TRIGGER member_trig AFTER INSERT ON pre_made FOR EACH ROW EXECUTE FUNCTION member_fn();")
+		defer delete(extensionScripts, "test_member_ext")
+		c75 := New()
+		for _, stmt := range []string{"CREATE EXTENSION test_member_ext", "DROP EXTENSION test_member_ext"} {
+			if code := simulationCatalogCode(t, c75, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if len(c75.triggers) != 0 {
+			t.Fatalf("DROP EXTENSION left %d triggers", len(c75.triggers))
+		}
+
+		// #215: DROP SCHEMA CASCADE of a family takes external classes and their
+		// indexes with it.
+		c76 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA fam_casc_s",
+			"CREATE OPERATOR FAMILY fam_casc_s.fam2 USING btree",
+			"CREATE OPERATOR CLASS ext_cls FOR TYPE int USING btree FAMILY fam_casc_s.fam2 AS OPERATOR 1 <, FUNCTION 1 btint4cmp(int, int)",
+			"CREATE TABLE fam_casc_t (a int)",
+			"CREATE INDEX fam_casc_idx ON fam_casc_t USING btree (a ext_cls)",
+			"DROP SCHEMA fam_casc_s CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c76, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if c76.schemaByName["public"].Indexes["fam_casc_idx"] != nil || len(c76.opClasses) != 0 {
+			t.Fatal("DROP SCHEMA CASCADE left the external class or its index")
+		}
+
+		// #216: policy roles are observed, so CREATE ROLE reports the duplicate.
+		c77 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE pol_t (a int, owner text)",
+			"CREATE POLICY pol_ghost ON pol_t TO ghost_role USING (true)",
+		} {
+			if code := simulationCatalogCode(t, c77, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c77, "CREATE ROLE ghost_role"); code != CodeDuplicateObject {
+			t.Fatalf("CREATE ROLE ghost_role answered %s, want %s", code, CodeDuplicateObject)
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

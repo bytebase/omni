@@ -824,8 +824,12 @@ func (c *Catalog) removeAMUser(dep DepEntry) {
 			}
 			delete(c.opClasses, opc.OID)
 		}
+		c.removeDepsOf('q', dep.ObjOID)
+		c.removeDepsOn('q', dep.ObjOID)
 	case 'Q':
 		delete(c.opFamilies, dep.ObjOID)
+		c.removeDepsOf('Q', dep.ObjOID)
+		c.removeDepsOn('Q', dep.ObjOID)
 	}
 }
 
@@ -1315,6 +1319,20 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				}
 			}
 		}
+		if !cascade {
+			// Revoking a grant option the dropped role holds abandons the grants it
+			// passed on: RESTRICT refuses that, CASCADE revokes both.
+			for _, g := range c.grants {
+				if !owners[g.Grantee] || !g.WithGrant {
+					continue
+				}
+				for _, dependent := range c.grants {
+					if dependent.Grantor == g.Grantee && dependent.Grantee != g.Grantee && dependent.Grantee != "" {
+						return errDependentObjects("grant", g.Grantee)
+					}
+				}
+			}
+		}
 		for _, bt := range types {
 			for _, depRelOID := range c.typeRelationDependents(bt) {
 				if !ownedRelOIDs[depRelOID] {
@@ -1468,20 +1486,6 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		delete(c.schemaByName, s.Name)
 	}
 
-	if !cascade {
-		// Revoking a grant option the dropped role holds abandons the grants it
-		// passed on: RESTRICT refuses that, CASCADE revokes both.
-		for _, g := range c.grants {
-			if !owners[g.Grantee] || !g.WithGrant {
-				continue
-			}
-			for _, dependent := range c.grants {
-				if dependent.Grantor == g.Grantee && dependent.Grantee != g.Grantee && dependent.Grantee != "" {
-					return errDependentObjects("grant", g.Grantee)
-				}
-			}
-		}
-	}
 	kept := c.grants[:0]
 	for _, g := range c.grants {
 		if owners[g.Grantee] || owners[g.Grantor] {
@@ -1565,7 +1569,9 @@ func (c *Catalog) ReassignOwned(stmt *nodes.ReassignOwnedStmt) error {
 		}
 		for _, rel := range schema.Relations {
 			if owners[rel.OwnerName] {
+				oldOwner := rel.OwnerName
 				rel.OwnerName = newOwner
+				c.transferACLs('r', rel.OID, oldOwner, newOwner)
 			}
 		}
 		for _, idx := range schema.Indexes {

@@ -658,6 +658,26 @@ func (c *Catalog) removeExtensionMetadata(ext *Extension) {
 			if evt := c.eventTriggers[oid]; evt != nil {
 				c.removeEventTrigger(evt)
 			}
+			if trig := c.triggers[oid]; trig != nil {
+				c.removeTrigger(trig)
+			}
+			if pol := c.policies[oid]; pol != nil {
+				delete(c.policies, pol.OID)
+				c.removeDepsOf('p', pol.OID)
+				c.removeComments('p', pol.OID)
+				plist := c.policiesByRel[pol.RelOID]
+				for i, item := range plist {
+					if item.OID == pol.OID {
+						c.policiesByRel[pol.RelOID] = append(plist[:i], plist[i+1:]...)
+						break
+					}
+				}
+			}
+			if con := c.constraints[oid]; con != nil {
+				if ownerRel := c.relationByOID[con.RelOID]; ownerRel != nil {
+					c.removeConstraint(ownerRel.Schema, con)
+				}
+			}
 			if opc := c.opClasses[oid]; opc != nil {
 				if opc.IsDefault {
 					delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})

@@ -66,6 +66,7 @@ func (c *Catalog) CreatePolicy(stmt *nodes.CreatePolicyStmt) error {
 	}
 
 	roles := c.extractPolicyRoles(stmt.Roles)
+	c.recordPolicyRoles(roles)
 
 	policy := &Policy{
 		OID:        c.oidGen.Next(),
@@ -140,6 +141,7 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 	// Update fields if provided.
 	if stmt.Roles != nil {
 		policy.Roles = c.extractPolicyRoles(stmt.Roles)
+		c.recordPolicyRoles(policy.Roles)
 	}
 	if stmt.Qual != nil {
 		if analyzed, err := c.AnalyzeStandaloneExpr(stmt.Qual, rel); err == nil && analyzed != nil {
@@ -163,6 +165,16 @@ func (c *Catalog) AlterPolicy(stmt *nodes.AlterPolicyStmt) error {
 // If the roles list is empty, returns ["public"] (PG default).
 //
 // pg: src/backend/commands/policy.c — policy role handling
+// recordPolicyRoles records the cluster-wide roles a policy names, as a dump
+// does not create them.
+func (c *Catalog) recordPolicyRoles(roles []string) {
+	for _, r := range roles {
+		if r != "" && r != "public" {
+			c.roles[r] = true
+		}
+	}
+}
+
 func (c *Catalog) extractPolicyRoles(roleList *nodes.List) []string {
 	if roleList == nil || len(roleList.Items) == 0 {
 		return []string{"public"}
