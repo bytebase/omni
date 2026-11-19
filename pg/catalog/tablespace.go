@@ -174,6 +174,46 @@ func (c *Catalog) currentOwner() string {
 	return "postgres"
 }
 
+// checkRole refuses a role name the catalog does not hold. A snapshot
+// carries no roles, so an unobserved one may still exist on its server.
+func (c *Catalog) checkRole(name string) error {
+	if name == "" || c.roles[name] || c.snapshot {
+		return nil
+	}
+	return errUndefinedObject("role", name)
+}
+
+// DefineRole records a CREATE ROLE.
+func (c *Catalog) DefineRole(stmt *nodes.CreateRoleStmt) error {
+	if c.roles[stmt.Role] {
+		return errDuplicateObject("role", stmt.Role)
+	}
+	c.roles[stmt.Role] = true
+	return nil
+}
+
+// RemoveRoles forgets DROP ROLE.
+func (c *Catalog) RemoveRoles(stmt *nodes.DropRoleStmt) error {
+	if stmt.Roles == nil {
+		return nil
+	}
+	for _, item := range stmt.Roles.Items {
+		rs, ok := item.(*nodes.RoleSpec)
+		if !ok {
+			continue
+		}
+		name := c.ownerRoleName(rs)
+		if !c.roles[name] {
+			if stmt.MissingOk {
+				continue
+			}
+			return errUndefinedObject("role", name)
+		}
+		delete(c.roles, name)
+	}
+	return nil
+}
+
 // ownerRoleName resolves a role spec to the role name an object's owner is
 // recorded under.
 func (c *Catalog) ownerRoleName(rs *nodes.RoleSpec) string {
@@ -192,9 +232,9 @@ func (c *Catalog) ownerRoleName(rs *nodes.RoleSpec) string {
 
 // moveAllOwners reads the OWNED BY list of a bulk move. Nil means every
 // owner.
-func (c *Catalog) moveAllOwners(roles *nodes.List) map[string]bool {
+func (c *Catalog) moveAllOwners(roles *nodes.List) (map[string]bool, error) {
 	if roles == nil || len(roles.Items) == 0 {
-		return nil
+		return nil, nil
 	}
 	owners := make(map[string]bool, len(roles.Items))
 	for _, item := range roles.Items {
@@ -202,9 +242,13 @@ func (c *Catalog) moveAllOwners(roles *nodes.List) map[string]bool {
 		if !ok {
 			continue
 		}
-		owners[c.ownerRoleName(rs)] = true
+		name := c.ownerRoleName(rs)
+		if err := c.checkRole(name); err != nil {
+			return nil, err
+		}
+		owners[name] = true
 	}
-	return owners
+	return owners, nil
 }
 
 // ownerMatches reports whether an object's owner is in a bulk move's OWNED
@@ -230,7 +274,10 @@ func (c *Catalog) MoveAllTablespaces(stmt *nodes.AlterTableMoveAllStmt) error {
 		return errInvalidParameterValue("cannot move relations in to or out of pg_global tablespace")
 	}
 	target := normalizeTablespace(stmt.NewTablespacename)
-	owners := c.moveAllOwners(stmt.Roles)
+	owners, err := c.moveAllOwners(stmt.Roles)
+	if err != nil {
+		return err
+	}
 	for _, schema := range c.schemas {
 		switch nodes.ObjectType(stmt.ObjType) {
 		case nodes.OBJECT_TABLE:

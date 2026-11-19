@@ -103,6 +103,9 @@ type Catalog struct {
 	// Tablespaces: the two the server starts with and the ones CREATE
 	// TABLESPACE names.
 	tablespaces map[string]bool
+	// roles are the role names the catalog knows. CREATE ROLE records one;
+	// a snapshot carries none, so an unknown role may still exist there.
+	roles map[string]bool
 	// defaultTablespace is the session's default_tablespace setting, "" for
 	// the database default.
 	defaultTablespace string
@@ -183,6 +186,7 @@ func New() *Catalog {
 		extensionMembers:   make(map[uint32]string),
 		extensionComments:  make(map[commentKey]string),
 		tablespaces:        map[string]bool{"pg_default": true, "pg_global": true},
+		roles:              map[string]bool{"postgres": true},
 		accessMethods:      make(map[uint32]*AccessMethod),
 		accessMethodByName: make(map[string]*AccessMethod),
 		opFamilies:         make(map[uint32]*OpFamily),
@@ -346,6 +350,9 @@ func (c *Catalog) GetRelation(schema, name string) *Relation {
 func (c *Catalog) SetSessionUser(name string) {
 	c.sessionUser = name
 	c.currentUser = name
+	if c.roles != nil {
+		c.roles[name] = true
+	}
 }
 
 // SetRole changes the current user to the given role name.

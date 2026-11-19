@@ -3,7 +3,7 @@
 42P01	42P01	engine	one_table@missing	stmt/AlterSeqStmt	ALTER SEQUENCE a CYCLE
 42P01	42P01	engine	one_table@missing	stmt/AlterTableStmt	ALTER TABLE a DROP a
 42P01	42P01	engine	one_table@missing	stmt/CommentStmt	COMMENT ON TABLE a IS 's'
-ok	ok:d3c8832c5513	engine	one_table@missing	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
+ok:d3c8832c5513	ok:d3c8832c5513	engine	one_table@missing	stmt/CreateAsStmt	CREATE TABLE a AS SELECT
 42703	42703	engine	one_table@missing	stmt/CreateAsStmt!insert	CREATE TABLE a AS SELECT zzz
 ok:2d0de506e8b3	ok:2d0de506e8b3	engine	one_table@missing	stmt/CreateMatViewStmt	CREATE MATERIALIZED VIEW a AS SELECT
 42703	42703	engine	one_table@missing	stmt/CreateMatViewStmt!insert	CREATE MATERIALIZED VIEW a AS SELECT zzz
@@ -163,12 +163,12 @@ ok	42804	engine	one_table@missing	TableElement/TableConstraint	CREATE TABLE a(CH
 42704	42704	engine	one_table@missing	table_access_method_clause/USING_name	CREATE TABLE a USING a AS SELECT
 ok	22023	engine	one_table@missing	OptWith/WITH_reloptions	CREATE TABLE a WITH(a) AS SELECT
 42601	42601	engine	one_table@missing	OptWith/WITH_reloptions!drop-1	CREATE TABLE a(a) AS SELECT
-ok	ok:d3c8832c5513	engine	one_table@missing	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
+ok:d3c8832c5513	ok:d3c8832c5513	engine	one_table@missing	OptWith/WITHOUT_OIDS	CREATE TABLE a WITHOUT OIDS AS SELECT
 ok	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DROP	CREATE TABLE a ON COMMIT DROP AS SELECT
 ok	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_DELETE_P_ROWS	CREATE TABLE a ON COMMIT DELETE ROWS AS SELECT
 ok	42P16	engine	one_table@missing	OnCommitOption/ON_COMMIT_PRESERVE_ROWS	CREATE TABLE a ON COMMIT PRESERVE ROWS AS SELECT
 42704	42704	engine	one_table@missing	OptTableSpace/TABLESPACE_name	CREATE TABLE a TABLESPACE a AS SELECT
-ok	ok:d3c8832c5513	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
+ok:d3c8832c5513	ok:d3c8832c5513	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data	CREATE TABLE IF NOT EXISTS a AS SELECT
 42703	42703	engine	one_table@missing	CreateAsStmt/CREATE_OptTemp_TABLE_IF_P_NOT_EXISTS_create_as_target_AS_SelectStmt_opt_with_data!insert	CREATE TABLE IF NOT EXISTS a AS SELECT zzz
 42P01	42P01	engine	one_table@missing	opt_with_data/WITH_DATA_P	REFRESH MATERIALIZED VIEW a WITH DATA
 42P01	42P01	engine	one_table@missing	opt_with_data/WITH_NO_DATA_P	REFRESH MATERIALIZED VIEW a WITH NO DATA

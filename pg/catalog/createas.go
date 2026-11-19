@@ -174,11 +174,16 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		relkind = 'r'
 	}
 
+	persistence := rv.Relpersistence
+	if persistence == 0 {
+		persistence = 'p'
+	}
 	rel := &Relation{
 		OID:           relOID,
 		Name:          mvName,
 		Schema:        schema,
 		RelKind:       relkind,
+		Persistence:   persistence,
 		Tablespace:    normalizeTablespace(effectiveTablespace),
 		OwnerName:     c.currentOwner(),
 		Columns:       columns,

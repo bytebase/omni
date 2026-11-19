@@ -208,8 +208,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 
 	// ---- Roles/Databases ----
 	case *nodes.CreateRoleStmt:
-		// CREATE ROLE/USER/GROUP: no-op for pgddl
-		return nil
+		return c.DefineRole(s)
 	case *nodes.AlterRoleStmt:
 		// ALTER ROLE: no-op for pgddl
 		return nil
@@ -217,8 +216,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// ALTER ROLE ... SET: no-op for pgddl
 		return nil
 	case *nodes.DropRoleStmt:
-		// DROP ROLE/USER/GROUP: no-op for pgddl
-		return nil
+		return c.RemoveRoles(s)
 	case *nodes.GrantRoleStmt:
 		// GRANT role TO role: no-op for pgddl
 		return nil

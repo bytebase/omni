@@ -707,3 +707,12 @@
 | CREATE INDEX i ON a USING heap(b) TABLESPACE a
 < error
 | 42704 tablespace "a" does not exist
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| ALTER TABLE ALL IN TABLESPACE pg_default OWNED BY a SET TABLESPACE pg_default
+< error
+| 42704 role "a" does not exist

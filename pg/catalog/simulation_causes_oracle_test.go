@@ -123,6 +123,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"ALTER OPERATOR FAMILY using a table access method", "missing", "ALTER OPERATOR FAMILY f USING heap ADD OPERATOR 1 < (int, int)", CodeObjectNotInPrerequisiteState},
 		{"CREATE TABLESPACE with a reserved name", "missing", "CREATE TABLESPACE pg_fast LOCATION '/tmp'", CodeReservedName},
 		{"CREATE INDEX with a missing tablespace and a table access method", "table", "CREATE INDEX i ON a USING heap(b) TABLESPACE a", CodeUndefinedObject},
+		{"ALTER TABLE ALL IN TABLESPACE OWNED BY a missing role", "missing", "ALTER TABLE ALL IN TABLESPACE pg_default OWNED BY a SET TABLESPACE pg_default", CodeUndefinedObject},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -270,6 +271,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	t.Run("a bulk move honors OWNED BY", func(t *testing.T) {
 		c := New()
 		for _, stmt := range []string{
+			"CREATE ROLE alice",
 			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
 			"CREATE TABLESPACE ts2 LOCATION '/tmp/ts2'",
 			"CREATE TABLE a (b int) TABLESPACE ts",
@@ -405,6 +407,28 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if rel == nil || rel.Tablespace != "ts" {
 			t.Fatal("a bulk move changed a temporary relation's tablespace")
+		}
+	})
+
+	// A temporary CTAS relation is left out of a bulk move too.
+	t.Run("a bulk move leaves a temporary CTAS relation alone", func(t *testing.T) {
+		c := New()
+		for _, stmt := range []string{
+			"CREATE TABLESPACE ts LOCATION '/tmp/ts'",
+			"CREATE TABLESPACE ts2 LOCATION '/tmp/ts2'",
+			"CREATE TEMP TABLE a TABLESPACE ts AS SELECT 1",
+			"ALTER TABLE ALL IN TABLESPACE ts SET TABLESPACE ts2",
+		} {
+			if code := simulationCatalogCode(t, c, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		rel := c.GetRelation("pg_temp", "a")
+		if rel == nil {
+			rel = c.GetRelation("", "a")
+		}
+		if rel == nil || rel.Persistence != 't' || rel.Tablespace != "ts" {
+			t.Fatal("a bulk move changed a temporary CTAS relation")
 		}
 	})
 
