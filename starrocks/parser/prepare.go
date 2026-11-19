@@ -20,20 +20,35 @@ import (
 // On entry PREPARE has NOT been consumed.
 func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume PREPARE
-	name, err := p.parseMultipartIdentifier()
+	name, nameLoc, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-	stmt := &ast.PrepareStmt{Name: name}
+	stmt := &ast.PrepareStmt{Name: &ast.ObjectName{Parts: []string{name}, Loc: nameLoc}}
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
 	if p.cur.Kind == tokString {
-		// prepareSql's string is SQL too: the server parses its text and
-		// refuses `PREPARE a FROM 'a'` with the error inside it. Positions in
-		// the string are not the statement's, so the error carries none.
-		if _, err := Parse(p.cur.Str); err != nil {
-			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "PREPARE FROM string does not hold a statement"}
+		// prepareSql admits SINGLE_QUOTED_TEXT only, and the server refuses
+		// `PREPARE p FROM "SELECT 1"`. The quote is the source byte at the
+		// token's start, which the token does not keep.
+		if start := p.cur.Loc.Start - p.baseOffset; start < 0 || start >= len(p.input) || p.input[start] != '\'' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// The string is SQL too: the server parses its text, refuses
+		// `PREPARE a FROM 'a'` with the error inside it, `PREPARE p FROM ''`
+		// and a comment for holding no statement, and
+		// `PREPARE p FROM 'SELECT 1; SELECT 2'` with "only single statement is
+		// supported". The nested parse starts at this parser's nesting depth,
+		// so a string of wrappers cannot stack deeper than the input limit.
+		// Positions in the string are not the statement's, so the error
+		// carries none.
+		nested := parseAll(p.cur.Str, true, p.depth)
+		if len(nested.Errors) > 0 || nested.File == nil || len(nested.File.Stmts) != 1 {
+			return nil, &ParseError{
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "PREPARE FROM string must hold one statement",
+			}
 		}
 		stmt.SQL = p.cur.Str
 		stmt.Loc = startLoc.Merge(p.cur.Loc)
@@ -56,12 +71,12 @@ func (p *Parser) parsePrepare(startLoc ast.Loc) (ast.Node, error) {
 // On entry EXECUTE has NOT been consumed.
 func (p *Parser) parseExecute(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume EXECUTE
-	name, err := p.parseMultipartIdentifier()
+	name, nameLoc, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-	stmt := &ast.ExecuteStmt{Name: name}
-	endLoc := name.Loc
+	stmt := &ast.ExecuteStmt{Name: &ast.ObjectName{Parts: []string{name}, Loc: nameLoc}}
+	endLoc := nameLoc
 	if p.cur.Kind == kwUSING {
 		p.advance() // consume USING
 		for {
@@ -122,12 +137,17 @@ func (p *Parser) parseExecuteAs(startLoc ast.Loc) (ast.Node, error) {
 //
 // On entry the verb has been consumed; cur is PREPARE.
 func (p *Parser) parseDeallocate(startLoc ast.Loc) (ast.Node, error) {
-	p.advance() // consume PREPARE
-	name, err := p.parseMultipartIdentifier()
+	if _, err := p.expect(kwPREPARE); err != nil {
+		return nil, err
+	}
+	name, nameLoc, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
-	return &ast.DeallocateStmt{Name: name, Loc: startLoc.Merge(name.Loc)}, nil
+	return &ast.DeallocateStmt{
+		Name: &ast.ObjectName{Parts: []string{name}, Loc: nameLoc},
+		Loc:  startLoc.Merge(nameLoc),
+	}, nil
 }
 
 // parseTranslate parses translateStatement (StarRocks.g4:2073):

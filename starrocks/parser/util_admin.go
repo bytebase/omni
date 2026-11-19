@@ -25,7 +25,7 @@ import (
 // On entry, BACKUP was consumed by the dispatch.
 func (p *Parser) parseBackup(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.BackupStmt{}
-	if err := p.parseBackupScope(&stmt.AllExternalCatalogs, &stmt.ExternalCatalogs, &stmt.Database); err != nil {
+	if _, err := p.parseBackupScope(&stmt.AllExternalCatalogs, &stmt.ExternalCatalogs, &stmt.Database, false); err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(kwSNAPSHOT); err != nil {
@@ -302,8 +302,12 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	endLoc = repoLoc
 
 	// ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierWithAliasList
-	if err := p.parseBackupScope(&stmt.AllExternalCatalogs, &stmt.ExternalCatalogs, &stmt.Database); err != nil {
+	scopeLoc, err := p.parseBackupScope(&stmt.AllExternalCatalogs, &stmt.ExternalCatalogs, &stmt.Database, true)
+	if err != nil {
 		return nil, err
+	}
+	if scopeLoc.IsValid() {
+		endLoc = scopeLoc
 	}
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
@@ -348,44 +352,50 @@ func (p *Parser) parseRestore(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseBackupScope parses the optional scope BACKUP and RESTORE share:
+// parseBackupScope parses the optional scope BACKUP and RESTORE share, and
+// returns the Loc of its last token (NoLoc when nothing was read):
 //
 //	(ALL EXTERNAL CATALOGS | EXTERNAL {CATALOG | CATALOGS} identifierList) [DATABASE name]
 //
 // BACKUP lists the catalogs as identifierList; RESTORE leaves the '(' list to
 // the caller, so this reads identifierWithAliasList there through the same
 // parenthesized form.
-func (p *Parser) parseBackupScope(all *bool, catalogs *[]string, database *string) error {
+func (p *Parser) parseBackupScope(all *bool, catalogs *[]string, database *string, aliasable bool) (ast.Loc, error) {
+	endLoc := ast.NoLoc()
 	switch p.cur.Kind {
 	case kwALL:
 		p.advance() // consume ALL
 		if _, err := p.expect(kwEXTERNAL); err != nil {
-			return err
+			return ast.NoLoc(), err
 		}
-		if _, err := p.expect(kwCATALOGS); err != nil {
-			return err
+		catalogsTok, err := p.expect(kwCATALOGS)
+		if err != nil {
+			return ast.NoLoc(), err
 		}
 		*all = true
+		endLoc = catalogsTok.Loc
 	case kwEXTERNAL:
 		p.advance() // consume EXTERNAL
 		if p.cur.Kind != kwCATALOG && p.cur.Kind != kwCATALOGS {
-			return p.syntaxErrorAtCur()
+			return ast.NoLoc(), p.syntaxErrorAtCur()
 		}
 		p.advance() // consume CATALOG/CATALOGS
 		if _, err := p.expect(int('(')); err != nil {
-			return err
+			return ast.NoLoc(), err
 		}
 		for {
 			name, _, err := p.parseIdentifier()
 			if err != nil {
-				return err
+				return ast.NoLoc(), err
 			}
 			entry := name
-			if p.cur.Kind == kwAS {
+			// Only restoreStatement's identifierWithAliasList takes an alias;
+			// the server refuses `BACKUP EXTERNAL CATALOG(a AS b)`.
+			if aliasable && p.cur.Kind == kwAS {
 				p.advance() // consume AS
 				alias, _, err := p.parseIdentifier()
 				if err != nil {
-					return err
+					return ast.NoLoc(), err
 				}
 				entry = name + " AS " + alias
 			}
@@ -395,19 +405,22 @@ func (p *Parser) parseBackupScope(all *bool, catalogs *[]string, database *strin
 			}
 			p.advance() // consume ','
 		}
-		if _, err := p.expect(int(')')); err != nil {
-			return err
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return ast.NoLoc(), err
 		}
+		endLoc = closeTok.Loc
 	}
 	if p.cur.Kind == kwDATABASE {
 		p.advance() // consume DATABASE
-		name, _, err := p.parseIdentifier()
+		name, nameLoc, err := p.parseIdentifier()
 		if err != nil {
-			return err
+			return ast.NoLoc(), err
 		}
 		*database = name
+		endLoc = nameLoc
 	}
-	return nil
+	return endLoc, nil
 }
 
 // ---------------------------------------------------------------------------

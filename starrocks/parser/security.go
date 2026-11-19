@@ -786,7 +786,7 @@ func (p *Parser) parseAlterUser(startLoc ast.Loc) (ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			stmt.DefaultRole = strings.Join(names, ",")
+			stmt.DefaultRoles = names
 			endLoc = loc
 		}
 	case kwSET:

@@ -334,7 +334,7 @@ func (p *Parser) parseFileCatalog() (string, ast.Loc, bool, error) {
 	if err != nil {
 		return "", ast.NoLoc(), false, err
 	}
-	return name.Parts[len(name.Parts)-1], name.Loc, true, nil
+	return name.String(), name.Loc, true, nil
 }
 
 // ---------------------------------------------------------------------------

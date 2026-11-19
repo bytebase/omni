@@ -257,7 +257,8 @@ type AlterUserStmt struct {
 	Plugin       string      // authOption: IDENTIFIED WITH plugin
 	AuthBy       string      // authOption's (BY | AS) string: "BY", "AS" or ""
 	AuthString   string      // the string the plugin's credentials were given as
-	DefaultRole  string      // DEFAULT ROLE's NONE, ALL or role list text
+	DefaultRole  string      // DEFAULT ROLE's NONE or ALL; empty when it names a list
+	DefaultRoles []string    // DEFAULT ROLE roleList
 	Properties   []*Property // SET properties
 	Loc          Loc
 }

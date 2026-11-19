@@ -140,9 +140,58 @@ func TestPlanAdvisor(t *testing.T) {
 		`ALTER PLAN ADVISOR ADD`,
 		`ALTER PLAN ADVISOR DROP a`,
 		`TRUNCATE PLAN`,
+		// queryStatement's explainDesc prefix is refused by the server's AST
+		// builder: "query should not be a explain stmt".
+		`ALTER PLAN ADVISOR ADD EXPLAIN SELECT 1`,
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+func TestBackupCatalogListTakesNoAlias(t *testing.T) {
+	// backupStatement's list is identifierList; restoreStatement's is
+	// identifierWithAliasList, and the server refuses an alias in the former.
+	for _, sql := range []string{
+		`BACKUP EXTERNAL CATALOG(a) SNAPSHOT s TO r`,
+		`BACKUP ALL EXTERNAL CATALOGS SNAPSHOT s TO r`,
+		`BACKUP DATABASE db SNAPSHOT s TO r`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+	if _, errs := parseForTest(`BACKUP EXTERNAL CATALOG(a AS b) SNAPSHOT s TO r`); len(errs) == 0 {
+		t.Error("BACKUP with an aliased catalog parsed, want a syntax error")
+	}
+}
+
+func TestFileCatalogKeepsItsQualifiedName(t *testing.T) {
+	// createFileStatement takes a qualifiedName, so a catalog and a database
+	// both survive: `IN catalog.db` is not truncated to db.
+	stmt := parseOne(t, `CREATE FILE 'x' IN catalog.db PROPERTIES('k' = 'v')`).(*ast.CreateFileStmt)
+	if stmt.Database != "catalog.db" {
+		t.Errorf("Database = %q, want catalog.db", stmt.Database)
+	}
+	dropped := parseOne(t, `DROP FILE 'x' FROM catalog.db PROPERTIES('k' = 'v')`).(*ast.DropFileStmt)
+	if dropped.Database != "catalog.db" {
+		t.Errorf("Database = %q, want catalog.db", dropped.Database)
+	}
+}
+
+func TestDigitIdentifierSwallowsTheExponent(t *testing.T) {
+	// DIGIT_IDENTIFIER (StarRocksLex.g4:564) outruns DOUBLE_VALUE, so `1e2a`
+	// and `1E2a` are names rather than a float and its label; the server
+	// takes both.
+	for _, sql := range []string{`SELECT 1e2a`, `SELECT 1E2a`} {
+		file, errs := parseForTest(sql)
+		if len(errs) != 0 {
+			t.Fatalf("parseForTest(%q): %v", sql, errs)
+		}
+		sel := file.Stmts[0].(*ast.SelectStmt)
+		if col, ok := sel.Items[0].Expr.(*ast.ColumnRef); !ok || col.Name.Parts[0] != sql[len("SELECT "):] {
+			t.Errorf("%q: item = %T, want the column named %q", sql, sel.Items[0].Expr, sql[len("SELECT "):])
 		}
 	}
 }

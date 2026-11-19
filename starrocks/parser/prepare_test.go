@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/starrocks/ast"
@@ -27,6 +28,14 @@ func TestPrepare(t *testing.T) {
 		`PREPARE p FROM 'a'`,
 		`PREPARE p FROM`,
 		`PREPARE FROM SELECT 1`,
+		// prepareSql admits SINGLE_QUOTED_TEXT, and the string holds one
+		// statement; the server refuses each of these.
+		`PREPARE p FROM "SELECT 1"`,
+		`PREPARE p FROM ''`,
+		`PREPARE p FROM '-- c'`,
+		`PREPARE p FROM 'SELECT 1; SELECT 2'`,
+		// The name is one identifier.
+		`PREPARE a.b FROM SELECT 1`,
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
@@ -45,7 +54,14 @@ func TestExecuteAndDeallocate(t *testing.T) {
 			t.Errorf("%q: Name = %q, want p", sql, stmt.Name.String())
 		}
 	}
-	for _, sql := range []string{`EXECUTE`, `EXECUTE p USING a`, `DEALLOCATE p`} {
+	for _, sql := range []string{
+		`EXECUTE`,
+		`EXECUTE p USING a`,
+		`EXECUTE a.b`,
+		`DEALLOCATE p`,
+		`DEALLOCATE PREPARE a.b`,
+		`DEALLOCATE x y`,
+	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
 		}
@@ -89,5 +105,14 @@ func TestTranslate(t *testing.T) {
 	}
 	if _, err := Parse(`TRANSLATE presto;`); err != nil {
 		t.Errorf("TRANSLATE presto; : %v", err)
+	}
+}
+
+func TestPrepareStringSharesTheNestingDepth(t *testing.T) {
+	// The string's statement is parsed at the depth the PREPARE sits at, so a
+	// wrapper cannot hide a depth the limit would catch outside one.
+	inner := "SELECT " + strings.Repeat("(", 10001) + "1" + strings.Repeat(")", 10001)
+	if _, err := Parse("PREPARE p FROM '" + inner + "'"); err == nil {
+		t.Error("a PREPARE string deeper than the limit parsed, want an error")
 	}
 }

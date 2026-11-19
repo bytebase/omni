@@ -338,8 +338,12 @@ func TestAlterUser_IdentifiedBy(t *testing.T) {
 // ACCOUNT_UNLOCK and COMMENT are refused by the pinned server.
 func TestAlterUser_Clauses(t *testing.T) {
 	stmt := parseAlterUserStmt(t, `ALTER USER jack@'%' DEFAULT ROLE NONE`)
-	if stmt.DefaultRole != "NONE" {
-		t.Errorf("DefaultRole = %q, want NONE", stmt.DefaultRole)
+	if stmt.DefaultRole != "NONE" || len(stmt.DefaultRoles) != 0 {
+		t.Errorf("DefaultRole = %q DefaultRoles = %v, want NONE", stmt.DefaultRole, stmt.DefaultRoles)
+	}
+	stmt = parseAlterUserStmt(t, `ALTER USER jack@'%' DEFAULT ROLE 'a,b', c`)
+	if stmt.DefaultRole != "" || len(stmt.DefaultRoles) != 2 {
+		t.Errorf("DefaultRoles = %v, want the two roles as written", stmt.DefaultRoles)
 	}
 	stmt = parseAlterUserStmt(t, `ALTER USER jack@'%' SET PROPERTIES("a" = "a")`)
 	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "a" {

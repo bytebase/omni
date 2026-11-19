@@ -134,6 +134,11 @@ func (p *Parser) parseAlterPlanAdvisor(startLoc ast.Loc) (ast.Node, error) {
 	case kwADD:
 		p.advance() // consume ADD
 		stmt.Action = "ADD"
+		// The rule takes queryStatement, whose optional explainDesc or
+		// optimizerTrace prefix is not one the server reads here: it answers
+		// `ALTER PLAN ADVISOR ADD EXPLAIN SELECT 1` with "Unsupported
+		// statement: query should not be a explain stmt." and a TRACE prefix
+		// at the parse, so the query relation is what it accepts.
 		query, err := p.parseQueryRelation()
 		if err != nil {
 			return nil, err

@@ -846,9 +846,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *AlterUserStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
 		}
 	case *DropUserStmt:
 		if n.Name != nil {

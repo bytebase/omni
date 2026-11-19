@@ -110,7 +110,7 @@ func (l *Lexer) nextTokenInner() Token {
 	case ch == '`':
 		return l.scanBacktickIdent()
 	case ch >= '0' && ch <= '9':
-		return l.scanNumber()
+		return l.scanNumberOrDigitIdent()
 	case ch == '.' && l.peekDigit():
 		// DOT_IDENTIFIER is '.' DIGIT_IDENTIFIER (StarRocksLex.g4:574) and
 		// wins the longest match over DECIMAL_VALUE, so '.1a' is one token
@@ -452,18 +452,27 @@ func (l *Lexer) scanNumber() Token {
 	if isFloat {
 		return Token{Kind: tokFloat, Str: text, Loc: loc}
 	}
-	// DIGIT_IDENTIFIER (StarRocksLex.g4:564) is DIGIT (LETTER | DIGIT | '_')+
-	// and outruns INTEGER_VALUE, so '1a' is one identifier. LETTER covers
-	// U+0080-U+FFFF, so '1　AS' is one too.
-	if end, ok := l.digitIdentEnd(); ok {
-		l.pos = end
-		return Token{Kind: tokIdent, Str: l.input[start:end], Loc: ast.Loc{Start: start, End: end}}
-	}
 	val, err := strconv.ParseInt(text, 10, 64)
 	if err != nil {
 		return Token{Kind: tokFloat, Str: text, Loc: loc}
 	}
 	return Token{Kind: tokInt, Str: text, Ival: val, Loc: loc}
+}
+
+// scanNumberOrDigitIdent reads a number, or the DIGIT_IDENTIFIER it starts
+// (StarRocksLex.g4:564): DIGIT (LETTER | DIGIT | '_')+ outruns every numeric
+// rule when the digits run on into letters, so '1a' is one identifier and
+// neither '1e2a' nor '1E2a' is a float and a name. LETTER covers
+// U+0080-U+FFFF, so '1　AS' is one identifier too.
+func (l *Lexer) scanNumberOrDigitIdent() Token {
+	start := l.start
+	tok := l.scanNumber()
+	end, ok := l.digitIdentEnd()
+	if !ok {
+		return tok
+	}
+	l.pos = end
+	return Token{Kind: tokIdent, Str: l.input[start:end], Loc: ast.Loc{Start: start, End: end}}
 }
 
 func isHexDigit(ch byte) bool {
