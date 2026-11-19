@@ -133,9 +133,19 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 			case *ast.UseStmt:
 				// What the change touched before on a table named without a
 				// database is of another database; one named with its
-				// database still is what it was.
-				touched = slices.DeleteFunc(touched, func(i index) bool { return i.table.Schema == "" })
-				replaced = slices.DeleteFunc(replaced, func(t *ast.TableRef) bool { return t.Schema == "" })
+				// database still is what it was (unless USE switched catalogs).
+				if v.Catalog != "" {
+					touched = nil
+					replaced = nil
+				} else {
+					touched = slices.DeleteFunc(touched, func(i index) bool { return i.table.Schema == "" })
+					replaced = slices.DeleteFunc(replaced, func(t *ast.TableRef) bool { return t.Schema == "" })
+				}
+			case *ast.CatalogStmt:
+				if v.Action == "SET" {
+					touched = nil
+					replaced = nil
+				}
 			case *ast.CreateTableStmt:
 				// IF NOT EXISTS may leave the table of the name as it was.
 				if v.IfNotExists {
@@ -214,9 +224,25 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					case dropForeignKey:
 						msg = dropsConstraint("foreign key", ident(cmd.Name), table(v.Table))
 					case dropCheck:
-						msg = dropsConstraint("check constraint", ident(cmd.Name), table(v.Table))
+						if len(cmd.ConstraintNames) > 0 {
+							names := make([]string, len(cmd.ConstraintNames))
+							for i, cn := range cmd.ConstraintNames {
+								names[i] = ident(cn)
+							}
+							msg = dropsOf("check constraint", table(v.Table), names...)
+						} else {
+							msg = dropsConstraint("check constraint", ident(cmd.Name), table(v.Table))
+						}
 					case dropConstraint:
-						msg = dropsConstraint("constraint", ident(cmd.Name), table(v.Table))
+						if len(cmd.ConstraintNames) > 0 {
+							names := make([]string, len(cmd.ConstraintNames))
+							for i, cn := range cmd.ConstraintNames {
+								names[i] = ident(cn)
+							}
+							msg = dropsOf("constraint", table(v.Table), names...)
+						} else {
+							msg = dropsConstraint("constraint", ident(cmd.Name), table(v.Table))
+						}
 					case dropIndex:
 						droppedName(pos, s, cmd.Loc, v.Table, cmd.Name)
 					}

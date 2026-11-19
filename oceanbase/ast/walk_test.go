@@ -181,6 +181,9 @@ func allKnownNodes() []Node {
 		&TableStmt{}, &ValuesStmt{},
 		&BinlogStmt{}, &CloneStmt{}, &RestartStmt{}, &ShutdownStmt{},
 		&HelpStmt{}, &PurgeBinaryLogsStmt{}, &ImportTableStmt{},
+		&RestorePointStmt{}, &CatalogStmt{}, &DatabaseLinkStmt{},
+		&PurgeStmt{}, &FlashbackStmt{}, &DumpMemoryStmt{},
+		&AlterSystemStmt{}, &AuditStmt{}, &MethodOptStmt{}, &ObjectDDLStmt{},
 		&RawStmt{},
 
 		// Expressions
@@ -195,18 +198,24 @@ func allKnownNodes() []Node {
 		&KeywordArg{}, &WeightStringExpr{},
 		&ParenExpr{}, &RowExpr{},
 		&MatchExpr{}, &MemberOfExpr{}, &VariableRef{},
+		&RemoteSequenceExpr{}, &QuantifiedExpr{}, &OdbcEscapeExpr{},
+		&GroupingSet{}, &PositionExpr{},
 		&ValuesStmt{}, // also an expression in some contexts
 		&JsonTableExpr{}, &JsonTableColumn{},
 
 		// Table expressions
-		&TableRef{}, &JoinClause{},
+		&TableRef{}, &JoinClause{}, &ExternalTableRef{}, &RbIterateExpr{}, &UnnestExpr{},
+		&TableFlashback{}, &TableSample{},
 
 		// DDL components
 		&CommonTableExpr{}, &ColumnDef{}, &ColumnConstraint{}, &Constraint{},
 		&DataType{}, &IndexColumn{}, &IndexOption{},
 		&PartitionClause{}, &PartitionDef{}, &SubPartitionDef{},
-		&AlterTableCmd{}, &GeneratedColumn{},
-		&TableOption{}, &DatabaseOption{},
+		&AlterTableCmd{}, &GeneratedColumn{}, &LobStorageClause{},
+		&TableOption{}, &DatabaseOption{}, &VectorIndexParam{},
+		&FileOption{}, &LoadDataExtendedOption{},
+		&ExternalProperty{}, &ParserProperty{},
+		&StatsMethod{}, &StatsForColumnsItem{},
 		&MaterializedViewPrimaryKey{}, &MviewOptions{}, &MviewRefreshInfo{},
 		&ParallelOption{}, &MlogWith{}, &MlogPurge{},
 		&AlterMviewAction{}, &AlterMlogAction{},

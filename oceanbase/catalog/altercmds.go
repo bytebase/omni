@@ -17,6 +17,9 @@ import (
 const defaultAutoSplitSize = "2048MB"
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	if err := rejectRemoteRef(stmt.Table); err != nil {
+		return err
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -154,18 +157,64 @@ func cloneBoolMap(m map[string]bool) map[string]bool {
 func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
+		// OceanBase parses column_attribute's `ID n` and refuses to run it: the
+		// pinned server answers 1064 on a table that exists, as it does for
+		// TABLE_ID (testdata/simulate.tsv, rule column_attribute/ID_INTNUM and
+		// generated_column_attribute/ID_INTNUM). A column's id is given when it
+		// is created and never altered.
+		if alterCarriesColumnID(cmd) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "a column id cannot be altered"}
+		}
 		return c.alterAddColumn(tbl, cmd)
 	case nodes.ATDropColumn:
 		return c.alterDropColumn(tbl, cmd)
 	case nodes.ATModifyColumn:
+		if alterCarriesColumnID(cmd) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "a column id cannot be altered"}
+		}
 		return c.alterModifyColumn(tbl, cmd)
 	case nodes.ATChangeColumn:
+		if alterCarriesColumnID(cmd) {
+			return &Error{Code: 1064, SQLState: "42000", Message: "a column id cannot be altered"}
+		}
 		return c.alterChangeColumn(tbl, cmd)
 	case nodes.ATAddIndex, nodes.ATAddConstraint:
 		return c.alterAddConstraint(tbl, cmd)
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
+		// alter_constraint_option's list form, DROP CHECK (c1, c2) and
+		// DROP CONSTRAINT (c1, c2), drops every check constraint it writes
+		// (sql_parser_mysql_mode.y:19456-19469).
+		if len(cmd.ConstraintNames) > 0 {
+			// The list is one command, whose failure leaves the table as it was:
+			// every name is looked up before any of them is dropped.
+			if !cmd.IfExists {
+				// A name written twice fails on its second drop, so the whole
+				// statement fails before anything is removed either.
+				seen := map[string]bool{}
+				for _, name := range cmd.ConstraintNames {
+					key := toLower(name)
+					if !tableHasCheckConstraint(tbl, name) || seen[key] {
+						// Both list forms answer 3821 for a name no check constraint has.
+						return errCheckConstraintNotFound(name)
+					}
+					seen[key] = true
+				}
+			}
+			for _, name := range cmd.ConstraintNames {
+				if err := c.alterDropConstraint(tbl, &nodes.AlterTableCmd{
+					Loc:               cmd.Loc,
+					Type:              cmd.Type,
+					ConstraintKeyword: nodes.ConstraintKeywordCheck,
+					Name:              name,
+					IfExists:          cmd.IfExists,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		return c.alterDropConstraint(tbl, cmd)
 	case nodes.ATRenameColumn:
 		return c.alterRenameColumn(tbl, cmd)
@@ -177,6 +226,17 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterTableOption(tbl, cmd)
 	case nodes.ATAlterColumnDefault:
 		return c.alterColumnDefault(tbl, cmd)
+	case nodes.ATAlterIndexStorageCachePolicy:
+		// OceanBase parses the policy and refuses it outside shared storage,
+		// which is what checkIndexOptions records for the same option: 1235.
+		return errNotSupported("storage cache policy")
+	case nodes.ATAlterIndexParallel:
+		// Parallelism itself is not modeled, but the index the statement names
+		// must exist: the server answers 1176 when it does not.
+		if !tableHasIndex(tbl, cmd.Name) {
+			return errKeyNotExist(cmd.Name, tbl.Name)
+		}
+		return nil
 	case nodes.ATAlterIndexVisible:
 		return c.alterIndexVisibility(tbl, cmd, true)
 	case nodes.ATAlterIndexInvisible:
@@ -207,6 +267,29 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterReorganizePartition(tbl, cmd)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
+	case nodes.ATRefresh:
+		// REFRESH refreshes an external table's metadata. This catalog models no
+		// external table, so an ordinary one is a 1210 to the server.
+		return &Error{Code: 1210, SQLState: "HY000", Message: "Incorrect arguments to REFRESH"}
+	case nodes.ATPartitionBy:
+		// OceanBase parses a repartition that carries a SIZE ('size') and then
+		// refuses it: the pinned server answers 1064 on a table that exists
+		// (testdata/simulate.tsv, rule opt_auto_split_tablet_size_option). A
+		// table's tablet size is set when the table is created. The rest of the
+		// clause is parsed and not kept, as it was before.
+		// RANGE () SIZE ('s') and RANGE (expr) SIZE ('s') (PARTITION ...) are the
+		// two forms the server refuses with 1064; RANGE (expr) SIZE ('s') with no
+		// partition list reaches the executor and answers 1235, which is the gap
+		// this row records.
+		if pb := cmd.PartitionBy; pb != nil && pb.SplitSize != "" {
+			if len(pb.Partitions) > 0 || (pb.Expr == nil && len(pb.Columns) == 0) {
+				return &Error{Code: 1064, SQLState: "42000", Message: "SIZE cannot be altered"}
+			}
+			// RANGE (expr) SIZE ('s') with no partition list reaches the executor,
+			// which answers 1235 rather than the parser's 1064.
+			return errNotSupported("auto split tablet size")
+		}
+		return nil
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
@@ -220,12 +303,56 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	}
 }
 
+// tableHasIndex reports whether the table holds an index of that name, the
+// primary key included.
+func tableHasIndex(tbl *Table, name string) bool {
+	key := toLower(name)
+	for _, idx := range tbl.Indexes {
+		if toLower(idx.Name) == key {
+			return true
+		}
+	}
+	return false
+}
+
+// tableHasCheckConstraint reports whether the table holds a CHECK constraint of that name.
+func tableHasCheckConstraint(tbl *Table, name string) bool {
+	key := toLower(name)
+	for _, con := range tbl.Constraints {
+		if con.Type == ConCheck && toLower(con.Name) == key {
+			return true
+		}
+	}
+	return false
+}
+
+// alterCarriesColumnID reports whether an ADD COLUMN action carries column
+// attribute `ID n`, on a plain column or on a generated one.
+func alterCarriesColumnID(cmd *nodes.AlterTableCmd) bool {
+	for _, col := range cmd.Columns {
+		if col != nil && (col.HasID || (col.Generated != nil && col.Generated.HasID)) {
+			return true
+		}
+	}
+	if col := cmd.Column; col != nil {
+		return col.HasID || (col.Generated != nil && col.Generated.HasID)
+	}
+	return false
+}
+
 // alterAddColumn adds a new column to the table.
 func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// lob_storage_clause follows the ADD's column list, and the pinned server
+	// parses it and refuses to run it: 1210 on a table that exists
+	// (testdata/simulate.tsv, rule
+	// alter_column_option/ADD_(_column_definition_list_)_lob_storage_clause).
+	if cmd.LobStorage != nil {
+		return &Error{Code: 1210, SQLState: "HY000", Message: "Invalid argument"}
+	}
 	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
 	if len(cmd.Columns) > 0 {
 		for _, colDef := range cmd.Columns {
-			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
+			if err := c.addSingleColumn(tbl, colDef, &nodes.AlterTableCmd{}); err != nil {
 				return err
 			}
 		}
@@ -237,11 +364,11 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return nil
 	}
 
-	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After)
+	return c.addSingleColumn(tbl, colDef, cmd)
 }
 
 // addSingleColumn adds one column definition to the table.
-func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, cmd *nodes.AlterTableCmd) error {
 	if err := checkAddedGeneratedCheck(colDef); err != nil {
 		return err
 	}
@@ -260,7 +387,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
-	if err := insertColumn(tbl, col, first, after); err != nil {
+	if err := insertColumn(tbl, col, cmd.First, cmd.After, cmd.Before); err != nil {
 		return err
 	}
 	if isSerialColumn(colDef) {
@@ -479,6 +606,26 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		}
 	}
 
+	// The column a BEFORE names is looked up before anything is replaced or
+	// removed: an ALTER that fails must leave the table as it was. Naming the
+	// column being replaced is no target, since it is the one that goes.
+	if cmd.Before != "" {
+		if toLower(cmd.Before) == oldKey {
+			return errNoSuchColumn(cmd.Before, tbl.Name)
+		}
+		if _, ok := tbl.colByName[toLower(cmd.Before)]; !ok {
+			return errNoSuchColumn(cmd.Before, tbl.Name)
+		}
+	}
+	if cmd.After != "" {
+		if toLower(cmd.After) == oldKey {
+			return errNoSuchColumn(cmd.After, tbl.Name)
+		}
+		if _, ok := tbl.colByName[toLower(cmd.After)]; !ok {
+			return errNoSuchColumn(cmd.After, tbl.Name)
+		}
+	}
+
 	// Check for VIRTUAL<->STORED storage type change (MySQL 8.0 error 3106).
 	oldCol := tbl.Columns[idx]
 	if oldCol.Generated != nil && colDef.Generated != nil {
@@ -503,10 +650,10 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	// Handle repositioning.
-	if cmd.First || cmd.After != "" {
+	if cmd.First || cmd.After != "" || cmd.Before != "" {
 		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
 		rebuildColIndex(tbl)
-		if err := insertColumn(tbl, col, cmd.First, cmd.After); err != nil {
+		if err := insertColumn(tbl, col, cmd.First, cmd.After, cmd.Before); err != nil {
 			return err
 		}
 	} else {
@@ -614,6 +761,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		})
 
 	case nodes.ConstrForeignKey:
+		if err := rejectRemoteRef(con.RefTable); err != nil {
+			return err
+		}
 		conName := con.Name
 		if conName == "" {
 			conName = c.madeUpConstraintName(tbl.Name, madeUpForeignKeyInfix, func(name string) bool {
@@ -817,20 +967,38 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	name := cmd.Name
 	key := toLower(name)
 
+	// Each keyword names one kind of object: DROP CHECK takes a check alone and
+	// DROP FOREIGN KEY a foreign key alone; DROP CONSTRAINT takes any constraint
+	// of that name.
+	checkOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck
+	foreignOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordForeignKey
+
 	found := false
 	isForeignKey := false
 	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		if toLower(con.Name) != key {
+			continue
 		}
+		if (checkOnly && con.Type != ConCheck) || (foreignOnly && con.Type != ConForeignKey) {
+			continue
+		}
+		isForeignKey = (con.Type == ConForeignKey)
+		tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+		found = true
+		break
 	}
 
 	if !found {
 		if cmd.IfExists {
 			return nil
+		}
+		// The two spellings answer different errors on identical state:
+		// DROP CHECK is 3821 and DROP CONSTRAINT 3940.
+		switch cmd.ConstraintKeyword {
+		case nodes.ConstraintKeywordCheck:
+			return errCheckConstraintNotFound(name)
+		case nodes.ConstraintKeywordConstraint:
+			return errConstraintDoesNotExist(name)
 		}
 		return errCantDropKey(name)
 	}
@@ -914,6 +1082,9 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	newTable := cmd.NewTable
 	if newTable == nil {
 		newTable = &nodes.TableRef{Name: cmd.NewName}
+	}
+	if err := rejectRemoteRef(newTable); err != nil {
+		return err
 	}
 	newDB, err := c.resolveDatabase(newTable.Schema)
 	if err != nil {
@@ -1110,10 +1281,11 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 
 // insertColumn inserts col into tbl at the position specified by first/after.
 // If neither first nor after is set, appends at end. Always rebuilds the column index.
-func insertColumn(tbl *Table, col *Column, first bool, after string) error {
-	if first {
+func insertColumn(tbl *Table, col *Column, first bool, after, before string) error {
+	switch {
+	case first:
 		tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	} else if after != "" {
+	case after != "":
 		afterIdx, ok := tbl.colByName[toLower(after)]
 		if !ok {
 			return errNoSuchColumn(after, tbl.Name)
@@ -1122,7 +1294,15 @@ func insertColumn(tbl *Table, col *Column, first bool, after string) error {
 		tbl.Columns = append(tbl.Columns, nil)
 		copy(tbl.Columns[pos+1:], tbl.Columns[pos:])
 		tbl.Columns[pos] = col
-	} else {
+	case before != "":
+		beforeIdx, ok := tbl.colByName[toLower(before)]
+		if !ok {
+			return errNoSuchColumn(before, tbl.Name)
+		}
+		tbl.Columns = append(tbl.Columns, nil)
+		copy(tbl.Columns[beforeIdx+1:], tbl.Columns[beforeIdx:])
+		tbl.Columns[beforeIdx] = col
+	default:
 		tbl.Columns = append(tbl.Columns, col)
 	}
 	rebuildColIndex(tbl)
@@ -1375,11 +1555,12 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return nil
 		}
 	}
-	return &Error{
-		Code:     3940,
-		SQLState: "HY000",
-		Message:  fmt.Sprintf("Constraint '%s' does not exist.", cmd.Name),
+	// The server tells the two spellings apart: ALTER CHECK answers 3821, the
+	// check constraint not found, and ALTER CONSTRAINT 3940.
+	if cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck {
+		return errCheckConstraintNotFound(cmd.Name)
 	}
+	return errConstraintDoesNotExist(cmd.Name)
 }
 
 // alterConvertCharset handles CONVERT TO CHARACTER SET charset [COLLATE collation].
@@ -1705,6 +1886,9 @@ func (c *Catalog) alterExchangePartition(db *Database, tbl *Table, cmd *nodes.Al
 	// For DDL catalog purposes, exchange is primarily a data operation.
 	// We just validate both tables exist.
 	if cmd.ExchangeTable != nil {
+		if err := rejectRemoteRef(cmd.ExchangeTable); err != nil {
+			return err
+		}
 		exchDB := db
 		if cmd.ExchangeTable.Schema != "" {
 			exchDB = c.GetDatabase(cmd.ExchangeTable.Schema)

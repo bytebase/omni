@@ -56,6 +56,8 @@ const (
 	NaturalInnerJoin
 	NaturalLeftOuterJoin
 	NaturalRightOuterJoin
+	FullOuterJoin
+	NaturalFullOuterJoin
 )
 
 // joinTableSources returns the columns a join exposes, in the order MySQL
@@ -67,7 +69,8 @@ const (
 func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource {
 	switch tp {
 	case Join, InnerJoin, CrossJoin, StraightJoin, LeftOuterJoin, RightOuterJoin,
-		NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
+		NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin,
+		FullOuterJoin, NaturalFullOuterJoin:
 	default:
 		return nil
 	}
@@ -79,19 +82,35 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 	if tp == RightOuterJoin || tp == NaturalRightOuterJoin {
 		first, second = second, first
 	}
+	isFullJoin := tp == FullOuterJoin || tp == NaturalFullOuterJoin
 	joined := make(map[string]bool)
 	for _, name := range names {
 		joined[strings.ToLower(name)] = true
 	}
 	var columns []QuerySpanResult
+	emittedJoined := make(map[string]bool, len(names))
 	for _, field := range first {
-		if !joined[strings.ToLower(field.Name)] {
+		lower := strings.ToLower(field.Name)
+		if !joined[lower] {
 			continue
 		}
+		emittedJoined[lower] = true
 		if other, ok := querySpanResultNamed(second, field.Name); ok {
 			field.SourceColumns, _ = mergeColumnSet(field.SourceColumns, other.SourceColumns)
 		}
+		if isFullJoin {
+			field.IsPlainField = false
+		}
 		columns = append(columns, field)
+	}
+	// If the first side is an unknown-columns source (remote/external), still
+	// expose the USING columns known from the second side at the leading position.
+	for _, field := range second {
+		lower := strings.ToLower(field.Name)
+		if joined[lower] && !emittedJoined[lower] {
+			field.IsPlainField = false
+			columns = append(columns, field)
+		}
 	}
 	for _, side := range [][]QuerySpanResult{first, second} {
 		for _, field := range side {
@@ -109,7 +128,7 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 // a NATURAL join every column name both sides share.
 func joinedColumnNames(l, r tableSource, tp joinType, using []string) []string {
 	switch tp {
-	case NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
+	case NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin, NaturalFullOuterJoin:
 		var names []string
 		rightColumns := r.GetQuerySpanResult()
 		for _, field := range l.GetQuerySpanResult() {
@@ -132,58 +151,79 @@ func querySpanResultNamed(results []QuerySpanResult, name string) (QuerySpanResu
 	return QuerySpanResult{}, false
 }
 
-func (q *querySpanExtractor) getAllTableColumnSources(databaseName, tableName string) ([]QuerySpanResult, bool) {
-	findInTableSource := func(tableSource tableSource) ([]QuerySpanResult, bool) {
+func (q *querySpanExtractor) matchesSourceQualifiers(catalogName, databaseName, tableName string, tableSource tableSource) bool {
+	if tableSource.HasAlias() {
+		// An aliased relation cannot be qualified by catalog or database.
+		if catalogName != "" || databaseName != "" {
+			return false
+		}
+		if tableName == "" {
+			return true
+		}
 		if q.ignoreCaseSensitive {
-			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
-				return nil, false
-			}
-			if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
-				return nil, false
-			}
-		} else {
-			if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
-				return nil, false
-			}
-			if tableName != "" && tableName != tableSource.GetTableName() {
-				return nil, false
-			}
+			return strings.EqualFold(tableName, tableSource.GetEffectiveName())
+		}
+		return tableName == tableSource.GetEffectiveName()
+	}
+	if catalogName != "" && !strings.EqualFold(catalogName, tableSource.GetCatalogName()) {
+		return false
+	}
+	if q.ignoreCaseSensitive {
+		if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
+			return false
+		}
+		if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
+			return false
+		}
+	} else {
+		if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
+			return false
+		}
+		if tableName != "" && tableName != tableSource.GetTableName() {
+			return false
+		}
+	}
+	return true
+}
+
+func (q *querySpanExtractor) getAllTableColumnSources(catalogName, databaseName, tableName string) ([]QuerySpanResult, bool) {
+	findInTableSource := func(tableSource tableSource, allowUnknown bool) ([]QuerySpanResult, bool) {
+		_, isUnknown := tableSource.(*unknownColumnsTable)
+		if isUnknown != allowUnknown {
+			return nil, false
+		}
+		if !q.matchesSourceQualifiers(catalogName, databaseName, tableName, tableSource) {
+			return nil, false
 		}
 		return tableSource.GetQuerySpanResult(), true
 	}
 
-	// The subquery's own FROM first, then enclosing queries, nearest first.
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i]); ok {
-			return querySpanResult, true
+	// Search known local relations first, then unknown remote/external relations.
+	for _, allowUnknown := range []bool{false, true} {
+		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+			if querySpanResult, ok := findInTableSource(q.tableSourceFrom[i], allowUnknown); ok {
+				return querySpanResult, true
+			}
 		}
-	}
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if querySpanResult, ok := findInTableSource(q.outerTableSources[i]); ok {
-			return querySpanResult, true
+		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+			if querySpanResult, ok := findInTableSource(q.outerTableSources[i], allowUnknown); ok {
+				return querySpanResult, true
+			}
 		}
 	}
 	return nil, false
 }
 
-func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, fieldName string) (QuerySpanResult, error) {
-	findInTableSource := func(tableSource tableSource) (QuerySpanResult, bool) {
-		if q.ignoreCaseSensitive {
-			if databaseName != "" && !strings.EqualFold(databaseName, tableSource.GetDatabaseName()) {
-				return QuerySpanResult{}, false
-			}
-			if tableName != "" && !strings.EqualFold(tableName, tableSource.GetTableName()) {
-				return QuerySpanResult{}, false
-			}
-		} else {
-			if databaseName != "" && databaseName != tableSource.GetDatabaseName() {
-				return QuerySpanResult{}, false
-			}
-			if tableName != "" && tableName != tableSource.GetTableName() {
-				return QuerySpanResult{}, false
-			}
+func (q *querySpanExtractor) getFieldColumnSource(catalogName, databaseName, tableName, fieldName string) (QuerySpanResult, error) {
+	findInTableSource := func(tableSource tableSource, allowUnknown bool) (QuerySpanResult, bool) {
+		_, isUnknown := tableSource.(*unknownColumnsTable)
+		if isUnknown != allowUnknown {
+			return QuerySpanResult{}, false
 		}
-		if _, ok := tableSource.(*unknownColumnsTable); ok {
+		if !q.matchesSourceQualifiers(catalogName, databaseName, tableName, tableSource) {
+			return QuerySpanResult{}, false
+		}
+		if isUnknown {
 			return QuerySpanResult{Name: fieldName}, true
 		}
 		for _, column := range tableSource.GetQuerySpanResult() {
@@ -194,21 +234,23 @@ func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, field
 		return QuerySpanResult{}, false
 	}
 
-	// A column resolves in the subquery's own FROM first, then in enclosing
-	// queries, nearest first, as a correlated reference.
-	for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.tableSourceFrom[i]); ok {
-			return source, nil
+	// Resolve against known relations across the scope chain first so remote or
+	// external unknown-column tables never swallow local column lineage.
+	for _, allowUnknown := range []bool{false, true} {
+		for i := len(q.tableSourceFrom) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.tableSourceFrom[i], allowUnknown); ok {
+				return source, nil
+			}
 		}
-	}
-	for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.priorTableInFrom[i]); ok {
-			return source, nil
+		for i := len(q.priorTableInFrom) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.priorTableInFrom[i], allowUnknown); ok {
+				return source, nil
+			}
 		}
-	}
-	for i := len(q.outerTableSources) - 1; i >= 0; i-- {
-		if source, ok := findInTableSource(q.outerTableSources[i]); ok {
-			return source, nil
+		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+			if source, ok := findInTableSource(q.outerTableSources[i], allowUnknown); ok {
+				return source, nil
+			}
 		}
 	}
 
@@ -525,6 +567,9 @@ func (q *querySpanExtractor) extractTableStmt(stmt *ast.TableStmt) (*pseudoTable
 	if stmt.Into != nil {
 		return nil, errors.New("meet unsupported table statement with into")
 	}
+	if stmt.Table.Catalog != "" || stmt.Table.Dblink != "" {
+		return &pseudoTable{}, nil
+	}
 	tableSource, err := q.findTableSchema(stmt.Table.Schema, stmt.Table.Name)
 	if err != nil {
 		return nil, err
@@ -704,6 +749,19 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if isDualTable(t) {
 			return &pseudoTable{Name: t.Name}, nil
 		}
+		// A table read through a database link or named in another catalog is
+		// remote: its columns are not the local catalog's, so nothing of a
+		// same-named local table's is.
+		if t.Dblink != "" || t.Catalog != "" {
+			// Its columns are known only when the query runs, so the source has a
+			// name and no known ones: any column reference to it resolves, as it
+			// does for an external table's. Once aliased, qualifiers no longer
+			// apply to the relation.
+			if t.Alias != "" {
+				return &unknownColumnsTable{pseudoTable{Name: t.Alias, Aliased: true}}, nil
+			}
+			return &unknownColumnsTable{pseudoTable{Name: t.Name, DBName: t.Schema, CatalogName: t.Catalog}}, nil
+		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
 			return nil, err
@@ -713,6 +771,7 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		}
 		return &pseudoTable{
 			Name:    t.Alias,
+			Aliased: true,
 			Columns: tableSource.GetQuerySpanResult(),
 		}, nil
 	case *ast.SubqueryExpr:
@@ -866,6 +925,10 @@ func toJoinType(joinType ast.JoinType) joinType {
 		return NaturalLeftOuterJoin
 	case ast.JoinNaturalRight:
 		return NaturalRightOuterJoin
+	case ast.JoinFull:
+		return FullOuterJoin
+	case ast.JoinNaturalFull:
+		return NaturalFullOuterJoin
 	default:
 		return Join
 	}
@@ -920,7 +983,7 @@ func (q *querySpanExtractor) extractTargetList(targets []ast.ExprNode, fromSourc
 		switch t := target.(type) {
 		case *ast.ResTarget:
 			if _, ok := t.Val.(*ast.StarExpr); ok {
-				fields, err := q.extractTableWild("", "", fromSources)
+				fields, err := q.extractTableWild("", "", "", fromSources)
 				if err != nil {
 					return nil, err
 				}
@@ -936,7 +999,7 @@ func (q *querySpanExtractor) extractTargetList(targets []ast.ExprNode, fromSourc
 				continue
 			}
 		case *ast.StarExpr:
-			fields, err := q.extractTableWild("", "", fromSources)
+			fields, err := q.extractTableWild("", "", "", fromSources)
 			if err != nil {
 				return nil, err
 			}
@@ -992,7 +1055,7 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 		}
 		// A column of a view, derived table or CTE is plain only if that
 		// query's column is.
-		source, err := q.getFieldColumnSource(e.Schema, e.Table, e.Column)
+		source, err := q.getFieldColumnSource(e.Catalog, e.Schema, e.Table, e.Column)
 		if err != nil {
 			return QuerySpanResult{}, err
 		}
@@ -1180,6 +1243,37 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 			return QuerySpanResult{}, err
 		}
 		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.QuantifiedExpr:
+		// any_expr's `ALL (expr)` is one expression, whose columns are the
+		// comparison's.
+		sourceColumns, err := q.mergeExprSources(e.Expr)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.OdbcEscapeExpr:
+		sourceColumns, err := q.mergeExprSources(e.Expr)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.RemoteSequenceExpr:
+		// A sequence read through a database link is no column of a table here.
+		return QuerySpanResult{Name: q.exprName(e)}, nil
+	case *ast.GroupingSet:
+		sourceColumns, err := q.mergeExprSources(e.Items...)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.PositionExpr:
+		sourceColumns, err := q.mergeExprSources(e.Substr, e.Str)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.ParamMarkerExpr:
+		return QuerySpanResult{Name: "?", SourceColumns: ColumnSet{}, IsPlainField: false}, nil
 	default:
 		return QuerySpanResult{}, fmt.Errorf("unsupported omni MySQL expression %T", expr)
 	}
@@ -1222,11 +1316,11 @@ func (q *querySpanExtractor) extractColumnWild(columnRef *ast.ColumnRef, fromSou
 	if columnRef == nil {
 		return nil, nil
 	}
-	return q.extractTableWild(columnRef.Schema, columnRef.Table, fromSources)
+	return q.extractTableWild(columnRef.Catalog, columnRef.Schema, columnRef.Table, fromSources)
 }
 
-func (q *querySpanExtractor) extractTableWild(databaseName, tableName string, fromSources []tableSource) ([]QuerySpanResult, error) {
-	if databaseName == "" && tableName == "" {
+func (q *querySpanExtractor) extractTableWild(catalogName, databaseName, tableName string, fromSources []tableSource) ([]QuerySpanResult, error) {
+	if catalogName == "" && databaseName == "" && tableName == "" {
 		var result []QuerySpanResult
 		for _, fromSource := range fromSources {
 			result = append(result, fromSource.GetQuerySpanResult()...)
@@ -1234,7 +1328,7 @@ func (q *querySpanExtractor) extractTableWild(databaseName, tableName string, fr
 		return result, nil
 	}
 
-	result, ok := q.getAllTableColumnSources(databaseName, tableName)
+	result, ok := q.getAllTableColumnSources(catalogName, databaseName, tableName)
 	if !ok {
 		return nil, &NotFoundError{
 			Database: &databaseName,
@@ -1248,6 +1342,9 @@ func (q *querySpanExtractor) exprName(expr ast.ExprNode) string {
 	switch e := expr.(type) {
 	case *ast.ColumnRef:
 		var parts []string
+		if e.Catalog != "" {
+			parts = append(parts, e.Catalog)
+		}
 		if e.Schema != "" {
 			parts = append(parts, e.Schema)
 		}
@@ -1422,6 +1519,18 @@ func exprNodeLoc(node ast.Node) (ast.Loc, bool) {
 		return n.Loc, true
 	case *ast.StarExpr:
 		return n.Loc, true
+	case *ast.QuantifiedExpr:
+		return n.Loc, true
+	case *ast.OdbcEscapeExpr:
+		return n.Loc, true
+	case *ast.RemoteSequenceExpr:
+		return n.Loc, true
+	case *ast.GroupingSet:
+		return n.Loc, true
+	case *ast.PositionExpr:
+		return n.Loc, true
+	case *ast.ParamMarkerExpr:
+		return n.Loc, true
 	default:
 		return ast.Loc{}, false
 	}
@@ -1478,7 +1587,11 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		return Explain
 	case *ast.ShowStmt:
 		return SelectInfoSchema
-	case *ast.SetStmt, *ast.SetDefaultRoleStmt, *ast.SetResourceGroupStmt, *ast.SetRoleStmt, *ast.SetTransactionStmt:
+	case *ast.SetStmt, *ast.SetDefaultRoleStmt, *ast.SetResourceGroupStmt, *ast.SetRoleStmt, *ast.SetTransactionStmt,
+		// dump_memory_stmt reads the observer's memory and sets its leak
+		// reporting, which no table and no row is part of: a session statement's
+		// class rather than none, which Bytebase denies.
+		*ast.DumpMemoryStmt:
 		return Select
 	case *ast.SetPasswordStmt, *ast.HelpStmt:
 		return QueryTypeUnknown
@@ -1499,7 +1612,17 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		*ast.RenameTableStmt, *ast.RenameUserStmt, *ast.TruncateStmt, *ast.ImportTableStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt,
 		*ast.InstallPluginStmt, *ast.UninstallPluginStmt, *ast.InstallComponentStmt,
-		*ast.UninstallComponentStmt, *ast.CloneStmt:
+		*ast.UninstallComponentStmt, *ast.CloneStmt,
+		// purge_stmt and flashback_stmt destroy and restore a table (or a
+		// database, a tenant or the recycle bin) as DDL does, and so do a
+		// catalog's, a database link's and a restore point's own statements.
+		*ast.PurgeStmt, *ast.FlashbackStmt, *ast.RestorePointStmt, *ast.DatabaseLinkStmt:
+		return DDL
+	case *ast.CatalogStmt:
+		// SET CATALOG is a session statement; CREATE and DROP CATALOG are DDL.
+		if n.Action == "SET" {
+			return Select
+		}
 		return DDL
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.BeginStmt, *ast.CommitStmt,
 		*ast.RollbackStmt, *ast.SavepointStmt, *ast.LockTablesStmt, *ast.UnlockTablesStmt,
@@ -1598,6 +1721,27 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 				collectAccessTablesFromExpr(result, orderBy.Expr, defaultDatabase)
 			}
 		}
+		// INTO OUTFILE's partition key and its FORMAT list may hold a subquery.
+		if n.Into != nil {
+			collectAccessTablesFromExpr(result, n.Into.PartitionBy, defaultDatabase)
+			for _, prop := range n.Into.ExternalFormat {
+				if prop != nil {
+					collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+				}
+			}
+		}
+	case *ast.PurgeStmt:
+		// PURGE TABLE names the table it empties out of the recycle bin.
+		if n.Kind == "TABLE" {
+			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		}
+	case *ast.FlashbackStmt:
+		// FLASHBACK restores the table it names, and may rename it: both names
+		// are resources the statement touches.
+		if n.Kind == "TABLE" {
+			collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+			collectAccessTablesFromTableRef(result, n.RenameTo, defaultDatabase)
+		}
 	case *ast.ExplainStmt:
 		collectAccessTablesFromNode(result, n.Stmt, defaultDatabase)
 	case *ast.InsertStmt:
@@ -1673,6 +1817,9 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 			}
 		}
 	case *ast.CreateViewStmt:
+		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+	case *ast.AlterViewStmt:
 		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
 		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
 	case *ast.CreateMaterializedViewStmt:
@@ -1771,6 +1918,10 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
 	case *ast.HandlerReadStmt:
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+		// The key's values are read as well: one may hold a subquery.
+		for _, value := range n.Values {
+			collectAccessTablesFromExpr(result, value, defaultDatabase)
+		}
 		collectAccessTablesFromExpr(result, n.Where, defaultDatabase)
 	case *ast.HandlerCloseStmt:
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
@@ -1813,6 +1964,11 @@ func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, d
 	if isDualTable(tableRef) {
 		return
 	}
+	// A database link's table, and one a catalog qualifies, is not the local
+	// catalog's resource.
+	if tableRef.Dblink != "" || tableRef.Catalog != "" {
+		return
+	}
 	database := tableRef.Schema
 	if database == "" {
 		database = defaultDatabase
@@ -1824,7 +1980,7 @@ func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, d
 }
 
 func isDualTable(tableRef *ast.TableRef) bool {
-	return tableRef != nil && tableRef.Schema == "" && strings.EqualFold(tableRef.Name, "dual")
+	return tableRef != nil && tableRef.Schema == "" && tableRef.Catalog == "" && tableRef.Dblink == "" && strings.EqualFold(tableRef.Name, "dual")
 }
 
 func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr, defaultDatabase string) {
@@ -1883,6 +2039,14 @@ func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, defaultDat
 		collectAccessTablesFromExpr(result, e.Right, defaultDatabase)
 	case *ast.UnaryExpr:
 		collectAccessTablesFromExpr(result, e.Operand, defaultDatabase)
+	case *ast.QuantifiedExpr:
+		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.OdbcEscapeExpr:
+		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.GroupingSet:
+		for _, item := range e.Items {
+			collectAccessTablesFromExpr(result, item, defaultDatabase)
+		}
 	case *ast.FuncCallExpr:
 		for _, arg := range e.Args {
 			collectAccessTablesFromExpr(result, arg, defaultDatabase)
@@ -1959,6 +2123,9 @@ func collectAccessTablesFromExpr(result ColumnSet, expr ast.ExprNode, defaultDat
 		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
 	case *ast.WeightStringExpr:
 		collectAccessTablesFromExpr(result, e.Expr, defaultDatabase)
+	case *ast.PositionExpr:
+		collectAccessTablesFromExpr(result, e.Substr, defaultDatabase)
+		collectAccessTablesFromExpr(result, e.Str, defaultDatabase)
 	default:
 	}
 }

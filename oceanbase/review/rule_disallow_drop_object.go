@@ -95,6 +95,18 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 			report(v.Loc, "spatial reference system", strconv.FormatInt(v.SRID, 10))
 		case *ast.DropResourceGroupStmt:
 			report(v.Loc, "resource group", ident(v.Name))
+		case *ast.CatalogStmt:
+			if v.Action == "DROP" {
+				report(v.Loc, "catalog", ident(v.Name))
+			}
+		case *ast.DatabaseLinkStmt:
+			if v.Drop {
+				report(v.Loc, "database link", ident(v.Name))
+			}
+		case *ast.RestorePointStmt:
+			if v.Drop {
+				report(v.Loc, "restore point", ident(v.Name))
+			}
 		case *ast.AlterTableStmt:
 			for _, cmd := range v.Commands {
 				if cmd == nil {

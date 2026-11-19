@@ -287,7 +287,7 @@ func (p *Parser) parseLockingClause(stmt *nodes.SelectStmt) error {
 // last operand have moved to the set operation by now, and a parenthesized query has
 // read none of its own yet.
 func operandEndsInClauses(sel *nodes.SelectStmt) bool {
-	return len(sel.OrderBy) > 0 || sel.Limit != nil || sel.ForUpdate != nil
+	return len(sel.OrderBy) > 0 || sel.Limit != nil || sel.Approx || len(sel.VectorIndexParams) > 0 || sel.ForUpdate != nil
 }
 
 // parseQueryStatement parses a query expression where the grammar reads
@@ -355,6 +355,10 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 
 	for {
 		prec := setOpPrecedence(p.cur.Type)
+		if prec == 0 && p.isBareWord("MINUS") {
+			// set_type's MINUS is no keyword of this lexer's.
+			prec = 1
+		}
 		if prec == 0 || prec < minPrec {
 			return left, nil
 		}
@@ -371,7 +375,11 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		case kwINTERSECT:
 			op = nodes.SetOpIntersect
 		}
-		p.advance() // consume UNION/INTERSECT/EXCEPT
+		if p.isBareWord("MINUS") {
+			// set_type's MINUS is EXCEPT's other spelling.
+			op = nodes.SetOpExcept
+		}
+		p.advance() // consume UNION/INTERSECT/EXCEPT/MINUS
 
 		// Completion: after the set-op keyword, offer ALL, DISTINCT, SELECT.
 		p.checkCursor()
@@ -385,8 +393,12 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		all := false
 		if _, ok := p.match(kwALL); ok {
 			all = true
-		} else {
-			p.match(kwDISTINCT)
+		} else if _, ok := p.match(kwDISTINCT); !ok {
+			// set_type's UNION UNIQUE is the distinct form too, and UNIQUE is
+			// UNION's alone: EXCEPT UNIQUE and INTERSECT UNIQUE are 1064s.
+			if op == nodes.SetOpUnion {
+				p.match(kwUNIQUE)
+			}
 		}
 
 		// Completion: after ALL/DISTINCT, offer SELECT.
@@ -416,6 +428,14 @@ func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
 		var forUpdate *nodes.ForUpdate
 		var into *nodes.IntoClause
 		if right.ParenSource == nil {
+			// select_clause_set_body is simple_select (without order_by/limit) and
+			// select_clause_set_with_order_and_limit has neither opt_approx nor
+			// opt_with_vector_index_parameters (sql_parser_mysql_mode.y,
+			// v4.3.5_CE_BP6, lines 11611-11671), so an unparenthesized set
+			// operation cannot carry APPROX or PARAMETERS.
+			if right.Approx || len(right.VectorIndexParams) > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 			orderBy, right.OrderBy = right.OrderBy, nil
 			limit, right.Limit = right.Limit, nil
 			forUpdate, right.ForUpdate = right.ForUpdate, nil
@@ -751,6 +771,12 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 
 	// Parse SELECT options
 	for {
+		// SQL_CACHE is no keyword of this lexer's, so it is a bare word here.
+		// It is deprecated and the server does nothing with it.
+		if p.isBareWord("SQL_CACHE") {
+			p.advance()
+			continue
+		}
 		switch p.cur.Type {
 		case kwALL:
 			stmt.DistinctKind = nodes.DistinctAll
@@ -786,6 +812,11 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			continue
 		case kwSQL_NO_CACHE:
 			stmt.NoCache = true
+			p.advance()
+			continue
+		case kwUNIQUE:
+			// query_expression_option's UNIQUE is DISTINCT's other spelling.
+			stmt.DistinctKind = nodes.DistinctOn
 			p.advance()
 			continue
 		}
@@ -870,12 +901,13 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
-		// WITH ROLLUP
+		// opt_rollup is WITH ROLLUP, both words: `GROUP BY a WITH` is a 1064.
 		if p.cur.Type == kwWITH {
 			p.advance()
-			if _, ok := p.match(kwROLLUP); ok {
-				stmt.WithRollup = true
+			if _, err := p.expect(kwROLLUP); err != nil {
+				return nil, err
 			}
+			stmt.WithRollup = true
 		}
 
 		// Reject duplicate GROUP BY
@@ -941,6 +973,13 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		}
 	}
 
+	// opt_approx: APPROX or APPROXIMATE, which OceanBase takes only before a
+	// LIMIT and reads as the vector search's approximation.
+	if p.isBareWord("APPROX") || p.isBareWord("APPROXIMATE") {
+		p.advance()
+		stmt.Approx = true
+	}
+
 	// LIMIT clause
 	if _, ok := p.match(kwLIMIT); ok {
 		limit, err := p.parseLimitClause()
@@ -948,6 +987,38 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 		stmt.Limit = limit
+	} else if stmt.Approx {
+		// simple_select_with_order_and_limit has APPROX only on its
+		// order_by opt_approx limit_clause arm.
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// opt_with_vector_index_parameters: PARAMETERS (name = value, ...), after
+	// the LIMIT of a vector search.
+	params, err := p.parseVectorIndexParams()
+	if err != nil {
+		return nil, err
+	}
+	stmt.VectorIndexParams = params
+
+	// The vector search forms belong to simple_select_with_order_and_limit,
+	// whose FROM is required: no_table_select_with_order_and_limit has neither
+	// opt_approx nor opt_with_vector_index_parameters, so
+	// `SELECT 1 ORDER BY 1 APPROX LIMIT 1` and `SELECT 1 LIMIT 1 PARAMETERS(x = 1)`
+	// are 1064s.
+	if (stmt.Approx || len(stmt.VectorIndexParams) > 0) && len(stmt.From) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// The production that carries PARAMETERS is simple_select order_by
+	// opt_approx limit_clause opt_with_vector_index_parameters, so the ORDER BY
+	// comes with it: `SELECT a FROM t LIMIT 1 PARAMETERS(x = 1)` is a 1064.
+	if (len(stmt.VectorIndexParams) > 0 || stmt.Approx) && len(stmt.OrderBy) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	// That production also writes limit_clause before the parameters, so
+	// `SELECT a FROM t ORDER BY a PARAMETERS(x = 1)` is a 1064.
+	if len(stmt.VectorIndexParams) > 0 && stmt.Limit == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
@@ -1146,7 +1217,8 @@ func (p *Parser) isSelectTerminator() bool {
 		kwRIGHT, kwCROSS, kwNATURAL, kwWINDOW, kwWITH, kwLOCK, ';', tokEOF:
 		return true
 	}
-	return false
+	// set_type's MINUS is no keyword of this lexer's, so it is a bare word.
+	return p.isBareWord("MINUS")
 }
 
 // parseTableReferenceList parses a comma-separated list of table references (with joins).
@@ -1367,6 +1439,11 @@ func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.
 		if jt == nodes.JoinLeft || jt == nodes.JoinRight {
 			return nil, p.syntaxErrorAtCur()
 		}
+		// FULL JOIN writes join_condition, which an inner join's conditionless
+		// arm does not have: `FROM a FULL JOIN a` is a 1064.
+		if jt == nodes.JoinFull {
+			return nil, p.syntaxErrorAtCur()
+		}
 		right := operands[i+1]
 		if r, ok := right.(*nodes.JoinClause); ok && built[r] {
 			// Descend the chain-built left spine to its leftmost leaf and insert
@@ -1411,9 +1488,13 @@ func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.
 // OceanBase v4.3.5.
 func joinAbsorbsRight(jt nodes.JoinType) bool {
 	switch jt {
-	case nodes.JoinInner, nodes.JoinCross, nodes.JoinLeft, nodes.JoinRight, nodes.JoinStraight:
+	case nodes.JoinInner, nodes.JoinCross, nodes.JoinLeft, nodes.JoinRight, nodes.JoinStraight,
+		// FULL JOIN absorbs too, so `a FULL JOIN b JOIN c ON ... ON ...` reads the
+		// inner join as its right operand; its own condition is required when the
+		// join closes (parseJoinChain).
+		nodes.JoinFull:
 		return true
-	default: // JoinNatural, JoinNaturalLeft, JoinNaturalRight
+	default: // JoinNatural, JoinNaturalLeft, JoinNaturalRight, JoinNaturalFull
 		return false
 	}
 }
@@ -1425,7 +1506,7 @@ func joinAbsorbsRight(jt nodes.JoinType) bool {
 // them. Container-verified against OceanBase v4.3.5.
 func (p *Parser) parseJoinCondition(join *nodes.JoinClause) error {
 	switch join.Type {
-	case nodes.JoinNatural, nodes.JoinNaturalLeft, nodes.JoinNaturalRight:
+	case nodes.JoinNatural, nodes.JoinNaturalLeft, nodes.JoinNaturalRight, nodes.JoinNaturalFull:
 		// A NATURAL join names no condition; an ON/USING that follows is a
 		// syntax error, left where it sits for the caller to report.
 		return nil
@@ -1436,6 +1517,12 @@ func (p *Parser) parseJoinCondition(join *nodes.JoinClause) error {
 	}
 	if present {
 		join.Condition = cond
+		return nil
+	}
+	// FULL JOIN and FULL OUTER JOIN each write join_condition, which an inner
+	// join's conditionless arm does not have: `FROM a FULL JOIN a` is a 1064.
+	if join.Type == nodes.JoinFull {
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }
@@ -1526,6 +1613,18 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 			return 0, false, err
 		}
 		return nodes.JoinCross, true, nil
+	case kwFULL:
+		// FULL [OUTER] JOIN is a join; a bare FULL after a table factor is an
+		// alias instead, which the grammar takes wherever it takes a name.
+		if next := p.peekNext().Type; next != kwJOIN && next != kwOUTER {
+			return 0, false, nil
+		}
+		p.advance()
+		p.match(kwOUTER)
+		if _, err := p.expect(kwJOIN); err != nil {
+			return 0, false, err
+		}
+		return nodes.JoinFull, true, nil
 	case kwNATURAL:
 		p.advance()
 		// NATURAL [LEFT|RIGHT] [OUTER] JOIN
@@ -1542,6 +1641,20 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 				return 0, false, err
 			}
 			return nodes.JoinNaturalRight, true, nil
+		}
+		if _, ok := p.match(kwFULL); ok {
+			p.match(kwOUTER)
+			if _, err := p.expect(kwJOIN); err != nil {
+				return 0, false, err
+			}
+			return nodes.JoinNaturalFull, true, nil
+		}
+		// NATURAL INNER JOIN is an inner join with no condition.
+		if _, ok := p.match(kwINNER); ok {
+			if _, err := p.expect(kwJOIN); err != nil {
+				return 0, false, err
+			}
+			return nodes.JoinNatural, true, nil
 		}
 		if _, err := p.expect(kwJOIN); err != nil {
 			return 0, false, err
@@ -1657,11 +1770,67 @@ func (p *Parser) scanParenBlock() {
 }
 
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
+// parseOdbcTableReference reads table_reference's ODBC escape:
+// `'{' OJ table_reference '}'`, where the table reference may itself be a join.
+//
+// Ref: table_reference's '{' OJ arms in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 15120-15160).
+func (p *Parser) parseOdbcTableReference() (nodes.TableExpr, error) {
+	start := p.pos()
+	p.advance() // consume '{'
+	if p.cur.Type != kwOJ {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume OJ
+	// The escape holds a table_reference, which is a table factor and the joins
+	// after it: `{ OJ a JOIN b ON a.id = b.id }` is one.
+	factor, err := p.parseTableFactor()
+	if err != nil {
+		return nil, err
+	}
+	if factor == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	inner, err := p.parseJoinChain(factor, true)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('}'); err != nil {
+		return nil, err
+	}
+	// The braces and the word are the factor's, so its Loc spans them whatever
+	// kind of factor it holds.
+	switch inner := inner.(type) {
+	case *nodes.JoinClause:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.TableRef:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.SubqueryExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.ExternalTableRef:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.JsonTableExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.UnnestExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.RbIterateExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	}
+	return inner, nil
+}
+
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
 	}
 	defer p.leaveNesting()
+	// table_reference's ODBC braces: `{ OJ table_reference }` and
+	// `{ OJ joined_table }`, where OJ marks the outer-join escape. The braces
+	// and the word are syntax only, so the tree is the table reference inside.
+	if p.cur.Type == '{' {
+		return p.parseOdbcTableReference()
+	}
+
 	// LATERAL (SELECT ...) — LATERAL derived table
 	if p.cur.Type == kwLATERAL && p.peekNext().Type == '(' {
 		latStart := p.pos()
@@ -2154,9 +2323,17 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 
 	for {
 		start := p.pos()
-		expr, err := p.parseExpr()
-		if err != nil {
+		var expr nodes.ExprNode
+		set, err := p.parseGroupingSet(true, true)
+		switch {
+		case err != nil:
 			return nil, err
+		case set != nil:
+			expr = set
+		default:
+			if expr, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
 		}
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
@@ -2165,6 +2342,22 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 		item := &nodes.OrderByItem{
 			Loc:  nodes.Loc{Start: start},
 			Expr: expr,
+		}
+
+		// sort_key_for_group_by's rollup, cube, grouping-sets and '()' arms carry
+		// no direction: only the expression arm does.
+		if _, isSet := expr.(*nodes.GroupingSet); isSet {
+			if p.cur.Type == kwASC || p.cur.Type == kwDESC {
+				return nil, p.syntaxErrorAtCur()
+			}
+			item.Direction = nodes.OrderDirectionDefault
+			item.Loc.End = p.prev.End
+			items = append(items, item)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+			continue
 		}
 
 		if _, ok := p.match(kwDESC); ok {
@@ -2186,6 +2379,138 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 	}
 
 	return items, nil
+}
+
+// parseGroupingSet reads one grouping set where a GROUP BY item stands:
+// ROLLUP (list), CUBE (list), GROUPING SETS (list, ...), or the empty set `()`.
+// It returns nil and no error when the tokens are none of those, and the caller
+// reads an ordinary expression instead.
+//
+// allowRollup lets the word open a ROLLUP or a CUBE here, which the GROUP BY list
+// and a GROUPING SETS list allow and a ROLLUP or CUBE list does not:
+// `GROUP BY ROLLUP(ROLLUP(a))` is a 1064 while
+// `GROUP BY GROUPING SETS(ROLLUP(a))` is not.
+//
+// Ref: sort_key_for_group_by, rollup_clause, cube_clause,
+// grouping_sets_clause, grouping_sets and gs_group_by_expr in
+// sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 13531-13623).
+func (p *Parser) parseGroupingSet(allowRollup, allowSets bool) (*nodes.GroupingSet, error) {
+	start := p.pos()
+
+	kind := ""
+	switch {
+	case p.cur.Type == kwROLLUP && allowRollup:
+		kind = "ROLLUP"
+	case p.cur.Type == kwCUBE && allowRollup:
+		kind = "CUBE"
+	case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS && allowSets:
+		kind = "GROUPING SETS"
+	case p.cur.Type == '(' && p.peekNext().Type == ')':
+		// The empty set: `GROUP BY ()`, which the grammar's sort_key_for_group_by
+		// and gs_group_by_expr both carry.
+		p.advance()
+		p.advance()
+		return &nodes.GroupingSet{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	default:
+		return nil, nil
+	}
+
+	if kind == "GROUPING SETS" {
+		p.advance() // consume GROUPING
+		p.advance() // consume SETS
+	} else {
+		p.advance() // consume ROLLUP or CUBE
+	}
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+
+	set := &nodes.GroupingSet{Loc: nodes.Loc{Start: start}, Kind: kind}
+	for {
+		// A GROUPING SETS item may be a ROLLUP, a CUBE or an expression; a
+		// ROLLUP or CUBE item is an expression or the empty set.
+		var item nodes.ExprNode
+		nestedSet, err := p.parseGroupingSet(kind == "GROUPING SETS", false)
+		switch {
+		case err != nil:
+			return nil, err
+		case nestedSet != nil:
+			item = nestedSet
+		default:
+			if item, err = p.parseExpr(); err != nil {
+				return nil, err
+			}
+		}
+		if item == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		set.Items = append(set.Items, item)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	set.Loc.End = p.prev.End
+	return set, nil
+}
+
+// parseVectorIndexParams parses opt_with_vector_index_parameters:
+// PARAMETERS '(' vec_index_params ')', or nothing at all.
+//
+// vec_index_param is `relation_name '=' vec_index_param_value`, whose value is
+// an integer, a boolean, a decimal or a name, and the list separates its
+// parameters with commas.
+//
+// Ref: opt_with_vector_index_parameters, vec_index_params, vec_index_param and
+// vec_index_param_value in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+// 24877-24910).
+func (p *Parser) parseVectorIndexParams() ([]*nodes.VectorIndexParam, error) {
+	if !p.isBareWord("PARAMETERS") || p.peekNext().Type != '(' {
+		return nil, nil
+	}
+	p.advance() // consume PARAMETERS
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var params []*nodes.VectorIndexParam
+	for {
+		start := p.pos()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect('='); err != nil {
+			return nil, err
+		}
+		// The value is a number, a boolean or a name, and never an expression.
+		if p.cur.Type != tokICONST && p.cur.Type != tokFCONST && p.cur.Type != kwTRUE && p.cur.Type != kwFALSE && !p.isIdentToken() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		val := p.cur.Str
+		isName := p.isIdentToken()
+		p.advance()
+		params = append(params, &nodes.VectorIndexParam{
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Name:   name,
+			Value:  val,
+			IsName: isName,
+		})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return params, nil
 }
 
 // parseLimitValue reads one LIMIT or OFFSET value. It is no expression but an
@@ -2291,7 +2616,7 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 	// OceanBase rounds or clamps it. All container-verified on
 	// oceanbase/oceanbase-ce:4.3.5-lts.
 	switch {
-	case p.cur.Type == kwNOWAIT:
+	case p.cur.Type == kwNOWAIT, p.cur.Type == kwNO_WAIT:
 		p.advance()
 		fu.NoWait = true
 	case p.cur.Type == kwWAIT:
@@ -2471,6 +2796,38 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		}
 		into.Outfile, into.HasOutfile = outfile, true
 
+		// file_partition_opt: PARTITION BY bit_expr, right after the file.
+		if p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY {
+			p.advance() // consume PARTITION
+			p.advance() // consume BY
+			// file_partition_opt is PARTITION BY bit_expr, so a comparison or a
+			// logical operator is no partition key here.
+			partitionBy, err := p.parseExprPrec(precBitOr)
+			if err != nil {
+				return nil, err
+			}
+			if partitionBy == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			into.PartitionBy = partitionBy
+		}
+
+		// OceanBase's own INTO OUTFILE ... FORMAT (...) arm, which writes the
+		// file in an external table's format instead of CHARACTER SET ...
+		// FIELDS ... LINES ... and is no Aurora S3 export.
+		if !into.OutfileS3 && p.isBareWord("FORMAT") && (p.peekNext().Type == '(' || p.peekNext().Type == '=') {
+			formats, err := p.parseExternalFileFormatList()
+			if err != nil {
+				return nil, err
+			}
+			into.ExternalFormat = formats
+			if err := p.parseIntoFileOptions(into); err != nil {
+				return nil, err
+			}
+			into.Loc.End = p.prev.End
+			return into, nil
+		}
+
 		// [CHARACTER SET charset_name]
 		if p.cur.Type == kwCHARACTER {
 			p.advance()
@@ -2520,6 +2877,8 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			if err := p.parseOutfileS3Options(into); err != nil {
 				return nil, err
 			}
+		} else if err := p.parseIntoFileOptions(into); err != nil {
+			return nil, err
 		}
 
 	// DUMPFILE is no reserved word, so with no file after it it is a variable's
@@ -2571,6 +2930,49 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 
 	into.Loc.End = p.prev.End
 	return into, nil
+}
+
+// parseIntoFileOptions parses file_opt: one or more file_option, each SINGLE [=]
+// bool, MAX_FILE_SIZE [=] size or BUFFER_SIZE [=] size, with no comma between
+// them.
+//
+// Ref: file_opt, file_option_list and file_option in sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, lines 12042-12102).
+func (p *Parser) parseIntoFileOptions(into *nodes.IntoClause) error {
+	for {
+		start := p.pos()
+		var name string
+		switch {
+		case p.isBareWord("SINGLE"):
+			name = "SINGLE"
+		case p.isBareWord("MAX_FILE_SIZE"):
+			name = "MAX_FILE_SIZE"
+		case p.isBareWord("BUFFER_SIZE"):
+			name = "BUFFER_SIZE"
+		default:
+			return nil
+		}
+		p.advance()
+		p.match('=')
+		// file_option's values: SINGLE takes a BOOL_VALUE, and MAX_FILE_SIZE and
+		// BUFFER_SIZE a file_size_const, which is an integer or a string.
+		if name == "SINGLE" {
+			if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+				return p.syntaxErrorAtCur()
+			}
+		} else if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		value := p.cur.Str
+		isString := p.cur.Type == tokSCONST
+		p.advance()
+		into.FileOptions = append(into.FileOptions, &nodes.FileOption{
+			Loc:           nodes.Loc{Start: start, End: p.prev.End},
+			Name:          name,
+			Value:         value,
+			ValueIsString: isString,
+		})
+	}
 }
 
 // parseIntoString parses a string of INTO OUTFILE: one literal, or several that the

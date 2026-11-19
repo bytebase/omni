@@ -61,6 +61,15 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		stmt.Ignore = true
 	}
 
+	// OceanBase's OVERWRITE, which insert_stmt writes after opt_priority and
+	// opt_ignore and before opt_into_single_table_insert. REPLACE has no
+	// OVERWRITE arm, so `REPLACE OVERWRITE ...` names a table called OVERWRITE.
+	if !isReplace {
+		if _, ok := p.match(kwOVERWRITE); ok {
+			stmt.Overwrite = true
+		}
+	}
+
 	// Optional INTO
 	p.match(kwINTO)
 
@@ -129,6 +138,11 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	aliasable := false
 	switch p.cur.Type {
 	case kwVALUE, kwVALUES:
+		// INSERT OVERWRITE's source is a query: insert_stmt's OVERWRITE arm is
+		// opt_into_single_table_insert, and no values_clause of rows.
+		if stmt.Overwrite {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type == kwVALUES && p.peekNext().Type == kwROW {
 			if err := p.parseInsertValuesQuery(stmt); err != nil {
 				return nil, err
@@ -145,7 +159,7 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 
 	case kwSET:
 		// SET names its own columns, so it follows the table directly.
-		if stmt.Columns != nil {
+		if stmt.Columns != nil || stmt.Overwrite {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume SET
@@ -206,8 +220,8 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 	}
 
-	// ON DUPLICATE KEY UPDATE (only for INSERT, not REPLACE)
-	if !isReplace && p.cur.Type == kwON {
+	// ON DUPLICATE KEY UPDATE (only for ordinary INSERT, neither REPLACE nor INSERT OVERWRITE)
+	if !isReplace && !stmt.Overwrite && p.cur.Type == kwON {
 		onDup, err := p.parseOnDuplicateKeyUpdate()
 		if err != nil {
 			return nil, err

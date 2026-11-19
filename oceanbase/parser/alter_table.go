@@ -82,6 +82,19 @@ func (p *Parser) parseAlterTableBody(stmt *nodes.AlterTableStmt) (*nodes.AlterTa
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// alter_table_action_list reads `alter_table_actions ',' alter_table_action`
+	// with an empty actions arm, so one comma may lead the first action:
+	// `ALTER TABLE a, NOPARALLEL` is one table option.
+	// The external table's own alternatives take their action directly after the
+	// table's name, so no comma leads them.
+	if p.cur.Type == ',' && !stmt.External {
+		p.advance()
+		if p.cur.Type == tokEOF || p.cur.Type == ';' {
+			// A comma with no action after it is no action list.
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	// Parse comma-separated alter operations
 	for {
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
@@ -498,9 +511,17 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		}
 
 	case kwREMOVE:
-		// REMOVE PARTITIONING
+		// REMOVE PARTITIONING, or OceanBase's REMOVE TTL.
 		p.advance()
-		p.match(kwPARTITIONING)
+		if p.isBareWord("TTL") {
+			p.advance()
+			cmd.Type = nodes.ATRemoveTTL
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
+		if _, err := p.expect(kwPARTITIONING); err != nil {
+			return nil, err
+		}
 		cmd.Type = nodes.ATRemovePartitioning
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -518,6 +539,14 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 		return cmd, nil
 
 	default:
+		// alter_table_action's REFRESH refreshes an external table's metadata.
+		// REFRESH is no keyword of this lexer's, so it is a bare word here.
+		if p.isBareWord("REFRESH") {
+			p.advance()
+			cmd.Type = nodes.ATRefresh
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
 		// Try table options: ENGINE, CHARSET, etc.
 		opt, ok, err := p.parseTableOption()
 		if err != nil {
@@ -547,6 +576,23 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
+	}
+
+	// alter_index_option's parenthesized arms: ADD (KEY (...)), ADD (UNIQUE
+	// (...)), ADD (CONSTRAINT ... ), ADD (SPATIAL (...)), ADD (PRIMARY KEY
+	// (...)). They follow ADD with no COLUMN, and only those keywords open one:
+	// `ALTER TABLE t ADD COLUMN (INDEX (a))` and `ADD (CHECK (true))` are 1064s.
+	if p.cur.Type == '(' && p.parenOpensAddIndex() {
+		p.advance()
+		inner, err := p.parseAlterAddIndexAction(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		inner.Loc.End = p.prev.End
+		return inner, nil
 	}
 
 	// ADD COLUMN GROUP (...) [DELAYED]. GROUP is reserved, so no column is called
@@ -624,6 +670,9 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		if err := p.parseLobStorageClause(cmd); err != nil {
+			return nil, err
+		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
 	}
@@ -634,13 +683,117 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 	}
 	cmd.Column = col
 
-	// FIRST | AFTER col_name
+	// FIRST | AFTER | BEFORE col_name
 	if err := p.parseColumnPositioning(cmd); err != nil {
 		return nil, err
 	}
 
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
+}
+
+// parseLobStorageClause reads lob_storage_clause where an ALTER TABLE ADD may
+// write it: JSON '(' column_name ')' STORE AS '(' lob_storage_parameters ')',
+// whose parameters are lob_chunk_size, `CHUNK n` or `CHUNK 'string'`.
+func (p *Parser) parseLobStorageClause(cmd *nodes.AlterTableCmd) error {
+	if !p.isBareWord("JSON") {
+		return nil
+	}
+	start := p.pos()
+	p.advance() // consume JSON
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	if !p.isNameOB(p.cur) {
+		return p.syntaxErrorAtCur()
+	}
+	column, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	if !p.isBareWord("STORE") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if _, err := p.expect(kwAS); err != nil {
+		return err
+	}
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	clause := &nodes.LobStorageClause{Loc: nodes.Loc{Start: start}, Column: column}
+	if !p.isBareWord("CHUNK") {
+		return p.syntaxErrorAtCur()
+	}
+	for {
+		p.advance() // consume CHUNK
+		var chunk string
+		switch p.cur.Type {
+		case tokICONST:
+			chunk = p.cur.Str
+			p.advance()
+		case tokSCONST:
+			var err error
+			chunk, err = p.parseIntoString()
+			if err != nil {
+				return err
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		clause.Chunk = chunk
+		clause.Chunks = append(clause.Chunks, chunk)
+		// lob_storage_parameters is one or more parameters written next to each
+		// other; CHUNK is the only one the grammar has, and it may repeat.
+		if !p.isBareWord("CHUNK") {
+			break
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	clause.Loc.End = p.prev.End
+	cmd.LobStorage = clause
+	return nil
+}
+
+// parenOpensAddIndex reports whether the '(' at p.cur opens one of
+// alter_index_option's parenthesized ADD arms.
+func (p *Parser) parenOpensAddIndex() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	// alter_index_option's parenthesized ADD arms are key_or_index, UNIQUE,
+	// CONSTRAINT, SPATIAL and PRIMARY KEY. FULLTEXT is no arm of them, so
+	// `ALTER TABLE t ADD (FULLTEXT KEY (a))` is a 1064.
+	switch p.peekNext().Type {
+	case kwKEY, kwINDEX, kwUNIQUE, kwPRIMARY, kwSPATIAL, kwCONSTRAINT:
+		return true
+	}
+	return false
+}
+
+// parseAlterAddIndexAction parses the ADD action inside one of
+// alter_index_option's parenthesized arms, with the '(' already consumed.
+// p.cur is the constraint or index keyword.
+func (p *Parser) parseAlterAddIndexAction(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, error) {
+	if p.isTableConstraintStart() {
+		cmd.Type = nodes.ATAddConstraint
+		constr, err := p.parseTableConstraint(true)
+		if err != nil {
+			return nil, err
+		}
+		if constr.Type == nodes.ConstrCheck || constr.Type == nodes.ConstrForeignKey {
+			return nil, p.syntaxErrorAtCur()
+		}
+		cmd.Constraint = constr
+		cmd.Loc.End = p.prev.End
+		return cmd, nil
+	}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseAlterColumnGroup parses {ADD | DROP} COLUMN GROUP ( column_group_list )
@@ -736,6 +889,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordPrimaryKey
 		cmd.Name = "PRIMARY"
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -767,6 +921,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordForeignKey
 		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -782,9 +937,19 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return cmd, nil
 
 	case kwCHECK:
-		// DROP CHECK symbol
+		// DROP CHECK symbol, or alter_constraint_option's DROP CHECK '(' name_list ')'.
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordCheck
+		if p.cur.Type == '(' {
+			names, err := p.parseParenNameList()
+			if err != nil {
+				return nil, err
+			}
+			cmd.ConstraintNames = names
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -794,9 +959,20 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return cmd, nil
 
 	case kwCONSTRAINT:
-		// DROP CONSTRAINT symbol
+		// DROP CONSTRAINT symbol, or alter_constraint_option's
+		// DROP CONSTRAINT '(' name_list ')'.
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordConstraint
+		if p.cur.Type == '(' {
+			names, err := p.parseParenNameList()
+			if err != nil {
+				return nil, err
+			}
+			cmd.ConstraintNames = names
+			cmd.Loc.End = p.prev.End
+			return cmd, nil
+		}
 		// Completion: after DROP CONSTRAINT, offer constraint_ref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -836,6 +1012,22 @@ func (p *Parser) parseAlterDropColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTab
 	p.match(kwRESTRICT, kwCASCADE)
 	cmd.Loc.End = p.prev.End
 	return cmd, nil
+}
+
+// parseParenNameList parses '(' name_list ')', the form alter_constraint_option
+// writes for DROP CONSTRAINT and DROP CHECK.
+func (p *Parser) parseParenNameList() ([]string, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	names, err := p.parseNameList()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
 }
 
 // expectDropKey consumes the KEY that DROP PRIMARY and DROP FOREIGN require.
@@ -1030,7 +1222,13 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		return cmd, nil
 	}
 
-	// ALTER INDEX index_name {VISIBLE | INVISIBLE}
+	// alter_index_option's ALTER INDEX arms: the index's name is required, and
+	// one of a visibility option, STORAGE_CACHE_POLICY (...) and
+	// PARALLEL n | NOPARALLEL follows it. `ALTER TABLE a ALTER INDEX a` and
+	// `ALTER TABLE a ALTER INDEX NOPARALLEL` are 1064s.
+	//
+	// Ref: alter_index_option in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines
+	// 19708-19728).
 	if p.cur.Type == kwINDEX {
 		p.advance()
 		name, _, err := p.parseIdentifier()
@@ -1038,10 +1236,33 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 			return nil, err
 		}
 		cmd.Name = name
-		if _, ok := p.match(kwVISIBLE); ok {
+		switch {
+		case p.cur.Type == kwVISIBLE:
+			p.advance()
 			cmd.Type = nodes.ATAlterIndexVisible
-		} else if _, ok := p.match(kwINVISIBLE); ok {
+		case p.cur.Type == kwINVISIBLE:
+			p.advance()
 			cmd.Type = nodes.ATAlterIndexInvisible
+		case p.isBareWord("STORAGE_CACHE_POLICY"):
+			opt, ok, err := p.parseStorageCachePolicy()
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			cmd.Type = nodes.ATAlterIndexStorageCachePolicy
+			cmd.IndexOptions = []*nodes.IndexOption{opt}
+		default:
+			par, ok, err := p.parseParallelOption()
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			cmd.Type = nodes.ATAlterIndexParallel
+			cmd.Parallel = par
 		}
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -1058,6 +1279,11 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
 	// empty arm.
 	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
+		if p.cur.Type == kwCHECK {
+			cmd.ConstraintKeyword = nodes.ConstraintKeywordCheck
+		} else {
+			cmd.ConstraintKeyword = nodes.ConstraintKeywordConstraint
+		}
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {
@@ -1483,11 +1709,22 @@ func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) error {
 	if _, ok := p.match(kwFIRST); ok {
 		cmd.First = true
 	} else if _, ok := p.match(kwAFTER); ok {
+		// opt_position_column's AFTER column_name, and BEFORE column_name
+		// beside it, which ALTER TABLE ... ADD takes.
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return err
 		}
 		cmd.After = name
+	} else if p.isBareWord("BEFORE") {
+		// opt_position_column's other arm, which places the column before the one
+		// it names where AFTER places it after.
+		p.advance()
+		name, _, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		cmd.Before = name
 	}
 	return nil
 }

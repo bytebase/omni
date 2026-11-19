@@ -222,6 +222,11 @@ func IsIdentTokenType(typ int) bool {
 	return typ == tokIDENT || typ >= 700
 }
 
+// IsStringTokenType reports whether a token type is a string literal.
+func IsStringTokenType(typ int) bool {
+	return typ == tokSCONST
+}
+
 // Exported token type constants for use by the completion package.
 const (
 	SELECT  = kwSELECT

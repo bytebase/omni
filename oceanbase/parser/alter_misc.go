@@ -79,6 +79,13 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 		stmt.Columns = cols
 	}
 
+	// opt_table_id: TABLE_ID [=] n, after the column list and before AS.
+	tableID, hasTableID, err := p.parseOptTableID()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableID, stmt.HasTableID = tableID, hasTableID
+
 	// AS
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
@@ -301,10 +308,12 @@ func (p *Parser) parseDropRoutineStmt(start int, isProcedure bool) (*nodes.DropR
 		IsProcedure: isProcedure,
 	}
 
-	// IF EXISTS
+	// IF EXISTS: both words are required, so `DROP FUNCTION IF a` is a 1064.
 	if p.cur.Type == kwIF {
 		p.advance()
-		p.match(kwEXISTS_KW)
+		if _, err := p.expect(kwEXISTS_KW); err != nil {
+			return nil, err
+		}
 		stmt.IfExists = true
 	}
 

@@ -52,6 +52,25 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeCastExprQ(b, e, q)
 	case *RowExprQ:
 		writeRowExprQ(b, e, q)
+	case *GroupingSetExprQ:
+		writeGroupingSetExprQ(b, e, q)
+	case *QuantifiedExprQ:
+		word := "any"
+		if strings.EqualFold(e.Quantifier, "ALL") {
+			word = "all"
+		}
+		b.WriteString(word)
+		b.WriteString(" (")
+		writeAnalyzedExpr(b, e.Arg, q)
+		b.WriteString(")")
+	case *OdbcEscapeExprQ:
+		b.WriteString("{")
+		b.WriteString(backtickIDQ(e.Name))
+		b.WriteString(" ")
+		writeAnalyzedExpr(b, e.Arg, q)
+		b.WriteString("}")
+	case *RawExprQ:
+		b.WriteString(e.Text)
 	default:
 		fmt.Fprintf(b, "/* unknown expr %T */", expr)
 	}
@@ -64,12 +83,56 @@ func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *deparseScope) {
 		return
 	}
 	colName := "?"
-	if v.AttNum >= 1 && v.AttNum <= len(rte.ColNames) {
+	switch {
+	case v.AttNum >= 1 && v.AttNum <= len(rte.ColNames):
 		colName = rte.ColNames[v.AttNum-1]
+	case v.AttNum == 0 && v.Name != "":
+		// A column of a relation whose schema is unknown keeps the name written.
+		colName = v.Name
+	}
+	if rte.Alias == "" && rte.Catalog != "" {
+		b.WriteString(backtickIDQ(rte.Catalog))
+		b.WriteString(".")
+		if rte.DBName != "" {
+			b.WriteString(backtickIDQ(rte.DBName))
+			b.WriteString(".")
+		}
+	} else if rte.Alias == "" && rte.Dblink != "" && rte.DBName != "" {
+		b.WriteString(backtickIDQ(rte.DBName))
+		b.WriteString(".")
 	}
 	b.WriteString(backtickIDQ(rte.ERef))
 	b.WriteString(".")
 	b.WriteString(backtickIDQ(colName))
+}
+
+// writeGroupingSetExprQ writes ROLLUP (...), CUBE (...), GROUPING SETS (...) or
+// the empty set `()`.
+func writeGroupingSetExprQ(b *strings.Builder, g *GroupingSetExprQ, q *deparseScope) {
+	if g.Kind == "" {
+		b.WriteString("()")
+		return
+	}
+	b.WriteString(strings.ToLower(g.Kind))
+	b.WriteString(" (")
+	for i, arg := range g.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		if row, ok := arg.(*RowExprQ); ok {
+			b.WriteString("(")
+			for j, inner := range row.Args {
+				if j > 0 {
+					b.WriteString(", ")
+				}
+				writeAnalyzedExpr(b, inner, q)
+			}
+			b.WriteString(")")
+			continue
+		}
+		writeAnalyzedExpr(b, arg, q)
+	}
+	b.WriteString(")")
 }
 
 func writeConstExprQ(b *strings.Builder, c *ConstExprQ) {
@@ -154,7 +217,8 @@ func writeBoolExprQ(b *strings.Builder, e *BoolExprQ, q *deparseScope) {
 }
 
 func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
-	if f.IsAggregate && len(f.Args) == 0 && strings.ToLower(f.Name) == "count" {
+	lower := strings.ToLower(f.Name)
+	if f.IsAggregate && len(f.Args) == 0 && lower == "count" {
 		b.WriteString("count(*)")
 		return
 	}
@@ -180,10 +244,26 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 			continue
 		}
 		writeAnalyzedExpr(b, arg, q)
+		// A treatment written inside the parameter list follows the first
+		// argument; the trailing form comes after the ')'.
+		if i == 0 && f.NullTreatmentInArgs && f.NullTreatment != "" {
+			b.WriteString(" ")
+			b.WriteString(strings.ToLower(f.NullTreatment))
+			b.WriteString(" nulls")
+		}
 	}
 	b.WriteString(f.JSONValueClauses)
 	b.WriteString(f.JSONQueryClauses)
 	b.WriteByte(')')
+	if f.FromFirstLast != "" {
+		b.WriteString(" from ")
+		b.WriteString(strings.ToLower(f.FromFirstLast))
+	}
+	if f.NullTreatment != "" && !f.NullTreatmentInArgs {
+		b.WriteString(" ")
+		b.WriteString(strings.ToLower(f.NullTreatment))
+		b.WriteString(" nulls")
+	}
 
 	if f.Over != nil {
 		b.WriteString(" over ")
@@ -192,14 +272,18 @@ func writeFuncCallExprQ(b *strings.Builder, f *FuncCallExprQ, q *deparseScope) {
 }
 
 func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *deparseScope) {
-	if w.Name != "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && w.FrameClause == "" {
+	if w.Name != "" && w.RefName == "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && len(w.OrderExprs) == 0 && w.FrameClause == "" {
 		b.WriteString(backtickIDQ(w.Name))
 		return
 	}
 
 	b.WriteByte('(')
-	if w.Name != "" {
-		b.WriteString(backtickIDQ(w.Name) + " ")
+	ref := w.RefName
+	if ref == "" {
+		ref = w.Name
+	}
+	if ref != "" {
+		b.WriteString(backtickIDQ(ref) + " ")
 	}
 
 	needSpace := false
@@ -213,7 +297,22 @@ func writeWindowDefQ(b *strings.Builder, w *WindowDefQ, q *deparseScope) {
 		}
 		needSpace = true
 	}
-	if len(w.OrderBy) > 0 {
+	if len(w.OrderExprs) > 0 {
+		if needSpace {
+			b.WriteByte(' ')
+		}
+		b.WriteString("order by ")
+		for i, item := range w.OrderExprs {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			writeAnalyzedExpr(b, item.Expr, q)
+			if item.Descending {
+				b.WriteString(" desc")
+			}
+		}
+		needSpace = true
+	} else if len(w.OrderBy) > 0 {
 		if needSpace {
 			b.WriteByte(' ')
 		}
@@ -346,6 +445,9 @@ func writeCastExprQ(b *strings.Builder, c *CastExprQ, q *deparseScope) {
 	writeAnalyzedExpr(b, c.Arg, q)
 	b.WriteString(" as ")
 	b.WriteString(deparseResolvedTypeQ(c.TargetType))
+	if c.Ignore {
+		b.WriteString(" ignore")
+	}
 	b.WriteString(")")
 }
 

@@ -191,6 +191,20 @@ func errFKCannotDropParent(table, fkName, refTable string) error {
 		Message: fmt.Sprintf("Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'", table, fkName, refTable)}
 }
 
+// errCheckConstraintNotFound is 3821, which DROP CHECK and ALTER CHECK answer
+// for a name no check constraint has.
+func errCheckConstraintNotFound(name string) error {
+	return &Error{Code: 3821, SQLState: "HY000",
+		Message: fmt.Sprintf("Check constraint '%s' is not found in the table.", name)}
+}
+
+// errConstraintDoesNotExist is 3940, which DROP CONSTRAINT and ALTER CONSTRAINT
+// answer for a name no constraint has.
+func errConstraintDoesNotExist(name string) error {
+	return &Error{Code: 3940, SQLState: "HY000",
+		Message: fmt.Sprintf("Constraint '%s' does not exist.", name)}
+}
+
 func errCantDropKey(name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}

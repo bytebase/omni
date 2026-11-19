@@ -685,9 +685,10 @@ func TestParseDataTypes(t *testing.T) {
 
 // TestParseDataTypeError tests that invalid data type inputs produce errors.
 func TestParseDataTypeError(t *testing.T) {
+	// A string literal is parsed: data_type's STRING_VALUE arm is OceanBase's
+	// "wrong or unsupported data type", which the resolver refuses later.
 	inputs := []string{
 		"123",
-		"'string'",
 		"(",
 	}
 	for _, input := range inputs {
@@ -6425,11 +6426,13 @@ func TestParseHandlerOpen(t *testing.T) {
 }
 
 func TestParseHandlerRead(t *testing.T) {
+	// handler_scan_function is FIRST or NEXT alone: PREV and LAST need an index
+	// name, which is handler_rkey_function's arm.
 	tests := []string{
 		"HANDLER t1 READ FIRST",
 		"HANDLER t1 READ NEXT",
-		"HANDLER t1 READ PREV",
-		"HANDLER t1 READ LAST",
+		"HANDLER t1 READ idx PREV",
+		"HANDLER t1 READ idx LAST",
 		"HANDLER t1 READ idx FIRST",
 		"HANDLER t1 READ idx NEXT",
 		"HANDLER t1 READ NEXT LIMIT 5",
@@ -9743,16 +9746,33 @@ func TestParsePurgeBinaryLogsBeforeDatetime(t *testing.T) {
 	}
 }
 
-func TestParseCacheIndexPartition(t *testing.T) {
-	tests := []string{
+// TestParseCacheIndexForms holds CACHE INDEX to OceanBase's cache_index_stmt,
+// whose tbl_index names the index after the table with no parentheses and
+// whose partition form writes PARTITION (list) with its parentheses.
+func TestParseCacheIndexForms(t *testing.T) {
+	accept := []string{
 		"CACHE INDEX t1 PARTITION (p0, p1) IN hot_cache",
+		"CACHE INDEX t1 PARTITION (ALL) IN hot_cache",
+		"CACHE INDEX t1 i IN hot_cache",
+		"CACHE INDEX t1 INDEX i IN hot_cache",
+		"CACHE INDEX t1, t2 i2 IN hot_cache",
+	}
+	for _, sql := range accept {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+	reject := []string{
 		"CACHE INDEX t1 PARTITION ALL IN hot_cache",
 		"CACHE INDEX t1 INDEX (idx1, idx2) IN hot_cache",
 		"CACHE INDEX t1 KEY (idx1) PARTITION (p0) IN hot_cache",
+		"CACHE INDEX t1",
 	}
-	for _, sql := range tests {
+	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			if _, err := Parse(sql); err == nil {
+				t.Fatalf("Parse(%q) accepted, and OceanBase 4.3.5.6 answers 1064", sql)
+			}
 		})
 	}
 }
@@ -11371,8 +11391,10 @@ func TestReviewBatch110_LoadIndexIntoCachePartitionAll(t *testing.T) {
 	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1 PARTITION (ALL)")
 }
 
+// IGNORE LEAVES is opt_ignore_leaves, which follows the whole table list, so it
+// is written after the last table and not before another one.
 func TestReviewBatch110_LoadIndexIntoCacheMultiTable(t *testing.T) {
-	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1 IGNORE LEAVES, t2 INDEX (idx1)")
+	ParseAndCheck(t, "LOAD INDEX INTO CACHE t1, t2 INDEX (idx1) IGNORE LEAVES")
 }
 
 func TestReviewBatch110_ValuesBasic(t *testing.T) {
@@ -12681,5 +12703,285 @@ func TestBlockCommentDoesNotHidePredicate(t *testing.T) {
 	}
 	if where.Op != ast.BinOpOr {
 		t.Errorf("expected top-level WHERE operator OR, got %v", where.Op)
+	}
+}
+
+func TestTailReviewParserAndOutfuncs(t *testing.T) {
+	// TABLEGROUP = NULL vs quoted identifier `NULL` must remain distinct.
+	nullOpt := ast.NodeToString(ParseAndCheck(t, "ALTER DATABASE d TABLEGROUP = NULL").Items[0])
+	identOpt := ast.NodeToString(ParseAndCheck(t, "ALTER DATABASE d TABLEGROUP = `NULL`").Items[0])
+	if nullOpt == identOpt {
+		t.Fatalf("TABLEGROUP = NULL and TABLEGROUP = `NULL` serialized identically: %s", nullOpt)
+	}
+	if !strings.Contains(nullOpt, ":is_null true") {
+		t.Errorf("expected :is_null true in %s", nullOpt)
+	}
+	if !strings.Contains(identOpt, ":val NULL") {
+		t.Errorf("expected :val NULL in %s", identOpt)
+	}
+
+	// QuantifiedExpr serialization distinguishes ANY vs ALL and includes the inner expr.
+	anyExpr := ast.NodeToString(ParseAndCheck(t, "SELECT a = ANY(b)").Items[0])
+	allExpr := ast.NodeToString(ParseAndCheck(t, "SELECT a = ALL(b)").Items[0])
+	if anyExpr == allExpr || !strings.Contains(anyExpr, "{QUANTIFIED") || !strings.Contains(allExpr, ":quantifier ALL") {
+		t.Errorf("unexpected QuantifiedExpr serialization:\n  any=%s\n  all=%s", anyExpr, allExpr)
+	}
+
+	// IntoClause serialization emits PartitionBy, ExternalFormat and FileOptions.
+	intoOut := ast.NodeToString(ParseAndCheck(t, "SELECT a FROM t INTO OUTFILE 'x' PARTITION BY a FORMAT(TYPE = 'CSV') SINGLE = TRUE MAX_FILE_SIZE = '10M'").Items[0])
+	for _, want := range []string{":partition_by", ":external_format", ":file_options", `:val "10M"`} {
+		if !strings.Contains(intoOut, want) {
+			t.Errorf("IntoClause NodeToString missing %q: %s", want, intoOut)
+		}
+	}
+
+	// HandlerReadStmt serialization emits comparison operator and key tuple values.
+	hrGe := ast.NodeToString(ParseAndCheck(t, "HANDLER t READ idx >= (1, 2)").Items[0])
+	hrEq := ast.NodeToString(ParseAndCheck(t, "HANDLER t READ idx = (1, 2)").Items[0])
+	if hrGe == hrEq || !strings.Contains(hrGe, ":operator >=") || !strings.Contains(hrGe, ":values (") {
+		t.Errorf("unexpected HandlerReadStmt serialization:\n  ge=%s\n  eq=%s", hrGe, hrEq)
+	}
+
+	// SelectStmt vector search fields and FuncCallExpr window modifiers serialize.
+	vecOut := ast.NodeToString(ParseAndCheck(t, "SELECT a FROM t ORDER BY a APPROX LIMIT 1 PARAMETERS(ef_search = 10)").Items[0])
+	if !strings.Contains(vecOut, ":approx true") || !strings.Contains(vecOut, ":vector_index_params") {
+		t.Errorf("SelectStmt vector fields missing from NodeToString: %s", vecOut)
+	}
+	winOut := ast.NodeToString(ParseAndCheck(t, "SELECT NTH_VALUE(a, 2) FROM LAST IGNORE NULLS OVER ()").Items[0])
+	if !strings.Contains(winOut, ":from_first_last LAST") || !strings.Contains(winOut, ":null_treatment IGNORE") {
+		t.Errorf("FuncCallExpr window modifiers missing from NodeToString: %s", winOut)
+	}
+
+	// Set operations reject APPROX and PARAMETERS (sql_parser_mysql_mode.y:11611-11671).
+	ParseExpectError(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY a APPROX LIMIT 1")
+	ParseExpectError(t, "SELECT a FROM t UNION SELECT a FROM t ORDER BY a APPROX LIMIT 1 PARAMETERS(a = 1)")
+
+	// Window null treatment placement: in-argument only after arg 1, never twice.
+	ParseAndCheck(t, "SELECT LEAD(a IGNORE NULLS, 2) OVER ()")
+	ParseAndCheck(t, "SELECT LEAD(a, 2) IGNORE NULLS OVER ()")
+	ParseExpectError(t, "SELECT LEAD(a, 2 IGNORE NULLS) OVER ()")
+	ParseExpectError(t, "SELECT FIRST_VALUE(a IGNORE NULLS) RESPECT NULLS OVER ()")
+}
+
+func TestReviewTailAttributesAndColumnRefForms(t *testing.T) {
+	// A column definition's CHUNK and ORIG_DEFAULT are retained and serialized.
+	chunk := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c INT CHUNK 1").Items[0])
+	if !strings.Contains(chunk, ":chunk \"1\"") {
+		t.Errorf("CHUNK attribute missing from NodeToString: %s", chunk)
+	}
+	orig := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c INT ORIG_DEFAULT 1").Items[0])
+	if !strings.Contains(orig, ":orig_default") {
+		t.Errorf("ORIG_DEFAULT attribute missing from NodeToString: %s", orig)
+	}
+	if plain := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c INT").Items[0]); plain == chunk || plain == orig {
+		t.Errorf("attributes collapsed into the plain definition: %s", plain)
+	}
+
+	// LOAD DATA's explicit empty field list keeps its parentheses.
+	empty := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t()").Items[0])
+	if !strings.Contains(empty, ":columns ()") {
+		t.Errorf("empty field list missing from NodeToString: %s", empty)
+	}
+	if none := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t").Items[0]); none == empty {
+		t.Errorf("empty field list is indistinguishable from none: %s", none)
+	}
+
+	// A four-part column reference's three-name prefix matches one of the three
+	// id_dot_id_dot_id arms; only the dot before the column is free-standing.
+	for _, c := range []struct {
+		sql      string
+		accepted bool
+	}{
+		{"SELECT a.a.a.a", true},
+		{"SELECT a.a . a . a", true},
+		{"SELECT a . a.a . a", true},
+		{"SELECT a.a.a.*", true},
+		{"SELECT d . t . key . a FROM t", false},
+		{"SELECT a . a . a . a", false},
+	} {
+		if _, err := Parse(c.sql); (err == nil) != c.accepted {
+			t.Errorf("Parse(%q): accepted=%v, want %v (%v)", c.sql, err == nil, c.accepted, err)
+		}
+	}
+}
+
+func TestLoadDataRemoteOSSTakesNoS3Source(t *testing.T) {
+	// opt_load_local's REMOTE_OSS is followed by INFILE, never by the inherited
+	// Aurora S3 source, in either spelling.
+	for _, sql := range []string{
+		"LOAD DATA REMOTE_OSS FROM S3 FILE 's3://b/x' INTO TABLE t",
+		"LOAD DATA REMOTE_OSS S3 FILE 's3://b/x' INTO TABLE t",
+	} {
+		ParseExpectError(t, sql)
+	}
+	ParseAndCheck(t, "LOAD DATA REMOTE_OSS INFILE 'remote/x.csv' INTO TABLE t")
+}
+
+func TestOrigDefaultKeepsSignKindAndPrecision(t *testing.T) {
+	uplus := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT +1").Items[0])
+	uminus := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT -1").Items[0])
+	if uplus == uminus || !strings.Contains(uplus, ":op +") || !strings.Contains(uminus, ":op -") {
+		t.Errorf("sign lost in ORIG_DEFAULT: +1=%s -1=%s", uplus, uminus)
+	}
+	frac := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT -1.5").Items[0])
+	if !strings.Contains(frac, "1.5") {
+		t.Errorf("decimal value lost in ORIG_DEFAULT: %s", frac)
+	}
+	now3 := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT NOW(3)").Items[0])
+	now0 := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD c TIMESTAMP ORIG_DEFAULT NOW()").Items[0])
+	if now3 == now0 || !strings.Contains(now3, ":args ") {
+		t.Errorf("NOW precision lost in ORIG_DEFAULT: NOW(3)=%s NOW()=%s", now3, now0)
+	}
+}
+
+func TestIndexColumnIDAndVectorParametersNeedLimit(t *testing.T) {
+	// opt_column_id's ID on an index column is retained and serialized.
+	withID := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD KEY (a ID 1)").Items[0])
+	if !strings.Contains(withID, ":column_id 1") {
+		t.Errorf("index column ID missing from NodeToString: %s", withID)
+	}
+	if plain := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD KEY (a)").Items[0]); plain == withID {
+		t.Errorf("index column ID is invisible: %s", plain)
+	}
+
+	// opt_with_vector_index_parameters follows a required limit_clause.
+	ParseAndCheck(t, "SELECT a FROM t ORDER BY a LIMIT 1 PARAMETERS(x = 1)")
+	ParseExpectError(t, "SELECT a FROM t ORDER BY a PARAMETERS(x = 1)")
+	ParseExpectError(t, "SELECT a FROM t APPROX PARAMETERS(x = 1)")
+}
+
+func TestRetainedMarkersAreSerialized(t *testing.T) {
+	// lob_storage_clause is a child of the ALTER command and serializes.
+	lob := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD (a INT) JSON(a) STORE AS (CHUNK 1)").Items[0])
+	if !strings.Contains(lob, ":lob_storage") || !strings.Contains(lob, "LOB_STORAGE") {
+		t.Errorf("lob_storage_clause missing from NodeToString: %s", lob)
+	}
+	// data_type's STRING_VALUE arm is visible.
+	quoted := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD a 's'").Items[0])
+	if !strings.Contains(quoted, ":from_string_value true") {
+		t.Errorf("quoted data type marker missing: %s", quoted)
+	}
+	// A string-valued collation is visible.
+	qc := ast.NodeToString(ParseAndCheck(t, "SELECT a COLLATE 'utf8mb4_bin' FROM t").Items[0])
+	plain := ast.NodeToString(ParseAndCheck(t, "SELECT a COLLATE utf8mb4_bin FROM t").Items[0])
+	if !strings.Contains(qc, ":quoted true") || qc == plain {
+		t.Errorf("quoted collate marker missing: quoted=%s plain=%s", qc, plain)
+	}
+}
+
+func TestSetOperationAndIndexArmRefusals(t *testing.T) {
+	// UNIQUE is UNION's modifier alone.
+	ParseAndCheck(t, "SELECT 1 UNION UNIQUE SELECT 1")
+	for _, sql := range []string{
+		"SELECT 1 EXCEPT UNIQUE SELECT 1",
+		"SELECT 1 INTERSECT UNIQUE SELECT 1",
+		"SELECT 1 MINUS UNIQUE SELECT 1",
+	} {
+		ParseExpectError(t, sql)
+	}
+	// alter_index_option's parenthesized ADD arms take no FULLTEXT.
+	ParseExpectError(t, "ALTER TABLE t ADD (FULLTEXT KEY (a))")
+	ParseAndCheck(t, "ALTER TABLE t ADD (SPATIAL KEY i (a))")
+	ParseAndCheck(t, "ALTER TABLE t ADD (UNIQUE KEY u (a))")
+}
+
+func TestQuotedLeakOptionIsNoDumpMemory(t *testing.T) {
+	ParseAndCheck(t, "SET OPTION LEAK_MOD = 's'")
+	ParseAndCheck(t, "SET OPTION LEAK_RATE = 1")
+	for _, sql := range []string{
+		"SET OPTION `LEAK_MOD` = 's'",
+		"SET OPTION `LEAK_RATE` = 1",
+	} {
+		ParseExpectError(t, sql)
+	}
+}
+
+func TestRepeatedLoadDataOptionsAreKept(t *testing.T) {
+	got := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t LOGFILE 'a' LOGFILE 'b'").Items[0])
+	if !strings.Contains(got, `LOGFILE="a" LOGFILE="b"`) {
+		t.Errorf("repeated LOGFILE occurrences lost: %s", got)
+	}
+	one := ast.NodeToString(ParseAndCheck(t, "LOAD DATA INFILE 's' INTO TABLE t LOGFILE 'b'").Items[0])
+	if one == got {
+		t.Errorf("one LOGFILE and two have the same tree: %s", one)
+	}
+}
+
+func TestRepeatedLobChunksAndNullTreatmentPlace(t *testing.T) {
+	repeated := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD (a INT) JSON(a) STORE AS (CHUNK 1 CHUNK 2)").Items[0])
+	if !strings.Contains(repeated, ":chunks (") || !strings.Contains(repeated, `"1" "2"`) {
+		t.Errorf("repeated CHUNK values lost: %s", repeated)
+	}
+	once := ast.NodeToString(ParseAndCheck(t, "ALTER TABLE t ADD (a INT) JSON(a) STORE AS (CHUNK 2)").Items[0])
+	if once == repeated {
+		t.Errorf("one CHUNK and two have the same tree: %s", once)
+	}
+
+	// The null treatment keeps the place it was written in.
+	inArgs := ast.NodeToString(ParseAndCheck(t, "SELECT FIRST_VALUE(a IGNORE NULLS) OVER ()").Items[0])
+	trailing := ast.NodeToString(ParseAndCheck(t, "SELECT FIRST_VALUE(a) IGNORE NULLS OVER ()").Items[0])
+	if inArgs == trailing || !strings.Contains(inArgs, ":null_treatment_in_args true") {
+		t.Errorf("null treatment place lost:\n in-args  %s\n trailing %s", inArgs, trailing)
+	}
+}
+
+func TestParserGrammarTighteningsAndDblinkDisambiguation(t *testing.T) {
+	// Adjacent string literals on SERVER stay in Server rather than Cluster,
+	// while explicit CLUSTER still sets Cluster.
+	dblink := ParseAndCheck(t, "CREATE DATABASE LINK l1 CONNECT TO 'u' @t DATABASE d IDENTIFIED BY 'p1' 'p2' SERVER '127.0.0.1:' '2881' CLUSTER 'c1'").Items[0].(*ast.DatabaseLinkStmt)
+	if dblink.Password != "p1p2" || dblink.Server != "127.0.0.1:2881" || dblink.Cluster != "c1" {
+		t.Fatalf("unexpected DatabaseLinkStmt fields: %+v", dblink)
+	}
+	barePair := ParseAndCheck(t, "CREATE DATABASE LINK l2 CONNECT TO 'u' @t DATABASE d IDENTIFIED BY 'p' SERVER 's' 's'").Items[0].(*ast.DatabaseLinkStmt)
+	if barePair.Server != "ss" || barePair.Cluster != "" {
+		t.Fatalf("expected adjacent SERVER strings to fold with empty Cluster, got %+v", barePair)
+	}
+
+	// CREATE DATABASE link <options> must dispatch as CreateDatabaseStmt.
+	for _, sql := range []string{
+		"CREATE DATABASE link DEFAULT CHARACTER SET utf8mb4",
+		"CREATE DATABASE link CHARSET utf8mb4",
+		"CREATE DATABASE link COLLATE utf8mb4_bin",
+		"CREATE DATABASE link READ ONLY",
+	} {
+		if _, ok := ParseAndCheck(t, sql).Items[0].(*ast.CreateDatabaseStmt); !ok {
+			t.Errorf("%q did not parse as CreateDatabaseStmt", sql)
+		}
+	}
+
+	// Valid forms unlocked by fixes.
+	for _, sql := range []string{
+		"SET ROLE ALL EXCEPT SELECT, SUPER, CREATE VIEW",
+		"REPLACE OVERWRITE VALUES (1)",
+		"SELECT db.schema(), db.database(), db.replace(a, 'x', 'y') FROM t",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
+	// Grammar over-acceptances now rejected with 1064.
+	for _, sql := range []string{
+		"CREATE TEMPORARY RESTORE POINT rp1",
+		"CREATE TEMPORARY DATABASE LINK l1 CONNECT TO 'u' @t DATABASE d IDENTIFIED BY 'p' SERVER 'h'",
+		"DROP TEMPORARY RESTORE POINT rp1",
+		"DROP TEMPORARY DATABASE LINK l1",
+		"DROP TEMPORARY CATALOG cat1",
+		"CACHE INDEX t1 KEY PARTITION (ALL) IN c1",
+		"CACHE INDEX .t1 IN c1",
+		"LOAD INDEX INTO CACHE .t1",
+		"HANDLER t READ WHERE a = 1",
+		"HANDLER t READ LIMIT 1",
+		"ALTER TABLE t ADD c JSON JSON(c) STORE AS (CHUNK 1)",
+		"ALTER TABLE t ADD (CONSTRAINT c1 CHECK (a > 0))",
+		"CREATE FUNCTION f RETURNS `STRING` SONAME 'f.so'",
+		"SET NAMES TENANT",
+		"SET NAMES _utf8mb4",
+		"USE a . table",
+		"INSERT OVERWRITE INTO t SELECT 1 ON DUPLICATE KEY UPDATE a = 1",
+		"SELECT * FROM cat.db.tbl@link",
+		"SELECT * FROM db . table@link",
+		"SELECT a.b.c.d@link",
+		"SELECT c.d.t.table FROM c.d.t",
+	} {
+		ParseExpectError(t, sql)
 	}
 }

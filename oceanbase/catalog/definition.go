@@ -2138,7 +2138,12 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 		var loc nodes.Loc
 		tableRef := false
 		switch n := n.(type) {
+		case *nodes.RemoteSequenceExpr:
+			return false
 		case *nodes.TableRef:
+			if n.Catalog != "" || n.Dblink != "" {
+				return true
+			}
 			schema, table, loc, tableRef = n.Schema, n.Name, n.Loc, true
 			if n.Alias != "" && !ctes[strings.ToLower(n.Name)] {
 				// Aliased, the table is known by its alias, which nothing else
@@ -2146,6 +2151,9 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 				table = ""
 			}
 		case *nodes.ColumnRef:
+			if n.Catalog != "" {
+				return true
+			}
 			schema, table, loc = n.Schema, n.Table, n.Loc
 		case *nodes.FuncCallExpr:
 			schema, loc = n.Schema, n.Loc

@@ -65,6 +65,23 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		n.Expr = rewriteExpr(n.Expr)
 		return n
 
+	case *ast.QuantifiedExpr:
+		n.Expr = rewriteExpr(n.Expr)
+		return n
+
+	case *ast.OdbcEscapeExpr:
+		n.Expr = rewriteExpr(n.Expr)
+		return n
+
+	case *ast.GroupingSet:
+		// A grouping set's items are expressions like any other, so IF, NOT,
+		// BETWEEN and date arithmetic inside ROLLUP (...) rewrite as they do
+		// elsewhere.
+		for i, item := range n.Items {
+			n.Items[i] = rewriteExpr(item)
+		}
+		return n
+
 	case *ast.InExpr:
 		n.Expr = rewriteExpr(n.Expr)
 		for i, item := range n.List {
@@ -225,6 +242,10 @@ func FoldBetween(node ast.ExprNode) ast.ExprNode {
 		n.Operand = FoldBetween(n.Operand)
 	case *ast.ParenExpr:
 		n.Expr = FoldBetween(n.Expr)
+	case *ast.OdbcEscapeExpr:
+		n.Expr = FoldBetween(n.Expr)
+	case *ast.QuantifiedExpr:
+		n.Expr = FoldBetween(n.Expr)
 	case *ast.IsExpr:
 		n.Expr = FoldBetween(n.Expr)
 	case *ast.CaseExpr:
@@ -373,6 +394,9 @@ func rewriteNot(operand ast.ExprNode) ast.ExprNode {
 	// differs from a, where the original holds only when every row does.
 	if binExpr, ok := unwrapParen(operand).(*ast.BinaryExpr); ok {
 		if sub, ok := binExpr.Right.(*ast.SubqueryExpr); ok && sub.Quantifier != "" {
+			return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
+		}
+		if _, ok := binExpr.Right.(*ast.QuantifiedExpr); ok {
 			return &ast.UnaryExpr{Op: ast.UnaryNot, Operand: operand}
 		}
 	}
@@ -551,7 +575,8 @@ func selectItemPosition(expr ast.ExprNode, items []ast.ExprNode) int {
 			item = rt.Val
 		}
 		if col, ok := item.(*ast.ColumnRef); ok && !col.Star &&
-			strings.EqualFold(col.Column, ref.Column) && strings.EqualFold(col.Table, ref.Table) && strings.EqualFold(col.Schema, ref.Schema) {
+			strings.EqualFold(col.Column, ref.Column) && strings.EqualFold(col.Table, ref.Table) &&
+			strings.EqualFold(col.Schema, ref.Schema) && strings.EqualFold(col.Catalog, ref.Catalog) {
 			return i + 1
 		}
 	}

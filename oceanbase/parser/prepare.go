@@ -27,7 +27,7 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 		return nil, err
 	}
 
-	// SQL string or variable
+	// preparable_stmt: a text string or a user variable, and one of the two.
 	if p.cur.Type == tokSCONST {
 		stmt.Stmt = p.cur.Str
 		p.advance()
@@ -37,6 +37,8 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 			return nil, err
 		}
 		stmt.Stmt = "@" + vref.Name
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -93,8 +95,11 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 	start := p.pos()
 	p.advance() // consume DEALLOCATE
 
-	// PREPARE
-	p.match(kwPREPARE)
+	// PREPARE is required: `DEALLOCATE a` is a 1064, and DROP PREPARE is the
+	// same statement's other spelling (deallocate_or_drop).
+	if _, err := p.expect(kwPREPARE); err != nil {
+		return nil, err
+	}
 
 	stmt := &nodes.DeallocateStmt{Loc: nodes.Loc{Start: start}}
 

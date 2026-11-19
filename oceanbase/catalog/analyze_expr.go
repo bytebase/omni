@@ -28,6 +28,17 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return &ConstExprQ{Value: "FALSE"}, nil
 	case *nodes.KeywordArg:
 		return &ConstExprQ{Value: n.Keyword, Keyword: true}, nil
+	case *nodes.TemporalLit:
+		var rt *ResolvedType
+		switch strings.ToUpper(n.Type) {
+		case "DATE":
+			rt = &ResolvedType{BaseType: BaseTypeDate}
+		case "TIME":
+			rt = &ResolvedType{BaseType: BaseTypeTime}
+		case "TIMESTAMP":
+			rt = &ResolvedType{BaseType: BaseTypeTimestamp}
+		}
+		return &RawExprQ{Text: deparse.Deparse(n), ResultType: rt}, nil
 	case *nodes.ParamMarkerExpr:
 		// A `?` parameter marker cannot appear in a view definition — the only
 		// thing this analyzer processes — and the engine rejects such a view.
@@ -59,6 +70,50 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeCastExpr(c, n, scope)
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
+	case *nodes.QuantifiedExpr:
+		// any_expr's `ALL (expr)` / `ANY (expr)` keeps its quantifier around the
+		// analyzed expression so `a = ANY(b)` does not collapse to `a = b`.
+		arg, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &QuantifiedExprQ{Quantifier: strings.ToUpper(n.Quantifier), Arg: arg}, nil
+	case *nodes.OdbcEscapeExpr:
+		// The escape's word says how its expression is read (`{d '2026-01-01'}`
+		// is a date), and its expression is analyzed like any other, so a column
+		// inside it keeps its lineage.
+		arg, err := analyzeExpr(c, n.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		return &OdbcEscapeExprQ{Name: n.Name, Arg: arg}, nil
+	case *nodes.RemoteSequenceExpr:
+		// A sequence read through a database link is a value of its own, which
+		// the IR keeps as written: it is no column of a local table, and it is
+		// no literal either.
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
+	case *nodes.GroupingSet:
+		// A GROUP BY item's grouping set keeps its kind and its items, so a view
+		// stores ROLLUP (...) and not the expressions it groups by.
+		items := make([]AnalyzedExpr, 0, len(n.Items))
+		for _, item := range n.Items {
+			analyzed, err := analyzeExpr(c, item, scope)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, analyzed)
+		}
+		return &GroupingSetExprQ{Kind: n.Kind, Args: items}, nil
+	case *nodes.RowExpr:
+		items := make([]AnalyzedExpr, 0, len(n.Items))
+		for _, item := range n.Items {
+			analyzed, err := analyzeExpr(c, item, scope)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, analyzed)
+		}
+		return &RowExprQ{Args: items}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:
@@ -77,28 +132,61 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 // (setting LevelsUp > 0 when the column comes from a parent scope).
 func analyzeColumnRef(ref *nodes.ColumnRef, scope *analyzerScope) (AnalyzedExpr, error) {
 	if ref.Table != "" {
-		rteIdx, attNum, levelsUp, err := scope.resolveQualifiedColumnFull(ref.Table, ref.Column)
-		if err != nil {
-			return nil, err
-		}
-		return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+		return scope.resolveQualifiedRefFull(ref.Catalog, ref.Schema, ref.Table, ref.Column)
 	}
 	rteIdx, attNum, levelsUp, err := scope.resolveColumnFull(ref.Column)
 	if err != nil {
-		if te, levels := scope.selectAlias(ref.Column); te != nil {
-			if levels > 0 {
-				// The alias belongs to a query around this one, so its expression
-				// counts range tables and correlation levels from there. Rebasing it
-				// here would have to raise every reference it holds by the scopes
-				// crossed, and leave the ones inside its own subqueries alone, so the
-				// name resolves and the query is simply not analyzed.
-				return nil, errOuterAlias
+		// Check same-scope SELECT aliases first in GROUP BY / HAVING / ORDER BY
+		// before attributing an unresolved name to an unknown remote relation,
+		// and compare nesting distance when an enclosing scope holds either.
+		aliasTE, aliasLevels := scope.selectAlias(ref.Column)
+		if aliasTE != nil && aliasLevels == 0 {
+			return aliasTE.Expr, nil
+		}
+		if idx, unkLevels, ok := scope.soleUnknownColumnInChain(); ok {
+			if aliasTE == nil || unkLevels <= aliasLevels {
+				return &VarExprQ{RangeIdx: idx, Name: ref.Column, LevelsUp: unkLevels}, nil
 			}
-			return te.Expr, nil
+		}
+		if aliasTE != nil {
+			return nil, errOuterAlias
 		}
 		return nil, err
 	}
+	// A FULL join's key read unqualified is COALESCE(left, right): an r-only row
+	// would project NULL from the surviving left column alone. A correlated
+	// reference to an outer query's key lifts that expression's variables by the
+	// levels it crossed.
+	if levelsUp == 0 {
+		if merged, ok := scope.fullJoinColumn(ref.Column); ok {
+			return merged, nil
+		}
+	} else if merged, ok := scope.rebaseFullJoinColumn(ref.Column, levelsUp, rteIdx); ok {
+		return merged, nil
+	}
 	return &VarExprQ{RangeIdx: rteIdx, AttNum: attNum, LevelsUp: levelsUp}, nil
+}
+
+// rebaseAnalyzedLevels returns expr with every variable of the query it belongs
+// to moved levels queries out. A merged FULL-join key is a COALESCE over that
+// query's own variables, which is what a correlated reference to it needs.
+func rebaseAnalyzedLevels(expr AnalyzedExpr, levels int) AnalyzedExpr {
+	switch e := expr.(type) {
+	case *VarExprQ:
+		if e.LevelsUp != 0 {
+			return e
+		}
+		rebased := *e
+		rebased.LevelsUp = levels
+		return &rebased
+	case *CoalesceExprQ:
+		args := make([]AnalyzedExpr, len(e.Args))
+		for i, arg := range e.Args {
+			args[i] = rebaseAnalyzedLevels(arg, levels)
+		}
+		return &CoalesceExprQ{Args: args}
+	}
+	return expr
 }
 
 // analyzeFuncCall resolves a function call expression.
@@ -116,10 +204,13 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 		return &CoalesceExprQ{Args: args}, nil
 	}
 	result := &FuncCallExprQ{
-		Name:        lower,
-		Args:        args,
-		IsAggregate: isAggregateFunc(fc.Name),
-		Distinct:    fc.Quantifier.RemovesDuplicates(),
+		Name:                lower,
+		Args:                args,
+		IsAggregate:         isAggregateFunc(fc.Name),
+		Distinct:            fc.Quantifier.RemovesDuplicates(),
+		FromFirstLast:       fc.FromFirstLast,
+		NullTreatment:       fc.NullTreatment,
+		NullTreatmentInArgs: fc.NullTreatmentInArgs,
 	}
 	// Phase 3: populate return type from function type table.
 	result.ResultType = functionReturnType(result.Name, result.Args)
@@ -135,7 +226,59 @@ func analyzeFuncCall(c *Catalog, fc *nodes.FuncCallExpr, scope *analyzerScope) (
 			result.ResultType = dataTypeToResolvedType(fc.JSONQuery.Returning)
 		}
 	}
+	if fc.Over != nil {
+		over, err := analyzeWindowDef(c, fc.Over, scope, false)
+		if err != nil {
+			return nil, err
+		}
+		result.Over = over
+	}
 	return result, nil
+}
+
+func analyzeWindowDef(c *Catalog, wd *nodes.WindowDef, scope *analyzerScope, isDecl bool) (*WindowDefQ, error) {
+	if wd == nil {
+		return nil, nil
+	}
+	out := &WindowDefQ{
+		Name:    wd.Name,
+		RefName: wd.RefName,
+	}
+	if !isDecl && out.Name == "" && out.RefName != "" && len(wd.PartitionBy) == 0 && len(wd.OrderBy) == 0 && wd.Frame == nil {
+		out.Name = out.RefName
+		out.RefName = ""
+	}
+	for _, expr := range wd.PartitionBy {
+		a, err := analyzeExpr(c, expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		out.PartitionBy = append(out.PartitionBy, a)
+	}
+	for _, item := range wd.OrderBy {
+		a, err := analyzeExpr(c, item.Expr, scope)
+		if err != nil {
+			return nil, err
+		}
+		out.OrderExprs = append(out.OrderExprs, &WindowOrderItemQ{
+			Expr:       a,
+			Descending: item.Desc,
+		})
+	}
+	if wd.Frame != nil {
+		if wd.Frame.Start != nil && wd.Frame.Start.Offset != nil {
+			if _, err := analyzeExpr(c, wd.Frame.Start.Offset, scope); err != nil {
+				return nil, err
+			}
+		}
+		if wd.Frame.End != nil && wd.Frame.End.Offset != nil {
+			if _, err := analyzeExpr(c, wd.Frame.End.Offset, scope); err != nil {
+				return nil, err
+			}
+		}
+		out.FrameClause = deparse.DeparseWindowFrame(wd.Frame)
+	}
+	return out, nil
 }
 
 // analyzePositionExpr resolves POSITION(substr IN str). The node has to be
@@ -386,7 +529,7 @@ func analyzeCastExpr(c *Catalog, expr *nodes.CastExpr, scope *analyzerScope) (An
 		targetType = dataTypeToResolvedType(expr.TypeName)
 	}
 
-	return &CastExprQ{Arg: arg, TargetType: targetType}, nil
+	return &CastExprQ{Arg: arg, TargetType: targetType, Ignore: expr.Ignore}, nil
 }
 
 // dataTypeToResolvedType maps a parser DataType to a ResolvedType for CAST targets.

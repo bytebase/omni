@@ -97,13 +97,27 @@ func (b *builder) statement(n ast.Node) bool {
 			b.forgetTemporary()
 		}
 		return true
+	case *ast.CatalogStmt:
+		// SET CATALOG switches the session to another catalog, which the ledger
+		// does not hold: mark the session database unknown as USE catalog.db does.
+		if v.Action == "SET" {
+			b.Session(func() { b.w.lost = true })
+		}
+		return true
 	case *ast.BeginStmt, *ast.CommitStmt, *ast.SavepointStmt, *ast.SetTransactionStmt, *ast.UnlockTablesStmt,
 		*ast.ShowStmt, *ast.HelpStmt, *ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt,
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
 		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
-		*ast.MethodOptStmt:
+		*ast.MethodOptStmt,
+		// PURGE empties the recycle bin, and restore points, database links and
+		// dump-memory diagnostics change no table, column or index the walk
+		// keeps. FLASHBACK restores a dropped object from the recycle bin, which
+		// the ledger does not model, so it falls through to return false and
+		// stops the walk as ROLLBACK does.
+		*ast.PurgeStmt, *ast.RestorePointStmt, *ast.DatabaseLinkStmt,
+		*ast.DumpMemoryStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// RENAME USER and SET PASSWORD join the other user statements:
@@ -209,6 +223,13 @@ func (b *builder) alterDatabase(v *ast.AlterDatabaseStmt) bool {
 }
 
 func (b *builder) use(v *ast.UseStmt) bool {
+	// `USE catalog.db` selects a database of another catalog, which the ledger
+	// does not hold: the session's database is unknown rather than the local
+	// database of that name.
+	if v.Catalog != "" {
+		b.Session(func() { b.w.lost = true })
+		return true
+	}
 	d, ok := b.key(spaceDatabase, v.Database)
 	if !ok {
 		b.Session(func() { b.w.lost = true })
@@ -489,6 +510,9 @@ func (b *builder) constraintName(c *ast.Constraint) (string, string) {
 func (b *builder) tableTextFails(v *ast.CreateTableStmt, r tableRef) bool {
 	columns := make(map[string]bool)
 	for _, c := range v.Columns {
+		if b.columnFormFails(c, rangeOf(c.Loc), false) {
+			return true
+		}
 		k, ok := b.key(spaceColumn, c.Name)
 		if !ok {
 			continue

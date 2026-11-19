@@ -28,7 +28,11 @@ import (
 // before q's.
 type fromScope struct {
 	*scopepkg.Scope
-	from []ast.TableExpr
+	from          []ast.TableExpr
+	parent        *fromScope
+	cteTables     map[string]*ResolverTable
+	selectAliases map[string]bool
+	inAliasClause bool
 
 	// tables holds the scope entries of the FROM clause's tables and derived
 	// tables in the order they were registered; entries maps each such FROM
@@ -50,14 +54,25 @@ type fromScope struct {
 	// reference to that name means, when a NATURAL or USING join joins on it.
 	coalesced map[string]joinColumn
 
+	// fullKeys maps the surviving column of a FULL join to the expression that
+	// merges both sides, COALESCE(left, right): either side may be the null one,
+	// so the surviving column alone would project NULL for a right-only row.
+	fullKeys map[colKey]ast.ExprNode
+
 	// firsts caches, for an input of a NATURAL or USING join, each lowered
 	// column name to the first column of that name in the input's result.
 	firsts map[ast.TableExpr]map[string]joinColumn
 
-	// unknownColumns holds the lowered names of the derived tables whose
-	// columns are known only when the query runs, because a source inside them
-	// names a location.
+	// unknownColumns holds the lowered names of the derived or remote tables
+	// whose columns are known only when the query runs.
 	unknownColumns map[string]bool
+	localTables    map[string]bool
+	hasUnknown     bool
+
+	// unknownUsingCols holds lowered USING column names of joins where one side
+	// has unknown columns, so unqualified references stay unqualified instead of
+	// binding to the one local side.
+	unknownUsingCols map[string]bool
 }
 
 // joinColumn is one column of a FROM item's result.
@@ -85,6 +100,8 @@ func newFromScope(from []ast.TableExpr) *fromScope {
 		entries:        make(map[ast.TableExpr]int),
 		spans:          make(map[ast.TableExpr][2]int),
 		unknownColumns: make(map[string]bool),
+		localTables:    make(map[string]bool),
+		hasUnknown:     itemHasUnknownColumnsInList(from),
 	}
 }
 
@@ -98,28 +115,14 @@ func (sc *fromScope) add(te ast.TableExpr, name string, table *ResolverTable) {
 // hasUnknownColumns reports whether a FROM item's columns are known only when
 // the query runs.
 func (sc *fromScope) hasUnknownColumns() bool {
-	if len(sc.unknownColumns) > 0 {
-		return true
-	}
-	for _, te := range sc.from {
-		switch t := te.(type) {
-		case *ast.ExternalTableRef:
-			return true
-		case *ast.JoinClause:
-			if t.Left != nil && itemHasUnknownColumns(t.Left) {
-				return true
-			}
-			if t.Right != nil && itemHasUnknownColumns(t.Right) {
-				return true
-			}
-		}
-	}
-	return false
+	return sc.hasUnknown || len(sc.unknownColumns) > 0
 }
 
 // itemHasUnknownColumns is hasUnknownColumns for one FROM item.
 func itemHasUnknownColumns(te ast.TableExpr) bool {
 	switch t := te.(type) {
+	case *ast.TableRef:
+		return t.Catalog != "" || t.Dblink != ""
 	case *ast.ExternalTableRef:
 		return true
 	case *ast.JoinClause:
@@ -346,14 +349,46 @@ func (sc *fromScope) joinOn(j *ast.JoinClause, names []string) (ast.ExprNode, bo
 		sc.coalesced = make(map[string]joinColumn)
 	}
 	lefts := make([]joinColumn, len(pairs))
-	rights := make([]joinColumn, len(pairs))
+	leftExprs := make([]ast.ExprNode, len(pairs))
+	rightExprs := make([]ast.ExprNode, len(pairs))
 	for i, p := range pairs {
-		lefts[i], rights[i] = p.l, p.r
+		lefts[i] = p.l
+		leftExprs[i] = sc.keyExpr(p.l)
+		rightExprs[i] = sc.keyExpr(p.r)
 		sc.hidden[p.r.key()] = true
 		sc.coalesced[strings.ToLower(p.l.name)] = p.l
 	}
 	sc.joined[j] = lefts
-	return columnEqualities(lefts, rights), true
+	// A FULL join merges each key into one column either side may fill, so the
+	// column's value is COALESCE(left, right); a nested FULL join's own merge
+	// on either input is preserved via keyExpr.
+	if j.Type == ast.JoinFull || j.Type == ast.JoinNaturalFull {
+		if sc.fullKeys == nil {
+			sc.fullKeys = make(map[colKey]ast.ExprNode)
+		}
+		for i := range pairs {
+			sc.fullKeys[pairs[i].l.key()] = &ast.FuncCallExpr{
+				Name:      "coalesce",
+				HasParens: true,
+				Args: []ast.ExprNode{
+					leftExprs[i],
+					rightExprs[i],
+				},
+			}
+		}
+	}
+	return exprEqualities(leftExprs, rightExprs), true
+}
+
+// keyExpr returns the expression representing c's current key value, preserving
+// any COALESCE built by a nested FULL join on that side.
+func (sc *fromScope) keyExpr(c joinColumn) ast.ExprNode {
+	if sc.fullKeys != nil {
+		if prior, ok := sc.fullKeys[c.key()]; ok {
+			return prior
+		}
+	}
+	return &ast.ColumnRef{Table: c.qualifier, Column: c.name}
 }
 
 // joinOnNothing records a NATURAL join whose inputs share no column.
@@ -400,15 +435,15 @@ func (sc *fromScope) naturalColumns(j *ast.JoinClause) ([]string, bool) {
 	return names, true
 }
 
-// columnEqualities builds left[0] = right[0] AND left[1] = right[1] ...,
+// exprEqualities builds left[0] = right[0] AND left[1] = right[1] ...,
 // chained to the left.
-func columnEqualities(lefts, rights []joinColumn) ast.ExprNode {
+func exprEqualities(lefts, rights []ast.ExprNode) ast.ExprNode {
 	var result ast.ExprNode
 	for i := range lefts {
 		eq := &ast.BinaryExpr{
 			Op:    ast.BinOpEq,
-			Left:  &ast.ColumnRef{Table: lefts[i].qualifier, Column: lefts[i].name},
-			Right: &ast.ColumnRef{Table: rights[i].qualifier, Column: rights[i].name},
+			Left:  lefts[i],
+			Right: rights[i],
 		}
 		if result == nil {
 			result = eq

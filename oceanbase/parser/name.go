@@ -1015,8 +1015,11 @@ func (p *Parser) parseRelationFactor() (*nodes.TableRef, error) {
 	if err != nil {
 		return nil, err
 	}
+	firstEnd := p.prev.End
 	ref.Name = name
+	spacedReserved := false
 	if p.cur.Type == '.' {
+		dot1 := p.cur
 		p.advance()
 
 		// Completion: after "db.", offer table_ref qualified with database.
@@ -1026,11 +1029,46 @@ func (p *Parser) parseRelationFactor() (*nodes.TableRef, error) {
 			return nil, &ParseError{Message: "collecting"}
 		}
 
+		reserved2 := reservedNamesAfterDot[p.cur.Type]
+		name2Start := p.cur.Loc
 		name2, err := p.parseNameAfterDot()
 		if err != nil {
 			return nil, err
 		}
+		name2End := p.prev.End
+		idDotID := dot1.Loc == firstEnd && name2Start == dot1.End
+		spacedReserved = reserved2 && !idDotID
 		ref.Schema, ref.Name = name, name2
+
+		// A three-part name is `catalog.db.tbl` (normal_relation_factor's
+		// id_dot_id_dot_id arm and its relation_name '.' relation_name '.'
+		// relation_name arm). Neither takes a spaced mysql_reserved_keyword or
+		// an opt_dblink.
+		if p.cur.Type == '.' {
+			dot2 := p.cur
+			p.advance()
+			reserved3 := reservedNamesAfterDot[p.cur.Type]
+			name3Start := p.cur.Loc
+			name3, err := p.parseNameAfterDot()
+			if err != nil {
+				return nil, err
+			}
+			idDotIDDotID := dot2.Loc == name2End && name3Start == dot2.End
+			if spacedReserved || (reserved3 && !idDotIDDotID) {
+				return nil, p.syntaxErrorAtCur()
+			}
+			ref.Catalog, ref.Schema, ref.Name = name, name2, name3
+		}
+	}
+	// opt_dblink: `t@link` and `db.t@link` read the table through a database
+	// link; three-part catalog names and `relation_name '.' mysql_reserved_keyword`
+	// have no opt_dblink arm.
+	if p.isUserVariable() && ref.Catalog == "" && !spacedReserved {
+		vref, err := p.parseVariableRef()
+		if err != nil {
+			return nil, err
+		}
+		ref.Dblink = p.variableRefText(vref)
 	}
 	ref.Loc.End = p.prev.End
 	return ref, nil
@@ -1129,6 +1167,28 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 	return ref, nil
 }
 
+// variableRefText returns a user variable as written, quotes included: a
+// database link may be named with a quoted user variable, `t@'a/b'`, and the
+// reference keeps that spelling to write it back.
+func (p *Parser) variableRefText(vref *nodes.VariableRef) string {
+	if text := p.inputText(vref.Loc.Start, vref.Loc.End); text != "" {
+		return text
+	}
+	return "@" + vref.Name
+}
+
+// atFullJoin reports whether FULL opens a join here: FULL JOIN or FULL OUTER
+// JOIN. FULL is no reserved word of OceanBase's, so `FROM t FULL` is a table
+// named t with the alias FULL, and `FROM a FULL JOIN b` is a join: the one
+// token of lookahead after FULL tells the two apart.
+func (p *Parser) atFullJoin() bool {
+	if p.cur.Type != kwFULL {
+		return false
+	}
+	next := p.peekNext().Type
+	return next == kwJOIN || next == kwOUTER
+}
+
 // parseTableNameClauses reads what tbl_name takes after its relation_factor, in the one
 // order the grammar has, and reports whether it read any:
 //
@@ -1183,7 +1243,7 @@ func (p *Parser) parseTableNameClauses(ref *nodes.TableRef) (bool, error) {
 		}
 		ref.Alias = alias
 		read = true
-	} else if p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW {
+	} else if p.isIdentToken() && p.cur.Type != kwEXCEPT && p.cur.Type != kwINTERSECT && p.cur.Type != kwWINDOW && !p.atFullJoin() {
 		alias, _, err := p.parseIdent()
 		if err != nil {
 			return false, err
