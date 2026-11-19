@@ -1486,6 +1486,9 @@ func (p *Parser) parseListValueList() ([]string, int, bool, error) {
 		}
 		p.advance()
 	}
+	if len(vals) == 0 {
+		return nil, 0, false, p.syntaxErrorAtCur()
+	}
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
 		return nil, 0, false, err

@@ -63,6 +63,7 @@ func init() {
 		"DESC",
 		"HELP",
 		"EXPLAIN",
+		"TRACE",
 	)
 
 	// Data manipulation language.
@@ -79,6 +80,8 @@ func init() {
 	// Data definition language and session / administrative control.
 	register(QueryTypeDDL,
 		"CREATE",
+		"CACHE",
+		"SUBMIT",
 		"ALTER",
 		"DROP",
 		"GRANT",
