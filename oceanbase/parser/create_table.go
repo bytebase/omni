@@ -2150,7 +2150,7 @@ func (p *Parser) parsePartitionClause(auto bool) (*nodes.PartitionClause, error)
 	// CREATE TABLE and ALTER TABLE both take. OceanBase refuses the ALTER TABLE
 	// form later with 1064 after parsing it (simulate.tsv), which is no syntax
 	// error.
-	if (part.Type == nodes.PartitionRange || part.Type == nodes.PartitionList) && p.isBareWord("SIZE") {
+	if part.Type == nodes.PartitionRange && p.isBareWord("SIZE") {
 		size, err := p.parseSplitSize()
 		if err != nil {
 			return nil, err

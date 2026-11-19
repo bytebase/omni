@@ -1526,7 +1526,11 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		return Explain
 	case *ast.ShowStmt:
 		return SelectInfoSchema
-	case *ast.SetStmt, *ast.SetDefaultRoleStmt, *ast.SetResourceGroupStmt, *ast.SetRoleStmt, *ast.SetTransactionStmt:
+	case *ast.SetStmt, *ast.SetDefaultRoleStmt, *ast.SetResourceGroupStmt, *ast.SetRoleStmt, *ast.SetTransactionStmt,
+		// dump_memory_stmt reads the observer's memory and sets its leak
+		// reporting, which no table and no row is part of: a session statement's
+		// class rather than none, which Bytebase denies.
+		*ast.DumpMemoryStmt:
 		return Select
 	case *ast.SetPasswordStmt, *ast.HelpStmt:
 		return QueryTypeUnknown

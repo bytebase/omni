@@ -3457,6 +3457,25 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 		sb.WriteString(" :col ")
 		writeNode(sb, n.Column)
 	}
+	if n.Before != "" {
+		fmt.Fprintf(sb, " :before %s", n.Before)
+	}
+	if len(n.ConstraintNames) > 0 {
+		fmt.Fprintf(sb, " :constraint_names (%s)", strings.Join(n.ConstraintNames, ", "))
+	}
+	if len(n.IndexOptions) > 0 {
+		sb.WriteString(" :index_options ")
+		for i, opt := range n.IndexOptions {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, opt)
+		}
+	}
+	if n.Parallel != nil {
+		sb.WriteString(" :parallel ")
+		writeNode(sb, n.Parallel)
+	}
 	if len(n.Columns) > 0 {
 		sb.WriteString(" :columns (")
 		for i, c := range n.Columns {
