@@ -2233,9 +2233,10 @@ func (p *Parser) parseCreateGroupStmt() (nodes.Node, error) {
 	with := p.cur.Type == WITH
 	p.parseGrantOptWith()
 	savedInCreateGroup := p.inCreateGroup
+	// The whole WITH block keeps CREATE GROUP's context, repeated lists included.
 	p.inCreateGroup = with
+	defer func() { p.inCreateGroup = savedInCreateGroup }()
 	options, err := p.parseOptRoleList(true)
-	p.inCreateGroup = savedInCreateGroup
 	if err != nil {
 		return nil, err
 	}

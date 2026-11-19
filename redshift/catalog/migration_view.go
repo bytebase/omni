@@ -502,9 +502,10 @@ func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
 	}}
 
 	// The triggers a dropped view had, and a materialized view's indexes, went
-	// with it too.
+	// with it too, their comments along with them.
 	for _, trig := range to.TriggersOf(rel.OID) {
 		ops = append(ops, buildCreateTriggerOp(to, rel.Schema.Name, rel.Name, trig))
+		ops = append(ops, buildTriggerCommentOps(to, rel, trig)...)
 	}
 	if rel.RelKind == 'm' {
 		for _, idx := range to.IndexesOf(rel.OID) {
@@ -539,6 +540,38 @@ func buildReplacedMetadataOps(to *Catalog, rel *Relation) []MigrationOp {
 	ops := buildRelationMetadataOps(to, rel)
 	for _, idx := range to.IndexesOf(rel.OID) {
 		ops = append(ops, buildIndexCommentOps(to, rel, idx)...)
+	}
+	return ops
+}
+
+// buildTriggerCommentOps puts back the comments a trigger had, which its
+// re-creation has no diff entry to say.
+func buildTriggerCommentOps(c *Catalog, rel *Relation, trig *Trigger) []MigrationOp {
+	desc := rel.Schema.Name + "." + rel.Name + "." + trig.Name
+	var keys []commentKey
+	for key, text := range c.comments {
+		if key.ObjType != 'g' || key.ObjOID != trig.OID || text == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].SubID < keys[j].SubID })
+	var ops []MigrationOp
+	for _, key := range keys {
+		sql := formatCommentSQL(c, 'g', desc, key.SubID, c.comments[key])
+		if sql == "" {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpComment,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    trig.Name,
+			SQL:           sql,
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'g',
+			Priority:      PriorityMetadata,
+		})
 	}
 	return ops
 }

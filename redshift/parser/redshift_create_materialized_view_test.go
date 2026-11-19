@@ -200,6 +200,10 @@ func TestRedshiftCreateMaterializedViewIcebergRejectsOtherTransforms(t *testing.
 // the keywords: a quoted "auto" or "diststyle" is no clause.
 func TestRedshiftCreateMaterializedViewQuotedOptionWords(t *testing.T) {
 	for _, sql := range []string{
+		// Each option takes its own alternatives.
+		"CREATE MATERIALIZED VIEW m BACKUP MAYBE AS SELECT 1",
+		"CREATE MATERIALIZED VIEW m DISTSTYLE NO AS SELECT 1",
+		`CREATE MATERIALIZED VIEW m AUTO REFRESH "yes" AS SELECT 1`,
 		// The ordinary form is its own production, not CREATE TABLE's.
 		"CREATE MATERIALIZED VIEW m ENCODE AUTO AS SELECT 1",
 		"CREATE MATERIALIZED VIEW m SORTKEY AUTO AS SELECT 1",

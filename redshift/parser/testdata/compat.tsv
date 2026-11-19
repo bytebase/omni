@@ -3417,10 +3417,10 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(BACKUP_(YES|NO))?/BACK
 reject	undocumented	docs	materializedViewCreateSqlCommand(BACKUP_(YES|NO))?/BACKUP_(YES|NO)!insert	CREATE MATERIALIZED VIEW a BACKUP YES zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(BACKUP_(YES|NO))?/BACKUP_(YES|NO)!swap	CREATE MATERIALIZED VIEW a BEDROCK YES AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(YES|NO)/YES	CREATE MATERIALIZED VIEW a BACKUP YES AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/YES!swap	CREATE MATERIALIZED VIEW a BACKUP ZSTD AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/YES!swap	CREATE MATERIALIZED VIEW a BACKUP ZSTD AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(YES|NO)/NO	CREATE MATERIALIZED VIEW a BACKUP NO AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/NO!insert	CREATE MATERIALIZED VIEW a BACKUP NO zzz AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/NO!swap	CREATE MATERIALIZED VIEW a BACKUP NOCREATEDB AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(YES|NO)/NO!swap	CREATE MATERIALIZED VIEW a BACKUP NOCREATEDB AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)	CREATE MATERIALIZED VIEW a DISTSTYLE EVEN AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)!drop-1	CREATE MATERIALIZED VIEW a EVEN AS SELECT 1
@@ -3429,13 +3429,13 @@ reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KE
 reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)!insert	CREATE MATERIALIZED VIEW a DISTSTYLE EVEN zzz AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(DISTSTYLE_(EVEN|ALL|KEY))?/DISTSTYLE_(EVEN|ALL|KEY)!swap	CREATE MATERIALIZED VIEW a DROP EVEN AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/EVEN	CREATE MATERIALIZED VIEW a DISTSTYLE EVEN AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/EVEN!swap	CREATE MATERIALIZED VIEW a DISTSTYLE EXCEPT AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/EVEN!swap	CREATE MATERIALIZED VIEW a DISTSTYLE EXCEPT AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL	CREATE MATERIALIZED VIEW a DISTSTYLE ALL AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL!insert	CREATE MATERIALIZED VIEW a DISTSTYLE ALL zzz AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL!swap	CREATE MATERIALIZED VIEW a DISTSTYLE ALLOWOVERWRITE AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/ALL!swap	CREATE MATERIALIZED VIEW a DISTSTYLE ALLOWOVERWRITE AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY	CREATE MATERIALIZED VIEW a DISTSTYLE KEY AS SELECT 1
 reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY!insert	CREATE MATERIALIZED VIEW a DISTSTYLE KEY zzz AS SELECT 1
-accept	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY!swap	CREATE MATERIALIZED VIEW a DISTSTYLE KEYS AS SELECT 1
+reject	undocumented	docs	materializedViewCreateSqlCommand(EVEN|ALL|KEY)/KEY!swap	CREATE MATERIALIZED VIEW a DISTSTYLE KEYS AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTKEY_(_ID_))?/%empty	CREATE MATERIALIZED VIEW a AS SELECT 1
 accept	accept	docs	materializedViewCreateSqlCommand(DISTKEY_(_ID_))?/DISTKEY_(_ID_)	CREATE MATERIALIZED VIEW a DISTKEY(a) AS SELECT 1
 accept	undocumented	docs	materializedViewCreateSqlCommand(DISTKEY_(_ID_))?/DISTKEY_(_ID_)!drop-1	CREATE MATERIALIZED VIEW a(a) AS SELECT 1

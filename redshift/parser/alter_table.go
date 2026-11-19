@@ -929,7 +929,8 @@ func (p *Parser) parseRedshiftAutoRefresh() (*nodes.AlterTableCmd, error) {
 // Grammar reference: alterMaterializedView and materializedViewCreateSqlCommand
 // in RedshiftDocs.g4 both write AUTO REFRESH ( YES ( INTERVAL NUMBER )? | NO ).
 func (p *Parser) parseRedshiftAutoRefreshSettings() (bool, *nodes.Integer, error) {
-	enabled, err := p.parseRedshiftYesNo()
+	// YES and NO are the keywords, not names a quoted spelling may stand for.
+	enabled, err := p.redshiftKeywordYesNo()
 	if err != nil {
 		return false, nil, err
 	}
@@ -1146,6 +1147,20 @@ func (p *Parser) parseRedshiftStringOptionList() (*nodes.List, error) {
 		return nil, err
 	}
 	return &nodes.List{Items: items}, nil
+}
+
+// redshiftKeywordYesNo reads the unquoted words YES and NO.
+func (p *Parser) redshiftKeywordYesNo() (bool, error) {
+	switch {
+	case p.redshiftKeywordIs("yes"):
+		p.advance()
+		return true, nil
+	case p.redshiftKeywordIs("no"):
+		p.advance()
+		return false, nil
+	default:
+		return false, p.syntaxErrorAtCur()
+	}
 }
 
 func (p *Parser) parseRedshiftYesNo() (bool, error) {

@@ -544,3 +544,16 @@ func TestCollectIdentityAndConnectByContinuations(t *testing.T) {
 		t.Errorf("START WITH offers no CONNECT BY: tokens=%v words=%v", cs.Tokens, cs.Words)
 	}
 }
+
+// TestCollectCreateGroupSecondWithList pins the CREATE GROUP context around
+// every repeated WITH list: a second block's comma still offers WITH.
+func TestCollectCreateGroupSecondWithList(t *testing.T) {
+	sql := "CREATE GROUP g WITH USER u, WITH USER v, "
+	cs := Collect(sql, len(sql))
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	if !cs.HasToken(WITH) {
+		t.Errorf("WITH is not offered after a repeated CREATE GROUP comma: %v", cs.Tokens)
+	}
+}

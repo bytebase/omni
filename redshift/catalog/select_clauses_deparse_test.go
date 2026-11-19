@@ -750,3 +750,46 @@ CREATE MATERIALIZED VIEW base_mv BACKUP YES AS SELECT id FROM t;`)
 		t.Fatalf("plan = %v, want the index's comment written again", plan.Ops)
 	}
 }
+
+// TestMigrationMatViewReplaceKeepsTriggerComment pins a trigger's comment on a
+// re-created dependent view: the drop takes the trigger and its comment, and an
+// unchanged one has no diff entry to write it again.
+func TestMigrationMatViewReplaceKeepsTriggerComment(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []*Catalog{from, to} {
+		rel := c.GetRelation("", "v_read")
+		trig := &Trigger{
+			OID:        c.oidGen.Next(),
+			Name:       "v_read_insert",
+			RelOID:     rel.OID,
+			Timing:     TriggerInsteadOf,
+			Events:     TriggerEventInsert,
+			ForEachRow: true,
+		}
+		c.triggers[trig.OID] = trig
+		c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
+		c.comments[commentKey{ObjType: 'g', ObjOID: trig.OID}] = "the trigger"
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	found := false
+	for _, op := range plan.Ops {
+		if op.Type == OpComment && strings.Contains(op.SQL, "TRIGGER") && strings.Contains(op.SQL, "the trigger") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("plan = %v, want the trigger's comment written again", plan.Ops)
+	}
+}

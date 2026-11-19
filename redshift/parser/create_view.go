@@ -463,19 +463,29 @@ func (p *Parser) parseRedshiftMatViewTableOptions(options *nodes.List) (*nodes.L
 		switch {
 		case stage <= 0 && p.redshiftKeywordIs("backup"):
 			p.advance()
-			backup, err := p.parseRedshiftOptionWord()
-			if err != nil {
-				return nil, err
+			// BACKUP takes YES or NO, and neither is a name.
+			if !p.redshiftKeywordIs("yes") && !p.redshiftKeywordIs("no") {
+				return nil, p.syntaxErrorAtCur()
 			}
-			options = appendToList(options, makeDefElem("backup", &nodes.String{Str: strings.ToLower(backup)}))
+			backup := strings.ToLower(p.advance().Str)
+			options = appendToList(options, makeDefElem("backup", &nodes.String{Str: backup}))
 			stage = 1
 		case stage <= 1 && p.redshiftKeywordIs("diststyle"):
 			p.advance()
-			style, err := p.parseRedshiftOptionWord()
-			if err != nil {
-				return nil, err
+			// DISTSTYLE takes EVEN, ALL or KEY, and none of them is a name.
+			var style string
+			switch {
+			case p.redshiftKeywordIs("even"):
+				style = "even"
+			case p.redshiftKeywordIs("all"):
+				style = "all"
+			case p.redshiftKeywordIs("key"):
+				style = "key"
+			default:
+				return nil, p.syntaxErrorAtCur()
 			}
-			options = appendToList(options, makeDefElem("diststyle", &nodes.String{Str: strings.ToLower(style)}))
+			p.advance()
+			options = appendToList(options, makeDefElem("diststyle", &nodes.String{Str: style}))
 			stage = 2
 		case stage <= 2 && p.redshiftKeywordIs("distkey"):
 			p.advance()
