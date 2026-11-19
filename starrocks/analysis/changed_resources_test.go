@@ -3,6 +3,7 @@ package analysis
 import (
 	"testing"
 
+	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
 )
 
@@ -136,6 +137,8 @@ func TestExtractChangedResourcesDatabaseOnlyTargets(t *testing.T) {
 		{"a qualified materialized view records its database", "DROP MATERIALIZED VIEW other.mv;", []string{"other"}},
 		{"drop procedure", "DROP PROCEDURE other.p;", []string{"other"}},
 		{"qualified drop task", "DROP TASK other.job;", []string{"other"}},
+		{"qualified drop pipe", "DROP PIPE other.p;", []string{"other"}},
+		{"qualified alter pipe", "ALTER PIPE other.p SUSPEND;", []string{"other"}},
 		{"qualified alter load", "ALTER LOAD FOR other.label PROPERTIES('a' = 'a');", []string{"other"}},
 		{"a table DDL records no database-only target", "CREATE TABLE other.t (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1;", nil},
 	} {
@@ -324,5 +327,86 @@ func TestExtractChangedResourcesSwapWith(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A pipe's body is the statement that writes, so the ledger sees its insert.
+func TestChangedResourcesCreatePipe(t *testing.T) {
+	const sql = `CREATE PIPE p AS INSERT INTO db.dest SELECT * FROM src`
+	file, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	changes := ExtractChangedResources(file.Stmts[0], "", sql)
+	// The body inserts no VALUES rows, so it is one DML statement rather than
+	// a row count.
+	if changes.DMLCount != 1 {
+		t.Errorf("DMLCount = %d, want 1", changes.DMLCount)
+	}
+	found := false
+	for _, r := range changes.Resources {
+		if r.Table == "dest" && r.Database == "db" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("Resources = %+v, want db.dest", changes.Resources)
+	}
+
+	got := resourceNames(changesFor(t, "CREATE PIPE other.p AS INSERT INTO dest SELECT * FROM src;", "db"))
+	if len(got) != 2 || got[0] != "other" || got[1] != "other.dest" {
+		t.Errorf("qualified pipe resources = %v, want [other other.dest]", got)
+	}
+
+	// An EXPLAIN-prefixed insert body still creates the pipe on its target
+	// table and schedules its DML.
+	explained := changesFor(t, "CREATE PIPE p AS EXPLAIN INSERT INTO db.dest SELECT * FROM src;", "")
+	if explained.DMLCount != 1 || len(explained.DMLStatements) != 1 || explained.DMLStatements[0] != "INSERT INTO db.dest SELECT * FROM src;" {
+		t.Errorf("explained pipe DML = (%d, %v), want (1, [INSERT INTO db.dest SELECT * FROM src;])", explained.DMLCount, explained.DMLStatements)
+	}
+	if got := resourceNames(explained); len(got) != 1 || got[0] != "db.dest" {
+		t.Errorf("explained pipe resources = %v, want [db.dest]", got)
+	}
+}
+
+// queryStatement's outfile belongs to the body a plan advisor takes.
+func TestPlanAdvisorKeepsTheOutfile(t *testing.T) {
+	const sql = `ALTER PLAN ADVISOR ADD SELECT 1 INTO OUTFILE '/x'`
+	file, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	stmt := file.Stmts[0].(*ast.AlterPlanAdvisorStmt)
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok || sel.Into == nil || sel.Into.Path != "/x" {
+		t.Errorf("Query = %#v, want a SELECT with INTO OUTFILE '/x'", stmt.Query)
+	}
+
+	file, err = parser.Parse(`ALTER PLAN ADVISOR ADD SELECT 1 UNION SELECT 2 INTO OUTFILE '/y'`)
+	if err != nil {
+		t.Fatalf("parse union outfile: %v", err)
+	}
+	setOp, ok := file.Stmts[0].(*ast.AlterPlanAdvisorStmt).Query.(*ast.SetOpStmt)
+	if !ok || setOp.Into == nil || setOp.Into.Path != "/y" {
+		t.Errorf("SetOp Query = %#v, want SetOpStmt with INTO OUTFILE '/y'", file.Stmts[0])
+	}
+
+	file, err = parser.Parse(`ALTER PLAN ADVISOR ADD (SELECT 1) INTO OUTFILE '/z'`)
+	if err != nil {
+		t.Fatalf("parse paren outfile: %v", err)
+	}
+	paren, ok := file.Stmts[0].(*ast.AlterPlanAdvisorStmt).Query.(*ast.ParenSelect)
+	if !ok || paren.Into == nil || paren.Into.Path != "/z" {
+		t.Errorf("Paren Query = %#v, want ParenSelect with INTO OUTFILE '/z'", file.Stmts[0])
+	}
+
+	for _, bad := range []string{
+		`ALTER PLAN ADVISOR ADD SELECT 1 INTO OUTFILE '/x' UNION SELECT 2`,
+		`ALTER PLAN ADVISOR ADD (SELECT 1 INTO OUTFILE '/x')`,
+		`ALTER PLAN ADVISOR ADD SELECT 1 INTO OUTFILE '/x' INTO OUTFILE '/y'`,
+	} {
+		if _, err := parser.Parse(bad); err == nil {
+			t.Errorf("Parse(%q) succeeded, want an error", bad)
+		}
 	}
 }

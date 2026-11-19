@@ -276,13 +276,25 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.WithClause:
 			// Its bodies were walked above in sibling order.
 			return false
+		case *ast.UpdateStmt, *ast.DeleteStmt:
+			// A DML statement inside a wrapper (PREPARE, SUBMIT TASK, EXPLAIN)
+			// may carry its own WITH clause; recurse so its CTE scope is
+			// installed before its subqueries and target are walked.
+			if n != node {
+				w.validateEmbeddedSubqueries(n)
+				return false
+			}
 		case *ast.SubqueryExpr:
 			w.analyzeSubquery(q)
 			return false
 		case *ast.RawQuery:
-			// CREATE TABLE dest AS SELECT * FROM secret keeps its query as
-			// raw text; the read it performs must reach AccessTables, and a
+			// CREATE TABLE dest AS SELECT * FROM secret keeps its query on
+			// RawQuery; the read it performs must reach AccessTables, and a
 			// malformed body must fail the span like any other subquery.
+			if q.Query != nil {
+				w.visitWrappedQuery(q.Query)
+				return false
+			}
 			w.analyzeSubqueryText(q.RawText, q.TextStart, true)
 			return false
 		case *ast.SelectStmt:

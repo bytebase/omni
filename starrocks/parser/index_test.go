@@ -104,7 +104,7 @@ func TestCreateIndexRejectsDorisIndexType(t *testing.T) {
 }
 
 func TestCreateIndexNgramBfWithProperties(t *testing.T) {
-	sql := `CREATE INDEX idx ON t (col1) USING NGRAMBF PROPERTIES("gram_size"="3")`
+	sql := `CREATE INDEX idx ON t (col1) USING NGRAMBF("gram_size"="3")`
 	node := parseIndexStmt(t, sql)
 
 	stmt, ok := node.(*ast.CreateIndexStmt)
@@ -152,7 +152,7 @@ func TestCreateIndexQualifiedTable(t *testing.T) {
 }
 
 func TestCreateIndexMultipleProperties(t *testing.T) {
-	sql := `CREATE INDEX idx ON t (col1) USING NGRAMBF PROPERTIES("gram_size"="3", "bf_size"="64")`
+	sql := `CREATE INDEX idx ON t (col1) USING NGRAMBF("gram_size"="3", "bf_size"="64")`
 	node := parseIndexStmt(t, sql)
 
 	stmt, ok := node.(*ast.CreateIndexStmt)
@@ -164,6 +164,20 @@ func TestCreateIndexMultipleProperties(t *testing.T) {
 	}
 	if stmt.Properties[1].Key != "bf_size" {
 		t.Errorf("Properties[1].Key = %q, want %q", stmt.Properties[1].Key, "bf_size")
+	}
+}
+
+func TestCreateIndexRefusesThePropertiesClause(t *testing.T) {
+	// (indexType propertyList?)? comment? has no PROPERTIES clause, and no
+	// second list after the type's own; the server refuses both.
+	for _, sql := range []string{
+		`CREATE INDEX idx ON t (col1) PROPERTIES("gram_size"="3")`,
+		`CREATE INDEX idx ON t (col1) USING NGRAMBF("gram_size"="3") PROPERTIES("bf_size"="64")`,
+		`CREATE INDEX idx ON t (col1) COMMENT 'x' PROPERTIES("gram_size"="3")`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 

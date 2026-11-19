@@ -313,7 +313,11 @@ func (p *Parser) parseFieldPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for p.cur.Kind == int('.') {
+	for p.cur.Kind == int('.') || p.cur.Kind == tokDotIdent {
+		if p.cur.Kind == tokDotIdent {
+			path = path + "." + p.advance().Str
+			continue
+		}
 		p.advance()
 		seg, err := p.parseFieldSegment()
 		if err != nil {
