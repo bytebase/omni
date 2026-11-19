@@ -76,6 +76,10 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 	orReplace := stmt.Replace
 	isConstraint := stmt.IsConstraint
 
+	if orReplace && isConstraint {
+		return &Error{Code: CodeFeatureNotSupported, Message: "CREATE OR REPLACE CONSTRAINT TRIGGER is not supported"}
+	}
+
 	// Parse trigger arguments.
 	// pg: src/backend/commands/trigger.c — CreateTrigger (trigger args)
 	var trigArgs []string
@@ -247,22 +251,32 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("function %q does not exist", funcName)}
 	}
 
-	// Check for duplicate trigger name on this relation.
-	// pg: src/backend/commands/trigger.c — CreateTrigger (trigger replacement)
+	// Check for duplicate trigger name on this relation (and descendant partitions
+	// before mutating anything).
+	// pg: src/backend/commands/trigger.c — CreateTrigger (trigger replacement + partition recursion)
+	var existingOnRel *Trigger
 	for _, trig := range c.triggersByRel[rel.OID] {
 		if trig.Name == trigName {
-			if orReplace {
-				// Cannot replace constraint triggers.
-				// pg: src/backend/commands/trigger.c — CreateTrigger
-				if trig.IsConstraint {
-					return errInvalidObjectDefinition(fmt.Sprintf(
-						"cannot replace trigger %q because it is a constraint trigger", trigName))
-				}
-				// Replace: remove old trigger.
-				c.removeTrigger(trig)
-				break
+			if !orReplace {
+				return errDuplicateObject("trigger", trigName)
 			}
-			return errDuplicateObject("trigger", trigName)
+			if trig.ParentTriggerOID != 0 {
+				return &Error{
+					Code:    CodeDuplicateObject,
+					Message: fmt.Sprintf("trigger %q for relation %q is an internal or a child trigger", trigName, rel.Name),
+				}
+			}
+			if trig.IsConstraint {
+				return errInvalidObjectDefinition(fmt.Sprintf(
+					"cannot replace trigger %q because it is a constraint trigger", trigName))
+			}
+			existingOnRel = trig
+			break
+		}
+	}
+	if rel.RelKind == 'p' && forEachRow && !isConstraint {
+		if err := c.checkPartitionTriggerName(rel, trigName, orReplace); err != nil {
+			return err
 		}
 	}
 
@@ -296,32 +310,57 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		return errInvalidObjectDefinition(fmt.Sprintf("OLD TABLE name and NEW TABLE name cannot be the same"))
 	}
 
-	trigOID := c.oidGen.Next()
-	trig := &Trigger{
-		OID:               trigOID,
-		Name:              trigName,
-		RelOID:            rel.OID,
-		FuncOID:           funcBP.OID,
-		Timing:            timing,
-		Events:            events,
-		ForEachRow:        forEachRow,
-		WhenExpr:          whenExpr,
-		Columns:           cols,
-		Enabled:           'O',
-		OldTransitionName: oldTransName,
-		NewTransitionName: newTransName,
-		IsConstraint:      isConstraint,
-		Deferrable:        stmt.Deferrable,
-		Initdeferred:      stmt.Initdeferred,
-		ConstraintRelOID:  constraintRelOID,
-		Args:              trigArgs,
+	var trigOID uint32
+	var trig *Trigger
+	if existingOnRel != nil {
+		trigOID = existingOnRel.OID
+		c.removeDepsOf('g', trigOID)
+		existingOnRel.FuncOID = funcBP.OID
+		existingOnRel.Timing = timing
+		existingOnRel.Events = events
+		existingOnRel.ForEachRow = forEachRow
+		existingOnRel.WhenExpr = whenExpr
+		existingOnRel.Columns = cols
+		existingOnRel.Enabled = 'O'
+		existingOnRel.OldTransitionName = oldTransName
+		existingOnRel.NewTransitionName = newTransName
+		existingOnRel.IsConstraint = isConstraint
+		existingOnRel.Deferrable = stmt.Deferrable
+		existingOnRel.Initdeferred = stmt.Initdeferred
+		existingOnRel.ConstraintRelOID = constraintRelOID
+		existingOnRel.Args = trigArgs
+		trig = existingOnRel
+	} else {
+		trigOID = c.oidGen.Next()
+		trig = &Trigger{
+			OID:               trigOID,
+			Name:              trigName,
+			RelOID:            rel.OID,
+			FuncOID:           funcBP.OID,
+			Timing:            timing,
+			Events:            events,
+			ForEachRow:        forEachRow,
+			WhenExpr:          whenExpr,
+			Columns:           cols,
+			Enabled:           'O',
+			OldTransitionName: oldTransName,
+			NewTransitionName: newTransName,
+			IsConstraint:      isConstraint,
+			Deferrable:        stmt.Deferrable,
+			Initdeferred:      stmt.Initdeferred,
+			ConstraintRelOID:  constraintRelOID,
+			Args:              trigArgs,
+		}
+		c.triggers[trigOID] = trig
+		c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
 	}
-
-	c.triggers[trigOID] = trig
-	c.triggersByRel[rel.OID] = append(c.triggersByRel[rel.OID], trig)
 
 	// pg: src/backend/commands/trigger.c:1074 — trigger auto-drops with table
 	c.recordDependency('g', trigOID, 0, 'r', rel.OID, 0, DepAuto)
+	if constraintRelOID != 0 && constraintRelOID != rel.OID {
+		// pg: src/backend/commands/trigger.c:1084 — auto-drop with referenced relation
+		c.recordDependency('g', trigOID, 0, 'r', constraintRelOID, 0, DepAuto)
+	}
 	// pg: src/backend/commands/trigger.c:1049 — trigger depends on function
 	c.recordDependency('g', trigOID, 0, 'f', funcBP.OID, 0, DepNormal)
 
@@ -363,14 +402,166 @@ func (c *Catalog) CreateTriggerStmt(stmt *nodes.CreateTrigStmt) error {
 		c.recordDependency('c', conOID, 0, 'r', rel.OID, 0, DepAuto)
 	}
 
+	// Clone FOR EACH ROW triggers onto any existing partitions.
+	// pg: src/backend/commands/trigger.c — CreateTriggerRecurse (line 1143)
+	if rel.RelKind == 'p' && forEachRow && !isConstraint {
+		c.cloneSingleTriggerToPartitions(rel, trig)
+	}
+
 	return nil
+}
+
+func (c *Catalog) checkPartitionTriggerName(parent *Relation, trigName string, orReplace bool) error {
+	for _, childOID := range c.findPartitionChildRelations(parent.OID) {
+		partition := c.relationByOID[childOID]
+		if partition == nil {
+			continue
+		}
+		for _, t := range c.triggersByRel[partition.OID] {
+			if t.Name == trigName {
+				if !orReplace {
+					return errDuplicateObject("trigger", trigName)
+				}
+				if t.IsConstraint {
+					return errInvalidObjectDefinition(fmt.Sprintf(
+						"cannot replace trigger %q because it is a constraint trigger", trigName))
+				}
+			}
+		}
+		if partition.RelKind == 'p' {
+			if err := c.checkPartitionTriggerName(partition, trigName, orReplace); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) cloneSingleTriggerToPartitions(parent *Relation, trig *Trigger) {
+	for _, childOID := range c.findPartitionChildRelations(parent.OID) {
+		partition := c.relationByOID[childOID]
+		if partition == nil {
+			continue
+		}
+		var partCols []int16
+		if trig.Columns != nil {
+			partCols = c.mapColumnAttnums(parent, partition, trig.Columns)
+		}
+		var partArgs []string
+		if trig.Args != nil {
+			partArgs = make([]string, len(trig.Args))
+			copy(partArgs, trig.Args)
+		}
+		var existing *Trigger
+		for _, t := range c.triggersByRel[partition.OID] {
+			if t.Name == trig.Name {
+				existing = t
+				break
+			}
+		}
+		var partTrig *Trigger
+		if existing != nil {
+			// pg: CreateTriggerFiringOn updates the existing pg_trigger tuple in place,
+			// preserving its OID, comments, and extension membership.
+			c.removeDepsOf('g', existing.OID)
+			existing.FuncOID = trig.FuncOID
+			existing.Timing = trig.Timing
+			existing.Events = trig.Events
+			existing.ForEachRow = true
+			existing.WhenExpr = trig.WhenExpr
+			existing.Columns = partCols
+			existing.Enabled = trig.Enabled
+			existing.OldTransitionName = trig.OldTransitionName
+			existing.NewTransitionName = trig.NewTransitionName
+			existing.Args = partArgs
+			existing.ParentTriggerOID = trig.OID
+			partTrig = existing
+		} else {
+			partTrig = &Trigger{
+				OID:               c.oidGen.Next(),
+				Name:              trig.Name,
+				RelOID:            partition.OID,
+				FuncOID:           trig.FuncOID,
+				Timing:            trig.Timing,
+				Events:            trig.Events,
+				ForEachRow:        true,
+				WhenExpr:          trig.WhenExpr,
+				Columns:           partCols,
+				Enabled:           trig.Enabled,
+				OldTransitionName: trig.OldTransitionName,
+				NewTransitionName: trig.NewTransitionName,
+				Args:              partArgs,
+				ParentTriggerOID:  trig.OID,
+			}
+			c.triggers[partTrig.OID] = partTrig
+			c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
+		}
+		c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, 0, DepAuto)
+		var colDeps, extDeps []DepEntry
+		for _, d := range c.deps {
+			if d.ObjType != 'g' || d.ObjOID != trig.OID {
+				continue
+			}
+			if d.RefType == 'r' && d.RefOID == parent.OID && d.RefSubID > 0 {
+				colDeps = append(colDeps, d)
+			} else if d.DepType == DepNormal && !(d.RefType == 'r' && d.RefOID == parent.OID) {
+				extDeps = append(extDeps, d)
+			}
+		}
+		for _, d := range colDeps {
+			if m := c.mapColumnAttnums(parent, partition, []int16{int16(d.RefSubID)}); len(m) == 1 && m[0] != 0 {
+				c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, int32(m[0]), d.DepType)
+			}
+		}
+		for _, d := range extDeps {
+			c.recordDependency('g', partTrig.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+		}
+		if partition.RelKind == 'p' {
+			c.cloneSingleTriggerToPartitions(partition, partTrig)
+		}
+	}
 }
 
 // removeTrigger removes a trigger from all catalog maps.
 func (c *Catalog) removeTrigger(trig *Trigger) {
+	if trig == nil {
+		return
+	}
+	// Recursively remove partition child triggers cloned from this trigger.
+	var children []*Trigger
+	for _, t := range c.triggers {
+		if t.ParentTriggerOID == trig.OID {
+			children = append(children, t)
+		}
+	}
+	for _, child := range children {
+		c.removeTrigger(child)
+	}
+
+	// Remove internal pg_constraint entry created for constraint triggers.
+	if trig.IsConstraint {
+		var conOIDs []uint32
+		for _, d := range c.deps {
+			if d.ObjType == 'g' && d.ObjOID == trig.OID && d.RefType == 'c' && d.DepType == DepInternal {
+				conOIDs = append(conOIDs, d.RefOID)
+			}
+		}
+		for _, conOID := range conOIDs {
+			if con := c.constraints[conOID]; con != nil {
+				var conSchema *Schema
+				if rel := c.relationByOID[con.RelOID]; rel != nil {
+					conSchema = rel.Schema
+				}
+				c.removeConstraint(conSchema, con)
+			}
+		}
+	}
+
 	delete(c.triggers, trig.OID)
+	delete(c.extensionMembers, trig.OID)
 	c.removeComments('g', trig.OID)
 	c.removeDepsOf('g', trig.OID)
+	c.removeDepsOn('g', trig.OID)
 
 	// Remove from triggersByRel.
 	list := c.triggersByRel[trig.RelOID]

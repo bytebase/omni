@@ -13,6 +13,7 @@ type Sequence struct {
 	OID         uint32
 	Name        string
 	Schema      *Schema
+	OwnerName   string
 	TypeOID     uint32 // int2/int4/int8
 	Start       int64
 	Increment   int64
@@ -35,6 +36,10 @@ var seqBounds = map[uint32][2]int64{
 //
 // pg: src/backend/commands/sequence.c — DefineSequence
 func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
+	return c.defineSequenceWithOwner(stmt, "")
+}
+
+func (c *Catalog) defineSequenceWithOwner(stmt *nodes.CreateSeqStmt, ownerName string) error {
 	ifNotExists := stmt.IfNotExists
 	var schemaName, seqName string
 	if stmt.Sequence != nil {
@@ -45,7 +50,7 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 	// Process DefElem options.
 	var pIncrement, pMinValue, pMaxValue, pStart, pCacheValue *int64
 	var cycle bool
-	var ownedBy string
+	var ownedBy, ownedBySchema string
 	var typeName string
 
 	// Duplicate DefElem detection.
@@ -115,8 +120,10 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 					parts := stringListItems(list)
 					if len(parts) == 1 && strings.ToUpper(parts[0]) == "NONE" {
 						// OWNED BY NONE — not applicable for CREATE, ignore.
-					} else if len(parts) >= 2 {
-						// Join last two elements as "table.column".
+					} else if len(parts) == 2 {
+						ownedBy = parts[0] + "." + parts[1]
+					} else if len(parts) >= 3 {
+						ownedBySchema = parts[len(parts)-3]
 						ownedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
 					}
 				}
@@ -233,11 +240,15 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 		return errInvalidParameterValue("CACHE must be positive")
 	}
 
+	if ownerName == "" {
+		ownerName = c.currentOwner()
+	}
 	seqOID := c.oidGen.Next()
 	seq := &Sequence{
 		OID:        seqOID,
 		Name:       seqName,
 		Schema:     schema,
+		OwnerName:  ownerName,
 		TypeOID:    typeOID,
 		Start:      startValue,
 		Increment:  increment,
@@ -252,7 +263,16 @@ func (c *Catalog) DefineSequence(stmt *nodes.CreateSeqStmt) error {
 
 	// If OwnedBy specified, record dependency.
 	if ownedBy != "" {
-		if err := c.setSequenceOwner(seq, schema, ownedBy); err != nil {
+		ownSchema := schema
+		if ownedBySchema != "" {
+			ownSchema = c.schemaByName[ownedBySchema]
+			if ownSchema == nil {
+				delete(schema.Sequences, seqName)
+				delete(c.sequenceByOID, seqOID)
+				return errUndefinedSchema(ownedBySchema)
+			}
+		}
+		if err := c.setSequenceOwner(seq, ownSchema, ownedBy); err != nil {
 			delete(schema.Sequences, seqName)
 			delete(c.sequenceByOID, seqOID)
 			return err
@@ -273,9 +293,13 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	}
 
 	// If MissingOk is set and the sequence doesn't exist, silently succeed.
+	// A name that holds another kind of relation is not missing.
 	if stmt.MissingOk {
 		_, err := c.findSequence(schemaName, seqName)
 		if err != nil {
+			if !missingObject(err) {
+				return err
+			}
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", seqName))
 			return nil
 		}
@@ -285,10 +309,13 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	if err != nil {
 		return err
 	}
+	orig := *seq
 
 	// Duplicate DefElem detection.
 	// pg: src/backend/commands/sequence.c — init_params (duplicate option checks)
 	var sawIncrement, sawMinValue, sawMaxValue, sawStart, sawRestart, sawCache, sawCycle, sawOwnedBy bool
+	var clearOwnedBy bool
+	var newOwnedBy, newOwnedBySchema string
 
 	// Process DefElem options.
 	if stmt.Options != nil {
@@ -300,17 +327,20 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 			switch d.Defname {
 			case "increment":
 				if sawIncrement {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawIncrement = true
 				if v, ok := defElemInt(d); ok {
 					if v == 0 {
+						*seq = orig
 						return errInvalidParameterValue("INCREMENT must not be zero")
 					}
 					seq.Increment = v
 				}
 			case "minvalue":
 				if sawMinValue {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMinValue = true
@@ -319,6 +349,7 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "maxvalue":
 				if sawMaxValue {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawMaxValue = true
@@ -327,6 +358,7 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "start":
 				if sawStart {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawStart = true
@@ -335,6 +367,7 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "restart":
 				if sawRestart {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawRestart = true
@@ -345,38 +378,39 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 				}
 			case "cache":
 				if sawCache {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawCache = true
 				if v, ok := defElemInt(d); ok {
 					if v <= 0 {
+						*seq = orig
 						return errInvalidParameterValue("CACHE must be positive")
 					}
 					seq.CacheValue = v
 				}
 			case "cycle":
 				if sawCycle {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawCycle = true
 				seq.Cycle = defElemBool(d)
 			case "owned_by":
 				if sawOwnedBy {
+					*seq = orig
 					return &Error{Code: CodeSyntaxError, Message: "conflicting or redundant options"}
 				}
 				sawOwnedBy = true
 				if list, ok := d.Arg.(*nodes.List); ok {
 					parts := stringListItems(list)
 					if len(parts) == 1 && strings.ToUpper(parts[0]) == "NONE" {
-						seq.OwnerRelOID = 0
-						seq.OwnerAttNum = 0
-						c.removeDepsOf('s', seq.OID)
-					} else if len(parts) >= 2 {
-						ownedBy := parts[len(parts)-2] + "." + parts[len(parts)-1]
-						c.removeDepsOf('s', seq.OID)
-						if err := c.setSequenceOwner(seq, seq.Schema, ownedBy); err != nil {
-							return err
-						}
+						clearOwnedBy = true
+					} else if len(parts) == 2 {
+						newOwnedBy = parts[0] + "." + parts[1]
+					} else if len(parts) >= 3 {
+						newOwnedBySchema = parts[len(parts)-3]
+						newOwnedBy = parts[len(parts)-2] + "." + parts[len(parts)-1]
 					}
 				}
 			}
@@ -388,45 +422,73 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	bounds := seqBounds[seq.TypeOID]
 	if seq.TypeOID != INT8OID {
 		if seq.MaxValue < bounds[0] || seq.MaxValue > bounds[1] {
+			*seq = orig
 			return errInvalidParameterValue(fmt.Sprintf("MAXVALUE (%d) is out of range for sequence data type %s",
 				seq.MaxValue, c.seqTypeName(seq.TypeOID)))
 		}
 		if seq.MinValue < bounds[0] || seq.MinValue > bounds[1] {
+			*seq = orig
 			return errInvalidParameterValue(fmt.Sprintf("MINVALUE (%d) is out of range for sequence data type %s",
 				seq.MinValue, c.seqTypeName(seq.TypeOID)))
 		}
 	}
 
 	if seq.MinValue >= seq.MaxValue {
+		*seq = orig
 		return errInvalidParameterValue("MINVALUE must be less than MAXVALUE")
 	}
 
 	// Validate START (or RESTART) value is within [MinValue, MaxValue].
 	// pg: src/backend/commands/sequence.c — init_params (START crosscheck)
 	if seq.Start < seq.MinValue {
+		val := seq.Start
+		minV := seq.MinValue
+		*seq = orig
 		return errInvalidParameterValue(fmt.Sprintf("START value (%d) cannot be less than MINVALUE (%d)",
-			seq.Start, seq.MinValue))
+			val, minV))
 	}
 	if seq.Start > seq.MaxValue {
+		val := seq.Start
+		maxV := seq.MaxValue
+		*seq = orig
 		return errInvalidParameterValue(fmt.Sprintf("START value (%d) cannot be greater than MAXVALUE (%d)",
-			seq.Start, seq.MaxValue))
+			val, maxV))
+	}
+
+	// Ownership is the last thing applied, so a failed check above leaves the
+	// previous OWNED BY link untouched.
+	if clearOwnedBy {
+		seq.OwnerRelOID = 0
+		seq.OwnerAttNum = 0
+		c.removeDepsOf('s', seq.OID)
+	} else if newOwnedBy != "" {
+		ownSchema := seq.Schema
+		if newOwnedBySchema != "" {
+			ownSchema = c.schemaByName[newOwnedBySchema]
+			if ownSchema == nil {
+				*seq = orig
+				return errUndefinedSchema(newOwnedBySchema)
+			}
+		}
+		if err := c.setSequenceOwner(seq, ownSchema, newOwnedBy); err != nil {
+			*seq = orig
+			return err
+		}
 	}
 
 	return nil
 }
 
-// findSequence locates a sequence by schema (or search path) and name.
+// findSequence locates a sequence by schema (or search path) and name. A
+// sequence is a relation in PostgreSQL: a name no relation holds is 42P01,
+// and a name a table, view or index holds is 42809.
 func (c *Catalog) findSequence(schemaName, seqName string) (*Sequence, error) {
 	if schemaName != "" {
 		s := c.schemaByName[schemaName]
 		if s == nil {
 			return nil, errUndefinedSchema(schemaName)
 		}
-		seq := s.Sequences[seqName]
-		if seq == nil {
-			return nil, errUndefinedSequence(seqName)
-		}
-		return seq, nil
+		return sequenceInSchema(s, seqName)
 	}
 	for _, nsOID := range c.searchPathWithCatalog() {
 		s := c.schemas[nsOID]
@@ -436,8 +498,23 @@ func (c *Catalog) findSequence(schemaName, seqName string) (*Sequence, error) {
 		if seq := s.Sequences[seqName]; seq != nil {
 			return seq, nil
 		}
+		if _, ok := relationNamespaceKind(s, seqName); ok {
+			return nil, errWrongObjectType(seqName, "a sequence")
+		}
 	}
-	return nil, errUndefinedSequence(seqName)
+	return nil, errUndefinedTable(seqName)
+}
+
+// sequenceInSchema finds a sequence in one schema, or says why the name is
+// not one.
+func sequenceInSchema(s *Schema, name string) (*Sequence, error) {
+	if seq := s.Sequences[name]; seq != nil {
+		return seq, nil
+	}
+	if _, ok := relationNamespaceKind(s, name); ok {
+		return nil, errWrongObjectType(name, "a sequence")
+	}
+	return nil, errUndefinedTable(name)
 }
 
 func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, error) {
@@ -454,6 +531,8 @@ func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, 
 func (c *Catalog) removeSequence(schema *Schema, seq *Sequence) {
 	delete(schema.Sequences, seq.Name)
 	delete(c.sequenceByOID, seq.OID)
+	delete(c.extensionMembers, seq.OID)
+	c.removeGrantsForObject('s', seq.OID)
 	c.removeComments('s', seq.OID)
 	c.removeDepsOf('s', seq.OID)
 	c.removeDepsOn('s', seq.OID)
@@ -513,8 +592,12 @@ func (c *Catalog) setSequenceOwner(seq *Sequence, schema *Schema, ownedBy string
 			tableName, relKindDescription(rel.RelKind)))
 	}
 
-	// Validate sequence and table are in the same schema.
-	// pg: src/backend/commands/sequence.c — process_owned_by (line 1640-1648)
+	// Validate sequence and table have the same owner and are in the same schema.
+	// pg: src/backend/commands/sequence.c — process_owned_by
+	if seq.OwnerName != "" && rel.OwnerName != "" && seq.OwnerName != rel.OwnerName {
+		return &Error{Code: CodeObjectNotInPrerequisiteState,
+			Message: "sequence must have same owner as table it is linked to"}
+	}
 	if seq.Schema != nil && rel.Schema != nil && seq.Schema.OID != rel.Schema.OID {
 		return &Error{Code: CodeFeatureNotSupported,
 			Message: fmt.Sprintf("sequence must be in same schema as table it is linked to")}
@@ -525,6 +608,7 @@ func (c *Catalog) setSequenceOwner(seq *Sequence, schema *Schema, ownedBy string
 		return errUndefinedColumn(colName)
 	}
 
+	c.removeDepsOf('s', seq.OID)
 	seq.OwnerRelOID = rel.OID
 	seq.OwnerAttNum = rel.Columns[idx].AttNum
 	c.recordDependency('s', seq.OID, 0, 'r', rel.OID, int32(rel.Columns[idx].AttNum), DepAuto)
@@ -538,7 +622,7 @@ type identitySequenceSpec struct {
 	explicitName bool
 }
 
-func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName string, colTypeOID uint32, seqOptions *nodes.List) (*Sequence, *nodes.RangeVar, bool, error) {
+func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName, ownerName string, colTypeOID uint32, seqOptions *nodes.List) (*Sequence, *nodes.RangeVar, bool, error) {
 	seqTypeOID, err := identitySequenceTypeOID(colTypeOID)
 	if err != nil {
 		return nil, nil, false, err
@@ -559,7 +643,7 @@ func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName s
 		Options:     createOptions,
 		ForIdentity: true,
 	}
-	if err := c.DefineSequence(stmt); err != nil {
+	if err := c.defineSequenceWithOwner(stmt, ownerName); err != nil {
 		return nil, nil, false, err
 	}
 
@@ -685,6 +769,7 @@ func (c *Catalog) createSequenceInternal(schema *Schema, name string, typeOID ui
 		OID:        seqOID,
 		Name:       name,
 		Schema:     schema,
+		OwnerName:  c.currentOwner(),
 		TypeOID:    typeOID,
 		Start:      1,
 		Increment:  1,

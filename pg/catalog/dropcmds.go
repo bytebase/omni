@@ -43,6 +43,8 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		return c.RemoveRelations(stmt)
 	case nodes.OBJECT_SCHEMA:
 		return c.RemoveSchemas(stmt)
+	case nodes.OBJECT_EXTENSION:
+		return c.removeExtensionObjects(stmt)
 
 	// No-op object types: these objects are not tracked by pgddl.
 	case nodes.OBJECT_COLLATION,
@@ -62,8 +64,7 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 		nodes.OBJECT_TSPARSER,
 		nodes.OBJECT_TSDICTIONARY,
 		nodes.OBJECT_TSTEMPLATE,
-		nodes.OBJECT_TSCONFIGURATION,
-		nodes.OBJECT_EXTENSION:
+		nodes.OBJECT_TSCONFIGURATION:
 		return nil
 
 	default:
@@ -76,37 +77,76 @@ func (c *Catalog) removeIndexObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
+	type target struct {
+		schema *Schema
+		name   string
+		idx    *Index
+	}
+	var targets []target
+	dropIdxOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		schemaName, idxName := extractDropObjectName(obj)
 
 		schema, err := c.resolveTargetSchema(schemaName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("index %q does not exist, skipping", idxName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("index %q does not exist, skipping", idxName))
+				continue
 			}
 			return err
 		}
 
-		idx, exists := schema.Indexes[idxName]
-		if !exists {
-			if stmt.Missing_ok {
+		idx, err := c.findNamedIndex(schema, idxName)
+		if err != nil {
+			if stmt.Missing_ok && missingObject(err) {
 				c.addWarning(CodeWarningSkip, fmt.Sprintf("index %q does not exist, skipping", idxName))
 				continue
 			}
-			return errUndefinedObject("index", idxName)
+			return err
 		}
 
+		if c.isExtensionMember(idx.OID) {
+			return errDependentObjects("extension", c.extensionMembers[idx.OID])
+		}
 		if idx.ConstraintOID != 0 {
 			return &Error{
 				Code:    CodeDependentObjects,
 				Message: fmt.Sprintf("cannot drop index %q because constraint requires it", idxName),
 			}
 		}
-
-		c.removeIndex(schema, idxName, idx)
+		if idx.ParentIndexOID != 0 {
+			return &Error{
+				Code:    CodeDependentObjects,
+				Message: fmt.Sprintf("cannot drop index %q because parent index requires it", idxName),
+			}
+		}
+		if !dropIdxOIDs[idx.OID] {
+			dropIdxOIDs[idx.OID] = true
+			targets = append(targets, target{schema: schema, name: idxName, idx: idx})
+		}
+	}
+	if !cascade {
+		for _, t := range targets {
+			for _, refClass := range []byte{'r', 'i'} {
+				for _, dep := range c.findNormalDependents(refClass, t.idx.OID) {
+					if dep.ObjType == 'i' && dropIdxOIDs[dep.ObjOID] {
+						continue
+					}
+					return errDependentObjects("index", t.name)
+				}
+			}
+		}
+	}
+	for _, t := range targets {
+		if c.indexes[t.idx.OID] != t.idx {
+			continue
+		}
+		if cascade {
+			c.dropDependentObject('i', t.idx.OID)
+		} else {
+			c.removeIndex(t.schema, t.name, t.idx)
+		}
 	}
 	return nil
 }
@@ -117,29 +157,51 @@ func (c *Catalog) removeSequenceObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	type target struct {
+		seq  *Sequence
+		name string
+	}
+	var targets []target
+	dropSeqOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		schemaName, seqName := extractDropObjectName(obj)
 
 		seq, err := c.findSequence(schemaName, seqName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("sequence %q does not exist, skipping", seqName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("sequence %q does not exist, skipping", seqName))
+				continue
 			}
 			return err
 		}
-
-		// Check dependents.
-		if deps := c.findNormalDependents('s', seq.OID); len(deps) > 0 {
-			if !cascade {
-				return errDependentObjects("sequence", seqName)
-			}
-			c.dropDependents('s', seq.OID)
+		if c.isExtensionMember(seq.OID) {
+			return errDependentObjects("extension", c.extensionMembers[seq.OID])
 		}
-
-		c.removeSequence(seq.Schema, seq)
+		if !dropSeqOIDs[seq.OID] {
+			dropSeqOIDs[seq.OID] = true
+			targets = append(targets, target{seq: seq, name: seqName})
+		}
+	}
+	if !cascade {
+		for _, t := range targets {
+			for _, dep := range c.findNormalDependents('s', t.seq.OID) {
+				if dep.ObjType == 's' && dropSeqOIDs[dep.ObjOID] {
+					continue
+				}
+				return errDependentObjects("sequence", t.name)
+			}
+		}
+	}
+	for _, t := range targets {
+		if c.sequenceByOID[t.seq.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('s', t.seq.OID)) > 0 {
+			c.dropDependents('s', t.seq.OID)
+		}
+		if c.sequenceByOID[t.seq.OID] != nil {
+			c.removeSequence(t.seq.Schema, t.seq)
+		}
 	}
 	return nil
 }
@@ -150,6 +212,15 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	type target struct {
+		bt       *BuiltinType
+		typeName string
+		compRel  *Relation
+	}
+	var targets []target
+	dropTypeOIDs := map[uint32]bool{}
+	dropRelOIDs := map[uint32]bool{}
+	dropDomainConOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		// The parser gives a plain name as a list of strings, and a type name
 		// with modifiers, array bounds or SETOF as a TypeName. SETOF names the
@@ -188,7 +259,8 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 			return errUndefinedType(shownName)
 		}
 
-		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) {
+		isUserBaseOrShell := bt.OID >= FirstNormalObjectId && bt.Elem == 0 && (bt.Type == 'b' || !bt.IsDefined)
+		if bt.Type != 'e' && bt.Type != 'd' && bt.Type != 'r' && !(bt.Type == 'c' && bt.RelID != 0) && !isUserBaseOrShell {
 			return errWrongObjectType(typeName, "a droppable type")
 		}
 
@@ -204,204 +276,322 @@ func (c *Catalog) removeTypeObjects(stmt *nodes.DropStmt) error {
 			return &Error{Code: CodeDependentObjects, Message: fmt.Sprintf("cannot drop type %s because type %s requires it", shownName, typeName)}
 		}
 
-		// Composite type: drop the backing relation (relkind='c') which also removes the type.
-		if bt.Type == 'c' && bt.RelID != 0 {
-			rel := c.relationByOID[bt.RelID]
-			if rel != nil && rel.RelKind == 'c' {
-				// Check for dependents.
-				relDeps := c.findTypeDependents(bt.OID)
-				recordedDeps := c.findNormalDependents('t', bt.OID)
-				if len(relDeps) > 0 || len(recordedDeps) > 0 {
-					if !cascade {
-						return errDependentObjects("type", typeName)
-					}
-					for _, depRelOID := range relDeps {
-						depRel := c.relationByOID[depRelOID]
-						if depRel == nil {
-							continue
-						}
-						c.dropDependents('r', depRel.OID)
-						c.removeRelation(depRel.Schema, depRel.Name, depRel)
-					}
-					c.dropDependents('t', bt.OID)
-				}
-				c.removeRelation(rel.Schema, rel.Name, rel)
-				continue
-			}
+		if c.isExtensionMember(bt.OID) {
+			return errDependentObjects("extension", c.extensionMembers[bt.OID])
 		}
 
-		// Check for dependents: relations using this type, and recorded deps.
-		relDeps := c.findTypeDependents(bt.OID)
-		recordedDeps := c.findNormalDependents('t', bt.OID)
-		if len(relDeps) > 0 || len(recordedDeps) > 0 {
-			if !cascade {
-				return errDependentObjects("type", typeName)
+		var compRel *Relation
+		if bt.Type == 'c' && bt.RelID != 0 {
+			if rel := c.relationByOID[bt.RelID]; rel != nil && rel.RelKind == 'c' {
+				compRel = rel
+				dropRelOIDs[rel.OID] = true
 			}
-			for _, relOID := range relDeps {
-				rel := c.relationByOID[relOID]
-				if rel == nil {
+		}
+		for _, oid := range c.typeFamilyOIDs(bt) {
+			dropTypeOIDs[oid] = true
+		}
+		if dt := c.domainTypes[bt.OID]; dt != nil {
+			for _, dc := range dt.Constraints {
+				dropDomainConOIDs[dc.OID] = true
+			}
+		}
+		targets = append(targets, target{bt: bt, typeName: typeName, compRel: compRel})
+	}
+
+	if !cascade {
+		for _, t := range targets {
+			if t.compRel != nil {
+				for _, dep := range c.relationDependents(t.compRel.OID, 0) {
+					if dep.Normal && !(dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) {
+						return errDependentObjects("type", t.typeName)
+					}
+				}
+			}
+			for _, relOID := range c.typeRelationDependents(t.bt) {
+				if !dropRelOIDs[relOID] {
+					return errDependentObjects("type", t.typeName)
+				}
+			}
+			for _, dep := range c.typeNormalDependents(t.bt) {
+				if (dep.ObjType == 't' && dropTypeOIDs[dep.ObjOID]) ||
+					(dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) ||
+					(dep.ObjType == 'c' && dropDomainConOIDs[dep.ObjOID]) {
 					continue
 				}
-				c.dropDependents('r', rel.OID)
-				c.removeRelation(rel.Schema, rel.Name, rel)
+				return errDependentObjects("type", t.typeName)
 			}
-			c.dropDependents('t', bt.OID)
-		}
-
-		// Remove enum/domain/range metadata.
-		if bt.Type == 'e' {
-			delete(c.enumTypes, bt.OID)
-		} else if bt.Type == 'd' {
-			delete(c.domainTypes, bt.OID)
-		} else if bt.Type == 'r' {
-			delete(c.rangeTypes, bt.OID)
-		}
-
-		// Remove array type.
-		if bt.Array != 0 {
-			if at := c.typeByOID[bt.Array]; at != nil {
-				delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
+			famOIDs := map[uint32]bool{}
+			for _, oid := range c.typeFamilyOIDs(t.bt) {
+				famOIDs[oid] = true
 			}
-			delete(c.typeByOID, bt.Array)
+			for _, cast := range c.castIndex {
+				if famOIDs[cast.Source] || famOIDs[cast.Target] {
+					return errDependentObjects("type", t.typeName)
+				}
+			}
 		}
+	}
 
-		// Remove the type itself.
-		delete(c.typeByName, typeKey{ns: bt.Namespace, name: bt.TypeName})
-		delete(c.typeByOID, bt.OID)
-		c.removeComments('t', bt.OID)
-		c.removeDepsOf('t', bt.OID)
-		c.removeDepsOn('t', bt.OID)
+	for _, t := range targets {
+		if c.typeByOID[t.bt.OID] == nil {
+			continue
+		}
+		if cascade {
+			for _, relOID := range c.typeRelationDependents(t.bt) {
+				if dropRelOIDs[relOID] {
+					continue
+				}
+				if depRel := c.relationByOID[relOID]; depRel != nil {
+					c.cascadeDropRelation(depRel)
+				}
+			}
+			c.dropTypeDependents(t.bt)
+		}
+		if t.compRel != nil {
+			if c.relationByOID[t.compRel.OID] != nil {
+				if cascade {
+					c.cascadeDropRelation(t.compRel)
+				} else {
+					c.removeRelation(t.compRel.Schema, t.compRel.Name, t.compRel)
+				}
+			}
+			continue
+		}
+		c.deleteUserType(t.bt)
 	}
 	return nil
 }
 
-// removeFunctionObjects handles DROP FUNCTION/PROCEDURE for one or more functions.
+// typeFamilyOIDs returns the OIDs that belong to bt as one logical type: the
+// type itself, its array type, and for a range type its companion multirange
+// and multirange array.
+func (c *Catalog) typeFamilyOIDs(bt *BuiltinType) []uint32 {
+	if bt == nil {
+		return nil
+	}
+	oids := []uint32{bt.OID}
+	if bt.Array != 0 {
+		oids = append(oids, bt.Array)
+	}
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil && rt.MultirangeOID != 0 {
+			oids = append(oids, rt.MultirangeOID)
+			if mr := c.typeByOID[rt.MultirangeOID]; mr != nil && mr.Array != 0 {
+				oids = append(oids, mr.Array)
+			}
+		}
+	}
+	return oids
+}
+
+func (c *Catalog) typeRelationDependents(bt *BuiltinType) []uint32 {
+	var out []uint32
+	seen := map[uint32]bool{}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		for _, relOID := range c.findTypeDependents(oid) {
+			if !seen[relOID] {
+				seen[relOID] = true
+				out = append(out, relOID)
+			}
+		}
+	}
+	return out
+}
+
+func (c *Catalog) typeNormalDependents(bt *BuiltinType) []DepEntry {
+	var out []DepEntry
+	family := map[uint32]bool{}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		family[oid] = true
+	}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		for _, dep := range c.findNormalDependents('t', oid) {
+			if dep.ObjType == 't' && family[dep.ObjOID] {
+				continue
+			}
+			out = append(out, dep)
+		}
+	}
+	return out
+}
+
+func (c *Catalog) dropTypeDependents(bt *BuiltinType) {
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		c.dropDependents('t', oid)
+	}
+}
+
+// deleteUserType removes a non-composite user-defined type and its companion
+// array/multirange entries, ownership records, grants, comments, and deps.
+func (c *Catalog) deleteUserType(bt *BuiltinType) {
+	if bt == nil {
+		return
+	}
+	famOIDs := map[uint32]bool{}
+	for _, oid := range c.typeFamilyOIDs(bt) {
+		famOIDs[oid] = true
+	}
+	for key, cast := range c.castIndex {
+		if famOIDs[cast.Source] || famOIDs[cast.Target] {
+			delete(c.castIndex, key)
+			delete(c.extensionCasts, key)
+		}
+	}
+	if dt := c.domainTypes[bt.OID]; dt != nil {
+		for _, dc := range dt.Constraints {
+			c.removeDepsOf('c', dc.OID)
+		}
+	}
+	if bt.Type == 'r' {
+		if rt := c.rangeTypes[bt.OID]; rt != nil && rt.MultirangeOID != 0 {
+			if mr := c.typeByOID[rt.MultirangeOID]; mr != nil {
+				if mr.Array != 0 {
+					if mra := c.typeByOID[mr.Array]; mra != nil {
+						delete(c.typeByName, typeKey{ns: mra.Namespace, name: mra.TypeName})
+					}
+					delete(c.typeByOID, mr.Array)
+					delete(c.typeOwners, mr.Array)
+					delete(c.extensionMembers, mr.Array)
+					c.removeGrantsForObject('T', mr.Array)
+					c.removeComments('t', mr.Array)
+					c.removeDepsOf('t', mr.Array)
+					c.removeDepsOn('t', mr.Array)
+				}
+				delete(c.typeByName, typeKey{ns: mr.Namespace, name: mr.TypeName})
+			}
+			delete(c.typeByOID, rt.MultirangeOID)
+			delete(c.typeOwners, rt.MultirangeOID)
+			delete(c.extensionMembers, rt.MultirangeOID)
+			c.removeGrantsForObject('T', rt.MultirangeOID)
+			c.removeComments('t', rt.MultirangeOID)
+			c.removeDepsOf('t', rt.MultirangeOID)
+			c.removeDepsOn('t', rt.MultirangeOID)
+		}
+	}
+
+	switch bt.Type {
+	case 'e':
+		delete(c.enumTypes, bt.OID)
+	case 'd':
+		delete(c.domainTypes, bt.OID)
+	case 'r':
+		delete(c.rangeTypes, bt.OID)
+	}
+
+	if bt.Array != 0 {
+		if at := c.typeByOID[bt.Array]; at != nil {
+			delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
+		}
+		delete(c.typeByOID, bt.Array)
+		delete(c.typeOwners, bt.Array)
+		delete(c.extensionMembers, bt.Array)
+		c.removeGrantsForObject('T', bt.Array)
+		c.removeComments('t', bt.Array)
+		c.removeDepsOf('t', bt.Array)
+		c.removeDepsOn('t', bt.Array)
+	}
+
+	delete(c.typeByName, typeKey{ns: bt.Namespace, name: bt.TypeName})
+	delete(c.typeByOID, bt.OID)
+	delete(c.typeOwners, bt.OID)
+	delete(c.extensionMembers, bt.OID)
+	c.removeGrantsForObject('T', bt.OID)
+	c.removeComments('t', bt.OID)
+	c.removeDepsOf('t', bt.OID)
+	c.removeDepsOn('t', bt.OID)
+}
+
+// removeFunctionObjects handles DROP FUNCTION/PROCEDURE/ROUTINE/AGGREGATE for one or more routines.
 func (c *Catalog) removeFunctionObjects(stmt *nodes.DropStmt) error {
 	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
-	isProcedure := nodes.ObjectType(stmt.RemoveType) == nodes.OBJECT_PROCEDURE
+	objType := nodes.ObjectType(stmt.RemoveType)
 	dropKindStr := "function"
-	if isProcedure {
+	switch objType {
+	case nodes.OBJECT_PROCEDURE:
 		dropKindStr = "procedure"
+	case nodes.OBJECT_AGGREGATE:
+		dropKindStr = "aggregate"
+	case nodes.OBJECT_ROUTINE:
+		dropKindStr = "routine"
 	}
 	if stmt.Objects == nil {
 		return nil
 	}
+	type target struct {
+		bp   *BuiltinProc
+		name string
+	}
+	var targets []target
+	dropProcOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		owa, ok := obj.(*nodes.ObjectWithArgs)
 		if !ok {
 			continue
 		}
-
-		schemaName, funcName := qualifiedName(owa.Objname)
-		schema, err := c.resolveTargetSchema(schemaName)
+		_, funcName := qualifiedName(owa.Objname)
+		resolveType := objType
+		if resolveType == nodes.OBJECT_AGGREGATE {
+			resolveType = nodes.OBJECT_ROUTINE
+		}
+		_, bp, _, err := c.resolveRoutineTarget(resolveType, owa)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("%s %s does not exist, skipping", dropKindStr, funcName))
-					continue
-				}
-			}
-			return err
-		}
-
-		var bp *BuiltinProc
-
-		if !owa.ArgsUnspecified && owa.Objargs != nil {
-			// Resolve arg types and find exact match.
-			argOIDs := make([]uint32, 0, len(owa.Objargs.Items))
-			for _, item := range owa.Objargs.Items {
-				tn, ok := item.(*nodes.TypeName)
-				if !ok {
-					continue
-				}
-				oid, _, err := c.resolveTypeName(tn)
-				if err != nil {
-					return err
-				}
-				argOIDs = append(argOIDs, oid)
-			}
-			bp = c.findExactProc(schema, funcName, argOIDs)
-		} else {
-			// No arg types: find by name. If ambiguous, error.
-			candidates := c.findUserProcsByName(schema, funcName)
-			if len(candidates) > 1 {
-				return errAmbiguousFunction(funcName)
-			}
-			if len(candidates) == 1 {
-				bp = c.procByOID[candidates[0].OID]
-			}
-		}
-
-		if bp == nil {
-			if stmt.Missing_ok {
+			if stmt.Missing_ok && missingObject(err) {
 				c.addWarning(CodeWarningSkip, fmt.Sprintf("%s %s does not exist, skipping", dropKindStr, funcName))
 				continue
 			}
-			// pg: src/backend/commands/dropcmds.c — uses ERRCODE_UNDEFINED_FUNCTION
-			return &Error{Code: CodeUndefinedFunction, Message: fmt.Sprintf("%s %s does not exist", dropKindStr, funcName)}
+			return err
 		}
+		if objType == nodes.OBJECT_AGGREGATE && bp.Kind == 'p' {
+			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("%q is not an aggregate", funcName)}
+		}
+		if c.isExtensionMember(bp.OID) {
+			return errDependentObjects("extension", c.extensionMembers[bp.OID])
+		}
+		if !dropProcOIDs[bp.OID] {
+			dropProcOIDs[bp.OID] = true
+			targets = append(targets, target{bp: bp, name: funcName})
+		}
+	}
 
-		// Verify it's user-defined.
-		if _, ok := c.userProcs[bp.OID]; !ok {
-			return &Error{Code: CodeWrongObjectType, Message: fmt.Sprintf("function %q is not user-defined", funcName)}
-		}
-
-		// Verify DROP FUNCTION doesn't drop a procedure, and vice versa.
-		// pg: src/backend/commands/functioncmds.c — check_routine_type
-		if isProcedure && bp.Kind != 'p' {
-			return &Error{Code: CodeWrongObjectType,
-				Message: fmt.Sprintf("%q is not a procedure", funcName)}
-		}
-		if !isProcedure && nodes.ObjectType(stmt.RemoveType) == nodes.OBJECT_FUNCTION && bp.Kind == 'p' {
-			return &Error{Code: CodeWrongObjectType,
-				Message: fmt.Sprintf("%q is not a function", funcName)}
-		}
-
-		// DROP FUNCTION on an aggregate should hint to use DROP AGGREGATE instead.
-		// pg: src/backend/commands/dropcmds.c — RemoveObjects (line 91-99)
-		if !isProcedure && nodes.ObjectType(stmt.RemoveType) == nodes.OBJECT_FUNCTION && bp.Kind == 'a' {
-			return &Error{Code: CodeWrongObjectType,
-				Message: fmt.Sprintf("%q is an aggregate function\nHint: Use DROP AGGREGATE to drop aggregate functions.", funcName)}
-		}
-
-		// Check dependents (triggers).
-		if deps := c.findNormalDependents('f', bp.OID); len(deps) > 0 {
-			if !cascade {
-				kindStr := "function"
-				if isProcedure {
-					kindStr = "procedure"
+	if !cascade {
+		for _, t := range targets {
+			for _, dep := range c.findNormalDependents('f', t.bp.OID) {
+				if dep.ObjType == 'f' && dropProcOIDs[dep.ObjOID] {
+					continue
 				}
-				return errDependentObjects(kindStr, funcName)
+				return errDependentObjects(dropKindStr, t.name)
 			}
-			c.dropDependents('f', bp.OID)
+			for _, cast := range c.castIndex {
+				if cast.Func == t.bp.OID {
+					return errDependentObjects(dropKindStr, t.name)
+				}
+			}
 		}
+	}
 
-		c.removeFunction(bp.OID, funcName)
+	for _, t := range targets {
+		if c.userProcs[t.bp.OID] == nil {
+			continue
+		}
+		if cascade && len(c.findNormalDependents('f', t.bp.OID)) > 0 {
+			c.dropDependents('f', t.bp.OID)
+		}
+		if c.userProcs[t.bp.OID] != nil {
+			c.removeFunction(t.bp.OID, t.name)
+		}
 	}
 	return nil
 }
 
 // removeTriggerObjects handles DROP TRIGGER for one or more triggers.
-// Triggers in a DropStmt are somewhat special because they require the table name.
-// The parser represents them as a list with the trigger name; the table is on the
-// DropStmt itself for single-object drops, but for the general case we handle
-// the Objects list which contains qualified names.
 func (c *Catalog) removeTriggerObjects(stmt *nodes.DropStmt) error {
-	// DROP TRIGGER is unusual: the parser does not emit OBJECT_TRIGGER in DropStmt.
-	// Instead, triggers are dropped via a dedicated DropTriggerStmt-like representation.
-	// However, pgparser uses DropStmt with RemoveType=OBJECT_TRIGGER.
-	// The Objects list contains pairs: [table-name, trigger-name] or just [trigger-name].
-	// We need to handle this carefully.
-	//
-	// In practice, pgparser represents DROP TRIGGER name ON table as:
-	//   Objects: [[table, trigger]] or [[trigger]] depending on parser version.
-	// We'll handle the common case.
 	cascade := stmt.Behavior == int(nodes.DROP_CASCADE)
 	if stmt.Objects == nil {
 		return nil
 	}
+	var targets []*Trigger
+	dropTrigOIDs := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
-		// For triggers, the object list contains a sublist: [tablename, triggername].
 		list, ok := obj.(*nodes.List)
 		if !ok {
 			continue
@@ -411,11 +601,9 @@ func (c *Catalog) removeTriggerObjects(stmt *nodes.DropStmt) error {
 		items := list.Items
 		switch len(items) {
 		case 2:
-			// [table, trigger]
 			tableName = stringVal(items[0])
 			trigName = stringVal(items[1])
 		case 3:
-			// [schema, table, trigger]
 			schemaName = stringVal(items[0])
 			tableName = stringVal(items[1])
 			trigName = stringVal(items[2])
@@ -425,11 +613,9 @@ func (c *Catalog) removeTriggerObjects(stmt *nodes.DropStmt) error {
 
 		_, rel, err := c.findRelation(schemaName, tableName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("trigger %q for relation %q does not exist, skipping", trigName, tableName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("trigger %q for relation %q does not exist, skipping", trigName, tableName))
+				continue
 			}
 			return err
 		}
@@ -449,12 +635,35 @@ func (c *Catalog) removeTriggerObjects(stmt *nodes.DropStmt) error {
 			}
 			return errUndefinedTrigger(trigName, tableName)
 		}
-
-		if cascade {
-			c.dropDependents('g', found.OID)
+		if c.isExtensionMember(found.OID) {
+			return errDependentObjects("extension", c.extensionMembers[found.OID])
 		}
-
-		c.removeTrigger(found)
+		if found.ParentTriggerOID != 0 {
+			return errDependentObjects("trigger", found.Name)
+		}
+		if !dropTrigOIDs[found.OID] {
+			dropTrigOIDs[found.OID] = true
+			targets = append(targets, found)
+		}
+	}
+	if !cascade {
+		for _, trig := range targets {
+			for _, dep := range c.findNormalDependents('g', trig.OID) {
+				if dep.ObjType == 'g' && dropTrigOIDs[dep.ObjOID] {
+					continue
+				}
+				return errDependentObjects("trigger", trig.Name)
+			}
+		}
+	}
+	for _, trig := range targets {
+		if c.triggers[trig.OID] == nil {
+			continue
+		}
+		if cascade {
+			c.dropDependents('g', trig.OID)
+		}
+		c.removeTrigger(trig)
 	}
 	return nil
 }
@@ -468,6 +677,8 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 	if stmt.Objects == nil {
 		return nil
 	}
+	var targets []*Policy
+	seen := map[uint32]bool{}
 	for _, obj := range stmt.Objects.Items {
 		list, ok := obj.(*nodes.List)
 		if !ok {
@@ -490,11 +701,9 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 
 		_, rel, err := c.findRelation(schemaName, tableName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("policy %q for table %q does not exist, skipping", policyName, tableName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("policy %q for table %q does not exist, skipping", policyName, tableName))
+				continue
 			}
 			return err
 		}
@@ -517,18 +726,16 @@ func (c *Catalog) removePolicyObjects(stmt *nodes.DropStmt) error {
 				Message: fmt.Sprintf("policy %q for table %q does not exist", policyName, tableName),
 			}
 		}
-
-		delete(c.policies, found.OID)
-		c.removeDepsOf('p', found.OID)
-		c.removeComments('p', found.OID)
-		// Remove from policiesByRel slice.
-		plist := c.policiesByRel[rel.OID]
-		for i, p := range plist {
-			if p.OID == found.OID {
-				c.policiesByRel[rel.OID] = append(plist[:i], plist[i+1:]...)
-				break
-			}
+		if c.isExtensionMember(found.OID) {
+			return errDependentObjects("extension", c.extensionMembers[found.OID])
 		}
+		if !seen[found.OID] {
+			seen[found.OID] = true
+			targets = append(targets, found)
+		}
+	}
+	for _, pol := range targets {
+		c.removePolicy(pol)
 	}
 	return nil
 }

@@ -20,6 +20,19 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	}
 	relName := rv.Relname
 
+	// A typed table resolves its type before the target name is checked:
+	// CREATE TABLE a OF a on table a is 42809 ("a" is not a composite type),
+	// not a duplicate. IF NOT EXISTS skips the whole statement instead.
+	if stmt.OfTypename != nil && !stmt.IfNotExists {
+		oid, _, err := c.resolveTypeName(stmt.OfTypename)
+		if err != nil {
+			return err
+		}
+		if _, err := c.checkOfType(oid); err != nil {
+			return err
+		}
+	}
+
 	// Check duplicate relation name.
 	if _, exists := schema.Relations[relName]; exists {
 		if stmt.IfNotExists {
@@ -99,6 +112,15 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		childColMap[colDefs[i].Name] = i
 	}
 
+	// IF NOT EXISTS skips a name an index or sequence holds before the
+	// parents are resolved, as PostgreSQL does for a partition target.
+	if stmt.IfNotExists {
+		if _, ok := relationNamespaceKind(schema, relName); ok {
+			c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q already exists, skipping", relName))
+			return nil
+		}
+	}
+
 	// Handle OF TYPE (typed tables).
 	// pg: src/backend/parser/parse_utilcmd.c — transformOfType
 	// pg: src/backend/commands/tablecmds.c — MergeAttributes (is_from_type handling)
@@ -123,15 +145,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 
 		// First, add all columns from the type.
 		for _, pcol := range typeRel.Columns {
-			typ := c.typeByOID[pcol.TypeOID]
-			typName := ""
-			if typ != nil {
-				typName = typ.TypeName
-			}
 			childColMap[pcol.Name] = len(colDefs)
 			colDefs = append(colDefs, ColumnDef{
 				Name:       pcol.Name,
-				Type:       TypeName{Name: typName, TypeMod: pcol.TypeMod},
+				Type:       c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
 				IsLocal:    false,
 				IsFromType: true,
 			})
@@ -170,7 +187,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	isPartition := (stmt.Partbound != nil)
 	var conflictDefaults map[string]bool // column name → has conflicting defaults
 	if stmt.InhRelations != nil {
-		for seqNo, item := range stmt.InhRelations.Items {
+		for _, item := range stmt.InhRelations.Items {
 			rv, ok := item.(*nodes.RangeVar)
 			if !ok {
 				continue
@@ -294,14 +311,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 					existCD.InhCount++
 				} else {
 					// New inherited column — not locally defined.
-					typ := c.typeByOID[pcol.TypeOID]
-					typName := ""
-					if typ != nil {
-						typName = typ.TypeName
-					}
 					newCD := ColumnDef{
 						Name:     pcol.Name,
-						Type:     TypeName{Name: typName, TypeMod: pcol.TypeMod},
+						Type:     c.typeNameForOID(pcol.TypeOID, pcol.TypeMod),
 						NotNull:  pcol.NotNull,
 						Default:  pcol.Default,
 						IsLocal:  false,
@@ -329,12 +341,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 				}
 			}
 
-			// Record inheritance entry.
-			c.inhEntries = append(c.inhEntries, InhEntry{
-				InhRelID:  0, // will be set after relation is created
-				InhParent: parent.OID,
-				InhSeqNo:  int32(seqNo + 1), // 1-based
-			})
+			// The inheritance entry is recorded only once the relation is
+			// registered, so a later error leaves no row for a child that
+			// does not exist.
 		}
 	}
 
@@ -431,27 +440,6 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// Create implicit sequences for SERIAL and identity columns.
-	var createdSeqs []*Sequence
-	for _, si := range serials {
-		if si.isIdentity {
-			cd := &colDefs[si.colIdx]
-			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, si.typeOID, cd.IdentityOptions)
-			if err != nil {
-				return err
-			}
-			cd.IdentitySequence = seqRV
-			cd.Default = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
-			createdSeqs = append(createdSeqs, seq)
-			continue
-		}
-		if _, exists := schema.Sequences[si.seqName]; exists {
-			return errDuplicateObject("sequence", si.seqName)
-		}
-		seq := c.createSequenceInternal(schema, si.seqName, si.typeOID)
-		createdSeqs = append(createdSeqs, seq)
-	}
-
 	// Resolve column types and check for duplicates.
 	colByName := make(map[string]int, len(colDefs))
 	columns := make([]*Column, len(colDefs))
@@ -488,10 +476,197 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	// Check column count limit.
-	// pg: src/backend/commands/tablecmds.c — DefineRelation (MaxHeapAttributeNumber check)
+	// PostgreSQL keeps indexes and sequences in the relation namespace, so a
+	// name one holds is not free. The check comes after the columns' types and
+	// the parents are resolved, as PostgreSQL resolves them first: CREATE
+	// TABLE a(a a) on an index a is 42704 for the type, and PARTITION OF an
+	// index is 42809, before either is a duplicate name.
+	if !stmt.IfNotExists {
+		if _, ok := relationNamespaceKind(schema, relName); ok {
+			return errDuplicateTable(relName)
+		}
+	}
+	// PostgreSQL resolves a new relation's tablespace in DefineRelation order:
+	// explicit TABLESPACE clause, then a partitioned parent's stored tablespace
+	// when non-empty, then GetDefaultTablespace ("" for temp relations, else the
+	// session's effective default_tablespace).
+	effectiveTablespace := stmt.Tablespacename
+	if effectiveTablespace == "" && isPartition && len(parentOIDs) > 0 {
+		if parent := c.relationByOID[parentOIDs[0]]; parent != nil && parent.Tablespace != "" {
+			effectiveTablespace = parent.Tablespace
+		}
+	}
+	if effectiveTablespace == "" && rv.Relpersistence != 't' {
+		effectiveTablespace = c.effectiveTablespace("")
+	}
+	if stmt.Partspec != nil && effectiveTablespace == "pg_default" {
+		return &Error{Code: CodeFeatureNotSupported,
+			Message: "cannot specify default tablespace for partitioned relations"}
+	}
+	if relkind == 'r' || relkind == 'p' || relkind == 'm' {
+		if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
+			return err
+		}
+	}
+	tableAccessMethod := stmt.AccessMethod
+	if tableAccessMethod == "" && isPartition && len(parentOIDs) > 0 {
+		if parent := c.relationByOID[parentOIDs[0]]; parent != nil && parent.AccessMethod != "" {
+			tableAccessMethod = parent.AccessMethod
+		}
+	}
+	if tableAccessMethod == "" && (relkind == 'r' || relkind == 'm') {
+		tableAccessMethod = c.defaultTableAccessMethod
+	}
+	if err := c.checkTableAccessMethod(tableAccessMethod); err != nil {
+		return err
+	}
+
+	// Constraint indexes and cloned partition indexes may take a tablespace;
+	// refuse one the catalog cannot place before any implicit sequence is made.
+	for _, def := range constraintDefs {
+		if (def.Type != ConstraintPK && def.Type != ConstraintUnique && def.Type != ConstraintExclude) || def.IndexName != "" {
+			continue
+		}
+		idxSpace := def.IndexSpace
+		if idxSpace == "" && rv.Relpersistence != 't' {
+			idxSpace = c.effectiveTablespace("")
+		}
+		if stmt.Partspec != nil && idxSpace == "pg_default" {
+			return &Error{Code: CodeFeatureNotSupported,
+				Message: "cannot specify default tablespace for partitioned relations"}
+		}
+		if idxSpace != "" {
+			if err := c.checkRelationTablespace(idxSpace); err != nil {
+				return err
+			}
+		}
+	}
+	if isPartition && len(parentOIDs) > 0 && rv.Relpersistence != 't' {
+		for _, idx := range c.indexesByRel[parentOIDs[0]] {
+			if idx.Tablespace == "" {
+				partIdxSpace := c.effectiveTablespace("")
+				if stmt.Partspec != nil && partIdxSpace == "pg_default" {
+					return &Error{Code: CodeFeatureNotSupported,
+						Message: "cannot specify default tablespace for partitioned relations"}
+				}
+				if err := c.checkRelationTablespace(partIdxSpace); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if rv.Relpersistence != 't' {
+		for _, ls := range likeSources {
+			if ls.opts&tableLikeIndexes == 0 {
+				continue
+			}
+			for _, idx := range c.indexesByRel[ls.rel.OID] {
+				if idx.Tablespace == "" {
+					likeIdxSpace := c.effectiveTablespace("")
+					if stmt.Partspec != nil && likeIdxSpace == "pg_default" {
+						return &Error{Code: CodeFeatureNotSupported,
+							Message: "cannot specify default tablespace for partitioned relations"}
+					}
+					if err := c.checkRelationTablespace(likeIdxSpace); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// Check column count limit and ON COMMIT before creating implicit sequences.
+	// pg: src/backend/commands/tablecmds.c — DefineRelation
 	if len(columns) > MaxHeapAttributeNumber {
 		return &Error{Code: CodeTooManyColumns, Message: fmt.Sprintf("tables can have at most %d columns", MaxHeapAttributeNumber)}
+	}
+	if stmt.OnCommit != nodes.ONCOMMIT_NOOP && rv.Relpersistence != 't' {
+		return &Error{Code: CodeInvalidTableDefinition,
+			Message: "ON COMMIT can only be used on temporary tables"}
+	}
+
+	// Validate partition key specification before creating implicit sequences
+	// or registering the relation.
+	// pg: src/backend/commands/tablecmds.c — DefineRelation (StorePartitionKey)
+	var partInfo *PartitionInfo
+	if stmt.Partspec != nil {
+		ps := stmt.Partspec
+		strategy := byte(0)
+		if len(ps.Strategy) > 0 {
+			strategy = ps.Strategy[0] // 'l', 'r', 'h'
+		}
+		// LIST partitioning supports only a single column.
+		// pg: src/backend/parser/parse_utilcmd.c — transformPartitionSpec
+		if strategy == 'l' && ps.PartParams != nil && len(ps.PartParams.Items) > 1 {
+			return &Error{Code: CodeInvalidObjectDefinition,
+				Message: "cannot use \"list\" partition strategy with more than one column"}
+		}
+
+		// Check PARTITION_MAX_KEYS limit.
+		// pg: src/backend/commands/tablecmds.c — DefineRelation (line 1158-1162)
+		if ps.PartParams != nil && len(ps.PartParams.Items) > PARTITION_MAX_KEYS {
+			return &Error{Code: CodeProgramLimitExceeded,
+				Message: fmt.Sprintf("cannot partition using more than %d columns", PARTITION_MAX_KEYS)}
+		}
+
+		var keyAttNums []int16
+		if ps.PartParams != nil {
+			for _, p := range ps.PartParams.Items {
+				pe, ok := p.(*nodes.PartitionElem)
+				if !ok {
+					continue
+				}
+				if pe.Name == "" {
+					if pe.Expr == nil {
+						return &Error{Code: CodeSyntaxError,
+							Message: "syntax error at or near \")\""}
+					}
+					// Expression partition key — store attnum=0 (PG convention).
+					keyAttNums = append(keyAttNums, 0)
+					continue
+				}
+				idx, exists := colByName[pe.Name]
+				if !exists {
+					return errUndefinedColumn(pe.Name)
+				}
+				keyAttNums = append(keyAttNums, int16(idx+1))
+			}
+		}
+		partInfo = &PartitionInfo{
+			Strategy:   strategy,
+			KeyAttNums: keyAttNums,
+			NKeyAttrs:  int16(len(keyAttNums)),
+		}
+	}
+
+	// Create implicit sequences for SERIAL and identity columns.
+	var createdSeqs []*Sequence
+	cleanupCreatedSeqs := func() {
+		for _, s := range createdSeqs {
+			if c.sequenceByOID[s.OID] != nil {
+				c.removeSequence(s.Schema, s)
+			}
+		}
+	}
+	for _, si := range serials {
+		if si.isIdentity {
+			cd := &colDefs[si.colIdx]
+			seq, seqRV, explicitName, err := c.createIdentitySequence(schema, relName, cd.Name, "", si.typeOID, cd.IdentityOptions)
+			if err != nil {
+				cleanupCreatedSeqs()
+				return err
+			}
+			cd.IdentitySequence = seqRV
+			cd.Default = identitySequenceDefault(schema, seq.Schema, seq.Name, explicitName)
+			createdSeqs = append(createdSeqs, seq)
+			continue
+		}
+		if _, exists := schema.Sequences[si.seqName]; exists {
+			cleanupCreatedSeqs()
+			return errDuplicateObject("sequence", si.seqName)
+		}
+		seq := c.createSequenceInternal(schema, si.seqName, si.typeOID)
+		createdSeqs = append(createdSeqs, seq)
 	}
 
 	// Allocate OIDs.
@@ -499,18 +674,25 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	rowTypeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
 
+	storedTablespace := normalizeTablespace(effectiveTablespace)
+	if relkind != 'r' && relkind != 'p' && relkind != 'm' {
+		storedTablespace = ""
+	}
 	rel := &Relation{
-		OID:        relOID,
-		Name:       relName,
-		Schema:     schema,
-		RelKind:    relkind,
-		Columns:    columns,
-		colByName:  colByName,
-		RowTypeOID: rowTypeOID,
-		ArrayOID:   arrayOID,
-		InhParents: parentOIDs,
-		InhCount:   len(parentOIDs),
-		OfTypeOID:  ofTypeOID,
+		OID:          relOID,
+		Name:         relName,
+		Schema:       schema,
+		RelKind:      relkind,
+		Columns:      columns,
+		colByName:    colByName,
+		RowTypeOID:   rowTypeOID,
+		ArrayOID:     arrayOID,
+		InhParents:   parentOIDs,
+		InhCount:     len(parentOIDs),
+		OfTypeOID:    ofTypeOID,
+		Tablespace:   storedTablespace,
+		AccessMethod: tableAccessMethod,
+		OwnerName:    c.currentOwner(),
 	}
 
 	// Parse persistence from RangeVar.
@@ -556,11 +738,20 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Register relation.
 	schema.Relations[relName] = rel
 	c.relationByOID[relOID] = rel
+	if tableAccessMethod != "" {
+		if am := c.accessMethodByName[tableAccessMethod]; am != nil {
+			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
+		}
+	}
 
-	// Fix up inheritance entries with the child's OID and record dependencies.
+	// Record inheritance entries and dependencies now that the child exists.
 	if len(parentOIDs) > 0 {
-		for i := len(c.inhEntries) - len(parentOIDs); i < len(c.inhEntries); i++ {
-			c.inhEntries[i].InhRelID = relOID
+		for i, parentOID := range parentOIDs {
+			c.inhEntries = append(c.inhEntries, InhEntry{
+				InhRelID:  relOID,
+				InhParent: parentOID,
+				InhSeqNo:  int32(i + 1),
+			})
 		}
 		// For PARTITION OF, use DepAuto (auto-dropped with parent).
 		// For regular INHERITS, use DepNormal (requires CASCADE).
@@ -572,57 +763,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			c.recordDependency('r', relOID, 0, 'r', parentOID, 0, depType)
 		}
 	}
-
-	// Store partition key info (PARTITION BY clause).
-	// pg: src/backend/commands/tablecmds.c — DefineRelation (StorePartitionKey)
-	if stmt.Partspec != nil {
-		ps := stmt.Partspec
-		strategy := byte(0)
-		if len(ps.Strategy) > 0 {
-			strategy = ps.Strategy[0] // 'l', 'r', 'h'
-		}
-		// LIST partitioning supports only a single column.
-		// pg: src/backend/parser/parse_utilcmd.c — transformPartitionSpec
-		if strategy == 'l' && ps.PartParams != nil && len(ps.PartParams.Items) > 1 {
-			return &Error{Code: CodeInvalidObjectDefinition,
-				Message: "cannot use \"list\" partition strategy with more than one column"}
-		}
-
-		// Check PARTITION_MAX_KEYS limit.
-		// pg: src/backend/commands/tablecmds.c — DefineRelation (line 1158-1162)
-		if ps.PartParams != nil && len(ps.PartParams.Items) > PARTITION_MAX_KEYS {
-			return &Error{Code: CodeProgramLimitExceeded,
-				Message: fmt.Sprintf("cannot partition using more than %d columns", PARTITION_MAX_KEYS)}
-		}
-
-		var keyAttNums []int16
-		if ps.PartParams != nil {
-			for _, p := range ps.PartParams.Items {
-				pe, ok := p.(*nodes.PartitionElem)
-				if !ok {
-					continue
-				}
-				if pe.Name == "" {
-					if pe.Expr == nil {
-						return &Error{Code: CodeSyntaxError,
-							Message: "syntax error at or near \")\""}
-					}
-					// Expression partition key — store attnum=0 (PG convention).
-					keyAttNums = append(keyAttNums, 0)
-					continue
-				}
-				idx, exists := colByName[pe.Name]
-				if !exists {
-					return errUndefinedColumn(pe.Name)
-				}
-				keyAttNums = append(keyAttNums, int16(idx+1))
-			}
-		}
-		rel.PartitionInfo = &PartitionInfo{
-			Strategy:   strategy,
-			KeyAttNums: keyAttNums,
-			NKeyAttrs:  int16(len(keyAttNums)),
-		}
+	rel.PartitionInfo = partInfo
+	rollbackRelation := func() {
+		c.removeRelation(schema, relName, rel)
+		cleanupCreatedSeqs()
 	}
 
 	// Store partition bound (PARTITION OF ... FOR VALUES clause).
@@ -668,8 +812,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			rel.PartitionOf = parentOIDs[0]
 			// Check for partition bound overlap with existing partitions of the same parent.
 			if err := c.checkPartitionBoundOverlap(parentOIDs[0], rel.OID, rel.PartitionBound); err != nil {
-				// Roll back the registration done above.
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return err
 			}
 		}
@@ -732,7 +875,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	if relkind != 'c' {
 		for _, cd := range constraintDefs {
 			if err := c.addConstraint(schema, rel, cd); err != nil {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return err
 			}
 		}
@@ -755,7 +898,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		if cd.RawDefault != nil && columns[i].HasDefault {
 			analyzed, err := c.AnalyzeColumnDefaultExpr(cd.RawDefault, rel)
 			if err != nil {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return err
 			}
 			if analyzed == nil {
@@ -764,7 +907,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
 			coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), columns[i].TypeOID, 'a', 'i')
 			if cerr != nil {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return cerr
 			}
 			if coerced != nil {
@@ -778,7 +921,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 		if cd.RawGenExpr != nil && columns[i].Generated == 's' {
 			if rawExprContainsSubLink(cd.RawGenExpr) {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return &Error{Code: CodeFeatureNotSupported,
 					Message: "cannot use subquery in column generation expression"}
 			}
@@ -834,17 +977,23 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 		return nil
 	}
 
+	// Resolve and validate every target before removing any, so a wrong kind
+	// later in the list leaves the catalog as PostgreSQL's rollback would.
+	type target struct {
+		schema *Schema
+		rel    *Relation
+		name   string
+	}
+	var targets []target
 	for _, obj := range stmt.Objects.Items {
 		// Objects are represented as a List of String nodes (schema-qualified name).
 		schemaName, relName := extractDropObjectName(obj)
 
 		schema, rel, err := c.findRelation(schemaName, relName)
 		if err != nil {
-			if stmt.Missing_ok {
-				if _, ok := err.(*Error); ok {
-					c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", relName))
-					continue
-				}
+			if stmt.Missing_ok && missingObject(err) {
+				c.addWarning(CodeWarningSkip, fmt.Sprintf("relation %q does not exist, skipping", relName))
+				continue
 			}
 			return err
 		}
@@ -881,28 +1030,76 @@ func (c *Catalog) RemoveRelations(stmt *nodes.DropStmt) error {
 				}
 			}
 		}
+		if c.isExtensionMember(rel.OID) {
+			return errDependentObjects("extension", c.extensionMembers[rel.OID])
+		}
+		targets = append(targets, target{schema: schema, rel: rel, name: relName})
+	}
 
-		// Check for normal dependents. The relation's own constraints,
-		// indexes and generated columns go with it.
-		// pg: src/backend/catalog/dependency.c — reportDependentObjects
-		if hasNormalDependent(c.relationDependents(rel.OID, 0)) {
-			if !cascade {
-				kind := "table"
-				if removeType == nodes.OBJECT_VIEW {
-					kind = "view"
-				} else if removeType == nodes.OBJECT_MATVIEW {
-					kind = "materialized view"
+	dropRelOIDs := map[uint32]bool{}
+	dropTypeOIDs := map[uint32]bool{}
+	for _, t := range targets {
+		dropRelOIDs[t.rel.OID] = true
+		if t.rel.RowTypeOID != 0 {
+			dropTypeOIDs[t.rel.RowTypeOID] = true
+		}
+		if t.rel.ArrayOID != 0 {
+			dropTypeOIDs[t.rel.ArrayOID] = true
+		}
+	}
+	if !cascade {
+		kind := "table"
+		if removeType == nodes.OBJECT_VIEW {
+			kind = "view"
+		} else if removeType == nodes.OBJECT_MATVIEW {
+			kind = "materialized view"
+		}
+		for _, t := range targets {
+			for _, dep := range c.relationDependents(t.rel.OID, 0) {
+				if !dep.Normal {
+					continue
 				}
-				return errDependentObjects(kind, relName)
+				if (dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) ||
+					(dep.ObjType == 'c' && c.constraints[dep.ObjOID] != nil && dropRelOIDs[c.constraints[dep.ObjOID].RelOID]) {
+					continue
+				}
+				return errDependentObjects(kind, t.name)
 			}
-			if removeType == nodes.OBJECT_VIEW || removeType == nodes.OBJECT_MATVIEW {
-				c.dropViewDependents('r', rel.OID)
-			} else {
-				c.dropDependents('r', rel.OID)
+			if t.rel.RowTypeOID != 0 {
+				if bt := c.typeByOID[t.rel.RowTypeOID]; bt != nil {
+					for _, depRelOID := range c.typeRelationDependents(bt) {
+						if !dropRelOIDs[depRelOID] {
+							return errDependentObjects(kind, t.name)
+						}
+					}
+					for _, dep := range c.typeNormalDependents(bt) {
+						if (dep.ObjType == 'r' && dropRelOIDs[dep.ObjOID]) ||
+							(dep.ObjType == 't' && dropTypeOIDs[dep.ObjOID]) ||
+							(dep.ObjType == 'c' && c.constraints[dep.ObjOID] != nil && dropRelOIDs[c.constraints[dep.ObjOID].RelOID]) {
+							continue
+						}
+						return errDependentObjects(kind, t.name)
+					}
+				}
+			}
+			for _, cast := range c.castIndex {
+				if (t.rel.RowTypeOID != 0 && (cast.Source == t.rel.RowTypeOID || cast.Target == t.rel.RowTypeOID)) ||
+					(t.rel.ArrayOID != 0 && (cast.Source == t.rel.ArrayOID || cast.Target == t.rel.ArrayOID)) {
+					return errDependentObjects(kind, t.name)
+				}
 			}
 		}
+	}
 
-		c.removeRelation(schema, relName, rel)
+	for _, t := range targets {
+		if c.relationByOID[t.rel.OID] == nil {
+			continue
+		}
+		if cascade {
+			c.cascadeDropRelation(t.rel)
+			continue
+		}
+		c.removeRelation(t.schema, t.name, t.rel)
 	}
 	return nil
 }
@@ -1127,6 +1324,28 @@ type likeSource struct {
 	opts uint32
 }
 
+// typeNameForOID constructs a catalog TypeName from a resolved type OID and typmod,
+// preserving non-pg_catalog schema qualification and array-element mapping so
+// cross-schema inherited/typed/LIKE columns resolve regardless of search_path.
+func (c *Catalog) typeNameForOID(typeOID uint32, typmod int32) TypeName {
+	typ := c.typeByOID[typeOID]
+	if typ == nil {
+		return TypeName{TypeMod: typmod}
+	}
+	schemaName := ""
+	if typ.Namespace != 0 && typ.Namespace != PGCatalogNamespace {
+		if ns := c.schemas[typ.Namespace]; ns != nil {
+			schemaName = ns.Name
+		}
+	}
+	if typ.Elem != 0 {
+		if elem := c.typeByOID[typ.Elem]; elem != nil && elem.Array == typ.OID {
+			return TypeName{Schema: schemaName, Name: elem.TypeName, TypeMod: typmod, IsArray: true}
+		}
+	}
+	return TypeName{Schema: schemaName, Name: typ.TypeName, TypeMod: typmod}
+}
+
 // expandTableLikeClause copies columns and optionally constraints from a source table.
 // Returns the source relation and options for deferred index/comment cloning.
 //
@@ -1146,15 +1365,9 @@ func (c *Catalog) expandTableLikeClause(clause *nodes.TableLikeClause) ([]Column
 	// Always copy column names and types.
 	var colDefs []ColumnDef
 	for _, col := range srcRel.Columns {
-		typ := c.typeByOID[col.TypeOID]
-		typName := ""
-		if typ != nil {
-			typName = typ.TypeName
-		}
-
 		cd := ColumnDef{
 			Name:    col.Name,
-			Type:    TypeName{Name: typName, TypeMod: col.TypeMod},
+			Type:    c.typeNameForOID(col.TypeOID, col.TypeMod),
 			NotNull: col.NotNull,
 			IsLocal: true,
 		}
@@ -1465,11 +1678,17 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 			copy(partIndOption, idx.IndOption)
 		}
 
+		partIdxSpace := idx.Tablespace
+		if partIdxSpace == "" {
+			partIdxSpace = normalizeTablespace(c.effectiveIndexTablespace("", partition))
+		}
 		partIdx := &Index{
 			OID:              c.oidGen.Next(),
 			Name:             partIdxName,
 			Schema:           schema,
 			RelOID:           partition.OID,
+			Tablespace:       partIdxSpace,
+			OwnerName:        partition.OwnerName,
 			Columns:          partAttnums,
 			IsUnique:         idx.IsUnique,
 			IsPrimary:        idx.IsPrimary,
@@ -1503,21 +1722,48 @@ func (c *Catalog) cloneIndexesToPartition(schema *Schema, parent, partition *Rel
 					Namespace:   schema.OID,
 					Columns:     partConAttnums,
 					IndexOID:    partIdx.OID,
+					Deferrable:  parentCon.Deferrable,
+					Deferred:    parentCon.Deferred,
 					Validated:   true,
 					ConIsLocal:  true,
 					ConParentID: parentCon.OID,
+					ExclOps:     slices.Clone(parentCon.ExclOps),
 				}
 
 				partIdx.ConstraintOID = conOID
 				c.registerConstraint(partition.OID, partCon)
 				c.recordDependency('c', conOID, 0, 'r', partition.OID, 0, DepAuto)
 				c.recordColumnDependencies('c', conOID, partition.OID, partConAttnums, DepAuto)
+				var parentConExtDeps []DepEntry
+				for _, d := range c.deps {
+					if d.ObjType == 'c' && d.ObjOID == parentCon.OID && d.DepType == DepNormal &&
+						!(d.RefType == 'r' && d.RefOID == parent.OID) {
+						parentConExtDeps = append(parentConExtDeps, d)
+					}
+				}
+				for _, d := range parentConExtDeps {
+					c.recordDependency('c', conOID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+				}
 			}
 		}
 
 		c.registerIndex(schema, partIdx)
 		c.recordDependency('i', partIdx.OID, 0, 'r', partition.OID, 0, DepAuto)
 		c.recordColumnDependencies('i', partIdx.OID, partition.OID, partAttnums, DepAuto)
+		if am := c.accessMethodByName[partIdx.AccessMethod]; am != nil {
+			c.recordDependency('i', partIdx.OID, 0, 'm', am.OID, 0, DepNormal)
+		}
+		c.recordOpClassDependencies('i', partIdx.OID, c.indexOpClassRefs(partition, partAttnums, partIdx.NKeyColumns, partIdx.OpClasses), partIdx.AccessMethod)
+		var parentIdxExtDeps []DepEntry
+		for _, d := range c.deps {
+			if d.ObjType == 'i' && d.ObjOID == idx.OID && d.DepType == DepNormal &&
+				!(d.RefType == 'r' && d.RefOID == parent.OID) {
+				parentIdxExtDeps = append(parentIdxExtDeps, d)
+			}
+		}
+		for _, d := range parentIdxExtDeps {
+			c.recordDependency('i', partIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+		}
 
 		// Force NOT NULL on PK columns.
 		if idx.IsPrimary {
@@ -1580,11 +1826,17 @@ func (c *Catalog) cloneRowTriggersToPartition(parent, partition *Relation) {
 		c.triggersByRel[partition.OID] = append(c.triggersByRel[partition.OID], partTrig)
 		c.recordDependency('g', partTrig.OID, 0, 'r', partition.OID, 0, DepAuto)
 		// The clone depends on the columns its source does: those it is
-		// UPDATE OF and those its WHEN condition reads.
-		var colDeps []DepEntry
+		// UPDATE OF and those its WHEN condition reads, plus any external
+		// normal dependencies (trigger function and WHEN functions/operators/types).
+		var colDeps, extDeps []DepEntry
 		for _, d := range c.deps {
-			if d.ObjType == 'g' && d.ObjOID == trig.OID && d.RefType == 'r' && d.RefOID == parent.OID && d.RefSubID > 0 {
+			if d.ObjType != 'g' || d.ObjOID != trig.OID {
+				continue
+			}
+			if d.RefType == 'r' && d.RefOID == parent.OID && d.RefSubID > 0 {
 				colDeps = append(colDeps, d)
+			} else if d.DepType == DepNormal && !(d.RefType == 'r' && d.RefOID == parent.OID) {
+				extDeps = append(extDeps, d)
 			}
 		}
 		for _, d := range colDeps {
@@ -1594,6 +1846,9 @@ func (c *Catalog) cloneRowTriggersToPartition(parent, partition *Relation) {
 		}
 		if partTrig.FuncOID != 0 {
 			c.recordDependency('g', partTrig.OID, 0, 'f', partTrig.FuncOID, 0, DepNormal)
+		}
+		for _, d := range extDeps {
+			c.recordDependency('g', partTrig.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
 		}
 	}
 }
@@ -1625,7 +1880,7 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 			Namespace:    schema.OID,
 			Columns:      partLocalAttnums,
 			FRelOID:      con.FRelOID,
-			FColumns:     con.FColumns,
+			FColumns:     slices.Clone(con.FColumns),
 			FKUpdAction:  con.FKUpdAction,
 			FKDelAction:  con.FKDelAction,
 			FKMatchType:  con.FKMatchType,
@@ -1634,10 +1889,10 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 			Validated:    true,
 			ConIsLocal:   true,
 			ConParentID:  con.OID,
-			PFEqOp:       con.PFEqOp,
-			PPEqOp:       con.PPEqOp,
-			FFEqOp:       con.FFEqOp,
-			FKDelSetCols: con.FKDelSetCols,
+			PFEqOp:       slices.Clone(con.PFEqOp),
+			PPEqOp:       slices.Clone(con.PPEqOp),
+			FFEqOp:       slices.Clone(con.FFEqOp),
+			FKDelSetCols: slices.Clone(con.FKDelSetCols),
 		}
 
 		c.registerConstraint(partition.OID, partCon)
@@ -1646,6 +1901,18 @@ func (c *Catalog) cloneForeignKeyConstraints(schema *Schema, parent, partition *
 		if con.FRelOID != 0 {
 			c.recordDependency('c', partCon.OID, 0, 'r', con.FRelOID, 0, DepNormal)
 			c.recordColumnDependencies('c', partCon.OID, con.FRelOID, con.FColumns, DepNormal)
+			if refIdxOID := c.lookupFKSupportingIndex(con.FRelOID, con.FColumns); refIdxOID != 0 {
+				c.recordDependency('c', partCon.OID, 0, 'r', refIdxOID, 0, DepNormal)
+			}
+		}
+		seenFKOp := map[uint32]bool{}
+		for _, opGroup := range [][]uint32{con.PFEqOp, con.PPEqOp, con.FFEqOp} {
+			for _, opOID := range opGroup {
+				if opOID >= FirstNormalObjectId && !seenFKOp[opOID] {
+					seenFKOp[opOID] = true
+					c.recordDependency('c', partCon.OID, 0, 'O', opOID, 0, DepNormal)
+				}
+			}
 		}
 	}
 }
@@ -1706,11 +1973,17 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			copy(dstIndOption, idx.IndOption)
 		}
 
+		cloneTablespace := idx.Tablespace
+		if cloneTablespace == "" {
+			cloneTablespace = normalizeTablespace(c.effectiveIndexTablespace("", dst))
+		}
 		newIdx := &Index{
 			OID:              c.oidGen.Next(),
 			Name:             idxName,
 			Schema:           schema,
 			RelOID:           dst.OID,
+			Tablespace:       cloneTablespace,
+			OwnerName:        dst.OwnerName,
 			Columns:          dstAttnums,
 			IsUnique:         idx.IsUnique,
 			IsPrimary:        idx.IsPrimary,
@@ -1719,12 +1992,27 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 			WhereClause:      idx.WhereClause,
 			IndOption:        dstIndOption,
 			NullsNotDistinct: idx.NullsNotDistinct,
+			Exprs:            slices.Clone(idx.Exprs),
 			OpClasses:        slices.Clone(idx.OpClasses),
 		}
 
 		// If the source index backs a constraint, clone the constraint too.
-		// pg: same logic as cloneIndexesToPartition — PK/UNIQUE constraints
+		// pg: same logic as cloneIndexesToPartition — PK/UNIQUE/EXCLUDE constraints
 		// are backed by indexes and must be cloned together.
+		if am := c.accessMethodByName[newIdx.AccessMethod]; am != nil {
+			c.recordDependency('i', newIdx.OID, 0, 'm', am.OID, 0, DepNormal)
+		}
+		c.recordOpClassDependencies('i', newIdx.OID, c.indexOpClassRefs(dst, dstAttnums, newIdx.NKeyColumns, newIdx.OpClasses), newIdx.AccessMethod)
+		var srcIdxExtDeps []DepEntry
+		for _, d := range c.deps {
+			if d.ObjType == 'i' && d.ObjOID == idx.OID && d.DepType == DepNormal &&
+				!(d.RefType == 'r' && d.RefOID == src.OID) {
+				srcIdxExtDeps = append(srcIdxExtDeps, d)
+			}
+		}
+		for _, d := range srcIdxExtDeps {
+			c.recordDependency('i', newIdx.OID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+		}
 		if idx.ConstraintOID != 0 {
 			srcCon := c.constraints[idx.ConstraintOID]
 			if srcCon != nil {
@@ -1749,14 +2037,27 @@ func (c *Catalog) cloneLikeIndexes(schema *Schema, src, dst *Relation) {
 					Namespace:  schema.OID,
 					Columns:    conAttnums,
 					IndexOID:   newIdx.OID,
+					Deferrable: srcCon.Deferrable,
+					Deferred:   srcCon.Deferred,
 					Validated:  true,
 					ConIsLocal: true,
+					ExclOps:    slices.Clone(srcCon.ExclOps),
 				}
 
 				newIdx.ConstraintOID = conOID
 				c.registerConstraint(dst.OID, newCon)
 				c.recordDependency('c', conOID, 0, 'r', dst.OID, 0, DepAuto)
 				c.recordColumnDependencies('c', conOID, dst.OID, conAttnums, DepAuto)
+				var srcConExtDeps []DepEntry
+				for _, d := range c.deps {
+					if d.ObjType == 'c' && d.ObjOID == srcCon.OID && d.DepType == DepNormal &&
+						!(d.RefType == 'r' && d.RefOID == src.OID) {
+						srcConExtDeps = append(srcConExtDeps, d)
+					}
+				}
+				for _, d := range srcConExtDeps {
+					c.recordDependency('c', conOID, 0, d.RefType, d.RefOID, d.RefSubID, DepNormal)
+				}
 			}
 		}
 

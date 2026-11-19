@@ -297,6 +297,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	def.Deferrable = con.Deferrable
 	def.Deferred = con.Initdeferred
 	def.SkipValidation = con.SkipValidation
+	def.IndexSpace = con.Indexspace
 
 	switch ct {
 	case ConstraintPK, ConstraintUnique:
@@ -338,6 +339,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 						}
 						if elem, ok := pair.Items[0].(*nodes.IndexElem); ok && elem.Name != "" {
 							def.Columns = append(def.Columns, elem.Name)
+							def.ExclOpClasses = append(def.ExclOpClasses, indexElemOpClass(elem))
 						}
 						if opList, ok := pair.Items[1].(*nodes.List); ok {
 							opName := ""
@@ -352,6 +354,7 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 					for i := 0; i < len(items)-1; i += 2 {
 						if elem, ok := items[i].(*nodes.IndexElem); ok && elem.Name != "" {
 							def.Columns = append(def.Columns, elem.Name)
+							def.ExclOpClasses = append(def.ExclOpClasses, indexElemOpClass(elem))
 						}
 						if opList, ok := items[i+1].(*nodes.List); ok {
 							opName := ""
@@ -367,6 +370,19 @@ func convertConstraintNode(con *nodes.Constraint) (ConstraintDef, bool) {
 	}
 
 	return def, true
+}
+
+// indexElemOpClass reads an IndexElem's operator class as a dotted name, or
+// "" when the element names none.
+func indexElemOpClass(elem *nodes.IndexElem) string {
+	if elem == nil || elem.Opclass == nil {
+		return ""
+	}
+	parts := make([]string, 0, len(elem.Opclass.Items))
+	for _, item := range elem.Opclass.Items {
+		parts = append(parts, stringVal(item))
+	}
+	return strings.Join(parts, ".")
 }
 
 // aliasName extracts the alias name from a pgparser Alias.

@@ -1,7 +1,6 @@
 package catalog
 
 import (
-	"maps"
 	"slices"
 )
 
@@ -16,9 +15,30 @@ func (c *Catalog) Clone() *Catalog {
 	}
 
 	// --- Shared builtin indexes (immutable, pointer-safe) ---
-	clone.castIndex = c.castIndex
-	clone.operByOID = c.operByOID
-	clone.operByKey = c.operByKey
+	clone.operByOID = make(map[uint32]*BuiltinOperator, len(c.operByOID))
+	clone.operByKey = make(map[operKey][]*BuiltinOperator, len(c.operByKey))
+	opClones := make(map[uint32]*BuiltinOperator, len(c.operByOID))
+	for oid, op := range c.operByOID {
+		if oid < FirstNormalObjectId {
+			clone.operByOID[oid] = op // builtin: share pointer
+			opClones[oid] = op
+			continue
+		}
+		copied := *op
+		clone.operByOID[oid] = &copied
+		opClones[oid] = &copied
+	}
+	for key, ops := range c.operByKey {
+		list := make([]*BuiltinOperator, 0, len(ops))
+		for _, op := range ops {
+			if copied := opClones[op.OID]; copied != nil {
+				list = append(list, copied)
+			}
+		}
+		if len(list) > 0 {
+			clone.operByKey[key] = list
+		}
+	}
 
 	// Procs: start from builtin, user procs added below.
 	clone.procByOID = make(map[uint32]*BuiltinProc, len(c.procByOID))
@@ -64,6 +84,7 @@ func (c *Catalog) Clone() *Catalog {
 			OID:       s.OID,
 			Name:      s.Name,
 			Owner:     s.Owner,
+			OwnerName: s.OwnerName,
 			Relations: make(map[string]*Relation, len(s.Relations)),
 			Indexes:   make(map[string]*Index, len(s.Indexes)),
 			Sequences: make(map[string]*Sequence, len(s.Sequences)),
@@ -265,6 +286,10 @@ func (c *Catalog) Clone() *Catalog {
 			cup.AllArgTypes = make([]uint32, len(up.AllArgTypes))
 			copy(cup.AllArgTypes, up.AllArgTypes)
 		}
+		if up.ArgDefaultTypes != nil {
+			cup.ArgDefaultTypes = make([]uint32, len(up.ArgDefaultTypes))
+			copy(cup.ArgDefaultTypes, up.ArgDefaultTypes)
+		}
 		cup.Schema = clone.schemas[up.Schema.OID]
 		clone.userProcs[oid] = &cup
 
@@ -374,10 +399,64 @@ func (c *Catalog) Clone() *Catalog {
 		clone.extensions[oid] = &ce
 		clone.extByName[ce.Name] = &ce
 	}
-	clone.extensionMembers = maps.Clone(c.extensionMembers)
-	clone.extensionComments = maps.Clone(c.extensionComments)
+	clone.extensionMembers = make(map[uint32]string, len(c.extensionMembers))
+	for k, v := range c.extensionMembers {
+		clone.extensionMembers[k] = v
+	}
+	clone.extensionComments = make(map[commentKey]string, len(c.extensionComments))
+	for k, v := range c.extensionComments {
+		clone.extensionComments[k] = v
+	}
 
 	// --- Access methods: share built-in, deep copy user-created ---
+	clone.tablespaces = make(map[string]bool, len(c.tablespaces))
+	for name, exists := range c.tablespaces {
+		clone.tablespaces[name] = exists
+	}
+	clone.tablespaceOwners = make(map[string]string, len(c.tablespaceOwners))
+	for name, owner := range c.tablespaceOwners {
+		clone.tablespaceOwners[name] = owner
+	}
+	clone.databaseName = c.databaseName
+	clone.databaseOwners = make(map[string]string, len(c.databaseOwners))
+	for name, owner := range c.databaseOwners {
+		clone.databaseOwners[name] = owner
+	}
+	clone.defaultTablespace = c.defaultTablespace
+	clone.defaultTableAccessMethod = c.defaultTableAccessMethod
+	clone.snapshot = c.snapshot
+	clone.installingSnapshot = c.installingSnapshot
+	clone.roles = make(map[string]bool, len(c.roles))
+	for name, exists := range c.roles {
+		clone.roles[name] = exists
+	}
+	clone.typeOwners = make(map[uint32]string, len(c.typeOwners))
+	for oid, owner := range c.typeOwners {
+		clone.typeOwners[oid] = owner
+	}
+	clone.operatorOwners = make(map[uint32]string, len(c.operatorOwners))
+	for oid, owner := range c.operatorOwners {
+		clone.operatorOwners[oid] = owner
+	}
+	clone.operatorSchemas = make(map[uint32]uint32, len(c.operatorSchemas))
+	for oid, ns := range c.operatorSchemas {
+		clone.operatorSchemas[oid] = ns
+	}
+	clone.extensionCasts = make(map[castKey]string, len(c.extensionCasts))
+	for key, ext := range c.extensionCasts {
+		clone.extensionCasts[key] = ext
+	}
+	clone.castIndex = make(map[castKey]*BuiltinCast, len(c.castIndex))
+	for key, cast := range c.castIndex {
+		if key.source < FirstNormalObjectId && key.target < FirstNormalObjectId &&
+			cast.Func < FirstNormalObjectId && c.extensionCasts[key] == "" {
+			clone.castIndex[key] = cast // builtin: share pointer
+			continue
+		}
+		copied := *cast
+		clone.castIndex[key] = &copied
+	}
+
 	clone.accessMethods = make(map[uint32]*AccessMethod, len(c.accessMethods))
 	clone.accessMethodByName = make(map[string]*AccessMethod, len(c.accessMethodByName))
 	for oid, am := range c.accessMethods {

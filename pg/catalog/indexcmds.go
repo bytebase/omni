@@ -20,6 +20,8 @@ type Index struct {
 	IsReplicaIdent   bool     // indisreplident
 	ConstraintOID    uint32   // 0 if standalone
 	AccessMethod     string   // "btree" (default), "hash", "gist", "gin", "brin"
+	Tablespace       string   // tablespace the index was created in, or "" for the default
+	OwnerName        string   // role that owns the index
 	NKeyColumns      int      // number of key columns (rest are INCLUDE); 0 = all are key
 	WhereClause      string   // analyzed WHERE predicate text; empty = no partial index
 	IndOption        []int16  // per-column flags: bit0=DESC, bit1=NULLS_FIRST
@@ -49,6 +51,11 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		return errWrongObjectType(rv.Relname, "a table or materialized view")
 	}
 
+	effectiveTablespace := c.effectiveIndexTablespace(stmt.TableSpace, rel)
+	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
+		return err
+	}
+
 	// Resolve access method. Default to "btree" if empty.
 	// pg: src/backend/commands/indexcmds.c — DefineIndex (amcanunique check)
 	accessMethod := stmt.AccessMethod
@@ -56,10 +63,17 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		accessMethod = "btree"
 	}
 
-	// Validate AM exists in registry.
+	// Validate AM exists in registry and is an index access method.
 	am := c.accessMethodByName[accessMethod]
 	if am == nil {
-		return errUndefinedObject("access method", accessMethod)
+		if !c.snapshot {
+			return errUndefinedObject("access method", accessMethod)
+		}
+		am = &AccessMethod{Name: accessMethod, Type: 'i', OID: c.oidGen.Next()}
+	}
+	if am.Type != 'i' {
+		return &Error{Code: CodeInternalError,
+			Message: fmt.Sprintf("access method %q is not of type INDEX", accessMethod)}
 	}
 
 	// Validate AM capabilities (only for known built-in AMs; custom AMs pass through).
@@ -111,6 +125,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var exprTexts []string // deparsed expressions for expression columns
 	var analyzedExprs []AnalyzedExpr
 	var opClasses []string
+	var opClassRefs []opClassRef
 	namedOpClass := false
 	if stmt.IndexParams != nil {
 		for _, item := range stmt.IndexParams.Items {
@@ -118,6 +133,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			if !ok {
 				continue
 			}
+			var opClassTypeOID uint32
 			if elem.Name == "" {
 				// Expression index element: store attnum=0 (PG convention).
 				attnums = append(attnums, 0)
@@ -129,6 +145,9 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 						rte := c.buildRelationRTE(rel)
 						exprTexts = append(exprTexts, c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true))
 						analyzedExprs = append(analyzedExprs, analyzed)
+						if analyzed != nil {
+							opClassTypeOID = analyzed.exprType()
+						}
 					} else {
 						return fmt.Errorf("failed to analyze index expression: %w", aErr)
 					}
@@ -146,6 +165,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				}
 				attnums = append(attnums, rel.Columns[idx].AttNum)
 				colNames = append(colNames, elem.Name)
+				opClassTypeOID = rel.Columns[idx].TypeOID
 			}
 
 			// Compute indoption flags: bit0=DESC, bit1=NULLS_FIRST.
@@ -170,6 +190,17 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				for _, part := range elem.Opclass.Items {
 					opClass = append(opClass, stringVal(part))
 				}
+			}
+			if len(opClass) > 0 {
+				opClassRefs = append(opClassRefs, opClassRef{
+					schema:  strings.Join(opClass[:len(opClass)-1], "."),
+					name:    opClass[len(opClass)-1],
+					typeOID: opClassTypeOID,
+				})
+			} else {
+				// No opclass named: PostgreSQL still picks the default one for
+				// the access method and column/expression type, and depends on it.
+				opClassRefs = append(opClassRefs, opClassRef{typeOID: opClassTypeOID})
 			}
 			opClasses = append(opClasses, strings.Join(opClass, "."))
 			namedOpClass = namedOpClass || len(opClass) > 0
@@ -269,7 +300,6 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		}
 		return errDuplicateObject("index", name)
 	}
-
 	idx := &Index{
 		OID:              c.oidGen.Next(),
 		Name:             name,
@@ -279,6 +309,8 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		IsUnique:         stmt.Unique,
 		IsPrimary:        stmt.Primary,
 		AccessMethod:     accessMethod,
+		Tablespace:       normalizeTablespace(effectiveTablespace),
+		OwnerName:        rel.OwnerName,
 		NKeyColumns:      nKeyColumns,
 		WhereClause:      whereClause,
 		IndOption:        indOption,
@@ -303,6 +335,10 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	if analyzedWhere != nil {
 		c.recordDependencyOnSingleRelExpr('i', idx.OID, analyzedWhere, rel.OID, DepNormal, DepAuto)
 	}
+	c.recordOpClassDependencies('i', idx.OID, opClassRefs, accessMethod)
+	if am := c.accessMethodByName[accessMethod]; am != nil {
+		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
 
 	return nil
 }
@@ -322,11 +358,16 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 		IsPrimary:     isPrimary,
 		ConstraintOID: constraintOID,
 		AccessMethod:  "btree",
+		OwnerName:     rel.OwnerName,
 		NKeyColumns:   len(attnums),
 		IndOption:     indOption,
 	}
 
 	c.registerIndex(schema, idx)
+	if am := c.accessMethodByName[idx.AccessMethod]; am != nil {
+		c.recordDependency('i', idx.OID, 0, 'm', am.OID, 0, DepNormal)
+	}
+	c.recordOpClassDependencies('i', idx.OID, c.indexOpClassRefs(rel, attnums, len(attnums), nil), idx.AccessMethod)
 	// pg: index_create() — whole-relation dep + per-column deps
 	c.recordDependency('i', idx.OID, 0, 'r', rel.OID, 0, DepAuto)
 	for _, attnum := range attnums {
@@ -338,7 +379,139 @@ func (c *Catalog) createIndexInternal(schema *Schema, rel *Relation, name string
 	return idx
 }
 
+// indexOpClassRefs builds per-key-column operator-class references (including
+// column types for default or overloaded operator-class lookup) for indexes
+// constructed from resolved column attnums.
+func (c *Catalog) indexOpClassRefs(rel *Relation, attnums []int16, nKeyColumns int, opClasses []string) []opClassRef {
+	nKey := nKeyColumns
+	if nKey <= 0 || nKey > len(attnums) {
+		nKey = len(attnums)
+	}
+	refs := make([]opClassRef, 0, nKey)
+	for i := 0; i < nKey; i++ {
+		var ref opClassRef
+		if i < len(opClasses) && opClasses[i] != "" {
+			ref.schema, ref.name = "", opClasses[i]
+			if dot := strings.LastIndexByte(opClasses[i], '.'); dot >= 0 {
+				ref.schema, ref.name = opClasses[i][:dot], opClasses[i][dot+1:]
+			}
+		}
+		if rel != nil && attnums[i] > 0 {
+			if ci := indexOfAttNum(rel, attnums[i]); ci >= 0 {
+				ref.typeOID = rel.Columns[ci].TypeOID
+			}
+		}
+		refs = append(refs, ref)
+	}
+	return refs
+}
+
 // registerIndex adds an index to all catalog maps.
+// opClassRef is one operator-class reference an index column made: the schema
+// it named (empty when unqualified), its name, and the indexed type it must
+// apply to (0 for an expression column).
+type opClassRef struct {
+	schema  string
+	name    string
+	typeOID uint32
+}
+
+// resolveOpClassOID finds the operator class a column reference names, the way
+// PostgreSQL does: by schema (or the first on the search path), access method,
+// and indexed type. It returns 0 when nothing matches.
+//
+// pg: src/backend/commands/opclasscmds.c — GetIndexOpClass
+func (c *Catalog) resolveOpClassOID(ref opClassRef, amOID uint32) uint32 {
+	// An index with no opclass for a column takes the default one for its
+	// access method and type.
+	// pg: src/backend/commands/indexcmds.c — GetDefaultOpClass
+	if ref.name == "" {
+		if ref.typeOID == 0 {
+			return 0
+		}
+		if opc := c.opClassByKey[opClassKey{amOID: amOID, typeOID: ref.typeOID}]; opc != nil {
+			return opc.OID
+		}
+		return 0
+	}
+	var best, byType uint32
+	consider := func(oid uint32, opc *OpClass) {
+		if opc.Name != ref.name || opc.AMOID != amOID {
+			return
+		}
+		if ref.typeOID != 0 && opc.TypeOID == ref.typeOID {
+			if byType == 0 || oid < byType {
+				byType = oid
+			}
+			return
+		}
+		if best == 0 || oid < best {
+			best = oid
+		}
+	}
+	if ref.schema != "" {
+		s := c.schemaByName[ref.schema]
+		if s == nil {
+			return 0
+		}
+		for oid, opc := range c.opClasses {
+			if opc.Schema == s.OID {
+				consider(oid, opc)
+			}
+		}
+	} else {
+		// An unqualified name resolves in the first schema on the search path
+		// that holds it, as GetIndexOpClass does through OpclassnameGetOpcid.
+		// Without a known column type (an expression element), a name match in
+		// that schema is enough: it is the visible class.
+		for _, nsOID := range c.searchPathWithCatalog() {
+			schemaBest, schemaType := uint32(0), uint32(0)
+			for oid, opc := range c.opClasses {
+				if opc.Schema != nsOID || opc.Name != ref.name || opc.AMOID != amOID {
+					continue
+				}
+				if schemaBest == 0 || oid < schemaBest {
+					schemaBest = oid
+				}
+				if ref.typeOID != 0 && opc.TypeOID == ref.typeOID && (schemaType == 0 || oid < schemaType) {
+					schemaType = oid
+				}
+			}
+			if schemaType != 0 {
+				return schemaType
+			}
+			if schemaBest != 0 {
+				return schemaBest
+			}
+		}
+	}
+	if byType != 0 {
+		return byType
+	}
+	return best
+}
+
+// recordOpClassDependencies records a NORMAL dependency of an index on each
+// operator class its columns name, so dropping the operator class (or the
+// extension that owns it) reports the index as a dependent.
+//
+// pg: src/backend/catalog/index.c — index_create (opclass dependencies)
+func (c *Catalog) recordOpClassDependencies(objType byte, objOID uint32, refs []opClassRef, amName string) {
+	am := c.accessMethodByName[amName]
+	if am == nil {
+		return
+	}
+	seen := map[uint32]bool{}
+	for _, ref := range refs {
+		oid := c.resolveOpClassOID(ref, am.OID)
+		if oid == 0 || seen[oid] {
+			continue
+		}
+		seen[oid] = true
+		c.recordDependency(objType, objOID, 0, 'o', oid, 0, DepNormal)
+	}
+}
+
 func (c *Catalog) registerIndex(schema *Schema, idx *Index) {
 	c.indexes[idx.OID] = idx
 	c.indexesByRel[idx.RelOID] = append(c.indexesByRel[idx.RelOID], idx)
@@ -361,6 +534,8 @@ func (c *Catalog) removeIndex(schema *Schema, name string, idx *Index) {
 
 	c.removeComments('i', idx.OID)
 	c.removeDepsOf('i', idx.OID)
+	c.removeDepsOn('i', idx.OID)
+	c.removeDepsOn('r', idx.OID)
 }
 
 // removeIndexesForRelation removes all indexes belonging to a relation.
@@ -370,6 +545,8 @@ func (c *Catalog) removeIndexesForRelation(relOID uint32, schema *Schema) {
 		delete(c.indexes, idx.OID)
 		c.removeComments('i', idx.OID)
 		c.removeDepsOf('i', idx.OID)
+		c.removeDepsOn('i', idx.OID)
+		c.removeDepsOn('r', idx.OID)
 	}
 	delete(c.indexesByRel, relOID)
 }

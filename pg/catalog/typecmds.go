@@ -95,6 +95,8 @@ func (c *Catalog) DefineEnum(stmt *nodes.CreateEnumStmt) error {
 		labelMap[label] = ev
 	}
 
+	c.recordTypeOwner(typeOID)
+	c.recordTypeOwner(arrayOID)
 	// Register the enum type.
 	enumType := &BuiltinType{
 		OID:       typeOID,
@@ -468,6 +470,8 @@ func (c *Catalog) DefineDomain(stmt *nodes.CreateDomainStmt) error {
 	if bt := c.typeByOID[baseOID]; bt != nil {
 		domCategory = bt.Category
 	}
+	c.recordTypeOwner(typeOID)
+	c.recordTypeOwner(arrayOID)
 	domType := &BuiltinType{
 		OID:       typeOID,
 		TypeName:  name,
@@ -830,6 +834,8 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	typeOID := c.oidGen.Next()
 	arrayOID := c.oidGen.Next()
 
+	c.recordTypeOwner(typeOID)
+	c.recordTypeOwner(arrayOID)
 	// Register the range type.
 	rangeType := &BuiltinType{
 		OID:       typeOID,
@@ -904,6 +910,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 	c.typeByOID[multirangeOID] = multirangeType
 	c.typeByName[typeKey{ns: schema.OID, name: multirangeName}] = multirangeType
+	c.recordTypeOwner(multirangeOID)
 
 	multirangeArrayType := &BuiltinType{
 		OID:       multirangeArrayOID,
@@ -922,6 +929,7 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 	}
 	c.typeByOID[multirangeArrayOID] = multirangeArrayType
 	c.typeByName[typeKey{ns: schema.OID, name: multirangeArrayName}] = multirangeArrayType
+	c.recordTypeOwner(multirangeArrayOID)
 
 	// Store range metadata.
 	c.rangeTypes[typeOID] = &RangeType{
@@ -935,8 +943,8 @@ func (c *Catalog) DefineRange(stmt *nodes.CreateRangeStmt) error {
 
 	// Range depends on subtype.
 	c.recordDependency('t', typeOID, 0, 't', subtypeOID, 0, DepNormal)
-	// Multirange depends on range.
-	c.recordDependency('t', multirangeOID, 0, 't', typeOID, 0, DepNormal)
+	// Multirange is an internal companion of its range type.
+	c.recordDependency('t', multirangeOID, 0, 't', typeOID, 0, DepInternal)
 
 	return nil
 }
@@ -1005,6 +1013,7 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 		}
 		c.typeByOID[shellOID] = shellType
 		c.typeByName[typeKey{ns: schema.OID, name: name}] = shellType
+		c.recordTypeOwner(shellOID)
 		return nil
 	}
 
@@ -1020,22 +1029,22 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	// Parse parameters.
 	// pg: src/backend/commands/typecmds.c — DefineType (foreach loop, line 282-339)
 	var (
-		internalLength int16 = -1    // default: variable-length
-		inputName      string        // required
-		outputName     string        // required
+		internalLength int16  = -1 // default: variable-length
+		inputName      string      // required
+		outputName     string      // required
 		receiveName    string
 		sendName       string
 		typmodinName   string
 		typmodoutName  string
 		analyzeFnName  string
-		category       byte   = 'U'  // TYPCATEGORY_USER
+		category       byte = 'U' // TYPCATEGORY_USER
 		preferred      bool
-		delimiter      byte   = ','  // DEFAULT_TYPDELIM
+		delimiter      byte = ',' // DEFAULT_TYPDELIM
 		elemType       uint32
 		defaultValue   string
 		byValue        bool
-		alignment      byte   = 'i'  // TYPALIGN_INT
-		storage        byte   = 'p'  // TYPSTORAGE_PLAIN
+		alignment      byte = 'i' // TYPALIGN_INT
+		storage        byte = 'p' // TYPSTORAGE_PLAIN
 		collation      uint32
 	)
 
@@ -1213,6 +1222,19 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 		analyzeOID = c.findProcByName(analyzeFnName)
 	}
 
+	// pg: src/backend/catalog/pg_type.c — TypeCreate (shell ownership check)
+	if shellOwner := c.typeOwners[existing.OID]; shellOwner != "" && shellOwner != c.currentOwner() {
+		return &Error{
+			Code:    CodeInsufficientPrivilege,
+			Message: fmt.Sprintf("must be owner of type %s", name),
+		}
+	}
+
+	arrayTypeName := fmt.Sprintf("_%s", name)
+	if err := c.moveArrayTypeName(schema, arrayTypeName); err != nil {
+		return err
+	}
+
 	// Allocate array OID.
 	arrayOID := c.oidGen.Next()
 
@@ -1238,13 +1260,6 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	existing.Storage = storage
 	existing.TypeMod = -1
 	existing.Collation = collation
-
-	// Create the array type.
-	// pg: src/backend/commands/typecmds.c — DefineType (line 610-646)
-	arrayTypeName := fmt.Sprintf("_%s", name)
-	if err := c.moveArrayTypeName(schema, arrayTypeName); err != nil {
-		return err
-	}
 
 	// Array alignment: must be at least TYPALIGN_INT.
 	// pg: src/backend/commands/typecmds.c — DefineType (line 613)
@@ -1273,6 +1288,8 @@ func (c *Catalog) DefineType(stmt *nodes.DefineStmt) error {
 	}
 	c.typeByOID[arrayOID] = arrayType
 	c.typeByName[typeKey{ns: schema.OID, name: arrayTypeName}] = arrayType
+	c.recordTypeOwner(existing.OID)
+	c.recordTypeOwner(arrayOID)
 
 	_ = defaultValue // Default value is stored on the type but not tracked further in pgddl.
 	_ = preferred    // Already set on the type above.
@@ -1290,4 +1307,3 @@ func (c *Catalog) findProcByName(name string) uint32 {
 	}
 	return 0
 }
-

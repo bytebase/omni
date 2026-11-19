@@ -253,17 +253,18 @@ func (c *Catalog) DefineAggregate(stmt *nodes.DefineStmt) error {
 	// pg: src/backend/catalog/pg_aggregate.c — AggregateCreate → ProcedureCreate
 	// PG stores prosrc = "aggregate_dummy" for all aggregates.
 	up := &UserProc{
-		OID:      procOID,
-		Name:     aggName,
-		Schema:   schema,
-		Kind:     PROKIND_AGGREGATE,
-		ArgTypes: argOIDs,
-		RetType:  retType,
-		Volatile: 'i',
-		Parallel: parallel,
-		Language: "internal",
-		Body:     "aggregate_dummy",
-		AggKind:  aggKind,
+		OID:       procOID,
+		Name:      aggName,
+		Schema:    schema,
+		OwnerName: c.currentOwner(),
+		Kind:      PROKIND_AGGREGATE,
+		ArgTypes:  argOIDs,
+		RetType:   retType,
+		Volatile:  'i',
+		Parallel:  parallel,
+		Language:  "internal",
+		Body:      "aggregate_dummy",
+		AggKind:   aggKind,
 	}
 	if numDirectArgs > 0 {
 		up.AggNumDirectArgs = int16(numDirectArgs)

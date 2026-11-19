@@ -87,9 +87,9 @@ func (c *Catalog) CommentObject(stmt *nodes.CommentStmt) error {
 		if err != nil {
 			return err
 		}
-		idx, ok := schema.Indexes[name]
-		if !ok {
-			return &Error{Code: CodeUndefinedObject, Message: fmt.Sprintf("index %q does not exist", name)}
+		idx, err := c.findNamedIndex(schema, name)
+		if err != nil {
+			return err
 		}
 		key = commentKey{ObjType: 'i', ObjOID: idx.OID}
 

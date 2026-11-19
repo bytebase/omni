@@ -16,7 +16,7 @@ type PartitionInfo struct {
 
 // PartitionBound stores partition bound for a partition child.
 type PartitionBound struct {
-	Strategy   byte     // must match parent's strategy
+	Strategy   byte // must match parent's strategy
 	IsDefault  bool
 	ListValues []string // deparsed datum strings (LIST)
 	LowerBound []string // deparsed lower bound values (RANGE)
@@ -27,27 +27,27 @@ type PartitionBound struct {
 
 // Column represents a table column.
 type Column struct {
-	AttNum      int16
-	Name        string
-	TypeOID     uint32
-	TypeMod     int32
-	NotNull     bool
-	HasDefault  bool
-	Default     string
-	Len         int16
-	ByVal       bool
-	Align       byte
-	Storage     byte
-	Collation   uint32
+	AttNum          int16
+	Name            string
+	TypeOID         uint32
+	TypeMod         int32
+	NotNull         bool
+	HasDefault      bool
+	Default         string
+	Len             int16
+	ByVal           bool
+	Align           byte
+	Storage         byte
+	Collation       uint32
 	DefaultAnalyzed AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
 	Generated       byte         // 's' = stored generated, 0 = none
-	Identity    byte // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
-	IsLocal     bool // true if defined locally (not only inherited)
-	InhCount    int  // number of inheritance ancestors that define this column
-	Compression    byte   // attcompression: 'p'=pglz, 'l'=lz4, 0=default
-	GenerationExpr string // expression text for generated columns
-	CollationName  string // explicit collation name (empty = type default)
-	Ndims          int16  // attndims — declared array dimensions
+	Identity        byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
+	IsLocal         bool         // true if defined locally (not only inherited)
+	InhCount        int          // number of inheritance ancestors that define this column
+	Compression     byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
+	GenerationExpr  string       // expression text for generated columns
+	CollationName   string       // explicit collation name (empty = type default)
+	Ndims           int16        // attndims — declared array dimensions
 }
 
 // Relation represents a table, view, or other relation.
@@ -86,15 +86,58 @@ type Relation struct {
 	// ON COMMIT behavior for temp tables.
 	OnCommit byte // 0=noop, 'p'=preserve rows, 'd'=delete rows, 'D'=drop
 
+	// Tablespace is the tablespace the relation was created in, or "" for
+	// the database default. It is not part of the schema a sync reads.
+	Tablespace string
+	// AccessMethod is the table access method (pg_class.relam), or "" when
+	// unset (e.g. default heap or partitioned table without explicit USING).
+	AccessMethod string
+	// OwnerName is the role that owns the relation, for ALTER ... OWNED BY.
+	OwnerName string
+
 	// Relation flags (pg_class).
-	Owner        uint32 // relowner
-	HasRules     bool   // relhasrules
-	HasSubclass  bool   // relhassubclass — has child tables/partitions
-	IsPopulated  bool   // relispopulated — matview populated state
-	IsPartition  bool   // relispartition
+	Owner       uint32 // relowner
+	HasRules    bool   // relhasrules
+	HasSubclass bool   // relhassubclass — has child tables/partitions
+	IsPopulated bool   // relispopulated — matview populated state
+	IsPartition bool   // relispartition
 }
 
-// findRelation locates a relation by schema (or search path) and name.
+// relationNamespaceKind returns the relkind a schema's relation namespace
+// holds a name under, or false when it holds none. PostgreSQL keeps tables,
+// views, materialized views, composite types, sequences and indexes in one
+// namespace (pg_class), so a name it holds is never free: 'S' is a sequence
+// and 'i' an index, the kinds another map in this catalog stores.
+func relationNamespaceKind(s *Schema, name string) (byte, bool) {
+	if rel := s.Relations[name]; rel != nil {
+		return rel.RelKind, true
+	}
+	if s.Indexes[name] != nil {
+		return 'i', true
+	}
+	if s.Sequences[name] != nil {
+		return 'S', true
+	}
+	return 0, false
+}
+
+// findNamedIndex returns the index a schema's relation namespace holds a
+// name under. An index name PostgreSQL resolves to a table, view or sequence
+// is 42809, not a missing index.
+func (c *Catalog) findNamedIndex(schema *Schema, name string) (*Index, error) {
+	if idx := schema.Indexes[name]; idx != nil {
+		return idx, nil
+	}
+	if _, ok := relationNamespaceKind(schema, name); ok {
+		return nil, errWrongObjectType(name, "an index")
+	}
+	return nil, errUndefinedObject("index", name)
+}
+
+// findRelation locates a relation by schema (or search path) and name. A
+// name the namespace holds as another kind is 42809, not a missing relation:
+// PostgreSQL finds the index or sequence and then says it is not the object
+// the statement needs.
 func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, error) {
 	if schemaName != "" {
 		s := c.schemaByName[schemaName]
@@ -103,6 +146,9 @@ func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, 
 		}
 		r := s.Relations[relName]
 		if r == nil {
+			if _, ok := relationNamespaceKind(s, relName); ok {
+				return nil, nil, errWrongObjectType(relName, "a table")
+			}
 			return nil, nil, errUndefinedTable(relName)
 		}
 		return s, r, nil
@@ -114,6 +160,9 @@ func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, 
 		}
 		if r := s.Relations[relName]; r != nil {
 			return s, r, nil
+		}
+		if _, ok := relationNamespaceKind(s, relName); ok {
+			return nil, nil, errWrongObjectType(relName, "a table")
 		}
 	}
 	return nil, nil, errUndefinedTable(relName)
@@ -164,13 +213,26 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 
 	delete(schema.Relations, name)
 	delete(c.relationByOID, rel.OID)
+	delete(c.extensionMembers, rel.OID)
 
 	// Remove row type.
 	if rel.RowTypeOID != 0 {
 		if rt := c.typeByOID[rel.RowTypeOID]; rt != nil {
 			delete(c.typeByName, typeKey{ns: rt.Namespace, name: rt.TypeName})
 		}
+		for key, cast := range c.castIndex {
+			if cast.Source == rel.RowTypeOID || cast.Target == rel.RowTypeOID {
+				delete(c.castIndex, key)
+				delete(c.extensionCasts, key)
+			}
+		}
 		delete(c.typeByOID, rel.RowTypeOID)
+		delete(c.typeOwners, rel.RowTypeOID)
+		delete(c.extensionMembers, rel.RowTypeOID)
+		c.removeGrantsForObject('T', rel.RowTypeOID)
+		c.removeComments('t', rel.RowTypeOID)
+		c.removeDepsOf('t', rel.RowTypeOID)
+		c.removeDepsOn('t', rel.RowTypeOID)
 	}
 
 	// Remove array type.
@@ -178,18 +240,43 @@ func (c *Catalog) removeRelation(schema *Schema, name string, rel *Relation) {
 		if at := c.typeByOID[rel.ArrayOID]; at != nil {
 			delete(c.typeByName, typeKey{ns: at.Namespace, name: at.TypeName})
 		}
+		for key, cast := range c.castIndex {
+			if cast.Source == rel.ArrayOID || cast.Target == rel.ArrayOID {
+				delete(c.castIndex, key)
+				delete(c.extensionCasts, key)
+			}
+		}
 		delete(c.typeByOID, rel.ArrayOID)
+		delete(c.typeOwners, rel.ArrayOID)
+		delete(c.extensionMembers, rel.ArrayOID)
+		c.removeGrantsForObject('T', rel.ArrayOID)
+		c.removeComments('t', rel.ArrayOID)
+		c.removeDepsOf('t', rel.ArrayOID)
+		c.removeDepsOn('t', rel.ArrayOID)
 	}
 }
 
-// removeTriggersForRelation removes all triggers on a relation.
+// removeTriggersForRelation removes all triggers on a relation (and any
+// constraint triggers on other relations referencing it via FROM).
 func (c *Catalog) removeTriggersForRelation(relOID uint32) {
 	for _, trig := range c.triggersByRel[relOID] {
 		delete(c.triggers, trig.OID)
+		delete(c.extensionMembers, trig.OID)
 		c.removeComments('g', trig.OID)
 		c.removeDepsOf('g', trig.OID)
+		c.removeDepsOn('g', trig.OID)
 	}
 	delete(c.triggersByRel, relOID)
+
+	var refTrigs []*Trigger
+	for _, trig := range c.triggers {
+		if trig.ConstraintRelOID == relOID && trig.RelOID != relOID {
+			refTrigs = append(refTrigs, trig)
+		}
+	}
+	for _, trig := range refTrigs {
+		c.removeTrigger(trig)
+	}
 }
 
 // removeInhEntries removes all pg_inherits entries where relOID is child or parent.
