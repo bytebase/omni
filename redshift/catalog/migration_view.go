@@ -115,7 +115,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 					ops = append(ops, buildModifyViewOps(from, to, entry)...)
 				}
 			case 'm':
-				ops = append(ops, buildModifyMatViewOps(from, to, entry)...)
+				ops = append(ops, buildModifyMatViewOps(to, entry)...)
 			}
 		}
 	}
@@ -256,48 +256,20 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 }
 
 // buildModifyMatViewOps creates DROP + CREATE ops for a modified matview.
-// Materialized views don't support CREATE OR REPLACE, so the drop takes the
-// views that depend on it: they are dropped first and created again from the
-// definitions they had.
-func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
-	var ops []MigrationOp
-
-	// Deepest dependents first, so each is dropped before the view it reads.
-	// Only the ones the target keeps unchanged are ours: a removed or changed
-	// dependent has a diff of its own, which would duplicate this work.
-	var dependents []viewRef
-	for _, dep := range dependentViewsInDropOrder(from, entry.From) {
-		fromRel, toRel := from.GetRelation(dep.schema, dep.name), to.GetRelation(dep.schema, dep.name)
-		if fromRel == nil || toRel == nil || toRel.RelKind != 'v' || fromRel.CheckOption != toRel.CheckOption {
-			continue
-		}
-		fromDef, _ := from.GetViewDefinition(dep.schema, dep.name)
-		toDef, _ := to.GetViewDefinition(dep.schema, dep.name)
-		if fromDef != toDef {
-			continue
-		}
-		dependents = append(dependents, dep)
-	}
-	for _, dep := range dependents {
-		op := MigrationOp{
-			Type:          OpDropView,
-			SchemaName:    dep.schema,
-			ObjectName:    dep.name,
-			SQL:           fmt.Sprintf("DROP VIEW %s", migrationQualifiedName(dep.schema, dep.name)),
-			Transactional: true,
-			Phase:         PhasePre,
-			ObjType:       'r',
-			Priority:      PriorityView,
-		}
-		// The plan's dependency sort orders the drops by these OIDs.
-		if rel := from.GetRelation(dep.schema, dep.name); rel != nil {
-			op.ObjOID = rel.OID
-		}
-		ops = append(ops, op)
-	}
-
+// Materialized views don't support CREATE OR REPLACE. The views and
+// materialized views that read it are handled beside this by
+// wrapMatViewReplacementsWithDependents, which drops them first and creates
+// them again from the target.
+func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+
+	// The view's storage travels with the statement that names it, as it does
+	// when the view is added.
+	options := ""
+	if rel := to.GetRelation(entry.SchemaName, entry.Name); rel != nil {
+		options = deparseMatViewOptions(rel)
+	}
 
 	dropOp := MigrationOp{
 		Type:          OpDropView,
@@ -309,13 +281,6 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 		ObjType:       'r',
 		ObjOID:        entry.From.OID,
 		Priority:      PriorityView,
-	}
-
-	// The view's storage travels with the statement that names it, as it does
-	// when the view is added.
-	options := ""
-	if rel := to.GetRelation(entry.SchemaName, entry.Name); rel != nil {
-		options = deparseMatViewOptions(rel)
 	}
 
 	createSQL := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
@@ -333,103 +298,236 @@ func buildModifyMatViewOps(from, to *Catalog, entry RelationDiffEntry) []Migrati
 		Priority:      PriorityView,
 	}
 
-	ops = append(ops, dropOp, createOp)
-
-	// The dependents read the view again, shallowest first, with the grants
-	// the drop took with it.
-	for i := len(dependents) - 1; i >= 0; i-- {
-		dep := dependents[i]
-		ops = append(ops, buildRecreateViewOp(from, dep))
-		rel := to.GetRelation(dep.schema, dep.name)
-		if rel == nil {
-			continue
-		}
-		for _, g := range to.grants {
-			if g.ObjType != 'r' || g.ObjOID != rel.OID {
-				continue
-			}
-			ops = append(ops, MigrationOp{
-				Type:          OpGrant,
-				SchemaName:    dep.schema,
-				ObjectName:    dep.name,
-				SQL:           formatGrantSQL(g, rel.Name),
-				Transactional: grantTransactional(g),
-				Phase:         PhaseMain,
-				ObjType:       g.ObjType,
-				ObjOID:        g.ObjOID,
-				Priority:      PriorityMetadata,
-			})
-		}
-	}
-	return ops
+	return []MigrationOp{dropOp, createOp}
 }
 
-// buildRecreateViewOp creates a CREATE VIEW op for a view that a materialized
-// view's re-creation dropped, from the definition it had.
-func buildRecreateViewOp(from *Catalog, ref viewRef) MigrationOp {
-	op := MigrationOp{
-		Type:          OpCreateView,
-		SchemaName:    ref.schema,
-		ObjectName:    ref.name,
-		Transactional: true,
-		Phase:         PhaseMain,
-		ObjType:       'r',
-		Priority:      PriorityView,
+// wrapMatViewReplacementsWithDependents adds what a replaced materialized view
+// needs: the relations that read it, transitively — views and materialized
+// views alike — dropped before it and created again from the target, with the
+// grants, comments and indexes their drops take with them. Redshift has no ALTER
+// for most of a materialized view's storage, so the catalog re-creates the view;
+// the replacement's own ops for those relations are filtered out, since this
+// function writes them.
+//
+// The drops carry the from catalog's OIDs and the creations the target's, which
+// is what sortMigrationOps orders each phase by.
+func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) []MigrationOp {
+	var replaced []*Relation
+	for _, entry := range diff.Relations {
+		if entry.Action == DiffModify && entry.To != nil && entry.To.RelKind == 'm' && entry.From != nil {
+			replaced = append(replaced, entry.From)
+		}
 	}
-	rel := from.GetRelation(ref.schema, ref.name)
-	if rel != nil {
-		op.ObjOID = rel.OID
+	if len(replaced) == 0 {
+		return ops
 	}
-	def, _ := from.GetViewDefinition(ref.schema, ref.name)
-	var b strings.Builder
-	b.WriteString("CREATE VIEW ")
-	b.WriteString(migrationQualifiedName(ref.schema, ref.name))
-	b.WriteString(" AS ")
-	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
-	if rel != nil {
+
+	// The dependents, transitively, by the catalog's recorded dependencies: a
+	// name in a definition would take a view reading a column such as
+	// customer_id for one reading a relation named id.
+	seen := make(map[uint32]bool)
+	var dependents []*Relation
+	queue := make([]uint32, 0, len(replaced))
+	for _, rel := range replaced {
+		queue = append(queue, rel.OID)
+	}
+	for len(queue) > 0 {
+		oid := queue[0]
+		queue = queue[1:]
+		for _, dep := range from.deps {
+			if dep.RefType != 'r' || dep.RefOID != oid || dep.ObjType != 'r' || seen[dep.ObjOID] {
+				continue
+			}
+			rel := from.GetRelationByOID(dep.ObjOID)
+			if rel == nil || rel.Schema == nil || (rel.RelKind != 'v' && rel.RelKind != 'm') {
+				continue
+			}
+			seen[dep.ObjOID] = true
+			dependents = append(dependents, rel)
+			queue = append(queue, rel.OID)
+		}
+	}
+	if len(dependents) == 0 {
+		// The view itself is still replaced: its own grants and comments went
+		// with the drop, and their replacements are added below.
+		var extra []MigrationOp
+		for _, rel := range replaced {
+			target := to.GetRelation(rel.Schema.Name, rel.Name)
+			if target == nil {
+				continue
+			}
+			extra = append(extra, buildRelationMetadataOps(to, target)...)
+		}
+		return append(ops, extra...)
+	}
+
+	// Whatever the diff wrote for those relations is this function's, grants,
+	// comments and indexes included.
+	owned := make(map[string]bool, len(dependents))
+	for _, rel := range dependents {
+		owned[rel.Schema.Name+"."+rel.Name] = true
+	}
+	kept := ops[:0]
+	for _, op := range ops {
+		if owned[op.SchemaName+"."+op.ObjectName] {
+			switch op.Type {
+			case OpDropView, OpCreateView, OpAlterView, OpGrant, OpRevoke, OpComment, OpCreateIndex, OpDropIndex:
+				continue
+			}
+		}
+		kept = append(kept, op)
+	}
+
+	var extra []MigrationOp
+	for _, rel := range dependents {
+		kind := "VIEW"
+		if rel.RelKind == 'm' {
+			kind = "MATERIALIZED VIEW"
+		}
+		extra = append(extra, MigrationOp{
+			Type:          OpDropView,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    rel.Name,
+			SQL:           fmt.Sprintf("DROP %s %s", kind, migrationQualifiedName(rel.Schema.Name, rel.Name)),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			ObjOID:        rel.OID,
+			Priority:      PriorityView,
+		})
+	}
+
+	for _, rel := range dependents {
+		target := to.GetRelation(rel.Schema.Name, rel.Name)
+		if target == nil {
+			// The target drops it: this function's drop above is its whole story.
+			continue
+		}
+		extra = append(extra, buildRecreateRelationOps(to, target)...)
+	}
+
+	// The replaced views' own grants and comments went with their drops.
+	for _, rel := range replaced {
+		target := to.GetRelationByOID(rel.OID)
+		if target == nil {
+			target = to.GetRelation(rel.Schema.Name, rel.Name)
+		}
+		if target == nil {
+			continue
+		}
+		extra = append(extra, buildRelationMetadataOps(to, target)...)
+	}
+
+	return append(kept, extra...)
+}
+
+// buildRecreateRelationOps creates a view or materialized view again from the
+// target, with the metadata its drop took with it.
+func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
+	qn := migrationQualifiedName(rel.Schema.Name, rel.Name)
+	var sql string
+	if rel.RelKind == 'm' {
+		def, _ := to.GetMatViewDefinition(rel.Schema.Name, rel.Name)
+		sql = fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
+			qn, deparseMatViewOptions(rel), strings.TrimRight(def, " \t\n\r;"))
+	} else {
+		def, _ := to.GetViewDefinition(rel.Schema.Name, rel.Name)
+		var b strings.Builder
+		b.WriteString("CREATE VIEW ")
+		b.WriteString(qn)
+		b.WriteString(" AS ")
+		b.WriteString(strings.TrimRight(def, " \t\n\r;"))
 		switch rel.CheckOption {
 		case 'l':
 			b.WriteString("\n WITH LOCAL CHECK OPTION")
 		case 'c':
 			b.WriteString("\n WITH CASCADED CHECK OPTION")
 		}
+		sql = b.String()
 	}
-	op.SQL = b.String()
-	return op
+
+	ops := []MigrationOp{{
+		Type:          OpCreateView,
+		SchemaName:    rel.Schema.Name,
+		ObjectName:    rel.Name,
+		SQL:           sql,
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        rel.OID,
+		Priority:      PriorityView,
+	}}
+
+	// A materialized view's indexes went with it too.
+	if rel.RelKind == 'm' {
+		for _, idx := range to.IndexesOf(rel.OID) {
+			if idx.ConstraintOID != 0 {
+				continue // managed by constraint DDL
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpCreateIndex,
+				SchemaName:    rel.Schema.Name,
+				ObjectName:    idx.Name,
+				SQL:           buildCreateIndexSQL(idx, rel, rel.Schema.Name),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'i',
+				ObjOID:        idx.OID,
+				Priority:      PriorityIndex,
+			})
+		}
+	}
+
+	return append(ops, buildRelationMetadataOps(to, rel)...)
 }
 
-// dependentViewsInDropOrder returns the views that depend on a relation,
-// transitively and each once, deepest first: a view that depends on another
-// comes before it. A dependency is the one the catalog records for the view's
-// definition, not a name in its text, which would take a view reading a column
-// such as customer_id for one reading a relation named id.
-func dependentViewsInDropOrder(c *Catalog, rel *Relation) []viewRef {
-	seen := make(map[viewRef]bool)
-	var ordered []viewRef
-	var visit func(rel *Relation)
-	visit = func(rel *Relation) {
-		if rel == nil {
-			return
+// buildRelationMetadataOps puts back what a relation's grants and comments were,
+// which an unchanged grant or comment has no diff entry of its own to say.
+func buildRelationMetadataOps(c *Catalog, rel *Relation) []MigrationOp {
+	desc := rel.Schema.Name + "." + rel.Name
+	var ops []MigrationOp
+	for _, g := range c.grants {
+		if g.ObjType != 'r' || g.ObjOID != rel.OID {
+			continue
 		}
-		for _, dep := range c.findNormalDependents('r', rel.OID) {
-			if dep.ObjType != 'r' {
-				continue
-			}
-			child := c.relationByOID[dep.ObjOID]
-			if child == nil || child.RelKind != 'v' || child.Schema == nil {
-				continue
-			}
-			ref := viewRef{schema: child.Schema.Name, name: child.Name}
-			if seen[ref] {
-				continue
-			}
-			seen[ref] = true
-			visit(child)
-			ordered = append(ordered, ref)
-		}
+		ops = append(ops, MigrationOp{
+			Type:          OpGrant,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    rel.Name,
+			SQL:           formatGrantSQL(g, desc),
+			Transactional: grantTransactional(g),
+			Phase:         PhaseMain,
+			ObjType:       g.ObjType,
+			ObjOID:        g.ObjOID,
+			Priority:      PriorityMetadata,
+		})
 	}
-	visit(rel)
-	return ordered
+
+	var commentKeys []commentKey
+	for key, text := range c.comments {
+		if key.ObjType != 'r' || key.ObjOID != rel.OID || text == "" {
+			continue
+		}
+		commentKeys = append(commentKeys, key)
+	}
+	sort.Slice(commentKeys, func(i, j int) bool { return commentKeys[i].SubID < commentKeys[j].SubID })
+	for _, key := range commentKeys {
+		sql := formatCommentSQL(c, 'r', desc, key.SubID, c.comments[key])
+		if sql == "" {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpComment,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    rel.Name,
+			SQL:           sql,
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'r',
+			Priority:      PriorityMetadata,
+		})
+	}
+	return ops
 }
 
 // viewRef identifies a view by schema and name.

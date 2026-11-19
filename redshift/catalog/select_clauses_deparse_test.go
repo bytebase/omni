@@ -470,3 +470,128 @@ func TestViewQuotedLevelColumn(t *testing.T) {
 		t.Fatalf("view definition = %q, want the quoted column", def)
 	}
 }
+
+// TestMigrationMatViewReplaceKeepsOwnMetadata pins the replaced materialized
+// view's own grants and comments: the drop takes them, and an unchanged one has
+// no diff entry to write them again.
+func TestMigrationMatViewReplaceKeepsOwnMetadata(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id FROM t;
+GRANT SELECT ON mv TO PUBLIC;
+COMMENT ON MATERIALIZED VIEW mv IS 'nightly';
+COMMENT ON COLUMN mv.id IS 'the id';`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;
+GRANT SELECT ON mv TO PUBLIC;
+COMMENT ON MATERIALIZED VIEW mv IS 'nightly';
+COMMENT ON COLUMN mv.id IS 'the id';`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	granted, viewComment, columnComment := false, false, false
+	for _, op := range plan.Ops {
+		switch {
+		case op.Type == OpGrant && strings.Contains(op.SQL, `"mv"`) && strings.Contains(op.SQL, "PUBLIC"):
+			granted = true
+		case op.Type == OpComment && strings.Contains(op.SQL, "MATERIALIZED VIEW") && strings.Contains(op.SQL, "nightly"):
+			viewComment = true
+		case op.Type == OpComment && strings.Contains(op.SQL, "COLUMN") && strings.Contains(op.SQL, "the id"):
+			columnComment = true
+		}
+	}
+	if !granted || !viewComment || !columnComment {
+		t.Fatalf("plan = %v, want the grant and both comments written again", plan.Ops)
+	}
+}
+
+// TestMigrationMatViewReplaceHandlesDependentMatView pins a materialized view
+// that reads another: the replacement drops it before the view it reads and
+// creates it again after it, indexes included.
+func TestMigrationMatViewReplaceHandlesDependentMatView(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW base_mv BACKUP NO AS SELECT id FROM t;
+CREATE MATERIALIZED VIEW child_mv AS SELECT id FROM base_mv;
+CREATE INDEX idx_child ON child_mv (id);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int);
+CREATE MATERIALIZED VIEW base_mv BACKUP YES AS SELECT id FROM t;
+CREATE MATERIALIZED VIEW child_mv AS SELECT id FROM base_mv;
+CREATE INDEX idx_child ON child_mv (id);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	dropBase, dropChild, createBase, createChild, createIdx := -1, -1, -1, -1, -1
+	for i, op := range plan.Ops {
+		switch {
+		case op.Type == OpDropView && strings.Contains(op.SQL, `"base_mv"`):
+			dropBase = i
+		case op.Type == OpDropView && strings.Contains(op.SQL, `"child_mv"`):
+			dropChild = i
+		case op.Type == OpCreateView && strings.Contains(op.SQL, "MATERIALIZED VIEW") && strings.Contains(op.SQL, `"base_mv"`):
+			createBase = i
+		case op.Type == OpCreateView && strings.Contains(op.SQL, "MATERIALIZED VIEW") && strings.Contains(op.SQL, `"child_mv"`):
+			createChild = i
+		case op.Type == OpCreateIndex && strings.Contains(op.SQL, "idx_child"):
+			createIdx = i
+		}
+	}
+	if dropBase < 0 || dropChild < 0 || createBase < 0 || createChild < 0 || createIdx < 0 {
+		t.Fatalf("plan = %v, want both views replaced and the index re-created", plan.Ops)
+	}
+	if !(dropChild < dropBase && dropBase < createBase && createBase < createChild && createChild < createIdx) {
+		t.Fatalf("order = child drop %d, base drop %d, base create %d, child create %d, index %d", dropChild, dropBase, createBase, createChild, createIdx)
+	}
+}
+
+// TestMigrationMatViewReplaceHandlesChangedDependent pins a dependent whose own
+// definition changes with the replacement: it is dropped before the view it
+// reads, not replaced in place while the drop waits on it.
+func TestMigrationMatViewReplaceHandlesChangedDependent(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE t (id int, name text);
+CREATE MATERIALIZED VIEW mv BACKUP NO AS SELECT id, name FROM t;
+CREATE VIEW v_read AS SELECT id FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE t (id int, name text);
+CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id, name FROM t;
+CREATE VIEW v_read AS SELECT id, name FROM mv;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan := GenerateMigration(from, to, Diff(from, to))
+	dropDep, dropMV, createMV, createDep := -1, -1, -1, -1
+	for i, op := range plan.Ops {
+		switch {
+		case op.Type == OpDropView && strings.Contains(op.SQL, `"v_read"`):
+			dropDep = i
+		case op.Type == OpDropView && strings.Contains(op.SQL, "MATERIALIZED VIEW"):
+			dropMV = i
+		case op.Type == OpCreateView && strings.Contains(op.SQL, "MATERIALIZED VIEW"):
+			createMV = i
+		case op.Type == OpCreateView && strings.Contains(op.SQL, `"v_read"`):
+			createDep = i
+		}
+	}
+	if dropDep < 0 || dropMV < 0 || createMV < 0 || createDep < 0 {
+		t.Fatalf("plan = %v, want the dependent dropped and created again", plan.Ops)
+	}
+	if !(dropDep < dropMV && dropMV < createMV && createMV < createDep) {
+		t.Fatalf("order = dep drop %d, mv drop %d, mv create %d, dep create %d", dropDep, dropMV, createMV, createDep)
+	}
+	for _, op := range plan.Ops {
+		if op.Type == OpCreateView && strings.Contains(op.SQL, `"v_read"`) && !strings.Contains(op.SQL, "name") {
+			t.Fatalf("re-created dependent = %q, want the target definition", op.SQL)
+		}
+	}
+}

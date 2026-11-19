@@ -839,8 +839,16 @@ func (p *Parser) parseRedshiftIdentitySeqOptions() (*nodes.List, error) {
 	if p.cur.Type != '(' {
 		return nil, nil
 	}
-	// What follows '(' decides: a SeqOptElem lead continues PostgreSQL's form,
-	// and a number is Redshift's seed and step.
+	if p.collectMode() || p.cursorAfterCur() {
+		// A cursor after '(' may write either form, so both are offered: the
+		// sequence options of PostgreSQL's, and the seed and step of Redshift's.
+		for _, tok := range seqOptElemLeadTokens {
+			p.addTokenCandidate(tok)
+		}
+		return nil, nil
+	}
+	// The token after '(' decides: a SeqOptElem lead continues PostgreSQL's
+	// form, and a number is Redshift's seed and step.
 	if isSeqOptElemLeadToken(p.peekNext()) {
 		return p.parseOptParenthesizedSeqOptList()
 	}

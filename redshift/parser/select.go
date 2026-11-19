@@ -526,6 +526,11 @@ func (p *Parser) parseRedshiftConnectBy(stmt *nodes.SelectStmt) error {
 			return p.syntaxErrorAtCur()
 		}
 		stmt.StartWith = cond
+		if p.collectMode() {
+			// The clause goes on with CONNECT BY, which no token type names.
+			p.addWordCandidate("CONNECT BY")
+			return nil
+		}
 	}
 	// CONNECT is no keyword of this package, so it is matched as the unquoted
 	// word.
