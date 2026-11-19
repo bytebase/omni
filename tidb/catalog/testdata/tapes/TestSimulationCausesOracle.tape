@@ -2313,3 +2313,53 @@
 > exec
 | DROP TABLE IF EXISTS `dual`
 < ok 0 0
+> exec
+| CREATE TABLE a (b INT)
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION BY KEY()
+< error
+| 1105 HY000 expression should not be an empty string
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT, UNIQUE KEY u (b))
+< ok 0 0
+> exec
+| ALTER TABLE a PARTITION BY KEY()
+< error
+| 1105 HY000 expression should not be an empty string
+> exec
+| ALTER TABLE a NOCACHE
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0

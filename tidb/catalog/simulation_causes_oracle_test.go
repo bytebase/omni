@@ -649,6 +649,21 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:       0,
 			sameSchema: true,
 		},
+		// KEY () partitions by the primary key, so a table without one has
+		// nothing to partition by and the clause is an uncoded 1105, whether or
+		// not a unique key could stand in (read on v8.5.5).
+		{
+			name:  "PARTITION BY KEY with no column on a table with no primary key",
+			setup: []string{"CREATE TABLE a (b INT)"},
+			stmt:  "ALTER TABLE a PARTITION BY KEY()",
+			code:  1105,
+		},
+		{
+			name:  "PARTITION BY KEY with no column on a table with only a unique key",
+			setup: []string{"CREATE TABLE a (b INT, UNIQUE KEY u (b))"},
+			stmt:  "ALTER TABLE a PARTITION BY KEY()",
+			code:  1105,
+		},
 	}
 
 	for _, tc := range cases {

@@ -69,6 +69,22 @@ func containsFold(names []string, name string) bool {
 	return false
 }
 
+// primaryKeyColumns returns the primary key's columns, in key order, and nil when
+// the table has no primary key.
+func primaryKeyColumns(tbl *Table) []string {
+	for _, idx := range tbl.Indexes {
+		if !idx.Primary {
+			continue
+		}
+		cols := make([]string, 0, len(idx.Columns))
+		for _, ic := range idx.Columns {
+			cols = append(cols, ic.Name)
+		}
+		return cols
+	}
+	return nil
+}
+
 // effectivePrimaryKeyColumns returns the columns KEY () partitions by: the primary
 // key's, or else those of the first unique key whose parts are all whole NOT NULL
 // columns.
@@ -291,9 +307,15 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 		return err
 	}
 	// KEY () partitions by the primary key, and the ALTER path stores the
-	// columns it stands for, where CREATE TABLE keeps the empty list.
+	// columns it stands for, where CREATE TABLE keeps the empty list. A table
+	// with no primary key has no column to partition by and v8.5.5 refuses the
+	// clause with an uncoded 1105 (read on v8.5.5).
 	if pi.Type == "KEY" && len(pi.Columns) == 0 {
-		pi.Columns = effectivePrimaryKeyColumns(tbl)
+		pi.Columns = primaryKeyColumns(tbl)
+		if len(pi.Columns) == 0 {
+			return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),
+				Message: "expression should not be an empty string"}
+		}
 	}
 	pi.keyColumns = keyColumns
 	tbl.Partitioning = pi
