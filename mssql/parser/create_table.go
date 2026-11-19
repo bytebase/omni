@@ -1753,6 +1753,7 @@ func (p *Parser) parseCreateTableAsSelectStmt() (*nodes.CreateTableAsSelectStmt,
 	}
 
 	// Optional column list: ( col1, col2, ... )
+	columns := false
 	if p.cur.Type == '(' {
 		// Peek ahead to check if this is a simple column name list (CTAS)
 		// or a column definition list (regular CREATE TABLE).
@@ -1761,9 +1762,17 @@ func (p *Parser) parseCreateTableAsSelectStmt() (*nodes.CreateTableAsSelectStmt,
 		if err != nil {
 			return nil, err
 		}
+		columns = true
 	}
 
-	// Optional WITH ( distribution_option [, table_option ...] )
+	// WITH ( distribution_option [, table_option ...] ), required when the
+	// statement names its columns: ctasCreateTableStatement is
+	// ( columnNameList )? withTableOptions As selectStatement, and the only
+	// alternative that reaches AS without WITH writes no column list
+	// (TSql160.g:523-535, 26575-26584).
+	if columns && p.cur.Type != kwWITH {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwWITH {
 		p.advance() // consume WITH
 		stmt.Options, err = p.parseCTASWithOptions()
@@ -1812,12 +1821,15 @@ func (p *Parser) parseCTASWithOptions() (*nodes.List, error) {
 			break
 		}
 	}
+	closing := p.cur.Loc
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
 
+	// withTableOptions is one option at least (TSql160.g:26710-26723), so WITH ()
+	// is refused at the parenthesis that closes the empty list.
 	if len(items) == 0 {
-		return nil, nil
+		return nil, p.newParseError(closing, `syntax error at or near ")"`)
 	}
 	return &nodes.List{Items: items}, nil
 }
