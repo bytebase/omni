@@ -172,7 +172,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			IndexName: stmt.IndexName,
 		})
 	}
-	if err := c.validateKeyEngineOptions(tbl); err != nil {
+	if err := c.validateKeyEngineOptions(tbl, stmt.Options, stmt.Vector); err != nil {
 		*tbl = snapshot
 		return err
 	}

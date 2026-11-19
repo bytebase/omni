@@ -299,7 +299,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			*tbl = snapshot
 			return err
 		}
-		if err := c.validateKeyEngineOptions(tbl); err != nil {
+		if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -336,7 +336,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		rollback()
 		return err
 	}
-	if err := c.validateKeyEngineOptions(tbl); err != nil {
+	if err := c.validateAddedKeyEngineOptions(tbl, stmt.Commands); err != nil {
 		rollback()
 		return err
 	}

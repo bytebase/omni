@@ -1003,8 +1003,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := validateMaterializedGeneratedColumns(tbl, indexedColumnsOf(tbl)); err != nil {
 		return err
 	}
-	if err := c.validateKeyEngineOptions(tbl); err != nil {
-		return err
+	for _, con := range stmt.Constraints {
+		if err := c.validateKeyEngineOptions(tbl, con.IndexOptions, con.Type == nodes.ConstrVector); err != nil {
+			return err
+		}
 	}
 
 	db.Tables[key] = tbl
@@ -2378,30 +2380,52 @@ func validateKeyTypeArguments(indexType string) error {
 // catalog models takes: 1911, measured on mariadb:11.8.8 for InnoDB, Aria and
 // MyISAM. A VECTOR key is the one that reads them, and only M and DISTANCE:
 // `VECTOR INDEX k (v) M=8 DISTANCE=cosine` runs, where the same key with `a=1`
-// answers 1911 and an ordinary key with `M=8` answers it too. It runs on the
-// table the statement leaves, after the key's columns, because MariaDB reads
-// every command's columns first: measured, `ADD KEY(c) a = 1, ADD KEY(nosuch)`
-// answers 1072.
-func (c *Catalog) validateKeyEngineOptions(tbl *Table) error {
+// answers 1911 and an ordinary key with `M=8` answers it too.
+//
+// It is asked of the options a statement writes and not of the table: a key
+// option IGNORE_BAD_TABLE_OPTIONS tolerated stays, and a later ALTER over that
+// table runs, as `CREATE TABLE a (b INT, KEY k (b) x = 1)` under the mode
+// followed by `ALTER TABLE a ADD c INT` does. And it is asked after the
+// statement's commands, because MariaDB reads every command's columns first:
+// measured, `ADD KEY(c) a = 1, ADD KEY(nosuch)` answers 1072.
+func (c *Catalog) validateKeyEngineOptions(tbl *Table, opts []*nodes.IndexOption, vector bool) error {
 	engine := toLower(tbl.Engine)
 	if engine == "" {
 		engine = "innodb"
 	}
-	_, known := engineTableOptions[engine]
-	for _, idx := range tbl.Indexes {
-		for _, text := range idx.EngineOptions {
-			name, _, _ := strings.Cut(text, "=")
-			name = strings.ReplaceAll(name, "`", "")
-			if idx.Vector && (eqFoldStr(name, "M") || eqFoldStr(name, "DISTANCE")) {
+	// An engine the catalog does not model keeps its own list, and
+	// IGNORE_BAD_TABLE_OPTIONS turns the refusal into a warning, as it does for a
+	// table's and a column's options.
+	if _, known := engineTableOptions[engine]; !known || c.ignoresBadTableOptions() {
+		return nil
+	}
+	for _, opt := range opts {
+		if opt == nil || !opt.Engine {
+			continue
+		}
+		if vector && (eqFoldStr(opt.Name, "M") || eqFoldStr(opt.Name, "DISTANCE")) {
+			continue
+		}
+		return errUnknownOption(opt.Name)
+	}
+	return nil
+}
+
+// validateAddedKeyEngineOptions holds the keys a statement adds to
+// validateKeyEngineOptions.
+func (c *Catalog) validateAddedKeyEngineOptions(tbl *Table, cmds []*nodes.AlterTableCmd) error {
+	for _, cmd := range cmds {
+		cons := cmd.Constraints
+		if cmd.Constraint != nil {
+			cons = append([]*nodes.Constraint{cmd.Constraint}, cons...)
+		}
+		for _, con := range cons {
+			if con == nil {
 				continue
 			}
-			// An engine the catalog does not model keeps its own list, and
-			// IGNORE_BAD_TABLE_OPTIONS turns the refusal into a warning, as it
-			// does for a table's and a column's options.
-			if !known || c.ignoresBadTableOptions() {
-				continue
+			if err := c.validateKeyEngineOptions(tbl, con.IndexOptions, con.Type == nodes.ConstrVector); err != nil {
+				return err
 			}
-			return errUnknownOption(name)
 		}
 	}
 	return nil

@@ -105,7 +105,7 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	}
 	for _, group := range [][]*Index{idxPrimary, idxUnique, idxRegular, idxExpr, idxFulltext, idxVector} {
 		for _, idx := range group {
-			parts = append(parts, showIndex(idx))
+			parts = append(parts, showIndexOptions(idx, plainOptions))
 		}
 	}
 
@@ -685,6 +685,16 @@ func isTextBlobType(dt string) bool {
 }
 
 func showIndex(idx *Index) string {
+	return showIndexOptions(idx, true)
+}
+
+// showIndexOptions is showIndex for one table, whose engine-defined key options
+// are the engine's to know: InnoDB knows none of an ordinary key's, so they are
+// written inside a comment, /* `x`=1 */, unless sql_mode has
+// IGNORE_BAD_TABLE_OPTIONS as SHOW CREATE TABLE runs (plainOptions). Measured on
+// mariadb:11.8.8: a key given `x`=1 under the mode and printed without it
+// reports KEY `k` (`a`) /* `x`=1 */, where a VECTOR key prints `M`=6 bare.
+func showIndexOptions(idx *Index, plainOptions bool) string {
 	var b strings.Builder
 
 	if idx.Primary {
@@ -726,10 +736,17 @@ func showIndex(idx *Index) string {
 		b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(idx.Comment)))
 	}
 
-	// Engine-defined options follow the comment and precede IGNORED, as MariaDB 11.8.8
-	// prints them: VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine.
-	for _, opt := range idx.EngineOptions {
-		b.WriteString(" " + opt)
+	// Engine-defined options follow the comment and precede IGNORED, as MariaDB
+	// 11.8.8 prints them: VECTOR KEY `i` (`v`) COMMENT 'c' `M`=6 `DISTANCE`=cosine,
+	// and inside a comment where the engine knows none of them.
+	// A VECTOR key's options are the ones its engine defines, M and DISTANCE, and
+	// it prints them bare: VECTOR KEY `i` (`v`) `M`=6.
+	if len(idx.EngineOptions) > 0 {
+		if plainOptions || idx.Vector {
+			b.WriteString(" " + strings.Join(idx.EngineOptions, " "))
+		} else {
+			b.WriteString(" /* " + strings.Join(idx.EngineOptions, " ") + " */")
+		}
 	}
 
 	// Ignored, last, as MariaDB 11.8.8 prints it: KEY `i` (`a`) COMMENT 'c' IGNORED.
