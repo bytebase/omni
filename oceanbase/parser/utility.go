@@ -1477,7 +1477,12 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	stmt.Tables = append(stmt.Tables, entry)
 
 	if p.cur.Type == kwPARTITION {
-		// The partition form takes one table and no index name.
+		// The partition form takes one table and no index name: the grammar's
+		// tbl_index_list and its `normal_relation_factor PARTITION (...)` arm are
+		// disjoint, so `CACHE INDEX t i PARTITION (ALL) IN c` is a 1064.
+		if len(entry.Indexes) > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		parts, err := p.parseTblPartitionList()
 		if err != nil {
 			return nil, err

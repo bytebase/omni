@@ -1425,6 +1425,11 @@ func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.
 		if jt == nodes.JoinLeft || jt == nodes.JoinRight {
 			return nil, p.syntaxErrorAtCur()
 		}
+		// FULL JOIN writes join_condition, which an inner join's conditionless
+		// arm does not have: `FROM a FULL JOIN a` is a 1064.
+		if jt == nodes.JoinFull {
+			return nil, p.syntaxErrorAtCur()
+		}
 		right := operands[i+1]
 		if r, ok := right.(*nodes.JoinClause); ok && built[r] {
 			// Descend the chain-built left spine to its leftmost leaf and insert
@@ -1469,9 +1474,13 @@ func (p *Parser) collapseLeftDeep(operands []nodes.TableExpr, joinTypes []nodes.
 // OceanBase v4.3.5.
 func joinAbsorbsRight(jt nodes.JoinType) bool {
 	switch jt {
-	case nodes.JoinInner, nodes.JoinCross, nodes.JoinLeft, nodes.JoinRight, nodes.JoinStraight:
+	case nodes.JoinInner, nodes.JoinCross, nodes.JoinLeft, nodes.JoinRight, nodes.JoinStraight,
+		// FULL JOIN absorbs too, so `a FULL JOIN b JOIN c ON ... ON ...` reads the
+		// inner join as its right operand; its own condition is required when the
+		// join closes (parseJoinChain).
+		nodes.JoinFull:
 		return true
-	default: // JoinNatural, JoinNaturalLeft, JoinNaturalRight
+	default: // JoinNatural, JoinNaturalLeft, JoinNaturalRight, JoinNaturalFull
 		return false
 	}
 }
