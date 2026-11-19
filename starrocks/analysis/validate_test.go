@@ -196,3 +196,17 @@ func TestValidateQueryExecuteReturnsData(t *testing.T) {
 		t.Errorf("EXECUTE = (readOnly %v, returnsData %v), want (false, true)", readOnly, returnsData)
 	}
 }
+
+// TRANSLATE answers with the translated SQL instead of running it, so the
+// driver reads rows from it.
+func TestValidateQueryTranslateReturnsData(t *testing.T) {
+	for _, sql := range []string{"TRANSLATE trino SELECT 1", "TRANSLATE trino SELECT 1;"} {
+		readOnly, returnsData, err := ValidateQuery(sql)
+		if err != nil {
+			t.Fatalf("ValidateQuery(%q): %v", sql, err)
+		}
+		if readOnly || !returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (false, true)", sql, readOnly, returnsData)
+		}
+	}
+}

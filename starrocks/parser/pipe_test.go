@@ -453,3 +453,47 @@ func TestTranslateTerminatorIsInTheSpan(t *testing.T) {
 		t.Errorf("Loc.End = %d, want %d", stmt.Loc.End, len(`TRANSLATE presto;`))
 	}
 }
+
+func TestLimitStaysWithinInt64(t *testing.T) {
+	// LIMIT and OFFSET are signed 64-bit on the server; a longer integer is
+	// "For input string".
+	if _, errs := parseForTest(`SELECT 1 LIMIT 9223372036854775807`); len(errs) != 0 {
+		t.Errorf("LIMIT 9223372036854775807: %v", errs)
+	}
+	for _, sql := range []string{
+		`SELECT 1 LIMIT 9223372036854775808`,
+		`SELECT 1 LIMIT 1, 9223372036854775808`,
+		`SELECT 1 LIMIT 1 OFFSET 9223372036854775808`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
+func TestRefreshExternalTableNameParts(t *testing.T) {
+	// qualifiedNameToTableName takes one, two or three parts.
+	for _, sql := range []string{
+		`REFRESH EXTERNAL TABLE t`,
+		`REFRESH EXTERNAL TABLE db.t`,
+		`REFRESH EXTERNAL TABLE cat.db.t`,
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): %v", sql, errs)
+		}
+	}
+	if _, errs := parseForTest(`REFRESH EXTERNAL TABLE a.b.c.d`); len(errs) == 0 {
+		t.Error("a four-part refresh parsed, want a syntax error")
+	}
+}
+
+func TestDataCachePriorityIsAnInt32Magnitude(t *testing.T) {
+	// Integer.parseInt reads the magnitude, so -2147483648 is refused while
+	// -2147483647 is taken.
+	if _, errs := parseForTest(`CREATE DATACACHE RULE *.*.* PRIORITY = - 2147483647`); len(errs) != 0 {
+		t.Errorf("PRIORITY = - 2147483647: %v", errs)
+	}
+	if _, errs := parseForTest(`CREATE DATACACHE RULE *.*.* PRIORITY = - 2147483648`); len(errs) == 0 {
+		t.Error("PRIORITY = - 2147483648 parsed, want a syntax error")
+	}
+}

@@ -55,6 +55,9 @@ func readsRows(node ast.Node) bool {
 		// SUBMIT TASK answers with the task name and its status (SUBMITTED,
 		// REJECTED or FAILED), so the driver reads rows rather than Exec'ing.
 		return true
+	case *ast.TranslateStmt:
+		// TRANSLATE answers with the translated SQL rather than running it.
+		return true
 	case *ast.ExecuteStmt:
 		// EXECUTE runs a prepared statement, which may be a SELECT, so the
 		// driver reads rows rather than Exec'ing and discarding them.

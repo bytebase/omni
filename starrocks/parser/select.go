@@ -1851,27 +1851,15 @@ func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	return limitExpr, offsetExpr, nil
 }
 
-// parseLimitValue reads one INTEGER_VALUE of a limitElement. An integer too
-// large for an int64 is lexed as a float of digits only, and is one too.
+// parseLimitValue reads one INTEGER_VALUE of a limitElement. Longer than an
+// int64 is not one: the lexer reads such digits as a float, and the server
+// refuses `LIMIT 9223372036854775808` with "For input string".
 func (p *Parser) parseLimitValue() (ast.Node, error) {
-	if p.cur.Kind != tokInt && !(p.cur.Kind == tokFloat && isAllDigits(p.cur.Str)) {
+	if p.cur.Kind != tokInt {
 		return nil, p.syntaxErrorAtCur()
 	}
 	tok := p.advance()
 	return &ast.Literal{Kind: ast.LitInt, Value: tok.Str, Loc: tok.Loc}, nil
-}
-
-// isAllDigits reports whether s is one or more ASCII digits.
-func isAllDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 // ---------------------------------------------------------------------------

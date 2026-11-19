@@ -203,6 +203,15 @@ func (p *Parser) parseRefreshExternalTable(startLoc ast.Loc) (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The AST builder reads the name as a table name, which is a table, a
+	// database and a table, or a catalog, a database and a table: it answers
+	// `REFRESH EXTERNAL TABLE a.b.c.d` with "Invalid table name format".
+	if len(name.Parts) > 3 {
+		return nil, &ParseError{
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "REFRESH EXTERNAL TABLE names at most a catalog, a database and a table",
+		}
+	}
 	stmt := &ast.RefreshExternalTableStmt{Name: name}
 	endLoc := name.Loc
 	if p.cur.Kind == kwPARTITION {
