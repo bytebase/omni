@@ -2455,8 +2455,10 @@ func (p *Parser) parseATStoreIn() error {
 //	| system_partitioning | consistent_hash_partitions
 //	| consistent_hash_with_subpartitions }
 //
-// partitionset_clauses belong to composite-sharded tables, which Oracle
-// refuses at PARTITIONSET (ORA-02577), so PARTITIONSET reaches the syntax
+// partitionset_clauses and the consistent_hash_* clauses belong to
+// composite-sharded and sharded tables: Oracle refuses them at PARTITIONSET
+// (ORA-02577) and at what follows HASH (ORA-14151) before it reads the
+// clause, so the switch reports those words. PARTITIONSET reaches the syntax
 // error at the end of this switch.
 //
 // ALTER MATERIALIZED VIEW LOG and other statements that take these
@@ -2566,8 +2568,14 @@ func (p *Parser) parseATTablePartitioning(opts *nodes.List) error {
 		p.atOption(opts, start)
 		return nil
 	case p.atWord("CONSISTENT"):
-		// consistent_hash_partitions belong to sharded tables; Oracle
-		// refuses them elsewhere (ORA-14151) before it reads further.
+		// consistent_hash_partitions and consistent_hash_with_subpartitions
+		// belong to sharded tables: Oracle reads CONSISTENT HASH and refuses
+		// the form elsewhere (ORA-14151) at what follows HASH, before it
+		// reads the columns.
+		p.advance() // CONSISTENT
+		if err := p.atExpectWord("HASH"); err != nil {
+			return err
+		}
 		return p.syntaxErrorAtCur()
 	}
 	return p.syntaxErrorAtCur()
