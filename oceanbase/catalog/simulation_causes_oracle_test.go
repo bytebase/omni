@@ -15,10 +15,14 @@ import (
 // testdata/simulate.tsv records to the pinned OceanBase cause by cause: a
 // repartition applied instead of ignored, its repeated partition name and its
 // primary-key prefix rule, a character set or collation the server does not
-// have, and the forms OceanBase stores differently from the catalog (SERIAL,
-// and a key whose STORING repeats a column it keys on). Each case is answered
-// by the pinned server and by the catalog, and both must agree with the code
-// the case states; a case the server takes also compares what the two store.
+// have, the forms OceanBase stores differently from the catalog (SERIAL, and a
+// key whose STORING repeats a column it keys on), the order it reads a
+// CREATE TABLE ... SELECT's query and its column groups in, the tablegroup and
+// tablespace a table option names, the key before the columns a key stores, and
+// the foreign key that names the column it cannot find on both sides. Each case
+// is answered by the pinned server and by the catalog, and both must agree with
+// the code the case states; a case the server takes also compares what the two
+// store.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
@@ -146,6 +150,124 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "a SERIAL replacement of an unindexed column",
 			setup: []string{aColumnTable},
 			stmt:  "ALTER TABLE a MODIFY a SERIAL",
+		},
+		{
+			// The engine resolves the query before it reads the column groups, so a
+			// column the query cannot find answers even though the group is one it
+			// would refuse.
+			name:  "a named column group after an unresolvable query",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a",
+			code:  1054,
+			state: "42S22",
+		},
+		{
+			name:  "a repeated column group after an unresolvable query",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT a",
+			code:  1054,
+			state: "42S22",
+		},
+		{
+			name:  "a repeated column group after a query that resolves",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE n WITH COLUMN GROUP(ALL COLUMNS, ALL COLUMNS) SELECT b FROM a",
+			code:  1060,
+			state: "42S21",
+		},
+		{
+			name:  "a named column group after a query that resolves",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE n WITH COLUMN GROUP(a(a)) SELECT b FROM a",
+			code:  1235,
+			state: "0A000",
+		},
+		{
+			name:  "a tablegroup the server does not have",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLEGROUP a",
+			code:  5151,
+			state: "42P01",
+		},
+		{
+			name:  "a tablegroup the server does not have, written as a string",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLEGROUP = 'a'",
+			code:  5151,
+			state: "42P01",
+		},
+		{
+			name:  "no tablegroup at all",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLEGROUP = ''",
+		},
+		{
+			name:  "a tablespace the server does not have",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE a",
+			code:  3510,
+			state: "HY000",
+		},
+		{
+			name:  "a tablespace MySQL would name",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE innodb_file_per_table",
+			code:  3510,
+			state: "HY000",
+		},
+		{
+			// The key's own columns are read before the columns it stores.
+			name:  "a key column the table lacks before its STORING",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(a) STORING(a)",
+			code:  1072,
+			state: "42000",
+		},
+		{
+			name:  "a STORING column the table lacks",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(b) STORING(a)",
+			code:  1054,
+			state: "42S22",
+		},
+		{
+			// The key's name is read before its columns, so a name the table has is
+			// 1061 even though the key names a column it lacks.
+			name:  "a taken key name before a missing key column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY idx_d(a) STORING(a)",
+			code:  1061,
+			state: "42000",
+		},
+		{
+			// A self-referencing foreign key that names the column it cannot find on
+			// both sides is 1215; one side alone is 5031.
+			name:  "a foreign key naming one column it cannot find on both sides",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(a)",
+			code:  1215,
+			state: "HY000",
+		},
+		{
+			name:  "a constraint spelling of the same foreign key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a(a)",
+			code:  1215,
+			state: "HY000",
+		},
+		{
+			name:  "a foreign key column the table lacks",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(b) REFERENCES a(zz)",
+			code:  5031,
+			state: "HY000",
+		},
+		{
+			name:  "a foreign key naming two columns it cannot find",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a(zz)",
+			code:  5031,
+			state: "HY000",
 		},
 	}
 	for _, tc := range cases {
