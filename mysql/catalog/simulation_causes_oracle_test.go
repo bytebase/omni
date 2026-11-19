@@ -15,15 +15,16 @@ import (
 // mysql:8.0.46 cause by cause: the object an ALTER or DROP VIEW names, a key
 // built on a column the table does not have, a FULLTEXT key's parser, a
 // partition action on a table that has no partitions, a type's display width, a
-// view body naming a column no relation has, and the columns MySQL gives
-// another type from the text they were: SERIAL, CHAR BYTE and CHAR COLLATE
-// BINARY. Each case is answered by the pinned server and by the catalog, and
-// both must agree with the code the case states.
+// view body naming a column no relation has or expanding a star no table backs,
+// a CREATE TABLE with no column, a NOW()-family DEFAULT the column's type cannot
+// hold, and the columns MySQL gives another type from the text they were:
+// SERIAL, CHAR BYTE and CHAR COLLATE BINARY. Each case is answered by the pinned
+// server and by the catalog, and both must agree with the code the case states.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -765,6 +766,291 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD e BIT(64)",
 			code:  0,
+		},
+		// A view body's star is resolved before the view's own name: a `*`
+		// with no FROM expands from nothing and is 1096, even over a table a,
+		// where the name alone would be 1050.
+		{
+			name:  "CREATE VIEW over a table whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW a AS SELECT *",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT *",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty qualified star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.*",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body expands a star over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a t",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body counts a star with no table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT count(*)",
+			code:  0,
+		},
+		// A table with no column at all is 4028, after the name collision and
+		// after a key's own columns are resolved.
+		{
+			name:  "CREATE TABLE with no columns over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a;",
+			code:  1050,
+		},
+		{
+			name: "CREATE TABLE with no columns",
+			stmt: "CREATE TABLE z;",
+			code: 4028,
+		},
+		{
+			name: "CREATE TABLE whose only element is a key over a missing column",
+			stmt: "CREATE TABLE z (KEY (b));",
+			code: 1072,
+		},
+		{
+			name: "CREATE TABLE whose only element is a partition clause",
+			stmt: "CREATE TABLE z PARTITION BY KEY();",
+			code: 4028,
+		},
+		{
+			name:  "CREATE VIEW whose derived table expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM (SELECT *) d",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM c",
+			code:  1096,
+		},
+		{
+			// MySQL resolves a CTE only where the body reads it, so a body it
+			// never names is not judged.
+			name:  "CREATE VIEW whose unreferenced CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT 1",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body expands a star over DUAL",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM DUAL",
+			code:  1096,
+		},
+		{
+			// A table really named dual is written quoted, which is not the
+			// dummy keyword MySQL expands from nothing.
+			name:  "CREATE VIEW whose body expands a star over a quoted dual table",
+			setup: []string{"CREATE TABLE `dual` (x INT)"},
+			stmt:  "CREATE VIEW v AS SELECT * FROM `dual`",
+			code:  0,
+		},
+		{
+			// A CTE read only by another CTE nothing reads is still unreached.
+			name:  "CREATE VIEW whose unreferenced CTE reads another",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c1 AS (SELECT *), c2 AS (SELECT * FROM c1) SELECT 1",
+			code:  0,
+		},
+		{
+			// A non-recursive CTE does not see itself, so this inner c reads the
+			// outer one, whose body expands an empty star.
+			name:  "CREATE VIEW whose non-recursive CTE names itself",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *), d AS (WITH c AS (SELECT * FROM c) SELECT * FROM c) SELECT * FROM d",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose recursive CTE names itself",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH RECURSIVE c AS (SELECT 1 AS x) SELECT * FROM c",
+			code:  0,
+		},
+		{
+			// A CTE does not see a sibling declared after it, so the name reads
+			// the real table c2 and the later CTE stays unreached.
+			name:  "CREATE VIEW whose CTE reads a later sibling's name",
+			setup: []string{oneTable, "CREATE TABLE c2 (x INT)"},
+			stmt:  "CREATE VIEW v AS WITH c1 AS (SELECT * FROM c2), c2 AS (SELECT *) SELECT * FROM c1",
+			code:  0,
+		},
+		{
+			// The inner block's CTE shadows the outer one, so the outer CTE is
+			// never read and MySQL never resolves it.
+			name:  "CREATE VIEW whose nested CTE shadows an unreferenced one",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM (WITH c AS (SELECT 1 AS x) SELECT x FROM c) d",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names no relation of the block",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT missing.* FROM a",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names its relation in another schema",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT other.a.* FROM a",
+			code:  1051,
+		},
+		{
+			// The pin runs with lower_case_table_names=0: a name and an alias are
+			// compared as written.
+			name:  "CREATE VIEW whose qualified star differs in case from its alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT T.* FROM a AS t",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names a JSON_TABLE alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT jt.* FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$')) AS jt",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names its relation's alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a AS t",
+			code:  0,
+		},
+		{
+			// The dummy DUAL reads no CTE, whatever a CTE of that name is.
+			name:  "CREATE VIEW whose quoted dual CTE the dummy DUAL does not read",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH `dual` AS (SELECT *) SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body reads only DUAL for a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
+			// `other.c` names another schema's table, not the CTE c, so MySQL
+			// never resolves the CTE's star.
+			name:  "CREATE VIEW whose qualified name shares an unreferenced CTE's",
+			setup: []string{"CREATE DATABASE cteother", "CREATE TABLE cteother.c (x INT)"},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM cteother.c",
+			code:  0,
+		},
+		{
+			name:  "CREATE TABLE LIKE over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (LIKE a);",
+			code:  0,
+		},
+		// A bare NOW()-family DEFAULT is a current-timestamp value, which only
+		// a DATETIME or TIMESTAMP column holds. MySQL judges it while it
+		// prepares the statement: ahead of the table's lookup (1146) and of a
+		// duplicate column (1060). A parenthesized DEFAULT (NOW()) is a general
+		// expression default, which the same server takes on an INT column.
+		{
+			name: "ADD a NOW() default over no table",
+			stmt: "ALTER TABLE nope ADD e INT DEFAULT NOW()",
+			code: 1067,
+		},
+		{
+			name:  "ADD a CURRENT_TIMESTAMP default over a duplicate column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD b INT DEFAULT CURRENT_TIMESTAMP",
+			code:  1067,
+		},
+		{
+			name:  "MODIFY a column to a NOW() default",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a MODIFY b INT DEFAULT NOW()",
+			code:  1067,
+		},
+		{
+			name:  "ADD a parenthesized NOW() default to an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT DEFAULT (NOW())",
+			code:  0,
+		},
+		{
+			name:  "ADD a NOW() default to a DATETIME column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e DATETIME DEFAULT NOW()",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on an INT column",
+			stmt: "CREATE TABLE z (a INT DEFAULT NOW());",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on a DATETIME column",
+			stmt: "CREATE TABLE z (a DATETIME DEFAULT NOW());",
+			code: 0,
+		},
+		{
+			// 4028 asks for a column a reader may see, not merely for a column.
+			name: "CREATE TABLE whose only column is invisible",
+			stmt: "CREATE TABLE z (a INT INVISIBLE);",
+			code: 4028,
+		},
+		{
+			name:  "CREATE TABLE whose only column is invisible, with a generated primary key",
+			setup: []string{"SET SESSION sql_generate_invisible_primary_key = ON"},
+			stmt:  "CREATE TABLE z (a INT INVISIBLE);",
+			code:  4028,
+		},
+		{
+			name: "CREATE TABLE with an invisible and a visible column",
+			stmt: "CREATE TABLE z (a INT INVISIBLE, b INT);",
+			code: 0,
+		},
+		{
+			name:  "ALTER COLUMN SET INVISIBLE on the last visible column",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			// A functional index's hidden system column is not a visible one.
+			name:  "ALTER COLUMN SET INVISIBLE beside a functional index",
+			setup: []string{"CREATE TABLE z (a VARCHAR(10), INDEX ((LOWER(a))))"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			// The visible column is judged over the table the statement leaves.
+			name:  "hide a column and add another in one ALTER",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE, ADD COLUMN c INT",
+			code:  0,
+		},
+		{
+			name:  "hide two columns in one ALTER",
+			setup: []string{"CREATE TABLE z (a INT, b INT)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE, ALTER COLUMN b SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			name:  "MODIFY the last visible column INVISIBLE",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z MODIFY a INT INVISIBLE",
+			code:  4028,
+		},
+		{
+			// A CTAS appends the query's own columns as visible ones.
+			name: "CREATE TABLE AS SELECT beside an invisible column",
+			stmt: "CREATE TABLE z (a INT INVISIBLE) AS SELECT 1 AS b;",
+			code: 0,
 		},
 	}
 

@@ -121,7 +121,7 @@
 1146	1146	engine	one_table@missing	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
 1146	1146	engine	one_table@missing	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
 1146	1146	engine	one_table@missing	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
-1146	1067	engine	one_table@missing	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1067	1067	engine	one_table@missing	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
 1146	1146	engine	one_table@missing	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
 1146	1146	engine	one_table@missing	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
 1146	1146	engine	one_table@missing	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
@@ -159,17 +159,17 @@
 1146	1146	engine	one_table@missing	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
 1146	1146	engine	one_table@missing	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
 1146	1146	engine	one_table@missing	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
-1146	1067	engine	one_table@missing	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
-1146	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
-1146	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@missing	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	one_table@missing	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
 1146	1146	engine	one_table@missing	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1146	1146	engine	one_table@missing	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1146	1146	engine	one_table@missing	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
-1146	1067	engine	one_table@missing	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
-1146	1067	engine	one_table@missing	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
-1146	1067	engine	one_table@missing	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
-1146	1067	engine	one_table@missing	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
-1146	1067	engine	one_table@missing	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1067	1067	engine	one_table@missing	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	one_table@missing	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	one_table@missing	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	one_table@missing	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	one_table@missing	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
 1146	1146	engine	one_table@missing	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
 1146	1146	engine	one_table@missing	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
 1146	1146	engine	one_table@missing	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
@@ -188,7 +188,7 @@
 1146	1146	engine	one_table@missing	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
 1146	1146	engine	one_table@missing	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
 1146	1146	engine	one_table@missing	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
-ok	1113	engine	one_table@missing	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1113	1113	engine	one_table@missing	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
 1146	1146	engine	one_table@missing	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
 1146	1146	engine	one_table@missing	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 1146	1146	engine	one_table@missing	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
@@ -222,30 +222,30 @@ ok	1113	engine	one_table@missing	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNot
 1146	1146	engine	one_table@missing	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
 1146	1146	engine	one_table@missing	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
 1146	1146	engine	one_table@missing	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
-ok	1113	engine	one_table@missing	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
-ok	1113	engine	one_table@missing	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
-ok	1113	engine	one_table@missing	AsOpt/AS	CREATE TABLE ident AS
+1113	1113	engine	one_table@missing	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	one_table@missing	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	one_table@missing	AsOpt/AS	CREATE TABLE ident AS
 ok	1105	engine	one_table@missing	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
 ok	1105	engine	one_table@missing	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
 ok	1105	engine	one_table@missing	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
-ok	1051	engine	one_table@missing	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
-ok	1051	engine	one_table@missing	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
-ok	1051	engine	one_table@missing	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1051	1051	engine	one_table@missing	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	one_table@missing	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	one_table@missing	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
 1146	1146	engine	one_table@missing	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
-ok	1051	engine	one_table@missing	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
-ok	1051	engine	one_table@missing	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
-1060	1051	engine	one_table@missing	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
-ok	1051	engine	one_table@missing	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
-ok	1051	engine	one_table@missing	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+1051	1051	engine	one_table@missing	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	one_table@missing	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	one_table@missing	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	one_table@missing	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	one_table@missing	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
 1051	1051	engine	one_table@missing	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
-ok	1113	engine	one_table@missing	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+1113	1113	engine	one_table@missing	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
 1051	1051	engine	one_table@missing	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
 ok:c34acc0063c3	ok:c34acc0063c3	engine	one_table@missing	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 1051	1051	engine	one_table@missing	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
@@ -283,8 +283,8 @@ ok:c34acc0063c3	ok:c34acc0063c3	engine	one_table@missing	DropViewStmt/DROP_VIEW_
 1146	1146	engine	one_table@missing	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
 1146	1146	engine	one_table@missing	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
 1146	1146	engine	one_table@missing	Statement/TruncateTableStmt	TRUNCATE ident
-ok	1113	engine	one_table@missing	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
-1072	1113	engine	one_table@missing	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+1113	1113	engine	one_table@missing	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	one_table@missing	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
 1146	1146	engine	one_table@missing	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
 ok:edcc9bd76d8d	ok:edcc9bd76d8d	engine	one_table@missing	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
 ok:277aaa670a4a	ok:277aaa670a4a	engine	one_table@missing	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
@@ -325,7 +325,7 @@ ok:277aaa670a4a	ok:277aaa670a4a	engine	one_table@missing	TableElement/ColumnDef!
 1146	1146	engine	one_table@missing	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
 1146	1146	engine	one_table@missing	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
 1146	1146	engine	one_table@missing	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
-ok	1113	engine	one_table@missing	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+1113	1113	engine	one_table@missing	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
 1146	1146	engine	one_table@missing	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
 1146	1146	engine	one_table@missing	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
 1146	1146	engine	one_table@missing	OptTable/TABLE	TRUNCATE TABLE ident
@@ -552,7 +552,7 @@ ok	8200	engine	one_table@table	ColumnOption/UNIQUE_GLOBAL	ALTER TABLE ident ADD 
 ok	8200	engine	one_table@table	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
 ok	8200	engine	one_table@table	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
 ok	8200	engine	one_table@table	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
-ok	1067	engine	one_table@table	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1067	1067	engine	one_table@table	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
 ok	8200	engine	one_table@table	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
 ok	1294	engine	one_table@table	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
 ok:e5266f29d8c8	ok:e5266f29d8c8	engine	one_table@table	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
@@ -590,17 +590,17 @@ ok:c90f337b9db6	ok:c90f337b9db6	engine	one_table@table	ReferOpt/SET_DEFAULT	ALTE
 ok:87ef788e700c	ok:87ef788e700c	engine	one_table@table	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
 ok	1347	engine	one_table@table	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
 ok	3770	engine	one_table@table	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
-ok	1067	engine	one_table@table	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
-ok	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
-ok	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@table	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	one_table@table	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
 ok	1067	engine	one_table@table	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 ok	1067	engine	one_table@table	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 ok	1347	engine	one_table@table	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
-ok	1067	engine	one_table@table	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
-ok	1067	engine	one_table@table	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
-ok	1067	engine	one_table@table	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
-ok	1067	engine	one_table@table	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
-ok	1067	engine	one_table@table	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1067	1067	engine	one_table@table	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	one_table@table	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	one_table@table	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	one_table@table	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	one_table@table	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
 ok	1067	engine	one_table@table	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
 ok	8200	engine	one_table@table	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
 ok	8200	engine	one_table@table	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
@@ -619,7 +619,7 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	IndexPartSpecification/(_
 1072	1072	engine	one_table@table	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
 8200	8200	engine	one_table@table	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
 8200	8200	engine	one_table@table	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
-1050	1113	engine	one_table@table	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1113	1113	engine	one_table@table	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
 1050	1050	engine	one_table@table	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok	ok:acad9839805b	engine	one_table@table	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
@@ -653,30 +653,30 @@ ok	8200	engine	one_table@table	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TAB
 1505	1505	engine	one_table@table	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
 1505	1505	engine	one_table@table	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
 1505	1505	engine	one_table@table	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
-1050	1113	engine	one_table@table	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
-1050	1113	engine	one_table@table	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
-1050	1113	engine	one_table@table	AsOpt/AS	CREATE TABLE ident AS
+1113	1113	engine	one_table@table	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	one_table@table	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	one_table@table	AsOpt/AS	CREATE TABLE ident AS
 1050	1105	engine	one_table@table	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
 1050	1105	engine	one_table@table	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
 1050	1105	engine	one_table@table	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
-1050	1051	engine	one_table@table	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
-1050	1051	engine	one_table@table	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
-1050	1051	engine	one_table@table	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1051	1051	engine	one_table@table	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	one_table@table	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	one_table@table	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
 1050	1050	engine	one_table@table	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
-1050	1051	engine	one_table@table	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
-1050	1051	engine	one_table@table	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
-1050	1051	engine	one_table@table	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
-1050	1051	engine	one_table@table	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
-1050	1051	engine	one_table@table	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+1051	1051	engine	one_table@table	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	one_table@table	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	one_table@table	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	one_table@table	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	one_table@table	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
-1050	1113	engine	one_table@table	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+1113	1113	engine	one_table@table	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
 1051	1347	engine	one_table@table	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
 ok	1347	engine	one_table@table	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@table	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
@@ -714,8 +714,8 @@ ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	AlterOrderList/AlterOrder
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	Statement/TruncateTableStmt	TRUNCATE ident
-1050	1113	engine	one_table@table	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
-1050	1113	engine	one_table@table	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+1113	1113	engine	one_table@table	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	one_table@table	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
 1050	1050	engine	one_table@table	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
 1050	1050	engine	one_table@table	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
@@ -756,7 +756,7 @@ ok	1054	engine	one_table@table	TableOption/TTL_EqOpt_Identifier_+_INTERVAL_Liter
 ok	8266	engine	one_table@table	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
 ok	8200	engine	one_table@table	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
-1050	1113	engine	one_table@table	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+1113	1113	engine	one_table@table	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
 ok:55fd42690c80	ok:55fd42690c80	engine	one_table@table	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
 ok:55fd42690c80	ok:55fd42690c80	engine	one_table@table	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
 ok:b014d8c30de6	ok:b014d8c30de6	engine	one_table@table	OptTable/TABLE	TRUNCATE TABLE ident
@@ -983,7 +983,7 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	EnforcedOrNotOpt/Enforce
 1060	8200	engine	one_table@column	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
 1060	8200	engine	one_table@column	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
 1060	8200	engine	one_table@column	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
-1060	1067	engine	one_table@column	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1067	1067	engine	one_table@column	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
 1060	8200	engine	one_table@column	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
 1060	1060	engine	one_table@column	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
 1060	1060	engine	one_table@column	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
@@ -1021,17 +1021,17 @@ ok	1239	engine	one_table@column	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName
 1060	1060	engine	one_table@column	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
 1060	1347	engine	one_table@column	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
 1060	1060	engine	one_table@column	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
-1060	1067	engine	one_table@column	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
-1060	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
-1060	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@column	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	one_table@column	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
 1060	1060	engine	one_table@column	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1060	1060	engine	one_table@column	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1060	1347	engine	one_table@column	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
-1060	1067	engine	one_table@column	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
-1060	1067	engine	one_table@column	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
-1060	1067	engine	one_table@column	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
-1060	1067	engine	one_table@column	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
-1060	1067	engine	one_table@column	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1067	1067	engine	one_table@column	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	one_table@column	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	one_table@column	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	one_table@column	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	one_table@column	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
 1060	1060	engine	one_table@column	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
 ok	8200	engine	one_table@column	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
 ok	8200	engine	one_table@column	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
@@ -1050,7 +1050,7 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	IndexPartSpecification/(
 ok:33cf39bfefb9	ok:33cf39bfefb9	engine	one_table@column	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
 8200	8200	engine	one_table@column	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
 8200	8200	engine	one_table@column	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
-1050	1113	engine	one_table@column	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1113	1113	engine	one_table@column	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
 1050	1050	engine	one_table@column	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok	ok:c58d9662e615	engine	one_table@column	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
@@ -1084,30 +1084,30 @@ ok	8200	engine	one_table@column	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TA
 1505	1505	engine	one_table@column	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
 1505	1505	engine	one_table@column	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
 1505	1505	engine	one_table@column	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
-1050	1113	engine	one_table@column	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
-1050	1113	engine	one_table@column	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
-1050	1113	engine	one_table@column	AsOpt/AS	CREATE TABLE ident AS
+1113	1113	engine	one_table@column	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	one_table@column	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	one_table@column	AsOpt/AS	CREATE TABLE ident AS
 1050	1105	engine	one_table@column	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
 1050	1105	engine	one_table@column	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
 1050	1105	engine	one_table@column	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
-1050	1051	engine	one_table@column	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
-1050	1051	engine	one_table@column	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
-1050	1051	engine	one_table@column	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1051	1051	engine	one_table@column	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	one_table@column	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	one_table@column	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
 1050	1050	engine	one_table@column	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
-1050	1051	engine	one_table@column	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
-1050	1051	engine	one_table@column	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
-1050	1051	engine	one_table@column	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
-1050	1051	engine	one_table@column	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
-1050	1051	engine	one_table@column	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+1051	1051	engine	one_table@column	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	one_table@column	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	one_table@column	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	one_table@column	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	one_table@column	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
-1050	1113	engine	one_table@column	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+1113	1113	engine	one_table@column	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
 1051	1347	engine	one_table@column	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
 ok	1347	engine	one_table@column	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@column	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
@@ -1145,8 +1145,8 @@ ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	AlterOrderList/AlterOrde
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	Statement/TruncateTableStmt	TRUNCATE ident
-1050	1113	engine	one_table@column	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
-1050	1113	engine	one_table@column	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+1113	1113	engine	one_table@column	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	one_table@column	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
 1050	1050	engine	one_table@column	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
 1050	1050	engine	one_table@column	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
@@ -1187,7 +1187,7 @@ ok	8148	engine	one_table@column	TableOption/TTL_EqOpt_Identifier_+_INTERVAL_Lite
 ok	8266	engine	one_table@column	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
 ok	8200	engine	one_table@column	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
-1050	1113	engine	one_table@column	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+1113	1113	engine	one_table@column	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
 ok:05898b9dbd97	ok:05898b9dbd97	engine	one_table@column	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
 ok:05898b9dbd97	ok:05898b9dbd97	engine	one_table@column	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
 ok:ab95f33a4b34	ok:ab95f33a4b34	engine	one_table@column	OptTable/TABLE	TRUNCATE TABLE ident
@@ -1414,7 +1414,7 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	EnforcedOrNotOpt/Enforced
 1060	8200	engine	one_table@index	ColumnOption/UNIQUE_LOCAL	ALTER TABLE ident ADD ident TINYINT UNIQUE LOCAL
 1060	8200	engine	one_table@index	ColumnOption/UNIQUE	ALTER TABLE ident ADD ident TINYINT UNIQUE
 1060	8200	engine	one_table@index	ColumnOption/UNIQUE_KEY_GlobalOrLocalOpt	ALTER TABLE ident ADD ident TINYINT UNIQUE KEY
-1060	1067	engine	one_table@index	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
+1067	1067	engine	one_table@index	ColumnOption/DEFAULT_DefaultValueExpr	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP
 1060	8200	engine	one_table@index	ColumnOption/SERIAL_DEFAULT_VALUE	ALTER TABLE ident ADD ident TINYINT SERIAL DEFAULT VALUE
 1060	1060	engine	one_table@index	ColumnOption/ON_UPDATE_NowSymOptionFraction	ALTER TABLE ident ADD ident TINYINT ON UPDATE CURRENT_TIMESTAMP
 1060	1060	engine	one_table@index	ColumnOption/COMMENT_stringLit	ALTER TABLE ident ADD ident TINYINT COMMENT 'binary'
@@ -1452,17 +1452,17 @@ ok	1239	engine	one_table@index	ConstraintElem/FOREIGN_KEY_IfNotExists_IndexName_
 1060	1060	engine	one_table@index	DefaultValueExpr/SignedLiteral	ALTER TABLE ident ADD ident TINYINT DEFAULT FALSE
 1060	1347	engine	one_table@index	DefaultValueExpr/NextValueForSequenceParentheses	ALTER TABLE ident ADD ident TINYINT DEFAULT NEXT VALUE FOR ident
 1060	1060	engine	one_table@index	DefaultValueExpr/BuiltinFunction	ALTER TABLE ident ADD ident TINYINT DEFAULT ident()
-1060	1067	engine	one_table@index	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
-1060	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
-1060	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
+1067	1067	engine	one_table@index	NowSymOptionFractionParentheses/(_NowSymOptionFractionParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(CURRENT_TIMESTAMP)
+1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP()
+1067	1067	engine	one_table@index	NowSymOptionFraction/NowSymFunc_(_NUM_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_TIMESTAMP(1)
 1060	1060	engine	one_table@index	NowSymOptionFraction/CurdateSym_(_)	ALTER TABLE ident ADD ident TINYINT DEFAULT CURDATE()
 1060	1060	engine	one_table@index	NowSymOptionFraction/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE
 1060	1347	engine	one_table@index	NextValueForSequenceParentheses/(_NextValueForSequenceParentheses_)	ALTER TABLE ident ADD ident TINYINT DEFAULT(NEXT VALUE FOR ident)
-1060	1067	engine	one_table@index	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
-1060	1067	engine	one_table@index	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
-1060	1067	engine	one_table@index	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
-1060	1067	engine	one_table@index	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
-1060	1067	engine	one_table@index	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
+1067	1067	engine	one_table@index	NowSymFunc/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME()
+1067	1067	engine	one_table@index	NowSymFunc/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP()
+1067	1067	engine	one_table@index	NowSymFunc/builtinNow	ALTER TABLE ident ADD ident TINYINT DEFAULT NOW()
+1067	1067	engine	one_table@index	NowSym/LOCALTIME	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIME
+1067	1067	engine	one_table@index	NowSym/LOCALTIMESTAMP	ALTER TABLE ident ADD ident TINYINT DEFAULT LOCALTIMESTAMP
 1060	1060	engine	one_table@index	CurdateSym/CURRENT_DATE	ALTER TABLE ident ADD ident TINYINT DEFAULT CURRENT_DATE()
 ok	8200	engine	one_table@index	NumLiteral/intLit	ALTER TABLE ident STATS_SAMPLE_RATE 1
 ok	8200	engine	one_table@index	NumLiteral/floatLit	ALTER TABLE ident STATS_SAMPLE_RATE 1e0
@@ -1481,7 +1481,7 @@ ok:6ecf57e9734c	ok:6ecf57e9734c	engine	one_table@index	IndexLockAndAlgorithmOpt/
 1061	1061	engine	one_table@index	IndexKeyTypeOpt/UNIQUE	CREATE UNIQUE INDEX ident ON ident(ident)
 8200	8200	engine	one_table@index	IndexKeyTypeOpt/SPATIAL	CREATE SPATIAL INDEX ident ON ident(ident)
 8200	8200	engine	one_table@index	IndexKeyTypeOpt/FULLTEXT	CREATE FULLTEXT INDEX ident ON ident(ident)
-1050	1113	engine	one_table@index	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
+1113	1113	engine	one_table@index	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_TableElementListOpt_CreateTableOptionListOpt_PartitionOpt_DuplicateOpt_AsOpt_CreateTableSelectOpt_OnCommitOpt	CREATE TABLE ident
 1050	1050	engine	one_table@index	CreateTableStmt/CREATE_OptTemporary_TABLE_IfNotExists_TableName_LikeTableWithOrWithoutParen_OnCommitOpt	CREATE TABLE ident LIKE ident
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	PartitionOpt/PARTITION_BY_PartitionMethod_PartitionNumOpt_SubPartitionOpt_PartitionDefinitionListOpt_UpdateIndexesOpt!drop-2	ALTER TABLE ident PARTITION SYSTEM_TIME
 ok	ok:af023d0766da	engine	one_table@index	SubPartitionMethod/LinearOpt_KEY_PartitionKeyAlgorithmOpt_(_ColumnNameListOpt_)	ALTER TABLE ident PARTITION BY KEY()
@@ -1515,30 +1515,30 @@ ok	8200	engine	one_table@index	PartDefOption/NODEGROUP_EqOpt_LengthNum	ALTER TAB
 1505	1505	engine	one_table@index	PartDefValuesOpt/VALUES_IN_(_DefaultOrExpressionList_)	ALTER TABLE ident ADD PARTITION(PARTITION ident VALUES IN(DEFAULT))
 1505	1505	engine	one_table@index	PartDefValuesOpt/HISTORY	ALTER TABLE ident ADD PARTITION(PARTITION ident HISTORY)
 1505	1505	engine	one_table@index	PartDefValuesOpt/CURRENT	ALTER TABLE ident ADD PARTITION(PARTITION ident CURRENT)
-1050	1113	engine	one_table@index	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
-1050	1113	engine	one_table@index	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
-1050	1113	engine	one_table@index	AsOpt/AS	CREATE TABLE ident AS
+1113	1113	engine	one_table@index	DuplicateOpt/IGNORE	CREATE TABLE ident IGNORE
+1113	1113	engine	one_table@index	DuplicateOpt/REPLACE	CREATE TABLE ident REPLACE
+1113	1113	engine	one_table@index	AsOpt/AS	CREATE TABLE ident AS
 1050	1105	engine	one_table@index	CreateTableSelectOpt/SetOprStmt	CREATE TABLE ident SELECT * UNION SELECT *
 1050	1105	engine	one_table@index	CreateTableSelectOpt/SelectStmt	CREATE TABLE ident SELECT *
 1050	1105	engine	one_table@index	CreateTableSelectOpt/SelectStmtWithClause	CREATE TABLE ident WITH ident AS(SELECT *) SELECT *
-1050	1051	engine	one_table@index	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
-1050	1051	engine	one_table@index	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
-1050	1051	engine	one_table@index	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
+1051	1051	engine	one_table@index	CreateViewSelectOpt/SetOprStmt	CREATE VIEW ident AS SELECT * UNION SELECT *
+1051	1051	engine	one_table@index	CreateViewSelectOpt/SelectStmt	CREATE VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	CreateViewSelectOpt/SelectStmtWithClause	CREATE VIEW ident AS WITH ident AS(SELECT *) SELECT *
+1051	1051	engine	one_table@index	CreateViewSelectOpt/SubSelect	CREATE VIEW ident AS(SELECT *)
 1050	1050	engine	one_table@index	LikeTableWithOrWithoutParen/(_LIKE_TableName_)	CREATE TABLE ident(LIKE ident)
-1050	1051	engine	one_table@index	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
-1050	1051	engine	one_table@index	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
-1050	1051	engine	one_table@index	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
-1050	1051	engine	one_table@index	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
-1050	1051	engine	one_table@index	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
+1051	1051	engine	one_table@index	OrReplace/OR_REPLACE	CREATE OR REPLACE VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewAlgorithm/ALGORITHM_=_UNDEFINED	CREATE ALGORITHM = UNDEFINED VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewAlgorithm/ALGORITHM_=_MERGE	CREATE ALGORITHM = MERGE VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewAlgorithm/ALGORITHM_=_TEMPTABLE	CREATE ALGORITHM = TEMPTABLE VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewDefiner/DEFINER_=_Username	CREATE DEFINER = 'binary' VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewSQLSecurity/SQL_SECURITY_DEFINER	CREATE SQL SECURITY DEFINER VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewSQLSecurity/SQL_SECURITY_INVOKER	CREATE SQL SECURITY INVOKER VIEW ident AS SELECT *
+1051	1051	engine	one_table@index	ViewFieldList/(_ColumnList_)	CREATE VIEW ident(ident) AS SELECT *
+1051	1051	engine	one_table@index	ColumnList/ColumnList_,_Identifier	CREATE VIEW ident(ident, ident) AS SELECT *
+1051	1051	engine	one_table@index	ViewCheckOption/WITH_CASCADED_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH CASCADED CHECK OPTION
+1051	1051	engine	one_table@index	ViewCheckOption/WITH_LOCAL_CHECK_OPTION	CREATE VIEW ident AS SELECT * WITH LOCAL CHECK OPTION
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	DropTableStmt/DROP_OptTemporary_TableOrTables_IfExists_TableNameList_RestrictOrCascadeOpt	DROP TABLE ident
-1050	1113	engine	one_table@index	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
+1113	1113	engine	one_table@index	OptTemporary/TEMPORARY	CREATE TEMPORARY TABLE ident
 1051	1347	engine	one_table@index	DropViewStmt/DROP_VIEW_TableNameList_RestrictOrCascadeOpt	DROP VIEW ident
 ok	1347	engine	one_table@index	DropViewStmt/DROP_VIEW_IF_EXISTS_TableNameList_RestrictOrCascadeOpt	DROP VIEW IF EXISTS ident
 ok:e3b0c44298fc	ok:e3b0c44298fc	engine	one_table@index	RestrictOrCascadeOpt/RESTRICT	DROP TABLE ident RESTRICT
@@ -1576,8 +1576,8 @@ ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	AlterOrderList/AlterOrder
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	OptOrder/ASC	ALTER TABLE ident ORDER BY ident ASC
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	OptOrder/DESC	ALTER TABLE ident ORDER BY ident DESC
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	Statement/TruncateTableStmt	TRUNCATE ident
-1050	1113	engine	one_table@index	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
-1050	1113	engine	one_table@index	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
+1113	1113	engine	one_table@index	ConstraintWithVectorIndex/ConstraintKeywordOpt_ConstraintElem	CREATE TABLE ident(FULLTEXT(ident))
+1113	1113	engine	one_table@index	ConstraintWithVectorIndex/ConstraintVectorIndex!drop-1	CREATE TABLE ident(INDEX(ident))
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	CheckConstraintKeyword/CONSTRAINT	ALTER TABLE ident DROP CONSTRAINT ident
 1050	1050	engine	one_table@index	TableElement/ColumnDef	CREATE TABLE ident(ident TINYINT)
 1050	1050	engine	one_table@index	TableElement/ColumnDef!swap	CREATE TABLE ident(ident TINYTEXT)
@@ -1618,7 +1618,7 @@ ok	8148	engine	one_table@index	TableOption/TTL_EqOpt_Identifier_+_INTERVAL_Liter
 ok	8266	engine	one_table@index	TableOption/AFFINITY_EqOpt_StringName	ALTER TABLE ident AFFINITY 'binary'
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	ForceOpt/FORCE	ALTER TABLE ident FORCE AUTO_INCREMENT 1
 ok	8200	engine	one_table@index	StatsPersistentVal/LengthNum	ALTER TABLE ident STATS_PERSISTENT 1
-1050	1113	engine	one_table@index	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
+1113	1113	engine	one_table@index	CreateTableOptionListOpt/TableOptionList	CREATE TABLE ident COMMENT 'binary'
 ok:fa3eb388c6ba	ok:fa3eb388c6ba	engine	one_table@index	TableOptionList/TableOptionList_TableOption	ALTER TABLE ident COMMENT 'binary' COMMENT 'binary'
 ok:fa3eb388c6ba	ok:fa3eb388c6ba	engine	one_table@index	TableOptionList/TableOptionList_,_TableOption	ALTER TABLE ident COMMENT 'binary', COMMENT 'binary'
 ok:11c62f5dc0b2	ok:11c62f5dc0b2	engine	one_table@index	OptTable/TABLE	TRUNCATE TABLE ident
