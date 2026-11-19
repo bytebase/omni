@@ -63,6 +63,7 @@ func init() {
 		"DESC",
 		"HELP",
 		"EXPLAIN",
+		"TRACE",
 	)
 
 	// Data manipulation language.
@@ -79,6 +80,8 @@ func init() {
 	// Data definition language and session / administrative control.
 	register(QueryTypeDDL,
 		"CREATE",
+		"CACHE",
+		"SUBMIT",
 		"ALTER",
 		"DROP",
 		"GRANT",
@@ -159,6 +162,18 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 			return 0, false
 		}
 		return astQueryType(n.Query)
+	case *ast.OptimizerTraceStmt:
+		if n.Query == nil {
+			return 0, false
+		}
+		return astQueryType(n.Query)
+	case *ast.DataCacheSelectStmt:
+		// CACHE SELECT reads a table into StarRocks's data cache. It is a
+		// cache-management statement, not a read, so it stays DDL: classifying
+		// it as a query would let a read-only grant populate the cache.
+		return QueryTypeDDL, true
+	case *ast.SubmitTaskStmt, *ast.DropTaskStmt, *ast.AlterLoadStmt:
+		return QueryTypeDDL, true
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
 		*ast.TruncateTableStmt:
 		return QueryTypeDML, true

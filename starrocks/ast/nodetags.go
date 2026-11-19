@@ -244,6 +244,9 @@ const (
 	// T_DeleteStmt is the tag for *DeleteStmt.
 	T_DeleteStmt
 
+	// T_DataCacheSelectStmt is the tag for *DataCacheSelectStmt.
+	T_DataCacheSelectStmt
+
 	// DML — TRUNCATE TABLE / LOAD / EXPORT nodes (T6.1).
 
 	// T_TruncateTableStmt is the tag for *TruncateTableStmt.
@@ -254,6 +257,9 @@ const (
 
 	// T_LoadDataStmt is the tag for *LoadDataStmt.
 	T_LoadDataStmt
+
+	// T_AlterLoadStmt is the tag for *AlterLoadStmt.
+	T_AlterLoadStmt
 
 	// T_ExportStmt is the tag for *ExportStmt.
 	T_ExportStmt
@@ -474,6 +480,9 @@ const (
 	// T_ExplainStmt is the tag for *ExplainStmt.
 	T_ExplainStmt
 
+	// T_OptimizerTraceStmt is the tag for *OptimizerTraceStmt.
+	T_OptimizerTraceStmt
+
 	// T_UseStmt is the tag for *UseStmt.
 	T_UseStmt
 
@@ -563,6 +572,15 @@ const (
 
 	// T_ShowJobTaskStmt is the tag for *ShowJobTaskStmt.
 	T_ShowJobTaskStmt
+
+	// T_TaskSchedule is the tag for *TaskSchedule.
+	T_TaskSchedule
+
+	// T_SubmitTaskStmt is the tag for *SubmitTaskStmt.
+	T_SubmitTaskStmt
+
+	// T_DropTaskStmt is the tag for *DropTaskStmt.
+	T_DropTaskStmt
 	// Statistics / Analyze / Constraint management nodes (T8.3).
 
 	// T_ShowConstraintsStmt is the tag for *ShowConstraintsStmt.
@@ -759,12 +777,16 @@ func (t NodeTag) String() string {
 		return "UpdateStmt"
 	case T_DeleteStmt:
 		return "DeleteStmt"
+	case T_DataCacheSelectStmt:
+		return "DataCacheSelectStmt"
 	case T_TruncateTableStmt:
 		return "TruncateTableStmt"
 	case T_LoadDataDesc:
 		return "LoadDataDesc"
 	case T_LoadDataStmt:
 		return "LoadDataStmt"
+	case T_AlterLoadStmt:
+		return "AlterLoadStmt"
 	case T_ExportStmt:
 		return "ExportStmt"
 	case T_CreateRoutineLoadStmt:
@@ -897,6 +919,8 @@ func (t NodeTag) String() string {
 		return "DescribeStmt"
 	case T_ExplainStmt:
 		return "ExplainStmt"
+	case T_OptimizerTraceStmt:
+		return "OptimizerTraceStmt"
 	case T_UseStmt:
 		return "UseStmt"
 	case T_SetStmt:
@@ -955,6 +979,12 @@ func (t NodeTag) String() string {
 		return "ShowJobStmt"
 	case T_ShowJobTaskStmt:
 		return "ShowJobTaskStmt"
+	case T_TaskSchedule:
+		return "TaskSchedule"
+	case T_SubmitTaskStmt:
+		return "SubmitTaskStmt"
+	case T_DropTaskStmt:
+		return "DropTaskStmt"
 	case T_ShowConstraintsStmt:
 		return "ShowConstraintsStmt"
 	case T_AnalyzeStmt:

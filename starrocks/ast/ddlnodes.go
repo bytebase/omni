@@ -39,13 +39,17 @@ type CreateTableStmt struct {
 	DistributedBy *DistributionDesc  // DISTRIBUTED BY HASH/RANDOM
 	Rollup        []*RollupDef       // ROLLUP (...)
 	Properties    []*Property        // PROPERTIES (...)
-	Engine        string             // ENGINE = xxx
-	Comment       string             // COMMENT 'xxx'
-	Like          *ObjectName        // CREATE TABLE ... LIKE other_table
-	AsSelect      *RawQuery          // CREATE TABLE ... AS SELECT ...
-	CTASColumns   []string           // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
-	OrderBy       []string           // ORDER BY (cols)
-	Loc           Loc
+	// BrokerProperties is BROKER PROPERTIES (...) / BROKER ext_properties,
+	// which createTableStatement takes and createTableAsSelectStatement does
+	// not.
+	BrokerProperties []*Property
+	Engine           string      // ENGINE = xxx
+	Comment          string      // COMMENT 'xxx'
+	Like             *ObjectName // CREATE TABLE ... LIKE other_table
+	AsSelect         *RawQuery   // CREATE TABLE ... AS SELECT ...
+	CTASColumns      []string    // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
+	OrderBy          []string    // ORDER BY (cols)
+	Loc              Loc
 }
 
 // Tag implements Node.
@@ -130,12 +134,15 @@ var _ Node = (*KeyDesc)(nil)
 //
 //	[AUTO] PARTITION BY RANGE|LIST (cols/functions) (partition_defs...)
 type PartitionDesc struct {
-	Type       string           // "RANGE" or "LIST"
-	Auto       bool             // AUTO PARTITION
-	Columns    []string         // column names or function expressions (stored as raw strings)
-	FuncExprs  []string         // if partition columns include function expressions
-	Partitions []*PartitionItem // individual partition definitions
-	Loc        Loc
+	Type           string           // "RANGE" or "LIST"
+	Auto           bool             // AUTO PARTITION
+	Columns        []string         // column names or function expressions (stored as raw strings)
+	FuncExprs      []string         // if partition columns include function expressions
+	Partitions     []*PartitionItem // individual partition definitions
+	HasDefinitions bool             // a second parenthesized definition list was present
+	RangeExplicit  bool             // RANGE was written, not inferred from a keywordless form
+	RangeScalar    bool             // explicit RANGE takes a single scalar identifier
+	Loc            Loc
 }
 
 // Tag implements Node.
@@ -149,12 +156,16 @@ var _ Node = (*PartitionDesc)(nil)
 // For IN: PARTITION name VALUES IN ((values), (values))
 // For step: FROM (values) TO (values) INTERVAL n [unit]
 type PartitionItem struct {
-	Name       string     // partition name (empty for step partitions)
-	IsMaxValue bool       // VALUES LESS THAN MAXVALUE
-	Values     []string   // raw value strings for LESS THAN / fixed
-	InValues   [][]string // for IN partitions: list of value lists
+	Name          string     // partition name (empty for step partitions)
+	IsMaxValue    bool       // VALUES LESS THAN MAXVALUE
+	Values        []string   // raw value strings for LESS THAN / fixed
+	ValuesChecked bool       // Values came from a checked range value list
+	ValuesValid   bool       // every checked RANGE value is MAXVALUE or a quoted string
+	InValues      [][]string // for IN partitions: list of value values
+	InValuesValid bool       // every IN value is NULL or a quoted string
 	// Step partition fields
 	IsStep       bool
+	FromStep     bool // Doris's FROM ... TO ... INTERVAL form, not StarRocks's START ... END ... EVERY
 	FromValues   []string
 	ToValues     []string
 	Interval     string      // interval amount

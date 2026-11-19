@@ -117,20 +117,49 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			break
 		}
 		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
+		changes.DMLStatements = append(changes.DMLStatements, statementText(nodeText(n, text)))
 
 	case *ast.UpdateStmt:
 		// StarRocks updates a single target; FROM names read sources, not write
 		// targets.
 		addTable(n.Target, false)
 		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
+		changes.DMLStatements = append(changes.DMLStatements, statementText(nodeText(n, text)))
 
 	case *ast.DeleteStmt:
 		// USING names read sources, as FROM does for UPDATE.
 		addTable(n.Target, false)
 		changes.DMLCount++
-		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
+		changes.DMLStatements = append(changes.DMLStatements, statementText(nodeText(n, text)))
+
+	case *ast.ExplainStmt:
+		// Only EXPLAIN ANALYZE runs its statement; the plan-only levels write
+		// nothing.
+		if n.Type == "ANALYZE" && n.Query != nil {
+			inner := ExtractChangedResources(n.Query, database, text)
+			changes.Resources = append(changes.Resources, inner.Resources...)
+			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
+			changes.DMLCount += inner.DMLCount
+			changes.InsertCount += inner.InsertCount
+		}
+
+	case *ast.SubmitTaskStmt:
+		// The submitted statement is the one that writes; the task wrapper
+		// only schedules it. A qualified task name selects its database for
+		// the submitted statement.
+		taskDatabase := database
+		if taskDB, _ := objectName(n.Name, ""); taskDB != "" {
+			taskDatabase = taskDB
+			// Creating the task is itself a write in the task's database.
+			changes.Resources = append(changes.Resources, ChangedResource{Database: taskDB, DatabaseOnly: true})
+		}
+		if n.Statement != nil {
+			inner := ExtractChangedResources(n.Statement, taskDatabase, text)
+			changes.Resources = append(changes.Resources, inner.Resources...)
+			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
+			changes.DMLCount += inner.DMLCount
+			changes.InsertCount += inner.InsertCount
+		}
 
 	// Non-table object DDL: gate by the object's own explicit database
 	// qualifier only. CREATE FUNCTION is absent because its AST keeps the name
@@ -153,6 +182,10 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		addObjectDatabase(n.Name)
 	case *ast.DropProcedureStmt:
 		addObjectDatabase(n.Name)
+	case *ast.DropTaskStmt:
+		addObjectDatabase(n.Name)
+	case *ast.AlterLoadStmt:
+		addObjectDatabase(n.Name)
 	}
 
 	return changes
@@ -172,6 +205,16 @@ func objectName(name *ast.ObjectName, defaultDatabase string) (string, string) {
 		database = parts[len(parts)-2]
 	}
 	return database, parts[len(parts)-1]
+}
+
+// nodeText returns the source text a node covers, so a nested DML statement
+// does not carry its task or plan wrapper into DMLStatements.
+func nodeText(node ast.Node, text string) string {
+	loc := ast.NodeLoc(node)
+	if loc.IsValid() && loc.Start >= 0 && loc.End <= len(text) && loc.Start < loc.End {
+		return text[loc.Start:loc.End]
+	}
+	return text
 }
 
 // statementText returns the text of a statement, ensuring it ends with a

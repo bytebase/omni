@@ -97,17 +97,45 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 		upd.With = with
 		upd.Loc.Start = with.Loc.Start
 		return upd, nil
+	case int('('):
+		// withClause? queryNoWith, where queryNoWith may be a parenthesized
+		// subquery (StarRocks.g4:2090-2118).
+		paren, err := p.parseParenSelect()
+		if err != nil {
+			return nil, err
+		}
+		query, err := p.parseSetOpTail(paren)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.settleQueryInto(query); err != nil {
+			return nil, err
+		}
+		if err := p.parseQuerySuffixInto(query); err != nil {
+			return nil, err
+		}
+		attachWith(query, with)
+		return query, nil
 	}
 
 	stmt, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}
-	stmt.With = with
-	stmt.Loc.Start = with.Loc.Start
 
 	// A WITH … SELECT may continue with set operators (UNION/INTERSECT/EXCEPT).
-	return p.parseSetOpTail(stmt)
+	query, err := p.parseSetOpTail(stmt)
+	if err != nil {
+		return nil, err
+	}
+	if err := p.settleQueryInto(query); err != nil {
+		return nil, err
+	}
+	if err := p.parseQuerySuffixInto(query); err != nil {
+		return nil, err
+	}
+	attachWith(query, with)
+	return query, nil
 }
 
 // parseCTE parses one CTE definition:
@@ -168,17 +196,31 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	// Inner SELECT statement. If it starts with WITH, recurse; otherwise parse
 	// a plain SELECT followed by optional set-operator tail (UNION/INTERSECT/EXCEPT).
 	var innerStmt ast.Node
-	if p.cur.Kind == kwWITH {
-		innerStmt, err = p.parseWithSelect()
-	} else {
-		sel, err2 := p.parseSelectStmt()
-		if err2 != nil {
-			return nil, err2
+	switch p.cur.Kind {
+	case kwWITH:
+		innerStmt, err = p.parseWithStatement()
+		if err == nil && !isQueryBody(innerStmt) {
+			err = p.syntaxErrorAtCur()
 		}
-		innerStmt, err = p.parseSetOpTail(sel)
+	case int('('):
+		var paren *ast.ParenSelect
+		paren, err = p.parseParenSelect()
+		if err == nil {
+			innerStmt, err = p.parseSetOpTail(paren)
+		}
+	default:
+		var sel *ast.SelectStmt
+		sel, err = p.parseSelectStmt()
+		if err == nil {
+			innerStmt, err = p.parseSetOpTail(sel)
+		}
 	}
 	if err != nil {
 		return nil, err
+	}
+	// A CTE body is a queryRelation, which has no outfile clause.
+	if queryHasInto(innerStmt) {
+		return nil, p.syntaxErrorAtCur()
 	}
 	cte.Query = innerStmt
 

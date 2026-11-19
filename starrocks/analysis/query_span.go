@@ -73,7 +73,13 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	if err != nil {
 		return nil, parser.FirstError(err)
 	}
-	return getQuerySpan(Classify(statement), file)
+	queryType := Classify(statement)
+	if file != nil && len(file.Stmts) > 0 {
+		if classified, ok := astQueryType(file.Stmts[0]); ok {
+			queryType = classified
+		}
+	}
+	return getQuerySpan(queryType, file)
 }
 
 // getQuerySpan analyzes an already parsed file under the given
@@ -181,6 +187,28 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		// query statement, not an embedded child: dispatch it as outermost so
 		// its tables AND its Results populate.
 		w.visitSetOpArm(n, true /* outermost */)
+	case *ast.DataCacheSelectStmt:
+		w.visitDataCacheSelect(n)
+	case *ast.OptimizerTraceStmt:
+		w.visitWrappedQuery(n.Query)
+	case *ast.ExplainStmt:
+		w.visitWrappedQuery(n.Query)
+	default:
+		w.validateEmbeddedSubqueries(node)
+	}
+}
+
+// visitWrappedQuery walks the query a TRACE, EXPLAIN or CTAS body wraps. It
+// uses the scoped visitor for query relations, so a grouped WITH keeps its
+// scope, but does not promote the wrapped projection to this statement's
+// Results: a plan or trace answers with its own rows.
+func (w *spanWalker) visitWrappedQuery(node ast.Node) {
+	if node == nil {
+		return
+	}
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+		w.visitSetOpArm(node, false)
 	default:
 		w.validateEmbeddedSubqueries(node)
 	}
@@ -221,19 +249,33 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 	}
 	if with != nil {
 		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-		for _, cte := range with.CTEs {
-			if cte == nil || cte.Name == "" {
-				continue
-			}
-			scope.names[strings.ToLower(cte.Name)] = true
-			w.span.CTEs = append(w.span.CTEs, cte.Name)
-		}
 		w.enterScope(scope)
 		defer w.leaveScope(scope)
+		// Walk each body before adding its name, like the SELECT paths. The
+		// Inspect below skips the WithClause so the bodies are not walked a
+		// second time under the completed scope.
+		for _, cte := range with.CTEs {
+			if cte == nil {
+				continue
+			}
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+			if cte.Name == "" {
+				continue
+			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
+		}
 	}
 
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch q := n.(type) {
+		case *ast.WithClause:
+			// Its bodies were walked above in sibling order.
+			return false
 		case *ast.SubqueryExpr:
 			w.analyzeSubquery(q)
 			return false
@@ -241,7 +283,7 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			// CREATE TABLE dest AS SELECT * FROM secret keeps its query as
 			// raw text; the read it performs must reach AccessTables, and a
 			// malformed body must fail the span like any other subquery.
-			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			w.analyzeSubqueryText(q.RawText, q.TextStart, true)
 			return false
 		case *ast.SelectStmt:
 			// A parsed query child (INSERT INTO dest SELECT * FROM secret)
@@ -251,6 +293,18 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			return false
 		case *ast.SetOpStmt:
 			w.visitSetOp(q, false)
+			return false
+		case *ast.DataCacheSelectStmt:
+			w.visitDataCacheSelect(q)
+			return false
+		case *ast.ParenSelect:
+			w.visitParenSelect(q, false)
+			return false
+		case *ast.OptimizerTraceStmt:
+			w.visitWrappedQuery(q.Query)
+			return false
+		case *ast.ExplainStmt:
+			w.visitWrappedQuery(q.Query)
 			return false
 		case *ast.TableRef:
 			// A physical table referenced by DML — UPDATE ... FROM secret,
@@ -270,6 +324,28 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 // SQL's "take column names from the first SELECT" rule.
 func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	if n == nil {
+		return
+	}
+	if n.With != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
+		for _, cte := range n.With.CTEs {
+			if cte == nil {
+				continue
+			}
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+			if cte.Name == "" {
+				continue
+			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
+		}
+		w.visitSetOpArms(n, outermost)
 		return
 	}
 	// WITH on the leftmost SELECT scopes over the entire set operation —
@@ -347,23 +423,52 @@ func (w *spanWalker) visitSetOpArm(node ast.Node, outermost bool) {
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, outermost)
 	case *ast.ParenSelect:
-		if n != nil {
-			w.visitSetOpArm(n.Sel, outermost)
-			// Clauses attached to the wrapper from outside the parens —
-			// (SELECT 1) ORDER BY (SELECT x FROM secret) — carry table
-			// reads of their own.
-			for _, o := range n.OrderBy {
-				if o != nil && o.Expr != nil {
-					w.walkExpr(o.Expr)
-				}
+		w.visitParenSelect(n, outermost)
+	}
+}
+
+// visitParenSelect walks a grouped query, keeping an outer WITH on the group a
+// separate scope above the inner query's own WITH.
+func (w *spanWalker) visitParenSelect(n *ast.ParenSelect, outermost bool) {
+	if n == nil {
+		return
+	}
+	if n.With != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
+		// CTE bodies run in this scope, like visitSelect's, and each name
+		// enters the scope only after its own body.
+		for _, cte := range n.With.CTEs {
+			if cte == nil {
+				continue
 			}
-			if n.Limit != nil {
-				w.walkExpr(n.Limit)
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
 			}
-			if n.Offset != nil {
-				w.walkExpr(n.Offset)
+			if cte.Name == "" {
+				continue
 			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
+	}
+	w.visitSetOpArm(n.Sel, outermost)
+	// Clauses attached to the wrapper from outside the parens —
+	// (SELECT 1) ORDER BY (SELECT x FROM secret) — carry table
+	// reads of their own.
+	for _, o := range n.OrderBy {
+		if o != nil && o.Expr != nil {
+			w.walkExpr(o.Expr)
+		}
+	}
+	if n.Limit != nil {
+		w.walkExpr(n.Limit)
+	}
+	if n.Offset != nil {
+		w.walkExpr(n.Offset)
 	}
 }
 
@@ -382,24 +487,25 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 	// all CTEs as visible to each other's bodies; that matches the legacy
 	// extractor's behavior.
 	scope := &cteScope{names: make(map[string]bool), parent: w.scope}
-	if stmt.With != nil {
-		for _, cte := range stmt.With.CTEs {
-			if cte == nil || cte.Name == "" {
-				continue
-			}
-			scope.names[strings.ToLower(cte.Name)] = true
-			w.span.CTEs = append(w.span.CTEs, cte.Name)
-		}
-	}
 	w.enterScope(scope)
 
-	// Walk CTE bodies first so their FROM tables land in AccessTables.
+	// Walk each CTE body before adding its name: a body may read an earlier
+	// sibling but not itself or a later one.
 	if stmt.With != nil {
 		for _, cte := range stmt.With.CTEs {
-			if cte == nil || cte.Query == nil {
+			if cte == nil {
 				continue
 			}
-			w.visitSetOpArm(cte.Query, false)
+			if cte.Query != nil {
+				w.visitSetOpArm(cte.Query, false)
+			}
+			if cte.Name == "" {
+				continue
+			}
+			name := strings.ToLower(cte.Name)
+			scope.names[name] = true
+			w.cteNames[name]++
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
 		}
 	}
 
@@ -515,24 +621,35 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 		return
 	}
 
+	w.recordTableName(ref.Name, ref.Alias, ref.Loc)
+}
+
+// recordTableName adds a physical table named by name to AccessTables. It is
+// shared by table references and CACHE SELECT, whose source is a bare
+// qualified name rather than a TableRef.
+func (w *spanWalker) recordTableName(name *ast.ObjectName, alias string, loc ast.Loc) {
+	if name == nil || len(name.Parts) == 0 {
+		return
+	}
+
 	var database, table string
-	switch len(ref.Name.Parts) {
+	switch len(name.Parts) {
 	case 1:
-		table = ref.Name.Parts[0]
+		table = name.Parts[0]
 		// Bare name: skip if it matches an in-scope CTE.
 		if w.isCTE(table) {
 			return
 		}
 	case 2:
-		database = ref.Name.Parts[0]
-		table = ref.Name.Parts[1]
+		database = name.Parts[0]
+		table = name.Parts[1]
 	default:
 		// catalog.db.table or longer — keep the last two parts.
-		database = ref.Name.Parts[len(ref.Name.Parts)-2]
-		table = ref.Name.Parts[len(ref.Name.Parts)-1]
+		database = name.Parts[len(name.Parts)-2]
+		table = name.Parts[len(name.Parts)-1]
 	}
 
-	key := tableKey{Database: database, Table: table, Alias: ref.Alias}
+	key := tableKey{Database: database, Table: table, Alias: alias}
 	if _, ok := w.accessed[key]; ok {
 		return
 	}
@@ -540,14 +657,34 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 	w.span.AccessTables = append(w.span.AccessTables, TableAccess{
 		Database: database,
 		Table:    table,
-		Alias:    ref.Alias,
+		Alias:    alias,
 		Loc: ast.Loc{
 			// Rebased into outer-statement coordinates: inside a reparsed
-			// subquery ref.Loc is relative to the extracted text.
-			Start: ref.Loc.Start + w.textBase,
-			End:   ref.Loc.End + w.textBase,
+			// subquery loc is relative to the extracted text.
+			Start: loc.Start + w.textBase,
+			End:   loc.End + w.textBase,
 		},
 	})
+}
+
+// visitDataCacheSelect walks CACHE SELECT's source and select list. Its FROM is
+// a bare qualified name, so the ordinary TableRef path never sees it, and a
+// span that omitted it would let a cache read a table the access check never
+// sees. Its select list is not the statement's result set: CACHE SELECT prints
+// no data, so Results stays empty.
+func (w *spanWalker) visitDataCacheSelect(stmt *ast.DataCacheSelectStmt) {
+	if stmt == nil {
+		return
+	}
+	w.recordTableName(stmt.From, "", ast.NodeLoc(stmt.From))
+	if stmt.Where != nil {
+		w.walkExpr(stmt.Where)
+	}
+	for _, item := range stmt.Items {
+		if item != nil && item.Expr != nil {
+			w.walkExpr(item.Expr)
+		}
+	}
 }
 
 // analyzeSubquery walks a subquery placeholder's body. The tree the strict
@@ -558,7 +695,7 @@ func (w *spanWalker) analyzeSubquery(sub *ast.SubqueryExpr) {
 	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 		w.visitSetOpArm(q, false)
 	default:
-		w.analyzeSubqueryText(sub.RawText, sub.TextStart)
+		w.analyzeSubqueryText(sub.RawText, sub.TextStart, false)
 	}
 }
 
@@ -571,7 +708,7 @@ func (w *spanWalker) analyzeSubquery(sub *ast.SubqueryExpr) {
 // (SubqueryExpr.TextStart): nested parse errors carry positions relative to
 // the extracted text, and are shifted back into the outer statement's
 // coordinates so editor diagnostics highlight the right spot.
-func (w *spanWalker) analyzeSubqueryText(text string, base int) {
+func (w *spanWalker) analyzeSubqueryText(text string, base int, allowTrace bool) {
 	// base is relative to the text this walker is currently inside; abs is
 	// the position in the original statement, accumulated across levels.
 	abs := w.textBase + base
@@ -603,9 +740,23 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 	w.textBase = abs
 	defer func() { w.textBase = saved }()
 	for _, stmt := range file.Stmts {
-		switch stmt.(type) {
+		switch stmt := stmt.(type) {
 		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 			w.visitSetOpArm(stmt, false)
+		case *ast.OptimizerTraceStmt:
+			if !allowTrace {
+				loc := ast.NodeLoc(stmt)
+				w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
+				continue
+			}
+			w.visitWrappedQuery(stmt.Query)
+		case *ast.ExplainStmt:
+			if !allowTrace {
+				loc := ast.NodeLoc(stmt)
+				w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
+				continue
+			}
+			w.visitWrappedQuery(stmt.Query)
 		default:
 			// A placeholder body that parses cleanly as something other than
 			// a query (EXISTS (DELETE FROM secret) FROM public) is not a
