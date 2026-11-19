@@ -15,8 +15,8 @@ GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 1,958 | 257 | 399 |
-| Near-misses | 6,223 | 5,100 | 1,089 | 34 |
+| One per alternative | 2,614 | 2,146 | 69 | 399 |
+| Near-misses | 6,223 | 5,134 | 1,055 | 34 |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -27,7 +27,8 @@ Most of what only Spanner accepts is GoogleSQL syntax the emulator parses and
 then refuses as a statement it does not run (`Statement not supported`):
 `MERGE` (80 rows), `LOAD DATA` (74), `TABLE a(…)` / table clauses (56),
 `BEGIN … END` (47), `IMPORT` (25), `EXPORT DATA` (23), `SHOW` (23), and
-`EXECUTE IMMEDIATE` (21). The pipe rows are different; see below.
+`EXECUTE IMMEDIATE` (21). `SET TRANSACTION` and `SET @@…` are the same, and the
+pipe and graph rows are different; see below.
 Most of what only omni accepts is BigQuery: scripting (`DECLARE`, `IF`,
 `CASE`, `BREAK`), and DDL Spanner's DDL parser refuses (`CREATE TABLE a` with
 no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`).
@@ -59,9 +60,75 @@ VIEWS … FROM … LIKE`, 11), `IMPORT MODULE|PROTO` with `AS`/`INTO` aliases an
 `OPTIONS` (9), `MODULE <path> [OPTIONS]` (5), `EXPORT TABLE METADATA FROM` and
 `EXPORT DATA AS GRAPH` (3), and the empty `EXCEPTION WHEN ERROR THEN END`
 handler that `statement_list`'s empty alternative allows (2): 85 rows in all,
-none of them a cell the recording could not judge. The TABLE rows left are two
-near-misses: `TABLE a() QUALIFY`, where QUALIFY is the alias and omni reserves
-the word, and the rest of the only-Spanner near-misses above.
+none of them a cell the recording could not judge. One TABLE near-miss is
+left: `TABLE a() QUALIFY`, where QUALIFY is the clause word and omni reads no
+alias there.
+
+## `SET` is judged on one alternative only
+
+`set_statement` splits by target, and the recording parses exactly one target:
+`SET a = NULL` and its near-misses (`SET a = NULL zzz` rejects) are a parse
+verdict, and omni agrees on all of them. The other two are not. `SET @@ a = NULL
+zzz` and `SET TRANSACTION READ ONLY zzz` are recorded `accept` while their
+valid forms are too, so the inserted token changed nothing: the emulator
+answers `Statement not supported` for a system-variable or transaction-mode SET
+before it parses the assignment. The 10 rows left therefore say `accept` for
+text the grammar refuses (`SET TRANSACTION ONLY`, `SET TRANSACTION READ`, `SET
+@@ a =`), and matching them would mean accepting what `set_statement` does not
+derive.
+
+## The graph rows are a parse verdict
+
+The graph sub-language is the largest family the grammar derives and omni did
+not read: `graph_expression`'s endpoint (`IS [NOT] SOURCE|DESTINATION [OF]`) and
+label (`IS [NOT] LABELED`) predicates, the braced graph subqueries wherever a
+query can appear (`SELECT ARRAY { … }`, `SELECT EXISTS { … }`, `SELECT VALUE {
+… }`, `expr IN { … }`, and a CALL's inline subquery), and the operator, pattern
+and CALL alternatives inside them. Because a graph query is reached only through
+an expression, every one of those rows was a `reject` at the `{`: 208 rows moved
+on the one change.
+
+Unlike the pipe and dispatch families, the emulator judges this one: inside the
+same rules it rejects `SELECT EXISTS { MATCH }`, `{ MATCH - MATCH }`, `{ - MATCH
+- }`, `{ SHORTEST - }`, `{ - [ ] - }` and `{ < - [ ] - }` (the grammar's
+`ValidateNoWhitespace` on an edge pattern's delimiters), `{ (a)* }` (a quantifier
+on a node pattern), `{(@1 -) }` (a hint opening a path pattern), `{ -@1 - }` (a
+hint between two edges) and `{(COST NULL) }`. Text the grammar derives is
+accepted and text it refuses is rejected, so the cells are verdicts. The
+`COST` filler tail is the one place the recording disagrees with
+`googlesql.tm` — `opt_graph_cost/COST_expression` is recorded `reject` — so omni
+reads the word as an element named `COST` and not as the tail, which is what the
+grammar's own shift preference and the cell agree on.
+
+The rows left in this family are not verdicts: `DYNAMIC LABEL(NULL) DYNAMIC
+LABEL(NULL)` and its `drop-10` twin are recorded `accept` with and without the
+closing `)`, and `PROPERTIES ALL COLUMNS EXCEPT a))` is recorded `accept` with a
+stray `)`, so the emulator answered something other than a syntax error for a
+`CREATE PROPERTY GRAPH` whose `DYNAMIC LABEL` support its DDL parser reports
+later (4 rows).
+
+`SELECT NULL.*` (3 rows, and the two pipe `|> EXTEND NULL.*` rows) is a real
+verdict the grammar derives from `select_column_dot_star`'s
+`expression_higher_prec_than_and "." "*"`; omni's dot-star is path-only, as it
+was before either family, so they stay. `DROP MODEL a` is the same shape of real
+verdict outside every family here: `MODEL` is one alternative of the grammar's
+`schema_object_kind`, and the emulator's DDL parser reads it and reports the
+missing model later.
+
+## The keyword rows
+
+`common_keyword_as_identifier` is a word the grammar takes as a name, and omni
+reserved six of them: `MATCH_RECOGNIZE` (which the legacy grammar lists through
+the placeholder token `KW_MATCH_RECOGNIZE_NONRESERVED`, so its reserved split
+cannot see the word), `QUALIFY`, `NOTHING`, `SHORTEST` (missing from the older
+grammar's list), and `SAFE_CAST` / `REPLACE_FIELDS` (read only as functions).
+The pinned grammar lists all six, and the recording agrees: `SELECT
+MATCH_RECOGNIZE`, `SELECT NOTHING`, `SELECT QUALIFY`, `SELECT SHORTEST`, `SELECT
+SAFE_CAST` and `SELECT REPLACE_FIELDS` are accepted, each also with a trailing
+alias. 12 rows closed. `SELECT EXCEPT` is left: `EXCEPT` is a reserved word, so
+the grammar cannot derive that statement, and the emulator answered an empty
+select list — an analysis error, not a syntax error — which the judge reads as
+an acceptance.
 
 ## The pipe rows are not a parse verdict
 

@@ -871,7 +871,7 @@ func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 	var te *ast.TableExpr
 	if p.cur.Type == kwIF {
 		// tvf permits the reserved word IF in place of a path_expression.
-		f, err := p.parsePipeTVF()
+		f, err := p.parseTVF()
 		if err != nil {
 			return nil, err
 		}
@@ -883,7 +883,7 @@ func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 		}
 		te = &ast.TableExpr{Path: path, Loc: path.Loc}
 		if p.cur.Type == int('(') {
-			f, err := p.parsePipeTVFAfterName(path)
+			f, err := p.parseTVFAfterName(path)
 			if err != nil {
 				return nil, err
 			}
@@ -1013,7 +1013,7 @@ func (p *Parser) parseSubpipelineAfterOpen(openTok Token) (*ast.Subpipeline, err
 func (p *Parser) parsePipeTablePrimary() (ast.Node, error) {
 	if isIdentifierStart(p.cur.Type) || p.cur.Type == kwIF {
 		cp := p.checkpoint()
-		f, err := p.parsePipeTVF()
+		f, err := p.parseTVF()
 		if err == nil {
 			te := &ast.TableExpr{Func: f, Loc: nodeLoc(f)}
 			if alias, ok, err := p.tryParseTableAlias(); err != nil {
@@ -1143,7 +1143,7 @@ func (p *Parser) parsePipeJoinCriteria(je *ast.JoinExpr) error {
 // parsePipeCall parses `CALL <tvf> [[AS] alias]`.
 func (p *Parser) parsePipeCall(start int) (ast.Node, error) {
 	p.advance() // CALL
-	f, err := p.parsePipeTVF()
+	f, err := p.parseTVF()
 	if err != nil {
 		return nil, err
 	}
@@ -1157,11 +1157,11 @@ func (p *Parser) parsePipeCall(start int) (ast.Node, error) {
 	return &ast.PipeCall{Call: te, Loc: ast.Loc{Start: start, End: te.Loc.End}}, nil
 }
 
-// parsePipeTVF parses tvf: `(path_expression | "IF") "(" (tvf_argument
+// parseTVF parses tvf: `(path_expression | "IF") "(" (tvf_argument
 // separator ",")* ")" hint?`. Unlike a scalar function call, a TVF argument may
 // be a table clause (`TABLE t`), a model, a connection or a descriptor, so the
 // arguments are parseCallArg's tvf_argument alternatives.
-func (p *Parser) parsePipeTVF() (*ast.FuncCall, error) {
+func (p *Parser) parseTVF() (*ast.FuncCall, error) {
 	var name *ast.PathExpr
 	if p.cur.Type == kwIF {
 		tok := p.advance()
@@ -1173,12 +1173,12 @@ func (p *Parser) parsePipeTVF() (*ast.FuncCall, error) {
 		}
 		name = path
 	}
-	return p.parsePipeTVFAfterName(name)
+	return p.parseTVFAfterName(name)
 }
 
-// parsePipeTVFAfterName parses the call part of a tvf after its name:
+// parseTVFAfterName parses the call part of a tvf after its name:
 // `"(" (tvf_argument separator ",")* ")" hint?`.
-func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error) {
+func (p *Parser) parseTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error) {
 	if p.cur.Type != int('(') {
 		// tvf requires the call parentheses.
 		return nil, p.syntaxErrorAtCur()
@@ -1187,7 +1187,7 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 	fc := &ast.FuncCall{Name: name, Loc: name.Loc}
 	if p.cur.Type != int(')') {
 		for {
-			arg, err := p.parsePipeTVFArg()
+			arg, err := p.parseTVFArg()
 			if err != nil {
 				return nil, err
 			}
@@ -1212,11 +1212,11 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 	return fc, nil
 }
 
-// parsePipeTVFArg parses one tvf_argument of a TVF call. `TABLE …` as a
+// parseTVFArg parses one tvf_argument of a TVF call. `TABLE …` as a
 // table_clause and `INPUT TABLE` are read here; everything else (MODEL /
 // CONNECTION / DESCRIPTOR clauses, named arguments, a positional expression) is
 // parseCallArg's.
-func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
+func (p *Parser) parseTVFArg() (ast.Node, error) {
 	if p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF) {
 		// tvf_argument's table_clause: `TABLE <path|tvf> [WHERE expr]`. A bare
 		// TABLE, or one that begins a field access (`table.x`), is the
