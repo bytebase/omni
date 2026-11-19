@@ -174,6 +174,18 @@ func (p *Parser) parseParameterValue(name string, units bool) (nodes.ExprNode, e
 	if !ok {
 		return p.parseSysParamValue(units)
 	}
+	// Oracle takes an enumerated value bare or as a string literal, and
+	// matches either in any case.
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		value := strings.ToUpper(strings.TrimSpace(tok.Str))
+		for _, v := range values {
+			if v == value {
+				return &nodes.StringLiteral{Val: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
+			}
+		}
+		return nil, p.syntaxErrorAtTok(tok)
+	}
 	start := p.pos()
 	if !p.isSysWordToken() {
 		return nil, p.syntaxErrorAtCur()

@@ -46,6 +46,9 @@ func TestAlterParameterReading(t *testing.T) {
 		{`ALTER SESSION SET cursor_sharing = FOO`, 35},
 		{`ALTER SYSTEM SET optimizer_mode = BAD`, 34},
 		{`ALTER SYSTEM SET cursor_sharing = FOO`, 34},
+		{`ALTER SESSION SET optimizer_mode = 'BAD'`, 35},
+		{`ALTER SYSTEM SET cursor_sharing = 'FOO'`, 34},
+		{`ALTER SESSION SET "_NOSUCH_HIDDEN" = 1`, 18},
 	}
 	for _, c := range refusedAt {
 		_, err := Parse(c.sql)
@@ -67,6 +70,11 @@ func TestAlterParameterReading(t *testing.T) {
 		`ALTER SESSION SET cursor_sharing = FORCE`,
 		`ALTER SESSION SET db_unique_name = zzz`,
 		`ALTER SESSION SET "optimizer_mode" = all_rows`,
+		`ALTER SESSION SET optimizer_mode = 'ALL_ROWS'`,
+		`ALTER SESSION SET cursor_sharing = 'force'`,
+		`ALTER SYSTEM SET optimizer_mode = 'all_rows'`,
+		`ALTER SESSION SET "_ORACLE_SCRIPT" = true`,
+		`ALTER SYSTEM RESET "_ORACLE_SCRIPT"`,
 		`ALTER SESSION SET nls_date_format = 'YYYY-MM-DD'`,
 		`ALTER SESSION SET sort_area_size = 1`,
 		`ALTER SYSTEM SET optimizer_mode = ALL_ROWS`,
@@ -82,14 +90,14 @@ func TestAlterParameterReading(t *testing.T) {
 }
 
 // TestParameterLists holds the recorded lists to the shapes parameters.go
-// documents: every V$PARAMETER name on the pinned Oracle (566, hidden names
-// and all), the two enumerations the compat rows meet, and a free-text
+// documents: V$PARAMETER's 566 names, X$KSPPI's 7,137 hidden ones (7,700
+// distinct), the two enumerations the compat rows meet, and a free-text
 // parameter with no V$PARAMETER_VALID_VALUES row.
 func TestParameterLists(t *testing.T) {
-	if got := len(oracleParameters); got != 566 {
-		t.Errorf("oracleParameters holds %d names, want the 566 V$PARAMETER lists", got)
+	if got := len(oracleParameters); got != 7700 {
+		t.Errorf("oracleParameters holds %d names, want V$PARAMETER and X$KSPPI's 7,700", got)
 	}
-	for _, name := range []string{"OPTIMIZER_MODE", "CURSOR_SHARING", "NLS_DATE_FORMAT", "DB_UNIQUE_NAME", "_DMM_BLAS_LIBRARY"} {
+	for _, name := range []string{"OPTIMIZER_MODE", "CURSOR_SHARING", "NLS_DATE_FORMAT", "DB_UNIQUE_NAME", "_DMM_BLAS_LIBRARY", "_ORACLE_SCRIPT"} {
 		if !isOracleParameter(name) {
 			t.Errorf("isOracleParameter(%q) = false, want true", name)
 		}

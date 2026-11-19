@@ -322,9 +322,10 @@ rejection on both sides, at another byte.
 | `CREATE TABLE a(SUPPLEMENTAL LOG ...)` | 48 | the ')' of a column list that holds no column, or the token inside or after the clause that is not the one it takes: a supplemental_logging_props clause is one of relational_properties (`CREATE-TABLE.bnf` lines 58-65 and 183), so Oracle reads it and then wants a column, as it refuses a list of constraints alone at its ')' (`ORA-03079`). `CREATE TABLE a OF a(SUPPLEMENTAL LOG GROUP a(a))` is the control: an object table's `object_properties` took the clause all along and Oracle accepts it |
 
 The parameter family moved. `parameters.go` carries the 566 names
-`V$PARAMETER` lists on the pinned server and the single-word values
-`V$PARAMETER_VALID_VALUES` lists for them, and `TestAlterParameterReading`
-holds the family: a name the list does not hold is refused at the name
+`V$PARAMETER` lists on the pinned server and the 7,137 hidden names `X$KSPPI`
+adds (7,700 distinct), with the single-word values `V$PARAMETER_VALID_VALUES`
+lists for them, and `TestAlterParameterReading` holds the family: a name the
+lists do not hold is refused at the name
 (`ORA-02248` for ALTER SESSION, `ORA-02065` for ALTER SYSTEM, `ORA-00922` at 0
 for ALTER SYSTEM RESET), while a name it holds is read on, so a value where the
 `=` belongs is refused at the value. 136 rows moved, 51 of them from omni
