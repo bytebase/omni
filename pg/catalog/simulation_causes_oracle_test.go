@@ -3206,6 +3206,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if code := simulationCatalogCode(t, c98, "DROP EXTENSION test_part_tam_ext RESTRICT"); code != CodeDependentObjects {
 			t.Fatalf("DROP EXTENSION RESTRICT with detached partition using inherited AM answered %s, want %s", code, CodeDependentObjects)
 		}
+
+		// Failed CREATE TABLE PARTITION BY with an extension table access method
+		// leaves neither a relation nor a dependency on the access method behind.
+		RegisterExtensionSQL("test_bad_part_tam_ext", "CREATE ACCESS METHOD bad_part_tam TYPE TABLE HANDLER heap_tableam_handler;")
+		defer delete(extensionScripts, "test_bad_part_tam_ext")
+		c99 := New()
+		if code := simulationCatalogCode(t, c99, "CREATE EXTENSION test_bad_part_tam_ext"); code != "0" {
+			t.Fatalf("CREATE EXTENSION test_bad_part_tam_ext: %s", code)
+		}
+		if code := simulationCatalogCode(t, c99, "CREATE TABLE bad_p (id serial, a int, b int) PARTITION BY LIST (a, b) USING bad_part_tam"); code != CodeInvalidObjectDefinition {
+			t.Fatalf("invalid multi-column LIST partition answered %s, want %s", code, CodeInvalidObjectDefinition)
+		}
+		if c99.schemaByName["public"].Relations["bad_p"] != nil || len(c99.schemaByName["public"].Sequences) != 0 {
+			t.Fatal("failed CREATE TABLE PARTITION BY leaked relation or serial sequence")
+		}
+		if code := simulationCatalogCode(t, c99, "DROP EXTENSION test_bad_part_tam_ext RESTRICT"); code != "0" {
+			t.Fatalf("DROP EXTENSION RESTRICT after rolled-back CREATE TABLE answered %s, want 0", code)
+		}
 	})
 
 	for _, tc := range cases {

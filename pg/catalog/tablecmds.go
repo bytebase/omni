@@ -585,11 +585,67 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			Message: "ON COMMIT can only be used on temporary tables"}
 	}
 
+	// Validate partition key specification before creating implicit sequences
+	// or registering the relation.
+	// pg: src/backend/commands/tablecmds.c — DefineRelation (StorePartitionKey)
+	var partInfo *PartitionInfo
+	if stmt.Partspec != nil {
+		ps := stmt.Partspec
+		strategy := byte(0)
+		if len(ps.Strategy) > 0 {
+			strategy = ps.Strategy[0] // 'l', 'r', 'h'
+		}
+		// LIST partitioning supports only a single column.
+		// pg: src/backend/parser/parse_utilcmd.c — transformPartitionSpec
+		if strategy == 'l' && ps.PartParams != nil && len(ps.PartParams.Items) > 1 {
+			return &Error{Code: CodeInvalidObjectDefinition,
+				Message: "cannot use \"list\" partition strategy with more than one column"}
+		}
+
+		// Check PARTITION_MAX_KEYS limit.
+		// pg: src/backend/commands/tablecmds.c — DefineRelation (line 1158-1162)
+		if ps.PartParams != nil && len(ps.PartParams.Items) > PARTITION_MAX_KEYS {
+			return &Error{Code: CodeProgramLimitExceeded,
+				Message: fmt.Sprintf("cannot partition using more than %d columns", PARTITION_MAX_KEYS)}
+		}
+
+		var keyAttNums []int16
+		if ps.PartParams != nil {
+			for _, p := range ps.PartParams.Items {
+				pe, ok := p.(*nodes.PartitionElem)
+				if !ok {
+					continue
+				}
+				if pe.Name == "" {
+					if pe.Expr == nil {
+						return &Error{Code: CodeSyntaxError,
+							Message: "syntax error at or near \")\""}
+					}
+					// Expression partition key — store attnum=0 (PG convention).
+					keyAttNums = append(keyAttNums, 0)
+					continue
+				}
+				idx, exists := colByName[pe.Name]
+				if !exists {
+					return errUndefinedColumn(pe.Name)
+				}
+				keyAttNums = append(keyAttNums, int16(idx+1))
+			}
+		}
+		partInfo = &PartitionInfo{
+			Strategy:   strategy,
+			KeyAttNums: keyAttNums,
+			NKeyAttrs:  int16(len(keyAttNums)),
+		}
+	}
+
 	// Create implicit sequences for SERIAL and identity columns.
 	var createdSeqs []*Sequence
 	cleanupCreatedSeqs := func() {
 		for _, s := range createdSeqs {
-			c.removeSequence(s.Schema, s)
+			if c.sequenceByOID[s.OID] != nil {
+				c.removeSequence(s.Schema, s)
+			}
 		}
 	}
 	for _, si := range serials {
@@ -707,57 +763,10 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			c.recordDependency('r', relOID, 0, 'r', parentOID, 0, depType)
 		}
 	}
-
-	// Store partition key info (PARTITION BY clause).
-	// pg: src/backend/commands/tablecmds.c — DefineRelation (StorePartitionKey)
-	if stmt.Partspec != nil {
-		ps := stmt.Partspec
-		strategy := byte(0)
-		if len(ps.Strategy) > 0 {
-			strategy = ps.Strategy[0] // 'l', 'r', 'h'
-		}
-		// LIST partitioning supports only a single column.
-		// pg: src/backend/parser/parse_utilcmd.c — transformPartitionSpec
-		if strategy == 'l' && ps.PartParams != nil && len(ps.PartParams.Items) > 1 {
-			return &Error{Code: CodeInvalidObjectDefinition,
-				Message: "cannot use \"list\" partition strategy with more than one column"}
-		}
-
-		// Check PARTITION_MAX_KEYS limit.
-		// pg: src/backend/commands/tablecmds.c — DefineRelation (line 1158-1162)
-		if ps.PartParams != nil && len(ps.PartParams.Items) > PARTITION_MAX_KEYS {
-			return &Error{Code: CodeProgramLimitExceeded,
-				Message: fmt.Sprintf("cannot partition using more than %d columns", PARTITION_MAX_KEYS)}
-		}
-
-		var keyAttNums []int16
-		if ps.PartParams != nil {
-			for _, p := range ps.PartParams.Items {
-				pe, ok := p.(*nodes.PartitionElem)
-				if !ok {
-					continue
-				}
-				if pe.Name == "" {
-					if pe.Expr == nil {
-						return &Error{Code: CodeSyntaxError,
-							Message: "syntax error at or near \")\""}
-					}
-					// Expression partition key — store attnum=0 (PG convention).
-					keyAttNums = append(keyAttNums, 0)
-					continue
-				}
-				idx, exists := colByName[pe.Name]
-				if !exists {
-					return errUndefinedColumn(pe.Name)
-				}
-				keyAttNums = append(keyAttNums, int16(idx+1))
-			}
-		}
-		rel.PartitionInfo = &PartitionInfo{
-			Strategy:   strategy,
-			KeyAttNums: keyAttNums,
-			NKeyAttrs:  int16(len(keyAttNums)),
-		}
+	rel.PartitionInfo = partInfo
+	rollbackRelation := func() {
+		c.removeRelation(schema, relName, rel)
+		cleanupCreatedSeqs()
 	}
 
 	// Store partition bound (PARTITION OF ... FOR VALUES clause).
@@ -803,8 +812,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			rel.PartitionOf = parentOIDs[0]
 			// Check for partition bound overlap with existing partitions of the same parent.
 			if err := c.checkPartitionBoundOverlap(parentOIDs[0], rel.OID, rel.PartitionBound); err != nil {
-				// Roll back the registration done above.
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return err
 			}
 		}
@@ -867,7 +875,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	if relkind != 'c' {
 		for _, cd := range constraintDefs {
 			if err := c.addConstraint(schema, rel, cd); err != nil {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return err
 			}
 		}
@@ -890,7 +898,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		if cd.RawDefault != nil && columns[i].HasDefault {
 			analyzed, err := c.AnalyzeColumnDefaultExpr(cd.RawDefault, rel)
 			if err != nil {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return err
 			}
 			if analyzed == nil {
@@ -899,7 +907,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			// pg: cookDefault uses COERCE_IMPLICIT_CAST ('i') as display format
 			coerced, cerr := c.coerceToTargetTypeWithFormat(analyzed, analyzed.exprType(), columns[i].TypeOID, 'a', 'i')
 			if cerr != nil {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return cerr
 			}
 			if coerced != nil {
@@ -913,7 +921,7 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 		if cd.RawGenExpr != nil && columns[i].Generated == 's' {
 			if rawExprContainsSubLink(cd.RawGenExpr) {
-				c.removeRelation(schema, relName, rel)
+				rollbackRelation()
 				return &Error{Code: CodeFeatureNotSupported,
 					Message: "cannot use subquery in column generation expression"}
 			}
