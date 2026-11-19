@@ -85,7 +85,9 @@ func (p *Parser) parseAlterTableBody(stmt *nodes.AlterTableStmt) (*nodes.AlterTa
 	// alter_table_action_list reads `alter_table_actions ',' alter_table_action`
 	// with an empty actions arm, so one comma may lead the first action:
 	// `ALTER TABLE a, NOPARALLEL` is one table option.
-	if p.cur.Type == ',' {
+	// The external table's own alternatives take their action directly after the
+	// table's name, so no comma leads them.
+	if p.cur.Type == ',' && !stmt.External {
 		p.advance()
 		if p.cur.Type == tokEOF || p.cur.Type == ';' {
 			// A comma with no action after it is no action list.

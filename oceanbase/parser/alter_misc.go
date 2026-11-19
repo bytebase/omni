@@ -79,6 +79,13 @@ func (p *Parser) parseAlterViewStmt(start int) (*nodes.AlterViewStmt, error) {
 		stmt.Columns = cols
 	}
 
+	// opt_table_id: TABLE_ID [=] n, after the column list and before AS.
+	tableID, hasTableID, err := p.parseOptTableID()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableID, stmt.HasTableID = tableID, hasTableID
+
 	// AS
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err

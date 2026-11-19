@@ -6,6 +6,24 @@ import (
 	nodes "github.com/bytebase/omni/oceanbase/ast"
 )
 
+// parseOptTableID reads opt_table_id, `TABLE_ID '=' INTNUM`, and reports whether
+// it was written.
+func (p *Parser) parseOptTableID() (int64, bool, error) {
+	if !p.isBareWord("TABLE_ID") {
+		return 0, false, nil
+	}
+	p.advance()
+	if _, err := p.expect('='); err != nil {
+		return 0, false, err
+	}
+	if p.cur.Type != tokICONST {
+		return 0, false, p.syntaxErrorAtCur()
+	}
+	id := p.cur.Ival
+	p.advance()
+	return id, true, nil
+}
+
 // parseCreateViewStmt parses a CREATE VIEW statement.
 // The caller has already consumed CREATE [OR REPLACE].
 //
@@ -86,19 +104,6 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	}
 	stmt.Name = ref
 
-	// opt_table_id: TABLE_ID [=] n, before AS.
-	if p.isBareWord("TABLE_ID") {
-		p.advance()
-		if _, err := p.expect('='); err != nil {
-			return nil, err
-		}
-		if p.cur.Type != tokICONST {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.TableID, stmt.HasTableID = p.cur.Ival, true
-		p.advance()
-	}
-
 	// Optional column list
 	if p.cur.Type == '(' {
 		cols, err := p.parseParenIdentList()
@@ -107,6 +112,13 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 		}
 		stmt.Columns = cols
 	}
+
+	// opt_table_id: TABLE_ID [=] n, after the column list and before AS.
+	tableID, hasTableID, err := p.parseOptTableID()
+	if err != nil {
+		return nil, err
+	}
+	stmt.TableID, stmt.HasTableID = tableID, hasTableID
 
 	// AS
 	if _, err := p.expect(kwAS); err != nil {
