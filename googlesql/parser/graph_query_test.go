@@ -1545,3 +1545,30 @@ func TestGraphSubqueryGraphNameIsPathExpression(t *testing.T) {
 		t.Error("GRAPH a-b: accepted a dashed name where the grammar takes path_expression")
 	}
 }
+
+func TestReplaceFieldsExtensionPath(t *testing.T) {
+	// generalized_extension_path renders its dots, so the AST keeps the target the
+	// input named.
+	cases := []struct {
+		sql  string
+		want string
+	}{
+		{"SELECT REPLACE_FIELDS(s, 1 AS (a))", "(a)"},
+		{"SELECT REPLACE_FIELDS(s, 1 AS (a).b)", "(a).b"},
+		{"SELECT REPLACE_FIELDS(s, 1 AS (a).(b))", "(a).(b)"},
+		{"SELECT REPLACE_FIELDS(s, 1 AS (a).(b).c)", "(a).(b).c"},
+	}
+	for _, tc := range cases {
+		n := onlyItemExpr(t, tc.sql)
+		rf, ok := n.(*ast.ReplaceFieldsExpr)
+		if !ok {
+			t.Fatalf("%q: expression is %T, want *ast.ReplaceFieldsExpr", tc.sql, n)
+		}
+		if len(rf.Items) != 1 {
+			t.Fatalf("%q: %d replacement items, want 1", tc.sql, len(rf.Items))
+		}
+		if got := rf.Items[0].Alias; got != tc.want {
+			t.Errorf("%q: target = %q, want %q", tc.sql, got, tc.want)
+		}
+	}
+}

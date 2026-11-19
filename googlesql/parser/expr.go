@@ -2236,11 +2236,13 @@ func (p *Parser) parseReplaceFieldsPath() (string, error) {
 			}
 			b.WriteString(name)
 		}
-		// generalized_extension_path recurses: `.name` or `.( path )`.
+		// generalized_extension_path recurses: `.name` or `.( path )`. The dot is
+		// part of the rendered path, so it is written before the next component.
 		if p.cur.Type != int('.') {
 			return b.String(), nil
 		}
 		p.advance() // .
+		b.WriteString(".")
 	}
 }
 
