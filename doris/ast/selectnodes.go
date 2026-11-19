@@ -104,10 +104,11 @@ var _ Node = (*SelectStmt)(nil)
 // StarRocks's sibling node carries the same fields, but its parser attaches
 // the clause inside the SELECT, so there it can land on a set-operation arm.
 type IntoOutfileClause struct {
-	Path       string      // file path (S3, HDFS, or local)
-	Format     string      // format type: CSV, PARQUET, ORC, etc. (empty if not specified)
-	Properties []*Property // PROPERTIES key-value pairs
-	Loc        Loc
+	Path         string      // file path (S3, HDFS, or local)
+	PathConstant Node        // the path as written: a string or other constant
+	Format       string      // format type: CSV, PARQUET, ORC, etc. (empty if not specified)
+	Properties   []*Property // PROPERTIES key-value pairs
+	Loc          Loc
 }
 
 // Tag implements Node.

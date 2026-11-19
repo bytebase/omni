@@ -349,6 +349,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Into)
 		}
 	case *IntoOutfileClause:
+		if n.PathConstant != nil {
+			Walk(v, n.PathConstant)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}

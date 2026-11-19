@@ -1303,6 +1303,14 @@ func TestIntoOutfilePathTakesConstant(t *testing.T) {
 			t.Errorf("%q errors: %v, want a constant path", sql, errs)
 		}
 	}
+	file, errs := parseForTest("SELECT 1 INTO OUTFILE NULL")
+	if len(errs) != 0 {
+		t.Fatalf("OUTFILE NULL errors: %v", errs)
+	}
+	lit, ok := intoOf(t, file.Stmts[0]).PathConstant.(*ast.Literal)
+	if !ok || lit.Kind != ast.LitNull {
+		t.Errorf("OUTFILE NULL constant = %#v, want a null literal", intoOf(t, file.Stmts[0]).PathConstant)
+	}
 }
 
 func TestIntoOutfileNotAKeywordMatch(t *testing.T) {

@@ -96,6 +96,7 @@ func init() {
 		"REVOKE",
 		"ADMIN",
 		"BEGIN",
+		"START",
 		"COMMIT",
 		"ROLLBACK",
 		"KILL",

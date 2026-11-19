@@ -78,7 +78,8 @@ func (p *Parser) parseAlterStorageVault(startLoc ast.Loc) (ast.Node, error) {
 		}
 		stmt.Properties = props
 		if len(props) > 0 {
-			endLoc = ast.NodeLoc(props[len(props)-1])
+			// parseFullProperties consumed PROPERTIES through its closing ')'.
+			endLoc = p.prev.Loc
 		}
 	}
 

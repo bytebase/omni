@@ -618,7 +618,7 @@ func (p *Parser) parseDropSQLBlockRule(startLoc ast.Loc) (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Names = append(stmt.Names, name)
-		if stmt.Name == "" {
+		if len(stmt.Names) == 1 {
 			stmt.Name = name
 		}
 		stmt.Loc = startLoc.Merge(nameLoc)

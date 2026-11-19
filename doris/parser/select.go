@@ -1807,20 +1807,25 @@ func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
 
 	// The grammar spells the path `constant`, and the engine takes
 	// INTO OUTFILE NULL; a string keeps its unquoted text, any other constant
-	// keeps its source text.
+	// keeps its source text, and PathConstant keeps the constant's own type.
 	path := ""
+	var pathConstant ast.Node
 	if p.cur.Kind == tokString {
-		path = p.advance().Str
+		tok := p.advance()
+		path = tok.Str
+		pathConstant = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
 	} else {
 		constant, err := p.parseCollectionConstant()
 		if err != nil {
 			return nil, err
 		}
+		pathConstant = constant
 		path = p.sourceText(ast.NodeLoc(constant))
 	}
 	clause := &ast.IntoOutfileClause{
-		Path: path,
-		Loc:  ast.Loc{Start: startLoc.Start},
+		Path:         path,
+		PathConstant: pathConstant,
+		Loc:          ast.Loc{Start: startLoc.Start},
 	}
 
 	// FORMAT AS <identifier>. The engine wants an identifier and not text:
