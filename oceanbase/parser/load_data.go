@@ -343,7 +343,7 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 			if err != nil {
 				return err
 			}
-			stmt.LogFile = value
+			stmt.LogFile, stmt.HasLogFile = value, true
 		case p.isBareWord("REJECT") && p.peekNext().Type == kwLIMIT:
 			p.advance() // consume REJECT
 			p.advance() // consume LIMIT

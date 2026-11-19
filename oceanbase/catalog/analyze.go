@@ -593,9 +593,11 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 		expr := item.Expr
 		switch n := expr.(type) {
 		case *nodes.IntLit:
-			// Ordinal reference: GROUP BY 1 means first SELECT column.
+			// Ordinal reference: GROUP BY 1 means first SELECT column. The junk
+			// entries a grouping set or an ORDER BY reference adds are no columns
+			// of the select list, so the ordinal counts only the others.
 			idx := int(n.Value)
-			if idx < 1 || idx > len(q.TargetList) {
+			if idx < 1 || idx > visibleTargetCount(q) {
 				return fmt.Errorf("GROUP BY position %d is not in select list", idx)
 			}
 			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{
@@ -715,6 +717,18 @@ func detectAggregates(q *Query) bool {
 		return exprContainsAggregate(q.HavingQual)
 	}
 	return false
+}
+
+// visibleTargetCount returns how many of the query's targets are columns of its
+// select list: the junk entries exist for other clauses.
+func visibleTargetCount(q *Query) int {
+	n := 0
+	for _, te := range q.TargetList {
+		if !te.ResJunk {
+			n++
+		}
+	}
+	return n
 }
 
 // exprContainsAggregate recursively walks an AnalyzedExpr looking for

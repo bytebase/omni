@@ -2258,7 +2258,7 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.IgnoreGenerated {
 		sb.WriteString(" :ignore_generated true")
 	}
-	if n.LogFile != "" {
+	if n.HasLogFile {
 		fmt.Fprintf(sb, " :logfile %q", n.LogFile)
 	}
 	if n.HasRejectLimit {

@@ -2296,8 +2296,10 @@ type LoadDataStmt struct {
 	IgnoreGenerated bool
 	// The load_data_extended_option_list, which OceanBase adds after SET: the
 	// error log file, the rejected-rows limit and the bad-rows file. A limit of
-	// 0 with HasRejectLimit set is REJECT LIMIT 0.
+	// 0 with HasRejectLimit set is REJECT LIMIT 0, and an empty path with
+	// HasLogFile set is LOGFILE ''.
 	LogFile            string
+	HasLogFile         bool
 	HasRejectLimit     bool
 	RejectLimit        int
 	BadFile            string
