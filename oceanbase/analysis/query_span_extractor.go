@@ -711,11 +711,14 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		// remote: its columns are not the local catalog's, so nothing of a
 		// same-named local table's is.
 		if t.Dblink != "" || t.Catalog != "" {
+			// Its columns are known only when the query runs, so the source has a
+			// name and no known ones: any column reference to it resolves, as it
+			// does for an external table's.
 			name := t.Name
 			if t.Alias != "" {
 				name = t.Alias
 			}
-			return &pseudoTable{Name: name}, nil
+			return &unknownColumnsTable{pseudoTable{Name: name}}, nil
 		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
@@ -1553,8 +1556,15 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		*ast.InstallPluginStmt, *ast.UninstallPluginStmt, *ast.InstallComponentStmt,
 		*ast.UninstallComponentStmt, *ast.CloneStmt,
 		// purge_stmt and flashback_stmt destroy and restore a table (or a
-		// database, a tenant or the recycle bin) as DDL does.
-		*ast.PurgeStmt, *ast.FlashbackStmt:
+		// database, a tenant or the recycle bin) as DDL does, and so do a
+		// catalog's, a database link's and a restore point's own statements.
+		*ast.PurgeStmt, *ast.FlashbackStmt, *ast.RestorePointStmt, *ast.DatabaseLinkStmt:
+		return DDL
+	case *ast.CatalogStmt:
+		// SET CATALOG is a session statement; CREATE and DROP CATALOG are DDL.
+		if n.Action == "SET" {
+			return Select
+		}
 		return DDL
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.BeginStmt, *ast.CommitStmt,
 		*ast.RollbackStmt, *ast.SavepointStmt, *ast.LockTablesStmt, *ast.UnlockTablesStmt,

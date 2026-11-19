@@ -2841,6 +2841,9 @@ func writeCastExpr(sb *strings.Builder, n *CastExpr) {
 	if n.Array {
 		sb.WriteString(" :array true")
 	}
+	if n.Ignore {
+		sb.WriteString(" :ignore true")
+	}
 	sb.WriteString("}")
 }
 
