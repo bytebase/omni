@@ -2355,6 +2355,9 @@ func (c *Catalog) shiftAttnumsAfterDrop(rel *Relation, attnum int16) {
 //
 // pg: src/backend/commands/alter.c — ExecAlterObjectSchemaStmt
 func (c *Catalog) ExecAlterObjectSchemaStmt(stmt *nodes.AlterObjectSchemaStmt) error {
+	if nodes.ObjectType(stmt.ObjectType) == nodes.OBJECT_EXTENSION {
+		return c.alterExtensionNamespace(stmt)
+	}
 	// PostgreSQL resolves the object and checks its kind before it reads the
 	// target schema, and IF EXISTS skips a missing object before either. So
 	// ALTER SEQUENCE on a table is 42809, not "schema does not exist".

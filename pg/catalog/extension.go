@@ -320,6 +320,23 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	sort.Slice(amRelOIDs, func(i, j int) bool { return amRelOIDs[i] < amRelOIDs[j] })
 	sort.Slice(amIdxOIDs, func(i, j int) bool { return amIdxOIDs[i] < amIdxOIDs[j] })
 	sort.Slice(opDepOIDs, func(i, j int) bool { return opDepOIDs[i] < opDepOIDs[j] })
+	// A user-created cast that references a member type or function is an
+	// external dependent too, though it carries no OID of its own.
+	var externalCasts []castKey
+	for key, cast := range c.castIndex {
+		if c.extensionCasts[key] != "" {
+			continue
+		}
+		if inExtDrop(cast.Source) || inExtDrop(cast.Target) || (cast.Func != 0 && inExtDrop(cast.Func)) {
+			externalCasts = append(externalCasts, key)
+		}
+	}
+	sort.Slice(externalCasts, func(i, j int) bool {
+		if externalCasts[i].source != externalCasts[j].source {
+			return externalCasts[i].source < externalCasts[j].source
+		}
+		return externalCasts[i].target < externalCasts[j].target
+	})
 
 	inDropSet := func(objType byte, objOID uint32) bool {
 		if inExtDrop(objOID) {
@@ -402,6 +419,9 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 				return errDependentObjects("extension", extLabel)
 			}
 		}
+		if len(externalCasts) > 0 {
+			return errDependentObjects("extension", extLabel)
+		}
 		for _, bt := range types {
 			for _, depRelOID := range c.typeRelationDependents(bt) {
 				if !relOIDs[depRelOID] {
@@ -475,6 +495,9 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		}
 		for _, opOID := range opDepOIDs {
 			c.removeOperator(opOID)
+		}
+		for _, key := range externalCasts {
+			delete(c.castIndex, key)
 		}
 	}
 	for _, idx := range cascadeIdxs {
@@ -624,4 +647,65 @@ func (c *Catalog) diffsMemberSetting(oid uint32, other *Catalog, isFrom, baselin
 // Once registered, CREATE EXTENSION <name> will execute the provided SQL.
 func RegisterExtensionSQL(name, sql string) {
 	extensionScripts[name] = sql
+}
+
+// alterExtensionNamespace moves an extension and its relocatable members to
+// another schema.
+//
+// pg: src/backend/commands/extension.c — AlterExtensionNamespace
+func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) error {
+	name := extractSimpleObjectName(stmt.Object)
+	ext := c.extByName[name]
+	if ext == nil {
+		if stmt.MissingOk {
+			return nil
+		}
+		return errUndefinedObject("extension", name)
+	}
+	newSchema := c.schemaByName[stmt.Newschema]
+	if newSchema == nil {
+		return errUndefinedSchema(stmt.Newschema)
+	}
+	oldOID := ext.SchemaOID
+	if oldOID == newSchema.OID {
+		return nil
+	}
+	oldSchema := c.schemas[oldOID]
+
+	moveRelations := func(rel *Relation) {
+		if oldSchema != nil && rel.Schema == oldSchema {
+			delete(oldSchema.Relations, rel.Name)
+			newSchema.Relations[rel.Name] = rel
+			rel.Schema = newSchema
+		}
+	}
+	for oid := range c.extensionMembers {
+		if rel := c.relationByOID[oid]; rel != nil {
+			moveRelations(rel)
+		}
+		if idx := c.indexes[oid]; idx != nil {
+			if oldSchema != nil && idx.Schema == oldSchema {
+				delete(oldSchema.Indexes, idx.Name)
+				newSchema.Indexes[idx.Name] = idx
+				idx.Schema = newSchema
+			}
+		}
+		if seq := c.sequenceByOID[oid]; seq != nil {
+			if oldSchema != nil && seq.Schema == oldSchema {
+				delete(oldSchema.Sequences, seq.Name)
+				newSchema.Sequences[seq.Name] = seq
+				seq.Schema = newSchema
+			}
+		}
+		if bt := c.typeByOID[oid]; bt != nil && bt.Namespace == oldOID {
+			delete(c.typeByName, typeKey{ns: oldOID, name: bt.TypeName})
+			bt.Namespace = newSchema.OID
+			c.typeByName[typeKey{ns: newSchema.OID, name: bt.TypeName}] = bt
+		}
+		if up := c.userProcs[oid]; up != nil && oldSchema != nil && up.Schema == oldSchema {
+			up.Schema = newSchema
+		}
+	}
+	ext.SchemaOID = newSchema.OID
+	return nil
 }

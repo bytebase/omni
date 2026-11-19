@@ -39,7 +39,9 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 		}
 		return errDuplicateSchema(schemaName)
 	}
-	if ownerName != "" && !strings.HasPrefix(ownerName, "pg_") {
+	// Roles are cluster-wide and a dump does not create them, so an
+	// AUTHORIZATION role is recorded as observed rather than required.
+	if ownerName != "" {
 		c.roles[ownerName] = true
 	}
 	effectiveOwner := ownerName

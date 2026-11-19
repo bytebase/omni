@@ -31,6 +31,13 @@ func (c *Catalog) ExecGrantStmt(stmt *nodes.GrantStmt) error {
 
 	// Extract grantees.
 	grantees := c.extractGrantees(stmt.Grantees)
+	// A dump grants to cluster-wide roles it does not create, so a grantee is
+	// recorded as observed rather than required.
+	for _, grantee := range grantees {
+		if grantee != "" {
+			c.roles[grantee] = true
+		}
+	}
 
 	// Determine object type code.
 	objTypeCode := grantObjTypeCode(nodes.ObjectType(stmt.Objtype))

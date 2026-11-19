@@ -968,6 +968,10 @@ func (c *Catalog) dropDependentObject(objType byte, objOID uint32) {
 			return
 		}
 		c.removeEventTrigger(evt)
+	case 'O':
+		if c.operByOID[objOID] != nil {
+			c.removeOperator(objOID)
+		}
 	case 't':
 		bt := c.typeByOID[objOID]
 		if bt == nil {

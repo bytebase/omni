@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"cmp"
 	"fmt"
 	"sort"
 	"strings"
@@ -182,6 +183,8 @@ func (c *Catalog) ExecAlterOwnerStmt(stmt *nodes.AlterOwnerStmt) error {
 		return c.alterOperatorOwner(stmt)
 	case nodes.OBJECT_EVENT_TRIGGER:
 		return c.alterEventTriggerOwner(stmt)
+	case nodes.OBJECT_EXTENSION:
+		return c.alterExtensionOwner(stmt)
 	default:
 		return nil
 	}
@@ -215,29 +218,32 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 		}
 	}
 	var found *BuiltinOperator
-	visible := func(op *BuiltinOperator) bool {
+	rank := func(op *BuiltinOperator) int {
 		if op.OID < FirstNormalObjectId {
-			return false
-		}
-		if schemaName != "" {
-			ns := c.schemaByName[schemaName]
-			return ns != nil && c.operatorSchemas[op.OID] == ns.OID
+			return -1
 		}
 		nsOID, ok := c.operatorSchemas[op.OID]
 		if !ok {
-			return false
+			return -1
 		}
-		for _, visible := range c.searchPathWithCatalog() {
+		if schemaName != "" {
+			if ns := c.schemaByName[schemaName]; ns != nil && ns.OID == nsOID {
+				return 0
+			}
+			return -1
+		}
+		for i, visible := range c.searchPathWithCatalog() {
 			if visible == nsOID {
-				return true
+				return i
 			}
 		}
-		return false
+		return -1
 	}
+	bestRank := -1
 	for _, op := range c.operByKey[operKey{name: oprName, left: left, right: right}] {
-		if visible(op) {
+		if r := rank(op); r >= 0 && (bestRank < 0 || r < bestRank) {
+			bestRank = r
 			found = op
-			break
 		}
 	}
 	if found == nil {
@@ -251,6 +257,24 @@ func (c *Catalog) alterOperatorOwner(stmt *nodes.AlterOwnerStmt) error {
 		return err
 	}
 	c.operatorOwners[found.OID] = owner
+	return nil
+}
+
+// alterExtensionOwner changes the owner recorded for an extension.
+func (c *Catalog) alterExtensionOwner(stmt *nodes.AlterOwnerStmt) error {
+	name := extractSimpleObjectName(stmt.Object)
+	ext := c.extByName[name]
+	if ext == nil {
+		return errUndefinedObject("extension", name)
+	}
+	if stmt.Newowner == nil {
+		return nil
+	}
+	owner := c.ownerRoleName(stmt.Newowner)
+	if err := c.checkRole(owner); err != nil {
+		return err
+	}
+	ext.OwnerName = owner
 	return nil
 }
 
@@ -824,6 +848,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	// extension: a RESTRICT drop reports them, CASCADE takes them with it.
 	var opclassIndexes []ownerIndexExt
 	opclassIndexOIDs := map[uint32]bool{}
+	// amRelations holds relations that use an access method of an owned
+	// extension; CASCADE drops them with it.
+	var amRelations []*Relation
+	amRelOIDs := map[uint32]bool{}
+	var amIndexes []ownerIndexExt
 	for oid, extName := range c.extensionMembers {
 		if !ownedExtNames[extName] {
 			continue
@@ -837,7 +866,58 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				opclassIndexOIDs[idx.OID] = true
 			}
 		}
+		if c.accessMethods[oid] == nil {
+			continue
+		}
+		for _, dep := range c.findNormalDependents('m', oid) {
+			switch dep.ObjType {
+			case 'r':
+				if rel := c.relationByOID[dep.ObjOID]; rel != nil && !amRelOIDs[rel.OID] {
+					amRelOIDs[rel.OID] = true
+					amRelations = append(amRelations, rel)
+				}
+			case 'i':
+				if idx := c.indexes[dep.ObjOID]; idx != nil && !opclassIndexOIDs[idx.OID] {
+					opclassIndexOIDs[idx.OID] = true
+					amIndexes = append(amIndexes, ownerIndexExt{idx: idx, extName: extName})
+				}
+			}
+		}
 	}
+	// externalCasts holds user-created casts that reference an owned
+	// extension's type or function.
+	type castExt struct {
+		key     castKey
+		extName string
+	}
+	var externalCasts []castExt
+	extTypeOIDs := map[uint32]string{}
+	extFuncOIDs := map[uint32]string{}
+	for oid, extName := range c.extensionMembers {
+		if !ownedExtNames[extName] {
+			continue
+		}
+		if c.typeByOID[oid] != nil {
+			extTypeOIDs[oid] = extName
+		}
+		if c.userProcs[oid] != nil {
+			extFuncOIDs[oid] = extName
+		}
+	}
+	for key, cast := range c.castIndex {
+		if c.extensionCasts[key] != "" {
+			continue
+		}
+		if name := cmp.Or(extTypeOIDs[cast.Source], extTypeOIDs[cast.Target], extFuncOIDs[cast.Func]); name != "" {
+			externalCasts = append(externalCasts, castExt{key: key, extName: name})
+		}
+	}
+	sort.Slice(externalCasts, func(i, j int) bool {
+		if externalCasts[i].key.source != externalCasts[j].key.source {
+			return externalCasts[i].key.source < externalCasts[j].key.source
+		}
+		return externalCasts[i].key.target < externalCasts[j].key.target
+	})
 	sort.Slice(opclassIndexes, func(i, j int) bool { return opclassIndexes[i].idx.OID < opclassIndexes[j].idx.OID })
 
 	type ownedRel struct {
@@ -1102,6 +1182,19 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 				return errDependentObjects("extension", x.extName)
 			}
 		}
+		for _, rel := range amRelations {
+			if !ownedRelOIDs[rel.OID] {
+				return errDependentObjects("extension", c.extensionMembers[rel.OID])
+			}
+		}
+		for _, x := range amIndexes {
+			if !ownedRelOIDs[x.idx.RelOID] && !inDropSet('i', x.idx.OID) {
+				return errDependentObjects("extension", x.extName)
+			}
+		}
+		for _, x := range externalCasts {
+			return errDependentObjects("extension", x.extName)
+		}
 		for _, x := range seqs {
 			for _, dep := range c.findNormalDependents('s', x.seq.OID) {
 				if !inDropSet(dep.ObjType, dep.ObjOID) {
@@ -1209,6 +1302,21 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 	for _, x := range opclassIndexes {
 		if c.indexes[x.idx.OID] == x.idx {
 			c.removeIndex(x.idx.Schema, x.idx.Name, x.idx)
+		}
+	}
+	if cascade {
+		for _, rel := range amRelations {
+			if c.relationByOID[rel.OID] != nil {
+				c.cascadeDropRelation(rel)
+			}
+		}
+		for _, x := range amIndexes {
+			if c.indexes[x.idx.OID] == x.idx {
+				c.removeIndex(x.idx.Schema, x.idx.Name, x.idx)
+			}
+		}
+		for _, x := range externalCasts {
+			delete(c.castIndex, x.key)
 		}
 	}
 	var ownedOperators []uint32

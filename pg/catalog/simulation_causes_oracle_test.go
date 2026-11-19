@@ -1808,6 +1808,125 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("DROP EXTENSION pg_trgm CASCADE answered %s", code)
 		}
 
+		// #163: CREATE OPERATOR in a schema that does not exist is refused
+		// before the operator is registered.
+		c36 := New()
+		if code := simulationCatalogCode(t, c36, "CREATE OPERATOR missing.@@ (LEFTARG = int, RIGHTARG = int, PROCEDURE = int4eq)"); code != CodeUndefinedSchema {
+			t.Fatalf("CREATE OPERATOR in a missing schema answered %s, want %s", code, CodeUndefinedSchema)
+		}
+		if len(c36.operByOID) != len(BuiltinOperators) {
+			t.Fatalf("failed CREATE OPERATOR registered %d user operators", len(c36.operByOID)-len(BuiltinOperators))
+		}
+
+		// #164 & #166: DROP OWNED removes an operator's dependency edges, and
+		// DROP FUNCTION ... CASCADE removes a dependent operator.
+		c37 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE op_role",
+			"CREATE FUNCTION op_impl(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"SET ROLE op_role",
+			"CREATE OPERATOR <<>> (LEFTARG = int, RIGHTARG = int, PROCEDURE = op_impl)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c37, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c37, "DROP OWNED BY op_role"); code != "0" {
+			t.Fatalf("DROP OWNED BY op_role: %s", code)
+		}
+		if len(c37.operByKey[operKey{name: "<<>>", left: INT4OID, right: INT4OID}]) != 0 {
+			t.Fatal("DROP OWNED left the owned operator")
+		}
+		for _, d := range c37.deps {
+			if d.ObjType == 'O' || d.RefType == 'O' {
+				t.Fatalf("DROP OWNED left an operator dependency row: %+v", d)
+			}
+		}
+		if code := simulationCatalogCode(t, c37, "CREATE OPERATOR <<>> (LEFTARG = int, RIGHTARG = int, PROCEDURE = op_impl)"); code != "0" {
+			t.Fatalf("recreating the operator answered %s", code)
+		}
+		if code := simulationCatalogCode(t, c37, "DROP FUNCTION op_impl(int, int) CASCADE"); code != "0" {
+			t.Fatalf("DROP FUNCTION ... CASCADE answered %s", code)
+		}
+		if len(c37.operByKey[operKey{name: "<<>>", left: INT4OID, right: INT4OID}]) != 0 {
+			t.Fatal("DROP FUNCTION ... CASCADE left the dependent operator")
+		}
+
+		// #165: an unqualified ALTER OPERATOR picks the first search-path schema.
+		c38 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE alice",
+			"CREATE ROLE bob",
+			"CREATE SCHEMA s1",
+			"CREATE SCHEMA s2",
+			"CREATE FUNCTION s1.cmp_a(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"CREATE FUNCTION s2.cmp_b(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"CREATE OPERATOR s2.%% (LEFTARG = int, RIGHTARG = int, PROCEDURE = s2.cmp_b)",
+			"CREATE OPERATOR s1.%% (LEFTARG = int, RIGHTARG = int, PROCEDURE = s1.cmp_a)",
+			"SET search_path = s1, s2",
+			"ALTER OPERATOR %% (int, int) OWNER TO bob",
+		} {
+			if code := simulationCatalogCode(t, c38, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c38, "DROP ROLE bob"); code != CodeDependentObjects {
+			t.Fatalf("DROP ROLE bob answered %s, want %s", code, CodeDependentObjects)
+		}
+
+		// #167: DROP OWNED over an extension that defines an access method keeps
+		// external users of it (an index built ON the method) and takes them
+		// with a CASCADE.
+		RegisterExtensionSQL("test_am_ext", "CREATE ACCESS METHOD test_am TYPE INDEX HANDLER btbuild;")
+		defer delete(extensionScripts, "test_am_ext")
+		c39 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE am_role",
+			"SET ROLE am_role",
+			"CREATE EXTENSION test_am_ext",
+			"RESET ROLE",
+			"CREATE TABLE am_t (a int)",
+			"CREATE INDEX am_idx ON am_t USING test_am (a)",
+		} {
+			if code := simulationCatalogCode(t, c39, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c39, "DROP OWNED BY am_role RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED over an AM-dependent index answered %s, want %s", code, CodeDependentObjects)
+		}
+		if c39.schemaByName["public"].Indexes["am_idx"] == nil {
+			t.Fatal("failed DROP OWNED removed the AM-dependent index")
+		}
+		if code := simulationCatalogCode(t, c39, "DROP OWNED BY am_role CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED BY am_role CASCADE: %s", code)
+		}
+		if c39.schemaByName["public"].Indexes["am_idx"] != nil || c39.accessMethodByName["test_am"] != nil {
+			t.Fatal("DROP OWNED CASCADE left the index or the extension access method")
+		}
+
+		// #170: ALTER EXTENSION ... SET SCHEMA moves the extension's schema.
+		c40 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA ext_move",
+			"CREATE EXTENSION citext",
+			"ALTER EXTENSION citext SET SCHEMA ext_move",
+		} {
+			if code := simulationCatalogCode(t, c40, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if ext := c40.extByName["citext"]; ext == nil || c40.schemas[ext.SchemaOID] == nil || c40.schemas[ext.SchemaOID].Name != "ext_move" {
+			t.Fatal("ALTER EXTENSION SET SCHEMA did not move the extension")
+		}
+		if code := simulationCatalogCode(t, c40, "DROP SCHEMA ext_move CASCADE"); code != "0" {
+			t.Fatalf("DROP SCHEMA ext_move CASCADE: %s", code)
+		}
+		if c40.extByName["citext"] != nil {
+			t.Fatal("DROP SCHEMA CASCADE left the relocated extension")
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()
