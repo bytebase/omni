@@ -875,6 +875,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordPrimaryKey
 		cmd.Name = "PRIMARY"
 		cmd.Loc.End = p.prev.End
 		return cmd, nil
@@ -906,6 +907,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 			return nil, err
 		}
 		cmd.Type = nodes.ATDropConstraint
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordForeignKey
 		// Completion: after DROP FOREIGN KEY, offer constraint_ref.
 		p.checkCursor()
 		if p.collectMode() {
@@ -924,7 +926,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// DROP CHECK symbol, or alter_constraint_option's DROP CHECK '(' name_list ')'.
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
-		cmd.Keyword = "CHECK"
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordCheck
 		if p.cur.Type == '(' {
 			names, err := p.parseParenNameList()
 			if err != nil {
@@ -947,7 +949,7 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		// DROP CONSTRAINT '(' name_list ')'.
 		p.advance()
 		cmd.Type = nodes.ATDropConstraint
-		cmd.Keyword = "CONSTRAINT"
+		cmd.ConstraintKeyword = nodes.ConstraintKeywordConstraint
 		if p.cur.Type == '(' {
 			names, err := p.parseParenNameList()
 			if err != nil {
@@ -1263,7 +1265,11 @@ func (p *Parser) parseAlterColumn(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 	// MySQL 8.0.46 sql/sql_yacc.yy, whose constraint_enforcement has no
 	// empty arm.
 	if p.cur.Type == kwCHECK || p.cur.Type == kwCONSTRAINT {
-		cmd.Keyword = strings.ToUpper(p.cur.Str)
+		if p.cur.Type == kwCHECK {
+			cmd.ConstraintKeyword = nodes.ConstraintKeywordCheck
+		} else {
+			cmd.ConstraintKeyword = nodes.ConstraintKeywordConstraint
+		}
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {

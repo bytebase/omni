@@ -159,7 +159,10 @@ func alterNoFacts(c *ast.AlterTableCmd) bool {
 		ast.ATExchangePartition, ast.ATTruncatePartition, ast.ATAnalyzePartition, ast.ATCheckPartition,
 		ast.ATOptimizePartition, ast.ATRebuildPartition, ast.ATRepairPartition, ast.ATDiscardPartitionTablespace,
 		ast.ATImportPartitionTablespace, ast.ATRemovePartitioning, ast.ATPartitionBy,
-		ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAlterPartitionStorageCachePolicy, ast.ATAddSubpartition:
+		ast.ATDropSubpartition, ast.ATTruncateSubpartition, ast.ATAlterPartitionStorageCachePolicy, ast.ATAddSubpartition,
+		// REMOVE TTL and REFRESH change nothing the walk keeps: the first drops
+		// a table's TTL, the second refreshes an external table's metadata.
+		ast.ATRemoveTTL, ast.ATRefresh, ast.ATAlterIndexParallel, ast.ATAlterIndexStorageCachePolicy:
 		return true
 	case ast.ATAddConstraint:
 		return c.Constraint != nil && c.Constraint.Type == ast.ConstrCheck

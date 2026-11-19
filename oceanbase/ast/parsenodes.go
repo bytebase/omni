@@ -304,6 +304,48 @@ const (
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
+// ConstraintKeyword is the keyword an ALTER TABLE action writes before the
+// constraint it names. The grammar spells one action two ways -- DROP CHECK /
+// ALTER CHECK beside DROP CONSTRAINT / ALTER CONSTRAINT -- and OceanBase answers
+// a different error for each when no such constraint is there: 3821 "Check
+// constraint '%s' is not found in the table." for CHECK and 3940 "Constraint
+// '%s' does not exist." for CONSTRAINT. The keyword is kept, not folded, so the
+// catalog answers what the statement wrote; it also tells DROP CHECK from DROP
+// CONSTRAINT, which name a check alone and any constraint of that name.
+//
+// Ported from mysql, which measured the same two errors on mysql:8.0.46.
+type ConstraintKeyword int
+
+const (
+	// ConstraintKeywordNone is an action that wrote no keyword of its own:
+	// DROP COLUMN, DROP INDEX and the rest.
+	ConstraintKeywordNone ConstraintKeyword = iota
+	// ConstraintKeywordPrimaryKey is DROP PRIMARY KEY.
+	ConstraintKeywordPrimaryKey
+	// ConstraintKeywordForeignKey is DROP FOREIGN KEY.
+	ConstraintKeywordForeignKey
+	// ConstraintKeywordCheck is DROP CHECK or ALTER CHECK.
+	ConstraintKeywordCheck
+	// ConstraintKeywordConstraint is DROP CONSTRAINT or ALTER CONSTRAINT.
+	ConstraintKeywordConstraint
+)
+
+// String is the keyword as the statement wrote it, upper-cased, "" for
+// ConstraintKeywordNone.
+func (k ConstraintKeyword) String() string {
+	switch k {
+	case ConstraintKeywordPrimaryKey:
+		return "PRIMARY KEY"
+	case ConstraintKeywordForeignKey:
+		return "FOREIGN KEY"
+	case ConstraintKeywordCheck:
+		return "CHECK"
+	case ConstraintKeywordConstraint:
+		return "CONSTRAINT"
+	}
+	return ""
+}
+
 type AlterTableCmd struct {
 	Loc            Loc
 	Type           AlterTableCmdType
@@ -338,10 +380,10 @@ type AlterTableCmd struct {
 	Parallel *ParallelOption
 	// ConstraintNames is DROP CONSTRAINT's and DROP CHECK's '(' name_list ')'.
 	ConstraintNames []string
-	// Keyword is the word the statement wrote where the grammar takes two
-	// spellings that the server's errors tell apart: DROP/ALTER CHECK answer
-	// 3821 and DROP/ALTER CONSTRAINT 3940.
-	Keyword string
+	// ConstraintKeyword is the word the action wrote before the constraint it
+	// names, which tells the spellings apart: DROP/ALTER CHECK answer 3821 and
+	// DROP/ALTER CONSTRAINT 3940, and a CHECK drop takes a check alone.
+	ConstraintKeyword ConstraintKeyword
 	// LobStorage is lob_storage_clause, which follows an ALTER TABLE ADD's column
 	// list: JSON (column) STORE AS (CHUNK n).
 	LobStorage *LobStorageClause

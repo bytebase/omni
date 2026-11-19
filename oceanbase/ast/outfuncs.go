@@ -3461,6 +3461,9 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	sb.WriteString("{AT_CMD")
 	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
+	if kw := n.ConstraintKeyword.String(); kw != "" {
+		fmt.Fprintf(sb, " :constraint_keyword %q", kw)
+	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}
@@ -5304,6 +5307,9 @@ func writeDropResourceGroupStmt(sb *strings.Builder, n *DropResourceGroupStmt) {
 func writeAlterViewStmt(sb *strings.Builder, n *AlterViewStmt) {
 	sb.WriteString("{ALTER_VIEW")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.HasTableID {
+		fmt.Fprintf(sb, " :table_id %d", n.TableID)
+	}
 	if n.Algorithm != "" {
 		fmt.Fprintf(sb, " :algorithm %s", n.Algorithm)
 	}

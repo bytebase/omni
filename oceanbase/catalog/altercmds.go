@@ -945,15 +945,25 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	name := cmd.Name
 	key := toLower(name)
 
+	// Each keyword names one kind of object: DROP CHECK takes a check alone and
+	// DROP FOREIGN KEY a foreign key alone; DROP CONSTRAINT takes any constraint
+	// of that name.
+	checkOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck
+	foreignOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordForeignKey
+
 	found := false
 	isForeignKey := false
 	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		if toLower(con.Name) != key {
+			continue
 		}
+		if (checkOnly && con.Type != ConCheck) || (foreignOnly && con.Type != ConForeignKey) {
+			continue
+		}
+		isForeignKey = (con.Type == ConForeignKey)
+		tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+		found = true
+		break
 	}
 
 	if !found {
@@ -962,19 +972,11 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		}
 		// The two spellings answer different errors on identical state:
 		// DROP CHECK is 3821 and DROP CONSTRAINT 3940.
-		if cmd.Keyword == "CONSTRAINT" {
-			return &Error{
-				Code:     3940,
-				SQLState: "HY000",
-				Message:  fmt.Sprintf("Constraint '%s' does not exist.", name),
-			}
-		}
-		if cmd.Keyword == "CHECK" {
-			return &Error{
-				Code:     3821,
-				SQLState: "HY000",
-				Message:  fmt.Sprintf("Check constraint '%s' is not found in the table.", name),
-			}
+		switch cmd.ConstraintKeyword {
+		case nodes.ConstraintKeywordCheck:
+			return errCheckConstraintNotFound(name)
+		case nodes.ConstraintKeywordConstraint:
+			return errConstraintDoesNotExist(name)
 		}
 		return errCantDropKey(name)
 	}
@@ -1530,18 +1532,10 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 	// The server tells the two spellings apart: ALTER CHECK answers 3821, the
 	// check constraint not found, and ALTER CONSTRAINT 3940.
-	if cmd.Keyword == "CHECK" {
-		return &Error{
-			Code:     3821,
-			SQLState: "HY000",
-			Message:  fmt.Sprintf("Check constraint '%s' is not found in the table.", cmd.Name),
-		}
+	if cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck {
+		return errCheckConstraintNotFound(cmd.Name)
 	}
-	return &Error{
-		Code:     3940,
-		SQLState: "HY000",
-		Message:  fmt.Sprintf("Constraint '%s' does not exist.", cmd.Name),
-	}
+	return errConstraintDoesNotExist(cmd.Name)
 }
 
 // alterConvertCharset handles CONVERT TO CHARACTER SET charset [COLLATE collation].
