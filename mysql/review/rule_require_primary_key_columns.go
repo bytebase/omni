@@ -182,7 +182,7 @@ func onlyColumnDrops(sql string, v *ast.AlterTableStmt) ([]*ast.AlterTableCmd, b
 			last[cmd.Type] = leftDefault(sql, cmd)
 			continue
 		}
-		if cmd == nil || dropKindOf(sql, cmd) != dropColumn {
+		if cmd == nil || dropKindOf(cmd) != dropColumn {
 			return nil, false
 		}
 		drops = append(drops, cmd)

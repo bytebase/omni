@@ -109,6 +109,77 @@ func TestAlterTableDropFormsReject(t *testing.T) {
 	}
 }
 
+// TestAlterTableConstraintKeyword keeps the keyword a DROP or ALTER action
+// wrote on the command, and in the AST's text form, which is what the parser's
+// compare tests hold a statement's tree to. DROP CHECK and DROP CONSTRAINT,
+// and ALTER CHECK and ALTER CONSTRAINT, are one action in the grammar that
+// mysql:8.0.46 answers with different codes when the constraint is not there
+// (3821 for CHECK, 3940 for CONSTRAINT, read on the pinned server on
+// 2026-11-20), so a tree without the keyword cannot answer what the statement
+// asked. The catalog reads the field; TestSimulationCausesOracle holds it to
+// the server.
+func TestAlterTableConstraintKeyword(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want ast.ConstraintKeyword
+		word string
+	}{
+		{"ALTER TABLE t DROP CHECK c", ast.ConstraintKeywordCheck, "CHECK"},
+		{"ALTER TABLE t DROP CONSTRAINT c", ast.ConstraintKeywordConstraint, "CONSTRAINT"},
+		{"ALTER TABLE t DROP PRIMARY KEY", ast.ConstraintKeywordPrimaryKey, "PRIMARY KEY"},
+		{"ALTER TABLE t DROP FOREIGN KEY f", ast.ConstraintKeywordForeignKey, "FOREIGN KEY"},
+		{"ALTER TABLE t ALTER CHECK c ENFORCED", ast.ConstraintKeywordCheck, "CHECK"},
+		{"ALTER TABLE t ALTER CONSTRAINT c NOT ENFORCED", ast.ConstraintKeywordConstraint, "CONSTRAINT"},
+		// The keywords of their own command types are not this field's.
+		{"ALTER TABLE t DROP COLUMN c", ast.ConstraintKeywordNone, ""},
+		{"ALTER TABLE t DROP INDEX i", ast.ConstraintKeywordNone, ""},
+	}
+	dumps := map[string]string{}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			stmt := parseAlterDropFormsStmt(t, tc.sql)
+			if len(stmt.Commands) != 1 {
+				t.Fatalf("got %d commands, want 1", len(stmt.Commands))
+			}
+			cmd := stmt.Commands[0]
+			if cmd.ConstraintKeyword != tc.want {
+				t.Fatalf("%s: ConstraintKeyword = %v, want %v", tc.sql, cmd.ConstraintKeyword, tc.want)
+			}
+			dump := ast.NodeToString(parseList(t, tc.sql))
+			if tc.word == "" {
+				if strings.Contains(dump, ":constraint_keyword") {
+					t.Errorf("%s: tree holds a keyword it wrote none of: %s", tc.sql, dump)
+				}
+				dumps[tc.sql] = dump
+				return
+			}
+			if want := " :constraint_keyword " + tc.word; !strings.Contains(dump, want) {
+				t.Errorf("%s: tree lost %q: %s", tc.sql, want, dump)
+			}
+			// The text form is a fixed point: the same statement parses to
+			// the same tree, keyword included.
+			if again := ast.NodeToString(parseList(t, tc.sql)); again != dump {
+				t.Errorf("%s: second parse dumped %s, first %s", tc.sql, again, dump)
+			}
+			dumps[tc.sql] = dump
+		})
+	}
+	// The two spellings of one action keep different trees, which is the whole
+	// point of the field.
+	if dumps["ALTER TABLE t DROP CHECK c"] == dumps["ALTER TABLE t DROP CONSTRAINT c"] {
+		t.Errorf("DROP CHECK and DROP CONSTRAINT of the same name dump one tree: %s", dumps["ALTER TABLE t DROP CHECK c"])
+	}
+}
+
+func parseList(t *testing.T, sql string) *ast.List {
+	t.Helper()
+	list, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse(%q): %v", sql, err)
+	}
+	return list
+}
+
 // TestCollectAlterTableDropKey checks that completion offers KEY after DROP
 // PRIMARY and DROP FOREIGN, and constraint_ref only after DROP FOREIGN KEY.
 func TestCollectAlterTableDropKey(t *testing.T) {

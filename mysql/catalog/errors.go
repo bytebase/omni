@@ -86,6 +86,17 @@ const (
 	ErrSRSMissingAttribute         = 3708
 )
 
+const (
+	// ErrCheckConstraintNotFound is 3821, which mysql:8.0.46 answers when a
+	// DROP CHECK or ALTER CHECK names no check constraint of the table:
+	// "Check constraint '%s' is not found in the table." The CONSTRAINT
+	// spelling of the same name answers ErrConstraintDoesNotExist instead.
+	ErrCheckConstraintNotFound = 3821
+	// ErrConstraintDoesNotExist is 3940, which mysql:8.0.46 answers when a
+	// DROP CONSTRAINT or ALTER CONSTRAINT names no constraint of the table.
+	ErrConstraintDoesNotExist = 3940
+)
+
 var sqlStateMap = map[int]string{
 	ErrDupDatabase:                       "HY000",
 	ErrUnknownDatabase:                   "42000",
@@ -140,6 +151,8 @@ var sqlStateMap = map[int]string{
 	ErrCheckConstraintNotAllowed:         "HY000",
 	ErrCheckNotBoolean:                   "HY000",
 	ErrCheckConstraintDupName:            "HY000",
+	ErrCheckConstraintNotFound:           "HY000",
+	ErrConstraintDoesNotExist:            "HY000",
 	ErrTableMustHaveColumns:              "HY000",
 	ErrSpatialColumnNotGeometrical:       "42000",
 	ErrSRSMissingAttribute:               "SR006",
@@ -420,6 +433,21 @@ func errFKCannotDropParent(table, fkName, refTable string) error {
 func errCantDropKey(name string) error {
 	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
 		Message: fmt.Sprintf("Can't DROP '%s'; check that column/key exists", name)}
+}
+
+// errCheckConstraintNotFound is 3821, the answer a DROP CHECK or ALTER CHECK
+// gets when the name is no check constraint of the table, whatever else it
+// names.
+func errCheckConstraintNotFound(name string) error {
+	return &Error{Code: ErrCheckConstraintNotFound, SQLState: sqlState(ErrCheckConstraintNotFound),
+		Message: fmt.Sprintf("Check constraint '%s' is not found in the table.", name)}
+}
+
+// errConstraintDoesNotExist is 3940, the answer a DROP CONSTRAINT or ALTER
+// CONSTRAINT gets when the table holds no constraint of that name.
+func errConstraintDoesNotExist(name string) error {
+	return &Error{Code: ErrConstraintDoesNotExist, SQLState: sqlState(ErrConstraintDoesNotExist),
+		Message: fmt.Sprintf("Constraint '%s' does not exist.", name)}
 }
 
 func errCantRemoveAllFields() error {

@@ -216,7 +216,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 						replace(to)
 					}
 					var msg string
-					switch dropKindOf(sql, cmd) {
+					switch dropKindOf(cmd) {
 					case dropPrimaryKey:
 						msg = dropsPrimaryKey(table(v.Table))
 					case dropForeignKey:

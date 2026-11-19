@@ -1334,20 +1334,41 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	name := cmd.Name
 	key := toLower(name)
 
+	// Each keyword names one kind of object, measured on mysql:8.0.46: DROP
+	// CHECK of an index, a column or a foreign key's name answers 3821 and
+	// leaves the table as it was, and DROP FOREIGN KEY of a check's name
+	// answers 1091 and leaves the check. DROP CONSTRAINT takes any constraint
+	// of that name, a foreign key, a unique key or a check.
+	checkOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck
+	foreignOnly := cmd.ConstraintKeyword == nodes.ConstraintKeywordForeignKey
+
 	found := false
 	isForeignKey := false
 	for i, con := range tbl.Constraints {
-		if toLower(con.Name) == key {
-			isForeignKey = (con.Type == ConForeignKey)
-			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
-			found = true
-			break
+		if toLower(con.Name) != key {
+			continue
 		}
+		if (checkOnly && con.Type != ConCheck) || (foreignOnly && con.Type != ConForeignKey) {
+			continue
+		}
+		isForeignKey = (con.Type == ConForeignKey)
+		tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
+		found = true
+		break
 	}
 
 	if !found {
 		if cmd.IfExists {
 			return nil
+		}
+		// The engine names the spelling it was given, so a name no
+		// constraint has reports a check constraint for DROP CHECK and a
+		// constraint for DROP CONSTRAINT (measured on mysql:8.0.46).
+		switch cmd.ConstraintKeyword {
+		case nodes.ConstraintKeywordCheck:
+			return errCheckConstraintNotFound(name)
+		case nodes.ConstraintKeywordConstraint:
+			return errConstraintDoesNotExist(name)
 		}
 		return errCantDropKey(name)
 	}
@@ -1797,11 +1818,13 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 			return nil
 		}
 	}
-	return &Error{
-		Code:     3940,
-		SQLState: "HY000",
-		Message:  fmt.Sprintf("Constraint '%s' does not exist.", cmd.Name),
+	// ALTER CHECK reports a missing check constraint, ALTER CONSTRAINT a
+	// missing constraint; both spellings alter a check (measured on
+	// mysql:8.0.46).
+	if cmd.ConstraintKeyword == nodes.ConstraintKeywordCheck {
+		return errCheckConstraintNotFound(cmd.Name)
 	}
+	return errConstraintDoesNotExist(cmd.Name)
 }
 
 // alterConvertCharset handles CONVERT TO CHARACTER SET charset [COLLATE collation].
