@@ -518,7 +518,11 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 			return err
 		}
 	}
-	if err := c.checkTableAccessMethod(stmt.AccessMethod); err != nil {
+	tableAccessMethod := stmt.AccessMethod
+	if tableAccessMethod == "" && relkind != 'f' {
+		tableAccessMethod = c.defaultTableAccessMethod
+	}
+	if err := c.checkTableAccessMethod(tableAccessMethod); err != nil {
 		return err
 	}
 
@@ -652,8 +656,8 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 	// Register relation.
 	schema.Relations[relName] = rel
 	c.relationByOID[relOID] = rel
-	if stmt.AccessMethod != "" {
-		if am := c.accessMethodByName[stmt.AccessMethod]; am != nil {
+	if tableAccessMethod != "" {
+		if am := c.accessMethodByName[tableAccessMethod]; am != nil {
 			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
 		}
 	}

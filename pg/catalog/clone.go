@@ -414,6 +414,7 @@ func (c *Catalog) Clone() *Catalog {
 		clone.databaseOwners[name] = owner
 	}
 	clone.defaultTablespace = c.defaultTablespace
+	clone.defaultTableAccessMethod = c.defaultTableAccessMethod
 	clone.snapshot = c.snapshot
 	clone.roles = make(map[string]bool, len(c.roles))
 	for name := range c.roles {

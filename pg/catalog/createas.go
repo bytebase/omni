@@ -92,7 +92,11 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	if err := c.checkRelationTablespace(effectiveTablespace); err != nil {
 		return err
 	}
-	if err := c.checkTableAccessMethod(into.AccessMethod); err != nil {
+	ctasAccessMethod := into.AccessMethod
+	if ctasAccessMethod == "" {
+		ctasAccessMethod = c.defaultTableAccessMethod
+	}
+	if err := c.checkTableAccessMethod(ctasAccessMethod); err != nil {
 		return err
 	}
 
@@ -181,8 +185,8 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	if persistence == 0 {
 		persistence = 'p'
 	}
-	if into.AccessMethod != "" {
-		if am := c.accessMethodByName[into.AccessMethod]; am != nil {
+	if ctasAccessMethod != "" {
+		if am := c.accessMethodByName[ctasAccessMethod]; am != nil {
 			c.recordDependency('r', relOID, 0, 'm', am.OID, 0, DepNormal)
 		}
 	}

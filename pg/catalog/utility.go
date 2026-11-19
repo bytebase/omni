@@ -321,12 +321,15 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 func (c *Catalog) processVariableSet(s *nodes.VariableSetStmt) error {
 	if s.Kind == nodes.VAR_RESET_ALL {
 		c.defaultTablespace = ""
+		c.defaultTableAccessMethod = ""
 	}
 	switch s.Name {
 	case "search_path":
 		return c.processSetSearchPath(s)
 	case "default_tablespace":
 		return c.processSetDefaultTablespace(s)
+	case "default_table_access_method":
+		return c.processSetDefaultTableAccessMethod(s)
 	case "role":
 		return c.processSetRole(s)
 	}
@@ -388,6 +391,37 @@ func (c *Catalog) processSetDefaultTablespace(s *nodes.VariableSetStmt) error {
 		}
 	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
 		c.defaultTablespace = ""
+	}
+	return nil
+}
+
+// processSetDefaultTableAccessMethod handles SET default_table_access_method.
+func (c *Catalog) processSetDefaultTableAccessMethod(s *nodes.VariableSetStmt) error {
+	switch s.Kind {
+	case nodes.VAR_SET_VALUE:
+		if s.Args == nil {
+			c.defaultTableAccessMethod = ""
+			return nil
+		}
+		for _, arg := range s.Args.Items {
+			ac, ok := arg.(*nodes.A_Const)
+			if !ok {
+				continue
+			}
+			sv, ok := ac.Val.(*nodes.String)
+			if !ok {
+				continue
+			}
+			if sv.Str != "" && !c.snapshot {
+				am := c.accessMethodByName[sv.Str]
+				if am == nil || am.Type != 't' {
+					return errInvalidParameterValue(fmt.Sprintf("invalid value for parameter \"default_table_access_method\": %q", sv.Str))
+				}
+			}
+			c.defaultTableAccessMethod = sv.Str
+		}
+	case nodes.VAR_SET_DEFAULT, nodes.VAR_RESET:
+		c.defaultTableAccessMethod = ""
 	}
 	return nil
 }

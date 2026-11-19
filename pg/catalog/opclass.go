@@ -74,6 +74,9 @@ func (c *Catalog) CreateAccessMethod(stmt *nodes.CreateAmStmt) error {
 	}
 	c.accessMethods[am.OID] = am
 	c.accessMethodByName[am.Name] = am
+	if handlerOID != 0 {
+		c.recordDependency('m', am.OID, 0, 'f', handlerOID, 0, DepNormal)
+	}
 
 	return nil
 }
@@ -106,6 +109,7 @@ func (c *Catalog) CreateOpFamily(stmt *nodes.CreateOpFamilyStmt) error {
 		Schema: schema.OID,
 	}
 	c.opFamilies[fam.OID] = fam
+	c.recordDependency('Q', fam.OID, 0, 'm', am.OID, 0, DepNormal)
 
 	return nil
 }
@@ -164,6 +168,7 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 			Schema: schema.OID,
 		}
 		c.opFamilies[fam.OID] = fam
+		c.recordDependency('Q', fam.OID, 0, 'm', am.OID, 0, DepNormal)
 		familyOID = fam.OID
 	}
 
@@ -177,8 +182,10 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		Schema:    schema.OID,
 	}
 	c.opClasses[opc.OID] = opc
+	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)
 
 	// Register as default for (AM, type) pair.
+
 	if opc.IsDefault {
 		c.opClassByKey[opClassKey{amOID: am.OID, typeOID: typeOID}] = opc
 	}

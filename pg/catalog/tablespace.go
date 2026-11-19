@@ -1059,6 +1059,24 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 	}
 
+	var ownedOperators []uint32
+	seenOperator := map[uint32]bool{}
+	for oid, owner := range c.operatorOwners {
+		if owners[owner] && c.operByOID[oid] != nil && oid >= FirstNormalObjectId && !seenOperator[oid] {
+			seenOperator[oid] = true
+			ownedOperators = append(ownedOperators, oid)
+		}
+	}
+	for oid := range c.operByOID {
+		if seenOperator[oid] || oid < FirstNormalObjectId {
+			continue
+		}
+		if nsOID, ok := c.operatorSchemas[oid]; ok && ownedSchemaOIDs[nsOID] {
+			seenOperator[oid] = true
+			ownedOperators = append(ownedOperators, oid)
+		}
+	}
+
 	// Event triggers are collected before preflight so a function they call
 	// and they themselves both count as part of one DROP OWNED set.
 	var ownedEventTriggers []*EventTrigger
@@ -1143,6 +1161,11 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 			}
 			for _, ext := range c.extensions {
 				if ext.SchemaOID == s.OID && !ownedExtNames[ext.Name] {
+					return errDependentObjects("schema", s.Name)
+				}
+			}
+			for oid, nsOID := range c.operatorSchemas {
+				if nsOID == s.OID && !seenOperator[oid] && c.operByOID[oid] != nil {
 					return errDependentObjects("schema", s.Name)
 				}
 			}
@@ -1317,12 +1340,6 @@ func (c *Catalog) DropOwned(stmt *nodes.DropOwnedStmt) error {
 		}
 		for _, x := range externalCasts {
 			delete(c.castIndex, x.key)
-		}
-	}
-	var ownedOperators []uint32
-	for oid, owner := range c.operatorOwners {
-		if owners[owner] && c.operByOID[oid] != nil && oid >= FirstNormalObjectId {
-			ownedOperators = append(ownedOperators, oid)
 		}
 	}
 	sort.Slice(ownedOperators, func(i, j int) bool { return ownedOperators[i] < ownedOperators[j] })

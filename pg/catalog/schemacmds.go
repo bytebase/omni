@@ -39,11 +39,6 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 		}
 		return errDuplicateSchema(schemaName)
 	}
-	// Roles are cluster-wide and a dump does not create them, so an
-	// AUTHORIZATION role is recorded as observed rather than required.
-	if ownerName != "" {
-		c.roles[ownerName] = true
-	}
 	effectiveOwner := ownerName
 	if effectiveOwner == "" {
 		effectiveOwner = c.currentOwner()
@@ -86,6 +81,13 @@ func (c *Catalog) CreateSchemaCommand(stmt *nodes.CreateSchemaStmt) error {
 				return err
 			}
 		}
+	}
+
+	// Roles are cluster-wide and a dump does not create them, so an
+	// AUTHORIZATION role is recorded as observed rather than required — only
+	// once the whole statement succeeded, as a rollback would discard it.
+	if ownerName != "" {
+		c.roles[ownerName] = true
 	}
 
 	return nil

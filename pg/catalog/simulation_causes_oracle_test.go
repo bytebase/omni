@@ -2024,6 +2024,143 @@ func TestSimulationCausesOracle(t *testing.T) {
 			}
 		}
 
+		// #179: a routine signature collision blocks ALTER EXTENSION SET SCHEMA.
+		RegisterExtensionSQL("test_routine_ext", "CREATE FUNCTION shared_fn(int) RETURNS int LANGUAGE sql AS 'SELECT 1';")
+		defer delete(extensionScripts, "test_routine_ext")
+		c46 := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA rsrc",
+			"CREATE SCHEMA rdst",
+			"CREATE EXTENSION test_routine_ext SCHEMA rsrc",
+			"CREATE FUNCTION rdst.shared_fn(int) RETURNS int LANGUAGE sql AS 'SELECT 2'",
+		} {
+			if code := simulationCatalogCode(t, c46, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c46, "ALTER EXTENSION test_routine_ext SET SCHEMA rdst"); code != CodeDuplicateFunction {
+			t.Fatalf("SET SCHEMA onto a taken signature answered %s, want %s", code, CodeDuplicateFunction)
+		}
+		if ext := c46.extByName["test_routine_ext"]; ext == nil || c46.schemas[ext.SchemaOID].Name != "rsrc" {
+			t.Fatal("a refused SET SCHEMA moved the extension")
+		}
+
+		// #180: DROP OWNED of a schema owner takes operators inside it, and
+		// RESTRICT reports one owned by another role.
+		c47 := New()
+		for _, stmt := range []string{
+			"CREATE ROLE schema_owner",
+			"CREATE ROLE op_owner",
+			"CREATE SCHEMA own_s",
+			"ALTER SCHEMA own_s OWNER TO schema_owner",
+			"CREATE FUNCTION own_s.f(int, int) RETURNS int LANGUAGE sql IMMUTABLE AS 'SELECT 1'",
+			"SET ROLE op_owner",
+			"CREATE OPERATOR own_s.!! (LEFTARG = int, RIGHTARG = int, PROCEDURE = own_s.f)",
+			"RESET ROLE",
+		} {
+			if code := simulationCatalogCode(t, c47, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c47, "DROP OWNED BY schema_owner RESTRICT"); code != CodeDependentObjects {
+			t.Fatalf("DROP OWNED over a foreign-owned operator answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c47, "DROP OWNED BY schema_owner CASCADE"); code != "0" {
+			t.Fatalf("DROP OWNED BY schema_owner CASCADE: %s", code)
+		}
+		for oid := range c47.operByOID {
+			if ns, ok := c47.operatorSchemas[oid]; ok && c47.schemas[ns] == nil {
+				t.Fatalf("DROP OWNED CASCADE left operator %d in a dropped schema", oid)
+			}
+		}
+
+		// #181: an access method whose handler comes from an extension keeps it
+		// in use.
+		RegisterExtensionSQL("test_handler_ext", "CREATE FUNCTION handler_fn(internal) RETURNS table_am_handler LANGUAGE internal AS 'bthandler';")
+		defer delete(extensionScripts, "test_handler_ext")
+		c48 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_handler_ext",
+			"CREATE ACCESS METHOD ext_am TYPE TABLE HANDLER handler_fn",
+		} {
+			if code := simulationCatalogCode(t, c48, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c48, "DROP EXTENSION test_handler_ext"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION with a dependent AM answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c48, "DROP EXTENSION test_handler_ext CASCADE"); code != "0" {
+			t.Fatalf("DROP EXTENSION CASCADE with a dependent AM answered %s", code)
+		}
+		if c48.accessMethodByName["ext_am"] != nil {
+			t.Fatal("CASCADE left the AM that used the extension handler")
+		}
+
+		// #182: an operator class on an extension access method keeps it in use.
+		c49 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION btree_gist",
+			"CREATE OPERATOR FAMILY fam1 USING gist",
+		} {
+			if code := simulationCatalogCode(t, c49, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+
+		// #183: default_table_access_method reaches CREATE TABLE and CTAS.
+		RegisterExtensionSQL("test_tam_ext", "CREATE ACCESS METHOD test_tam TYPE TABLE HANDLER heap_tableam_handler;")
+		defer delete(extensionScripts, "test_tam_ext")
+		c50 := New()
+		for _, stmt := range []string{
+			"CREATE EXTENSION test_tam_ext",
+			"SET default_table_access_method = test_tam",
+			"CREATE TABLE tam_t (a int)",
+			"CREATE TABLE tam_ctas AS SELECT 1",
+		} {
+			if code := simulationCatalogCode(t, c50, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c50, "DROP EXTENSION test_tam_ext"); code != CodeDependentObjects {
+			t.Fatalf("DROP EXTENSION with default-AM relations answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c50, "SET default_table_access_method = missing_am"); code != CodeInvalidParameterValue {
+			t.Fatalf("SET default_table_access_method = missing_am answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+
+		// #184: a failed START crosscheck leaves the previous OWNED BY in place.
+		c51 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE own_a (id int)",
+			"CREATE TABLE own_b (id int)",
+			"CREATE SEQUENCE own_seq OWNED BY own_a.id",
+		} {
+			if code := simulationCatalogCode(t, c51, stmt); code != "0" {
+				t.Fatalf("catalog refused %s with %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c51, "ALTER SEQUENCE own_seq OWNED BY own_b.id START 1 MINVALUE 100"); code != CodeInvalidParameterValue {
+			t.Fatalf("ALTER SEQUENCE with a bad START answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+		if code := simulationCatalogCode(t, c51, "DROP TABLE own_a"); code != "0" {
+			t.Fatalf("DROP TABLE own_a: %s", code)
+		}
+		if c51.schemaByName["public"].Sequences["own_seq"] != nil {
+			t.Fatal("a failed ALTER SEQUENCE moved the OWNED BY link")
+		}
+
+		// #185: a failed CREATE SCHEMA does not record its AUTHORIZATION role.
+		c52 := New()
+		// The second element repeats the first table's name, so the whole
+		// CREATE SCHEMA fails.
+		if code := simulationCatalogCode(t, c52, "CREATE SCHEMA failed_s AUTHORIZATION ghost_role CREATE TABLE t1 (a int) CREATE TABLE t1 (a int)"); code == "0" {
+			t.Fatal("CREATE SCHEMA with a bad element was accepted")
+		}
+		if c52.roles["ghost_role"] {
+			t.Fatal("a failed CREATE SCHEMA recorded its AUTHORIZATION role")
+		}
+
 		// #130: failed ALTER SEQUENCE ... OWNED BY preserves the previous
 		// automatic column dependency.
 		c11 := New()

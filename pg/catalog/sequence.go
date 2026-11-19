@@ -403,16 +403,6 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 		return errInvalidParameterValue("MINVALUE must be less than MAXVALUE")
 	}
 
-	if clearOwnedBy {
-		seq.OwnerRelOID = 0
-		seq.OwnerAttNum = 0
-		c.removeDepsOf('s', seq.OID)
-	} else if newOwnedBy != "" {
-		if err := c.setSequenceOwner(seq, seq.Schema, newOwnedBy); err != nil {
-			return err
-		}
-	}
-
 	// Validate START (or RESTART) value is within [MinValue, MaxValue].
 	// pg: src/backend/commands/sequence.c — init_params (START crosscheck)
 	if seq.Start < seq.MinValue {
@@ -422,6 +412,18 @@ func (c *Catalog) AlterSequenceStmt(stmt *nodes.AlterSeqStmt) error {
 	if seq.Start > seq.MaxValue {
 		return errInvalidParameterValue(fmt.Sprintf("START value (%d) cannot be greater than MAXVALUE (%d)",
 			seq.Start, seq.MaxValue))
+	}
+
+	// Ownership is the last thing applied, so a failed check above leaves the
+	// previous OWNED BY link untouched.
+	if clearOwnedBy {
+		seq.OwnerRelOID = 0
+		seq.OwnerAttNum = 0
+		c.removeDepsOf('s', seq.OID)
+	} else if newOwnedBy != "" {
+		if err := c.setSequenceOwner(seq, seq.Schema, newOwnedBy); err != nil {
+			return err
+		}
 	}
 
 	return nil

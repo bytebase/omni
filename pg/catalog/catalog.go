@@ -123,6 +123,9 @@ type Catalog struct {
 	// defaultTablespace is the session's default_tablespace setting, "" for
 	// the database default.
 	defaultTablespace string
+	// defaultTableAccessMethod is the session's default_table_access_method
+	// setting, "" for the server default (heap).
+	defaultTableAccessMethod string
 	// snapshot marks a catalog loaded from a live schema. A snapshot carries
 	// no tablespace or access-method objects, so a name it does not hold may
 	// still exist on the server the snapshot came from.

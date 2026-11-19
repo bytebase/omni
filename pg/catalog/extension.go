@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 
 	nodes "github.com/bytebase/omni/pg/ast"
@@ -291,9 +292,19 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	amIdxSeen := map[uint32]bool{}
 	var opDepOIDs []uint32
 	opDepSeen := map[uint32]bool{}
+	var extAMUsers []DepEntry
+	amUserSeen := map[[2]uint32]bool{}
 	for _, amOID := range extAccessMethodOIDs {
 		for _, dep := range c.findNormalDependents('m', amOID) {
 			switch dep.ObjType {
+			case 'm', 'q', 'Q':
+				if !inExtDrop(dep.ObjOID) {
+					key := [2]uint32{uint32(dep.ObjType), dep.ObjOID}
+					if !amUserSeen[key] {
+						amUserSeen[key] = true
+						extAMUsers = append(extAMUsers, dep)
+					}
+				}
 			case 'r':
 				if !amRelSeen[dep.ObjOID] {
 					amRelSeen[dep.ObjOID] = true
@@ -310,16 +321,30 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 	}
 	for _, fnOID := range extFunctionOIDs {
 		for _, dep := range c.findNormalDependents('f', fnOID) {
-			if dep.ObjType != 'O' || opDepSeen[dep.ObjOID] || inExtDrop(dep.ObjOID) {
-				continue
+			switch dep.ObjType {
+			case 'O':
+				if !opDepSeen[dep.ObjOID] && !inExtDrop(dep.ObjOID) {
+					opDepSeen[dep.ObjOID] = true
+					opDepOIDs = append(opDepOIDs, dep.ObjOID)
+				}
+			case 'm', 'q', 'Q':
+				key := [2]uint32{uint32(dep.ObjType), dep.ObjOID}
+				if !amUserSeen[key] && !inExtDrop(dep.ObjOID) {
+					amUserSeen[key] = true
+					extAMUsers = append(extAMUsers, dep)
+				}
 			}
-			opDepSeen[dep.ObjOID] = true
-			opDepOIDs = append(opDepOIDs, dep.ObjOID)
 		}
 	}
 	sort.Slice(amRelOIDs, func(i, j int) bool { return amRelOIDs[i] < amRelOIDs[j] })
 	sort.Slice(amIdxOIDs, func(i, j int) bool { return amIdxOIDs[i] < amIdxOIDs[j] })
 	sort.Slice(opDepOIDs, func(i, j int) bool { return opDepOIDs[i] < opDepOIDs[j] })
+	sort.Slice(extAMUsers, func(i, j int) bool {
+		if extAMUsers[i].ObjType != extAMUsers[j].ObjType {
+			return extAMUsers[i].ObjType < extAMUsers[j].ObjType
+		}
+		return extAMUsers[i].ObjOID < extAMUsers[j].ObjOID
+	})
 	// A user-created cast that references a member type or function is an
 	// external dependent too, though it carries no OID of its own.
 	var externalCasts []castKey
@@ -422,6 +447,9 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		if len(externalCasts) > 0 {
 			return errDependentObjects("extension", extLabel)
 		}
+		if len(extAMUsers) > 0 {
+			return errDependentObjects("extension", extLabel)
+		}
 		for _, bt := range types {
 			for _, depRelOID := range c.typeRelationDependents(bt) {
 				if !relOIDs[depRelOID] {
@@ -498,6 +526,24 @@ func (c *Catalog) removeExtensionObjects(stmt *nodes.DropStmt) error {
 		}
 		for _, key := range externalCasts {
 			delete(c.castIndex, key)
+		}
+		for _, dep := range extAMUsers {
+			switch dep.ObjType {
+			case 'm':
+				if am := c.accessMethods[dep.ObjOID]; am != nil {
+					delete(c.accessMethods, am.OID)
+					delete(c.accessMethodByName, am.Name)
+				}
+			case 'q':
+				if opc := c.opClasses[dep.ObjOID]; opc != nil {
+					if opc.IsDefault {
+						delete(c.opClassByKey, opClassKey{amOID: opc.AMOID, typeOID: opc.TypeOID})
+					}
+					delete(c.opClasses, opc.OID)
+				}
+			case 'Q':
+				delete(c.opFamilies, dep.ObjOID)
+			}
 		}
 	}
 	for _, idx := range cascadeIdxs {
@@ -722,6 +768,16 @@ func (c *Catalog) alterExtensionNamespace(stmt *nodes.AlterObjectSchemaStmt) err
 		if bt := c.typeByOID[oid]; bt != nil && bt.Namespace == oldOID {
 			if held := c.typeByName[typeKey{ns: newSchema.OID, name: bt.TypeName}]; held != nil && held.OID != bt.OID {
 				return errDuplicateObject("type", bt.TypeName)
+			}
+		}
+		if up := c.userProcs[oid]; up != nil && oldSchema != nil && up.Schema == oldSchema {
+			for _, other := range c.findUserProcsByName(newSchema, up.Name) {
+				if other.OID == up.OID || other.Kind != up.Kind {
+					continue
+				}
+				if slices.Equal(c.procByOID[other.OID].ArgTypes, c.procByOID[up.OID].ArgTypes) {
+					return errDuplicateFunction(up.Name)
+				}
 			}
 		}
 	}
