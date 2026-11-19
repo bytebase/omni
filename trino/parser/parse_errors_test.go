@@ -38,3 +38,56 @@ func TestParse_ReturnsParseErrors(t *testing.T) {
 		t.Error("AllErrors must be nil for nil and for non-parse errors")
 	}
 }
+
+// TestParseBestEffort_ObjectKeywordDrainsSegment pins what an invalid CREATE or
+// DROP object keyword leaves behind in the best-effort parse: the syntax error
+// at that keyword, and the lexical errors of the rest of the segment, which the
+// lazy lexer reaches only because the rejection drains it. Strict Parse lexes
+// the whole input itself, so it reports the same two.
+func TestParseBestEffort_ObjectKeywordDrainsSegment(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want []string
+	}{
+		{"CREATE INDEX 'unterminated", []string{"syntax error at or near INDEX", "unterminated string literal"}},
+		{"DROP FOO 'unterminated", []string{"syntax error at or near FOO", "unterminated string literal"}},
+	} {
+		res := ParseBestEffort(tc.sql)
+		if len(res.Errors) != len(tc.want) {
+			t.Fatalf("ParseBestEffort(%q) = %v, want %v", tc.sql, res.Errors, tc.want)
+		}
+		for i, want := range tc.want {
+			if res.Errors[i].Message != want {
+				t.Errorf("ParseBestEffort(%q) error %d = %q, want %q", tc.sql, i, res.Errors[i].Message, want)
+			}
+		}
+		if _, err := Parse(tc.sql); len(AllErrors(err)) != len(tc.want) {
+			t.Errorf("Parse(%q) = %v, want %v", tc.sql, AllErrors(err), tc.want)
+		}
+	}
+}
+
+// TestParseBestEffort_KeepsExplainedNodeWithDeferredCheck pins the node a
+// deferred check (see Parser.deferred) leaves behind: the explained statement is
+// invalid, and best effort still returns the EXPLAIN node around it, as it does
+// for an inner parse error.
+func TestParseBestEffort_KeepsExplainedNodeWithDeferredCheck(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN SELECT TRIM(FROM 1.5)",
+		"EXPLAIN GRANT SELECT TO a",
+	} {
+		res := ParseBestEffort(sql)
+		if len(res.Errors) != 1 {
+			t.Fatalf("ParseBestEffort(%q) errors = %v, want 1", sql, res.Errors)
+		}
+		if len(res.File.Stmts) != 1 {
+			t.Fatalf("ParseBestEffort(%q) statements = %v, want the EXPLAIN node", sql, res.File.Stmts)
+		}
+		if _, ok := res.File.Stmts[0].(*ExplainStmt); !ok {
+			t.Errorf("ParseBestEffort(%q) statement is %T, want *ExplainStmt", sql, res.File.Stmts[0])
+		}
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) = nil error, want the deferred check's", sql)
+		}
+	}
+}

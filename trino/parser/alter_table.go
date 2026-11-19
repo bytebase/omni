@@ -372,10 +372,11 @@ func (p *Parser) finishAlterTableSet(stmt *AlterTableStmt) (ast.Node, error) {
 	// D-AT6 (oracle-pinned): the setTableAuthorization / setTableProperties
 	// alternatives do NOT carry `IF EXISTS` (only rename/add/drop/rename/alter
 	// column do). Trino 481 rejects `ALTER TABLE IF EXISTS t SET …` as a
-	// SYNTAX_ERROR, so reject it here even though IF EXISTS was consumed
-	// up-front (it is shared with the column sub-forms).
+	// SYNTAX_ERROR at the SET — the alternative it cannot take — so reject it
+	// here, at the SET, even though IF EXISTS was consumed up-front (it is
+	// shared with the column sub-forms).
 	if stmt.IfExists {
-		return nil, &ParseError{Position: stmt.Name.Loc.Start, End: stmt.Name.Loc.End, Message: "IF EXISTS is not allowed on ALTER TABLE … SET"}
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "IF EXISTS is not allowed on ALTER TABLE … SET"}
 	}
 	p.advance() // consume SET
 	switch p.cur.Kind {
@@ -409,9 +410,9 @@ func (p *Parser) finishAlterTableSet(stmt *AlterTableStmt) (ast.Node, error) {
 func (p *Parser) finishAlterTableExecute(stmt *AlterTableStmt) (ast.Node, error) {
 	// D-AT6 (oracle-pinned): the tableExecute alternative does NOT carry
 	// `IF EXISTS`; Trino 481 rejects `ALTER TABLE IF EXISTS t EXECUTE …` as a
-	// SYNTAX_ERROR.
+	// SYNTAX_ERROR at the EXECUTE, the token it cannot take there.
 	if stmt.IfExists {
-		return nil, &ParseError{Position: stmt.Name.Loc.Start, End: stmt.Name.Loc.End, Message: "IF EXISTS is not allowed on ALTER TABLE … EXECUTE"}
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "IF EXISTS is not allowed on ALTER TABLE … EXECUTE"}
 	}
 	p.advance() // consume EXECUTE
 	proc, err := p.parseIdentifier()
