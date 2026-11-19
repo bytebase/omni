@@ -20,12 +20,20 @@ func ExplainStatement(statement string) (string, error) {
 		return "", err
 	}
 	planned := statement
-	if explain, ok := node.(*ast.ExplainStmt); ok {
-		if inner, ok := explainedText(explain, statement); ok {
+	switch n := node.(type) {
+	case *ast.ExplainStmt:
+		if inner, ok := wrappedText(n.Loc, n.Query, statement); ok {
 			planned = inner
 		} else {
 			// Nothing to rebuild around: run what the user wrote rather than
 			// plan a plan.
+			return statement, nil
+		}
+	case *ast.OptimizerTraceStmt:
+		// TRACE is already a plan, so plan the query it wraps.
+		if inner, ok := wrappedText(n.Loc, n.Query, statement); ok {
+			planned = inner
+		} else {
 			return statement, nil
 		}
 	}
@@ -41,15 +49,24 @@ func DescribeExplain(statement string) (format string, executed bool, ok bool) {
 	if err != nil || file == nil || len(file.Stmts) != 1 {
 		return "", false, false
 	}
-	explain, ok := file.Stmts[0].(*ast.ExplainStmt)
-	if !ok || explain.Query == nil {
-		return "", false, false
+	switch node := file.Stmts[0].(type) {
+	case *ast.ExplainStmt:
+		if node.Query == nil {
+			return "", false, false
+		}
+		format = node.Type
+		if format == "" {
+			format = "TEXT"
+		}
+		return format, node.Type == "ANALYZE", true
+	case *ast.OptimizerTraceStmt:
+		if node.Query == nil {
+			return "", false, false
+		}
+		// TRACE is a plan too, and it never executes the traced query.
+		return "TRACE", false, true
 	}
-	format = explain.Type
-	if format == "" {
-		format = "TEXT"
-	}
-	return format, explain.Type == "ANALYZE", true
+	return "", false, false
 }
 
 // singleStatement returns the one statement in text. An explain request plans one
@@ -71,14 +88,14 @@ func singleStatement(text string) (ast.Node, error) {
 	return file.Stmts[0], nil
 }
 
-// explainedText returns the text within text of the statement explain plans, and
-// whether it could be located.
-func explainedText(explain *ast.ExplainStmt, text string) (string, bool) {
-	inner := ast.NodeLoc(explain.Query)
-	// The plan ends where the EXPLAIN does, which is past clauses that the
+// wrappedText returns the text within text of the statement a plan wrapper
+// plans, and whether it could be located.
+func wrappedText(wrapper ast.Loc, child ast.Node, text string) (string, bool) {
+	inner := ast.NodeLoc(child)
+	// The plan ends where the wrapper does, which is past clauses that the
 	// planned statement's own location can leave out.
-	if inner.Start < 0 || inner.Start >= explain.Loc.End || explain.Loc.End > len(text) {
+	if inner.Start < 0 || inner.Start >= wrapper.End || wrapper.End > len(text) {
 		return "", false
 	}
-	return text[inner.Start:explain.Loc.End], true
+	return text[inner.Start:wrapper.End], true
 }

@@ -68,6 +68,9 @@ func rewriteResultLimitInline(statement string, limitCount int) (string, error) 
 		if stmt.Limit != nil {
 			return rewriteExistingLimit(statement, stmt.Limit, limitCount)
 		}
+		if stmt.Into != nil {
+			return statement[:stmt.Into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + statement[stmt.Into.Loc.Start:], nil
+		}
 		// No wrapper LIMIT: append one at the wrapper level, which covers
 		// any paren nesting depth — ((SELECT 1)) LIMIT n and
 		// (SELECT 1) ORDER BY 1 LIMIT n are engine-valid — instead of
@@ -158,6 +161,9 @@ func rewriteSetOpLimit(sql string, stmt *ast.SetOpStmt, limitCount int) (string,
 	}
 	// The grammar puts INTO OUTFILE inside the query relation, before LIMIT, so
 	// the cap goes before the export clause rather than after it.
+	if stmt.Into != nil {
+		return sql[:stmt.Into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[stmt.Into.Loc.Start:], nil
+	}
 	if into := selectInto(stmt.Left); into != nil {
 		return sql[:into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[into.Loc.Start:], nil
 	}

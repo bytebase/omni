@@ -2924,6 +2924,9 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	sb.WriteString("{AT_CMD")
 	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
+	if n.ConstraintKeyword != ConstraintKeywordNone {
+		fmt.Fprintf(sb, " :constraint_keyword %s", n.ConstraintKeyword)
+	}
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}
@@ -4460,10 +4463,10 @@ func writeCreateSpatialRefSysStmt(sb *strings.Builder, n *CreateSpatialRefSysStm
 		sb.WriteString(" :if_not_exists true")
 	}
 	fmt.Fprintf(sb, " :srid %d", n.SRID)
-	if n.Name != "" {
+	if n.HasName {
 		fmt.Fprintf(sb, " :name %q", n.Name)
 	}
-	if n.Definition != "" {
+	if n.HasDefinition {
 		fmt.Fprintf(sb, " :definition %q", n.Definition)
 	}
 	if n.Organization != "" {

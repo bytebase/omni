@@ -21,6 +21,12 @@ type Table struct {
 	Compression  string
 	Partitioning *PartitionInfo
 
+	// Cached is TiDB's CACHE attribute, which ALTER TABLE CACHE turns on and
+	// NOCACHE turns off. It changes no column or key, but SHOW CREATE TABLE
+	// writes it back as `/* CACHED ON */`, so a table that carries it is not
+	// the same schema as one that does not (read on v8.5.5, 2026-11-19).
+	Cached bool
+
 	// GlobalTemporary marks a table CREATE GLOBAL TEMPORARY TABLE made, and
 	// OnCommit the ON COMMIT clause it carries ("DELETE ROWS" or "PRESERVE
 	// ROWS"). TiDB's SHOW CREATE TABLE writes both back, so an ordinary

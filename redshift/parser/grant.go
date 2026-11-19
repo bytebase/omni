@@ -2224,10 +2224,37 @@ func (p *Parser) parseCreateGroupStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	// r_CREATE_GROUP writes the WITH clause once per comma-separated group of
+	// users, and each WITH takes its USER list as optional:
+	//	CREATE GROUP name [ WITH [ USER name [, ...] ] [, WITH [ USER ... ] ] ]
+	//
+	// The commas belong to that WITH block, so a statement with no WITH has
+	// none of them.
+	with := p.cur.Type == WITH
 	p.parseGrantOptWith()
+	savedInCreateGroup := p.inCreateGroup
+	// The whole WITH block keeps CREATE GROUP's context, repeated lists included.
+	p.inCreateGroup = with
+	defer func() { p.inCreateGroup = savedInCreateGroup }()
 	options, err := p.parseOptRoleList(true)
 	if err != nil {
 		return nil, err
+	}
+	for with && p.cur.Type == ',' {
+		p.advance()
+		if p.collectMode() {
+			// The clause repeats after the comma, and WITH comes first.
+			p.addTokenCandidate(WITH)
+			return options, nil
+		}
+		if !p.acceptRedshiftKeyword("with") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		more, err := p.parseOptRoleList(true)
+		if err != nil {
+			return nil, err
+		}
+		options = appendNodeLists(options, more)
 	}
 	return &nodes.CreateRoleStmt{StmtType: nodes.ROLESTMT_GROUP, Role: name, Options: options,
 		Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
@@ -2433,6 +2460,7 @@ func (p *Parser) parseRoleOptionIdent() *nodes.DefElem {
 		p.expect(ACCESS)
 		access, _ := p.parseColLabel()
 		return makeDefElem("syslog_access", &nodes.String{Str: access})
+
 	default:
 		return nil
 	}
@@ -2496,45 +2524,211 @@ func (p *Parser) parseAlterRoleStmt() (nodes.Node, error) {
 		return nil, err
 	}
 	p.parseGrantOptWith()
-	if p.cur.Type == RENAME {
-		p.advance()
-		if _, err := p.expect(TO); err != nil {
-			return nil, err
-		}
-		newname, err := p.parseName()
-		if err != nil {
-			return nil, err
-		}
-		return &nodes.RenameStmt{
-			RenameType: nodes.OBJECT_ROLE,
-			Subname:    role.Rolename,
-			Newname:    newname,
-		}, nil
-	}
-	if p.cur.Type == OWNER {
-		p.advance()
-		if _, err := p.expect(TO); err != nil {
-			return nil, err
-		}
-		roleSpec, err := p.parseRoleSpec()
-		if err != nil {
-			return nil, err
-		}
-		return &nodes.AlterOwnerStmt{
-			ObjectType: nodes.OBJECT_ROLE,
-			Object:     &nodes.String{Str: role.Rolename},
-			Newowner:   roleSpec,
-			Loc:        nodes.Loc{Start: loc, End: p.prev.End},
-		}, nil
+	// OWNER TO is an alterRole production; r_ALTER_USER's options have RENAME TO
+	// and no OWNER.
+	if p.cur.Type == RENAME || (!isUser && p.cur.Type == OWNER) {
+		return p.parseRedshiftAlterRoleClauses(role, loc, isUser)
 	}
 	if (!isUser && (p.cur.Type == SET || p.cur.Type == RESET)) || p.cur.Type == IN_P {
 		return p.parseAlterRoleSetStmtSuffix(loc, role)
+	}
+	if isUser {
+		options, err := p.parseRedshiftAlterUserOptionList()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.AlterRoleStmt{Role: role, Options: options, Action: 1,
+			Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	}
 	options, err := p.parseOptRoleList(false)
 	if err != nil {
 		return nil, err
 	}
 	return &nodes.AlterRoleStmt{Role: role, Options: options, Action: 1,
+		Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
+}
+
+// parseRedshiftAlterUserOptionList parses r_ALTER_USER's
+// alterUser_option (',' alterUser_option)*; PostgreSQL's ALTER ROLE takes its
+// options without commas between them, so the separators are ALTER USER's
+// alone. RENAME TO is one of those options and takes part in the list.
+func (p *Parser) parseRedshiftAlterUserOptionList() (*nodes.List, error) {
+	var options *nodes.List
+	for {
+		started := false
+		if p.cur.Type == RENAME {
+			rename, err := p.parseRedshiftAlterUserRename()
+			if err != nil {
+				return nil, err
+			}
+			options = appendToList(options, rename)
+			started = true
+		} else {
+			more, err := p.parseOptRoleList(false)
+			if err != nil {
+				return nil, err
+			}
+			if more != nil {
+				options = appendNodeLists(options, more)
+				started = true
+			}
+		}
+		if !started {
+			if options == nil {
+				// alterUser_option (',' alterUser_option)*: a comma follows an
+				// option, and this list holds none.
+				return nil, nil
+			}
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ',' {
+			return options, nil
+		}
+		p.advance()
+	}
+}
+
+// parseRedshiftAlterUserRename parses r_ALTER_USER's RENAME TO name option.
+func (p *Parser) parseRedshiftAlterUserRename() (*nodes.DefElem, error) {
+	p.advance() // consume RENAME
+	if _, err := p.expect(TO); err != nil {
+		return nil, err
+	}
+	name, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+	return makeDefElem("rename_to", &nodes.String{Str: name}), nil
+}
+
+// parseRedshiftAlterRoleClauses parses r_ALTER_ROLE's RENAME TO and OWNER TO
+// clauses, which follow the role name and repeat with commas between them,
+// and the EXTERNALID TO name that may end the statement:
+//
+//	ALTER ROLE role_name [ WITH ] { RENAME TO name | OWNER TO role } [, ...]
+//	    [ EXTERNALID TO name ]
+//
+// One clause on its own keeps the node PostgreSQL gives it, RenameStmt or
+// AlterOwnerStmt, because that is what a consumer of ALTER ROLE RENAME TO
+// reads. A repeat, or an EXTERNALID tail, is an AlterRoleStmt's option list
+// instead: rename_to and owner_to hold the clauses in the order written, and
+// externalid the tail. r_ALTER_USER writes the same EXTERNALID clause as one
+// of its comma-separated options.
+//
+// Grammar reference: alterRole in RedshiftDocs.g4.
+func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, isUser bool) (nodes.Node, error) {
+	var opts []nodes.Node
+	clauses := 0
+	for {
+		if p.collectMode() {
+			// The list repeats RENAME TO and OWNER TO after a comma, and ALTER
+			// ROLE may end with EXTERNALID TO.
+			p.addTokenCandidate(RENAME)
+			p.addTokenCandidate(OWNER)
+			if !isUser {
+				p.addWordCandidate("EXTERNALID")
+			}
+			return nil, nil
+		}
+		switch p.cur.Type {
+		case RENAME:
+			p.advance()
+			if _, err := p.expect(TO); err != nil {
+				return nil, err
+			}
+			newname, err := p.parseName()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, makeDefElem("rename_to", &nodes.String{Str: newname}))
+		case OWNER:
+			p.advance()
+			if _, err := p.expect(TO); err != nil {
+				return nil, err
+			}
+			roleSpec, err := p.parseRoleSpec()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, makeDefElem("owner_to", roleSpec))
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		clauses++
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+		if p.collectMode() {
+			// The comma repeats the clause, and ALTER ROLE may end with the
+			// EXTERNALID tail.
+			p.addTokenCandidate(RENAME)
+			if !isUser {
+				p.addTokenCandidate(OWNER)
+				p.addWordCandidate("EXTERNALID")
+			}
+			return nil, nil
+		}
+		if p.cur.Type == RENAME || (!isUser && p.cur.Type == OWNER) {
+			continue
+		}
+		if !isUser {
+			// ALTER ROLE's comma takes another RENAME TO or OWNER TO clause.
+			return nil, p.syntaxErrorAtCur()
+		}
+		// ALTER USER's comma goes on with its next option, RENAME TO and
+		// CREATEDB among them.
+		more, err := p.parseRedshiftAlterUserOptionList()
+		if err != nil {
+			return nil, err
+		}
+		if more == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		opts = append(opts, more.Items...)
+		clauses = 0 // the option list holds more than the one clause
+		break
+	}
+
+	if !isUser && p.collectMode() {
+		// The optional tail follows the last clause.
+		p.addWordCandidate("EXTERNALID")
+		return nil, nil
+	}
+	hasExternalID := false
+	if !isUser && p.redshiftKeywordIs("externalid") {
+		p.advance()
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+		externalID, err := p.parseColLabel()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, makeDefElem("externalid", &nodes.String{Str: externalID}))
+		hasExternalID = true
+	}
+
+	if clauses == 1 && !hasExternalID {
+		first := opts[0].(*nodes.DefElem)
+		switch first.Defname {
+		case "rename_to":
+			return &nodes.RenameStmt{
+				RenameType: nodes.OBJECT_ROLE,
+				Subname:    role.Rolename,
+				Newname:    first.Arg.(*nodes.String).Str,
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
+			}, nil
+		case "owner_to":
+			return &nodes.AlterOwnerStmt{
+				ObjectType: nodes.OBJECT_ROLE,
+				Object:     &nodes.String{Str: role.Rolename},
+				Newowner:   first.Arg.(*nodes.RoleSpec),
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
+			}, nil
+		}
+	}
+	return &nodes.AlterRoleStmt{Role: role, Options: &nodes.List{Items: opts}, Action: 1,
 		Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 }
 

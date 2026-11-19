@@ -257,13 +257,17 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if pc == nil || pc.Type == nodes.PartitionSystemTime {
 		return nil
 	}
+	// The clause is applied, not only judged: v8.5.5 repartitions the table and
+	// SHOW CREATE TABLE prints the new scheme, so `ALTER TABLE a PARTITION BY
+	// KEY()` reads back as `PARTITION BY KEY (b) PARTITIONS 1` (read on
+	// v8.5.5). The partitions an INTERVAL clause generates are built before the
+	// coverage check, which they do not change.
+	pi := buildPartitionInfo(pc)
 	if err := validatePartitionExpr(tbl, pc); err != nil {
 		return err
 	}
 	if pc.Interval != nil {
-		// The partitions are not applied, as no repartition is here, but the statement
-		// answers for them.
-		if err := applyPartitionInterval(tbl, pc, buildPartitionInfo(pc)); err != nil {
+		if err := applyPartitionInterval(tbl, pc, pi); err != nil {
 			return err
 		}
 	}
@@ -280,14 +284,30 @@ func validateRepartition(tbl *Table, pc *nodes.PartitionClause) error {
 	if err != nil {
 		return err
 	}
-	if err := checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, partitionKeyColumns(tbl, pc)); err != nil {
+	keyColumns := partitionKeyColumns(tbl, pc)
+	if err := checkUniqueKeysCoverPartitionColumns(tbl, tbl.Indexes, keyColumns); err != nil {
 		// The statement is refused whole, so the settings go back.
 		undo()
 		return err
 	}
-	if tbl.Partitioning != nil {
-		tbl.Partitioning.keyColumns = nil
+	// KEY () partitions by the primary key, or else by the first whole unique
+	// key of NOT NULL columns, and the ALTER path stores the columns it stands
+	// for where CREATE TABLE keeps the empty list (both read on v8.5.5: a table
+	// with `UNIQUE KEY u (b)` over a NOT NULL b reads back as `PARTITION BY KEY
+	// (b) PARTITIONS 1`). A table with neither has no column to partition by,
+	// and the clause is an uncoded 1105 -- after the coverage check, which
+	// answers 8264 first when a second unique key does not cover the columns
+	// the first one stands for.
+	if pi.Type == "KEY" && len(pi.Columns) == 0 {
+		pi.Columns = effectivePrimaryKeyColumns(tbl)
+		if len(pi.Columns) == 0 {
+			undo()
+			return &Error{Code: ErrUnknownError, SQLState: sqlState(ErrUnknownError),
+				Message: "expression should not be an empty string"}
+		}
 	}
+	pi.keyColumns = keyColumns
+	tbl.Partitioning = pi
 	return nil
 }
 

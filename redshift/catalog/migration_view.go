@@ -173,8 +173,15 @@ func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
 
-	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
+	// The view's storage travels with the statement that names it: the USING
+	// access method and the option list, before AS.
+	options := ""
+	if rel := to.GetRelation(entry.SchemaName, entry.Name); rel != nil {
+		options = deparseMatViewOptions(rel)
+	}
+
+	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
+		qn, options, strings.TrimRight(def, " \t\n\r;"))
 
 	return MigrationOp{
 		Type:          OpCreateView,
@@ -249,10 +256,20 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 }
 
 // buildModifyMatViewOps creates DROP + CREATE ops for a modified matview.
-// Materialized views don't support CREATE OR REPLACE.
+// Materialized views don't support CREATE OR REPLACE. The views and
+// materialized views that read it are handled beside this by
+// wrapMatViewReplacementsWithDependents, which drops them first and creates
+// them again from the target.
 func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+
+	// The view's storage travels with the statement that names it, as it does
+	// when the view is added.
+	options := ""
+	if rel := to.GetRelation(entry.SchemaName, entry.Name); rel != nil {
+		options = deparseMatViewOptions(rel)
+	}
 
 	dropOp := MigrationOp{
 		Type:          OpDropView,
@@ -266,8 +283,8 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 		Priority:      PriorityView,
 	}
 
-	createSQL := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
-		qn, strings.TrimRight(def, " \t\n\r;"))
+	createSQL := fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s AS %s",
+		qn, options, strings.TrimRight(def, " \t\n\r;"))
 
 	createOp := MigrationOp{
 		Type:          OpCreateView,
@@ -282,6 +299,406 @@ func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	}
 
 	return []MigrationOp{dropOp, createOp}
+}
+
+// wrapMatViewReplacementsWithDependents adds what a replaced materialized view
+// needs: the relations that read it, transitively — views and materialized
+// views alike — dropped before it and created again from the target, with the
+// grants, comments and indexes their drops take with them. Redshift has no ALTER
+// for most of a materialized view's storage, so the catalog re-creates the view;
+// the replacement's own ops for those relations are filtered out, since this
+// function writes them.
+//
+// The drops carry the from catalog's OIDs and the creations the target's, which
+// is what sortMigrationOps orders each phase by.
+func wrapMatViewReplacementsWithDependents(from, to *Catalog, diff *SchemaDiff, ops []MigrationOp) []MigrationOp {
+	var replaced []*Relation
+	for _, entry := range diff.Relations {
+		if entry.Action == DiffModify && entry.To != nil && entry.To.RelKind == 'm' && entry.From != nil {
+			replaced = append(replaced, entry.From)
+		}
+	}
+	if len(replaced) == 0 {
+		return ops
+	}
+
+	// The dependents, transitively, by the catalog's recorded dependencies: a
+	// name in a definition would take a view reading a column such as
+	// customer_id for one reading a relation named id.
+	seen := make(map[uint32]bool)
+	var dependents []*Relation
+	queue := make([]uint32, 0, len(replaced))
+	for _, rel := range replaced {
+		queue = append(queue, rel.OID)
+	}
+	for len(queue) > 0 {
+		oid := queue[0]
+		queue = queue[1:]
+		for _, dep := range from.deps {
+			if dep.RefType != 'r' || dep.RefOID != oid || dep.ObjType != 'r' || seen[dep.ObjOID] {
+				continue
+			}
+			rel := from.GetRelationByOID(dep.ObjOID)
+			if rel == nil || rel.Schema == nil || (rel.RelKind != 'v' && rel.RelKind != 'm') {
+				continue
+			}
+			seen[dep.ObjOID] = true
+			dependents = append(dependents, rel)
+			queue = append(queue, rel.OID)
+		}
+	}
+	if len(dependents) == 0 {
+		// The view itself is still replaced: its own grants and comments went
+		// with the drop, and their replacements are added below.
+		var extra []MigrationOp
+		for _, rel := range replaced {
+			target := to.GetRelation(rel.Schema.Name, rel.Name)
+			if target == nil {
+				continue
+			}
+			extra = append(extra, buildReplacedMetadataOps(to, target)...)
+		}
+		return append(ops, extra...)
+	}
+
+	// Whatever the diff wrote for those relations is this function's, grants,
+	// comments and indexes included. An index op names the index, not the
+	// relation, so the indexes each dependent owns are matched by OID.
+	// The two catalogs allocate OIDs independently, so an index is matched on
+	// the side its op belongs to: a drop by the source's index, a creation by
+	// the target's.
+	owned := make(map[relKey]bool, len(dependents))
+	recreated := make(map[relKey]bool, len(dependents))
+	ownedSourceIndexes := make(map[uint32]bool)
+	ownedTargetIndexes := make(map[uint32]bool)
+	for _, rel := range dependents {
+		key := relKey{schema: rel.Schema.Name, name: rel.Name}
+		owned[key] = true
+		for _, idx := range from.IndexesOf(rel.OID) {
+			ownedSourceIndexes[idx.OID] = true
+		}
+		target := to.GetRelation(rel.Schema.Name, rel.Name)
+		if target == nil || (target.RelKind != 'v' && target.RelKind != 'm') {
+			// The target drops it, or holds a table of that name now: only the
+			// drop of the old view is this chain's.
+			continue
+		}
+		recreated[key] = true
+		for _, idx := range to.IndexesOf(target.OID) {
+			ownedTargetIndexes[idx.OID] = true
+		}
+	}
+	kept := ops[:0]
+	for _, op := range ops {
+		key := relKey{schema: op.SchemaName, name: op.ObjectName}
+		if owned[key] {
+			// The old view's own ops, whoever the target holds under that name.
+			switch op.Type {
+			case OpDropView, OpCreateView, OpAlterView, OpRevoke:
+				continue
+			}
+		}
+		if recreated[key] {
+			switch op.Type {
+			case OpGrant, OpComment:
+				continue
+			}
+		}
+		if op.Type == OpDropIndex && ownedSourceIndexes[op.ObjOID] {
+			continue
+		}
+		if op.Type == OpCreateIndex && ownedTargetIndexes[op.ObjOID] {
+			continue
+		}
+		// A trigger op names the trigger and holds the relation it belongs to.
+		if recreated[relKey{schema: op.SchemaName, name: op.ParentObject}] {
+			switch op.Type {
+			case OpCreateTrigger, OpDropTrigger:
+				continue
+			}
+		}
+		kept = append(kept, op)
+	}
+
+	var extra []MigrationOp
+	for _, rel := range dependents {
+		kind := "VIEW"
+		if rel.RelKind == 'm' {
+			kind = "MATERIALIZED VIEW"
+		}
+		extra = append(extra, MigrationOp{
+			Type:          OpDropView,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    rel.Name,
+			SQL:           fmt.Sprintf("DROP %s %s", kind, migrationQualifiedName(rel.Schema.Name, rel.Name)),
+			Transactional: true,
+			Phase:         PhasePre,
+			ObjType:       'r',
+			ObjOID:        rel.OID,
+			Priority:      PriorityView,
+		})
+	}
+
+	for _, rel := range dependents {
+		target := to.GetRelation(rel.Schema.Name, rel.Name)
+		if target == nil || (target.RelKind != 'v' && target.RelKind != 'm') {
+			// The target drops it, or holds a table of that name now: this
+			// function's drop above is its whole story, and the table's own
+			// diff says the rest.
+			continue
+		}
+		extra = append(extra, buildRecreateRelationOps(to, target)...)
+	}
+
+	// The replaced views' own grants and comments went with their drops.
+	for _, rel := range replaced {
+		// By name: the two catalogs allocate OIDs independently, so a source
+		// OID names no relation in the target.
+		target := to.GetRelation(rel.Schema.Name, rel.Name)
+		if target == nil {
+			continue
+		}
+		extra = append(extra, buildReplacedMetadataOps(to, target)...)
+	}
+
+	return append(kept, extra...)
+}
+
+// buildRecreateRelationOps creates a view or materialized view again from the
+// target, with the metadata its drop took with it.
+func buildRecreateRelationOps(to *Catalog, rel *Relation) []MigrationOp {
+	qn := migrationQualifiedName(rel.Schema.Name, rel.Name)
+	// The column list a view was declared with lives on the relation, not in
+	// its definition, so it is written back here or the names are lost.
+	cols := ""
+	if len(rel.Columns) > 0 {
+		names := make([]string, len(rel.Columns))
+		for i, col := range rel.Columns {
+			names[i] = quoteIdentAlways(col.Name)
+		}
+		cols = " (" + strings.Join(names, ", ") + ")"
+	}
+	var sql string
+	if rel.RelKind == 'm' {
+		def, _ := to.GetMatViewDefinition(rel.Schema.Name, rel.Name)
+		sql = fmt.Sprintf("CREATE MATERIALIZED VIEW %s%s%s AS %s",
+			qn, cols, deparseMatViewOptions(rel), strings.TrimRight(def, " \t\n\r;"))
+	} else {
+		def, _ := to.GetViewDefinition(rel.Schema.Name, rel.Name)
+		var b strings.Builder
+		b.WriteString("CREATE VIEW ")
+		b.WriteString(qn)
+		b.WriteString(cols)
+		b.WriteString(" AS ")
+		b.WriteString(strings.TrimRight(def, " \t\n\r;"))
+		switch rel.CheckOption {
+		case 'l':
+			b.WriteString("\n WITH LOCAL CHECK OPTION")
+		case 'c':
+			b.WriteString("\n WITH CASCADED CHECK OPTION")
+		}
+		sql = b.String()
+	}
+
+	ops := []MigrationOp{{
+		Type:          OpCreateView,
+		SchemaName:    rel.Schema.Name,
+		ObjectName:    rel.Name,
+		SQL:           sql,
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'r',
+		ObjOID:        rel.OID,
+		Priority:      PriorityView,
+	}}
+
+	// The triggers a dropped view had, and a materialized view's indexes, went
+	// with it too, their comments along with them.
+	for _, trig := range to.TriggersOf(rel.OID) {
+		ops = append(ops, buildCreateTriggerOp(to, rel.Schema.Name, rel.Name, trig))
+		if state := buildRestoreTriggerStateOp(rel, trig); state != nil {
+			ops = append(ops, *state)
+		}
+		ops = append(ops, buildTriggerCommentOps(to, rel, trig)...)
+	}
+	if rel.RelKind == 'm' {
+		for _, idx := range to.IndexesOf(rel.OID) {
+			if idx.ConstraintOID != 0 {
+				continue // managed by constraint DDL
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpCreateIndex,
+				SchemaName:    rel.Schema.Name,
+				ObjectName:    idx.Name,
+				SQL:           buildCreateIndexSQL(idx, rel, rel.Schema.Name),
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'i',
+				ObjOID:        idx.OID,
+				Priority:      PriorityIndex,
+			})
+		}
+	}
+
+	ops = append(ops, buildRelationMetadataOps(to, rel)...)
+	// An index's comments went with the view's indexes.
+	for _, idx := range to.IndexesOf(rel.OID) {
+		ops = append(ops, buildIndexCommentOps(to, rel, idx)...)
+	}
+	return ops
+}
+
+// buildReplacedMetadataOps puts back what a replaced relation's drop took: its
+// grants, its comments and its indexes' comments.
+func buildReplacedMetadataOps(to *Catalog, rel *Relation) []MigrationOp {
+	ops := buildRelationMetadataOps(to, rel)
+	for _, idx := range to.IndexesOf(rel.OID) {
+		ops = append(ops, buildIndexCommentOps(to, rel, idx)...)
+	}
+	return ops
+}
+
+// buildRestoreTriggerStateOp writes the state a re-created trigger had:
+// CREATE TRIGGER always makes it an ordinary enabled one, and the diff's own
+// state operation was filtered with the relation.
+func buildRestoreTriggerStateOp(rel *Relation, trig *Trigger) *MigrationOp {
+	var action string
+	switch trig.Enabled {
+	case 'D':
+		action = "DISABLE TRIGGER"
+	case 'A':
+		action = "ENABLE ALWAYS TRIGGER"
+	case 'R':
+		action = "ENABLE REPLICA TRIGGER"
+	default:
+		return nil
+	}
+	return &MigrationOp{
+		Type:          OpAlterTrigger,
+		SchemaName:    rel.Schema.Name,
+		ObjectName:    trig.Name,
+		ParentObject:  rel.Name,
+		SQL:           fmt.Sprintf("ALTER TABLE %s %s %s", migrationQualifiedName(rel.Schema.Name, rel.Name), action, quoteIdentAlways(trig.Name)),
+		Transactional: true,
+		Phase:         PhaseMain,
+		ObjType:       'T',
+		ObjOID:        trig.OID,
+		Priority:      PriorityTrigger,
+	}
+}
+
+// buildTriggerCommentOps puts back the comments a trigger had, which its
+// re-creation has no diff entry to say.
+func buildTriggerCommentOps(c *Catalog, rel *Relation, trig *Trigger) []MigrationOp {
+	desc := rel.Schema.Name + "." + rel.Name + "." + trig.Name
+	var keys []commentKey
+	for key, text := range c.comments {
+		if key.ObjType != 'g' || key.ObjOID != trig.OID || text == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].SubID < keys[j].SubID })
+	var ops []MigrationOp
+	for _, key := range keys {
+		sql := formatCommentSQL(c, 'g', desc, key.SubID, c.comments[key])
+		if sql == "" {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpComment,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    trig.Name,
+			SQL:           sql,
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'g',
+			Priority:      PriorityMetadata,
+		})
+	}
+	return ops
+}
+
+// buildIndexCommentOps puts back the comments an index had, which its
+// re-creation has no diff entry to say.
+func buildIndexCommentOps(c *Catalog, rel *Relation, idx *Index) []MigrationOp {
+	// An index is schema-qualified by its own name, not by the relation's.
+	desc := rel.Schema.Name + "." + idx.Name
+	var keys []commentKey
+	for key, text := range c.comments {
+		if key.ObjType != 'i' || key.ObjOID != idx.OID || text == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Slice(keys, func(i, j int) bool { return keys[i].SubID < keys[j].SubID })
+	var ops []MigrationOp
+	for _, key := range keys {
+		sql := formatCommentSQL(c, 'i', desc, key.SubID, c.comments[key])
+		if sql == "" {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpComment,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    idx.Name,
+			SQL:           sql,
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'i',
+			Priority:      PriorityMetadata,
+		})
+	}
+	return ops
+}
+
+// buildRelationMetadataOps puts back what a relation's grants and comments were,
+// which an unchanged grant or comment has no diff entry of its own to say.
+func buildRelationMetadataOps(c *Catalog, rel *Relation) []MigrationOp {
+	desc := rel.Schema.Name + "." + rel.Name
+	var ops []MigrationOp
+	for _, g := range c.grants {
+		if g.ObjType != 'r' || g.ObjOID != rel.OID {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpGrant,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    rel.Name,
+			SQL:           formatGrantSQL(g, desc),
+			Transactional: grantTransactional(g),
+			Phase:         PhaseMain,
+			ObjType:       g.ObjType,
+			ObjOID:        g.ObjOID,
+			Priority:      PriorityMetadata,
+		})
+	}
+
+	var commentKeys []commentKey
+	for key, text := range c.comments {
+		if key.ObjType != 'r' || key.ObjOID != rel.OID || text == "" {
+			continue
+		}
+		commentKeys = append(commentKeys, key)
+	}
+	sort.Slice(commentKeys, func(i, j int) bool { return commentKeys[i].SubID < commentKeys[j].SubID })
+	for _, key := range commentKeys {
+		sql := formatCommentSQL(c, 'r', desc, key.SubID, c.comments[key])
+		if sql == "" {
+			continue
+		}
+		ops = append(ops, MigrationOp{
+			Type:          OpComment,
+			SchemaName:    rel.Schema.Name,
+			ObjectName:    rel.Name,
+			SQL:           sql,
+			Transactional: true,
+			Phase:         PhaseMain,
+			ObjType:       'r',
+			Priority:      PriorityMetadata,
+		})
+	}
+	return ops
 }
 
 // viewRef identifies a view by schema and name.

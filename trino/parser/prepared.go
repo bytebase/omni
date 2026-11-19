@@ -361,7 +361,7 @@ func (p *Parser) invalidPrepareBody(bodyLoc ast.Loc, hard *ParseError) *ParseErr
 		wraps += n
 		delete(p.prepareWraps, hard)
 	}
-	e := &ParseError{Position: bodyLoc.Start, End: bodyLoc.End, Message: hard.Message}
+	e := &ParseError{Position: hard.Position, End: hard.End, Message: hard.Message}
 	if p.prepareBodies > 0 {
 		if p.prepareWraps == nil {
 			p.prepareWraps = make(map[*ParseError]int)

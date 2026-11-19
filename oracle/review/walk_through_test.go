@@ -257,6 +257,9 @@ func TestWalkThroughOracleSession(t *testing.T) {
 	noFinding(t, "CREATE TRIGGER st AFTER STARTUP ON DATABASE BEGIN NULL; END;\n/\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "CREATE TABLE \"é\" (a NUMBER);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "ALTER TABLE t ADD SUPPLEMENTAL LOG GROUP lg (n) ALWAYS;\nCREATE TABLE t (a NUMBER);", shop)
+	// A table's column list carries one too, and the log group ends the walk
+	// as it does after the ALTER above.
+	noFinding(t, "CREATE TABLE t (a NUMBER, SUPPLEMENTAL LOG GROUP lg (a) ALWAYS);\nCREATE TABLE t (a NUMBER);", shop)
 	noFinding(t, "INSERT INTO t@lnk VALUES (1);\nCREATE TABLE t (a NUMBER);", shop)
 	// A string is no name.
 	oneFinding(t, "INSERT INTO nokey VALUES ('é');\nCREATE TABLE t (a NUMBER);", 1, "Table `T` already exists.", shop)

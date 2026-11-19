@@ -402,7 +402,9 @@ func dumpShowCreate(t *testing.T, db *sql.DB, query string) string {
 
 // TestDumpDefinitionReads holds the references a definition names to the
 // objects in the dumped database, so the dump's order is built from the
-// parser's view of the server's statement rather than from its text.
+// parser's view of the server's statement rather than from its text, and the
+// functions it calls, which the dump has to create before the definition
+// replays.
 func TestDumpDefinitionReads(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -410,6 +412,7 @@ func TestDumpDefinitionReads(t *testing.T) {
 		catalog  string
 		database string
 		want     []string
+		wantCall []string
 	}{
 		{
 			name:     "view reads a table",
@@ -474,15 +477,48 @@ func TestDumpDefinitionReads(t *testing.T) {
 			database: "db",
 			want:     []string{"t"},
 		},
+		{
+			name:     "a database function's call is qualified with its database",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT `db`.`alias_abs`(`internal`.`db`.`t`.`k`) AS `k` FROM `internal`.`db`.`t`",
+			catalog:  "internal",
+			database: "db",
+			want:     []string{"t"},
+			wantCall: []string{"alias_abs"},
+		},
+		{
+			name:     "a database function's call is qualified with its catalog and database",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT `internal`.`db`.`alias_abs`(`internal`.`db`.`t`.`k`) AS `k` FROM `internal`.`db`.`t`",
+			catalog:  "internal",
+			database: "db",
+			want:     []string{"t"},
+			wantCall: []string{"alias_abs"},
+		},
+		{
+			name:     "a built-in call is bare and is not a routine",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT abs(`internal`.`db`.`t`.`k`) AS `k` FROM `internal`.`db`.`t`",
+			catalog:  "internal",
+			database: "db",
+			want:     []string{"t"},
+		},
+		{
+			name:     "another database's function is not the dump's",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT `other`.`alias_abs`(`internal`.`db`.`t`.`k`) AS `k` FROM `internal`.`db`.`t`",
+			catalog:  "internal",
+			database: "db",
+			want:     []string{"t"},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := dumpDefinitionReads(test.stmt, test.catalog, test.database)
+			got, calls, err := dumpDefinitionReads(test.stmt, test.catalog, test.database)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if diff := cmp.Diff(test.want, got); diff != "" {
 				t.Errorf("reads differ (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(test.wantCall, calls); diff != "" {
+				t.Errorf("calls differ (-want +got):\n%s", diff)
 			}
 		})
 	}

@@ -17,12 +17,16 @@ type InsertStmt struct {
 	Overwrite     bool        // true for INSERT OVERWRITE TABLE; false for INSERT INTO
 	Target        *ObjectName // target table name
 	Label         string      // optional WITH LABEL name; empty if absent
+	Branch        string      // optional write branch (VERSION AS OF); empty if absent
 	Partition     []string    // optional PARTITION(p1, p2, ...) names; nil if absent
+	KeyPartitions []*Property // optional PARTITION(k = v, ...) key selectors
 	TempPartition bool        // true if TEMPORARY PARTITION was specified
 	PartitionStar bool        // true if PARTITION(*) was used
 	Columns       []string    // optional column list; nil if absent
 	ByName        bool        // true for INSERT ... BY NAME (column-name matching)
+	Blackhole     bool        // INSERT INTO BLACKHOLE() sink
 	FileTarget    []*Property // FILES(propertyList) target; nil for a table target (mutually exclusive with Target)
+	Properties    []*Property // optional PROPERTIES(...) before the source
 	// Source: exactly one of Values or Query is non-nil.
 	Values [][]Node // VALUES rows: each inner slice is one row's expressions
 	Query  Node     // SELECT or WITH…SELECT (*SelectStmt); nil if VALUES form
@@ -186,6 +190,20 @@ func (n *LoadDataStmt) Tag() NodeTag { return T_LoadDataStmt }
 
 // Compile-time assertion that *LoadDataStmt satisfies Node.
 var _ Node = (*LoadDataStmt)(nil)
+
+// AlterLoadStmt represents alterLoadStatement (StarRocks.g4:1499):
+//
+//	ALTER LOAD FOR (db=qualifiedName '.')? name=identifier jobProperties?
+type AlterLoadStmt struct {
+	Name       *ObjectName // the load's [db.]name
+	Properties []*Property // optional PROPERTIES(...)
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterLoadStmt) Tag() NodeTag { return T_AlterLoadStmt }
+
+var _ Node = (*AlterLoadStmt)(nil)
 
 // ---------------------------------------------------------------------------
 // EXPORT statement (T6.1)

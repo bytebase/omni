@@ -860,6 +860,7 @@ var _ Node = (*AlterSQLBlockRuleStmt)(nil)
 //	DROP SQL_BLOCK_RULE [IF EXISTS] name
 type DropSQLBlockRuleStmt struct {
 	Name     string
+	Names    []string // identifierSeq: Name is Names[0]
 	IfExists bool
 	Loc      Loc
 }
@@ -868,3 +869,80 @@ type DropSQLBlockRuleStmt struct {
 func (n *DropSQLBlockRuleStmt) Tag() NodeTag { return T_DropSQLBlockRuleStmt }
 
 var _ Node = (*DropSQLBlockRuleStmt)(nil)
+
+// RefreshStmt represents REFRESH TABLE, DATABASE and LDAP:
+//
+//	REFRESH TABLE multipartIdentifier
+//	REFRESH DATABASE multipartIdentifier [PROPERTIES(...)]
+//	REFRESH LDAP (ALL | FOR identifierOrText)
+type RefreshStmt struct {
+	Kind       string // TABLE, DATABASE or LDAP
+	Name       *ObjectName
+	Properties []*Property
+	All        bool   // LDAP ALL
+	For        string // LDAP FOR name
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *RefreshStmt) Tag() NodeTag { return T_RefreshStmt }
+
+var _ Node = (*RefreshStmt)(nil)
+
+// AlterComputeGroupStmt represents:
+//
+//	ALTER COMPUTE GROUP name [PROPERTIES(...)]
+type AlterComputeGroupStmt struct {
+	Name       string
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterComputeGroupStmt) Tag() NodeTag { return T_AlterComputeGroupStmt }
+
+var _ Node = (*AlterComputeGroupStmt)(nil)
+
+// AlterColocateGroupStmt represents:
+//
+//	ALTER COLOCATE GROUP name SET (propertyItemList)
+type AlterColocateGroupStmt struct {
+	Name       *ObjectName
+	Properties []*Property
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterColocateGroupStmt) Tag() NodeTag { return T_AlterColocateGroupStmt }
+
+var _ Node = (*AlterColocateGroupStmt)(nil)
+
+// DropCatalogRecycleBinStmt represents:
+//
+//	DROP CATALOG RECYCLE BIN WHERE 'type' = id
+type DropCatalogRecycleBinStmt struct {
+	IDType string
+	ID     string
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *DropCatalogRecycleBinStmt) Tag() NodeTag { return T_DropCatalogRecycleBinStmt }
+
+var _ Node = (*DropCatalogRecycleBinStmt)(nil)
+
+// ReplayStmt represents PLAN REPLAYER:
+//
+//	PLAN REPLAYER DUMP query
+//	PLAN REPLAYER PLAY 'path'
+type ReplayStmt struct {
+	Type  string // DUMP or PLAY
+	Query Node   // DUMP's query
+	File  string // PLAY's path
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ReplayStmt) Tag() NodeTag { return T_ReplayStmt }
+
+var _ Node = (*ReplayStmt)(nil)

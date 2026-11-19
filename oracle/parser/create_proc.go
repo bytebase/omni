@@ -160,15 +160,19 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		Loc:            nodes.Loc{Start: start},
 	}
 
-	// IF NOT EXISTS (for FUNCTION, it comes after the FUNCTION keyword per BNF)
+	// IF NOT EXISTS (for FUNCTION, it comes after the FUNCTION keyword per BNF).
+	// Oracle answers ORA-11543, an incorrect IF NOT EXISTS clause, at the
+	// word where EXISTS should stand: CREATE FUNCTION IF NOT a RETURN NUMBER
+	// is refused at the a.
 	if !ifNotExists && p.cur.Type == kwIF {
 		if p.peekNext().Type == kwNOT {
 			p.advance() // consume IF
 			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				ifNotExists = true
+			if p.cur.Type != kwEXISTS {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume EXISTS
+			ifNotExists = true
 		}
 	}
 	stmt.IfNotExists = ifNotExists

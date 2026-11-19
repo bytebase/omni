@@ -26,6 +26,16 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if err := checkKeyOptions(stmt.Constraints); err != nil {
 		return err
 	}
+	// A CREATE TABLE ... SELECT resolves its query before it reads the column
+	// groups: CREATE TABLE a WITH COLUMN GROUP(a(a)) SELECT a is 1054, a column the
+	// query cannot find, and only a query that resolves reaches the group's 1235 or
+	// 1060 (TestSimulationCausesOracle).
+	tableName := stmt.Table.Name
+	key := toLower(tableName)
+	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
+		return err
+	}
+
 	// OceanBase reads the column groups before the name, so a group it refuses
 	// beats 1050 and IF NOT EXISTS (TestOracle_OceanBaseColumnGroups).
 	var groups ColumnGroups
@@ -33,12 +43,6 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		if groups, err = readColumnGroups(stmt.ColumnGroup); err != nil {
 			return err
 		}
-	}
-
-	tableName := stmt.Table.Name
-	key := toLower(tableName)
-	if _, err := c.resolveQueryFirst(stmt.Select); err != nil {
-		return err
 	}
 
 	// The name is checked last: OceanBase reads the whole definition first, so
@@ -343,6 +347,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					}
 				}
 			}
+		}
+
+		// SERIAL stays NOT NULL even when its definition writes NULL.
+		if isSerial {
+			col.Nullable = false
 		}
 
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
@@ -1356,6 +1365,18 @@ func checkSomeColumnVisible(stmt *nodes.CreateTableStmt) error {
 }
 
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := checkPartitionStructure(tbl, pc, false); err != nil {
+		return err
+	}
+	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+}
+
+// checkPartitionStructure checks the partitioning itself, before any unique key's
+// coverage. repartition is ALTER TABLE ... PARTITION BY, which takes a RANGE with no
+// partition list, RANGE() and RANGE(b) alike, as automatic range partitioning: the
+// engine gives it a default split size instead of answering 1492
+// (TestSimulationCausesOracle).
+func checkPartitionStructure(tbl *Table, pc *nodes.PartitionClause, repartition bool) error {
 	if err := checkPartitionNames(tbl, pc); err != nil {
 		return err
 	}
@@ -1367,13 +1388,17 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 		}
 	}
 	// Automatic partitioning (PARTITION SIZE ... PARTITIONS AUTO) lists no
-	// partitions: the engine makes them as the table grows.
-	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" {
+	// partitions: the engine makes them as the table grows. A RANGE with a split
+	// size and no list is the same form: the pinned server reads ALTER TABLE a
+	// PARTITION BY RANGE() back as `partition by range() size ('2048MB')`, and
+	// the catalog must load what the engine stores.
+	automaticRange := repartition && pc.Type == nodes.PartitionRange
+	if !automaticRange && (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 && pc.AutoSize == "" && pc.SplitSize == "" {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
 	if pc.Type == nodes.PartitionRange {
 		for i, pd := range pc.Partitions {
-			if pd.Values != nil && strings.Contains(strings.ToUpper(partitionValueToString(pd.Values, pc.Type)), "MAXVALUE") && i != len(pc.Partitions)-1 {
+			if boundHasMaxValue(pd.Values) && i != len(pc.Partitions)-1 {
 				return &Error{Code: 1481, SQLState: "HY000", Message: "MAXVALUE can only be used in last partition definition"}
 			}
 		}
@@ -1402,7 +1427,25 @@ func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
 			}
 		}
 	}
-	return validateUniqueKeysCoverPartitionColumns(tbl, partitionKeyColumns(tbl, pc))
+	return nil
+}
+
+// boundHasMaxValue reports whether a partition bound holds the MAXVALUE keyword.
+// The parser keeps that sentinel as a *nodes.String reading MAXVALUE, where a
+// quoted 'MAXVALUE' is a *nodes.StringLit: the renderer alone cannot tell them
+// apart, and a string-key's bound may spell the word.
+func boundHasMaxValue(n nodes.Node) bool {
+	switch v := n.(type) {
+	case *nodes.String:
+		return strings.EqualFold(v.Str, "MAXVALUE")
+	case *nodes.List:
+		for _, item := range v.Items {
+			if boundHasMaxValue(item) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func containsPartitionDefaultExpr(n nodes.Node) bool {
@@ -1541,10 +1584,21 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	if refTbl == nil {
 		return errFKNoRefTable()
 	}
-	for _, colName := range con.Columns {
-		if tbl.GetColumn(colName) == nil {
-			return errFKNoSuchColumn()
+	for i, colName := range con.Columns {
+		if tbl.GetColumn(colName) != nil {
+			continue
 		}
+		// A self-referencing foreign key that names the column it cannot find on
+		// both sides is 1215, where one side alone is 5031: ADD FOREIGN KEY (a)
+		// REFERENCES a (a) and (zz) REFERENCES a (zz) are 1215, while (a)
+		// REFERENCES a (zz) and (zz) REFERENCES a (b) are 5031
+		// (TestSimulationCausesOracle). The table has to be this one, named the way
+		// refTbl above was found: another database's table of the same name is not
+		// self-referencing.
+		if refDB == db && toLower(con.RefTable) == toLower(tbl.Name) && i < len(con.RefColumns) && toLower(con.RefColumns[i]) == toLower(colName) {
+			return errCannotAddForeign()
+		}
+		return errFKNoSuchColumn()
 	}
 	for _, colName := range con.RefColumns {
 		if refTbl.GetColumn(colName) == nil {
@@ -1954,6 +2008,29 @@ func validateStoringColumns(tbl *Table, opts []*nodes.IndexOption) error {
 		}
 	}
 	return nil
+}
+
+// dropStoringKeyColumns removes from a key's STORING the columns the key already
+// names. The pinned server takes ALTER TABLE a ADD KEY(a) STORING(a) and reads the
+// key back as KEY `a` (`a`), with no STORING (testdata/simulate.tsv).
+func dropStoringKeyColumns(idx *Index) {
+	if len(idx.Storing) == 0 {
+		return
+	}
+	kept := idx.Storing[:0]
+	for _, name := range idx.Storing {
+		keyColumn := false
+		for _, col := range idx.Columns {
+			if col.Name != "" && toLower(col.Name) == toLower(name) {
+				keyColumn = true
+				break
+			}
+		}
+		if !keyColumn {
+			kept = append(kept, name)
+		}
+	}
+	idx.Storing = kept
 }
 
 func applyIndexOptions(idx *Index, opts []*nodes.IndexOption) {

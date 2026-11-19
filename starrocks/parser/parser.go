@@ -58,6 +58,14 @@ type Parser struct {
 	typeMemo    map[int]typeReplay
 
 	depth int // nesting depth of the productions being parsed (see enterNesting)
+
+	// strictCTAS makes parseCreateTable enforce createTableAsSelectStatement's
+	// clause order and cardinality, which a SUBMIT TASK body needs.
+	strictCTAS bool
+
+	// hints holds SET_VAR values read from optimizer hints before they are
+	// skipped; SUBMIT TASK merges them into its properties.
+	hints []*ast.Property
 }
 
 // typeReplay is a recorded parseDataType result, the state the parse ended
@@ -113,6 +121,10 @@ type rawQuery struct {
 	text  string
 	start int
 	depth int
+	// allowTrace marks a queryStatement body (CTAS), where the grammar permits
+	// the optimizerTrace prefix. An expression subquery is a queryRelation and
+	// does not.
+	allowTrace bool
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -122,15 +134,63 @@ type rawQuery struct {
 func (p *Parser) nextToken() Token {
 	tok := p.lexer.NextToken()
 	for tok.Kind == tokHintStart {
-		for tok.Kind != tokHintEnd && tok.Kind != tokEOF {
+		var hint []Token
+		for {
 			tok = p.lexer.NextToken()
+			if tok.Kind == tokHintEnd || tok.Kind == tokEOF {
+				break
+			}
+			hint = append(hint, tok)
 		}
 		if tok.Kind == tokEOF {
 			return tok
 		}
+		p.recordHint(hint)
 		tok = p.lexer.NextToken()
 	}
 	return tok
+}
+
+// recordHint reads the SET_VAR assignments from one optimizer hint. Other hint
+// names carry no task properties and are ignored.
+func (p *Parser) recordHint(tokens []Token) {
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i].Kind != kwSET_VAR || i+1 >= len(tokens) || tokens[i+1].Kind != int('(') {
+			continue
+		}
+		i += 2
+		for i < len(tokens) && tokens[i].Kind != int(')') {
+			keyTok := tokens[i]
+			if !isIdentifierToken(keyTok.Kind) {
+				break
+			}
+			i++
+			if i >= len(tokens) || tokens[i].Kind != int('=') {
+				break
+			}
+			i++
+			if i >= len(tokens) || tokens[i].Kind == int(')') || tokens[i].Kind == int(',') {
+				break
+			}
+			valTok := tokens[i]
+			value := valTok.Str
+			valEnd := valTok.Loc.End
+			if valTok.Kind == int('-') && i+1 < len(tokens) {
+				i++
+				value = "-" + tokens[i].Str
+				valEnd = tokens[i].Loc.End
+			}
+			i++
+			p.hints = append(p.hints, &ast.Property{
+				Key:   keyTok.Str,
+				Value: value,
+				Loc:   ast.Loc{Start: keyTok.Loc.Start, End: valEnd},
+			})
+			if i < len(tokens) && tokens[i].Kind == int(',') {
+				i++
+			}
+		}
+	}
 }
 
 // advance consumes the current token and moves to the next one.
@@ -440,6 +500,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterUser(p.prev.Loc)
 		case kwROUTINE:
 			return p.parseAlterRoutineLoad(alterTok.Loc)
+		case kwLOAD:
+			return p.parseAlterLoad(alterTok.Loc)
 		case kwSYSTEM:
 			return p.parseAlterSystemStmt(alterTok.Loc)
 		case kwJOB:
@@ -498,6 +560,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropProcedure(dropTok.Loc)
 		case kwFUNCTION, kwGLOBAL:
 			return p.parseDropFunction(dropTok.Loc)
+		case kwTASK:
+			return p.parseDropTask(dropTok.Loc)
 		default:
 			return p.unsupported("DROP")
 		}
@@ -527,6 +591,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseWithStatement()
 	case kwINSERT:
 		return p.parseInsert()
+	case kwSUBMIT:
+		hintStart := len(p.hints)
+		submitTok := p.advance() // consume SUBMIT
+		hints := append([]*ast.Property(nil), p.hints[hintStart:]...)
+		p.hints = nil
+		return p.parseSubmitTask(submitTok.Loc, hints)
+	case kwCACHE:
+		return p.parseDataCacheSelect()
 	case kwUPDATE:
 		updateTok := p.advance() // consume UPDATE
 		return p.parseUpdateStmt(updateTok.Loc.Start)
@@ -546,6 +618,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Transaction
 	case kwBEGIN:
 		return p.parseBeginStmt()
+	case kwSTART:
+		startTok := p.advance() // consume START
+		return p.parseStartTransaction(startTok.Loc)
 	case kwCOMMIT:
 		return p.parseCommitStmt()
 	case kwROLLBACK:
@@ -578,6 +653,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			p.restore(mark)
 		}
+		// explainDesc (StarRocks.g4:2580) shares DESC/DESCRIBE with the table
+		// description: DESC before a query or DML plans it, and so does DESC
+		// before a plan modifier when a query follows the modifier.
+		if p.descStartsExplain() {
+			return p.parseExplain()
+		}
 		// A describe names what it describes (StarRocks.g4:561
 		// descTableStatement): a bare DESC, or DESC ALL with no table, is a
 		// syntax error.
@@ -588,6 +669,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseDescribe()
 	case kwEXPLAIN:
 		return p.parseExplain()
+	case kwTRACE:
+		traceTok := p.advance() // consume TRACE
+		return p.parseOptimizerTrace(traceTok.Loc)
 	case kwUSE:
 		return p.parseUse()
 	case kwHELP:
@@ -951,6 +1035,21 @@ func isQueryBody(n ast.Node) bool {
 	return false
 }
 
+// isQueryStatementBody is isQueryBody plus the (explainDesc | optimizerTrace)
+// prefix, which queryStatement allows and a subquery expression does not.
+func isQueryStatementBody(n ast.Node) bool {
+	if isQueryBody(n) {
+		return true
+	}
+	switch n := n.(type) {
+	case *ast.OptimizerTraceStmt:
+		return n.Query != nil && isQueryBody(n.Query)
+	case *ast.ExplainStmt:
+		return n.Query != nil && isQueryBody(n.Query)
+	}
+	return false
+}
+
 // validateRawQueries strictly parses every query body this parse captured as
 // raw text and returns the errors in the outer statement's coordinates. A body
 // must be exactly one query (SELECT, a set operation, or a grouped query): the
@@ -981,7 +1080,11 @@ func (p *Parser) validateRawQueries() []ParseError {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 			continue
 		}
-		if !isQueryBody(res.File.Stmts[0]) {
+		body := isQueryBody
+		if q.allowTrace {
+			body = isQueryStatementBody
+		}
+		if !body(res.File.Stmts[0]) {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 		}
 	}

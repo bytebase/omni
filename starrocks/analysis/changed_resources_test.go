@@ -57,6 +57,11 @@ func TestExtractChangedResourcesTables(t *testing.T) {
 		{"insert names its target", "INSERT INTO t VALUES (1);", []string{"db.t"}},
 		{"update names its target, not its source", "UPDATE t SET a = 1 WHERE a IN (SELECT a FROM s);", []string{"db.t"}},
 		{"delete names its target, not its source", "DELETE FROM t WHERE a = 1;", []string{"db.t"}},
+		{"submit task insert names its target", "SUBMIT TASK AS INSERT INTO t SELECT 1;", []string{"db.t"}},
+		{"submit task CTAS names its target", "SUBMIT TASK AS CREATE TABLE t AS SELECT 1;", []string{"db.t"}},
+		{"analyze insert names its target", "DESC ANALYZE INSERT INTO t SELECT 1;", []string{"db.t"}},
+		{"a qualified task runs in its own database", "SUBMIT TASK other.job AS INSERT INTO t SELECT 1;", []string{"other", "other.t"}},
+		{"a task in another database records both", "SUBMIT TASK other.job AS INSERT INTO third.t SELECT 1;", []string{"other", "third.t"}},
 		{"a view records no table", "CREATE VIEW v AS SELECT 1;", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -86,6 +91,9 @@ func TestExtractChangedResourcesDMLAccounting(t *testing.T) {
 		{name: "insert select is a DML statement", statement: "INSERT INTO t SELECT a FROM s;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT a FROM s;"}},
 		{name: "update is a DML statement", statement: "UPDATE t SET a = 1 WHERE a = 2;", wantDML: 1, wantTexts: []string{"UPDATE t SET a = 1 WHERE a = 2;"}},
 		{name: "delete is a DML statement", statement: "DELETE FROM t WHERE a = 1;", wantDML: 1, wantTexts: []string{"DELETE FROM t WHERE a = 1;"}},
+		{name: "an analyzed insert records the inner DML", statement: "DESC ANALYZE INSERT INTO t SELECT 1;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT 1;"}},
+		{name: "a task records the submitted DML", statement: "SUBMIT TASK AS INSERT INTO t SELECT 1;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT 1;"}},
+		{name: "a task records an analyzed inner DML", statement: "SUBMIT TASK AS DESC ANALYZE INSERT INTO t SELECT 1;", wantDML: 1, wantTexts: []string{"INSERT INTO t SELECT 1;"}},
 		{name: "DDL is neither", statement: "CREATE TABLE t (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1;"},
 		{
 			name:        "a script accumulates both",
@@ -127,6 +135,8 @@ func TestExtractChangedResourcesDatabaseOnlyTargets(t *testing.T) {
 		{"drop view", "DROP VIEW other.v;", []string{"other"}},
 		{"a qualified materialized view records its database", "DROP MATERIALIZED VIEW other.mv;", []string{"other"}},
 		{"drop procedure", "DROP PROCEDURE other.p;", []string{"other"}},
+		{"qualified drop task", "DROP TASK other.job;", []string{"other"}},
+		{"qualified alter load", "ALTER LOAD FOR other.label PROPERTIES('a' = 'a');", []string{"other"}},
 		{"a table DDL records no database-only target", "CREATE TABLE other.t (a INT) DISTRIBUTED BY HASH(a) BUCKETS 1;", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

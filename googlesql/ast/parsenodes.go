@@ -666,7 +666,10 @@ type InExpr struct {
 	Values   []Node // parenthesized expression list (>= 1); nil for the other forms
 	Unnest   Node   // UNNEST(...) RHS; nil otherwise
 	Subquery Node   // parenthesized-query RHS (SubqueryExpr); nil otherwise
-	Loc      Loc
+	// GraphSubquery is a braced graph subquery RHS (graph_expression's
+	// `expr [NOT] IN braced_graph_subquery`); nil otherwise.
+	GraphSubquery *GraphSubqueryExpr
+	Loc           Loc
 }
 
 // Tag implements Node.
@@ -4415,7 +4418,11 @@ func (n *GraphSetOp) Tag() NodeTag { return T_GraphSetOp }
 type GraphSetOpMeta struct {
 	Op         string // "UNION" | "EXCEPT" | "INTERSECT"
 	Quantifier string // "ALL" | "DISTINCT"
-	Loc        Loc
+	// OuterMode is the optional corresponding-outer propagation mode before the
+	// operator (opt_corresponding_outer_mode): "FULL" | "OUTER" | "LEFT" |
+	// "INNER", or "" when absent.
+	OuterMode string
+	Loc       Loc
 }
 
 // GraphLinearQuery is a graph_linear_query_operation:
@@ -4562,6 +4569,7 @@ type GraphSampleOp struct {
 	Method      string
 	Size        Node
 	Unit        string // "ROWS" | "PERCENT"
+	PartitionBy []Node // sample_size's PARTITION BY expressions; nil if absent
 	WithWeight  bool
 	WeightAlias string
 	Repeatable  Node // REPEATABLE(n); nil if absent
@@ -4746,6 +4754,143 @@ type GraphLabelExpr struct {
 // Tag implements Node.
 func (n *GraphLabelExpr) Tag() NodeTag { return T_GraphLabelExpr }
 
+// GraphSubqueryModifier says which keyword introduced a braced graph subquery
+// (graph_expression's operands and expression_subquery_with_keyword).
+type GraphSubqueryModifier int
+
+const (
+	// GraphSubqueryBare is a braced_graph_subquery behind IN (or CALL, whose
+	// operator node carries it): `{ <graph_operation_block> }`.
+	GraphSubqueryBare GraphSubqueryModifier = iota
+	// GraphSubqueryArray is `ARRAY { <graph_operation_block> }`.
+	GraphSubqueryArray
+	// GraphSubqueryValue is `VALUE [hint] { <graph_operation_block> }`.
+	GraphSubqueryValue
+	// GraphSubqueryExists is `EXISTS [hint] { <graph_operation_block> }` (the
+	// exists_graph_subquery alternative that wraps a whole graph query).
+	GraphSubqueryExists
+)
+
+// GraphSubqueryExpr is a braced graph subquery used as an expression
+// (braced_graph_subquery):
+//
+//	[hint] { [GRAPH <path>] <graph_operation_block> }
+//
+// The operation block is the same `block (NEXT block)*` list a GRAPH statement
+// carries, and every block ends with a RETURN, so the subquery yields rows.
+// Graph is the optional `GRAPH <path>` prefix naming the graph (nil when the
+// subquery leaves it implicit). Modifier records the keyword that introduced
+// the brace (ARRAY / VALUE / EXISTS), or GraphSubqueryBare for IN and CALL.
+type GraphSubqueryExpr struct {
+	Modifier GraphSubqueryModifier
+	Graph    *PathExpr // `GRAPH <path>`; nil if absent
+	Blocks   []Node    // *GraphLinearQuery | *GraphSetOp; >= 1
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GraphSubqueryExpr) Tag() NodeTag { return T_GraphSubqueryExpr }
+
+// GraphExistsKind discriminates the two EXISTS forms that do not hold a whole
+// graph query.
+//
+//	graph_exists_pattern:    EXISTS [hint] { [GRAPH <path>] <graph_pattern> }
+//	graph_exists_linear_ops: EXISTS [hint] { [GRAPH <path>] <graph_linear_operator_list> }
+//
+// Both operands after the brace are incomplete queries: a bare pattern, and a
+// run of linear operators with no RETURN. The third EXISTS form — one that
+// wraps a complete graph query — is a *GraphSubqueryExpr with
+// GraphSubqueryExists.
+type GraphExistsKind int
+
+const (
+	// GraphExistsPattern is exists_graph_pattern_subquery.
+	GraphExistsPattern GraphExistsKind = iota
+	// GraphExistsLinearOps is exists_linear_ops_subquery.
+	GraphExistsLinearOps
+)
+
+// GraphExistsExpr is an EXISTS over a graph pattern or a linear-operator run
+// (exists_graph_pattern_subquery / exists_linear_ops_subquery). Kind selects
+// which of Pattern and Ops is set; Graph is the optional `GRAPH <path>` prefix.
+type GraphExistsExpr struct {
+	Kind    GraphExistsKind
+	Graph   *PathExpr     // `GRAPH <path>`; nil if absent
+	Pattern *GraphPattern // Kind == GraphExistsPattern; nil otherwise
+	Ops     []Node        // Kind == GraphExistsLinearOps; >= 1
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *GraphExistsExpr) Tag() NodeTag { return T_GraphExistsExpr }
+
+// GraphYieldItem is one entry of an opt_yield_clause (yield_item):
+// `identifier [AS alias]`. It carries no child node, so it is a plain value
+// type like GraphSetOpMeta.
+type GraphYieldItem struct {
+	Name  string
+	Alias string // "" if absent
+	Loc   Loc
+}
+
+// GraphCallOp is a graph_call_operator / graph_call_operator_core:
+//
+//	[OPTIONAL] CALL [PER ( id, … )] <tvf> [YIELD <items>]
+//	[OPTIONAL] CALL [PER ( id, … )] <braced_graph_subquery>
+//	           CALL ( id, … )      <braced_graph_subquery>
+//
+// Exactly one of Call (a named table-valued function) and Subquery (an inline
+// braced graph subquery) is set. Per holds the partition identifier list, which
+// either the PER clause or the leading `( id, … )` of the inline-subquery form
+// spells — possibly empty, as in `CALL PER() a()` or `CALL() { … }` — and HasPer
+// records whether the PER keyword introduced it (the grammar's is_partitioning
+// flag: the parenthesized-identifier-list form is not partitioned). Yield is the
+// named call's output list (nil if absent).
+type GraphCallOp struct {
+	Optional bool
+	HasPer   bool
+	Per      []string // PER ( … ) identifiers; nil when empty or absent
+	Call     *FuncCall
+	Yield    []*GraphYieldItem // nil if absent
+	Subquery *GraphSubqueryExpr
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GraphCallOp) Tag() NodeTag { return T_GraphCallOp }
+
+// GraphPredicateKind enumerates the three graph predicates of graph_expression.
+type GraphPredicateKind int
+
+const (
+	// GraphIsSource is `<expr> IS [NOT] SOURCE [OF] <expr>`
+	// (edge_source_endpoint_operator).
+	GraphIsSource GraphPredicateKind = iota
+	// GraphIsDestination is `<expr> IS [NOT] DESTINATION [OF] <expr>`
+	// (edge_dest_endpoint_operator).
+	GraphIsDestination
+	// GraphIsLabeled is `<expr> IS [NOT] LABELED <label_expression>`
+	// (is_labeled_operator).
+	GraphIsLabeled
+)
+
+// GraphPredicate is a graph_expression that compares one expression with
+// another through a graph operator. The grammar gives it the comparison
+// family's precedence (EDGE_ENDPOINT_PRECEDENCE sits beside `=` and `IS`), so it
+// is non-associative with the other comparisons. Right is the endpoint
+// expression for GraphIsSource / GraphIsDestination and the *GraphLabelExpr for
+// GraphIsLabeled.
+type GraphPredicate struct {
+	Kind  GraphPredicateKind
+	Not   bool
+	Left  Node
+	Right Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphPredicate) Tag() NodeTag { return T_GraphPredicate }
+
 // GraphPropertySpec is a graph_property_specification (`{ id : expr, … }`).
 // Properties has >= 1 entry.
 type GraphPropertySpec struct {
@@ -4771,12 +4916,12 @@ func (n *GraphPropertyNameValue) Tag() NodeTag { return T_GraphPropertyNameValue
 // (create_property_graph_statement):
 //
 //	CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] <path>
-//	  [OPTIONS(…)] NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )]
+//	  NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )] [OPTIONS(…)]
 //
 // OrReplace / IfNotExists flag the prefixes. Name is the graph name. Options is
-// the optional OPTIONS list. NodeTables is the required NODE TABLES element
-// list (>= 1). EdgeTables is the optional EDGE TABLES element list (nil if
-// absent).
+// the optional OPTIONS list, which follows the graph content (googlesql.tm:2666).
+// NodeTables is the required NODE TABLES element list (>= 1). EdgeTables is the
+// optional EDGE TABLES element list (nil if absent).
 type CreatePropertyGraphStmt struct {
 	OrReplace   bool
 	IfNotExists bool

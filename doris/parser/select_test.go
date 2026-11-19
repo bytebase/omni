@@ -1289,22 +1289,27 @@ func TestIntoOutfileInCTASQuery(t *testing.T) {
 	}
 }
 
-func TestIntoOutfilePathMustBeAString(t *testing.T) {
-	// The one place this clause is deliberately stricter than the engine.
-	// The grammar spells the path `constant`, so Doris parses
-	// `INTO OUTFILE 1` and only refuses it in analysis ("Please specify
-	// BROKER properties or check your local file path") — container-verified,
-	// which is why it is not a row in TestDorisSyntaxConformance. Nothing but
-	// a string can name a path, and refusing it here fails closed.
+func TestIntoOutfilePathTakesConstant(t *testing.T) {
+	// The grammar spells the path `constant`, and the engine takes
+	// INTO OUTFILE NULL; the parser carries any constant, keeping a string's
+	// unquoted text and any other constant's source text.
 	for _, sql := range []string{
 		"SELECT 1 INTO OUTFILE 1",
 		"SELECT 1 INTO OUTFILE 1.5",
 		"SELECT 1 INTO OUTFILE NULL",
 		"SELECT 1 INTO OUTFILE ['/tmp/x']",
 	} {
-		if _, errs := parseForTest(sql); len(errs) == 0 {
-			t.Errorf("%q parsed, want a syntax error (the path must be a string)", sql)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%q errors: %v, want a constant path", sql, errs)
 		}
+	}
+	file, errs := parseForTest("SELECT 1 INTO OUTFILE NULL")
+	if len(errs) != 0 {
+		t.Fatalf("OUTFILE NULL errors: %v", errs)
+	}
+	lit, ok := intoOf(t, file.Stmts[0]).PathConstant.(*ast.Literal)
+	if !ok || lit.Kind != ast.LitNull {
+		t.Errorf("OUTFILE NULL constant = %#v, want a null literal", intoOf(t, file.Stmts[0]).PathConstant)
 	}
 }
 

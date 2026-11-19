@@ -15,8 +15,8 @@ GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 1,958 | 257 | 399 |
-| Near-misses | 6,223 | 5,100 | 1,089 | 34 |
+| One per alternative | 2,614 | 2,146 | 69 | 399 |
+| Near-misses | 6,223 | 5,134 | 1,055 | 34 |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -27,10 +27,14 @@ Most of what only Spanner accepts is GoogleSQL syntax the emulator parses and
 then refuses as a statement it does not run (`Statement not supported`):
 `MERGE` (80 rows), `LOAD DATA` (74), `TABLE a(…)` / table clauses (56),
 `BEGIN … END` (47), `IMPORT` (25), `EXPORT DATA` (23), `SHOW` (23), and
-`EXECUTE IMMEDIATE` (21). The pipe rows are different; see below.
+`EXECUTE IMMEDIATE` (21). `SET TRANSACTION` and `SET @@…` are the same, and the
+pipe and graph rows are different; see below.
 Most of what only omni accepts is BigQuery: scripting (`DECLARE`, `IF`,
 `CASE`, `BREAK`), and DDL Spanner's DDL parser refuses (`CREATE TABLE a` with
-no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`).
+no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`). Each
+of the 476 rows is measured below: the pinned grammar derives 473 of them, one
+was omni's and is closed, and two are Spanner DDL reference forms the grammar
+lags.
 
 ## Most of those families are not parse verdicts either
 
@@ -59,9 +63,146 @@ VIEWS … FROM … LIKE`, 11), `IMPORT MODULE|PROTO` with `AS`/`INTO` aliases an
 `OPTIONS` (9), `MODULE <path> [OPTIONS]` (5), `EXPORT TABLE METADATA FROM` and
 `EXPORT DATA AS GRAPH` (3), and the empty `EXCEPTION WHEN ERROR THEN END`
 handler that `statement_list`'s empty alternative allows (2): 85 rows in all,
-none of them a cell the recording could not judge. The TABLE rows left are two
-near-misses: `TABLE a() QUALIFY`, where QUALIFY is the alias and omni reserves
-the word, and the rest of the only-Spanner near-misses above.
+none of them a cell the recording could not judge. One TABLE near-miss is
+left: `TABLE a() QUALIFY`, where QUALIFY is the clause word and omni reads no
+alias there.
+
+## `SET` is judged on one alternative only
+
+`set_statement` splits by target, and the recording parses exactly one target:
+`SET a = NULL` and its near-misses (`SET a = NULL zzz` rejects) are a parse
+verdict, and omni agrees on all of them. The other two are not. `SET @@ a = NULL
+zzz` and `SET TRANSACTION READ ONLY zzz` are recorded `accept` while their
+valid forms are too, so the inserted token changed nothing: the emulator
+answers `Statement not supported` for a system-variable or transaction-mode SET
+before it parses the assignment. The 10 rows left therefore say `accept` for
+text the grammar refuses (`SET TRANSACTION ONLY`, `SET TRANSACTION READ`, `SET
+@@ a =`), and matching them would mean accepting what `set_statement` does not
+derive.
+
+## The graph rows are a parse verdict
+
+The graph sub-language is the largest family the grammar derives and omni did
+not read: `graph_expression`'s endpoint (`IS [NOT] SOURCE|DESTINATION [OF]`) and
+label (`IS [NOT] LABELED`) predicates, the braced graph subqueries wherever a
+query can appear (`SELECT ARRAY { … }`, `SELECT EXISTS { … }`, `SELECT VALUE {
+… }`, `expr IN { … }`, and a CALL's inline subquery), and the operator, pattern
+and CALL alternatives inside them. Because a graph query is reached only through
+an expression, every one of those rows was a `reject` at the `{`: 208 rows moved
+on the one change.
+
+Unlike the pipe and dispatch families, the emulator judges this one: inside the
+same rules it rejects `SELECT EXISTS { MATCH }`, `{ MATCH - MATCH }`, `{ - MATCH
+- }`, `{ SHORTEST - }`, `{ - [ ] - }` and `{ < - [ ] - }` (the grammar's
+`ValidateNoWhitespace` on an edge pattern's delimiters), `{ (a)* }` (a quantifier
+on a node pattern), `{(@1 -) }` (a hint opening a path pattern), `{ -@1 - }` (a
+hint between two edges) and `{(COST NULL) }`. Text the grammar derives is
+accepted and text it refuses is rejected, so the cells are verdicts. The
+`COST` filler tail is the one place the recording disagrees with
+`googlesql.tm` — `opt_graph_cost/COST_expression` is recorded `reject` — so omni
+reads the word as an element named `COST` and not as the tail, which is what the
+grammar's own shift preference and the cell agree on.
+
+The rows left in this family are not verdicts: `DYNAMIC LABEL(NULL) DYNAMIC
+LABEL(NULL)` and its `drop-10` twin are recorded `accept` with and without the
+closing `)`, and `PROPERTIES ALL COLUMNS EXCEPT a))` is recorded `accept` with a
+stray `)`, so the emulator answered something other than a syntax error for a
+`CREATE PROPERTY GRAPH` whose `DYNAMIC LABEL` support its DDL parser reports
+later (4 rows).
+
+`SELECT NULL.*` (3 rows, and the two pipe `|> EXTEND NULL.*` rows) is a real
+verdict the grammar derives from `select_column_dot_star`'s
+`expression_higher_prec_than_and "." "*"`; omni's dot-star is path-only, as it
+was before either family, so they stay. `DROP MODEL a` is the same shape of real
+verdict outside every family here: `MODEL` is one alternative of the grammar's
+`schema_object_kind`, and the emulator's DDL parser reads it and reports the
+missing model later.
+
+## The keyword rows
+
+`common_keyword_as_identifier` is a word the grammar takes as a name, and omni
+reserved six of them: `MATCH_RECOGNIZE` (which the legacy grammar lists through
+the placeholder token `KW_MATCH_RECOGNIZE_NONRESERVED`, so its reserved split
+cannot see the word), `QUALIFY`, `NOTHING`, `SHORTEST` (missing from the older
+grammar's list), and `SAFE_CAST` / `REPLACE_FIELDS` (read only as functions).
+The pinned grammar lists all six, and the recording agrees: `SELECT
+MATCH_RECOGNIZE`, `SELECT NOTHING`, `SELECT QUALIFY`, `SELECT SHORTEST`, `SELECT
+SAFE_CAST` and `SELECT REPLACE_FIELDS` are accepted, each also with a trailing
+alias. 12 rows closed. `SELECT EXCEPT` is left: `EXCEPT` is a reserved word, so
+the grammar cannot derive that statement, and the emulator answered an empty
+select list — an analysis error, not a syntax error — which the judge reads as
+an acceptance.
+
+## Rows only omni accepts, measured (476)
+
+Every row whose cells were `accept`/`reject` was measured at the pin: the
+emulator's gRPC code (always `InvalidArgument`), the position it reports, and
+a control — the form beside it that the same server takes. The recognizer over
+the pinned grammar (`enginetest/grammar`'s, the one the rows are generated
+from) derives 473 of the 476, near-misses included, so omni's reading is the
+grammar's and the emulator's refusal is its dialect. The other three are
+`CREATE PROPERTY GRAPH g OPTIONS(…) NODE TABLES (T)`, which neither the grammar
+(`googlesql.tm:2666` ends the rule with `opt_options_list`) nor Spanner's graph
+DDL reference puts before the content, and the two `ALTER SEARCH INDEX … STORED
+COLUMN` rows, which Spanner's DDL reference quotes (`truth1/spanner/ddl.md:1006`)
+while both the pinned grammar and the emulator's own DDL parser lag it: that
+reference, not the grammar, is their authority. The first was omni's and is
+closed; the other two are recorded here.
+
+Positions are the emulator's own, 1-based columns on these single-line ASCII
+statements, so the byte is the column minus one. A query's position is the
+`[at 1:N]` GoogleSQL's parser puts on its message; a DDL position is the
+`column N` of an `Error parsing Spanner DDL statement:`, which is why the DDL
+groups carry no `Syntax error` prefix.
+
+### Closed (1)
+
+`CREATE PROPERTY GRAPH g OPTIONS(x=true) NODE TABLES (T)` — the emulator
+answers `Expected "." or keyword NODE but got keyword OPTIONS` at 1:25, and
+takes `CREATE PROPERTY GRAPH g NODE TABLES (T) OPTIONS(x=true)` (the control).
+The pinned grammar's rule ends `NODE TABLES element_table_list
+edge_table_clause? opt_options_list`, Spanner's reference writes
+`property_graph_content [OPTIONS (key=value, …)]`, and the legacy ANTLR
+`GoogleSQLParser.g4`, which omni had ported, is the only place the list leads.
+`TestCreatePropertyGraph_OptionsAfterContent` holds both positions to the
+parser, and the `suite:graph-query` row is the cell this closes.
+
+### Measured (475)
+
+| Cause | Rows | The emulator's answer, and the control |
+| --- | --- | --- |
+| BigQuery scripting statements | 121 | `Syntax error: Unexpected keyword <word>` at 1:1 (`DECLARE` 57, `IF` 12, `CASE` 11, `BREAK` 8, `RAISE` 5, `CONTINUE` 4, `REPEAT` 4, `FOR` 3, `ITERATE` 3, `LEAVE` 3, `LOOP` 3, `RETURN` 3, `WHILE` 3), and `Unexpected "label_1"` at 1:1 for the two labelled blocks: the emulator's query parser has no script statement. `SELECT IF(NULL, 1, 2)` and `SELECT CASE WHEN NULL THEN NULL ELSE NULL END` run, so the words are expressions it has and statements it does not |
+| The `QUALIFY` clause | 8 | `QUALIFY is not supported` at 1:17, 24, 25 or 26 (6; the action at `googlesql.tm:6378` with the feature off), and `Expected end of input but got keyword NULL` at 1:21 for the two reserved-keyword forms (`SELECT NULL QUALIFY NULL`, which the emulator reads as `QUALIFY`-the-alias). `SELECT QUALIFY` runs: the word is a name it takes |
+| `IS [NOT] DISTINCT FROM` | 4 | `IS DISTINCT FROM is not supported` at 1:13 or 1:20, another action with the feature off. `SELECT NULL IS NULL` runs |
+| An alias on a parenthesized outer query | 2 | `Alias not allowed on parenthesized outer query` at 1:15 for `(SELECT NULL) AS a`. `SELECT * FROM (SELECT NULL) AS a` runs: the same alias under `FROM` is derived |
+| A dashed path | 2 | `Unexpected "-"` at 1:10 for `DELETE a - a`. `SELECT a - a` runs, and so does `DELETE FROM a WHERE FALSE` |
+| Words the emulator reserves | 4 | `Unexpected keyword GRAPH_TABLE` / `LATERAL` at 1:8, `IGNORE` at 1:13 (`SELECT NULL.IGNORE`): the grammar lists them as names (`common_keyword_as_identifier`, `function_name_from_keyword`). `SELECT MATCH_RECOGNIZE` runs, a word the grammar also takes as a name and the emulator does not reserve |
+| `CREATE TABLE` with no element list | 55 | `Expecting '(' but found '<word>'` at column 14 when the text ends (`CREATE TABLE a`, 20) or 16 at the first clause word (`PRIMARY`, `AS`, `LIKE`, `CLONE`, `COPY`, `PARTITION`, `CLUSTER`, `DEFAULT`, `ROW`, `OPTIONS`; 35). `CREATE TABLE a(a INT64) PRIMARY KEY(a)` applies |
+| An element list with no primary key | 8 | `Must specify either table or column PRIMARY KEY`, with no position and no `Syntax error` phrase, under the DDL prefix: this is a check of the parsed statement, and the judge reads the prefix as a rejection. `CREATE TABLE a(a INT64) PRIMARY KEY(a)` applies, and `CREATE TABLE a()` and `CREATE TABLE a(a a,)` are the refused texts |
+| An index key that is not a column name | 39 | `Expecting ')' but found 'NULL'` at 21 (33; `CREATE INDEX a ON a(NULL)`), at 28 after `UNIQUE`/`SEARCH` (3), at 35 after `NULL_FILTERED` (2), and `found 'ALL'` at 38 for `CREATE SEARCH INDEX my_index ON ds.t(ALL COLUMNS)`: Spanner reads a key as a name and not the grammar's `column_ordering_and_options_expr`. `CREATE INDEX a ON a(a)` and `CREATE INDEX a ON a(a) STORING(b)` are read (`Table not found` is an acceptance) |
+| A materialized, approx or recursive view, or `REPLICA OF` | 11 | `Encountered 'MATERIALIZED'`, `'APPROX'` or `'RECURSIVE'` while parsing `create_statement` at column 8. `CREATE VIEW a AS SELECT NULL` parses (it is refused later for a missing `SQL SECURITY`, which the judge reads as an acceptance) |
+| A view column list or options | 6 | `Expecting 'AS' but found '('` at column 14 (5; `CREATE VIEW a(a) AS …`) and `found 'OPTIONS'` at 15 (1). `CREATE VIEW a AS SELECT NULL` parses |
+| `CREATE FUNCTION` without `RETURNS` or a body | 21 | `Encountered 'EOF' while parsing: create_function_statement` at 19 (11; `CREATE FUNCTION a()`), 26 (`REMOTE`), 37 (`NOT DETERMINISTIC`) or 40 (`SQL SECURITY INVOKER`); `Expecting '(' but found ''a''` at 24 for the string body (3); and the two body-only `suite:bq-ddl` rows, which the emulator rewrites to `CREATE FUNCTION … RETURNS  SQL SECURITY INVOKER AS (…)` and refuses as `Expected end of input but got keyword SECURITY` at 1:36 and 1:46. `CREATE FUNCTION f() RETURNS INT64 AS (1)` and `CREATE FUNCTION f(x INT64) RETURNS INT64 AS (x)` apply |
+| A function parameter or return type the emulator does not know | 19 | `Encountered '<word>' while parsing: function_data_type` at 20, 21, 22, 23 or 29: `a` and `zzz` are the grammar's `type` (`path_expression`) and no built-in type this parser has. `CREATE FUNCTION f(x INT64) RETURNS INT64 AS (x)` applies |
+| A function's determinism or language clause | 11 | `Encountered 'DETERMINISTIC'` (2 at 21 and 1 at 45), `'IMMUTABLE'`, `'STABLE'` and `'VOLATILE'` at 21 (5 there in all), and `LANGUAGE <name>` at 28, 30 (3) or 58 (`LANGUAGE a`, `LANGUAGE js`). The `RETURNS … AS (…)` form applies without them |
+| `AGGREGATE`, `TEMP` or `TABLE FUNCTION` | 4 | `Encountered 'AGGREGATE'` / `'TEMP'` while parsing `create_statement` at column 8 (3), and `Expecting '(' but found 'a'` at 23 for `CREATE TABLE FUNCTION a()`: object kinds this server does not have. `CREATE FUNCTION f() RETURNS INT64 AS (1)` applies |
+| `CREATE PROCEDURE` | 27 | `Encountered 'PROCEDURE' while parsing: create_statement` at column 8, whatever follows it. `CREATE FUNCTION f() RETURNS INT64 AS (1)` applies |
+| `CREATE [ROW ACCESS] POLICY` | 13 | `Encountered 'ROW' while parsing: create_statement` at column 8. `CREATE TABLE a(a INT64) PRIMARY KEY(a)` applies |
+| `GRANT` and `REVOKE` | 28 | `Encountered 'ALL'`, `'ALTER'`, `'a'`, `'SEQUENCE'` or `'PRIVILEGES'` while parsing `grant_statement` at column 7 (23), `Encountered 'a' while parsing: target_type` at 17 for `GRANT SELECT ON a TO 'a'` (1), and `Encountered 'ALL' while parsing: revoke_statement` at column 8 (4): Spanner's grant is `GRANT <privilege> ON TABLE <path> TO ROLE <role>`, not the grammar's `ON <path> TO '<grantee>'`. `GRANT SELECT ON TABLE a TO ROLE r` and `REVOKE SELECT ON TABLE a FROM ROLE r` apply |
+| `ANALYZE` with a table, column list or options | 35 | `Expecting 'EOF' but found '<word>'` at column 9, from `ANALYZE a` and `ANALYZE a(a)` to `ANALYZE OPTIONS(a = PROTO)`. `ANALYZE` alone applies; `ANALYZE TABLE a` is refused the same way |
+| An empty `OPTIONS()` list | 6 | `Encountered ')' while parsing: identifier` at 25 (`CREATE SCHEMA a OPTIONS()`), 27 (`CREATE SEQUENCE a OPTIONS()`) and 29 (`CREATE FUNCTION a() OPTIONS()`): the emulator's list takes one option at least. `CREATE SEQUENCE a OPTIONS(sequence_kind='bit_reversed_positive')` applies |
+| `ALTER` on a generic entity | 8 | `Encountered 'a' while parsing: alter_statement` at column 7 for `ALTER a SET AS 'a'`, `ALTER a SET AS JSON 'a'`, `ALTER a SET OPTIONS()` and `ALTER a a SET AS 'a'`: the action list follows an object kind, not a bare path. `ALTER TABLE a ADD COLUMN b INT64` applies |
+| `ALTER [SEARCH\|VECTOR] INDEX` | 3 | `Encountered 'SEARCH'` at column 7 (2) and `Encountered 'ON'` at 24 (`ALTER VECTOR INDEX idx ON ds.t REBUILD`). `ALTER INDEX a ADD STORED COLUMN c` applies, which is the action the two `suite:bq-ddl` rows name (`truth1/spanner/ddl.md:1006`). The pinned grammar's `alter_index_action` is BigQuery's and lacks `STORED`, and the emulator's DDL parser has no `ALTER SEARCH INDEX` at all, so Spanner's DDL reference is the authority for those two rows |
+| `DROP` | 20 | `Encountered '<word>' while parsing: drop_statement` at column 6 (14; `ALL`, `APPROX`, `DATABASE`, `EXTERNAL`, `MATERIALIZED`, `PROCEDURE`, `PROJECT`, `ROW`, `SNAPSHOT`, `a`) or 8 (6), and `Expecting 'EOF' but found 'ON'` at 21 or 23 for `DROP [SEARCH\|VECTOR] INDEX … ON …` and `DROP TABLE FUNCTION …`. `DROP TABLE a` and `DROP INDEX a` are read (`Table`/`Index not found` is an acceptance) |
+| `CREATE` on a generic entity | 8 | `Encountered 'PROJECT'` / `'a'` while parsing `create_statement` at column 8 (7; `CREATE a a`, `CREATE a a AS 'a'`, `CREATE PROJECT a`) and `Expecting 'GROUP' but found 'a'` at 17 (`CREATE LOCALITY a`). `CREATE TABLE a(a INT64) PRIMARY KEY(a)` applies |
+| `CREATE SNAPSHOT TABLE` | 3 | `Encountered 'SNAPSHOT' while parsing: create_statement` at column 8. `CREATE TABLE a(a INT64) PRIMARY KEY(a)` applies |
+| `CAPACITY`, `RESERVATION`, `OR REPLACE TABLE FUNCTION` | 3 | `Encountered 'CAPACITY'` / `'RESERVATION'` at column 8, `'TABLE'` at 19. `CREATE TABLE a(a INT64) PRIMARY KEY(a)` applies |
+| `TRUNCATE` | 4 | `Encountered 'TRUNCATE' while parsing: ddl_statement` at 1:1: the harness routes the first word to the DDL parser, which has no such statement. `DELETE FROM a WHERE FALSE` runs |
+| `RENAME` without `TABLE` | 2 | `Expecting 'TABLE' but found 'a'` at column 8. `RENAME TABLE a TO b` is read (`Table not found` is an acceptance) |
+
+The 42 `suite:` rows among these are `suite:scripting` (21), `suite:bq-ddl`
+(20) and `suite:select` (1); the closed row was `suite:graph-query`'s. No cell
+here is the emulator's silence: each group's control is a statement it answered.
 
 ## The pipe rows are not a parse verdict
 
@@ -104,7 +245,7 @@ files that compared `Parse` of a statement with the emulator's verdict on it.
 | `suite:spanner-ddl` | 81 | 81 | 0 | 0 |
 | `suite:utility` | 67 | 67 | 0 | 0 |
 | `suite:scripting` | 47 | 23 | 3 | 21 |
-| `suite:graph-query` | 86 | 85 | 0 | 1 |
+| `suite:graph-query` | 86 | 86 | 0 | 0 |
 | `suite:bq-ddl` | 24 | 4 | 0 | 20 |
 | `suite:export-load-clone` | 18 | 11 | 7 | 0 |
 

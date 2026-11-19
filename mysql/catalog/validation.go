@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -218,6 +219,31 @@ func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
 	})
 	if invalid {
 		return &Error{Code: 3763, SQLState: "HY000", Message: "Expression of generated column '" + colName + "' contains a disallowed function"}
+	}
+	return nil
+}
+
+// validateGeneratedColumnSelfReference refuses a generated column whose own
+// expression names the column being added: MySQL 8.0.46 answers 3107, "Generated
+// column can refer only to generated columns defined prior to it", even though
+// the name is not yet a column. It runs after the duplicate-column check, which
+// answers 1060 first when the table already holds the name.
+func validateGeneratedColumnSelfReference(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.Generated == nil || colDef.Generated.Expr == nil {
+		return nil
+	}
+	self := false
+	nodes.Inspect(colDef.Generated.Expr, func(n nodes.Node) bool {
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Table == "" && cr.Schema == "" &&
+			cr.Column != "" && strings.EqualFold(cr.Column, colDef.Name) {
+			self = true
+			return false
+		}
+		return true
+	})
+	if self {
+		return &Error{Code: 3107, SQLState: "HY000",
+			Message: "Generated column can refer only to generated columns defined prior to it."}
 	}
 	return nil
 }
@@ -631,7 +657,46 @@ func validateTemporalExprForColumn(colName, typeName string, colFsp int, expr no
 	return nil
 }
 
+// validateBareNowDefault rejects a bare NOW()-family DEFAULT on a column whose
+// type is neither DATETIME nor TIMESTAMP: mysql:8.0.46 reads such a default as a
+// current-timestamp value, which only those two types hold, and answers 1067
+// for a TINYINT, INT, DATE, TIME, YEAR or VARCHAR column alike. Judged while the
+// statement is prepared, before the database and the table are resolved and
+// before a duplicate column: `ALTER TABLE nodb.a ADD x INT DEFAULT NOW()`, and
+// the same over an existing table, are 1067 (read on mysql:8.0.46).
+//
+// Only the bare form is this rule's. A parenthesized `DEFAULT (NOW())` is a
+// general expression default, which the same server takes on those types, so
+// the parenthesis is not read through here.
+func validateBareNowDefault(colDef *nodes.ColumnDef) error {
+	if colDef == nil || colDef.TypeName == nil {
+		return nil
+	}
+	var now bool
+	for _, expr := range columnDefDefaultExprs(colDef) {
+		fn, ok := expr.(*nodes.FuncCallExpr)
+		if !ok {
+			continue
+		}
+		switch strings.ToLower(fn.Name) {
+		case "now", "current_timestamp", "localtime", "localtimestamp":
+			now = true
+		}
+	}
+	if !now {
+		return nil
+	}
+	switch strings.ToLower(colDef.TypeName.Name) {
+	case "datetime", "timestamp":
+		return nil
+	}
+	return errInvalidDefault(colDef.Name)
+}
+
 func validateCheckExpr(name string, expr nodes.ExprNode) error {
+	if !checkExprIsBoolean(expr) {
+		return errCheckNotBoolean(name)
+	}
 	var invalid bool
 	exprSQL := strings.ToLower(nodeToSQL(expr))
 	if strings.Contains(exprSQL, "select ") || strings.Contains(exprSQL, "(select") {
@@ -660,6 +725,45 @@ func validateCheckExpr(name string, expr nodes.ExprNode) error {
 		return errCheckConstraintNotAllowed(name)
 	}
 	return nil
+}
+
+// checkExprIsBoolean reports whether a CHECK expression's top level is one
+// MySQL takes. The server refuses a bare column, literal, arithmetic, bit
+// operation, unary other than NOT, or CAST with 3812 while it prepares the
+// statement, even when the column does not exist; it takes a comparison, a
+// logical operator, IS/IN/BETWEEN/LIKE/REGEXP, EXISTS, and the boolean builtins
+// below. An expression this does not recognize is left to the other checks, so
+// a form the catalog does not model is not refused by this one.
+func checkExprIsBoolean(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return checkExprIsBoolean(e.Expr)
+	case *nodes.BinaryExpr:
+		switch e.Op {
+		case nodes.BinOpEq, nodes.BinOpNe, nodes.BinOpLt, nodes.BinOpGt, nodes.BinOpLe, nodes.BinOpGe,
+			nodes.BinOpAnd, nodes.BinOpOr, nodes.BinOpXor, nodes.BinOpRegexp, nodes.BinOpLikeEscape,
+			nodes.BinOpNullSafeEq, nodes.BinOpSoundsLike:
+			return true
+		}
+		return false
+	case *nodes.UnaryExpr:
+		return e.Op == nodes.UnaryNot
+	case *nodes.IsExpr, *nodes.InExpr, *nodes.BetweenExpr, *nodes.LikeExpr, *nodes.ExistsExpr,
+		*nodes.MemberOfExpr, *nodes.MatchExpr:
+		return true
+	case *nodes.BoolLit:
+		return true
+	case *nodes.ColumnRef, *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.NullLit,
+		*nodes.BitLit, *nodes.CastExpr, *nodes.ConvertExpr, *nodes.CollateExpr,
+		*nodes.WeightStringExpr, *nodes.IntervalExpr:
+		return false
+	case *nodes.FuncCallExpr:
+		switch strings.ToLower(e.Name) {
+		case "json_valid", "isnull", "strcmp":
+			return true
+		}
+	}
+	return true
 }
 
 func isNondeterministicFunc(name string) bool {
@@ -709,4 +813,30 @@ func unwrapTemporalFunc(expr nodes.ExprNode) (*nodes.FuncCallExpr, bool) {
 	default:
 		return nil, false
 	}
+}
+
+// validateCreateSpatialRefSys refuses a CREATE SPATIAL REFERENCE SYSTEM the server
+// will not take: SRID 0 (3714), a NAME it does not write (3708) or writes empty or
+// padded (3710), a DEFINITION it does not write (3708) or writes empty (3517). A
+// definition it writes in full is not read: the catalog does not parse the WKT, so
+// it takes the statement. Measured on mysql:8.0.46.
+func validateCreateSpatialRefSys(stmt *nodes.CreateSpatialRefSysStmt) error {
+	if stmt.SRID == 0 {
+		return &Error{Code: 3714, SQLState: "SR000", Message: "SRID 0 is not modifiable."}
+	}
+	if !stmt.HasName {
+		return errSRSMandatoryAttribute("NAME")
+	}
+	if stmt.Name == "" || strings.TrimSpace(stmt.Name) != stmt.Name {
+		return &Error{Code: 3710, SQLState: "SR006",
+			Message: "The spatial reference system name can't be an empty string or start or end with whitespace."}
+	}
+	if !stmt.HasDefinition {
+		return errSRSMandatoryAttribute("DEFINITION")
+	}
+	if stmt.Definition == "" {
+		return &Error{Code: 3517, SQLState: "SR002",
+			Message: fmt.Sprintf("Can't parse the spatial reference system definition of SRID %d.", stmt.SRID)}
+	}
+	return nil
 }

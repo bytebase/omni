@@ -206,6 +206,47 @@ type AlterTableStmt struct {
 func (s *AlterTableStmt) nodeTag()  {}
 func (s *AlterTableStmt) stmtNode() {}
 
+// ConstraintKeyword is the keyword an ALTER TABLE action writes before the
+// constraint it names. The grammar spells one action two ways -- DROP CHECK /
+// ALTER CHECK beside DROP CONSTRAINT / ALTER CONSTRAINT -- and mysql:8.0.46
+// answers a different error for each when no such constraint is there: 3821
+// "Check constraint '%s' is not found in the table." for CHECK and 3940
+// "Constraint '%s' does not exist." for CONSTRAINT (read on the pinned server
+// on 2026-11-20). The keyword is kept, not folded, so the catalog answers what
+// the statement wrote; it also tells DROP CHECK from DROP CONSTRAINT, which
+// name a check alone and any constraint of that name.
+type ConstraintKeyword int
+
+const (
+	// ConstraintKeywordNone is an action that wrote no keyword of its own:
+	// DROP COLUMN, DROP INDEX and the rest.
+	ConstraintKeywordNone ConstraintKeyword = iota
+	// ConstraintKeywordPrimaryKey is DROP PRIMARY KEY.
+	ConstraintKeywordPrimaryKey
+	// ConstraintKeywordForeignKey is DROP FOREIGN KEY.
+	ConstraintKeywordForeignKey
+	// ConstraintKeywordCheck is DROP CHECK or ALTER CHECK.
+	ConstraintKeywordCheck
+	// ConstraintKeywordConstraint is DROP CONSTRAINT or ALTER CONSTRAINT.
+	ConstraintKeywordConstraint
+)
+
+// String is the keyword as the statement wrote it, upper-cased, "" for
+// ConstraintKeywordNone.
+func (k ConstraintKeyword) String() string {
+	switch k {
+	case ConstraintKeywordPrimaryKey:
+		return "PRIMARY KEY"
+	case ConstraintKeywordForeignKey:
+		return "FOREIGN KEY"
+	case ConstraintKeywordCheck:
+		return "CHECK"
+	case ConstraintKeywordConstraint:
+		return "CONSTRAINT"
+	}
+	return ""
+}
+
 // AlterTableCmdType enumerates ALTER TABLE operations.
 type AlterTableCmdType int
 
@@ -293,6 +334,13 @@ type AlterTableCmd struct {
 	// paren form reads a table element list, not a column list, so
 	// `ADD COLUMN (a INT, PRIMARY KEY (a))` is one action with both.
 	Constraints []*Constraint
+	// ConstraintKeyword is the keyword the action wrote before the
+	// constraint it names, for ATDropConstraint and ATAlterCheckEnforced:
+	// DROP PRIMARY KEY, DROP FOREIGN KEY, DROP CHECK / ALTER CHECK, or DROP
+	// CONSTRAINT / ALTER CONSTRAINT. The last two pairs are one action in the
+	// grammar that the engine answers with different codes, so the catalog
+	// reads this instead of guessing which spelling was written.
+	ConstraintKeyword ConstraintKeyword
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -2760,12 +2808,18 @@ func (s *DropLogfileGroupStmt) stmtNode() {}
 
 // CreateSpatialRefSysStmt represents a CREATE SPATIAL REFERENCE SYSTEM statement.
 type CreateSpatialRefSysStmt struct {
-	Loc          Loc
-	OrReplace    bool   // OR REPLACE
-	IfNotExists  bool   // IF NOT EXISTS
-	SRID         int64  // spatial reference system ID
-	Name         string // NAME 'srs_name'
-	Definition   string // DEFINITION 'definition'
+	Loc         Loc
+	OrReplace   bool   // OR REPLACE
+	IfNotExists bool   // IF NOT EXISTS
+	SRID        int64  // spatial reference system ID
+	Name        string // NAME 'srs_name'
+	Definition  string // DEFINITION 'definition'
+	// HasName and HasDefinition report that the statement wrote the attribute, which
+	// an empty literal does: `NAME ''` is present, where a NAME the statement leaves
+	// out is absent. The server answers the two differently, and the strings alone
+	// cannot tell them apart.
+	HasName      bool
+	HasDefinition bool
 	Organization string // ORGANIZATION 'org_name'
 	OrgSRID      int64  // IDENTIFIED BY srid (under ORGANIZATION)
 	Description  string // DESCRIPTION 'description'

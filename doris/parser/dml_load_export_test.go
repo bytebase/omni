@@ -180,18 +180,18 @@ func TestTruncateTableLegacyCorpus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCopyIntoBasic(t *testing.T) {
-	stmt := mustParseCopyInto(t, "COPY INTO my_table FROM 'stage/path'")
+	stmt := mustParseCopyInto(t, "COPY INTO my_table FROM @stage")
 	if len(stmt.Target.Parts) != 1 || stmt.Target.Parts[0] != "my_table" {
 		t.Fatalf("target = %v, want [my_table]", stmt.Target.Parts)
 	}
-	if stmt.Source != "stage/path" {
-		t.Errorf("source = %q, want stage/path", stmt.Source)
+	if stmt.Stage != "@stage" {
+		t.Errorf("stage = %q, want @stage", stmt.Stage)
 	}
 }
 
 func TestCopyIntoWithProperties(t *testing.T) {
 	stmt := mustParseCopyInto(t,
-		`COPY INTO my_table FROM 'stage/path' PROPERTIES ("key"="val")`)
+		`COPY INTO my_table FROM @stage PROPERTIES ("key"="val")`)
 	if len(stmt.Properties) != 1 {
 		t.Fatalf("properties len = %d, want 1", len(stmt.Properties))
 	}
@@ -201,13 +201,82 @@ func TestCopyIntoWithProperties(t *testing.T) {
 }
 
 func TestCopyIntoWithFiles(t *testing.T) {
-	stmt := mustParseCopyInto(t,
-		`COPY INTO my_table FROM 'stage/' FILES = ('f1.csv', 'f2.csv')`)
-	if len(stmt.Files) != 2 {
-		t.Fatalf("files len = %d, want 2", len(stmt.Files))
+	// FILES and PATTERN are properties a load names inside PROPERTIES; a load
+	// that states them beside the stage is not a statement (DorisParser.g4:936
+	// copyInto has nowhere else to put them).
+	if _, err := Parse(`COPY INTO my_table FROM @stage FILES = ('f1.csv')`); err == nil {
+		t.Error("Parse(COPY INTO ... FILES = (...)) succeeded, want a syntax error")
 	}
-	if stmt.Files[0] != "f1.csv" || stmt.Files[1] != "f2.csv" {
-		t.Errorf("files = %v, want [f1.csv f2.csv]", stmt.Files)
+}
+
+func TestCopyIntoColumns(t *testing.T) {
+	stmt := mustParseCopyInto(t, "COPY INTO my_table(a, b) FROM @stage")
+	if len(stmt.Columns) != 2 || stmt.Columns[0] != "a" || stmt.Columns[1] != "b" {
+		t.Errorf("columns = %v, want [a b]", stmt.Columns)
+	}
+}
+
+// COPY INTO a FROM a names no stage: the source starts with '@'
+// (DorisParser.g4:942 stageAndPattern), and the engine refuses the bare word
+// (compat.tsv's ..._FROM_(s...!drop-5 rows).
+func TestCopyIntoNeedsStage(t *testing.T) {
+	for _, sql := range []string{
+		"COPY INTO a FROM a",
+		"COPY INTO a FROM 'stage/path'",
+		"COPY INTO a FROM @",
+		"COPY INTO a FROM @a()",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+	for _, sql := range []string{
+		"COPY INTO a FROM @a",
+		"COPY INTO a FROM @~",
+		"COPY INTO a FROM @a('glob*')",
+		"COPY INTO a FROM (SELECT b FROM @a)",
+		"COPY INTO a FROM (SELECT b FROM @a WHERE b > 1)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) = %v, want it accepted", sql, err)
+		}
+	}
+}
+
+func TestCopyIntoStageAndSelect(t *testing.T) {
+	stmt := mustParseCopyInto(t, "COPY INTO t(c) FROM (SELECT b FROM @s('p*') WHERE b > 1)")
+	if stmt.Stage != "@s" || stmt.Pattern != "p*" {
+		t.Errorf("stage = %q pattern = %q, want @s and p*", stmt.Stage, stmt.Pattern)
+	}
+	if len(stmt.SelectItems) != 1 {
+		t.Fatalf("select items = %d, want 1", len(stmt.SelectItems))
+	}
+	if stmt.Where == nil {
+		t.Error("Where is nil, want the query's WHERE")
+	}
+}
+
+// Stage keeps the source's spelling, so the tilde and a quoted identifier that
+// spells one are told apart, and a quoted name keeps its backticks. HasPattern
+// tells @stage(”) — an empty glob — from @stage.
+func TestCopyIntoStageSpelling(t *testing.T) {
+	tests := []struct {
+		sql, stage, pattern string
+		hasPattern          bool
+	}{
+		{"COPY INTO t FROM @~", "@~", "", false},
+		{"COPY INTO t FROM @`~`", "@`~`", "", false},
+		{"COPY INTO t FROM @stage", "@stage", "", false},
+		{"COPY INTO t FROM @`a.b`", "@`a.b`", "", false},
+		{"COPY INTO t FROM @stage('')", "@stage", "", true},
+		{"COPY INTO t FROM @stage('p*')", "@stage", "p*", true},
+	}
+	for _, tc := range tests {
+		stmt := mustParseCopyInto(t, tc.sql)
+		if stmt.Stage != tc.stage || stmt.Pattern != tc.pattern || stmt.HasPattern != tc.hasPattern {
+			t.Errorf("Parse(%q): Stage = %q Pattern = %q HasPattern = %v, want %q %q %v",
+				tc.sql, stmt.Stage, stmt.Pattern, stmt.HasPattern, tc.stage, tc.pattern, tc.hasPattern)
+		}
 	}
 }
 
@@ -587,5 +656,25 @@ func TestT6NodeTags(t *testing.T) {
 	export := &ast.ExportStmt{}
 	if export.Tag() != ast.T_ExportStmt {
 		t.Errorf("ExportStmt tag = %v", export.Tag())
+	}
+}
+
+func TestTruncateCommonHint(t *testing.T) {
+	for _, sql := range []string{
+		"TRUNCATE TABLE `/*+ 1 */`",
+		"TRUNCATE TABLE a /*+ x, y */",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
+		}
+	}
+	for _, sql := range []string{
+		"TRUNCATE TABLE a /*+ 1 */",
+		"TRUNCATE TABLE a /*+ x y */",
+		"TRUNCATE TABLE a /*+ x",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) accepted, want a hint syntax error", sql)
+		}
 	}
 }

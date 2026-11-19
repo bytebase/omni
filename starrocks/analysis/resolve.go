@@ -96,11 +96,6 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	if file != nil && len(file.Stmts) > 0 {
 		node = file.Stmts[0]
 	}
-	// GetQuerySpan walks only a top-level SELECT/set operation, so EXPLAIN
-	// would report no access tables unless the planned statement is walked.
-	if explain, ok := node.(*ast.ExplainStmt); ok && explain.Query != nil {
-		node = explain.Query
-	}
 	queryType := Classify(single)
 	if classified, ok := astQueryType(node); ok {
 		queryType = classified
@@ -110,11 +105,18 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 		return nil, err
 	}
 
+	defaultDatabase := opts.DefaultDatabase
+	if submit, ok := node.(*ast.SubmitTaskStmt); ok {
+		// A qualified task name selects the database its statement runs in.
+		if taskDB, _ := objectName(submit.Name, ""); taskDB != "" {
+			defaultDatabase = taskDB
+		}
+	}
 	sources := make(SourceColumnSet, len(span.AccessTables))
 	for _, table := range span.AccessTables {
 		database := table.Database
 		if database == "" {
-			database = opts.DefaultDatabase
+			database = defaultDatabase
 		}
 		sources[ColumnResource{Database: database, Table: table.Table}] = true
 	}

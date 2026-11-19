@@ -20,6 +20,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *DropIndexStmt:
 		return v.Loc
+	case *CreateInvertedIndexStmt:
+		return v.Loc
+	case *DropInvertedIndexStmt:
+		return v.Loc
 	case *BuildIndexStmt:
 		return v.Loc
 	case *CreateDatabaseStmt:
@@ -312,6 +316,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *BeginStmt:
 		return v.Loc
+	case *StartTransactionStmt:
+		return v.Loc
 	case *CommitStmt:
 		return v.Loc
 	case *RollbackStmt:
@@ -402,9 +408,21 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CreateProcedureStmt:
 		return v.Loc
+	case *AlterProcedureStmt:
+		return v.Loc
 	case *CallProcedureStmt:
 		return v.Loc
 	case *DropProcedureStmt:
+		return v.Loc
+	case *RefreshStmt:
+		return v.Loc
+	case *AlterComputeGroupStmt:
+		return v.Loc
+	case *AlterColocateGroupStmt:
+		return v.Loc
+	case *DropCatalogRecycleBinStmt:
+		return v.Loc
+	case *ReplayStmt:
 		return v.Loc
 	default:
 		return NoLoc()

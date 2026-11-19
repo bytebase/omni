@@ -13,6 +13,13 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		return err
 	}
 
+	// The schedule's expressions are read before the event's name is looked up:
+	// over an existing event ev, `CREATE EVENT ev ON SCHEDULE AT nosuchcol DO
+	// COMMIT` is 1054 and not the 1537 its name answers (mysql:8.0.46).
+	if err := c.validateEventSchedule(stmt.Schedule); err != nil {
+		return err
+	}
+
 	name := stmt.Name
 	key := toLower(name)
 
@@ -50,9 +57,38 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 	return nil
 }
 
+// validateEventSchedule refuses a schedule expression that reads a column. An
+// event's AT, EVERY, STARTS and ENDS are evaluated on their own, with no table
+// in scope, so `AT utf8mb4` names no column and MySQL answers 1054, `Unknown
+// column 'utf8mb4' in 'field list'` (mysql:8.0.46). Each expression is read as
+// a view body's no-FROM target list is, which is where the code and its message
+// come from. CREATE EVENT and ALTER EVENT both answer it, and before the event
+// the statement names: `ALTER EVENT nosuchevent ON SCHEDULE AT nosuchcol` is
+// 1054 and not the 1537 or 1146 its name would answer.
+func (c *Catalog) validateEventSchedule(schedule *nodes.EventSchedule) error {
+	if schedule == nil {
+		return nil
+	}
+	for _, expr := range []nodes.ExprNode{schedule.At, schedule.Every, schedule.Starts, schedule.Ends} {
+		if expr == nil || !exprNamesColumn(expr) {
+			continue
+		}
+		sel := &nodes.SelectStmt{TargetList: []nodes.ExprNode{&nodes.ResTarget{Val: expr}}}
+		if _, err := c.analyzeViewBody(sel, ""); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	db, err := c.resolveDatabase(stmt.Schema)
 	if err != nil {
+		return err
+	}
+
+	// The schedule is read before the event is looked up, as CREATE EVENT's is.
+	if err := c.validateEventSchedule(stmt.Schedule); err != nil {
 		return err
 	}
 

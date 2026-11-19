@@ -94,7 +94,10 @@ func (p *Parser) parseRowConstructorItem() (*ast.SelectItem, error) {
 		return nil, err
 	}
 	item.Expr = expr
-	alias, aliased := p.parseOptionalAlias(true)
+	alias, aliased, err := p.parseOptionalAlias(true)
+	if err != nil {
+		return nil, err
+	}
 	if aliased {
 		item.Alias = alias
 		item.Aliased = true
@@ -627,30 +630,47 @@ func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 	startLoc := p.cur.Loc
 
-	// Bare star: SELECT *  (optionally followed by EXCEPT(col, ...) for column exclusion)
+	// Parenthesized star: the engine accepts SELECT (*), which is the bare
+	// star wrapped in grouping parentheses.
+	if p.cur.Kind == int('(') {
+		cp := p.save()
+		p.advance() // consume '('
+		if p.cur.Kind == int('*') {
+			p.advance() // consume '*'
+			if p.cur.Kind == int(')') {
+				p.advance() // consume ')'
+				item := &ast.SelectItem{Star: true, Loc: ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}}
+				alias, aliased, err := p.parseOptionalAlias(true)
+				if err != nil {
+					return nil, err
+				}
+				if aliased {
+					item.Alias, item.Aliased = alias, true
+					item.Loc.End = p.prev.Loc.End
+				}
+				return item, nil
+			}
+		}
+		p.restore(cp)
+	}
+
+	// Bare star: SELECT * [alias]. The engine accepts an alias here even
+	// though the ANTLR selectColumnClause has none: SELECT * zzz and
+	// SELECT * CURRENT_DATE are accepts. SELECT * EXCEPT(...) is not: the
+	// pinned 3.1.4 server refuses it, so EXCEPT is left as a set operator.
 	if p.cur.Kind == int('*') {
 		p.advance() // consume '*'
 		item := &ast.SelectItem{
 			Star: true,
 			Loc:  ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
 		}
-		// SELECT * EXCEPT(col, col, ...)
-		if p.cur.Kind == kwEXCEPT && p.peekNext().Kind == int('(') {
-			p.advance() // consume EXCEPT
-			p.advance() // consume '('
-			for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
-				name, _, err := p.parseIdentifier()
-				if err != nil {
-					return nil, err
-				}
-				item.ExceptColumns = append(item.ExceptColumns, name)
-				if p.cur.Kind == int(',') {
-					p.advance()
-				}
-			}
-			if _, err := p.expect(int(')')); err != nil {
-				return nil, err
-			}
+		alias, aliased, err := p.parseOptionalAlias(true)
+		if err != nil {
+			return nil, err
+		}
+		if aliased {
+			item.Alias = alias
+			item.Aliased = true
 			item.Loc.End = p.prev.Loc.End
 		}
 		return item, nil
@@ -672,11 +692,21 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		if p.cur.Kind == int('.') && p.peekNext().Kind == int('*') {
 			p.advance() // consume '.'
 			p.advance() // consume '*'
-			return &ast.SelectItem{
+			item := &ast.SelectItem{
 				Star:      true,
 				TableName: name,
 				Loc:       ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
-			}, nil
+			}
+			alias, aliased, err := p.parseOptionalAlias(true)
+			if err != nil {
+				return nil, err
+			}
+			if aliased {
+				item.Alias = alias
+				item.Aliased = true
+				item.Loc.End = p.prev.Loc.End
+			}
+			return item, nil
 		}
 		p.restore(saved)
 	}
@@ -692,7 +722,10 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	alias, aliased := p.parseOptionalAlias(true)
+	alias, aliased, err := p.parseOptionalAlias(true)
+	if err != nil {
+		return nil, err
+	}
 	if aliased {
 		item.Alias = alias
 		item.Aliased = true
@@ -722,63 +755,55 @@ func (p *Parser) isSelectIdentToken() bool {
 // The second return reports whether an alias was present at all: AS followed
 // by an empty string literal is engine-valid and distinct from "no alias", so
 // the value alone cannot carry presence.
-func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool) {
+func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool, error) {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
 		if stringOK && p.cur.Kind == tokString {
-			return p.advance().Str, true
+			return p.advance().Str, true, nil
 		}
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		return name, true
+		return name, true, nil
 	}
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
-	// that does NOT start a clause.
+	// that does NOT start a clause. A SELECT item also takes a bare string
+	// literal as its alias (DorisLegacyParser.g4:2153 select_alias).
+	if stringOK && p.cur.Kind == tokString {
+		return p.advance().Str, true, nil
+	}
 	if p.isAliasIdentToken() {
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		return name, true
+		return name, true, nil
 	}
 
-	return "", false
+	return "", false, nil
 }
 
 // isAliasIdentToken reports whether the current token can be used as an
 // implicit alias. Must be an identifier-like token that is NOT a clause keyword.
 func (p *Parser) isAliasIdentToken() bool {
-	switch p.cur.Kind {
-	case tokIdent, tokQuotedIdent:
-		return true
-	default:
-		if p.cur.Kind >= 700 && !IsReserved(p.cur.Kind) && !isSelectClauseKeyword(p.cur.Kind) {
-			return true
-		}
+	if isSelectClauseKeyword(p.cur.Kind) {
 		return false
 	}
+	return isIdentifierToken(p.cur.Kind)
 }
 
 // parseAliasIdentifier parses a single identifier that serves as an alias.
 // This accepts identifiers and non-reserved keywords.
 func (p *Parser) parseAliasIdentifier() (string, ast.Loc, error) {
 	tok := p.cur
-	switch tok.Kind {
-	case tokIdent, tokQuotedIdent:
+	if isIdentifierToken(tok.Kind) {
 		p.advance()
 		return tok.Str, tok.Loc, nil
-	default:
-		// Non-reserved keywords may be used as aliases.
-		if tok.Kind >= 700 && !IsReserved(tok.Kind) {
-			p.advance()
-			return tok.Str, tok.Loc, nil
-		}
-		return "", ast.Loc{}, p.syntaxErrorAtCur()
 	}
+	return "", ast.Loc{}, p.syntaxErrorAtCur()
 }
 
 // isSelectClauseKeyword returns true for keywords that start SQL clauses
@@ -860,7 +885,10 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			// tableAlias lateralView*. The grammar makes the alias optional,
 			// but Doris's AST builder refuses a subquery without one
 			// (testdata/compat.tsv: SELECT 1 FROM(SELECT 1)).
-			alias, ok := p.parseOptionalAlias(false)
+			alias, ok, err := p.parseOptionalAlias(false)
+			if err != nil {
+				return nil, err
+			}
 			if !ok {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -952,7 +980,10 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		}
 		fc.Loc.End = p.prev.Loc.End
 		ref.Func = fc
-		alias, _ := p.parseOptionalAlias(false)
+		alias, _, err := p.parseOptionalAlias(false)
+		if err != nil {
+			return nil, err
+		}
 		ref.Alias = alias
 		ref.Loc.End = p.prev.Loc.End
 		return ref, nil
@@ -1017,7 +1048,10 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 	// tableAlias may carry an identifierList, but Doris's AST builder
 	// refuses column aliases on a table (testdata/compat.tsv: FROM a JOIN a
 	// VALUE(a), VALUE being nonReserved); only a subquery takes them.
-	alias, _ := p.parseOptionalAlias(false)
+	alias, _, err := p.parseOptionalAlias(false)
+	if err != nil {
+		return nil, err
+	}
 	ref.Alias = alias
 
 	// TABLESAMPLE(...) [REPEATABLE seed] follows the alias (grammar:
@@ -1194,10 +1228,19 @@ func (p *Parser) parseLateralView() (*ast.LateralView, error) {
 	}
 	lv.Columns = append(lv.Columns, col)
 	for p.cur.Kind == int(',') {
+		cp := p.save()
 		p.advance() // consume ','
 		col, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
+		}
+		// A comma whose next item is followed by another identifier is the
+		// FROM list's separator, not another column: the engine reads
+		// `... AS a, a zzz` as the lateral view's `a` and then relation
+		// `a zzz`.
+		if isIdentifierToken(p.cur.Kind) {
+			p.restore(cp)
+			break
 		}
 		lv.Columns = append(lv.Columns, col)
 	}
@@ -1532,9 +1575,29 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, bool, error) {
 		return []ast.Node{gs}, false, nil
 	}
 
-	list, err := p.parseExprList()
-	if err != nil {
-		return nil, false, err
+	// GROUP BY takes expressionWithOrder: each expression may carry ASC or
+	// DESC (DorisParser.g4:1512-1517). A directed item is an OrderByItem so
+	// the direction stays on the tree.
+	var list []ast.Node
+	for {
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, false, err
+		}
+		if p.cur.Kind == kwASC || p.cur.Kind == kwDESC {
+			desc := p.cur.Kind == kwDESC
+			dirTok := p.advance()
+			expr = &ast.OrderByItem{
+				Expr: expr,
+				Desc: desc,
+				Loc:  ast.Loc{Start: ast.NodeLoc(expr).Start, End: dirTok.Loc.End},
+			}
+		}
+		list = append(list, expr)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
 	}
 
 	// Optional WITH ROLLUP — the grammar allows it only on the plain
@@ -1596,31 +1659,61 @@ func (p *Parser) parseGroupingSets() (ast.Node, error) {
 func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	p.advance() // consume LIMIT
 
-	limitExpr, err := p.parseExpr()
+	// limitClause's count and offset are INTEGER_VALUE
+	// (DorisParser.g4:1324); LIMIT CURRENT_DATE is a syntax error. A value
+	// past int64 (18446744073709551615) lexes as a float but is still an
+	// integer to the engine, so the digits alone decide.
+	limitTok, err := p.limitValue()
 	if err != nil {
 		return nil, nil, err
 	}
+	limitExpr := ast.Node(&ast.Literal{Kind: ast.LitInt, Value: limitTok.Str, Loc: limitTok.Loc})
 
 	var offsetExpr ast.Node
 	switch p.cur.Kind {
 	case int(','):
-		// MySQL form LIMIT offset, row_count: the expression parsed first is
-		// the offset and the one after the comma is the count.
+		// MySQL form LIMIT offset, row_count.
 		p.advance() // consume ','
 		offsetExpr = limitExpr
-		limitExpr, err = p.parseExpr()
+		offsetTok, err := p.limitValue()
 		if err != nil {
 			return nil, nil, err
 		}
+		limitExpr = &ast.Literal{Kind: ast.LitInt, Value: offsetTok.Str, Loc: offsetTok.Loc}
 	case kwOFFSET:
 		p.advance() // consume OFFSET
-		offsetExpr, err = p.parseExpr()
+		offsetTok, err := p.limitValue()
 		if err != nil {
 			return nil, nil, err
 		}
+		offsetExpr = &ast.Literal{Kind: ast.LitInt, Value: offsetTok.Str, Loc: offsetTok.Loc}
 	}
 
 	return limitExpr, offsetExpr, nil
+}
+
+// limitValue consumes an INTEGER_VALUE: a tokInt, or a digit-only token the
+// lexer widened to tokFloat because it exceeds int64.
+func (p *Parser) limitValue() (Token, error) {
+	tok := p.cur
+	if tok.Kind == tokInt {
+		p.advance()
+		return tok, nil
+	}
+	if tok.Kind == tokFloat && tok.Str != "" {
+		digits := true
+		for _, r := range tok.Str {
+			if r < '0' || r > '9' {
+				digits = false
+				break
+			}
+		}
+		if digits {
+			p.advance()
+			return tok, nil
+		}
+	}
+	return Token{}, p.syntaxErrorAtCur()
 }
 
 // ---------------------------------------------------------------------------
@@ -1712,19 +1805,28 @@ func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
 		return nil, err
 	}
 
-	// The grammar spells the path `constant`, so the engine also takes
-	// `INTO OUTFILE 1` and only refuses it later ("Please specify BROKER
-	// properties or check your local file path"). Nothing but a string can
-	// name a path, so a non-string is refused here rather than carried as
-	// one: a deliberate narrowing, and one that fails closed.
-	if p.cur.Kind != tokString {
-		return nil, p.syntaxErrorAtCur()
+	// The grammar spells the path `constant`, and the engine takes
+	// INTO OUTFILE NULL; a string keeps its unquoted text, any other constant
+	// keeps its source text, and PathConstant keeps the constant's own type.
+	path := ""
+	var pathConstant ast.Node
+	if p.cur.Kind == tokString {
+		tok := p.advance()
+		path = tok.Str
+		pathConstant = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
+	} else {
+		constant, err := p.parseCollectionConstant()
+		if err != nil {
+			return nil, err
+		}
+		pathConstant = constant
+		path = p.sourceText(ast.NodeLoc(constant))
 	}
 	clause := &ast.IntoOutfileClause{
-		Path: p.cur.Str,
-		Loc:  ast.Loc{Start: startLoc.Start},
+		Path:         path,
+		PathConstant: pathConstant,
+		Loc:          ast.Loc{Start: startLoc.Start},
 	}
-	p.advance() // consume the path
 
 	// FORMAT AS <identifier>. The engine wants an identifier and not text:
 	// it takes FORMAT AS PARQUET and FORMAT AS `PARQUET`, and rejects
@@ -1750,7 +1852,9 @@ func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
 	// `identifier | constant`, so the engine also takes PROPERTIES(k = "v")
 	// and PROPERTIES("k" = 1) -- which fails closed; see parseStringProperty.
 	if p.cur.Kind == kwPROPERTIES {
-		props, err := p.parseProperties()
+		// The engine takes the grammar's wider propertyItem here:
+		// PROPERTIES(a = a) is an accept.
+		props, err := p.parseFullProperties()
 		if err != nil {
 			return nil, err
 		}

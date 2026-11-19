@@ -1120,3 +1120,190 @@ func TestGetQuerySpanNestedLambdasStayLinear(t *testing.T) {
 		}
 	}
 }
+
+// The new statement nodes classify from the tree, and CACHE SELECT's source is
+// an access table even though its FROM is a bare name rather than a TableRef.
+func TestGetQuerySpanNewStatements(t *testing.T) {
+	for _, tc := range []struct {
+		sql      string
+		wantType QueryType
+	}{
+		{"TRACE ALL SELECT a FROM t", QueryTypeSelect},
+		{"CACHE SELECT a FROM t", QueryTypeDDL},
+		{"SUBMIT TASK AS INSERT INTO t SELECT 1", QueryTypeDDL},
+		{"DROP TASK t", QueryTypeDDL},
+		{"ALTER LOAD FOR t", QueryTypeDDL},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(tc.sql)
+			if err != nil {
+				t.Fatalf("GetQuerySpan returned error: %v", err)
+			}
+			if span.Type != tc.wantType {
+				t.Errorf("Type = %v, want %v", span.Type, tc.wantType)
+			}
+		})
+	}
+
+	span, err := GetQuerySpan("CACHE SELECT a FROM db.secret")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Database != "db" || span.AccessTables[0].Table != "secret" {
+		t.Errorf("AccessTables = %+v, want db.secret", span.AccessTables)
+	}
+
+	span, err = GetQuerySpan("TRACE ALL SELECT secret AS exposed FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("Results = %+v, want none: TRACE answers with trace rows, not the query's columns", span.Results)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "t" {
+		t.Errorf("AccessTables = %+v, want t", span.AccessTables)
+	}
+
+	span, err = GetQuerySpan("CACHE SELECT secret AS exposed FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("Results = %+v, want none: CACHE SELECT prints no data", span.Results)
+	}
+
+	span, err = GetQuerySpan("CREATE TABLE dst AS TRACE ALL SELECT * FROM src")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "src" {
+		t.Errorf("AccessTables = %+v, want src", span.AccessTables)
+	}
+}
+
+// An outer WITH on a parenthesized group and the inner query's own WITH are
+// separate lexical scopes: the inner name must not shadow the outer CTE body.
+func TestGetQuerySpanNestedWithScopes(t *testing.T) {
+	span, err := GetQuerySpan("WITH o AS (SELECT * FROM denied) (WITH denied AS (SELECT * FROM allowed) SELECT * FROM o)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["denied"] || !got["allowed"] {
+		t.Errorf("AccessTables = %+v, want denied and allowed", span.AccessTables)
+	}
+}
+
+// A wrapped grouped WITH keeps its scope: c is the CTE, not a physical table.
+func TestGetQuerySpanWrappedGroupedWith(t *testing.T) {
+	for _, sql := range []string{
+		"TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT * FROM c)",
+		"CREATE TABLE dst AS TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT * FROM c)",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q): %v", sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+			t.Errorf("%q: AccessTables = %+v, want secret", sql, span.AccessTables)
+		}
+	}
+}
+
+// An outer WITH scopes over the whole set operation, not just its left arm.
+func TestGetQuerySpanWithSetOperation(t *testing.T) {
+	for _, sql := range []string{
+		"WITH c AS (SELECT * FROM secret) (SELECT 1) UNION SELECT * FROM c",
+		"TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT 1) UNION SELECT * FROM c",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q): %v", sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+			t.Errorf("%q: AccessTables = %+v, want secret", sql, span.AccessTables)
+		}
+	}
+}
+
+// A nested wrapper in an INSERT source uses the same scoped query visitor.
+func TestGetQuerySpanNestedWrappedInsertSource(t *testing.T) {
+	span, err := GetQuerySpan("INSERT INTO dst TRACE ALL WITH c AS (SELECT * FROM secret) (SELECT * FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Errorf("AccessTables = %+v, want secret", span.AccessTables)
+	}
+}
+
+// Each CTE name enters scope only after its body, so a forward reference in
+// an earlier body is a physical table.
+func TestGetQuerySpanSequentialCTEBodies(t *testing.T) {
+	span, err := GetQuerySpan("WITH a AS (SELECT * FROM b), b AS (SELECT * FROM allowed) (SELECT * FROM a)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["b"] || !got["allowed"] {
+		t.Errorf("AccessTables = %+v, want b and allowed", span.AccessTables)
+	}
+}
+
+// DML CTE bodies also see only earlier siblings, not every name up front.
+func TestGetQuerySpanDMLSequentialCTEBodies(t *testing.T) {
+	span, err := GetQuerySpan("WITH a AS (SELECT * FROM b), b AS (SELECT * FROM allowed) UPDATE target SET x = 1")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["b"] || !got["allowed"] {
+		t.Errorf("AccessTables = %+v, want b and allowed", span.AccessTables)
+	}
+}
+
+// A CTE from one statement must not leak into the next statement's scope.
+func TestGetQuerySpanCTEDoesNotLeakAcrossStatements(t *testing.T) {
+	span, err := GetQuerySpan("CREATE VIEW v AS WITH c AS (SELECT * FROM real) SELECT 1 UNION SELECT 2; SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	got := map[string]bool{}
+	for _, table := range span.AccessTables {
+		got[table.Table] = true
+	}
+	if !got["real"] || !got["c"] {
+		t.Errorf("AccessTables = %+v, want real and c", span.AccessTables)
+	}
+}
+
+// A grouped WITH under a non-query statement keeps its scope.
+func TestGetQuerySpanNestedParenSelectScope(t *testing.T) {
+	span, err := GetQuerySpan("INSERT INTO dst WITH c AS (SELECT * FROM secret) (SELECT * FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Errorf("AccessTables = %+v, want secret", span.AccessTables)
+	}
+}
+
+// A view's CTE body may read a physical table with the same name as the CTE.
+func TestGetQuerySpanViewCTEBodyBeforeName(t *testing.T) {
+	span, err := GetQuerySpan("CREATE VIEW v AS WITH c AS (SELECT * FROM c) SELECT 1 UNION SELECT 2")
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "c" {
+		t.Errorf("AccessTables = %+v, want c", span.AccessTables)
+	}
+}

@@ -274,10 +274,14 @@ func (p *Parser) parseJSONExists() (Expr, error) {
 	}
 	je := &JSONExistsExpr{Path: path, Loc: ast.Loc{Start: startTok.Loc.Start}}
 
-	// (jsonExistsErrorBehavior ON ERROR)?
-	if behavior, ok := jsonExistsErrorBehaviorText(p.cur.Kind); ok && p.peekNext().Kind == kwON {
+	// (jsonExistsErrorBehavior ON ERROR)? — entered on a behavior word, as the
+	// grammar's block is, so an ON ERROR that is not spelled ON stops at the
+	// token that should be ON (`… 'a' TRUE ERROR)` reports the ERROR).
+	if behavior, ok := jsonExistsErrorBehaviorText(p.cur.Kind); ok {
 		p.advance() // behavior keyword
-		p.advance() // ON
+		if _, err := p.expect(kwON); err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(kwERROR); err != nil {
 			return nil, err
 		}
@@ -1002,20 +1006,19 @@ func (p *Parser) tryJSONNullHandling() (string, bool, error) {
 	var canonical string
 	switch p.cur.Kind {
 	case kwNULL:
-		if p.peekNext().Kind != kwON {
-			return "", false, nil
-		}
 		canonical = "NULL ON NULL"
 	case kwABSENT:
-		if p.peekNext().Kind != kwON {
-			return "", false, nil
-		}
 		canonical = "ABSENT ON NULL"
 	default:
 		return "", false, nil
 	}
+	// Entered on NULL or ABSENT, as the grammar's block is: the ON that has to
+	// follow is reported where it is missing (`JSON_ARRAY(1 NULL NULL)` reports
+	// the second NULL, `JSON_ARRAY(1 NULL)` the ')'), as Trino reports them.
 	p.advance() // NULL or ABSENT
-	p.advance() // ON
+	if _, err := p.expect(kwON); err != nil {
+		return "", false, err
+	}
 	if _, err := p.expect(kwNULL); err != nil {
 		return "", false, err
 	}

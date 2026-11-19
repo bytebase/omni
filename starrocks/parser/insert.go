@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -71,23 +73,103 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		stmt.FileTarget = props
 	}
 
-	if stmt.FileTarget == nil {
+	if p.cur.Kind == kwBLACKHOLE && p.peekNext().Kind == int('(') {
+		mark := p.save()
+		p.advance() // consume BLACKHOLE
+		p.advance() // consume '('
+		sink := p.cur.Kind == int(')')
+		p.restore(mark)
+		if sink {
+			p.advance() // consume BLACKHOLE
+			p.advance() // consume '('
+			p.advance() // consume ')'
+			stmt.Blackhole = true
+		}
+	}
+
+	if stmt.FileTarget == nil && !stmt.Blackhole {
 		target, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Target = target
 
-		// Optional PARTITION(p1, p2, ...) or PARTITION(*) — table targets only.
-		if p.cur.Kind == kwPARTITION {
-			partitions, star, err := p.parseInsertPartition()
+		// writeBranch: (FOR)? VERSION AS OF identifier
+		if p.cur.Kind == kwFOR && p.peekNext().Kind == kwVERSION {
+			p.advance() // consume FOR
+		}
+		if p.cur.Kind == kwVERSION {
+			p.advance() // consume VERSION
+			if _, err := p.expect(kwAS); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(kwOF); err != nil {
+				return nil, err
+			}
+			branch, _, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
 			}
-			stmt.Partition = partitions
-			stmt.PartitionStar = star
+			stmt.Branch = branch
+		}
+
+		// partitionNames: TEMPORARY? (PARTITION | PARTITIONS) ...
+		temporaryPartition := false
+		if p.cur.Kind == kwTEMPORARY {
+			p.advance() // consume TEMPORARY
+			stmt.TempPartition = true
+			temporaryPartition = true
+		}
+		if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
+			if p.peekNext().Kind == int('(') {
+				keyPartitions := false
+				if p.cur.Kind == kwPARTITION {
+					mark := p.save()
+					p.advance() // consume PARTITION
+					p.advance() // consume '('
+					keyPartitions = isIdentifierToken(p.cur.Kind) && p.peekNext().Kind == int('=')
+					p.restore(mark)
+				}
+				if keyPartitions {
+					if temporaryPartition {
+						return nil, p.syntaxErrorAtCur()
+					}
+					parts, err := p.parseInsertKeyPartition()
+					if err != nil {
+						return nil, err
+					}
+					stmt.KeyPartitions = parts
+					goto partitionDone
+				}
+				if p.cur.Kind == kwPARTITIONS {
+					mark := p.save()
+					p.advance() // consume PARTITIONS
+					p.advance() // consume '('
+					star := p.cur.Kind == int('*')
+					p.restore(mark)
+					if star {
+						return nil, p.syntaxErrorAtCur()
+					}
+				}
+				partitions, star, err := p.parseInsertPartition()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Partition = partitions
+				stmt.PartitionStar = star
+			} else {
+				p.advance() // consume PARTITION(S)
+				part, _, err := p.parseIdentifierOrString()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Partition = []string{part}
+			}
+		} else if temporaryPartition {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
+partitionDone:
 
 	// Post-target modifiers in any order (grammar: insertLabelOrColumnAliases*).
 	// WITH LABEL and BY NAME apply to both table and FILES targets; the column
@@ -125,6 +207,14 @@ modifiers:
 		}
 	}
 
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+	}
+
 	// Source: VALUES (...), (...) | SELECT ... | WITH ... SELECT ...
 	switch p.cur.Kind {
 	case kwVALUES:
@@ -143,14 +233,67 @@ modifiers:
 		if err != nil {
 			return nil, err
 		}
+		if err := p.settleQueryInto(result); err != nil {
+			return nil, err
+		}
+		if err := p.parseQuerySuffixInto(result); err != nil {
+			return nil, err
+		}
 		stmt.Query = result
 
 	case kwWITH:
-		withStmt, err := p.parseWithSelect()
+		withStmt, err := p.parseWithStatement()
 		if err != nil {
 			return nil, err
 		}
+		if !isQueryBody(withStmt) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.settleQueryInto(withStmt); err != nil {
+			return nil, err
+		}
+		if err := p.parseQuerySuffixInto(withStmt); err != nil {
+			return nil, err
+		}
 		stmt.Query = withStmt
+
+	case kwTRACE:
+		traceTok := p.advance() // consume TRACE
+		trace, err := p.parseOptimizerTrace(traceTok.Loc)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Query = trace
+
+	case int('('):
+		paren, err := p.parseParenSelect()
+		if err != nil {
+			return nil, err
+		}
+		result, err := p.parseSetOpTail(paren)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.settleQueryInto(result); err != nil {
+			return nil, err
+		}
+		if err := p.parseQuerySuffixInto(result); err != nil {
+			return nil, err
+		}
+		stmt.Query = result
+
+	case kwEXPLAIN, kwDESC, kwDESCRIBE:
+		// queryStatement's optional prefix is (explainDesc | optimizerTrace),
+		// and its explainDesc precedes a queryRelation, not another DML.
+		explain, err := p.parseExplain()
+		if err != nil {
+			return nil, err
+		}
+		explained := explain.(*ast.ExplainStmt)
+		if explained.Query == nil || !isQueryBody(explained.Query) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Query = explain
 
 	default:
 		return nil, p.syntaxErrorAtCur()
@@ -163,6 +306,39 @@ modifiers:
 // parseInsertPartition parses PARTITION(p1, p2, ...) or PARTITION(*).
 // The PARTITION keyword has NOT yet been consumed.
 // Returns (partitionNames, isStar, error).
+func (p *Parser) parseInsertKeyPartition() ([]*ast.Property, error) {
+	p.advance() // consume PARTITION
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var props []*ast.Property
+	for {
+		keyTok := p.cur
+		key, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int('=')); err != nil {
+			return nil, err
+		}
+		start := p.cur.Loc.Start
+		if err := p.parseAlterLiteralExpression(); err != nil {
+			return nil, err
+		}
+		end := p.prev.Loc.End
+		value := strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
+		props = append(props, &ast.Property{Key: key, Value: value, Loc: ast.Loc{Start: keyTok.Loc.Start, End: end}})
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return props, nil
+}
+
 func (p *Parser) parseInsertPartition() ([]string, bool, error) {
 	p.advance() // consume PARTITION
 	if _, err := p.expect(int('(')); err != nil {
@@ -179,7 +355,7 @@ func (p *Parser) parseInsertPartition() ([]string, bool, error) {
 	}
 
 	var parts []string
-	name, _, err := p.parseIdentifier()
+	name, _, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, false, err
 	}
@@ -187,7 +363,7 @@ func (p *Parser) parseInsertPartition() ([]string, bool, error) {
 
 	for p.cur.Kind == int(',') {
 		p.advance() // consume ','
-		name, _, err = p.parseIdentifier()
+		name, _, err = p.parseIdentifierOrString()
 		if err != nil {
 			return nil, false, err
 		}
@@ -264,8 +440,10 @@ func (p *Parser) tryParseColumnList() ([]string, bool, error) {
 		return nil, false, err
 	}
 
-	// After a column list we expect VALUES, SELECT, or WITH.
-	if p.cur.Kind == kwVALUES || p.cur.Kind == kwSELECT || p.cur.Kind == kwWITH {
+	// After a column list comes VALUES or a queryStatement, including its
+	// query prefix and a parenthesized query.
+	switch p.cur.Kind {
+	case kwVALUES, kwSELECT, kwWITH, kwTRACE, kwEXPLAIN, kwDESC, kwDESCRIBE, int('('):
 		return cols, true, nil
 	}
 

@@ -13,6 +13,21 @@ import (
 // its indexes in the order they were declared, as a CREATE TABLE statement does,
 // and false for a loader's snapshot, which lists them in an order of its own.
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error {
+	// TiDB judges a CREATE TABLE's own definition while it prepares the
+	// statement, before it resolves the database and before it looks the name
+	// up: a NOW()-family DEFAULT the column's type cannot hold is 1067 ahead of
+	// a missing database (1049), and a definition that lists no column at all is
+	// 1113 ahead of a name that collides (1050). Both read on v8.5.5.
+	for _, colDef := range stmt.Columns {
+		if err := checkNowDefaultColumnType(colDef.Name, colDef.TypeName, columnDefaultExpr(colDef)); err != nil {
+			return err
+		}
+	}
+	// A LIKE clause and a CTAS take their columns from elsewhere; TiDB answers
+	// those forms with their own codes before this rule would apply.
+	if stmt.Like == nil && stmt.Select == nil && len(stmt.Columns) == 0 {
+		return errTableMustHaveColumns()
+	}
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -396,6 +411,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 		if err := checkDefaultExprFunction(col.Name, columnDefaultExpr(colDef)); err != nil {
 			return err
 		}
+		if err := checkEnumSetDuplicates(col.Name, colDef.TypeName); err != nil {
+			return err
+		}
 		if err := checkLiteralDefaultAllowed(col); err != nil {
 			return err
 		}
@@ -416,6 +434,17 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 	// for a second, whether or not either backs a key.
 	if err := checkSingleAutoIncrementColumn(tbl.Columns); err != nil {
 		return err
+	}
+
+	// A TTL config is held to its column at CREATE TABLE as it is at ALTER: a
+	// name the table does not have is 1054 ("in 'TTL config'") and a column of
+	// a type it cannot use is 8148 (read on v8.5.5). The statement names the
+	// column in its options, which are read before the columns are built, so
+	// the check runs here.
+	if tbl.TTLColumn != "" {
+		if err := checkTTLColumn(tbl, tbl.TTLColumn); err != nil {
+			return err
+		}
 	}
 
 	// Second pass: add column-level PK and UNIQUE indexes/constraints.
@@ -586,6 +615,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool) error 
 			conName := fkName(con)
 			if conName == "" {
 				conName = fmt.Sprintf("fk_%d", foreignKeyID)
+			}
+			// A table-level FOREIGN KEY names the referenced columns it
+			// matches, and TiDB refuses one that names none (1239), the same
+			// as on ALTER TABLE (read on v8.5.5).
+			if len(con.RefColumns) == 0 {
+				return errFKKeyRefMismatch(conName)
 			}
 			if findForeignKey(tbl, conName) != nil {
 				return errCannotAddForeign()

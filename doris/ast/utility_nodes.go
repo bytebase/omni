@@ -57,6 +57,7 @@ var _ Node = (*ShowStmt)(nil)
 type DescribeStmt struct {
 	Target        *ObjectName
 	Full          bool        // DESCRIBE FULL ...
+	All           bool        // bare ALL suffix
 	AllVerbose    bool        // ALL VERBOSE suffix
 	Function      bool        // DESCRIBE FUNCTION name(...)
 	Args          []*Property // DESCRIBE FUNCTION's key=value arguments
@@ -78,8 +79,11 @@ var _ Node = (*DescribeStmt)(nil)
 
 // ExplainStmt represents EXPLAIN [modifier] query.
 //
-//	EXPLAIN [VERBOSE | GRAPH | PARSED | ANALYZED | REWRITTEN | PLAN |
-//	         PHYSICAL | MEMO | SHAPE | DUMP | OPTIMIZED | PLAN PROCESS] query
+//	EXPLAIN [VERBOSE | GRAPH | TREE | PLAN | DUMP | PROCESS | PLAN PROCESS] query
+//
+// The plan types the grammar also derives (PARSED, ANALYZED, REWRITTEN,
+// OPTIMIZED, PHYSICAL, SHAPE, MEMO and the rest) are ones the engine refuses,
+// so no statement carries them.
 type ExplainStmt struct {
 	// Type is the optional explain modifier, e.g. "VERBOSE", "GRAPH", "PLAN", "".
 	Type  string

@@ -53,6 +53,15 @@ type Parser struct {
 
 	noBareDefault bool // inside an expression that takes DEFAULT(col) but no bare DEFAULT
 
+	// lookupRefusal is the first check the server makes while it parses that
+	// answers with the code of a name it looked up and did not find, rather than
+	// 1064: a collation that belongs to another character set (1253) or a
+	// FULLTEXT parser the server does not ship (1128). The server stops there, so
+	// a later token is never read; omni reads on, because compat.tsv's judge
+	// counts those answers as parsed (see prepareParses), and reports the refusal
+	// only for a statement that does not parse in the end. See preferLookup.
+	lookupRefusal *ParseError
+
 	// valuesIsFunction is set while parsing the expressions in which MariaDB
 	// reads VALUES as the VALUES(col) function rather than a table value
 	// constructor: the assignments of ON DUPLICATE KEY UPDATE and the
@@ -130,6 +139,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			continue
 		}
 		stmtStart := p.cur.Loc
+		p.lookupRefusal = nil
 		stmt, err := p.parseStmt()
 		if err != nil {
 			// A lexing error (unterminated comment/string/identifier) is the more
@@ -137,7 +147,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			if lexErr := p.lexerError(); lexErr != nil {
 				return nil, p.enrichError(lexErr)
 			}
-			return nil, p.enrichError(err)
+			return nil, p.enrichError(p.preferLookup(err))
 		}
 		if stmt == nil {
 			// parseStmt returned nil without error — unconsumed tokens remain.
@@ -145,12 +155,12 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 				return nil, p.enrichError(lexErr)
 			}
 			if p.cur.Type != tokEOF {
-				return nil, p.syntaxErrorAtCur()
+				return nil, p.enrichError(p.preferLookup(p.syntaxErrorAtCur()))
 			}
 			break
 		}
 		if treeTooHigh(stmt, p.prev.End-stmtStart) {
-			return nil, p.enrichError(nestedTooDeeply(stmtStart))
+			return nil, p.enrichError(p.preferLookup(nestedTooDeeply(stmtStart)))
 		}
 		stmts = append(stmts, stmt)
 		// A statement ends at a ';' or at the end of the text. Any other token
@@ -163,7 +173,7 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 			if lexErr := p.lexerError(); lexErr != nil {
 				return nil, p.enrichError(lexErr)
 			}
-			return nil, p.syntaxErrorAtCur()
+			return nil, p.enrichError(p.preferLookup(p.syntaxErrorAtCur()))
 		}
 	}
 
@@ -278,8 +288,15 @@ func (p *Parser) inputText(start, end int) string {
 
 // ParseError represents a parse error with position information.
 type ParseError struct {
-	Message     string
-	Position    int
+	Message  string
+	Position int
+	// Code is the error number MariaDB answers with where the refusal is a name
+	// it looks up while it parses and does not find, rather than a syntax error:
+	// 1253 for a collation of another character set, 1128 for a FULLTEXT parser
+	// it does not ship. 0 is a syntax error, which the server answers with 1064.
+	// A caller that reports the server's code reads this field; compat.tsv's
+	// judge counts these answers as parsed, so omni's verdict stays a rejection.
+	Code        int
 	Line        int    // 1-based line number
 	Column      int    // 1-based column number
 	RelatedText string // source text of the line where the error occurred
@@ -293,6 +310,30 @@ func (e *ParseError) Error() string {
 		return fmt.Sprintf("%s (line %d, column %d)", e.Message, e.Line, e.Column)
 	}
 	return e.Message
+}
+
+// noteLookup records a check the server makes while it parses and answers with
+// the code of the name it looked up. The first one is the one the server reports,
+// since it stops there.
+func (p *Parser) noteLookup(pe *ParseError) {
+	if p.lookupRefusal == nil {
+		p.lookupRefusal = pe
+	}
+}
+
+// preferLookup reports the lookup refusal the statement reached before the error
+// that ended its parse. MariaDB raises that code at the name itself, so nothing
+// after it is read: `ADD a CHAR ASCII COLLATE utf8mb4_bin zzz` is 1253 and not the
+// 1064 the trailing zzz is. A statement that parses is left alone, which is how
+// compat.tsv records these rows, whose judge counts a lookup error as parsed.
+func (p *Parser) preferLookup(err error) error {
+	if p.lookupRefusal == nil {
+		return err
+	}
+	if pe, ok := err.(*ParseError); ok && pe.Code != 0 {
+		return pe
+	}
+	return p.lookupRefusal
 }
 
 // syntaxErrorAtCur returns a ParseError describing a syntax error at the current token.

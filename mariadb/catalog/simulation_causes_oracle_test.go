@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 	"testing"
 )
@@ -15,6 +16,17 @@ import (
 // SPATIAL key over a column whose type it cannot index, and the table options
 // MariaDB stores differently from the text it was given: ROW_FORMAT DEFAULT,
 // TABLESPACE, SERIAL, CHAR BYTE, CHAR COLLATE BINARY, and MAX_ROWS.
+// mariadbShowCreate reads the server's SHOW CREATE TABLE of a table in the test's
+// database.
+func mariadbShowCreate(t *testing.T, conn *sql.DB, name string) string {
+	t.Helper()
+	var table, create string
+	if err := conn.QueryRow("SHOW CREATE TABLE "+name).Scan(&table, &create); err != nil {
+		t.Fatalf("SHOW CREATE TABLE %s: %v", name, err)
+	}
+	return normalizeShowCreate(create)
+}
+
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := mariadbDatabase(t)
 	ctx := context.Background()
@@ -46,6 +58,13 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// unpartitioned holds the case whose statement leaves table a
 		// unpartitioned, which both sides must then show.
 		unpartitioned bool
+		// absent names a table both sides must leave absent, for a statement a
+		// missing table takes silently.
+		absent string
+		// keepsSchema holds the case whose statement fails with the table as it
+		// was, which both sides must then still show: table a, or keptTable.
+		keepsSchema bool
+		keptTable   string
 		// contains and omits are text both SHOW CREATE TABLE texts must hold
 		// and must not hold.
 		contains []string
@@ -480,6 +499,244 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ENGINE=MyISAM",
 			code:  0,
 		},
+		// An expression that reads the column it defines is 4029, after the
+		// table is looked up (1146) and after a column of the name exists (1060).
+		{
+			name:  "ADD a generated column reading itself",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a INT AS(a)",
+			code:  4029,
+		},
+		{
+			name:  "ADD a generated column reading itself as STORED",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a INT AS(a) STORED",
+			code:  4029,
+		},
+		{
+			name:  "ADD a column whose default reads it",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a INT DEFAULT a",
+			code:  4029,
+		},
+		{
+			name:  "ADD a column whose parenthesized default reads it",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a INT DEFAULT(a)",
+			code:  4029,
+		},
+		{
+			name:  "SET DEFAULT on a column that reads itself",
+			setup: []string{intColumnTable},
+			stmt:  "ALTER TABLE a ALTER a SET DEFAULT a",
+			code:  4029,
+		},
+		{
+			name:  "ADD a column reading a generated column defined before it",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT AS(b + 1) VIRTUAL)"},
+			stmt:  "ALTER TABLE a ADD d INT AS(c)",
+			code:  0,
+		},
+		{
+			name:  "MODIFY a generated column to read itself",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT AS(b + 1) VIRTUAL)"},
+			stmt:  "ALTER TABLE a MODIFY c INT AS(c)",
+			code:  4029,
+		},
+		{
+			name:  "CHANGE a generated column to read itself",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT AS(b + 1) VIRTUAL)"},
+			stmt:  "ALTER TABLE a CHANGE c c INT AS(c)",
+			code:  4029,
+		},
+		{
+			name: "CREATE TABLE with a generated column reading itself",
+			stmt: "CREATE TABLE x (a INT AS(a))",
+			code: 4029,
+		},
+		{
+			name: "CREATE TABLE with a default reading its column",
+			stmt: "CREATE TABLE x (a INT DEFAULT a)",
+			code: 4029,
+		},
+		{
+			name: "CREATE TABLE with a generated column reading a later generated column",
+			stmt: "CREATE TABLE x (a INT AS(b), b INT AS(a))",
+			code: 4029,
+		},
+		{
+			name: "CREATE TABLE with a generated column reading a later plain column",
+			stmt: "CREATE TABLE x (a INT AS(b), b INT)",
+			code: 0,
+		},
+		// A collation of another character set than the one the type settled is
+		// 1253, answered while the statement is parsed: before the table is looked
+		// up (1146), before a column of the name exists (1060), and before a
+		// trailing token the parser would otherwise refuse.
+		{
+			name:  "ADD a column whose collation is of another character set",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin",
+			code:  1253,
+		},
+		{
+			name:  "ADD a column whose collation is of another character set, with a trailing token",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz",
+			code:  1253,
+		},
+		{
+			name:  "ADD a column of BINARY's collation to an ASCII column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY",
+			code:  1253,
+		},
+		{
+			name:  "ADD a BYTE column with a collation of another character set",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a CHAR BYTE COLLATE utf8mb4_bin",
+			code:  1253,
+		},
+		{
+			name:  "ADD a NCHAR column with a collation of another character set",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a NCHAR COLLATE utf8mb4_bin",
+			code:  1253,
+		},
+		{
+			name: "ADD a column over no table with a collation of another character set",
+			stmt: "ALTER TABLE x ADD a CHAR ASCII COLLATE utf8mb4_bin",
+			code: 1253,
+		},
+		{
+			name:  "ADD a column whose collation belongs to its character set",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD a CHAR CHARACTER SET ascii COLLATE ascii_general_ci",
+			code:  0,
+		},
+		{
+			name:  "CREATE TABLE over an existing name with a collation of another character set",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a (x CHAR ASCII COLLATE utf8mb4_bin)",
+			code:  1253,
+		},
+		// A FULLTEXT key's parser is looked up while the statement is parsed: 1128
+		// before the table is looked up (1146) and before a trailing token.
+		{
+			name:   "ADD FULLTEXT WITH PARSER over no table",
+			stmt:   "ALTER TABLE x ADD FULLTEXT(a) WITH PARSER a",
+			code:   1128,
+			absent: "x",
+		},
+		{
+			name:  "ADD FULLTEXT WITH PARSER with a trailing token",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz",
+			code:  1128,
+		},
+		// A ROW_FORMAT FIXED or PAGE the statement writes on an engine that does
+		// not take it is 1478; MyISAM and Aria take both.
+		{
+			name:  "ROW_FORMAT FIXED on an InnoDB table",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED",
+			code:  1478,
+		},
+		{
+			name:  "ROW_FORMAT PAGE on an InnoDB table",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT PAGE",
+			code:  1478,
+		},
+		{
+			name:  "ROW_FORMAT FIXED on a table the statement makes MyISAM",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED ENGINE=MyISAM",
+			code:  0,
+		},
+		{
+			name:  "ROW_FORMAT PAGE on a MyISAM table",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d)) ENGINE=MyISAM"},
+			stmt:  "ALTER TABLE a ROW_FORMAT PAGE",
+			code:  0,
+		},
+		{
+			name:  "ROW_FORMAT FIXED on an Aria table",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d)) ENGINE=Aria"},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED",
+			code:  0,
+		},
+		// The columns a statement adds are read before any of them is built, so a
+		// generated one may not read a generated column added after it; a plain
+		// column added later is fine. The statement leaves the table as it was.
+		{
+			name:        "ADD two generated columns that read each other",
+			setup:       []string{"CREATE TABLE x (k INT PRIMARY KEY)"},
+			stmt:        "ALTER TABLE x ADD q INT AS(r), ADD r INT AS(q)",
+			code:        4029,
+			keepsSchema: true,
+			keptTable:   "x",
+		},
+		{
+			name:  "ADD two generated columns that read each other in one list",
+			setup: []string{"CREATE TABLE x (k INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE x ADD (q INT AS(r), r INT AS(q))",
+			code:  4029,
+		},
+		{
+			name:  "ADD a generated column reading a plain column added after it",
+			setup: []string{"CREATE TABLE x (k INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE x ADD q INT AS(r), ADD r INT",
+			code:  0,
+		},
+		{
+			name:        "ROW_FORMAT FIXED with the engine the table has",
+			setup:       []string{oneTable},
+			stmt:        "ALTER TABLE a ENGINE=InnoDB ROW_FORMAT FIXED",
+			code:        1478,
+			keepsSchema: true,
+		},
+		// A partition maintenance command takes a table that is not there
+		// silently, where REBUILD PARTITION and REMOVE PARTITIONING are 1146.
+		{
+			name:   "OPTIMIZE PARTITION of a missing table",
+			stmt:   "ALTER TABLE x OPTIMIZE PARTITION ALL",
+			code:   0,
+			absent: "x",
+		},
+		{
+			name:   "ANALYZE PARTITION of a missing table",
+			stmt:   "ALTER TABLE x ANALYZE PARTITION p1",
+			code:   0,
+			absent: "x",
+		},
+		{
+			name:   "CHECK PARTITION of a missing table",
+			stmt:   "ALTER TABLE x CHECK PARTITION ALL",
+			code:   0,
+			absent: "x",
+		},
+		{
+			name:   "REPAIR PARTITION of a missing table",
+			stmt:   "ALTER TABLE x REPAIR PARTITION ALL",
+			code:   0,
+			absent: "x",
+		},
+		// RENAME KEY over a key the table does not hold is 1176, not the 1061
+		// a duplicate name answers.
+		{
+			name:  "RENAME KEY over a key the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a RENAME KEY zzz TO yyy",
+			code:  1176,
+		},
+		// A key that lists the same column twice is 1060.
+		{
+			name:  "ADD KEY over the same column twice",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY, a INT, d INT)"},
+			stmt:  "ALTER TABLE a ADD KEY(a, a)",
+			code:  1060,
+		},
 	}
 
 	for _, tc := range cases {
@@ -495,15 +752,32 @@ func TestSimulationCausesOracle(t *testing.T) {
 			if engineCode != tc.code {
 				t.Fatalf("mariadb: %s answered %d, want %d", tc.stmt, engineCode, tc.code)
 			}
+			keptTable := tc.keptTable
+			if keptTable == "" {
+				keptTable = "a"
+			}
+			beforeEngine := ""
+			if tc.keepsSchema {
+				beforeEngine = mariadbShowCreate(t, conn, keptTable)
+			}
 
 			c := New()
 			execAlterClauses(t, c, "CREATE DATABASE d; USE d;")
 			for _, stmt := range tc.setup {
 				execAlterClauses(t, c, stmt)
 			}
+			beforeCatalog := c.ShowCreateTable("d", keptTable)
 			catalogCode, _ := catalogErr(t, c, tc.stmt)
 			if catalogCode != engineCode {
 				t.Fatalf("catalog: %s answered %d, mariadb answered %d", tc.stmt, catalogCode, engineCode)
+			}
+			if tc.keepsSchema {
+				if got := mariadbShowCreate(t, conn, keptTable); got != beforeEngine {
+					t.Fatalf("mariadb kept\n%s\nafter %s, where it had\n%s", got, tc.stmt, beforeEngine)
+				}
+				if got := c.ShowCreateTable("d", keptTable); got != beforeCatalog {
+					t.Fatalf("catalog kept\n%s\nafter %s, where it had\n%s", got, tc.stmt, beforeCatalog)
+				}
 			}
 			if tc.refs != "" {
 				want := tc.refs
@@ -521,6 +795,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			if tc.unpartitioned {
 				if tbl := c.GetDatabase("d").GetTable("a"); tbl == nil || tbl.Partitioning != nil {
 					t.Fatalf("catalog kept the table partitioned after %s", tc.stmt)
+				}
+			}
+			if tc.absent != "" {
+				if got := catalogTableState(c, "d", tc.absent); got != "absent" {
+					t.Fatalf("catalog keeps %s after %s:\n%s", tc.absent, tc.stmt, got)
+				}
+				db := simulationDatabase
+				_ = db
+				var count int
+				if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?", tc.absent).Scan(&count); err != nil {
+					t.Fatalf("count %s: %v", tc.absent, err)
+				}
+				if count != 0 {
+					t.Fatalf("mariadb keeps %s after %s", tc.absent, tc.stmt)
 				}
 			}
 			if len(tc.contains) > 0 || len(tc.omits) > 0 {

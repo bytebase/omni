@@ -390,10 +390,9 @@ func (p *Parser) parseATSetPartitioning(cmd *nodes.AlterTableCmd) error {
 	case p.atWord("PARTITIONING"):
 		cmd.Action = nodes.AT_SET_PARTITIONING
 		p.advance()
-		// Oracle takes SET PARTITIONING alone as well.
-		if p.isStatementEnd() {
-			return nil
-		}
+		// Oracle reads no SET PARTITIONING alone: ALTER TABLE a SET
+		// PARTITIONING answers ORA-14853, an invalid option for the clause,
+		// at byte 0, and takes SET PARTITIONING AUTOMATIC or MANUAL.
 		if !p.atWord("AUTOMATIC") && !p.atWord("MANUAL") {
 			return p.syntaxErrorAtCur()
 		}

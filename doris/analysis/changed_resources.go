@@ -20,6 +20,9 @@ type ChangedResource struct {
 	// AffectsData marks a table change that touches the table's existing rows,
 	// such as DROP, TRUNCATE or ALTER.
 	AffectsData bool
+	// TableID is the engine's internal id when the statement names the table
+	// that way (INSERT INTO DORIS_INTERNAL_TABLE_ID(id)); Table is empty then.
+	TableID int64
 }
 
 // StatementChanges is what one statement changes.
@@ -113,7 +116,11 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		addTable(n.Target, false)
 
 	case *ast.InsertStmt:
-		addTable(n.Target, false)
+		if n.Target != nil {
+			addTable(n.Target, false)
+		} else if n.TableID != nil {
+			changes.Resources = append(changes.Resources, ChangedResource{Database: database, TableID: *n.TableID})
+		}
 		if len(n.Values) > 0 {
 			changes.InsertCount += len(n.Values)
 			break
@@ -157,6 +164,8 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 	case *ast.DropFunctionStmt:
 		addObjectDatabase(n.Name)
 	case *ast.CreateProcedureStmt:
+		addObjectDatabase(n.Name)
+	case *ast.AlterProcedureStmt:
 		addObjectDatabase(n.Name)
 	case *ast.DropProcedureStmt:
 		addObjectDatabase(n.Name)

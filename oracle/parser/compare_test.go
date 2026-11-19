@@ -64,8 +64,8 @@ func TestLexerBasicTokens(t *testing.T) {
 		{">=", tokGREATEQ, ">="},
 		{"!=", tokNOTEQ, "!="},
 		{"<>", tokNOTEQ, "<>"},
-		{"~=", tokNOTEQ, "~="},
 		{"^=", tokNOTEQ, "^="},
+		{"~=", tokNOTEQ, "~="},
 		{"<<", tokLABELOPEN, "<<"},
 		{">>", tokLABELCLOSE, ">>"},
 	}
@@ -9362,7 +9362,7 @@ func TestAlterSystem(t *testing.T) {
 		"ALTER SYSTEM CHECK DATAFILES LOCAL",
 		// SET with multiple params and modifiers
 		"ALTER SYSTEM SET open_cursors = 300 SCOPE = MEMORY",
-		"ALTER SYSTEM SET db_block_size = 8192 COMMENT = 'set block size' DEFERRED SCOPE = SPFILE SID = '*' CONTAINER = ALL",
+		"ALTER SYSTEM SET db_block_size = 8192 COMMENT = 'set block size' DEFERRED SCOPE = SPFILE SID = '*'",
 		// RESET
 		"ALTER SYSTEM RESET open_cursors SCOPE = BOTH SID = 'inst1'",
 		// KILL SESSION with all options

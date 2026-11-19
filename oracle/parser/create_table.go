@@ -526,19 +526,34 @@ func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.
 // It handles both column definitions and table-level constraints.
+//
+// A supplemental_logging_props clause is one of relational_properties too
+// (CREATE-TABLE.bnf lines 58-65 and 183): Oracle reads SUPPLEMENTAL LOG
+// GROUP a(a) inside the list and refuses the closing ')' of a list that
+// holds no column, as it refuses a list of constraints alone. It is kept as
+// a SUPPLEMENTAL LOG DDLOption, whose group ends the walk in
+// oracle/review (the group is a constraint), as the object_properties path
+// already keeps it.
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
 	defer func(saved bool) { p.createTableColumns = saved }(p.createTableColumns)
 	p.createTableColumns = true
-	periods := 0
+	periods, supplemental := 0, 0
 	for progress := -1; p.cur.Type != ')' && p.cur.Type != tokEOF; {
 		// An item that consumes nothing would come round again.
 		if p.pos() == progress {
 			return p.syntaxErrorAtCur()
 		}
 		progress = p.pos()
-		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods
-		// Check if this is a table-level constraint
-		if p.isCreateTablePeriodStart() {
+		before := stmt.Columns.Len() + stmt.Constraints.Len() + periods + supplemental
+		if p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG") {
+			start, valueStart := p.pos(), p.peekNext().End
+			if err := p.parseCreateTableSupplementalLogging(); err != nil {
+				return err
+			}
+			appendCreateTableOption(stmt, "SUPPLEMENTAL LOG", p.createTableOptionValue(valueStart), nodes.Loc{Start: start, End: p.prev.End})
+			supplemental++
+			// Check if this is a table-level constraint
+		} else if p.isCreateTablePeriodStart() {
 			if err := p.parseCreateTablePeriod(stmt); err != nil {
 				return err
 			}
@@ -567,7 +582,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
-		if stmt.Columns.Len()+stmt.Constraints.Len()+periods == before {
+		if stmt.Columns.Len()+stmt.Constraints.Len()+periods+supplemental == before {
 			return p.syntaxErrorAtCur()
 		}
 
@@ -595,7 +610,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 // isTableConstraintStart checks if the current position starts a table-level constraint.
 func (p *Parser) isTableConstraintStart() bool {
 	switch p.cur.Type {
-	case kwCONSTRAINT:
+	case kwCONSTRAINT, kwCONSTRAINTS:
 		// A column named CONSTRAINT takes a reserved datatype word alone:
 		// Oracle 23ai reads CONSTRAINT NUMBER as a column and CONSTRAINT
 		// NCHAR(1), CLOB, or REF u as a constraint (ORA-03050, ORA-00931).
@@ -715,8 +730,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	// CREATE TABLE's column_definition takes its datatype as optional
 	// (CREATE TABLE t (a, b) AS SELECT ...); a bare column elsewhere is
 	// an error, but in ALTER TABLE ... ADD it is Oracle's ORA-02263, which
-	// the statement survives.
-	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns && !p.alterTableAddColumn {
+	// the statement survives, in a list as out of one (ADD (a)).
+	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns &&
+		!p.alterTableAddColumn && !p.alterTableAddList {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -1580,8 +1596,8 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 
-	// Optional CONSTRAINT name
-	if p.cur.Type == kwCONSTRAINT {
+	// Optional CONSTRAINT name; Oracle takes CONSTRAINTS here too.
+	if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwCONSTRAINTS {
 		p.advance()
 		var // consume CONSTRAINT
 		parseErr529 error
@@ -2085,7 +2101,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						optStart := p.pos()
 						stmt.Organization = "EXTERNAL"
 						p.advance()
-						if err := p.parseCreateTableExternalData(); err != nil {
+						if err := p.parseCreateTableExternalData(hasColumns, stmt.Name.Loc); err != nil {
 							return err
 						}
 						appendCreateTableOption(stmt, "ORGANIZATION EXTERNAL", p.createTableOptionValue(optStart+len("EXTERNAL")), nodes.Loc{Start: optStart, End: p.prev.End})
@@ -2168,7 +2184,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						return nil
 					}
 				case "INMEMORY":
-					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
+					if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable, false); err != nil {
 						return err
 					}
 				case "LOB":
@@ -2200,7 +2216,7 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 						}
 						stmt.FlashbackArchive = "NO FLASHBACK ARCHIVE"
 					} else if isCreateTableWordTok(next, "INMEMORY") {
-						if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable); err != nil {
+						if err := p.parseCreateTableInmemory(stmt, hasColumns, &inmemoryTable, false); err != nil {
 							return err
 						}
 					} else {
@@ -2577,4 +2593,11 @@ func (p *Parser) parseOnCommitAction() (string, error) {
 		return "", err
 	}
 	return action, nil
+}
+
+// statementEndsAfterNext reports whether the statement's text ends right
+// after the current token.
+func (p *Parser) statementEndsAfterNext() bool {
+	next := p.peekNext()
+	return next.Type == ';' || next.Type == tokEOF
 }

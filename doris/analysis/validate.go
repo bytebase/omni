@@ -207,7 +207,11 @@ func isExplainableInner(node ast.Node) bool {
 		// classify by the wrapped query.
 		return n.Into == nil && isExplainableInner(n.Query)
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.MergeStmt, *ast.TruncateTableStmt:
+		*ast.MergeStmt, *ast.TruncateTableStmt,
+		*ast.DescribeStmt:
+		// EXPLAIN a, EXPLAIN a ALL, EXPLAIN FUNCTION a() and the partition
+		// form parse as an ExplainStmt wrapping a DescribeStmt; they are
+		// read-only descriptions and stay explainable.
 		return true
 	}
 	return false

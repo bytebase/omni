@@ -1240,8 +1240,10 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	}
 
 	// Nor does it match patterns: Oracle 23ai fails in its own code on
-	// MATCH_RECOGNIZE there.
+	// MATCH_RECOGNIZE there, so the byte its judge recorded is the engine's
+	// crash position and not a token this grammar cannot take (ParseRange).
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") && p.dmlFromClause {
+		p.engineCrash = p.cur.Loc
 		return nil, p.syntaxErrorAtCur()
 	}
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
@@ -1294,6 +1296,12 @@ func (p *Parser) isTableAliasCandidate() bool {
 	// PIVOT and UNPIVOT name an alias where no clause of theirs follows:
 	// FROM t PIVOT parses on Oracle 23ai.
 	if p.cur.Type == kwPIVOT && !p.pivotClauseAhead() || p.cur.Type == kwUNPIVOT && !p.unpivotClauseAhead() {
+		return true
+	}
+	// NATURAL names an alias where no join follows: FROM t NATURAL parses on
+	// Oracle 23ai, and so does DELETE a FROM t NATURAL, where the natural
+	// join is only the one that JOIN, INNER, LEFT, RIGHT or FULL continues.
+	if p.cur.Type == kwNATURAL && !p.naturalJoinAhead() {
 		return true
 	}
 	if p.cur.Type == tokIDENT {
@@ -3080,8 +3088,12 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 	p.advance() // consume WINDOW (soft keyword)
 
 	// Each window is named once (ORA-32782), and a window it builds on is
-	// one named before it (ORA-32784).
+	// one named before it (ORA-32784). A name used twice is refused at the
+	// second, once the list is read: the rule is the engine's, after its
+	// parse, so a statement that breaks earlier in the list reports that
+	// first, as Oracle's parser does.
 	var defs []*nodes.WindowDef
+	var dupErr *ParseError
 	// ordered records each window named so far, and whether it orders its
 	// rows, itself or through the window it builds on.
 	ordered := map[string]bool{}
@@ -3098,8 +3110,8 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 		if err != nil {
 			return nil, err
 		}
-		if _, dup := ordered[name]; dup {
-			return nil, p.syntaxErrorAtTok(nameTok)
+		if _, dup := ordered[name]; dup && dupErr == nil {
+			dupErr = p.syntaxErrorAtTok(nameTok)
 		}
 		wd := &nodes.WindowDef{
 			Name: name,
@@ -3124,6 +3136,9 @@ func (p *Parser) parseWindowClause() ([]*nodes.WindowDef, error) {
 			break
 		}
 		p.advance()
+	}
+	if dupErr != nil {
+		return nil, dupErr
 	}
 	return defs, nil
 }

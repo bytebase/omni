@@ -534,11 +534,17 @@ func (p *Parser) parseShowGrantsOpts(stmt *ast.ShowStmt) error {
 		return nil
 	case kwTO:
 		p.advance() // consume TO
+		// The page's INCLUDE HIERARCHY forms name ROLE, DATABASE ROLE or
+		// USER, so a bare role name takes no clause.
+		explicit := p.cur.Type == kwROLE || p.cur.Type == kwDATABASE || p.cur.Type == kwUSER
 		grantee, err := p.parseGrantee()
 		if err != nil {
 			return err
 		}
 		stmt.GrantsTo = grantee
+		if explicit {
+			p.parseShowGrantsIncludeHierarchy(stmt)
+		}
 		return p.parseShowGrantsToShareIn(stmt)
 	case kwOF:
 		p.advance() // consume OF
@@ -600,15 +606,42 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 
 	case kwTO:
 		p.advance() // consume TO
+		explicit := p.cur.Type == kwROLE || p.cur.Type == kwDATABASE
 		grantee, err := p.parseGrantee()
 		if err != nil {
 			return err
 		}
 		stmt.GrantsTo = grantee
+		if explicit {
+			p.parseShowGrantsIncludeHierarchy(stmt)
+		}
 		return nil
 
 	default:
 		return p.syntaxErrorAtCur()
+	}
+}
+
+// parseShowGrantsIncludeHierarchy reads the optional INCLUDE HIERARCHY of
+// SHOW GRANTS and SHOW FUTURE GRANTS TO. The page writes it after a role, a
+// database role or a user grantee and before LIMIT, and for a future grant
+// only after a role or a database role; no other target or grantee takes it:
+// https://docs.snowflake.com/en/sql-reference/sql/show-grants
+func (p *Parser) parseShowGrantsIncludeHierarchy(stmt *ast.ShowStmt) {
+	if stmt.GrantsTo == nil {
+		return
+	}
+	switch stmt.GrantsTo.Kind {
+	case ast.GranteeRole, ast.GranteeDatabaseRole:
+	case ast.GranteeUser:
+		if stmt.Future {
+			return
+		}
+	default:
+		return
+	}
+	if p.acceptWords("INCLUDE", "HIERARCHY") {
+		stmt.IncludeHierarchy = true
 	}
 }
 

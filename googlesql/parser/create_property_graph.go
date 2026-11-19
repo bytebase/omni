@@ -10,21 +10,24 @@ import (
 // CREATE PROPERTY GRAPH (parser-gql node)
 // ---------------------------------------------------------------------------
 //
-// This file ports the legacy ANTLR create_property_graph_statement and its
-// element-table grammar (GoogleSQLParser.g4 §2.4 — element_table_list /
+// This file ports create_property_graph_statement and its element-table grammar
+// (GoogleSQL.g4; googlesql.tm:2662 — element_table_list /
 // element_table_definition / label_and_properties / properties_clause /
 // derived_property_list / source+dest node-table clauses) — a hand-port of
 // ZetaSQL's GoogleSQL graph DDL (BigQuery / Spanner Graph):
 //
 //	CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] <path>
-//	  [OPTIONS(…)]
 //	  NODE TABLES ( <element_table>, … )
 //	  [EDGE TABLES ( <element_table>, … )]
+//	  [OPTIONS(…)]
+//
+// The OPTIONS list follows the graph content: googlesql.tm:2666 ends the rule
+// with edge_table_clause? opt_options_list, and Spanner's graph DDL reference
+// writes property_graph_content [OPTIONS (key=value, …)]. The legacy ANTLR
+// GoogleSQLParser.g4 put the list before NODE TABLES; the pinned grammar and the
+// emulator do not, and neither derives the leading position.
 //
 // One omni parser serves both dialects; it accepts the BigQuery+Spanner union.
-// ORACLE NOTE — the truth1 BigQuery corpus scopes the full graph syntax out
-// (INDEX.md), so the authoritative reference is the pinned legacy .g4; the
-// Spanner emulator verdict is recorded by the differential where it agrees.
 
 // parseCreatePropertyGraph parses the body of a CREATE PROPERTY GRAPH statement
 // after the shared CREATE prefix (OR REPLACE) has been consumed and cur is at
@@ -32,8 +35,8 @@ import (
 // so the caller rejects a leading TEMP/TEMPORARY/PUBLIC/PRIVATE before reaching
 // here.
 //
-//	PROPERTY GRAPH opt_if_not_exists path_expression opt_options_list?
-//	  NODE TABLES element_table_list opt_edge_table_clause?
+//	PROPERTY GRAPH opt_if_not_exists path_expression
+//	  NODE TABLES element_table_list opt_edge_table_clause? opt_options_list?
 func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Node, error) {
 	p.advance() // PROPERTY
 	if _, err := p.expect(kwGRAPH); err != nil {
@@ -76,15 +79,6 @@ func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Nod
 	stmt.Name = name
 	stmt.Loc.End = name.Loc.End
 
-	// opt_options_list?  — OPTIONS ( … ).
-	if p.cur.Type == kwOPTIONS {
-		opts, err := p.parseOptionsList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Options = opts
-	}
-
 	// NODE TABLES <element_table_list>  (required).
 	if _, err := p.expect(kwNODE); err != nil {
 		return nil, err
@@ -111,6 +105,16 @@ func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Nod
 		}
 		stmt.EdgeTables = edgeTables
 		stmt.Loc.End = eend
+	}
+
+	// opt_options_list?  — OPTIONS ( … ), after the graph content.
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
 	}
 
 	return stmt, nil

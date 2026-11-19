@@ -288,12 +288,20 @@ func (p *Parser) parseRoutineStatement() (RoutineStatement, error) {
 		return nil, err
 	}
 	defer p.leaveNesting()
-	// A `label:` prefix: an identifier (or non-reserved keyword) immediately
-	// followed by ':' begins a labeled LOOP / WHILE / REPEAT.
-	if isIdentifierStart(p.cur.Kind) && p.peekNext().Kind == int(':') {
+	// A `label:` prefix: an identifier (or non-reserved keyword) begins a labeled
+	// LOOP / WHILE / REPEAT. The grammar is `(label=identifier ':')? LOOP …`, so
+	// the identifier itself is takeable here and the ':' is what comes next:
+	// Trino stops at the token after the identifier (`… RETURNS int zzz RETURN 1`
+	// reports the RETURN, "Expecting: ':'"), and so does this. A word that begins
+	// a routine statement of its own (IF, LOOP, …; most are non-reserved and so
+	// are also identifiers) is that statement unless the ':' follows it, which is
+	// the reading Trino's prediction keeps.
+	if isIdentifierStart(p.cur.Kind) && (!startsRoutineStatementKeyword(p.cur.Kind) || p.peekNext().Kind == int(':')) {
 		labelTok := p.advance() // consume the label identifier
 		label := identFromToken(labelTok)
-		p.advance() // consume ':'
+		if _, err := p.expect(int(':')); err != nil {
+			return nil, err
+		}
 		switch p.cur.Kind {
 		case kwLOOP:
 			return p.parseLoopStatement(label, label.Loc.Start)
@@ -331,6 +339,17 @@ func (p *Parser) parseRoutineStatement() (RoutineStatement, error) {
 		return p.parseRepeatStatement(nil, p.cur.Loc.Start)
 	default:
 		return nil, p.syntaxErrorAtCur()
+	}
+}
+
+// startsRoutineStatementKeyword reports whether kind begins one of the routine
+// statement alternatives, other than through a `label:` prefix.
+func startsRoutineStatementKeyword(kind TokenKind) bool {
+	switch kind {
+	case kwRETURN, kwSET, kwCASE, kwIF, kwITERATE, kwLEAVE, kwBEGIN, kwLOOP, kwWHILE, kwREPEAT:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -741,14 +760,23 @@ func (p *Parser) parseSQLStatementList() ([]RoutineStatement, error) {
 
 // routineStatementStarts reports whether the current token can begin another
 // controlStatement, so parseSQLStatementList knows when to stop. It mirrors the
-// dispatch in parseRoutineStatement: the fixed leading keywords plus a `label:`
-// prefix (identifier followed by ':'). Terminators (END, ELSE, ELSEIF, UNTIL)
-// return false.
+// dispatch in parseRoutineStatement: the fixed leading keywords, plus any
+// identifier, which begins the `label:` prefix of a labeled LOOP / WHILE /
+// REPEAT. An identifier that lacks the ':' continues the list so that the
+// missing ':' is reported at the token after it, where Trino reports it
+// (`BEGIN RETURN 1.5; zzz END` reports the END). Terminators (END, ELSE,
+// ELSEIF, UNTIL) are reserved and return false.
 func (p *Parser) routineStatementStarts() bool {
 	switch p.cur.Kind {
 	case kwRETURN, kwSET, kwCASE, kwIF, kwITERATE, kwLEAVE, kwBEGIN, kwLOOP, kwWHILE, kwREPEAT:
 		return true
+	case kwELSE, kwELSEIF, kwUNTIL:
+		// What continues the construct this list is in (an IF's ELSEIF/ELSE
+		// clause, a REPEAT's UNTIL): the list ends and the construct takes it.
+		// ELSEIF and UNTIL are non-reserved, so an identifier rule alone would
+		// keep reading them as labels.
+		return false
 	default:
-		return isIdentifierStart(p.cur.Kind) && p.peekNext().Kind == int(':')
+		return isIdentifierStart(p.cur.Kind)
 	}
 }

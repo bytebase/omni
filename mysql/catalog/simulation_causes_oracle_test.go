@@ -3,27 +3,33 @@ package catalog
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 // TestSimulationCausesOracle holds the refusals testdata/simulate.tsv records to
 // mysql:8.0.46 cause by cause: the object an ALTER or DROP VIEW names, a key
 // built on a column the table does not have, a FULLTEXT key's parser, a
 // partition action on a table that has no partitions, a type's display width, a
-// view body naming a column no relation has, and the columns MySQL gives
-// another type from the text they were: SERIAL, CHAR BYTE and CHAR COLLATE
-// BINARY. Each case is answered by the pinned server and by the catalog, and
-// both must agree with the code the case states.
+// view body naming a column no relation has or expanding a star no table backs,
+// a CREATE TABLE with no column, a NOW()-family DEFAULT the column's type cannot
+// hold, the columns MySQL gives another type from the text they were: SERIAL,
+// CHAR BYTE and CHAR COLLATE BINARY, and the keyword a DROP or ALTER wrote
+// before the constraint it names, DROP CHECK / ALTER CHECK beside DROP
+// CONSTRAINT / ALTER CONSTRAINT, which decides the code a missing one answers:
+// 3821 for CHECK and 3940 for CONSTRAINT. Each case is answered by the pinned
+// server and by the catalog, and both must agree with the code the case states.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := testcontainer.OpenEmpty(t)
 	ctx := context.Background()
 	reset := func() {
-		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s"} {
+		for _, stmt := range []string{"SET SESSION sql_mode = DEFAULT", "DROP VIEW IF EXISTS a", "DROP TABLE IF EXISTS a", "DROP TABLE IF EXISTS p", "DROP TABLE IF EXISTS s", "DROP TABLE IF EXISTS z", "DROP VIEW IF EXISTS v", "SET SESSION sql_generate_invisible_primary_key = OFF", "DROP DATABASE IF EXISTS cteother", "DROP TABLE IF EXISTS `dual`", "DROP TABLE IF EXISTS c2", "DROP EVENT IF EXISTS e"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("%s: %v", stmt, err)
 			}
@@ -46,6 +52,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// and must not hold.
 		contains []string
 		omits    []string
+		// keeps is the partitioning type the catalog must hold after a
+		// statement it took, "" for one it may not.
+		keeps string
 	}{
 		{
 			name:  "ALTER VIEW over a table",
@@ -141,6 +150,63 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a",
 			code:  1072,
+		},
+		// The keyword a DROP or ALTER wrote before a constraint is what the
+		// engine answers a missing one with: 3821 for CHECK, 3940 for
+		// CONSTRAINT. It also says what the name may be: DROP CHECK takes a
+		// check alone, DROP CONSTRAINT any constraint, and DROP FOREIGN KEY a
+		// foreign key alone (measured on mysql:8.0.46).
+		{
+			name:  "DROP CHECK of a name no check constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a DROP CHECK nope",
+			code:  3821,
+		},
+		{
+			name:  "DROP CONSTRAINT of a name no constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a DROP CONSTRAINT nope",
+			code:  3940,
+		},
+		{
+			name: "DROP CHECK of a foreign key's name",
+			setup: []string{
+				"CREATE TABLE p (id INT PRIMARY KEY)",
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT fk1 FOREIGN KEY (c) REFERENCES p(id))",
+			},
+			stmt:     "ALTER TABLE a DROP CHECK fk1",
+			code:     3821,
+			contains: []string{"fk1"},
+		},
+		{
+			name: "DROP FOREIGN KEY of a check's name",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT ck1 CHECK (c > 0))",
+			},
+			stmt:     "ALTER TABLE a DROP FOREIGN KEY ck1",
+			code:     1091,
+			contains: []string{"ck1"},
+		},
+		{
+			name: "DROP CONSTRAINT of a check's name",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT ck1 CHECK (c > 0))",
+			},
+			stmt:  "ALTER TABLE a DROP CONSTRAINT ck1",
+			code:  0,
+			omits: []string{"ck1"},
+		},
+		{
+			name:  "ALTER CHECK of a name no check constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER CHECK nope ENFORCED",
+			code:  3821,
+		},
+		{
+			name:  "ALTER CONSTRAINT of a name no constraint has",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER CONSTRAINT nope NOT ENFORCED",
+			code:  3940,
 		},
 		{
 			name:  "ADD KEY of a name the table has over a missing column",
@@ -766,6 +832,743 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ADD e BIT(64)",
 			code:  0,
 		},
+		{
+			// A partition function that reads a column the table does not hold
+			// answers before the unique keys are judged: 1488 for KEY's list,
+			// 1054 for a partitioning expression, and 1492 for a RANGE or LIST
+			// partitioning that defines no partition, which answers even on a
+			// table that is not there.
+			name:  "ALTER TABLE PARTITION BY KEY over a column the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY(zzz)",
+			code:  1488,
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY HASH over a column the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY HASH(zzz)",
+			code:  1054,
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY KEY naming a column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY(c, c)",
+			code:  1652,
+		},
+		{
+			// MySQL mixes subpartitioning with RANGE and LIST only, and answers
+			// 1500 before it reads the column the subpartition function names.
+			name:  "ALTER TABLE PARTITION BY KEY with a SUBPARTITION BY",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY() SUBPARTITION BY HASH(zzz)",
+			code:  1500,
+		},
+		{
+			name:  "CREATE TABLE PARTITION BY HASH with a SUBPARTITION BY",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT PRIMARY KEY, c INT) PARTITION BY HASH(b) PARTITIONS 2 SUBPARTITION BY HASH(c)",
+			code:  1500,
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY RANGE with no partition",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY RANGE(c)",
+			code:  1492,
+		},
+		{
+			name: "ALTER TABLE PARTITION BY RANGE with no partition on no table",
+			stmt: "ALTER TABLE a PARTITION BY RANGE(c)",
+			code: 1492,
+		},
+		{
+			// The forms that read a column answer 1146 first.
+			name: "ALTER TABLE PARTITION BY HASH over a column on no table",
+			stmt: "ALTER TABLE a PARTITION BY HASH(c)",
+			code: 1146,
+		},
+		{
+			name:  "CREATE TABLE PARTITION BY KEY over a column the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT PRIMARY KEY, c INT) PARTITION BY KEY(zzz)",
+			code:  1488,
+		},
+		{
+			// A partitioning the statement writes is the one the table keeps.
+			name:  "ALTER TABLE PARTITION BY KEY over the primary key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY KEY()",
+			code:  0,
+			keeps: "KEY",
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY LINEAR KEY with a partition",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY LINEAR KEY() PARTITIONS 1",
+			code:  0,
+			keeps: "KEY",
+		},
+		{
+			name:  "ALTER TABLE PARTITION BY RANGE over the primary key",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a PARTITION BY RANGE(b) (PARTITION p0 VALUES LESS THAN (10))",
+			code:  0,
+			keeps: "RANGE",
+		},
+		{
+			// A SPATIAL key's column is judged for its type before its
+			// nullability: an INT column is 1687 whether or not it is NOT NULL,
+			// and a nullable geometry column is what answers 1252.
+			name:  "ADD SPATIAL over a nullable column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL(c)",
+			code:  1687,
+		},
+		{
+			name:  "ADD SPATIAL over a NOT NULL column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL(b)",
+			code:  1687,
+		},
+		{
+			name:  "ADD SPATIAL over a nullable geometry column",
+			setup: []string{oneTable, "ALTER TABLE a ADD g POINT"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  1252,
+		},
+		{
+			name:  "ADD SPATIAL over a NOT NULL geometry column",
+			setup: []string{oneTable, "ALTER TABLE a ADD g POINT NOT NULL"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  0,
+		},
+		{
+			name:  "ADD KEY USING RTREE over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY USING RTREE(c)",
+			code:  1687,
+		},
+		{
+			// USING RTREE makes the key a spatial one, which MySQL stores and
+			// prints as SPATIAL KEY.
+			name:     "ADD KEY USING RTREE over a NOT NULL geometry column",
+			setup:    []string{oneTable, "ALTER TABLE a ADD g POINT NOT NULL"},
+			stmt:     "ALTER TABLE a ADD KEY USING RTREE(g)",
+			code:     0,
+			contains: []string{"SPATIAL KEY `g` (`g`)"},
+		},
+		{
+			name:  "CREATE TABLE with a SPATIAL key over a column of another type",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT NOT NULL, SPATIAL KEY (b))",
+			code:  1687,
+		},
+		{
+			// A spatial reference system MySQL defines must write both the
+			// attributes it requires, and answers 3708 naming the one it misses.
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with no attribute",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000",
+			code:  3708,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with no NAME",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 DEFINITION 's'",
+			code:  3708,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with no DEFINITION",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME 's'",
+			code:  3708,
+		},
+		{
+			name:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM with no NAME",
+			setup: []string{oneTable},
+			stmt:  "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM 5000 ORGANIZATION 's' IDENTIFIED BY 1",
+			code:  3708,
+		},
+		{
+			// An attribute the statement writes with an empty literal is present,
+			// and MySQL judges its value instead of calling it missing.
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with an empty NAME",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME ''",
+			code:  3710,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with a NAME that starts with a space",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME ' s'",
+			code:  3710,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM with an empty DEFINITION",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 5000 NAME 's' DEFINITION ''",
+			code:  3517,
+		},
+		{
+			name:  "CREATE SPATIAL REFERENCE SYSTEM on SRID 0",
+			setup: []string{oneTable},
+			stmt:  "CREATE SPATIAL REFERENCE SYSTEM 0 NAME 's' DEFINITION 's'",
+			code:  3714,
+		},
+		// A view body's star is resolved before the view's own name: a `*`
+		// with no FROM expands from nothing and is 1096, even over a table a,
+		// where the name alone would be 1050.
+		{
+			name:  "CREATE VIEW over a table whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW a AS SELECT *",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT *",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose body expands an empty qualified star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.*",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose body expands a star over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a t",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body counts a star with no table",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT count(*)",
+			code:  0,
+		},
+		// A table with no column at all is 4028, after the name collision and
+		// after a key's own columns are resolved.
+		{
+			name:  "CREATE TABLE with no columns over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a;",
+			code:  1050,
+		},
+		{
+			name: "CREATE TABLE with no columns",
+			stmt: "CREATE TABLE z;",
+			code: 4028,
+		},
+		{
+			name: "CREATE TABLE whose only element is a key over a missing column",
+			stmt: "CREATE TABLE z (KEY (b));",
+			code: 1072,
+		},
+		{
+			name: "CREATE TABLE whose only element is a partition clause",
+			stmt: "CREATE TABLE z PARTITION BY KEY();",
+			code: 4028,
+		},
+		{
+			name:  "CREATE VIEW whose derived table expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM (SELECT *) d",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM c",
+			code:  1096,
+		},
+		{
+			// MySQL resolves a CTE only where the body reads it, so a body it
+			// never names is not judged.
+			name:  "CREATE VIEW whose unreferenced CTE body expands an empty star",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT 1",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body expands a star over DUAL",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT * FROM DUAL",
+			code:  1096,
+		},
+		{
+			// A table really named dual is written quoted, which is not the
+			// dummy keyword MySQL expands from nothing.
+			name:  "CREATE VIEW whose body expands a star over a quoted dual table",
+			setup: []string{"CREATE TABLE `dual` (x INT)"},
+			stmt:  "CREATE VIEW v AS SELECT * FROM `dual`",
+			code:  0,
+		},
+		{
+			// A CTE read only by another CTE nothing reads is still unreached.
+			name:  "CREATE VIEW whose unreferenced CTE reads another",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c1 AS (SELECT *), c2 AS (SELECT * FROM c1) SELECT 1",
+			code:  0,
+		},
+		{
+			// A non-recursive CTE does not see itself, so this inner c reads the
+			// outer one, whose body expands an empty star.
+			name:  "CREATE VIEW whose non-recursive CTE names itself",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *), d AS (WITH c AS (SELECT * FROM c) SELECT * FROM c) SELECT * FROM d",
+			code:  1096,
+		},
+		{
+			name:  "CREATE VIEW whose recursive CTE names itself",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH RECURSIVE c AS (SELECT 1 AS x) SELECT * FROM c",
+			code:  0,
+		},
+		{
+			// A CTE does not see a sibling declared after it, so the name reads
+			// the real table c2 and the later CTE stays unreached.
+			name:  "CREATE VIEW whose CTE reads a later sibling's name",
+			setup: []string{oneTable, "CREATE TABLE c2 (x INT)"},
+			stmt:  "CREATE VIEW v AS WITH c1 AS (SELECT * FROM c2), c2 AS (SELECT *) SELECT * FROM c1",
+			code:  0,
+		},
+		{
+			// The inner block's CTE shadows the outer one, so the outer CTE is
+			// never read and MySQL never resolves it.
+			name:  "CREATE VIEW whose nested CTE shadows an unreferenced one",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM (WITH c AS (SELECT 1 AS x) SELECT x FROM c) d",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names no relation of the block",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT missing.* FROM a",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names its relation in another schema",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT other.a.* FROM a",
+			code:  1051,
+		},
+		{
+			// The pin runs with lower_case_table_names=0: a name and an alias are
+			// compared as written.
+			name:  "CREATE VIEW whose qualified star differs in case from its alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT T.* FROM a AS t",
+			code:  1051,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names a JSON_TABLE alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT jt.* FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$')) AS jt",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose qualified star names its relation's alias",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT t.* FROM a AS t",
+			code:  0,
+		},
+		{
+			// The dummy DUAL reads no CTE, whatever a CTE of that name is.
+			name:  "CREATE VIEW whose quoted dual CTE the dummy DUAL does not read",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS WITH `dual` AS (SELECT *) SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
+			name:  "CREATE VIEW whose body reads only DUAL for a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW v AS SELECT 1 FROM DUAL",
+			code:  0,
+		},
+		{
+			// `other.c` names another schema's table, not the CTE c, so MySQL
+			// never resolves the CTE's star.
+			name:  "CREATE VIEW whose qualified name shares an unreferenced CTE's",
+			setup: []string{"CREATE DATABASE cteother", "CREATE TABLE cteother.c (x INT)"},
+			stmt:  "CREATE VIEW v AS WITH c AS (SELECT *) SELECT * FROM cteother.c",
+			code:  0,
+		},
+		{
+			name:  "CREATE TABLE LIKE over a table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (LIKE a);",
+			code:  0,
+		},
+		// A bare NOW()-family DEFAULT is a current-timestamp value, which only
+		// a DATETIME or TIMESTAMP column holds. MySQL judges it while it
+		// prepares the statement: ahead of the table's lookup (1146) and of a
+		// duplicate column (1060). A parenthesized DEFAULT (NOW()) is a general
+		// expression default, which the same server takes on an INT column.
+		{
+			name: "ADD a NOW() default over no table",
+			stmt: "ALTER TABLE nope ADD e INT DEFAULT NOW()",
+			code: 1067,
+		},
+		{
+			name:  "ADD a CURRENT_TIMESTAMP default over a duplicate column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD b INT DEFAULT CURRENT_TIMESTAMP",
+			code:  1067,
+		},
+		{
+			name:  "MODIFY a column to a NOW() default",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a MODIFY b INT DEFAULT NOW()",
+			code:  1067,
+		},
+		{
+			name:  "ADD a parenthesized NOW() default to an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e INT DEFAULT (NOW())",
+			code:  0,
+		},
+		{
+			name:  "ADD a NOW() default to a DATETIME column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD e DATETIME DEFAULT NOW()",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on an INT column",
+			stmt: "CREATE TABLE z (a INT DEFAULT NOW());",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE with a NOW() default on a DATETIME column",
+			stmt: "CREATE TABLE z (a DATETIME DEFAULT NOW());",
+			code: 0,
+		},
+		{
+			// 4028 asks for a column a reader may see, not merely for a column.
+			name: "CREATE TABLE whose only column is invisible",
+			stmt: "CREATE TABLE z (a INT INVISIBLE);",
+			code: 4028,
+		},
+		{
+			name:  "CREATE TABLE whose only column is invisible, with a generated primary key",
+			setup: []string{"SET SESSION sql_generate_invisible_primary_key = ON"},
+			stmt:  "CREATE TABLE z (a INT INVISIBLE);",
+			code:  4028,
+		},
+		{
+			name: "CREATE TABLE with an invisible and a visible column",
+			stmt: "CREATE TABLE z (a INT INVISIBLE, b INT);",
+			code: 0,
+		},
+		{
+			name:  "ALTER COLUMN SET INVISIBLE on the last visible column",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			// A functional index's hidden system column is not a visible one.
+			name:  "ALTER COLUMN SET INVISIBLE beside a functional index",
+			setup: []string{"CREATE TABLE z (a VARCHAR(10), INDEX ((LOWER(a))))"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			// The visible column is judged over the table the statement leaves.
+			name:  "hide a column and add another in one ALTER",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE, ADD COLUMN c INT",
+			code:  0,
+		},
+		{
+			name:  "hide two columns in one ALTER",
+			setup: []string{"CREATE TABLE z (a INT, b INT)"},
+			stmt:  "ALTER TABLE z ALTER COLUMN a SET INVISIBLE, ALTER COLUMN b SET INVISIBLE",
+			code:  4028,
+		},
+		{
+			name:  "MODIFY the last visible column INVISIBLE",
+			setup: []string{"CREATE TABLE z (a INT, b INT INVISIBLE)"},
+			stmt:  "ALTER TABLE z MODIFY a INT INVISIBLE",
+			code:  4028,
+		},
+		{
+			// A CTAS appends the query's own columns as visible ones.
+			name: "CREATE TABLE AS SELECT beside an invisible column",
+			stmt: "CREATE TABLE z (a INT INVISIBLE) AS SELECT 1 AS b;",
+			code: 0,
+		},
+		{
+			// MySQL resolves a collation name while it parses, so a name it does
+			// not have is 1273 before the table is looked up: utf8mb4 is a
+			// character set and no collation.
+			name:  "COLLATE a character set name as a collation",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4",
+			code:  1273,
+		},
+		{
+			name:  "COLLATE an unknown collation on a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD c2 INT COLLATE utf8mb4",
+			code:  1273,
+		},
+		{
+			// The lookup answers before the trailing token a statement reads past
+			// the name: this text does not parse, and MySQL still answers 1273.
+			name:  "an unknown collation before a syntax error",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4 zzz",
+			code:  1273,
+		},
+		{
+			// A collation the server does have is read, and the trailing zzz is
+			// the 1064 it is.
+			name:  "a known collation before a syntax error",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COLLATE utf8mb4_bin zzz",
+			code:  1064,
+		},
+		{
+			// A CTAS body is read after the table's own name: a table that is not
+			// there leaves the body's column to answer 1054.
+			name: "CREATE TABLE AS SELECT a column no table has",
+			stmt: "CREATE TABLE z SELECT nosuchcol",
+			code: 1054,
+		},
+		{
+			// A star with no table to expand is 1096, as it is in a view body.
+			name: "CREATE TABLE AS SELECT a star with no table",
+			stmt: "CREATE TABLE z AS SELECT *",
+			code: 1096,
+		},
+		{
+			name:  "CREATE TABLE AS SELECT over the table it makes",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a SELECT nosuchcol",
+			code:  1050,
+		},
+		{
+			name: "CREATE TABLE AS SELECT a body it takes",
+			stmt: "CREATE TABLE z AS SELECT 1 AS b",
+			code: 0,
+		},
+		{
+			// Declaring the columns does not keep the body from being read.
+			name: "CREATE TABLE with columns AS SELECT a column no table has",
+			stmt: "CREATE TABLE z (a INT) AS SELECT nosuchcol",
+			code: 1054,
+		},
+		{
+			name: "CREATE TABLE with columns AS SELECT a body it takes",
+			stmt: "CREATE TABLE z (a INT) AS SELECT 1",
+			code: 0,
+		},
+		{
+			// An event's schedule sees no table, so a column reference names
+			// nothing: 1054, before the event's own name is looked up.
+			name:  "an event schedule naming a column",
+			setup: []string{oneTable},
+			stmt:  "CREATE EVENT e ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "an event schedule it takes",
+			setup: []string{oneTable},
+			stmt:  "CREATE DEFINER = root EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO COMMIT",
+			code:  0,
+		},
+		{
+			// ALTER EVENT reads the schedule the same way, before the event.
+			name:  "ALTER EVENT's schedule naming a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER EVENT e ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "ALTER EVENT's schedule over an event that is not there",
+			setup: []string{oneTable},
+			stmt:  "ALTER EVENT nosuchevent ON SCHEDULE AT nosuchcol DO COMMIT",
+			code:  1054,
+		},
+		{
+			name:  "ALTER EVENT's schedule it takes",
+			setup: []string{oneTable, "CREATE EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY DO COMMIT"},
+			stmt:  "ALTER EVENT e ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY DO COMMIT",
+			code:  0,
+		},
+		{
+			// InnoDB refuses ROW_FORMAT FIXED and COMPRESSION, and a table that
+			// names no engine is InnoDB's.
+			name:  "ROW_FORMAT FIXED on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED",
+			code:  1478,
+		},
+		{
+			name:  "COMPRESSION on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION 's'",
+			code:  1478,
+		},
+		{
+			// An empty COMPRESSION is a value InnoDB takes: it is the option
+			// written with no value, not a value the engine refuses.
+			name:  "an empty COMPRESSION on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION=''",
+			code:  0,
+		},
+		{
+			// ZLIB, LZ4 and NONE are InnoDB's page compression and its off
+			// switch, so the option is refused on the value and not on the name.
+			name:  "COMPRESSION ZLIB on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION='ZLIB'",
+			code:  0,
+		},
+		{
+			name:  "COMPRESSION none on InnoDB",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a COMPRESSION='none'",
+			code:  0,
+		},
+		{
+			// The row option is judged after the statement's other commands.
+			name:  "ROW_FORMAT FIXED beside a key on a column that is not there",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT FIXED, ADD KEY(zzz)",
+			code:  1072,
+		},
+		{
+			// The engine is the one the statement leaves, so MyISAM takes it and
+			// MySQL stores the table it makes.
+			name:     "ROW_FORMAT FIXED on MyISAM",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ENGINE=MyISAM, ROW_FORMAT FIXED",
+			code:     0,
+			contains: []string{"ENGINE=MyISAM"},
+		},
+		// A CHECK expression whose top level is not boolean is 3812 while the
+		// statement is prepared, before the column it names is resolved (a bare
+		// unknown column is this, not 1054) and before a duplicate column.
+		{
+			name:  "ADD CHECK over a bare column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CHECK(zzz)",
+			code:  3812,
+		},
+		{
+			name:  "ADD a column whose CHECK is the column itself",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT CHECK(zzz)",
+			code:  3812,
+		},
+		{
+			name:  "ADD CHECK over a comparison",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD CHECK(b > 0)",
+			code:  0,
+		},
+		// A generated column whose expression names the column being added is
+		// 3107 after the duplicate-column check, not 1054.
+		{
+			name:  "ADD a generated column that names itself",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT AS(zzz)",
+			code:  3107,
+		},
+		{
+			name:  "ADD a generated column over a base column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT AS(b + 1)",
+			code:  0,
+		},
+		// ALTER INDEX and RENAME KEY over a key the table does not hold answer
+		// 1176, not the 1061 a duplicate name answers.
+		{
+			name:  "ALTER INDEX over a key the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER INDEX zzz VISIBLE",
+			code:  1176,
+		},
+		{
+			name:  "RENAME KEY over a key the table does not hold",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a RENAME KEY zzz TO yyy",
+			code:  1176,
+		},
+		// A SRID clause belongs to a geometry column, and a bare WITH VALIDATION
+		// belongs to EXCHANGE PARTITION. Both are 1221 while the statement is
+		// prepared, ahead of the table lookup.
+		{
+			name:  "ADD a non-geometry column with SRID",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD zzz INT SRID 1",
+			code:  1221,
+		},
+		{
+			name:  "ALTER TABLE WITH VALIDATION",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a WITH VALIDATION",
+			code:  1221,
+		},
+		{
+			name:  "ALTER TABLE WITHOUT VALIDATION",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a WITHOUT VALIDATION",
+			code:  1221,
+		},
+		// CREATE TABLE ... LIKE naming its own source is 1066 before either
+		// table is looked up: over the table itself, and over one that is not
+		// there.
+		{
+			name:  "CREATE TABLE LIKE itself over the table",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a LIKE a",
+			code:  1066,
+		},
+		{
+			name: "CREATE TABLE LIKE itself",
+			stmt: "CREATE TABLE a LIKE a",
+			code: 1066,
+		},
+		// A key that lists the same column twice is 1060, after the columns
+		// exist and after a prefix's own check.
+		{
+			name:  "ADD KEY over the same column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(b, b)",
+			code:  1060,
+		},
+		{
+			name:  "ADD FOREIGN KEY over the same column twice",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(c, c) REFERENCES a(b)",
+			code:  1060,
+		},
+		// ANALYZE, CHECK, OPTIMIZE and REPAIR PARTITION do not open the table
+		// when each is the statement's only action.
+		{
+			name: "OPTIMIZE PARTITION over a table that is not there",
+			stmt: "ALTER TABLE a OPTIMIZE PARTITION ALL",
+			code: 0,
+		},
+		// START TRANSACTION is not an ALTER TABLE option, and an ENCRYPTION
+		// value other than Y or N is 3184.
+		{
+			name:  "ALTER TABLE START TRANSACTION",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a START TRANSACTION",
+			code:  3979,
+		},
+		{
+			name:  "ALTER TABLE ENCRYPTION over a value it does not take",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENCRYPTION 's'",
+			code:  3184,
+		},
 	}
 
 	for _, tc := range cases {
@@ -820,6 +1623,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 					}
 				}
 			}
+			if tc.code == 0 && tc.keeps != "" {
+				tbl := c.GetDatabase("d").GetTable("a")
+				if tbl == nil || tbl.Partitioning == nil || tbl.Partitioning.Type != tc.keeps {
+					t.Fatalf("catalog did not keep the %s partitioning %s wrote: %+v", tc.keeps, tc.stmt, tbl)
+				}
+			}
 			if tc.code == 0 && tc.stmt == "ALTER TABLE a ADD PRIMARY KEY(x2), ADD x2 INT" {
 				tbl := c.GetDatabase("d").GetTable("a")
 				if col := tbl.GetColumn("x2"); col == nil || col.Nullable {
@@ -872,6 +1681,13 @@ func simulationEngineRefusal(t *testing.T, stmt string, err error) (int, string)
 func simulationCatalogRefusal(t *testing.T, c *Catalog, stmt string) (int, string) {
 	t.Helper()
 	results, err := c.Exec(stmt, nil)
+	var syntax *mysqlparser.ParseError
+	if errors.As(err, &syntax) {
+		// A statement the parser refuses is the code it recorded, 1064 for a
+		// syntax error: see mysql/catalog/simulate_test.go's parseCode.
+		code, _ := strconv.Atoi(parseCode(syntax))
+		return code, syntax.Message
+	}
 	if err != nil {
 		t.Fatalf("Exec(%q): %v", stmt, err)
 	}

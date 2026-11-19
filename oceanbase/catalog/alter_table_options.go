@@ -112,8 +112,34 @@ func checkAlterTableOption(tbl *Table, opt *nodes.TableOption) error {
 		// An external table's options. The catalog holds no external table, and
 		// OceanBase answers an internal error for them on any other.
 		return &Error{Code: 4016, SQLState: "HY000", Message: "Internal error"}
+	case name == "TABLEGROUP":
+		// The catalog keeps no tablegroup, so every one a statement names is missing:
+		// ALTER TABLE a TABLEGROUP a is 5151, whatever the tablegroup and however it
+		// is spelled. TABLEGROUP = '' takes the table out of one, and is taken
+		// (TestSimulationCausesOracle).
+		if value == "" {
+			return nil
+		}
+		return errNoTablegroup()
+	case name == "TABLESPACE":
+		// OceanBase CE creates no tablespace (CREATE TABLESPACE is 1235), so every
+		// name is missing: ALTER TABLE a TABLESPACE a is 3510, innodb_system and
+		// innodb_file_per_table included (TestSimulationCausesOracle).
+		return errNoTablespace()
 	}
 	return nil
+}
+
+// errNoTablegroup is 5151, the answer to a tablegroup the server does not have. The
+// catalog keeps none, so it answers for every name it is given.
+func errNoTablegroup() error {
+	return &Error{Code: 5151, SQLState: "42P01", Message: "tablegroup not exist"}
+}
+
+// errNoTablespace is 3510, the answer to a tablespace the server does not have.
+// OceanBase CE creates none, so every name is absent.
+func errNoTablespace() error {
+	return &Error{Code: 3510, SQLState: "HY000", Message: "Tablespace does not exist"}
 }
 
 var (

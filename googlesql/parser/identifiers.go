@@ -47,6 +47,33 @@ func isIdentifierStart(tokenType int) bool {
 	return tokenType >= keywordBase && !keywordReserved[tokenType]
 }
 
+// tmNonReservedWords are word-keywords the pinned Textmapper grammar
+// (googlesql.tm's own common_keyword_as_identifier) takes as identifiers, but
+// which the legacy GoogleSQLLexer.g4 — the drift detector's source for the
+// reserved/non-reserved split — classifies as reserved. MATCH_RECOGNIZE is the
+// clearest: the legacy grammar lists it through the placeholder token
+// KW_MATCH_RECOGNIZE_NONRESERVED, whose literal text is the token name rather
+// than the word, so the split cannot see it. QUALIFY, NOTHING and SHORTEST are
+// simply missing from the older grammar's list.
+//
+// The override is consulted only where an identifier is expected, never by
+// isIdentifierStart, so each word keeps its clause meaning in its own position:
+// MATCH_RECOGNIZE still opens the clause after a table source, QUALIFY still
+// opens the clause after a select list, and SHORTEST still introduces a graph
+// search prefix.
+var tmNonReservedWords = map[int]bool{
+	kwMATCH_RECOGNIZE: true,
+	kwNOTHING:         true,
+	kwQUALIFY:         true,
+	kwSHORTEST:        true,
+}
+
+// atTmNonReservedWord reports whether the cursor is a word the pinned grammar
+// takes as an identifier (see tmNonReservedWords).
+func (p *Parser) atTmNonReservedWord() bool {
+	return tmNonReservedWords[p.cur.Type]
+}
+
 // isIdentifierInHints reports whether tokenType matches `identifier_in_hints`
 // (googlesql.tm: identifier | "HASH" | "PROTO" | "PARTITION").
 func isIdentifierInHints(tokenType int) bool {

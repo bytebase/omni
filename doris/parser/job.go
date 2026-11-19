@@ -171,16 +171,19 @@ func (p *Parser) parseJobSchedule() (*ast.JobSchedule, error) {
 	case kwEVERY:
 		p.advance() // consume EVERY
 
-		// Collect interval: integer + unit keyword (e.g., "1 DAY")
-		var parts []string
-		if p.cur.Kind == tokInt {
-			parts = append(parts, p.cur.Str)
-			p.advance()
+		// refreshSchedule is EVERY INTEGER_VALUE unit=identifier
+		// (DorisParser.g4:1014): both are required.
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
 		}
+		parts := []string{p.cur.Str}
+		p.advance()
 		// Unit keyword (DAY, HOUR, MINUTE, SECOND, WEEK, MONTH, YEAR, etc.)
 		if p.cur.Kind >= 700 || p.cur.Kind == tokIdent {
 			parts = append(parts, strings.ToUpper(p.cur.Str))
 			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 		sched.Every = strings.Join(parts, " ")
 
@@ -208,10 +211,16 @@ func (p *Parser) parseJobSchedule() (*ast.JobSchedule, error) {
 
 	case kwAT:
 		p.advance() // consume AT
-		if p.cur.Kind != tokString {
+		// AT (STRING_LITERAL | CURRENT_TIMESTAMP) (DorisParser.g4:121).
+		switch p.cur.Kind {
+		case tokString:
+			sched.At = p.cur.Str
+		case kwCURRENT_TIMESTAMP:
+			sched.At = "CURRENT_TIMESTAMP"
+			sched.AtCurrentTimestamp = true
+		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-		sched.At = p.cur.Str
 		sched.Loc.End = p.cur.Loc.End
 		p.advance()
 
@@ -368,28 +377,51 @@ func (p *Parser) parseCancelTask(startLoc ast.Loc) (ast.Node, error) {
 	if _, err := p.expect(kwTASK); err != nil {
 		return nil, err
 	}
-	// Consume FOR
-	if _, err := p.expect(kwFOR); err != nil {
-		return nil, err
-	}
 
 	stmt := &ast.CancelTaskStmt{}
 
-	// job_name
-	name, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	stmt.For = name
+	// CANCEL TASK FOR job_name task_id is the older targeted form, which the
+	// engine keeps; the grammar also derives CANCEL TASK wildWhere?
+	// (DorisParser.g4:458).
+	if p.cur.Kind == kwFOR {
+		p.advance() // consume FOR
+		name, err := p.parseMultipartIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.For = name
 
-	// task_id — integer
-	if p.cur.Kind != tokInt {
-		return nil, p.syntaxErrorAtCur()
+		// task_id — integer
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.TaskID = p.cur.Ival
+		stmt.Loc = startLoc.Merge(p.cur.Loc)
+		p.advance()
+		return stmt, nil
 	}
-	stmt.TaskID = p.cur.Ival
-	stmt.Loc = startLoc.Merge(p.cur.Loc)
-	p.advance()
 
+	switch p.cur.Kind {
+	case kwLIKE:
+		p.advance()
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Like = p.cur.Str
+		stmt.HasLike = true
+		stmt.Loc = startLoc.Merge(p.cur.Loc)
+		p.advance()
+	case kwWHERE:
+		p.advance()
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Where = expr
+		stmt.Loc = startLoc.Merge(ast.NodeLoc(expr))
+	default:
+		stmt.Loc = startLoc.Merge(p.prev.Loc)
+	}
 	return stmt, nil
 }
 

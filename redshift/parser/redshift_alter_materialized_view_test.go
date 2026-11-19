@@ -161,3 +161,32 @@ func assertAlterTableCmdOptionList(t *testing.T, cmd *nodes.AlterTableCmd, name 
 		t.Fatalf("expected option %q list length %d, got %d", name, length, len(list.Items))
 	}
 }
+
+// TestRedshiftAlterMaterializedViewAutoRefreshIntervalParse pins
+// AUTO REFRESH YES INTERVAL, the interval minutes r_ALTER_MATERIALIZED_VIEW
+// makes optional after YES.
+func TestRedshiftAlterMaterializedViewAutoRefreshIntervalParse(t *testing.T) {
+	stmt := firstAlterTableStmt(t, "ALTER MATERIALIZED VIEW tickets_mv AUTO REFRESH YES INTERVAL 15;")
+	cmd, ok := stmt.Cmds.Items[0].(*nodes.AlterTableCmd)
+	if !ok {
+		t.Fatalf("expected AlterTableCmd, got %T", stmt.Cmds.Items[0])
+	}
+	if cmd.Name != "auto_refresh" {
+		t.Fatalf("command = %q, want auto_refresh", cmd.Name)
+	}
+	assertAlterTableCmdOptionBool(t, cmd, "enabled", true)
+	assertAlterTableCmdOptionInt(t, cmd, "interval", 15)
+
+	// NO carries no interval, and the interval never stands alone.
+	if _, err := Parse("ALTER MATERIALIZED VIEW tickets_mv AUTO REFRESH NO INTERVAL 15"); err == nil {
+		t.Error("AUTO REFRESH NO INTERVAL 15 parsed, want a syntax error")
+	}
+	if _, err := Parse("ALTER MATERIALIZED VIEW tickets_mv AUTO REFRESH YES INTERVAL"); err == nil {
+		t.Error("AUTO REFRESH YES INTERVAL parsed without a number, want a syntax error")
+	}
+}
+
+func assertAlterTableCmdOptionInt(t *testing.T, cmd *nodes.AlterTableCmd, name string, want int64) {
+	t.Helper()
+	assertDefElemInt(t, alterTableCmdOptions(t, cmd), name, want)
+}

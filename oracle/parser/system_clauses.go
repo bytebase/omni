@@ -17,9 +17,10 @@ import (
 //
 // Where the pages and the pinned Oracle 23.26.3 disagree, the parser follows
 // Oracle, as its compat.tsv rows and probes on the server show; each
-// function says where. Parameter names are not checked: Oracle refuses a
-// parameter it does not know (ORA-02065, ORA-02248), which takes the
-// server's parameter list.
+// function says where. Parameter names come from V$PARAMETER (parameters.go):
+// Oracle refuses a name it does not hold (ORA-02065, ORA-02248) before it
+// reads the value, and ALTER SYSTEM RESET refuses one at the statement's
+// start (ORA-00922).
 
 // sysAtEnd reports whether the statement's text has ended.
 func (p *Parser) sysAtEnd() bool {
@@ -160,6 +161,43 @@ func (p *Parser) parseSysParamValue(units bool) (nodes.ExprNode, error) {
 // sysWordValue is the value node of a word, as an expression reads it.
 func (p *Parser) sysWordValue(word string, start int) nodes.ExprNode {
 	return &nodes.ColumnRef{Column: word, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+}
+
+// parseParameterValue reads a parameter's value. A parameter V$PARAMETER_VALID_VALUES
+// lists single words for takes one of them, and Oracle refuses any other value
+// at the value (ORA-00096 when it applies it); any other parameter takes the
+// generic value parseSysParamValue reads. The list is not a syntax rule of the
+// page: ALTER-SESSION and ALTER-SYSTEM write parameter_name = parameter_value,
+// and the server checks the value against the parameter it names.
+func (p *Parser) parseParameterValue(name string, units bool) (nodes.ExprNode, error) {
+	values, ok := oracleParameterValues[strings.ToUpper(name)]
+	if !ok {
+		return p.parseSysParamValue(units)
+	}
+	// Oracle takes an enumerated value bare or as a string literal, and
+	// matches either in any case.
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		value := strings.ToUpper(strings.TrimSpace(tok.Str))
+		for _, v := range values {
+			if v == value {
+				return &nodes.StringLiteral{Val: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
+			}
+		}
+		return nil, p.syntaxErrorAtTok(tok)
+	}
+	start := p.pos()
+	if !p.isSysWordToken() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	word := p.advance().Str
+	value := strings.ToUpper(word)
+	for _, v := range values {
+		if v == value {
+			return p.sysWordValue(word, start), nil
+		}
+	}
+	return nil, p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: start, End: p.prev.End})
 }
 
 // ---------------------------------------------------------------------------
@@ -379,6 +417,7 @@ func (p *Parser) parseAlterSessionSetParams() (*nodes.List, error) {
 func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 	start := p.pos()
 	var name string
+	quoted := false
 	if p.cur.Type == kwROW {
 		// ROW ARCHIVAL VISIBILITY
 		p.advance()
@@ -390,20 +429,30 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 		}
 		name = "ROW ARCHIVAL VISIBILITY"
 	} else {
-		quoted := p.cur.Type == tokQIDENT
+		quoted = p.cur.Type == tokQIDENT
 		var err error
 		if name, err = p.sysName(); err != nil {
 			return nil, err
 		}
-		if quoted {
-			// A quoted name is a plain parameter, read as Oracle folds it.
-			name = strings.ToUpper(name)
-			value, err := p.parseAlterSessionGenericValue()
-			if err != nil {
-				return nil, err
-			}
-			return &nodes.SetParam{Name: name, Value: value, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
+	}
+	nameTok := Token{Type: tokIDENT, Loc: start, End: p.prev.End}
+	// Oracle looks a setting's name up while it parses and answers ORA-02248
+	// at a name that is neither a parameter nor one of the settings
+	// alter_session_set_clause names. A quoted name is a parameter only.
+	if !isOracleParameter(name) && (quoted || !isAlterSessionSetting(name)) {
+		return nil, p.syntaxErrorAtTok(nameTok)
+	}
+	if quoted {
+		// A quoted name is a plain parameter, read as Oracle folds it.
+		name = strings.ToUpper(name)
+		if err := p.sysExpectChar('='); err != nil {
+			return nil, err
 		}
+		value, err := p.parseParameterValue(name, false)
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.SetParam{Name: name, Value: value, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	if name == "EVENTS" && p.cur.Type == tokSCONST {
 		value, err := p.parseSysParamValue(false)
@@ -419,6 +468,13 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 		if err := p.sysExpectChar('='); err != nil {
 			return nil, err
 		}
+	}
+	// The two outline settings take no value at all: Oracle answers ALTER
+	// SESSION SET USE_PRIVATE_OUTLINES = with no error, where a plain
+	// parameter's missing value is ORA-00921 at the end (optimizer_mode) and
+	// a named one's own check (ORA-02248).
+	if outline && p.sysAtEnd() {
+		return &nodes.SetParam{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	value, err := p.parseAlterSessionValue(name)
 	if err != nil {
@@ -436,14 +492,6 @@ func (p *Parser) parseAlterSessionSetParam() (*nodes.SetParam, error) {
 		param.Loc.End = p.prev.End
 	}
 	return param, nil
-}
-
-// parseAlterSessionGenericValue reads '=' and a plain parameter's value.
-func (p *Parser) parseAlterSessionGenericValue() (nodes.ExprNode, error) {
-	if err := p.sysExpectChar('='); err != nil {
-		return nil, err
-	}
-	return p.parseSysParamValue(false)
 }
 
 // parseAlterSessionValue reads the value of the ALTER SESSION setting name,
@@ -505,7 +553,7 @@ func (p *Parser) parseAlterSessionValue(name string) (nodes.ExprNode, error) {
 		}
 		return p.sysWordValue(w, start), nil
 	}
-	return p.parseSysParamValue(false)
+	return p.parseParameterValue(name, false)
 }
 
 // ---------------------------------------------------------------------------
@@ -546,7 +594,7 @@ func (p *Parser) parseAlterSystemBody(stmt *nodes.AlterSystemStmt) error {
 	switch {
 	case p.cur.Type == kwSET:
 		p.advance()
-		if p.isKeywordStr("ENCRYPTION") || p.isKeywordStr("WALLET") {
+		if p.isKeywordStr("ENCRYPTION") || p.isKeywordStr("WALLET") || p.isKeywordStr("KEY") {
 			return p.parseAlterSystemEncryption(stmt)
 		}
 		stmt.Action = "SET"
@@ -700,10 +748,15 @@ func (p *Parser) parseAlterSystemSetParams(stmt *nodes.AlterSystemStmt) (*nodes.
 		if err != nil {
 			return nil, err
 		}
+		// Oracle answers ORA-02065 at a name V$PARAMETER does not hold,
+		// before it reads the '=' or the value after it.
+		if !isOracleParameter(name) {
+			return nil, p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: start, End: p.prev.End})
+		}
 		if err := p.sysExpectChar('='); err != nil {
 			return nil, err
 		}
-		value, err := p.parseSysParamValue(true)
+		value, err := p.parseParameterValue(name, true)
 		if err != nil {
 			return nil, err
 		}
@@ -777,11 +830,21 @@ func (p *Parser) parseAlterSystemSetModifiers(stmt *nodes.AlterSystemStmt) error
 //
 //	RESET parameter_name [ SCOPE = { MEMORY | SPFILE | BOTH } ] [ SID = { 'sid' | '*' } ]
 //
-// Oracle takes SCOPE and SID in either order.
+// Oracle takes SCOPE and SID in either order. A missing name, and a name
+// V$PARAMETER does not hold, answer ORA-00922 at the statement's start.
 func (p *Parser) parseAlterSystemReset(stmt *nodes.AlterSystemStmt) error {
+	// Oracle answers ORA-00922 at the start of the statement for a RESET with
+	// no parameter and for a name V$PARAMETER does not hold (ALTER SYSTEM
+	// RESET a is refused at 0, and ALTER SYSTEM RESET OPTIMIZER_MODE parses).
+	if !p.isSysNameToken() {
+		return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: stmt.Loc.Start})
+	}
 	var err error
 	if stmt.ResetParam, err = p.sysName(); err != nil {
 		return err
+	}
+	if !isOracleParameter(stmt.ResetParam) {
+		return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: stmt.Loc.Start})
 	}
 	scope, sid := false, false
 	for {

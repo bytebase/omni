@@ -23,6 +23,11 @@ func resolve(cs *parser.CandidateSet, cat *catalog.Catalog, sql string, cursorOf
 		result = append(result, Candidate{Text: name, Type: CandidateKeyword})
 	}
 
+	// Words are clause text no keyword names, such as PARTITIONED BY.
+	for _, word := range cs.Words {
+		result = append(result, Candidate{Text: word, Type: CandidateKeyword})
+	}
+
 	// Rule candidates -> catalog objects
 	if cat != nil {
 		for _, rc := range cs.Rules {

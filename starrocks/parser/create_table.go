@@ -599,8 +599,45 @@ func isCreateTableLikeShape(stmt *ast.CreateTableStmt) bool {
 
 // parseCreateTableClauses parses the optional trailing clauses of CREATE TABLE
 // in flexible order.
+// ctasClauseRank orders createTableAsSelectStatement's clauses
+// (StarRocks.g4:488-497): keyDesc, comment, partition, distribution, orderBy,
+// properties, AS. A rank of 0 is a clause the production does not take.
+func ctasClauseRank(kind TokenKind) int {
+	switch kind {
+	case kwAGGREGATE, kwUNIQUE, kwDUPLICATE, kwPRIMARY:
+		return 1
+	case kwCOMMENT:
+		return 2
+	case kwPARTITION:
+		return 3
+	case kwDISTRIBUTED:
+		return 4
+	case kwORDER:
+		return 5
+	case kwPROPERTIES:
+		return 6
+	case kwAS:
+		return 7
+	}
+	return 0
+}
+
 func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
+	lastRank := 0
 	for {
+		if p.strictCTAS {
+			rank := ctasClauseRank(p.cur.Kind)
+			if rank == 0 {
+				switch p.cur.Kind {
+				case kwENGINE, kwROLLUP, kwBROKER, kwLIKE, kwAUTO:
+					return p.syntaxErrorAtCur()
+				}
+			} else if rank <= lastRank {
+				return p.syntaxErrorAtCur()
+			} else {
+				lastRank = rank
+			}
+		}
 		switch p.cur.Kind {
 		case kwENGINE:
 			p.advance() // consume ENGINE
@@ -620,8 +657,12 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 			stmt.KeyDesc = keyDesc
-			// Optional CLUSTER BY (cols) -- skip for now
+			// Optional CLUSTER BY (cols) -- skip for now. CTAS's keyDesc ends
+			// at its identifier list, so strictCTAS refuses the suffix.
 			if p.cur.Kind == kwCLUSTER {
+				if p.strictCTAS {
+					return p.syntaxErrorAtCur()
+				}
 				p.advance()
 				if _, err := p.expect(kwBY); err != nil {
 					return err
@@ -661,6 +702,30 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			if err != nil {
 				return err
 			}
+			if p.strictCTAS {
+				if partDesc.RangeExplicit && !partDesc.HasDefinitions {
+					return p.syntaxErrorAtCur()
+				}
+				for _, item := range partDesc.Partitions {
+					switch partDesc.Type {
+					case "RANGE":
+						if item.FromStep || len(item.InValues) > 0 ||
+							(item.ValuesChecked && !item.ValuesValid) ||
+							(!item.IsMaxValue && len(item.Values) == 0 && !item.IsStep) {
+							return p.syntaxErrorAtCur()
+						}
+					case "LIST":
+						if len(item.InValues) == 0 || !item.InValuesValid ||
+							item.IsMaxValue || len(item.Values) > 0 || item.IsStep {
+							return p.syntaxErrorAtCur()
+						}
+					}
+					if item.IsStep && !item.FromStep && item.IntervalUnit != "" &&
+						!isTaskIntervalUnit(item.IntervalUnit) {
+						return p.syntaxErrorAtCur()
+					}
+				}
+			}
 			stmt.PartitionBy = partDesc
 			continue
 
@@ -689,13 +754,17 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			continue
 
 		case kwBROKER:
-			// BROKER ext_properties -- skip the broker properties clause
+			// BROKER ext_properties (StarRocks.g4:2703), where extProperties
+			// is BROKER properties: a bare BROKER is incomplete.
 			p.advance() // consume BROKER
-			if p.cur.Kind == kwPROPERTIES {
-				if _, err := p.parseProperties(); err != nil {
-					return err
-				}
+			if p.cur.Kind != kwPROPERTIES {
+				return p.syntaxErrorAtCur()
 			}
+			props, err := p.parseProperties()
+			if err != nil {
+				return err
+			}
+			stmt.BrokerProperties = props
 			continue
 
 		case kwAS:
@@ -801,37 +870,100 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	}
 
 	// Optional RANGE or LIST
+	explicitType := false
 	switch p.cur.Kind {
 	case kwRANGE:
 		pd.Type = "RANGE"
+		pd.RangeExplicit = true
+		explicitType = true
 		p.advance()
 	case kwLIST:
 		pd.Type = "LIST"
+		explicitType = true
 		p.advance()
 	default:
 		// Type may be inferred from context (AUTO partition can omit it)
-		pd.Type = "RANGE" // default for AUTO
+		pd.Type = "RANGE" // default for AUTO and function forms
 	}
 
 	// partitionDesc (StarRocks.g4:2593) names its columns after BY; the
 	// parenthesized list is the form omni reads, so PARTITION BY with
 	// nothing after it is refused.
 	if p.cur.Kind != int('(') {
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	// Parse partition column/function list: (col1, func(col2), ...)
-	if p.cur.Kind == int('(') {
+		// LIST takes identifierList only; RANGE may take a primary expression,
+		// and a keywordless clause may take a partitionExpr.
+		if explicitType && pd.Type == "LIST" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		// FUNCTION call or partition expression: PARTITION BY functionCall
+		// or PARTITION BY partitionExpr (',' partitionExpr)*.
+		if !isPartitionExprStart(p.cur.Kind) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		for {
+			start := p.cur.Loc.Start
+			var expr ast.Node
+			var err error
+			if explicitType && p.rangeScalarBeforeDefinitions() {
+				// RANGE c (definitions): c is a column, not a function call.
+				name, loc, idErr := p.parseIdentifier()
+				if idErr != nil {
+					return nil, idErr
+				}
+				expr = &ast.ColumnRef{Name: &ast.ObjectName{Parts: []string{name}, Loc: loc}, Loc: loc}
+			} else if explicitType {
+				// Explicit RANGE takes a primaryExpression only.
+				expr, err = p.parsePrimaryExpr()
+			} else {
+				expr, err = p.parseExpr()
+			}
+			if err != nil {
+				return nil, err
+			}
+			if explicitType {
+				if _, ok := expr.(*ast.ColumnRef); ok {
+					pd.RangeScalar = true
+				}
+			} else {
+				// partitionExpr is only a single identifier or a function call.
+				switch v := expr.(type) {
+				case *ast.ColumnRef:
+					if v.Name == nil || len(v.Name.Parts) != 1 {
+						return nil, p.syntaxErrorAtCur()
+					}
+				case *ast.FuncCallExpr:
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
+			}
+			end := p.prev.Loc.End
+			pd.FuncExprs = append(pd.FuncExprs, strings.TrimSpace(p.input[start-p.baseOffset:end-p.baseOffset]))
+			if explicitType || p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		pd.Loc.End = p.prev.Loc.End
+	} else {
+		// Parse partition column/function list: (col1, func(col2), ...)
 		cols, funcs, err := p.parseIdentityOrFunctionList()
 		if err != nil {
 			return nil, err
 		}
+		if !explicitType && len(funcs) > 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		pd.Columns = cols
 		pd.FuncExprs = funcs
+		if !explicitType && !pd.Auto {
+			// A keywordless identifier list is the grammar's LIST alternative.
+			pd.Type = "LIST"
+		}
 	}
 
 	// Parse partition definitions: (...)
 	if p.cur.Kind == int('(') {
+		pd.HasDefinitions = true
 		p.advance() // consume '('
 		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 			item, err := p.parsePartitionItem()
@@ -842,7 +974,15 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 
 			if p.cur.Kind == int(',') {
 				p.advance()
+				if p.strictCTAS && (p.cur.Kind == int(')') || p.cur.Kind == tokEOF) {
+					return nil, p.syntaxErrorAtCur()
+				}
+				continue
 			}
+			if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+				return nil, p.syntaxErrorAtCur()
+			}
+			break
 		}
 		closeTok, err := p.expect(int(')'))
 		if err != nil {
@@ -852,6 +992,39 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	}
 
 	return pd, nil
+}
+
+// rangeScalarBeforeDefinitions reports whether an identifier at cur is the
+// scalar RANGE expression and the following '(' opens the definition list,
+// rather than the identifier's function-call arguments.
+func (p *Parser) rangeScalarBeforeDefinitions() bool {
+	if !isIdentifierToken(p.cur.Kind) || p.peekNext().Kind != int('(') {
+		return false
+	}
+	mark := p.save()
+	p.advance() // consume identifier
+	p.advance() // consume '('
+	next := p.cur.Kind
+	p.restore(mark)
+	return next == kwPARTITION || next == kwSTART || next == int(')')
+}
+
+// isTaskIntervalUnit reports whether unit is one of StarRocks's unitIdentifier
+// values.
+func isTaskIntervalUnit(unit string) bool {
+	switch strings.ToUpper(unit) {
+	case "YEAR", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND",
+		"QUARTER", "MILLISECOND", "MICROSECOND":
+		return true
+	}
+	return false
+}
+
+// isPartitionExprStart reports whether kind can start a functionCall or
+// partitionExpr.
+func isPartitionExprStart(kind TokenKind) bool {
+	return isIdentifierToken(kind) || kind == int('(') || kind == int('+') ||
+		kind == int('-') || kind == tokString || kind == tokInt || kind == tokFloat
 }
 
 // parseIdentityOrFunctionList parses a parenthesized list of identifiers or
@@ -970,27 +1143,31 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 				return nil, err
 			}
 
+			item.ValuesChecked = true
 			if p.cur.Kind == kwMAXVALUE {
 				item.IsMaxValue = true
+				item.ValuesValid = true
 				item.Loc.End = p.cur.Loc.End
 				p.advance()
 			} else {
-				vals, endLoc, err := p.parsePartitionValueList()
+				vals, endLoc, valid, err := p.parsePartitionValueListKind()
 				if err != nil {
 					return nil, err
 				}
 				item.Values = vals
+				item.ValuesValid = valid
 				item.Loc.End = endLoc
 			}
 
 		case kwIN:
 			// IN ((val1, val2), (val3, val4)) or IN (val1, val2)
 			p.advance() // consume IN
-			inVals, endLoc, err := p.parseInPartitionValues()
+			inVals, endLoc, valid, err := p.parseInPartitionValues()
 			if err != nil {
 				return nil, err
 			}
 			item.InValues = inVals
+			item.InValuesValid = valid
 			item.Loc.End = endLoc
 
 		case int('['):
@@ -1054,6 +1231,7 @@ func (p *Parser) parseStepPartition(startLoc ast.Loc) (*ast.PartitionItem, error
 
 	item := &ast.PartitionItem{
 		IsStep:     true,
+		FromStep:   true,
 		FromValues: fromVals,
 		ToValues:   toVals,
 		Loc:        startLoc,
@@ -1159,29 +1337,46 @@ func (p *Parser) parseBatchRangePartition(startLoc ast.Loc) (*ast.PartitionItem,
 // parsePartitionValueList parses: '(' value [, value]* ')'
 // Returns the values as strings and the end byte offset.
 func (p *Parser) parsePartitionValueList() ([]string, int, error) {
+	vals, end, _, err := p.parsePartitionValueListKind()
+	return vals, end, err
+}
+
+func (p *Parser) parsePartitionValueListKind() ([]string, int, bool, error) {
 	if _, err := p.expect(int('(')); err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
 	var vals []string
+	valid := true
 	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind != tokString && p.cur.Kind != kwMAXVALUE {
+			valid = false
+		}
 		val, err := p.parsePartitionValueDef()
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, false, err
 		}
 		vals = append(vals, val)
 
 		if p.cur.Kind == int(',') {
 			p.advance()
+			if p.strictCTAS && p.cur.Kind == int(')') {
+				return nil, 0, false, p.syntaxErrorAtCur()
+			}
+			continue
 		}
+		if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+			return nil, 0, false, p.syntaxErrorAtCur()
+		}
+		break
 	}
 
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
-	return vals, closeTok.Loc.End, nil
+	return vals, closeTok.Loc.End, valid, nil
 }
 
 // parsePartitionValueDef parses a single partition value:
@@ -1221,41 +1416,89 @@ func (p *Parser) parsePartitionValueDef() (string, error) {
 
 // parseInPartitionValues parses IN partition values:
 // '(' (value_list) [, (value_list)]* ')' or '(' value [, value]* ')'
-func (p *Parser) parseInPartitionValues() ([][]string, int, error) {
+func (p *Parser) parseInPartitionValues() ([][]string, int, bool, error) {
 	if _, err := p.expect(int('(')); err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
 	var result [][]string
+	valid := true
 
 	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 		if p.cur.Kind == int('(') {
 			// Parenthesized value list
-			vals, _, err := p.parsePartitionValueList()
+			vals, _, listValid, err := p.parseListValueList()
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
+			valid = valid && listValid
 			result = append(result, vals)
 		} else {
 			// Single value
+			if p.cur.Kind != tokString && p.cur.Kind != kwNULL {
+				valid = false
+			}
 			val, err := p.parsePartitionValueDef()
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, false, err
 			}
 			result = append(result, []string{val})
 		}
 
 		if p.cur.Kind == int(',') {
 			p.advance()
+			if p.strictCTAS && p.cur.Kind == int(')') {
+				return nil, 0, false, p.syntaxErrorAtCur()
+			}
+			continue
 		}
+		if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+			return nil, 0, false, p.syntaxErrorAtCur()
+		}
+		break
 	}
 
 	closeTok, err := p.expect(int(')'))
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, false, err
 	}
 
-	return result, closeTok.Loc.End, nil
+	return result, closeTok.Loc.End, valid, nil
+}
+
+// parseListValueList parses a parenthesized list partition value list, whose
+// entries are NULL or quoted strings.
+func (p *Parser) parseListValueList() ([]string, int, bool, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, 0, false, err
+	}
+	var vals []string
+	valid := true
+	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind != tokString && p.cur.Kind != kwNULL {
+			valid = false
+		}
+		val, err := p.parsePartitionValueDef()
+		if err != nil {
+			return nil, 0, false, err
+		}
+		vals = append(vals, val)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance()
+		if p.strictCTAS && p.cur.Kind == int(')') {
+			return nil, 0, false, p.syntaxErrorAtCur()
+		}
+	}
+	if len(vals) == 0 {
+		return nil, 0, false, p.syntaxErrorAtCur()
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, 0, false, err
+	}
+	return vals, closeTok.Loc.End, valid, nil
 }
 
 // parseFixedRangePartition parses: '[' lower_values ',' upper_values ')'
@@ -1344,10 +1587,10 @@ func (p *Parser) parseDistributedBy() (*ast.DistributionDesc, error) {
 	// server refuses it.
 	if p.cur.Kind == kwBUCKETS {
 		p.advance() // consume BUCKETS
-		if p.cur.Kind != tokInt {
+		if p.cur.Kind != tokInt || p.strictCTAS && !isDecimalInteger(p.cur.Str) {
 			return nil, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-				Message: fmt.Sprintf("expected an integer after BUCKETS, got %q", p.cur.Str),
+				Message: fmt.Sprintf("expected a decimal integer after BUCKETS, got %q", p.cur.Str),
 			}
 		}
 		dd.Buckets = int(p.cur.Ival)
@@ -1500,7 +1743,7 @@ done:
 	rawText := strings.TrimSpace(sliced)
 	trimmedFromStart := len(sliced) - len(strings.TrimLeft(sliced, " \t\r\n"))
 
-	p.rawQueries = append(p.rawQueries, rawQuery{text: rawText, start: start + trimmedFromStart, depth: p.depth})
+	p.rawQueries = append(p.rawQueries, rawQuery{text: rawText, start: start + trimmedFromStart, depth: p.depth, allowTrace: true})
 	return &ast.RawQuery{
 		RawText:   rawText,
 		TextStart: start + trimmedFromStart,

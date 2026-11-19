@@ -149,3 +149,26 @@ func (p *Parser) parseRollbackStmt() (ast.Node, error) {
 	stmt.Loc = startTok.Loc.Merge(endLoc)
 	return stmt, nil
 }
+
+// parseStartTransaction parses START TRANSACTION [WITH CONSISTENT SNAPSHOT]
+// (StarRocks.g4:2006). START has been consumed; cur is TRANSACTION.
+func (p *Parser) parseStartTransaction(startLoc ast.Loc) (ast.Node, error) {
+	transactionTok, err := p.expect(kwTRANSACTION)
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.BeginStmt{Loc: startLoc.Merge(transactionTok.Loc)}
+	if p.cur.Kind == kwWITH {
+		p.advance() // consume WITH
+		if _, err := p.expect(kwCONSISTENT); err != nil {
+			return nil, err
+		}
+		snapshotTok, err := p.expect(kwSNAPSHOT)
+		if err != nil {
+			return nil, err
+		}
+		stmt.ConsistentSnapshot = true
+		stmt.Loc.End = snapshotTok.Loc.End
+	}
+	return stmt, nil
+}

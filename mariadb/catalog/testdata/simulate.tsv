@@ -198,12 +198,12 @@ ok:508ab4f0fdd2	ok:508ab4f0fdd2	engine	one_table@missing	create_body/create_fiel
 1146	1146	engine	one_table@missing	binary/BINARY_charset_or_alias	ALTER TABLE a ADD a CHAR BINARY ASCII;
 1146	1146	engine	one_table@missing	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1146	1146	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
-1146	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
-1064	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1146	1146	engine	one_table@missing	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1146	1146	engine	one_table@missing	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
-1146	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
-1064	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
+1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@missing	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1146	1146	engine	one_table@missing	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1146	1146	engine	one_table@missing	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1146	1146	engine	one_table@missing	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -254,8 +254,8 @@ ok:508ab4f0fdd2	ok:508ab4f0fdd2	engine	one_table@missing	create_body/create_fiel
 1146	1146	engine	one_table@missing	all_key_opt/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE a ADD KEY(a) COMMENT 's';
 1146	1146	engine	one_table@missing	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1146	1146	engine	one_table@missing	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
-1146	1128	engine	one_table@missing	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
-1064	1128	engine	one_table@missing	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
+1128	1128	engine	one_table@missing	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
+1128	1128	engine	one_table@missing	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1146	1146	engine	one_table@missing	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1146	1146	engine	one_table@missing	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1146	1146	engine	one_table@missing	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -278,10 +278,10 @@ ok:508ab4f0fdd2	ok:508ab4f0fdd2	engine	one_table@missing	create_body/create_fiel
 1146	1146	engine	one_table@missing	alter_commands/add_partition_rule	ALTER TABLE a ADD PARTITION;
 1146	1146	engine	one_table@missing	alter_commands/DROP_PARTITION_SYM_opt_if_exists_alt_part_name_list	ALTER TABLE a DROP PARTITION a;
 1146	1146	engine	one_table@missing	alter_commands/REBUILD_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a REBUILD PARTITION ALL;
-1146	ok:ddcba5e24503	engine	one_table@missing	alter_commands/OPTIMIZE_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_no_write_to_binlog	ALTER TABLE a OPTIMIZE PARTITION ALL;
-1146	ok:ddcba5e24503	engine	one_table@missing	alter_commands/ANALYZE_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a ANALYZE PARTITION ALL;
-1146	ok:ddcba5e24503	engine	one_table@missing	alter_commands/CHECK_SYM_PARTITION_SYM_all_or_alt_part_name_list_opt_mi_check_type	ALTER TABLE a CHECK PARTITION ALL;
-1146	ok:ddcba5e24503	engine	one_table@missing	alter_commands/REPAIR_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_mi_repair_type	ALTER TABLE a REPAIR PARTITION ALL;
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter_commands/OPTIMIZE_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_no_write_to_binlog	ALTER TABLE a OPTIMIZE PARTITION ALL;
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter_commands/ANALYZE_SYM_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list	ALTER TABLE a ANALYZE PARTITION ALL;
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter_commands/CHECK_SYM_PARTITION_SYM_all_or_alt_part_name_list_opt_mi_check_type	ALTER TABLE a CHECK PARTITION ALL;
+ok:ddcba5e24503	ok:ddcba5e24503	engine	one_table@missing	alter_commands/REPAIR_PARTITION_SYM_opt_no_write_to_binlog_all_or_alt_part_name_list_opt_mi_repair_type	ALTER TABLE a REPAIR PARTITION ALL;
 1146	1146	engine	one_table@missing	alter_commands/COALESCE_PARTITION_SYM_opt_no_write_to_binlog_real_ulong_num	ALTER TABLE a COALESCE PARTITION 1;
 1146	1146	engine	one_table@missing	alter_commands/TRUNCATE_SYM_PARTITION_SYM_all_or_alt_part_name_list	ALTER TABLE a TRUNCATE PARTITION ALL;
 1146	1146	engine	one_table@missing	alter_commands/reorg_partition_rule	ALTER TABLE a REORGANIZE PARTITION;
@@ -435,12 +435,12 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	ident_options/IDENT_sys!t
 1911	1911	engine	one_table@table	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
 1050	1050	engine	one_table@table	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 1050	1050	engine	one_table@table	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
-ok	1478	engine	one_table@table	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
+1478	1478	engine	one_table@table	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 ok:89374d5056a9	ok:89374d5056a9	engine	one_table@table	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
 ok:9b5ee9a9ec66	ok:9b5ee9a9ec66	engine	one_table@table	row_types/COMPRESSED_SYM	ALTER TABLE a ROW_FORMAT COMPRESSED;
 ok:2a5cb3ea0082	ok:2a5cb3ea0082	engine	one_table@table	row_types/REDUNDANT_SYM	ALTER TABLE a ROW_FORMAT REDUNDANT;
 ok:654c69c0d276	ok:654c69c0d276	engine	one_table@table	row_types/COMPACT_SYM	ALTER TABLE a ROW_FORMAT COMPACT;
-ok	1478	engine	one_table@table	row_types/PAGE_SYM	ALTER TABLE a ROW_FORMAT PAGE;
+1478	1478	engine	one_table@table	row_types/PAGE_SYM	ALTER TABLE a ROW_FORMAT PAGE;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	merge_insert_types/FIRST_SYM	ALTER TABLE a INSERT_METHOD FIRST;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	merge_insert_types/LAST_SYM	ALTER TABLE a INSERT_METHOD LAST;
 ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	create_field_list/field_list	ALTER TABLE a ADD(a INT);
@@ -475,23 +475,23 @@ ok:d3423eba874a	ok:d3423eba874a	engine	one_table@table	opt_serial_attribute/opt_
 4124	4124	engine	one_table@table	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute	ALTER TABLE a ADD a INT AS ROW START KEY KEY;
 4124	4124	engine	one_table@table	opt_asrow_attribute_list/opt_asrow_attribute_list_asrow_attribute!truncate	ALTER TABLE a ADD a INT AS ROW START KEY
 ok:7a4f7436457d	ok:7a4f7436457d	engine	one_table@table	field_def/attribute_list	ALTER TABLE a ADD a INT NULL;
-ok	4029	engine	one_table@table	field_def/opt_generated_always_AS_virtual_column_func_vcol_opt_specifier_vcol_opt_attribute	ALTER TABLE a ADD a INT AS(a);
+4029	4029	engine	one_table@table	field_def/opt_generated_always_AS_virtual_column_func_vcol_opt_specifier_vcol_opt_attribute	ALTER TABLE a ADD a INT AS(a);
 4124	4124	engine	one_table@table	field_def/opt_generated_always_AS_ROW_SYM_END_opt_asrow_attribute	ALTER TABLE a ADD a INT AS ROW END;
 4124	4124	engine	one_table@table	opt_generated_always/GENERATED_SYM_ALWAYS_SYM	ALTER TABLE a ADD a INT GENERATED ALWAYS AS ROW START;
-ok	4029	engine	one_table@table	vcol_opt_specifier/VIRTUAL_SYM	ALTER TABLE a ADD a INT AS(a) VIRTUAL;
-ok	4029	engine	one_table@table	vcol_opt_specifier/VIRTUAL_SYM!truncate	ALTER TABLE a ADD a INT AS(a)
-ok	4029	engine	one_table@table	vcol_opt_specifier/PERSISTENT_SYM	ALTER TABLE a ADD a INT AS(a) PERSISTENT;
-ok	4029	engine	one_table@table	vcol_opt_specifier/STORED_SYM	ALTER TABLE a ADD a INT AS(a) STORED;
-ok	4029	engine	one_table@table	vcol_opt_attribute/vcol_opt_attribute_list	ALTER TABLE a ADD a INT AS(a) UNIQUE;
-ok	4029	engine	one_table@table	vcol_opt_attribute_list/vcol_opt_attribute_list_vcol_attribute	ALTER TABLE a ADD a INT AS(a) UNIQUE UNIQUE;
-ok	4029	engine	one_table@table	vcol_opt_attribute_list/vcol_opt_attribute_list_vcol_attribute!truncate	ALTER TABLE a ADD a INT AS(a) UNIQUE
+4029	4029	engine	one_table@table	vcol_opt_specifier/VIRTUAL_SYM	ALTER TABLE a ADD a INT AS(a) VIRTUAL;
+4029	4029	engine	one_table@table	vcol_opt_specifier/VIRTUAL_SYM!truncate	ALTER TABLE a ADD a INT AS(a)
+4029	4029	engine	one_table@table	vcol_opt_specifier/PERSISTENT_SYM	ALTER TABLE a ADD a INT AS(a) PERSISTENT;
+4029	4029	engine	one_table@table	vcol_opt_specifier/STORED_SYM	ALTER TABLE a ADD a INT AS(a) STORED;
+4029	4029	engine	one_table@table	vcol_opt_attribute/vcol_opt_attribute_list	ALTER TABLE a ADD a INT AS(a) UNIQUE;
+4029	4029	engine	one_table@table	vcol_opt_attribute_list/vcol_opt_attribute_list_vcol_attribute	ALTER TABLE a ADD a INT AS(a) UNIQUE UNIQUE;
+4029	4029	engine	one_table@table	vcol_opt_attribute_list/vcol_opt_attribute_list_vcol_attribute!truncate	ALTER TABLE a ADD a INT AS(a) UNIQUE
 ok:b556295be6b7	ok:b556295be6b7	engine	one_table@table	vcol_attribute/UNIQUE_SYM	ALTER TABLE a ADD a INT UNIQUE;
 ok:b556295be6b7	ok:b556295be6b7	engine	one_table@table	vcol_attribute/UNIQUE_SYM_KEY_SYM	ALTER TABLE a ADD a INT UNIQUE KEY;
 ok:b556295be6b7	ok:b556295be6b7	engine	one_table@table	vcol_attribute/UNIQUE_SYM_KEY_SYM!truncate	ALTER TABLE a ADD a INT UNIQUE
 ok:51e245160bf2	ok:51e245160bf2	engine	one_table@table	vcol_attribute/COMMENT_SYM_TEXT_STRING_sys	ALTER TABLE a ADD a INT COMMENT 's';
 ok:7e00485ea32d	ok:7e00485ea32d	engine	one_table@table	vcol_attribute/INVISIBLE_SYM	ALTER TABLE a ADD a INT INVISIBLE;
-ok	4029	engine	one_table@table	virtual_column_func/(_parenthesized_expr_)	ALTER TABLE a ADD a INT DEFAULT(a);
-ok	4029	engine	one_table@table	expr_or_literal/column_default_non_parenthesized_expr	ALTER TABLE a ADD a INT DEFAULT a;
+4029	4029	engine	one_table@table	virtual_column_func/(_parenthesized_expr_)	ALTER TABLE a ADD a INT DEFAULT(a);
+4029	4029	engine	one_table@table	expr_or_literal/column_default_non_parenthesized_expr	ALTER TABLE a ADD a INT DEFAULT a;
 ok:70d37f64e922	ok:70d37f64e922	engine	one_table@table	expr_or_literal/signed_literal	ALTER TABLE a ADD a INT DEFAULT + 1;
 ok:70d37f64e922	ok:70d37f64e922	engine	one_table@table	expr_or_literal/signed_literal!drop-1	ALTER TABLE a ADD a INT DEFAULT 1;
 ok:a1a904d1ac12	ok:a1a904d1ac12	engine	one_table@table	field_type_all_builtin/field_type_temporal	ALTER TABLE a ADD a YEAR;
@@ -561,12 +561,12 @@ ok:627a90e65d2c	ok:627a90e65d2c	engine	one_table@table	binary/BINARY	ALTER TABLE
 ok:175d0c31fefb	ok:175d0c31fefb	engine	one_table@table	binary/BINARY_charset_or_alias	ALTER TABLE a ADD a CHAR BINARY ASCII;
 ok:627a90e65d2c	ok:627a90e65d2c	engine	one_table@table	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 ok:720e65d31f2b	ok:720e65d31f2b	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
-ok	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
-1064	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 ok:627a90e65d2c	ok:627a90e65d2c	engine	one_table@table	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 ok:55596351ff04	ok:55596351ff04	engine	one_table@table	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
-ok	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
-1064	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
+1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@table	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 ok:fb90786a5789	ok:fb90786a5789	engine	one_table@table	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 ok:32b777d74de9	ok:32b777d74de9	engine	one_table@table	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1068	1068	engine	one_table@table	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -618,7 +618,7 @@ ok:32b777d74de9	ok:32b777d74de9	engine	one_table@table	opt_bin_mod/BINARY	ALTER 
 1072	1072	engine	one_table@table	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 1072	1072	engine	one_table@table	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
-1064	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
+1128	1128	engine	one_table@table	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 1072	1072	engine	one_table@table	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 1072	1072	engine	one_table@table	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	one_table@table	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
@@ -667,7 +667,7 @@ ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/ENABLE_SY
 1054	1054	engine	one_table@table	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE a RENAME a;
 1054	1054	engine	one_table@table	alter_list_item/RENAME_COLUMN_SYM_opt_if_exists_table_element_ident_TO_SYM_ident	ALTER TABLE a RENAME COLUMN a TO a;
-1061	1176	engine	one_table@table	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
+1176	1176	engine	one_table@table	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4;
 ok:f3d346de60ff	ok:f3d346de60ff	engine	one_table@table	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default_COLLATE_SYM_collation_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4 COLLATE utf8mb4_bin;
 ok:089d5b6fb5b4	ok:089d5b6fb5b4	engine	one_table@table	alter_list_item/alter_order_clause	ALTER TABLE a ORDER BY a;
@@ -798,12 +798,12 @@ ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	ident_options/IDENT_sys!
 1911	1911	engine	one_table@column	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
 1050	1050	engine	one_table@column	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 1050	1050	engine	one_table@column	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
-ok	1478	engine	one_table@column	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
+1478	1478	engine	one_table@column	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 ok:10fd86125ccb	ok:10fd86125ccb	engine	one_table@column	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
 ok:ce6be654a6ec	ok:ce6be654a6ec	engine	one_table@column	row_types/COMPRESSED_SYM	ALTER TABLE a ROW_FORMAT COMPRESSED;
 ok:54bf7360d974	ok:54bf7360d974	engine	one_table@column	row_types/REDUNDANT_SYM	ALTER TABLE a ROW_FORMAT REDUNDANT;
 ok:d452245a1e66	ok:d452245a1e66	engine	one_table@column	row_types/COMPACT_SYM	ALTER TABLE a ROW_FORMAT COMPACT;
-ok	1478	engine	one_table@column	row_types/PAGE_SYM	ALTER TABLE a ROW_FORMAT PAGE;
+1478	1478	engine	one_table@column	row_types/PAGE_SYM	ALTER TABLE a ROW_FORMAT PAGE;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	merge_insert_types/FIRST_SYM	ALTER TABLE a INSERT_METHOD FIRST;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	merge_insert_types/LAST_SYM	ALTER TABLE a INSERT_METHOD LAST;
 1060	1060	engine	one_table@column	create_field_list/field_list	ALTER TABLE a ADD(a INT);
@@ -924,12 +924,12 @@ ok:54a7c03caa19	ok:54a7c03caa19	engine	one_table@column	opt_constraint_no_id/CON
 1060	1060	engine	one_table@column	binary/BINARY_charset_or_alias	ALTER TABLE a ADD a CHAR BINARY ASCII;
 1060	1060	engine	one_table@column	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1060	1060	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
-1060	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
-1064	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1060	1060	engine	one_table@column	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1060	1060	engine	one_table@column	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
-1060	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
-1064	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
+1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@column	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1060	1060	engine	one_table@column	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1060	1060	engine	one_table@column	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1060	1060	engine	one_table@column	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -981,12 +981,12 @@ ok:6ade727c275c	ok:6ade727c275c	engine	one_table@column	all_key_opt/COMMENT_SYM_
 ok:1c8e88b0261e	ok:1c8e88b0261e	engine	one_table@column	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 ok	1911	engine	one_table@column	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
-1064	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
+1128	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 ok	1210	engine	one_table@column	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:d1cbc87e14ba	ok:d1cbc87e14ba	engine	one_table@column	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	one_table@column	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
 1176	1176	engine	one_table@column	ignorability/NOT_SYM_IGNORED_SYM	ALTER TABLE a ALTER KEY a NOT IGNORED;
-ok	1060	engine	one_table@column	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
+1060	1060	engine	one_table@column	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
 4156	4156	engine	one_table@column	opt_without_overlaps/,_ident_WITHOUT_OVERLAPS_SYM	ALTER TABLE a ADD UNIQUE(a, a WITHOUT OVERLAPS);
 ok	1089	engine	one_table@column	key_part/ident_(_NUM_)	ALTER TABLE a ADD KEY(a(1));
 ok:60a57f203d1c	ok:60a57f203d1c	engine	one_table@column	opt_ident/field_ident	ALTER TABLE a ADD KEY a(a);
@@ -1026,11 +1026,11 @@ ok:5ad1839727d0	ok:5ad1839727d0	engine	one_table@column	alter_list_item/DROP_opt
 1091	1091	engine	one_table@column	alter_list_item/DROP_FOREIGN_KEY_SYM_opt_if_exists_table_element_field_ident	ALTER TABLE a DROP FOREIGN KEY a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/DISABLE_SYM_KEYS	ALTER TABLE a DISABLE KEYS;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/ENABLE_SYM_KEYS	ALTER TABLE a ENABLE KEYS;
-ok	4029	engine	one_table@column	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_SET_DEFAULT_column_default_expr	ALTER TABLE a ALTER a SET DEFAULT a;
+4029	4029	engine	one_table@column	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_SET_DEFAULT_column_default_expr	ALTER TABLE a ALTER a SET DEFAULT a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE a RENAME a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/RENAME_COLUMN_SYM_opt_if_exists_table_element_ident_TO_SYM_ident	ALTER TABLE a RENAME COLUMN a TO a;
-1061	1176	engine	one_table@column	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
+1176	1176	engine	one_table@column	alter_list_item/RENAME_key_or_index_opt_if_exists_table_element_field_ident_TO_SYM_field_ident	ALTER TABLE a RENAME KEY a TO a;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4;
 ok:18e6955588ca	ok:18e6955588ca	engine	one_table@column	alter_list_item/CONVERT_SYM_TO_SYM_charset_charset_name_or_default_COLLATE_SYM_collation_name_or_default	ALTER TABLE a CONVERT TO CHARSET utf8mb4 COLLATE utf8mb4_bin;
 ok:25f17229f33b	ok:25f17229f33b	engine	one_table@column	alter_list_item/alter_order_clause	ALTER TABLE a ORDER BY a;
@@ -1161,12 +1161,12 @@ ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	ident_options/IDENT_sys!t
 1911	1911	engine	one_table@index	keyword_options/WRAPPER_SYM	ALTER TABLE a WRAPPER = 's';
 1050	1050	engine	one_table@index	opt_versioning_option/versioning_option	CREATE TABLE a SELECT a WITH SYSTEM VERSIONING;
 1050	1050	engine	one_table@index	opt_versioning_option/versioning_option!drop-1	CREATE TABLE a SELECT a VERSIONING;
-ok	1478	engine	one_table@index	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
+1478	1478	engine	one_table@index	row_types/FIXED_SYM	ALTER TABLE a ROW_FORMAT FIXED;
 ok:d1dcc47d9afe	ok:d1dcc47d9afe	engine	one_table@index	row_types/DYNAMIC_SYM	ALTER TABLE a ROW_FORMAT DYNAMIC;
 ok:51065ca9fb16	ok:51065ca9fb16	engine	one_table@index	row_types/COMPRESSED_SYM	ALTER TABLE a ROW_FORMAT COMPRESSED;
 ok:130534e060db	ok:130534e060db	engine	one_table@index	row_types/REDUNDANT_SYM	ALTER TABLE a ROW_FORMAT REDUNDANT;
 ok:7bb818061964	ok:7bb818061964	engine	one_table@index	row_types/COMPACT_SYM	ALTER TABLE a ROW_FORMAT COMPACT;
-ok	1478	engine	one_table@index	row_types/PAGE_SYM	ALTER TABLE a ROW_FORMAT PAGE;
+1478	1478	engine	one_table@index	row_types/PAGE_SYM	ALTER TABLE a ROW_FORMAT PAGE;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	merge_insert_types/FIRST_SYM	ALTER TABLE a INSERT_METHOD FIRST;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	merge_insert_types/LAST_SYM	ALTER TABLE a INSERT_METHOD LAST;
 1060	1060	engine	one_table@index	create_field_list/field_list	ALTER TABLE a ADD(a INT);
@@ -1287,12 +1287,12 @@ ok:733164ea26b9	ok:733164ea26b9	engine	one_table@index	opt_constraint_no_id/CONS
 1060	1060	engine	one_table@index	binary/BINARY_charset_or_alias	ALTER TABLE a ADD a CHAR BINARY ASCII;
 1060	1060	engine	one_table@index	binary/BINARY_charset_or_alias!truncate	ALTER TABLE a ADD a CHAR BINARY
 1060	1060	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR ASCII COLLATE DEFAULT;
-1060	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
-1064	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
+1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin;
+1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_collation_name!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE utf8mb4_bin zzz;
 1060	1060	engine	one_table@index	binary/COLLATE_SYM_collation_name	ALTER TABLE a ADD a CHAR COLLATE utf8mb4_bin;
 1060	1060	engine	one_table@index	binary/COLLATE_SYM_DEFAULT	ALTER TABLE a ADD a CHAR COLLATE DEFAULT;
-1060	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
-1064	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
+1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY;
+1253	1253	engine	one_table@index	binary/charset_or_alias_COLLATE_SYM_BINARY!insert	ALTER TABLE a ADD a CHAR ASCII COLLATE BINARY zzz;
 1060	1060	engine	one_table@index	binary/COLLATE_SYM_BINARY	ALTER TABLE a ADD a CHAR COLLATE BINARY;
 1060	1060	engine	one_table@index	opt_bin_mod/BINARY	ALTER TABLE a ADD a NCHAR BINARY;
 1060	1060	engine	one_table@index	opt_primary/PRIMARY_SYM	ALTER TABLE a ADD a INT PRIMARY KEY;
@@ -1344,12 +1344,12 @@ ok:bb737ef05ab6	ok:bb737ef05ab6	engine	one_table@index	all_key_opt/COMMENT_SYM_T
 ok:a79b40ab9f1f	ok:a79b40ab9f1f	engine	one_table@index	all_key_opt/ignorability	ALTER TABLE a ADD KEY(a) IGNORED;
 ok	1911	engine	one_table@index	all_key_opt/engine_defined_option	ALTER TABLE a ADD KEY(a) a = 's';
 1128	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
-1064	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
+1128	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 ok	1210	engine	one_table@index	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
 ok:27bf6ad5f57e	ok:27bf6ad5f57e	engine	one_table@index	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 ok:a2549cac2404	ok:a2549cac2404	engine	one_table@index	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	ignorability/NOT_SYM_IGNORED_SYM	ALTER TABLE a ALTER KEY a NOT IGNORED;
-ok	1060	engine	one_table@index	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
+1060	1060	engine	one_table@index	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
 4156	4156	engine	one_table@index	opt_without_overlaps/,_ident_WITHOUT_OVERLAPS_SYM	ALTER TABLE a ADD UNIQUE(a, a WITHOUT OVERLAPS);
 ok	1089	engine	one_table@index	key_part/ident_(_NUM_)	ALTER TABLE a ADD KEY(a(1));
 1061	1061	engine	one_table@index	opt_ident/field_ident	ALTER TABLE a ADD KEY a(a);
@@ -1389,7 +1389,7 @@ ok:db2f8726731c	ok:db2f8726731c	engine	one_table@index	alter_list_item/DROP_opt_
 1091	1091	engine	one_table@index	alter_list_item/DROP_FOREIGN_KEY_SYM_opt_if_exists_table_element_field_ident	ALTER TABLE a DROP FOREIGN KEY a;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list_item/DISABLE_SYM_KEYS	ALTER TABLE a DISABLE KEYS;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list_item/ENABLE_SYM_KEYS	ALTER TABLE a ENABLE KEYS;
-ok	4029	engine	one_table@index	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_SET_DEFAULT_column_default_expr	ALTER TABLE a ALTER a SET DEFAULT a;
+4029	4029	engine	one_table@index	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_SET_DEFAULT_column_default_expr	ALTER TABLE a ALTER a SET DEFAULT a;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list_item/ALTER_opt_column_opt_if_exists_table_element_field_ident_DROP_DEFAULT	ALTER TABLE a ALTER a DROP DEFAULT;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list_item/RENAME_opt_to_table_ident	ALTER TABLE a RENAME a;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	alter_list_item/RENAME_COLUMN_SYM_opt_if_exists_table_element_ident_TO_SYM_ident	ALTER TABLE a RENAME COLUMN a TO a;
