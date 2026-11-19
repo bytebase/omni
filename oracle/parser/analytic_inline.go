@@ -290,9 +290,6 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 				return err
 			}
 			measureTarget.Expr = expr
-			if parsed {
-				measureTarget.Loc.End = p.prev.End
-			}
 			clause.OpaqueMeasure = clause.OpaqueMeasure || !parsed
 		default:
 			// A base measure aggregates a fact column: the one FACT names,
@@ -319,6 +316,9 @@ func (p *Parser) parseSubAVAddMeasures(clause *nodes.SubAVClause) error {
 				return err
 			}
 		}
+		// The target's range is the whole cube_meas, whichever definition it
+		// took.
+		measureTarget.Loc.End = p.prev.End
 		if p.cur.Type != ',' {
 			break
 		}

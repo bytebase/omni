@@ -661,7 +661,8 @@ func markRefs(set map[*ast.ColumnRef]bool, l *ast.List) {
 }
 
 // scoped is a table in scope: its reference and its alias, "" for none,
-// and the query-local columns it adds to that relation.
+// the query-local columns it adds to that relation, and whether the
+// statement wrote its schema.
 type scoped struct {
 	ref   objRef
 	alias string
@@ -669,6 +670,9 @@ type scoped struct {
 	// synced metadata of it has no column for: a derived analytic view's
 	// ADD MEASURES.
 	local map[string]bool
+	// qualified says the statement wrote the reference's schema, which a
+	// WITH element's name cannot be.
+	qualified bool
 }
 
 // scopeOf returns the tables in scope of a statement of one query block,
@@ -680,7 +684,7 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 		if !ok {
 			return false
 		}
-		s := scoped{ref: r}
+		s := scoped{ref: r, qualified: o.Schema != ""}
 		if alias != nil {
 			s.alias = alias.Name
 		}
@@ -723,8 +727,9 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 			}
 			for i := range scope {
 				// The element is named by the reference's own name: a FROM
-				// alias replaces it for every other purpose.
-				if !strings.EqualFold(scope[i].ref.name, cte.Name) {
+				// alias replaces it for every other purpose, and a schema the
+				// statement wrote names a table, never the element.
+				if scope[i].qualified || !strings.EqualFold(scope[i].ref.name, cte.Name) {
 					continue
 				}
 				r, ok := b.ref(cte.SubAV.Using)
@@ -763,7 +768,9 @@ func (b *builder) scopeOf(n ast.Node, blocks int) ([]scoped, bool) {
 			return nil, false
 		case v.Select != nil:
 			// The rows come from the query: VALUES sees no table.
-			return scope, blocks == 1 && fromList(v.Select.FromClause)
+			ok := blocks == 1 && fromList(v.Select.FromClause)
+			withElements(v.Select.WithClause)
+			return scope, ok
 		}
 		return scope, blocks == 0
 	case *ast.UpdateStmt:

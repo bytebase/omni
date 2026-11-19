@@ -331,6 +331,10 @@ func madeByChange(stmts []statement) changeMade {
 			if v.Name != nil && !v.OrReplace && !v.IfNotExists {
 				m.relations = append(m.relations, key(v.Name))
 			}
+		case *ast.AlterAnalyticViewStmt:
+			if v.Action == "RENAME" && v.NewName != nil {
+				m.relations = append(m.relations, key(v.NewName))
+			}
 		case *ast.CreateSynonymStmt:
 			if v.Name != nil && !v.OrReplace && !v.Public {
 				m.relations = append(m.relations, key(v.Name))

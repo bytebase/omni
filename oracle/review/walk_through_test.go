@@ -516,6 +516,10 @@ var walkForms = []walktest.Form{
 	{SQL: "SELECT note FROM p;"},
 	{SQL: "WITH av ANALYTIC VIEW AS (USING p) SELECT av.note FROM av;"},
 	{SQL: "WITH av ANALYTIC VIEW AS (USING p) SELECT note FROM av x;"},
+	// An INSERT's own query reads the element the same way.
+	{SQL: "INSERT INTO nokey WITH av ANALYTIC VIEW AS (USING p ADD MEASURES(m AS(1))) SELECT m FROM av;"},
+	// A name the statement qualifies is a table, not the element.
+	{SQL: "WITH av ANALYTIC VIEW AS (USING p ADD MEASURES(f AS(1))) SELECT f FROM shop.p;", Last: true},
 	// Ends the walk after its checks: it may run code of a schema.
 	{SQL: "SELECT f(1) FROM dual;", Last: true},
 	// An unused element's ADD MEASURES is no column of the query: F may be

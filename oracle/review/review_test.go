@@ -671,6 +671,14 @@ func TestPriorBackup(t *testing.T) {
 				{1, "DELETE t FROM ANALYTIC VIEW(USING shop.new_av)", "Prior backup runs before the change, when `SHOP.NEW_AV` doesn't exist yet.\n\nCreate `SHOP.NEW_AV` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
+		{
+			name:   "a renamed analytic view a backup reads",
+			sql:    "ALTER ANALYTIC VIEW old_av RENAME TO new_av;\nDELETE t FROM ANALYTIC VIEW(USING shop.new_av);",
+			change: backup,
+			want: []finding{
+				{1, "DELETE t FROM ANALYTIC VIEW(USING shop.new_av)", "Prior backup runs before the change, when `SHOP.NEW_AV` doesn't exist yet.\n\nCreate `SHOP.NEW_AV` in an earlier change, or turn off **Prior backup**.", []int{0}},
+			},
+		},
 	})
 }
 

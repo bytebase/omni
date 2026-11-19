@@ -103,6 +103,31 @@ func TestParseInlineAnalyticViewCalculatedMeasureExpr(t *testing.T) {
 	}
 }
 
+// TestParseSubAVMeasureLocs holds each cube_meas to the whole text of the
+// measure, definition included, so a consumer's range covers it.
+func TestParseSubAVMeasureLocs(t *testing.T) {
+	sql := `SELECT * FROM ANALYTIC VIEW(USING a ADD MEASURES(m AS(1 + 2), b FACT c AGGREGATE BY SUM, o AS(LAG(s) OVER (HIERARCHY h OFFSET 1))))`
+	stmt := ParseAndCheck(t, sql).Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt)
+	ref := stmt.FromClause.Items[0].(*ast.InlineAnalyticView)
+	option, ok := ref.Clause.Options.Items[0].(*ast.DDLOption)
+	if !ok || option.Key != "ADD MEASURES" {
+		t.Fatalf("option = %#v, want ADD MEASURES", ref.Clause.Options.Items[0])
+	}
+	want := []string{"m AS(1 + 2)", "b FACT c AGGREGATE BY SUM", "o AS(LAG(s) OVER (HIERARCHY h OFFSET 1))"}
+	if option.Items.Len() != len(want) {
+		t.Fatalf("measures = %d, want %d", option.Items.Len(), len(want))
+	}
+	for i, item := range option.Items.Items {
+		measure, ok := item.(*ast.ResTarget)
+		if !ok {
+			t.Fatalf("measure %d = %T", i, item)
+		}
+		if got := sql[measure.Loc.Start:measure.Loc.End]; got != want[i] {
+			t.Errorf("measure %d = %q, want %q", i, got, want[i])
+		}
+	}
+}
+
 // TestParseInlineAnalyticViewSuffixes reads the clauses a
 // query_table_expression names after its source: a flashback query and
 // SAMPLE, before the reference's alias.
