@@ -61,36 +61,38 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 				}
 			}
 			paramTypes := slices.Clone(prep.argTypes)
-			if len(prep.argTypes) > 0 {
+			// pg: src/backend/commands/prepare.c — ExecuteQuery only calls
+			// EvaluateParams when plansource->num_params > 0.
+			if prep.numParams > 0 {
 				gotParams := 0
 				if execStmt.Params != nil {
 					gotParams = len(execStmt.Params.Items)
 				}
-				if gotParams != len(prep.argTypes) {
+				if gotParams != prep.numParams {
 					return &Error{
 						Code:    CodeSyntaxError,
 						Message: fmt.Sprintf("wrong number of parameters for prepared statement %q", execStmt.Name),
 					}
 				}
-			}
-			if execStmt.Params != nil {
-				for i, item := range execStmt.Params.Items {
-					pExpr, perr := c.AnalyzeStandaloneExpr(item, nil)
-					if perr != nil {
-						return perr
-					}
-					if i < len(paramTypes) && paramTypes[i] != 0 {
-						if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
-							if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'i'); cerr != nil {
-								return cerr
+				if execStmt.Params != nil {
+					for i, item := range execStmt.Params.Items {
+						pExpr, perr := c.AnalyzeStandaloneExpr(item, nil)
+						if perr != nil {
+							return perr
+						}
+						if i < len(paramTypes) && paramTypes[i] != 0 {
+							if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
+								if _, cerr := c.coerceToTargetType(pExpr, pExpr.exprType(), paramTypes[i], 'i'); cerr != nil {
+									return cerr
+								}
 							}
-						}
-					} else {
-						for len(paramTypes) <= i {
-							paramTypes = append(paramTypes, 0)
-						}
-						if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
-							paramTypes[i] = pExpr.exprType()
+						} else {
+							for len(paramTypes) <= i {
+								paramTypes = append(paramTypes, 0)
+							}
+							if pExpr != nil && pExpr.exprType() != UNKNOWNOID {
+								paramTypes[i] = pExpr.exprType()
+							}
 						}
 					}
 				}

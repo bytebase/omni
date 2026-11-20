@@ -252,6 +252,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"REFRESH MATERIALIZED VIEW CONCURRENTLY with qualifying unique index", "missing", "CREATE MATERIALIZED VIEW mv_ok AS SELECT 1 AS id;\nCREATE UNIQUE INDEX mv_ok_idx ON mv_ok (id);\nREFRESH MATERIALIZED VIEW CONCURRENTLY mv_ok", "0"},
 		{"DROP COLLATION restricted by table column", "missing", "CREATE COLLATION c_dep (LOCALE = 'C');\nCREATE TABLE t_dep (a text COLLATE c_dep);\nDROP COLLATION c_dep", CodeDependentObjects},
 		{"DROP COLLATION CASCADE drops dependent column", "missing", "CREATE COLLATION c_dep (LOCALE = 'C');\nCREATE TABLE t_dep (a int, b text COLLATE c_dep);\nDROP COLLATION c_dep CASCADE", "0"},
+		{"CTAS EXECUTE zero-parameter prepared statement with ignored argument", "missing", "PREPARE q0 AS SELECT 1 AS x;\nCREATE TABLE t0 AS EXECUTE q0(1)", "0"},
+		{"CTAS EXECUTE inferred-parameter prepared statement with wrong arity", "missing", "PREPARE q_inf AS SELECT $1::int AS x, $2::text AS y;\nCREATE TABLE t_inf AS EXECUTE q_inf(1)", CodeSyntaxError},
+		{"duplicate PREPARE rejected with 42P05", "missing", "PREPARE q_dup AS SELECT 1 AS a;\nPREPARE q_dup AS SELECT 2 AS b", CodeDuplicatePstatement},
+		{"ALTER COLUMN TYPE without COLLATE resets collation to type default", "missing", "CREATE COLLATION c_ret (LOCALE = 'C');\nCREATE TABLE t_ret (a text COLLATE c_ret);\nALTER TABLE t_ret ALTER a TYPE varchar;\nDROP COLLATION c_ret", "0"},
+		{"DROP COLLATION restricted by column default expression", "missing", "CREATE COLLATION c_def (LOCALE = 'C');\nCREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));\nDROP COLLATION c_def", CodeDependentObjects},
+		{"DROP COLLATION CASCADE drops column default expression", "missing", "CREATE COLLATION c_def (LOCALE = 'C');\nCREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));\nDROP COLLATION c_def CASCADE", "0"},
 	}
 
 	// A failed CREATE TABLE must not leave the implicit sequence a SERIAL or
@@ -3541,6 +3547,82 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if len(c104.schemaByName["public"].Relations["t_c_use"].Columns) != 2 || c104.schemaByName["public"].Indexes["idx_c_use"] != nil {
 			t.Fatal("DROP COLLATION CASCADE did not drop dependent column and index")
+		}
+
+		// Review round 3 regressions:
+		// 1. Duplicate PREPARE fails with 42P05 and preserves the original plan.
+		// 2. Inferred-param PREPARE enforces parameter count on EXECUTE.
+		// 3. Multi-action ALTER TABLE restores OfTypeOID on failure.
+		// 4. ALTER COLUMN ... TYPE omitting COLLATE clears CollationName while
+		//    retaining any DEFAULT-expression collation dependency.
+		// 5. DROP COLLATION CASCADE on a DEFAULT expression drops only the default.
+		// 6. Auto-named index does not skip names held by standalone enum/domain types.
+		c105 := New()
+		if code := simulationCatalogCode(t, c105, "PREPARE q_keep AS SELECT 1 AS a"); code != "0" {
+			t.Fatalf("PREPARE q_keep: %s", code)
+		}
+		if code := simulationCatalogCode(t, c105, "PREPARE q_keep AS SELECT 2 AS b"); code != CodeDuplicatePstatement {
+			t.Fatalf("duplicate PREPARE answered %s, want %s", code, CodeDuplicatePstatement)
+		}
+		if code := simulationCatalogCode(t, c105, "CREATE TABLE t_keep AS EXECUTE q_keep"); code != "0" {
+			t.Fatalf("CTAS EXECUTE q_keep: %s", code)
+		}
+		if r := c105.schemaByName["public"].Relations["t_keep"]; r == nil || len(r.Columns) != 1 || r.Columns[0].Name != "a" {
+			t.Fatalf("expected original prepared query column 'a', got %+v", r)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TYPE ty_of AS (a int)",
+			"CREATE TABLE t_of (a int)",
+		} {
+			if code := simulationCatalogCode(t, c105, stmt); code != "0" {
+				t.Fatalf("t_of setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c105, "ALTER TABLE t_of OF ty_of, ALTER COLUMN missing SET STATISTICS 1"); code != CodeUndefinedColumn {
+			t.Fatalf("ALTER TABLE OF + bad SET STATISTICS answered %s, want %s", code, CodeUndefinedColumn)
+		}
+		if c105.schemaByName["public"].Relations["t_of"].OfTypeOID != 0 {
+			t.Fatal("failed ALTER TABLE left OfTypeOID non-zero")
+		}
+
+		for _, stmt := range []string{
+			"CREATE COLLATION c_col (LOCALE = 'C')",
+			"CREATE COLLATION c_dfl (LOCALE = 'C')",
+			"CREATE TABLE t_col_dfl (a text COLLATE c_col DEFAULT ('x' COLLATE c_dfl))",
+			"ALTER TABLE t_col_dfl ALTER COLUMN a TYPE varchar",
+			"DROP COLLATION c_col",
+		} {
+			if code := simulationCatalogCode(t, c105, stmt); code != "0" {
+				t.Fatalf("c105 collation/default %s: %s", stmt, code)
+			}
+		}
+		colA := c105.schemaByName["public"].Relations["t_col_dfl"].Columns[0]
+		if colA.CollationName != "" {
+			t.Fatalf("expected ALTER COLUMN TYPE without COLLATE to reset CollationName, got %q", colA.CollationName)
+		}
+		if code := simulationCatalogCode(t, c105, "DROP COLLATION c_dfl"); code != CodeDependentObjects {
+			t.Fatalf("DROP COLLATION c_dfl restricted by default answered %s, want %s", code, CodeDependentObjects)
+		}
+		if code := simulationCatalogCode(t, c105, "DROP COLLATION c_dfl CASCADE"); code != "0" {
+			t.Fatalf("DROP COLLATION c_dfl CASCADE: %s", code)
+		}
+		if len(c105.schemaByName["public"].Relations["t_col_dfl"].Columns) != 1 || colA.HasDefault {
+			t.Fatalf("expected DROP COLLATION CASCADE to drop only default while keeping column a: cols=%d hasDefault=%v",
+				len(c105.schemaByName["public"].Relations["t_col_dfl"].Columns), colA.HasDefault)
+		}
+
+		for _, stmt := range []string{
+			"CREATE TYPE t_enum_idx_a_idx AS ENUM ('x')",
+			"CREATE TABLE t_enum_idx (a int)",
+			"CREATE INDEX ON t_enum_idx (a)",
+		} {
+			if code := simulationCatalogCode(t, c105, stmt); code != "0" {
+				t.Fatalf("auto-named index vs enum setup %s: %s", stmt, code)
+			}
+		}
+		if c105.schemaByName["public"].Indexes["t_enum_idx_a_idx"] == nil {
+			t.Fatalf("expected auto-named index t_enum_idx_a_idx, got %v", c105.schemaByName["public"].Indexes)
 		}
 	})
 

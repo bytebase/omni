@@ -1949,3 +1949,73 @@
 | CREATE TABLE t_dep (a int, b text COLLATE c_dep);
 | DROP COLLATION c_dep CASCADE
 < ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| PREPARE q0 AS SELECT 1 AS x;
+| CREATE TABLE t0 AS EXECUTE q0(1)
+< ok 1 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| PREPARE q_inf AS SELECT $1::int AS x, $2::text AS y;
+| CREATE TABLE t_inf AS EXECUTE q_inf(1)
+< error
+| 42601 wrong number of parameters for prepared statement "q_inf"
+| detail: Expected 2 parameters but got 1.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| PREPARE q_dup AS SELECT 1 AS a;
+| PREPARE q_dup AS SELECT 2 AS b
+< error
+| 42P05 prepared statement "q_dup" already exists
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_ret (LOCALE = 'C');
+| CREATE TABLE t_ret (a text COLLATE c_ret);
+| ALTER TABLE t_ret ALTER a TYPE varchar;
+| DROP COLLATION c_ret
+< ok 0 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_def (LOCALE = 'C');
+| CREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));
+| DROP COLLATION c_def
+< error
+| 2BP01 cannot drop collation c_def because other objects depend on it
+| detail: default value for column a of table t_def depends on collation c_def
+| hint: Use DROP ... CASCADE to drop the dependent objects too.
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| RESET default_tablespace;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE COLLATION c_def (LOCALE = 'C');
+| CREATE TABLE t_def (a text DEFAULT ('x' COLLATE c_def));
+| DROP COLLATION c_def CASCADE
+< ok 0 -

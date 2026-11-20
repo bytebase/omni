@@ -63,6 +63,7 @@ const (
 	CodeReservedName                 = "42939"
 	CodeInvalidCatalogName           = "3D000"
 	CodeInvalidSQLStatementName      = "26000"
+	CodeDuplicatePstatement          = "42P05"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.

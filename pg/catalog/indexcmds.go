@@ -762,9 +762,7 @@ func (c *Catalog) chooseRelationName(schema *Schema, name1, name2, label string)
 	}
 	cand := base
 	for k := 1; ; k++ {
-		_, relHeld := relationNamespaceKind(schema, cand)
-		typeHeld := c.typeByName[typeKey{ns: schema.OID, name: cand}] != nil
-		if !relHeld && !typeHeld {
+		if _, relHeld := relationNamespaceKind(schema, cand); !relHeld {
 			return cand
 		}
 		cand = fmt.Sprintf("%s%d", base, k)

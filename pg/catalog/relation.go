@@ -27,27 +27,28 @@ type PartitionBound struct {
 
 // Column represents a table column.
 type Column struct {
-	AttNum          int16
-	Name            string
-	TypeOID         uint32
-	TypeMod         int32
-	NotNull         bool
-	HasDefault      bool
-	Default         string
-	Len             int16
-	ByVal           bool
-	Align           byte
-	Storage         byte
-	Collation       uint32
-	DefaultAnalyzed AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
-	Generated       byte         // 's' = stored generated, 0 = none
-	Identity        byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
-	IsLocal         bool         // true if defined locally (not only inherited)
-	InhCount        int          // number of inheritance ancestors that define this column
-	Compression     byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
-	GenerationExpr  string       // expression text for generated columns
-	CollationName   string       // explicit collation name (empty = type default)
-	Ndims           int16        // attndims — declared array dimensions
+	AttNum           int16
+	Name             string
+	TypeOID          uint32
+	TypeMod          int32
+	NotNull          bool
+	HasDefault       bool
+	Default          string
+	Len              int16
+	ByVal            bool
+	Align            byte
+	Storage          byte
+	Collation        uint32
+	DefaultAnalyzed  AnalyzedExpr // analyzed form of default expression (for Tier 2 deparse)
+	Generated        byte         // 's' = stored generated, 0 = none
+	Identity         byte         // 'a' = ALWAYS, 'd' = BY DEFAULT, 0 = none
+	IsLocal          bool         // true if defined locally (not only inherited)
+	InhCount         int          // number of inheritance ancestors that define this column
+	Compression      byte         // attcompression: 'p'=pglz, 'l'=lz4, 0=default
+	GenerationExpr   string       // expression text for generated columns
+	CollationName    string       // explicit collation name (empty = type default)
+	UserCollationOID uint32       // user collation OID when CollationName names a user collation
+	Ndims            int16        // attndims — declared array dimensions
 }
 
 // Relation represents a table, view, or other relation.

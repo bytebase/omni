@@ -341,6 +341,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	var relAccessMethods map[*Relation]string
 	var relCheckOptions map[*Relation]byte
 	var relReplicaIdents map[*Relation]byte
+	var relOfTypes map[*Relation]uint32
 	var relRowSec map[*Relation][2]bool
 	var relHasRules map[*Relation]bool
 	var relRules map[*Relation]map[string]byte
@@ -366,6 +367,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		relAccessMethods = map[*Relation]string{}
 		relCheckOptions = map[*Relation]byte{}
 		relReplicaIdents = map[*Relation]byte{}
+		relOfTypes = map[*Relation]uint32{}
 		relRowSec = map[*Relation][2]bool{}
 		relHasRules = map[*Relation]bool{}
 		relRules = map[*Relation]map[string]byte{}
@@ -393,6 +395,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			relAccessMethods[r] = r.AccessMethod
 			relCheckOptions[r] = r.CheckOption
 			relReplicaIdents[r] = r.ReplicaIdentity
+			relOfTypes[r] = r.OfTypeOID
 			relRowSec[r] = [2]bool{r.RowSecurity, r.ForceRowSecurity}
 			relHasRules[r] = r.HasRules
 			if r.Rules != nil {
@@ -432,6 +435,9 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 			}
 			for r, ri := range relReplicaIdents {
 				r.ReplicaIdentity = ri
+			}
+			for r, ot := range relOfTypes {
+				r.OfTypeOID = ot
 			}
 			for r, rs := range relRowSec {
 				r.RowSecurity = rs[0]
@@ -836,6 +842,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 				if coerced != nil {
 					analyzed = coerced
 				}
+				c.clearColumnDefaultDeps(rel, col)
 				col.DefaultAnalyzed = analyzed
 				c.recordDependencyOnSingleRelExprForObject('r', rel.OID, int32(col.AttNum), analyzed, rel.OID,
 					DepNormal, DepNormal)
@@ -2004,18 +2011,19 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 	}
 
 	col := &Column{
-		AttNum:        int16(len(rel.Columns) + 1),
-		Name:          colDef.Name,
-		TypeOID:       typeOID,
-		TypeMod:       typmod,
-		NotNull:       colDef.NotNull,
-		Len:           typ.Len,
-		ByVal:         typ.ByVal,
-		Align:         typ.Align,
-		Storage:       stor,
-		Compression:   comp,
-		Collation:     typ.Collation,
-		CollationName: colDef.CollationName,
+		AttNum:           int16(len(rel.Columns) + 1),
+		Name:             colDef.Name,
+		TypeOID:          typeOID,
+		TypeMod:          typmod,
+		NotNull:          colDef.NotNull,
+		Len:              typ.Len,
+		ByVal:            typ.ByVal,
+		Align:            typ.Align,
+		Storage:          stor,
+		Compression:      comp,
+		Collation:        typ.Collation,
+		CollationName:    colDef.CollationName,
+		UserCollationOID: userCollOID,
 	}
 	if colDef.Default != "" || colDef.RawDefault != nil {
 		col.HasDefault = true
@@ -2355,9 +2363,30 @@ func (c *Catalog) atDropDefault(rel *Relation, colName string) error {
 			Message: fmt.Sprintf("column %q of relation %q is a generated column", colName, rel.Name)}
 	}
 
+	c.clearColumnDefaultDeps(rel, col)
 	col.HasDefault = false
 	col.Default = ""
+	col.DefaultAnalyzed = nil
 	return nil
+}
+
+func (c *Catalog) clearColumnDefaultDeps(rel *Relation, col *Column) {
+	if rel == nil || col == nil {
+		return
+	}
+	n := 0
+	for _, d := range c.deps {
+		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) {
+			if d.RefType == 'L' && col.UserCollationOID != 0 && d.RefOID == col.UserCollationOID {
+				// Keep the column's own explicit COLLATE dependency.
+			} else {
+				continue
+			}
+		}
+		c.deps[n] = d
+		n++
+	}
+	c.deps = c.deps[:n]
 }
 
 // atAlterColumnType changes the type of a column.
@@ -2437,22 +2466,27 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 		))
 	}
 
+	oldUserCollOID := col.UserCollationOID
 	col.TypeOID = newOID
 	col.TypeMod = newMod
-	if cd.CollClause != nil {
-		col.CollationName = collName
-	} else if c.typeCollation(newOID) == 0 {
-		col.CollationName = ""
-	}
-	n := 0
-	for _, d := range c.deps {
-		if d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) && d.RefType == 'L' {
-			continue
+	// pg: ATExecAlterColumnType resets attcollation to the new type's default
+	// collation when COLLATE is omitted.
+	col.CollationName = collName
+	col.Collation = c.typeCollation(newOID)
+	col.UserCollationOID = userCollOID
+	if oldUserCollOID != 0 {
+		n := 0
+		removed := false
+		for _, d := range c.deps {
+			if !removed && d.ObjType == 'r' && d.ObjOID == rel.OID && d.ObjSubID == int32(col.AttNum) && d.RefType == 'L' && d.RefOID == oldUserCollOID {
+				removed = true
+				continue
+			}
+			c.deps[n] = d
+			n++
 		}
-		c.deps[n] = d
-		n++
+		c.deps = c.deps[:n]
 	}
-	c.deps = c.deps[:n]
 	if userCollOID != 0 {
 		c.recordDependency('r', rel.OID, int32(col.AttNum), 'L', userCollOID, 0, DepNormal)
 	}
@@ -3910,8 +3944,10 @@ func (c *Catalog) atDropExpression(rel *Relation, colName string, ifExists bool)
 	}
 	col.Generated = 0
 	col.GenerationExpr = ""
+	c.clearColumnDefaultDeps(rel, col)
 	col.HasDefault = false
 	col.Default = ""
+	col.DefaultAnalyzed = nil
 	return nil
 }
 

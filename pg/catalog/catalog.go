@@ -26,8 +26,9 @@ type operKey struct {
 }
 
 type preparedStmt struct {
-	query    nodes.Node
-	argTypes []uint32
+	query     nodes.Node
+	argTypes  []uint32
+	numParams int
 }
 
 // Catalog is the in-memory PostgreSQL catalog.

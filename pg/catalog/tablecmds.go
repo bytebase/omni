@@ -474,20 +474,21 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		// attcollation is derived from type; for arrays, inherited from element type.
 		coll := c.typeCollation(typeOID)
 		columns[i] = &Column{
-			AttNum:        int16(i + 1),
-			Name:          cd.Name,
-			TypeOID:       typeOID,
-			TypeMod:       typmod,
-			NotNull:       cd.NotNull,
-			Len:           typ.Len,
-			ByVal:         typ.ByVal,
-			Align:         typ.Align,
-			Storage:       stor,
-			Compression:   comp,
-			Collation:     coll,
-			IsLocal:       cd.IsLocal,
-			InhCount:      cd.InhCount,
-			CollationName: cd.CollationName,
+			AttNum:           int16(i + 1),
+			Name:             cd.Name,
+			TypeOID:          typeOID,
+			TypeMod:          typmod,
+			NotNull:          cd.NotNull,
+			Len:              typ.Len,
+			ByVal:            typ.ByVal,
+			Align:            typ.Align,
+			Storage:          stor,
+			Compression:      comp,
+			Collation:        coll,
+			IsLocal:          cd.IsLocal,
+			InhCount:         cd.InhCount,
+			CollationName:    cd.CollationName,
+			UserCollationOID: colUserCollOIDs[i],
 		}
 	}
 

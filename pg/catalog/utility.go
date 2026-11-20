@@ -330,6 +330,12 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 		// CALL: no-op for pgddl
 		return nil
 	case *nodes.PrepareStmt:
+		if s.Name != "" && c.preparedStmts[s.Name] != nil {
+			return &Error{
+				Code:    CodeDuplicatePstatement,
+				Message: fmt.Sprintf("prepared statement %q already exists", s.Name),
+			}
+		}
 		var argTypes []uint32
 		if s.Argtypes != nil {
 			argTypes = make([]uint32, 0, len(s.Argtypes.Items))
@@ -345,13 +351,18 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				argTypes = append(argTypes, oid)
 			}
 		}
+		numParams := len(argTypes)
+		if maxParam := maxParamRefInNode(s.Query); maxParam > numParams {
+			numParams = maxParam
+		}
 		if s.Name != "" {
 			if c.preparedStmts == nil {
 				c.preparedStmts = make(map[string]*preparedStmt)
 			}
 			c.preparedStmts[s.Name] = &preparedStmt{
-				query:    s.Query,
-				argTypes: argTypes,
+				query:     s.Query,
+				argTypes:  argTypes,
+				numParams: numParams,
 			}
 		}
 		return nil
@@ -369,6 +380,29 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	default:
 		return errInvalidParameterValue(fmt.Sprintf("unsupported utility statement: %T", stmt))
 	}
+}
+
+type maxParamVisitor struct {
+	max int
+}
+
+func (v *maxParamVisitor) Visit(node nodes.Node) nodes.Visitor {
+	if node == nil {
+		return nil
+	}
+	if pr, ok := node.(*nodes.ParamRef); ok && pr.Number > v.max {
+		v.max = pr.Number
+	}
+	return v
+}
+
+func maxParamRefInNode(node nodes.Node) int {
+	if node == nil {
+		return 0
+	}
+	var v maxParamVisitor
+	nodes.Walk(&v, node)
+	return v.max
 }
 
 // processVariableSet handles SET/RESET variable statements.

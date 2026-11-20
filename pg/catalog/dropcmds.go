@@ -856,7 +856,14 @@ func (c *Catalog) cascadeDropCollation(schema *Schema, name string, collOID uint
 			}
 			for _, col := range rel.Columns {
 				if col.AttNum == int16(dep.ObjSubID) {
-					_ = c.atDropColumn(rel.Schema, rel, col.Name, true, true, false)
+					if col.UserCollationOID == collOID || col.Generated == 's' {
+						_ = c.atDropColumn(rel.Schema, rel, col.Name, true, true, false)
+					} else if col.HasDefault && col.Generated == 0 {
+						c.clearColumnDefaultDeps(rel, col)
+						col.HasDefault = false
+						col.Default = ""
+						col.DefaultAnalyzed = nil
+					}
 					break
 				}
 			}
