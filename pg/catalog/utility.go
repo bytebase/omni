@@ -391,7 +391,9 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			if err != nil {
 				return err
 			}
-			collectQueryParamTypes(q, paramTypes)
+			if err := collectQueryParamTypes(q, paramTypes, fixedParams); err != nil && !c.snapshot {
+				return err
+			}
 			for i := range paramTypes {
 				if (paramTypes[i] == 0 || paramTypes[i] == UNKNOWNOID) && !c.snapshot {
 					return &Error{
@@ -410,7 +412,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 				}
 			}
 		} else if s.Query != nil {
-			if err := c.validatePreparedDMLStmt(s.Query, paramTypes); err != nil {
+			if err := c.validatePreparedDMLStmt(s.Query, paramTypes, fixedParams); err != nil {
 				return err
 			}
 			for i := range paramTypes {
@@ -541,13 +543,23 @@ func maxParamRefInNode(node nodes.Node) int {
 	return v.max
 }
 
-func collectQueryParamTypes(q *Query, paramTypes []uint32) {
+func collectQueryParamTypes(q *Query, paramTypes []uint32, fixedParams ...bool) error {
 	if q == nil || len(paramTypes) == 0 {
-		return
+		return nil
 	}
+	isFixed := len(fixedParams) > 0 && fixedParams[0]
+	var firstErr error
 	setParamType := func(num int, typ uint32) {
-		if num > 0 && num <= len(paramTypes) && typ != 0 && typ != UNKNOWNOID && (paramTypes[num-1] == 0 || paramTypes[num-1] == UNKNOWNOID) {
+		if firstErr != nil || num <= 0 || num > len(paramTypes) || typ == 0 || typ == UNKNOWNOID {
+			return
+		}
+		if paramTypes[num-1] == 0 || paramTypes[num-1] == UNKNOWNOID {
 			paramTypes[num-1] = typ
+		} else if !isFixed && paramTypes[num-1] != typ {
+			firstErr = &Error{
+				Code:    CodeAmbiguousParameter,
+				Message: fmt.Sprintf("could not determine data type of parameter $%d", num),
+			}
 		}
 	}
 	var scanExpr func(e AnalyzedExpr)
@@ -579,7 +591,9 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 					}
 				}
 				scanExpr(v.TestExpr)
-				collectQueryParamTypes(v.SubQuery, paramTypes)
+				if err := collectQueryParamTypes(v.SubQuery, paramTypes, isFixed); err != nil && firstErr == nil {
+					firstErr = err
+				}
 				return false
 			}
 			return true
@@ -607,11 +621,15 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 		}
 	}
 	for _, cte := range q.CTEList {
-		collectQueryParamTypes(cte.Query, paramTypes)
+		if err := collectQueryParamTypes(cte.Query, paramTypes, isFixed); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
 	for _, rte := range q.RangeTable {
 		if rte.Subquery != nil {
-			collectQueryParamTypes(rte.Subquery, paramTypes)
+			if err := collectQueryParamTypes(rte.Subquery, paramTypes, isFixed); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 		for _, fe := range rte.FuncExprs {
 			scanExpr(fe)
@@ -641,8 +659,13 @@ func collectQueryParamTypes(q *Query, paramTypes []uint32) {
 			scanExpr(wc.EndOffset)
 		}
 	}
-	collectQueryParamTypes(q.LArg, paramTypes)
-	collectQueryParamTypes(q.RArg, paramTypes)
+	if err := collectQueryParamTypes(q.LArg, paramTypes, isFixed); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	if err := collectQueryParamTypes(q.RArg, paramTypes, isFixed); err != nil && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }
 
 func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error) {
@@ -653,7 +676,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 	var fromList *nodes.List
 	var hasLocale, hasLCCollate, hasLCCtype, hasRules bool
 	deterministic := true
-	var provider string
+	var provider, localeVal string
 	var parts []string
 
 	for _, item := range def.Items {
@@ -693,6 +716,7 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 			switch opt {
 			case "locale":
 				hasLocale = true
+				localeVal = val
 			case "lc_collate":
 				hasLCCollate = true
 			case "lc_ctype":
@@ -758,6 +782,16 @@ func (c *Catalog) validateAndFormatCollationDef(def *nodes.List) (string, error)
 			return "", errInvalidObjectDefinition("parameters \"lc_collate\" and \"lc_ctype\" must both be specified")
 		}
 		return "", errInvalidObjectDefinition("parameter \"locale\" must be specified")
+	}
+	if provider == "builtin" {
+		if !hasLocale {
+			return "", errInvalidObjectDefinition("parameter \"locale\" must be specified")
+		}
+		switch localeVal {
+		case "C", "C.UTF-8", "PG_UNICODE_FAST":
+		default:
+			return "", errInvalidParameterValue(fmt.Sprintf("invalid locale name %q for builtin provider", localeVal))
+		}
 	}
 	sort.Strings(parts)
 	return "(" + strings.Join(parts, ", ") + ")", nil

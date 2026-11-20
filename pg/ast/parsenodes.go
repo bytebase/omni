@@ -190,6 +190,7 @@ type AlterTableCmd struct {
 func (n *AlterTableCmd) Tag() NodeTag { return T_AlterTableCmd }
 
 // ReplicaIdentityStmt represents the target of ALTER TABLE ... REPLICA IDENTITY.
+// Leaf AST node (no child Node fields), so genwalker omits it from walk_generated.go.
 type ReplicaIdentityStmt struct {
 	IdentityType byte   // 'd'=DEFAULT, 'f'=FULL, 'n'=NOTHING, 'i'=USING INDEX
 	Name         string // index name for 'i'

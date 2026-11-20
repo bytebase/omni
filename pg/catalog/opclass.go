@@ -26,6 +26,7 @@ type OpFamily struct {
 	AMOID     uint32
 	Schema    uint32
 	OwnerName string
+	Operators map[string]bool
 }
 
 // OpClass represents an operator class for an access method.
@@ -338,6 +339,16 @@ func (c *Catalog) DefineOpClass(stmt *nodes.CreateOpClassStmt) error {
 		OwnerName: c.currentOwner(),
 		Operators: declaredOps,
 	}
+	if familyOID != 0 && len(declaredOps) > 0 {
+		if fam := c.opFamilies[familyOID]; fam != nil {
+			if fam.Operators == nil {
+				fam.Operators = make(map[string]bool, len(declaredOps))
+			}
+			for opName := range declaredOps {
+				fam.Operators[opName] = true
+			}
+		}
+	}
 	c.opClasses[opc.OID] = opc
 	c.recordDependency('q', opc.OID, 0, 'm', am.OID, 0, DepNormal)
 	if familyOID != 0 {
@@ -364,11 +375,33 @@ func (c *Catalog) AlterOpFamily(stmt *nodes.AlterOpFamilyStmt) error {
 	}
 
 	famSchemaName, famName := qualifiedName(stmt.Opfamilyname)
-	if _, err := c.lookupOpFamily(am, famSchemaName, famName); err != nil {
+	fam, err := c.lookupOpFamily(am, famSchemaName, famName)
+	if err != nil {
 		return err
 	}
 
-	// ADD/DROP members: simplified no-op — pgddl doesn't track individual members.
+	if stmt.Items != nil {
+		for _, raw := range stmt.Items.Items {
+			ci, ok := raw.(*nodes.CreateOpClassItem)
+			if !ok || ci == nil || ci.Name == nil || ci.Itemtype != 1 {
+				continue
+			}
+			_, opName := qualifiedName(ci.Name.Objname)
+			if opName == "" {
+				continue
+			}
+			if stmt.IsDrop {
+				if fam.Operators != nil {
+					delete(fam.Operators, opName)
+				}
+			} else {
+				if fam.Operators == nil {
+					fam.Operators = make(map[string]bool)
+				}
+				fam.Operators[opName] = true
+			}
+		}
+	}
 	return nil
 }
 

@@ -731,18 +731,31 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		if i < len(def.ExclOpSchemas) {
 			opSchema = def.ExclOpSchemas[i]
 		}
-		if i < len(exclOpClassRefs) && opSchema == "" {
-			if opcOID := c.resolveOpClassOID(exclOpClassRefs[i], am.OID); opcOID >= FirstNormalObjectId {
-				if opc := c.opClasses[opcOID]; opc != nil && opc.Operators[opName] {
-					if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID != 0 {
-						resolvedExclOpOIDs[i] = opOID
-					}
-					continue
+		var opcRef opClassRef
+		if i < len(exclOpClassRefs) {
+			opcRef = exclOpClassRefs[i]
+		}
+		opcOID := c.resolveOpClassOID(opcRef, am.OID)
+		if opcOID >= FirstNormalObjectId {
+			opc := c.opClasses[opcOID]
+			inFamily := opc != nil && opc.Operators[opName]
+			if !inFamily && opc != nil && opc.FamilyOID != 0 {
+				if fam := c.opFamilies[opc.FamilyOID]; fam != nil && fam.Operators[opName] {
+					inFamily = true
 				}
+			}
+			if inFamily && opSchema == "" {
+				if opOID := c.resolveVisibleOperatorOID(opName, colType, colType); opOID != 0 {
+					resolvedExclOpOIDs[i] = opOID
+				}
+				continue
 			}
 		}
 		opOID, err := c.resolveExclusionOperatorOID(opSchema, opName, colType)
 		if err != nil {
+			return err
+		}
+		if err := c.validateExclusionOpFamilyMember(am, opcOID, opOID, opName); err != nil {
 			return err
 		}
 		resolvedExclOpOIDs[i] = opOID
@@ -890,6 +903,76 @@ func (c *Catalog) resolveExclusionOperatorOID(opSchema, opName string, colType u
 		return 0, err
 	}
 	return op.OID, nil
+}
+
+func (c *Catalog) validateExclusionOpFamilyMember(am *AccessMethod, opcOID, opOID uint32, opName string) error {
+	if am == nil || c.snapshot || c.installingSnapshot {
+		return nil
+	}
+	if opcOID >= FirstNormalObjectId {
+		opc := c.opClasses[opcOID]
+		if opc == nil {
+			return nil
+		}
+		inFamily := opc.Operators[opName]
+		hasDeclared := len(opc.Operators) > 0
+		if opc.FamilyOID != 0 {
+			if fam := c.opFamilies[opc.FamilyOID]; fam != nil {
+				if fam.Operators[opName] {
+					inFamily = true
+				}
+				if len(fam.Operators) > 0 {
+					hasDeclared = true
+				}
+			}
+		}
+		if hasDeclared && !inFamily {
+			return errUndefinedObject("operator", fmt.Sprintf("%s in operator family %q", opName, opc.Name))
+		}
+		return nil
+	}
+	if am.OID >= FirstNormalObjectId {
+		return nil
+	}
+	if op := c.operByOID[opOID]; op != nil && op.Result != BOOLOID {
+		return &Error{
+			Code:    CodeUndefinedObject,
+			Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+		}
+	}
+	switch am.Name {
+	case "btree":
+		switch opName {
+		case "=", "<", "<=", ">", ">=", "*=", "*<", "*<=", "*>", "*>=":
+			return nil
+		default:
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+			}
+		}
+	case "hash":
+		switch opName {
+		case "=", "*=":
+			return nil
+		default:
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+			}
+		}
+	case "gist", "spgist":
+		switch opName {
+		case "=", "<>", "<", "<=", ">", ">=", "&&", "<@", "@>", "<<", ">>", "&<", "&>", "-|-", "<<|", "|>>", "&<|", "|&>", "~=", "~", "@", "^@":
+			return nil
+		default:
+			return &Error{
+				Code:    CodeUndefinedObject,
+				Message: fmt.Sprintf("operator %s is not a member of operator family", opName),
+			}
+		}
+	}
+	return nil
 }
 
 // chooseConstraintAndIndexName picks a free name in both the relation/index

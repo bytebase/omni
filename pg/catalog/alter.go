@@ -3928,6 +3928,35 @@ func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) err
 		if !idx.IsUnique {
 			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", idxName))
 		}
+		if idx.ConstraintOID != 0 {
+			if con := c.constraints[idx.ConstraintOID]; con != nil && con.Deferrable {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: fmt.Sprintf("cannot use non-immediate index %q as replica identity", idxName),
+				}
+			}
+		}
+		if idx.WhereClause != "" {
+			return errInvalidObjectDefinition(fmt.Sprintf("cannot use partial index %q as replica identity", idxName))
+		}
+		nKeys := idx.NKeyColumns
+		if nKeys <= 0 || nKeys > len(idx.Columns) {
+			nKeys = len(idx.Columns)
+		}
+		for i := 0; i < nKeys; i++ {
+			attnum := idx.Columns[i]
+			if attnum == 0 || (i < len(idx.Exprs) && idx.Exprs[i] != "") {
+				return errInvalidObjectDefinition(fmt.Sprintf("cannot use expression index %q as replica identity", idxName))
+			}
+			ci := indexOfAttNum(rel, attnum)
+			if ci < 0 || !rel.Columns[ci].NotNull {
+				colName := ""
+				if ci >= 0 {
+					colName = rel.Columns[ci].Name
+				}
+				return errInvalidObjectDefinition(fmt.Sprintf("index %q cannot be used as replica identity because column %q is nullable", idxName, colName))
+			}
+		}
 		for _, existing := range c.indexesByRel[rel.OID] {
 			existing.IsReplicaIdent = false
 		}

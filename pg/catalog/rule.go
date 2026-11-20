@@ -56,6 +56,7 @@ type ruleStarCol struct {
 	colAlias   string
 	origName   string
 	typeOID    uint32
+	typeMod    int32
 }
 
 type ruleBindings struct {
@@ -681,12 +682,15 @@ func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
 	}
 }
 
-func (c *Catalog) validatePreparedDMLStmt(n nodes.Node, paramTypes []uint32) error {
+func (c *Catalog) validatePreparedDMLStmt(n nodes.Node, paramTypes []uint32, fixedParams ...bool) error {
 	b := newRuleBindings(0, 0)
 	if err := c.bindRuleStmt(b, n, &ruleEvalContext{}); err != nil {
 		return err
 	}
-	c.inferPreparedDMLParamTypes(b, n, paramTypes)
+	isFixed := len(fixedParams) > 0 && fixedParams[0]
+	if err := c.inferPreparedDMLParamTypes(b, n, paramTypes, isFixed); err != nil && !c.snapshot {
+		return err
+	}
 	return nil
 }
 
@@ -3008,6 +3012,7 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 	}
 	expandedCols := 0
 	var retTypes []uint32
+	var retTypMods []int32
 	unknownCount := false
 	for _, item := range list.Items {
 		rt, ok := item.(*nodes.ResTarget)
@@ -3033,12 +3038,14 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 				expandedCols += len(starCols)
 				for _, sc := range starCols {
 					retTypes = append(retTypes, sc.typeOID)
+					retTypMods = append(retTypMods, sc.typeMod)
 				}
 			}
 			continue
 		}
 		expandedCols++
 		retTypes = append(retTypes, c.inferRuleExprType(b, rt.Val, ctx))
+		retTypMods = append(retTypMods, c.inferRuleExprTypMod(b, rt.Val, ctx))
 	}
 	if b.ownerRelOID != 0 && !unknownCount && !c.snapshot {
 		if ownerRel := c.relationByOID[b.ownerRelOID]; ownerRel != nil {
@@ -3061,10 +3068,101 @@ func (c *Catalog) bindAndValidateReturningList(b *ruleBindings, list *nodes.List
 						Message: fmt.Sprintf("RETURNING list's entry %d has different type from column %q", i+1, col.Name),
 					}
 				}
+				if i < len(retTypMods) && col.TypeMod >= 0 && retTypMods[i] >= 0 && retTypMods[i] != col.TypeMod {
+					return &Error{
+						Code:    CodeDatatypeMismatch,
+						Message: fmt.Sprintf("RETURNING list's entry %d has different size from column %q", i+1, col.Name),
+					}
+				}
 			}
 		}
 	}
 	return nil
+}
+
+func (c *Catalog) inferRuleExprTypMod(b *ruleBindings, expr nodes.Node, ctx *ruleEvalContext) int32 {
+	if expr == nil {
+		return -1
+	}
+	switch v := expr.(type) {
+	case *nodes.CollateClause:
+		return c.inferRuleExprTypMod(b, v.Arg, ctx)
+	case *nodes.TypeCast:
+		if v.TypeName != nil {
+			if _, typMod, err := c.resolveTypeName(v.TypeName); err == nil {
+				return typMod
+			}
+		}
+		return -1
+	case *nodes.ColumnRef:
+		if b != nil {
+			if cb, ok := b.colByRef[v]; ok && cb.relOID != 0 && cb.attNum != 0 {
+				if rel := c.relationByOID[cb.relOID]; rel != nil {
+					for _, col := range rel.Columns {
+						if col.AttNum == cb.attNum {
+							return col.TypeMod
+						}
+					}
+				}
+			}
+		}
+		if v.Fields == nil || len(v.Fields.Items) == 0 || ctx == nil {
+			return -1
+		}
+		items := v.Fields.Items
+		if len(items) == 4 {
+			items = items[1:]
+		}
+		switch len(items) {
+		case 1:
+			colName := stringVal(items[0])
+			for cur := ctx; cur != nil; cur = cur.outer {
+				for k, se := range cur.scope {
+					if k == "excluded" || se.hiddenByJoinColAlias || se.isVirtual {
+						continue
+					}
+					if rel := c.relationByOID[se.relOID]; rel != nil {
+						if attNum, ok := resolveScopeColumn(rel, se, colName); ok {
+							for _, col := range rel.Columns {
+								if col.AttNum == attNum {
+									return col.TypeMod
+								}
+							}
+						}
+					}
+				}
+			}
+		case 2:
+			qual := stringVal(items[0])
+			colName := stringVal(items[1])
+			if se, ok := lookupScopeEntry(ctx, qual); ok && !se.isVirtual {
+				if rel := c.relationByOID[se.relOID]; rel != nil {
+					if attNum, ok := resolveScopeColumn(rel, se, colName); ok {
+						for _, col := range rel.Columns {
+							if col.AttNum == attNum {
+								return col.TypeMod
+							}
+						}
+					}
+				}
+			}
+		case 3:
+			relName := stringVal(items[1])
+			colName := stringVal(items[2])
+			if se, ok := lookupScopeEntry(ctx, relName); ok && !se.isVirtual && !se.hasAlias {
+				if rel := c.relationByOID[se.relOID]; rel != nil {
+					if attNum, ok := resolveScopeColumn(rel, se, colName); ok {
+						for _, col := range rel.Columns {
+							if col.AttNum == attNum {
+								return col.TypeMod
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return -1
 }
 
 func isStarColumnRef(cr *nodes.ColumnRef) bool {
@@ -3119,6 +3217,7 @@ func (c *Catalog) expandRuleStarTarget(b *ruleBindings, cr *nodes.ColumnRef, fro
 						colAlias: vCol,
 						origName: vCol,
 						typeOID:  vType,
+						typeMod:  -1,
 					})
 				}
 				continue
@@ -3140,6 +3239,7 @@ func (c *Catalog) expandRuleStarTarget(b *ruleBindings, cr *nodes.ColumnRef, fro
 						colAlias:   se.colAliases[i],
 						origName:   se.colAliases[i],
 						typeOID:    col.TypeOID,
+						typeMod:    col.TypeMod,
 					})
 				} else {
 					out = append(out, ruleStarCol{
@@ -3149,6 +3249,7 @@ func (c *Catalog) expandRuleStarTarget(b *ruleBindings, cr *nodes.ColumnRef, fro
 						useRelName: !se.hasAlias,
 						origName:   col.Name,
 						typeOID:    col.TypeOID,
+						typeMod:    col.TypeMod,
 					})
 				}
 			}
@@ -3170,6 +3271,7 @@ func (c *Catalog) expandRuleStarTarget(b *ruleBindings, cr *nodes.ColumnRef, fro
 				prefix:   strings.ToLower(qual),
 				origName: col.Name,
 				typeOID:  col.TypeOID,
+				typeMod:  col.TypeMod,
 			})
 		}
 		return out, false
@@ -3201,6 +3303,7 @@ func (c *Catalog) expandScopeEntryStarCols(se ruleScopeEntry, fallbackPrefix str
 				colAlias: vCol,
 				origName: vCol,
 				typeOID:  vType,
+				typeMod:  -1,
 			})
 		}
 		return out, false
@@ -3219,6 +3322,7 @@ func (c *Catalog) expandScopeEntryStarCols(se ruleScopeEntry, fallbackPrefix str
 				colAlias:   se.colAliases[i],
 				origName:   se.colAliases[i],
 				typeOID:    col.TypeOID,
+				typeMod:    col.TypeMod,
 			})
 		} else {
 			out = append(out, ruleStarCol{
@@ -3228,6 +3332,7 @@ func (c *Catalog) expandScopeEntryStarCols(se ruleScopeEntry, fallbackPrefix str
 				useRelName: !se.hasAlias,
 				origName:   col.Name,
 				typeOID:    col.TypeOID,
+				typeMod:    col.TypeMod,
 			})
 		}
 	}
@@ -6673,13 +6778,23 @@ func (d *ruleDeparser) deparseDefElemArg(n nodes.Node) string {
 	}
 }
 
-func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, paramTypes []uint32) {
+func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, paramTypes []uint32, fixedParams ...bool) error {
 	if len(paramTypes) == 0 || n == nil {
-		return
+		return nil
 	}
+	isFixed := len(fixedParams) > 0 && fixedParams[0]
+	var firstErr error
 	setParam := func(num int, typ uint32) {
-		if num > 0 && num <= len(paramTypes) && typ != 0 && typ != UNKNOWNOID && (paramTypes[num-1] == 0 || paramTypes[num-1] == UNKNOWNOID) {
+		if firstErr != nil || num <= 0 || num > len(paramTypes) || typ == 0 || typ == UNKNOWNOID {
+			return
+		}
+		if paramTypes[num-1] == 0 || paramTypes[num-1] == UNKNOWNOID {
 			paramTypes[num-1] = typ
+		} else if !isFixed && paramTypes[num-1] != typ {
+			firstErr = &Error{
+				Code:    CodeAmbiguousParameter,
+				Message: fmt.Sprintf("could not determine data type of parameter $%d", num),
+			}
 		}
 	}
 	resolveExprType := func(expr nodes.Node) uint32 {
@@ -6850,10 +6965,18 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 		case *nodes.SubLink:
 			walkExpr(ev.Testexpr, 0)
 			if sel, ok := ev.Subselect.(*nodes.SelectStmt); ok && sel != nil {
-				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
-					collectQueryParamTypes(q, paramTypes)
+				var optParams []uint32
+				if isFixed {
+					optParams = paramTypes
 				}
-				c.inferPreparedDMLParamTypes(b, sel, paramTypes)
+				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: optParams}); err == nil {
+					if err := collectQueryParamTypes(q, paramTypes, isFixed); err != nil && firstErr == nil {
+						firstErr = err
+					}
+				}
+				if err := c.inferPreparedDMLParamTypes(b, sel, paramTypes, isFixed); err != nil && firstErr == nil {
+					firstErr = err
+				}
 			}
 		case *nodes.FuncCall:
 			if ev.Args != nil {
@@ -6895,11 +7018,19 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 		for _, item := range wc.Ctes.Items {
 			if cte, ok := item.(*nodes.CommonTableExpr); ok && cte != nil && cte.Ctequery != nil {
 				if sel, isSel := cte.Ctequery.(*nodes.SelectStmt); isSel && sel != nil {
-					if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
-						collectQueryParamTypes(q, paramTypes)
+					var optParams []uint32
+					if isFixed {
+						optParams = paramTypes
+					}
+					if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: optParams}); err == nil {
+						if err := collectQueryParamTypes(q, paramTypes, isFixed); err != nil && firstErr == nil {
+							firstErr = err
+						}
 					}
 				}
-				c.inferPreparedDMLParamTypes(b, cte.Ctequery, paramTypes)
+				if err := c.inferPreparedDMLParamTypes(b, cte.Ctequery, paramTypes, isFixed); err != nil && firstErr == nil {
+					firstErr = err
+				}
 			}
 		}
 	}
@@ -6915,11 +7046,19 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 			walkExpr(v.Quals, BOOLOID)
 		case *nodes.RangeSubselect:
 			if sel, ok := v.Subquery.(*nodes.SelectStmt); ok && sel != nil {
-				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
-					collectQueryParamTypes(q, paramTypes)
+				var optParams []uint32
+				if isFixed {
+					optParams = paramTypes
+				}
+				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: optParams}); err == nil {
+					if err := collectQueryParamTypes(q, paramTypes, isFixed); err != nil && firstErr == nil {
+						firstErr = err
+					}
 				}
 			}
-			c.inferPreparedDMLParamTypes(b, v.Subquery, paramTypes)
+			if err := c.inferPreparedDMLParamTypes(b, v.Subquery, paramTypes, isFixed); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		case *nodes.RangeFunction:
 			if v.Functions != nil {
 				for _, fnItem := range v.Functions.Items {
@@ -6974,10 +7113,14 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 	case *nodes.SelectStmt:
 		walkWithClause(s.WithClause)
 		if s.Larg != nil {
-			c.inferPreparedDMLParamTypes(b, s.Larg, paramTypes)
+			if err := c.inferPreparedDMLParamTypes(b, s.Larg, paramTypes, isFixed); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 		if s.Rarg != nil {
-			c.inferPreparedDMLParamTypes(b, s.Rarg, paramTypes)
+			if err := c.inferPreparedDMLParamTypes(b, s.Rarg, paramTypes, isFixed); err != nil && firstErr == nil {
+				firstErr = err
+			}
 		}
 		walkFromList(s.FromClause)
 		walkReturning(s.TargetList)
@@ -7030,10 +7173,18 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 						}
 					}
 				}
-				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: paramTypes}); err == nil {
-					collectQueryParamTypes(q, paramTypes)
+				var optParams []uint32
+				if isFixed {
+					optParams = paramTypes
 				}
-				c.inferPreparedDMLParamTypes(b, sel, paramTypes)
+				if q, err := c.analyzeSelectStmtWithOptions(sel, AnalyzeOptions{ParamTypes: optParams}); err == nil {
+					if err := collectQueryParamTypes(q, paramTypes, isFixed); err != nil && firstErr == nil {
+						firstErr = err
+					}
+				}
+				if err := c.inferPreparedDMLParamTypes(b, sel, paramTypes, isFixed); err != nil && firstErr == nil {
+					firstErr = err
+				}
 			}
 		}
 		if s.OnConflictClause != nil {
@@ -7124,6 +7275,7 @@ func (c *Catalog) inferPreparedDMLParamTypes(b *ruleBindings, n nodes.Node, para
 		}
 		walkReturning(s.ReturningList)
 	}
+	return firstErr
 }
 
 func (d *ruleDeparser) deparseActionStmt(n nodes.Node) string {

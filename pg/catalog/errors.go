@@ -69,6 +69,7 @@ const (
 	CodeDuplicatePstatement          = "42P05"
 	CodeDuplicateAlias               = "42712"
 	CodeUndefinedParameter           = "42P02"
+	CodeAmbiguousParameter           = "42P08"
 )
 
 // Error represents a PostgreSQL-compatible error with an SQLSTATE code.
