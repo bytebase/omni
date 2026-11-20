@@ -2744,6 +2744,26 @@ func countQuotedListArgs(colType string) int {
 func (c *Catalog) validateKeyPrefixLength(tbl *Table, col *Column, ic *IndexColumn, strict bool) error {
 	prefixLen := ic.Length
 	dt := strings.ToLower(col.DataType)
+	// MySQL holds a key part's byte length in 32 bits, so a prefix whose
+	// bytes pass 2^32-1 wraps: on a utf8mb4 TEXT, mysql:8.0.46 stores
+	// s(1073741825) as s(1) and answers 1170 for s(1073741824), whose bytes
+	// wrap to 0, as for no prefix; VARCHAR(10) takes s(1073741824) whole.
+	// The parser admits no prefix past 2^31-1, so 64 bits never overflow.
+	mb := uint64(1)
+	switch dt {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		mb = uint64(max(charsetMaxBytes(col.Charset), 1))
+	}
+	if bytes := uint64(prefixLen) * mb; bytes > math.MaxUint32 {
+		prefixLen = int(uint64(uint32(bytes)) / mb)
+		ic.Length = prefixLen
+		if prefixLen == 0 {
+			if isTextBlobType(col.DataType) {
+				return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
+			}
+			return nil
+		}
+	}
 	switch dt {
 	case "char", "varchar", "binary", "varbinary":
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok && prefixLen > maxLen {

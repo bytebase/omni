@@ -5083,6 +5083,19 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "functional binary CONCAT with a national literal", stmt: "CREATE TABLE z (b VARBINARY(509), KEY ((CONCAT(b, N'x'))))", code: 0},
 		{name: "functional binary REPLACE with a latin1 replacement", stmt: "CREATE TABLE z (b VARBINARY(100), KEY ((REPLACE(b, 'x', _latin1'yyyyy'))))", code: 0},
 		{name: "functional binary REPLACE with a utf8mb4 replacement", stmt: "CREATE TABLE z (b VARBINARY(100), KEY ((REPLACE(b, 'x', 'yyyyy'))))", code: 3757},
+		// A key part's byte length wraps at 32 bits on the server.
+		{name: "TEXT key prefix whose bytes wrap to 4", stmt: "CREATE TABLE a (s TEXT, KEY (s(1073741825)))", code: 0, contains: []string{"KEY `s` (`s`(1))"}},
+		{name: "TEXT key prefix whose bytes wrap to 0", stmt: "CREATE TABLE z (s TEXT, KEY (s(1073741824)))", code: 1170},
+		{name: "latin1 TEXT key prefix of 2^30", stmt: "CREATE TABLE z (s TEXT CHARACTER SET latin1, KEY (s(1073741824)))", code: 1071},
+		{name: "VARCHAR key prefix whose bytes wrap to 0", stmt: "CREATE TABLE z (s VARCHAR(10), KEY (s(1073741824)))", code: 0},
+		{name: "TEXT key prefix of 2^31-1", stmt: "CREATE TABLE z (s TEXT, KEY (s(2147483647)))", code: 1071},
+		{name: "TEXT key prefix past 2^31-1", stmt: "CREATE TABLE z (s TEXT, KEY (s(9223372036854775807)))", code: 1064},
+		// A signed literal renders with its sign in a binary CONCAT.
+		{name: "functional binary CONCAT with -1 at 513 bytes", stmt: "CREATE TABLE z (b VARBINARY(511), KEY ((CONCAT(b, -1))))", code: 3757},
+		{name: "functional binary CONCAT with -1 at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(510), KEY ((CONCAT(b, -1))))", code: 0},
+		{name: "functional binary CONCAT with -1.5 at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(508), KEY ((CONCAT(b, -1.5))))", code: 0},
+		// Binary strings of unequal length do not combine bitwise.
+		{name: "bitwise AND of unequal binary strings", stmt: "SET @x = CAST(X'0102' AS BINARY) & CAST(X'FF' AS BINARY)", code: 3513},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6179,16 +6192,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"LOCATE('', 'abc')", "LOCATE('', 'abc', 3)", "LOCATE('', 'abc', 4)", "LOCATE('', 'abc', 5)", "LOCATE('b', 'abcb', -1)",
 		"INSTR('abcb', 'b')", "INSTR('a', 'A')", "LOCATE('b', 'abcb', 2.6)", "LOCATE(1, 21)",
 		"CRC32('a')", "CRC32('')", "CRC32(123)", "CRC32('é')", "CRC32(X'00')", "CRC32(1.5e0)",
+		"X'01' | X'02'", "X'0102' | X'0301'", "X'01' | X'0102'", "X'01' | 2", "~X'01'", "b'1' | b'10'", "X'01' << 1",
+		"CAST(X'01' AS BINARY) | 2", "CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY)",
+		"CAST(X'0102' AS BINARY) & CAST(X'FF03' AS BINARY)", "CAST(X'01' AS BINARY) << 1", "~CAST(X'01' AS BINARY)",
+		"CAST(X'8001' AS BINARY) >> 1",
+		"CAST(2.5 AS DOUBLE)", "CAST(2.5 AS FLOAT)", "CAST(0.1 AS FLOAT)", "CAST('2.5x' AS DOUBLE)", "CAST(2.5 AS REAL)",
+		"ABS(CAST(-9223372036854775808 AS DECIMAL(20,0)))", "ABS(CAST(-5 AS DECIMAL(3,0)))",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
 			t.Fatalf("mysql %s: %v", stmt, err)
 		}
-		var srv string
-		if err := conn.QueryRowContext(ctx, "SELECT CAST(@x AS CHAR)").Scan(&srv); err != nil {
+		// The value's bytes, so a binary result such as 0xFE reads back whole.
+		var srvBytes []byte
+		if err := conn.QueryRowContext(ctx, "SELECT CAST(@x AS BINARY)").Scan(&srvBytes); err != nil {
 			t.Fatalf("mysql read @x after %s: %v", stmt, err)
 		}
+		srv := string(srvBytes)
 		execAlterClauses(t, castCat, stmt+";")
 		if got := castCat.userVars["x"].str; got != srv {
 			t.Fatalf("%s: catalog %q, mysql %q", stmt, got, srv)
@@ -6290,7 +6311,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
-		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "(CRC32('a') > 0)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "(CRC32('a') > 0)",
+		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
+		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6386,7 +6409,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 
 	// PAD SPACE collations ignore trailing spaces; the _0900_ ones do not.
-	for _, coll := range []string{"utf8mb4_0900_ai_ci", "utf8mb4_general_ci", "utf8mb4_bin", "utf8mb4_0900_bin", "latin1_swedish_ci", "utf8mb4_unicode_ci"} {
+	for _, coll := range []string{"utf8mb4_0900_ai_ci", "utf8mb4_general_ci", "utf8mb4_bin", "utf8mb4_0900_bin", "latin1_swedish_ci", "utf8mb4_unicode_ci", "binary"} {
 		for _, stmt := range []string{"SET collation_connection = " + coll, "SET SESSION sql_mode = ''", "SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')"} {
 			if _, err := conn.ExecContext(ctx, stmt); err != nil {
 				t.Fatalf("mysql %s: %v", stmt, err)

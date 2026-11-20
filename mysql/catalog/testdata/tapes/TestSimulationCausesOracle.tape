@@ -40996,6 +40996,445 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLE a (s TEXT, KEY (s(1073741825)))
+< ok 0 0
+> query
+| SHOW CREATE TABLE a
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| a
+: bytes
+| CREATE TABLE `a` (
+|   `s` text,
+|   KEY `s` (`s`(1))
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s TEXT, KEY (s(1073741824)))
+< error
+| 1170 42000 BLOB/TEXT column 's' used in key specification without a key length
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s TEXT CHARACTER SET latin1, KEY (s(1073741824)))
+< error
+| 1071 42000 Specified key was too long; max key length is 3072 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s VARCHAR(10), KEY (s(1073741824)))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s TEXT, KEY (s(2147483647)))
+< error
+| 1071 42000 Specified key was too long; max key length is 3072 bytes
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (s TEXT, KEY (s(9223372036854775807)))
+< error
+| 1064 42000 …near '9223372036854775807)))' at line 1
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(511), KEY ((CONCAT(b, -1))))
+< error
+| 3757 HY000 Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(510), KEY ((CONCAT(b, -1))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| CREATE TABLE z (b VARBINARY(508), KEY ((CONCAT(b, -1.5))))
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET @x = CAST(X'0102' AS BINARY) & CAST(X'FF' AS BINARY)
+< error
+| 3513 HY000 Binary operands of bitwise operators must be of equal length
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -45762,9 +46201,9 @@
 | SET @x = CAST(3.6 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -45772,9 +46211,9 @@
 | SET @x = CAST(-3.6 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -4
@@ -45782,9 +46221,9 @@
 | SET @x = CAST(2.5 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -45792,9 +46231,9 @@
 | SET @x = CAST(-2.5 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -3
@@ -45802,9 +46241,9 @@
 | SET @x = CAST(2.5e0 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -45812,9 +46251,9 @@
 | SET @x = CAST(3.5e0 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -45822,9 +46261,9 @@
 | SET @x = CAST(-1.5e0 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -2
@@ -45832,9 +46271,9 @@
 | SET @x = CAST('3.6' AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -45842,9 +46281,9 @@
 | SET @x = CAST(' 3.6x' AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -45852,9 +46291,9 @@
 | SET @x = CAST('1e2' AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -45862,9 +46301,9 @@
 | SET @x = CAST(3.6 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -45872,9 +46311,9 @@
 | SET @x = CAST(-1.6 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551614
@@ -45882,9 +46321,9 @@
 | SET @x = CAST(-1 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -45892,9 +46331,9 @@
 | SET @x = CAST('-1' AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -45902,9 +46341,9 @@
 | SET @x = CAST(99999999999999999999 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775807
@@ -45912,9 +46351,9 @@
 | SET @x = CAST(-99999999999999999999 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -9223372036854775808
@@ -45922,9 +46361,9 @@
 | SET @x = CAST(99999999999999999999 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -45932,9 +46371,9 @@
 | SET @x = CAST(-99999999999999999999 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775808
@@ -45942,9 +46381,9 @@
 | SET @x = CAST('99999999999999999999' AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -1
@@ -45952,9 +46391,9 @@
 | SET @x = CAST('10000000000000000000' AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -8446744073709551616
@@ -45962,9 +46401,9 @@
 | SET @x = CAST('-99999999999999999999' AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -9223372036854775808
@@ -45972,9 +46411,9 @@
 | SET @x = CAST('-99999999999999999999' AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775808
@@ -45982,9 +46421,9 @@
 | SET @x = CAST(18446744073709551615 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -1
@@ -45992,9 +46431,9 @@
 | SET @x = CAST(9223372036854775808 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -9223372036854775808
@@ -46002,9 +46441,9 @@
 | SET @x = CAST(9223372036854775807.5 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775807
@@ -46012,9 +46451,9 @@
 | SET @x = CAST(1e30 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775807
@@ -46022,9 +46461,9 @@
 | SET @x = CAST(1e30 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775807
@@ -46032,9 +46471,9 @@
 | SET @x = CAST(1.5e19 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775807
@@ -46042,9 +46481,9 @@
 | SET @x = CAST(-2.5e0 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551614
@@ -46052,9 +46491,9 @@
 | SET @x = CAST(0.5 AS SIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46062,9 +46501,9 @@
 | SET @x = CAST(-0.5 AS UNSIGNED)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -46072,9 +46511,9 @@
 | SET @x = SUBSTRING('ANSI', 2, 9223372036854775807)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | NSI
@@ -46082,9 +46521,9 @@
 | SET @x = SUBSTRING('ANSI', -2, 9223372036854775807)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | SI
@@ -46092,9 +46531,9 @@
 | SET @x = SUBSTRING(_binary'ANSI', 2, 9223372036854775807)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
 < row
 : bytes
 | NSI
@@ -46102,9 +46541,9 @@
 | SET @x = SUBSTRING('ANSI', 9223372036854775807, 2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 |
@@ -46112,9 +46551,9 @@
 | SET @x = SUBSTRING('ANSI', -9223372036854775807, 2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 |
@@ -46122,9 +46561,9 @@
 | SET @x = SUBSTRING('ANSI', 2, 18446744073709551615)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | NSI
@@ -46132,9 +46571,9 @@
 | SET @x = SUBSTRING('ANSI', 18446744073709551615)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 |
@@ -46142,9 +46581,9 @@
 | SET @x = SUBSTRING('ANSI', 2, -1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 |
@@ -46152,9 +46591,9 @@
 | SET @x = LEFT('ANSI', 9223372036854775807)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | ANSI
@@ -46162,9 +46601,9 @@
 | SET @x = LEFT('ANSI', 18446744073709551615)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | ANSI
@@ -46172,9 +46611,9 @@
 | SET @x = RIGHT('ANSI', 9223372036854775807)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | ANSI
@@ -46182,9 +46621,9 @@
 | SET @x = ABS(-4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46192,9 +46631,9 @@
 | SET @x = ABS('-4')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46202,9 +46641,9 @@
 | SET @x = ABS(-4.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4.5
@@ -46212,9 +46651,9 @@
 | SET @x = ABS('abc')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46222,9 +46661,9 @@
 | SET @x = ABS('-1.5e0')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.5
@@ -46232,9 +46671,9 @@
 | SET @x = ABS(-1.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.5
@@ -46242,9 +46681,9 @@
 | SET @x = ABS(' -3x')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -46252,9 +46691,9 @@
 | SET @x = ABS(4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46262,9 +46701,9 @@
 | SET @x = ABS(-9223372036854775807)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775807
@@ -46272,9 +46711,9 @@
 | SET @x = ABS(18446744073709551615)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -46282,9 +46721,9 @@
 | SET @x = NOT 0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46292,9 +46731,9 @@
 | SET @x = NOT 1
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46302,9 +46741,9 @@
 | SET @x = NOT 'abc'
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46312,9 +46751,9 @@
 | SET @x = NOT '1x'
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46322,9 +46761,9 @@
 | SET @x = !0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46332,9 +46771,9 @@
 | SET @x = NOT 0.0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46342,9 +46781,9 @@
 | SET @x = NOT 0.5
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46352,9 +46791,9 @@
 | SET @x = LEFT('ANSI', 1.6)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | AN
@@ -46362,9 +46801,9 @@
 | SET @x = LEFT('ANSI', 1.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | AN
@@ -46372,9 +46811,9 @@
 | SET @x = LEFT('ANSI', '1.6')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | A
@@ -46382,9 +46821,9 @@
 | SET @x = RIGHT('ANSI', 2.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | SI
@@ -46392,9 +46831,9 @@
 | SET @x = LEFT('ANSI', 1.4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | A
@@ -46402,9 +46841,9 @@
 | SET @x = SUBSTRING('ANSI', 1.6, 1.6)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | NS
@@ -46412,9 +46851,9 @@
 | SET @x = SUBSTRING('ANSI', '2.6')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | NSI
@@ -46422,9 +46861,9 @@
 | SET @x = SUBSTRING('ANSI', 2.5, 2.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 | SI
@@ -46432,9 +46871,9 @@
 | SET @x = LEFT('ANSI', 'x')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 |
@@ -46442,9 +46881,9 @@
 | SET @x = LEFT('ANSI', -0.4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "LONGTEXT"
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
 < row
 : bytes
 |
@@ -46452,9 +46891,9 @@
 | SET @x = -99999999999999999999
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -99999999999999999999
@@ -46462,9 +46901,9 @@
 | SET @x = 99999999999999999999 + 1
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 100000000000000000000
@@ -46472,9 +46911,9 @@
 | SET @x = -(99999999999999999999)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -99999999999999999999
@@ -46482,9 +46921,9 @@
 | SET @x = ROUND(3.6)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46492,9 +46931,9 @@
 | SET @x = ROUND(-3.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -4
@@ -46502,9 +46941,9 @@
 | SET @x = ROUND(2.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -46512,9 +46951,9 @@
 | SET @x = ROUND(3.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46522,9 +46961,9 @@
 | SET @x = ROUND(1.2345, 2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.23
@@ -46532,9 +46971,9 @@
 | SET @x = ROUND(1234.5, -2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1200
@@ -46542,9 +46981,9 @@
 | SET @x = ROUND('3.6')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46552,9 +46991,9 @@
 | SET @x = ROUND(1.2, 3)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.2
@@ -46562,9 +47001,9 @@
 | SET @x = ROUND(3.14159, 2.6)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3.142
@@ -46572,9 +47011,9 @@
 | SET @x = ROUND(-1.25, 1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -1.3
@@ -46582,9 +47021,9 @@
 | SET @x = ROUND(1.25e0, 1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.2
@@ -46592,9 +47031,9 @@
 | SET @x = ROUND(15, -1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 20
@@ -46602,9 +47041,9 @@
 | SET @x = ROUND(-15, -1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -20
@@ -46612,9 +47051,9 @@
 | SET @x = ROUND(14, -5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46622,9 +47061,9 @@
 | SET @x = ROUND(1.5, 40)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.5
@@ -46632,9 +47071,9 @@
 | SET @x = TRUNCATE(3.69, 1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3.6
@@ -46642,9 +47081,9 @@
 | SET @x = TRUNCATE(-3.69, 1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -3.6
@@ -46652,9 +47091,9 @@
 | SET @x = TRUNCATE(1234, -2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1200
@@ -46662,9 +47101,9 @@
 | SET @x = TRUNCATE(1.2, 3)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.2
@@ -46672,9 +47111,9 @@
 | SET @x = TRUNCATE('3.69', 1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3.6
@@ -46682,9 +47121,9 @@
 | SET @x = TRUNCATE(3.69e0, 1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3.6
@@ -46692,9 +47131,9 @@
 | SET @x = FLOOR(-3.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -4
@@ -46702,9 +47141,9 @@
 | SET @x = FLOOR(3.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -46712,9 +47151,9 @@
 | SET @x = CEIL(3.2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -46722,9 +47161,9 @@
 | SET @x = CEILING(-3.2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -3
@@ -46732,9 +47171,9 @@
 | SET @x = FLOOR(2.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -46742,9 +47181,9 @@
 | SET @x = FLOOR('3.7')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -46752,9 +47191,9 @@
 | SET @x = CEIL('x')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46762,9 +47201,9 @@
 | SET @x = CEIL(-0.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46772,9 +47211,9 @@
 | SET @x = FLOOR(99999999999999999999.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 99999999999999999999
@@ -46782,9 +47221,9 @@
 | SET @x = SIGN(-2.5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -1
@@ -46792,9 +47231,9 @@
 | SET @x = SIGN(0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46802,9 +47241,9 @@
 | SET @x = SIGN('x')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -46812,9 +47251,9 @@
 | SET @x = SIGN('-3')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -1
@@ -46822,9 +47261,9 @@
 | SET @x = SIGN(2e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46832,9 +47271,9 @@
 | SET @x = MOD(5, 4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46842,9 +47281,9 @@
 | SET @x = MOD(-5, 4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | -1
@@ -46852,9 +47291,9 @@
 | SET @x = MOD(5.5, 2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1.5
@@ -46862,9 +47301,9 @@
 | SET @x = MOD('7', 4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -46872,9 +47311,9 @@
 | SET @x = MOD(5e0, 2)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46882,9 +47321,9 @@
 | SET @x = ~-2
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46892,9 +47331,9 @@
 | SET @x = ~0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -46902,9 +47341,9 @@
 | SET @x = ~'3'
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551612
@@ -46912,9 +47351,9 @@
 | SET @x = ~1.6
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551613
@@ -46922,9 +47361,9 @@
 | SET @x = ~1.5e0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551613
@@ -46932,9 +47371,9 @@
 | SET @x = ~'x'
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -46942,9 +47381,9 @@
 | SET @x = BIT_COUNT(1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46952,9 +47391,9 @@
 | SET @x = BIT_COUNT(-1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 64
@@ -46962,9 +47401,9 @@
 | SET @x = BIT_COUNT('3')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -46972,9 +47411,9 @@
 | SET @x = BIT_COUNT(1.6)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46982,9 +47421,9 @@
 | SET @x = BIT_COUNT(1.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -46992,9 +47431,9 @@
 | SET @x = BIT_COUNT('x')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47002,9 +47441,9 @@
 | SET @x = BIT_COUNT(18446744073709551615)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 64
@@ -47012,9 +47451,9 @@
 | SET @x = BIT_COUNT(X'FF')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 8
@@ -47022,9 +47461,9 @@
 | SET @x = BIT_COUNT(b'101')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47032,9 +47471,9 @@
 | SET @x = ASCII(X'01')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47042,9 +47481,9 @@
 | SET @x = ASCII('A')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 65
@@ -47052,9 +47491,9 @@
 | SET @x = ASCII('')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47062,9 +47501,9 @@
 | SET @x = ASCII(65)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 54
@@ -47072,9 +47511,9 @@
 | SET @x = ORD(X'01')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47082,9 +47521,9 @@
 | SET @x = ORD('A')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 65
@@ -47092,9 +47531,9 @@
 | SET @x = ORD('')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47102,9 +47541,9 @@
 | SET @x = ORD('é')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 50089
@@ -47112,9 +47551,9 @@
 | SET @x = ORD('€')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 14844588
@@ -47122,9 +47561,9 @@
 | SET @x = ORD('😀')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4036991104
@@ -47132,9 +47571,9 @@
 | SET @x = ORD(65)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 54
@@ -47142,9 +47581,9 @@
 | SET @x = ORD(_binary'é')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 195
@@ -47152,9 +47591,9 @@
 | SET @x = BIT_LENGTH('a')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 8
@@ -47162,9 +47601,9 @@
 | SET @x = BIT_LENGTH('é')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 16
@@ -47172,9 +47611,9 @@
 | SET @x = BIT_LENGTH(X'0102')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 16
@@ -47182,9 +47621,9 @@
 | SET @x = BIT_LENGTH(123)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 24
@@ -47192,9 +47631,9 @@
 | SET @x = BIT_LENGTH('')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47202,9 +47641,9 @@
 | SET @x = BIT_LENGTH(1.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 24
@@ -47212,9 +47651,9 @@
 | SET @x = LENGTH(1.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -47222,9 +47661,9 @@
 | SET @x = OCTET_LENGTH('é')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47232,9 +47671,9 @@
 | SET @x = CHAR_LENGTH(1.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -47242,9 +47681,9 @@
 | SET @x = LOCATE('a', 'a')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47252,9 +47691,9 @@
 | SET @x = LOCATE('A', 'a')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47262,9 +47701,9 @@
 | SET @x = LOCATE('b', 'abcb')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47272,9 +47711,9 @@
 | SET @x = LOCATE('b', 'abcb', 3)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -47282,9 +47721,9 @@
 | SET @x = LOCATE('b', 'abcb', 0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47292,9 +47731,9 @@
 | SET @x = LOCATE('', 'abc')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47302,9 +47741,9 @@
 | SET @x = LOCATE('', 'abc', 3)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3
@@ -47312,9 +47751,9 @@
 | SET @x = LOCATE('', 'abc', 4)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -47322,9 +47761,9 @@
 | SET @x = LOCATE('', 'abc', 5)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47332,9 +47771,9 @@
 | SET @x = LOCATE('b', 'abcb', -1)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47342,9 +47781,9 @@
 | SET @x = INSTR('abcb', 'b')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47352,9 +47791,9 @@
 | SET @x = INSTR('a', 'A')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47362,9 +47801,9 @@
 | SET @x = LOCATE('b', 'abcb', 2.6)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 4
@@ -47372,9 +47811,9 @@
 | SET @x = LOCATE(1, 21)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47382,9 +47821,9 @@
 | SET @x = CRC32('a')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3904355907
@@ -47392,9 +47831,9 @@
 | SET @x = CRC32('')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47402,9 +47841,9 @@
 | SET @x = CRC32(123)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2286445522
@@ -47412,9 +47851,9 @@
 | SET @x = CRC32('é')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 235179326
@@ -47422,9 +47861,9 @@
 | SET @x = CRC32(X'00')
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 3523407757
@@ -47432,19 +47871,219 @@
 | SET @x = CRC32(1.5e0)
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2270993338
 > exec
+| SET @x = X'01' | X'02'
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = X'0102' | X'0301'
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 771
+> exec
+| SET @x = X'01' | X'0102'
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 259
+> exec
+| SET @x = X'01' | 2
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = ~X'01'
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 18446744073709551614
+> exec
+| SET @x = b'1' | b'10'
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 3
+> exec
+| SET @x = X'01' << 1
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = CAST(X'01' AS BINARY) | 2
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
+< row
+: bytes
+|q "\x03"
+> exec
+| SET @x = CAST(X'0102' AS BINARY) & CAST(X'FF03' AS BINARY)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
+< row
+: bytes
+|q "\x01\x02"
+> exec
+| SET @x = CAST(X'01' AS BINARY) << 1
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
+< row
+: bytes
+|q "\x02"
+> exec
+| SET @x = ~CAST(X'01' AS BINARY)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
+< row
+: bytes
+|q "\xfe"
+> exec
+| SET @x = CAST(X'8001' AS BINARY) >> 1
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "MEDIUMBLOB" "[]uint8"
+< row
+: bytes
+|q "@\x00"
+> exec
+| SET @x = CAST(2.5 AS DOUBLE)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2.5
+> exec
+| SET @x = CAST(2.5 AS FLOAT)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2.5
+> exec
+| SET @x = CAST(0.1 AS FLOAT)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0.10000000149011612
+> exec
+| SET @x = CAST('2.5x' AS DOUBLE)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2.5
+> exec
+| SET @x = CAST(2.5 AS REAL)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2.5
+> exec
+| SET @x = ABS(CAST(-9223372036854775808 AS DECIMAL(20,0)))
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 9223372036854775808
+> exec
+| SET @x = ABS(CAST(-5 AS DECIMAL(3,0)))
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 5
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 9223372036854775808
@@ -47452,9 +48091,9 @@
 | SET @x = (1 << 63) > 0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 1
@@ -47462,9 +48101,9 @@
 | SET @x = -1 | 0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 18446744073709551615
@@ -47472,9 +48111,9 @@
 | SET @x = 1 << 64
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 0
@@ -47482,9 +48121,9 @@
 | SET @x = 5 >> 1
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47492,9 +48131,9 @@
 | SET @x = 1.6 | 0
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47502,9 +48141,9 @@
 | SET @x = '3' ^ 1
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 2
@@ -47512,9 +48151,9 @@
 | SET @x = -1 & 255
 < ok 0 0
 > query
-| SELECT CAST(@x AS CHAR)
+| SELECT CAST(@x AS BINARY)
 < result
-< column "CAST(@x AS CHAR)" "VARCHAR"
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
 < row
 : bytes
 | 255
@@ -48003,6 +48642,45 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| PIPES_AS_CONCAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = (CAST(2.5 AS DOUBLE) = 2.5)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = (ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -48199,6 +48877,22 @@
 < row
 : bytes
 | REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET collation_connection = binary
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IF('a' = 'a ', 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+|
 > exec
 | SET NAMES utf8mb4
 < ok 0 0

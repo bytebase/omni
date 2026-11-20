@@ -22,6 +22,10 @@ type userVarValue struct {
 	// isDecimal marks an exact DECIMAL whose text may show no fraction, such
 	// as ROUND(3.6) = 4: sql_mode refuses it (1232) where it takes INT 4.
 	isDecimal bool
+	// hexLit marks a hex or bit literal, which a bitwise operator reads as a
+	// number (X'01' | X'0102' is 259); any other binary string combines
+	// byte by byte.
+	hexLit bool
 }
 
 // Catalog is the in-memory MySQL catalog.

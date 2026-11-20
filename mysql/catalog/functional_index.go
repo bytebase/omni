@@ -535,7 +535,24 @@ func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, s
 		}
 		return utf8.RuneCountInString(e.Value), true, cs
 	case *nodes.IntLit:
-		return len(strconv.FormatInt(e.Value, 10)), true, ""
+		// A number renders in a one-byte charset, even in a binary result:
+		// CONCAT(varbinary_510, -1) is 512 bytes on mysql:8.0.46.
+		return len(strconv.FormatInt(e.Value, 10)), true, "ascii"
+	case *nodes.FloatLit:
+		if !strings.ContainsAny(e.Value, "eE") {
+			return len(e.Value), true, "ascii"
+		}
+	case *nodes.UnaryExpr:
+		// A signed literal renders with its sign: CONCAT(varbinary_511, -1)
+		// is 513 bytes, a LOB, on mysql:8.0.46.
+		if e.Op == nodes.UnaryMinus || e.Op == nodes.UnaryPlus {
+			if n, ok, cs := inferStringExprLenAndCharset(tbl, e.Operand); ok {
+				if e.Op == nodes.UnaryMinus {
+					n++
+				}
+				return n, true, cs
+			}
+		}
 	default:
 		rt := inferFunctionalIndexExprType(tbl, e)
 		if rt != nil && rt.Length > 0 {
@@ -543,6 +560,7 @@ func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, s
 		}
 		return 0, false, ""
 	}
+	return 0, false, ""
 }
 
 func inferBoundedStringExprType(tbl *Table, args []nodes.ExprNode, limitIdx int) *ResolvedType {

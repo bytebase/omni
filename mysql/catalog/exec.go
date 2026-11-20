@@ -129,6 +129,7 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			}
 			if ok {
 				updates = append(updates, func() {
+					val.hexLit = false // a user variable holds a binary string, not a literal
 					c.userVars[uName] = val
 				})
 			}
@@ -925,7 +926,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 		if !ok {
 			return userVarValue{}, false, nil
 		}
-		return userVarValue{kind: userVarString, str: string(raw), binary: true}, true, nil
+		return userVarValue{kind: userVarString, str: string(raw), binary: true, hexLit: true}, true, nil
 	case *nodes.IntLit:
 		if s, ok := exactIntLiteral(e, ""); ok {
 			return userVarValue{kind: userVarNumeric, str: s}, true, nil
@@ -943,7 +944,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 		if !ok {
 			return userVarValue{}, false, nil
 		}
-		return userVarValue{kind: userVarString, str: string(raw), binary: true}, true, nil
+		return userVarValue{kind: userVarString, str: string(raw), binary: true, hexLit: true}, true, nil
 	case *nodes.UnaryExpr:
 		if e.Op == nodes.UnaryPlus || e.Op == nodes.UnaryMinus {
 			sign := ""
@@ -993,12 +994,16 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if err != nil || !ok || v.kind == userVarNull {
 				return v, ok, err
 			}
-			us, ok := setCastInt(v, true)
-			if !ok {
-				return userVarValue{}, false, nil
+			if isBitwiseBinaryString(v) {
+				// ~ of a binary string complements its bytes: ~CAST(X'01' AS BINARY) is 0xFE.
+				out := []byte(v.str)
+				for i := range out {
+					out[i] = ^out[i]
+				}
+				return userVarValue{kind: userVarString, str: string(out), binary: true}, true, nil
 			}
-			u, perr := strconv.ParseUint(us, 10, 64)
-			if perr != nil {
+			u, ok := setBitwiseUint(v)
+			if !ok {
 				return userVarValue{}, false, nil
 			}
 			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(^u, 10)}, true, nil
@@ -1572,12 +1577,12 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			}
 			if v.kind == userVarNumeric && !v.isFloat {
 				t := strings.TrimSpace(v.str)
-				if t == "-9223372036854775808" {
+				if t == "-9223372036854775808" && !v.isDecimal {
 					// MySQL answers 1690 for ABS of the smallest BIGINT, and the
 					// whole SET fails with it.
 					return userVarValue{}, false, errBigintOutOfRange()
 				}
-				return userVarValue{kind: userVarNumeric, str: strings.TrimPrefix(t, "-")}, true, nil
+				return userVarValue{kind: userVarNumeric, str: strings.TrimPrefix(t, "-"), isDecimal: v.isDecimal}, true, nil
 			}
 			r, _, _, rok := parseSetNumberPrefixRat(v.str, false)
 			f := 0.0
@@ -1917,7 +1922,7 @@ func (c *Catalog) compareSetValues(left, right userVarValue) int {
 	// A PAD SPACE collation, every one but the _0900_ family and binary,
 	// ignores trailing spaces: under utf8mb4_general_ci, latin1_swedish_ci
 	// and even utf8mb4_bin, mysql:8.0.46 answers 'a' = 'a ' with 1.
-	if !strings.Contains(strings.ToLower(coll), "_0900_") {
+	if lc := strings.ToLower(coll); !strings.Contains(lc, "_0900_") && lc != "binary" {
 		ls, rs = strings.TrimRight(ls, " "), strings.TrimRight(rs, " ")
 	}
 	lk := collationComparisonKey(ls, coll, cs)
@@ -1970,6 +1975,63 @@ func isASCII(s string) bool {
 // spells it.
 func isBinaryIntroducer(cs string) bool {
 	return strings.EqualFold(strings.TrimPrefix(strings.TrimSpace(cs), "_"), "binary")
+}
+
+// isBitwiseBinaryString reports a binary string a bitwise operator combines
+// byte by byte: any but a hex or bit literal, which it reads as a number.
+func isBitwiseBinaryString(v userVarValue) bool {
+	return v.kind == userVarString && v.binary && !v.hexLit
+}
+
+// setBitwiseUint reads an operand of a bitwise operator as an unsigned 64-bit
+// integer: a hex or bit literal by its bytes, big-endian (X'0102' is 258),
+// anything else as CAST(... AS UNSIGNED) reads it.
+func setBitwiseUint(v userVarValue) (uint64, bool) {
+	if v.kind == userVarString && v.hexLit {
+		var u uint64
+		b := []byte(v.str)
+		if len(b) > 8 {
+			b = b[len(b)-8:]
+		}
+		for _, x := range b {
+			u = u<<8 | uint64(x)
+		}
+		return u, true
+	}
+	s, ok := setCastInt(v, true)
+	if !ok {
+		return 0, false
+	}
+	u, err := strconv.ParseUint(s, 10, 64)
+	return u, err == nil
+}
+
+// shiftBinaryString shifts a byte string as one bit string of fixed length.
+func shiftBinaryString(s string, n uint64, left bool) string {
+	b := []byte(s)
+	total := uint64(len(b)) * 8
+	out := make([]byte, len(b))
+	if n >= total {
+		return string(out)
+	}
+	for i := uint64(0); i < total; i++ {
+		var src uint64
+		if left {
+			src = i + n
+		} else {
+			if i < n {
+				continue
+			}
+			src = i - n
+		}
+		if src >= total {
+			continue
+		}
+		if b[src/8]&(0x80>>(src%8)) != 0 {
+			out[i/8] |= 0x80 >> (i % 8)
+		}
+	}
+	return string(out)
 }
 
 // setMaxAllowedPacket is max_allowed_packet's default on mysql:8.0.46.
@@ -2032,13 +2094,28 @@ func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (
 			return userVarValue{}, false
 		}
 		return userVarValue{kind: userVarNumeric, str: s}, true
-	case "decimal", "numeric", "float", "double", "real":
+	case "double", "real", "float":
+		// A double keeps its value (CAST(2.5 AS DOUBLE) = 2.5); FLOAT is single
+		// precision, and past its range the cast is unevaluated here (1690 on
+		// the server).
+		r := parseSetCoercedNumberRat(v)
+		f, _ := r.Float64()
+		if strings.EqualFold(strings.TrimSpace(dt.Name), "float") {
+			if math.Abs(f) > math.MaxFloat32 {
+				return userVarValue{}, false
+			}
+			// The single-precision value, held as the double it widens to:
+			// SET @x = CAST(0.1 AS FLOAT) stores 0.10000000149011612.
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(float64(float32(f))), isFloat: true}, true
+		}
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true
+	case "decimal", "numeric":
 		r := parseSetCoercedNumberRat(v)
 		scale := dt.Scale
 		if scale < 0 {
 			scale = 0
 		}
-		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale)}, true
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isDecimal: true}, true
 	default:
 		return userVarValue{}, false
 	}
@@ -2298,15 +2375,41 @@ func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool
 		// CAST(... AS UNSIGNED) reads them, and answer one: mysql:8.0.46
 		// gives 1 << 63 = 9223372036854775808, so (1 << 63) > 0 is 1.
 		// Binary strings combine bytewise and keep the other path.
-		if !(left.kind == userVarString && left.binary) && !(right.kind == userVarString && right.binary) {
-			ls, lok := setCastInt(left, true)
-			rs, rok := setCastInt(right, true)
-			if !lok || !rok {
+		lBin, rBin := isBitwiseBinaryString(left), isBitwiseBinaryString(right)
+		switch {
+		case lBin && rBin && (e.Op == nodes.BinOpBitOr || e.Op == nodes.BinOpBitAnd || e.Op == nodes.BinOpBitXor):
+			// Two binary strings combine byte by byte and must be as long:
+			// CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY) is 0x03, and
+			// mismatched lengths are 3513.
+			if len(left.str) != len(right.str) {
+				return userVarValue{}, false, &Error{Code: 3513, SQLState: "HY000",
+					Message: "Binary operands of bitwise operators must be of equal length"}
+			}
+			out := []byte(left.str)
+			for i := range out {
+				switch e.Op {
+				case nodes.BinOpBitOr:
+					out[i] |= right.str[i]
+				case nodes.BinOpBitAnd:
+					out[i] &= right.str[i]
+				default:
+					out[i] ^= right.str[i]
+				}
+			}
+			return userVarValue{kind: userVarString, str: string(out), binary: true}, true, nil
+		case lBin && (e.Op == nodes.BinOpShiftLeft || e.Op == nodes.BinOpShiftRight):
+			// A binary string shifts as one bit string of its own length:
+			// CAST(X'01' AS BINARY) << 1 is 0x02.
+			ru, ok := setBitwiseUint(right)
+			if !ok {
 				return userVarValue{}, false, nil
 			}
-			lu, lerr := strconv.ParseUint(ls, 10, 64)
-			ru, rerr := strconv.ParseUint(rs, 10, 64)
-			if lerr != nil || rerr != nil {
+			return userVarValue{kind: userVarString, str: shiftBinaryString(left.str, ru, e.Op == nodes.BinOpShiftLeft), binary: true}, true, nil
+		}
+		{
+			lu, lok := setBitwiseUint(left)
+			ru, rok := setBitwiseUint(right)
+			if !lok || !rok {
 				return userVarValue{}, false, nil
 			}
 			var u uint64
