@@ -14,6 +14,14 @@ func TestResolveLambdaAndTableCollection(t *testing.T) {
 			Columns: []ResolverColumn{
 				{Name: "a", Position: 1},
 				{Name: "arr", Position: 2},
+				{Name: "x", Position: 3},
+			},
+		},
+		"u": {
+			Name: "u",
+			Columns: []ResolverColumn{
+				{Name: "x", Position: 1},
+				{Name: "y", Position: 2},
 			},
 		},
 	}
@@ -34,10 +42,19 @@ func TestResolveLambdaAndTableCollection(t *testing.T) {
 		return DeparseSelect(resolved)
 	}
 
-	// Lambda body qualifies outer table column `a` while leaving parameter `x` unqualified.
+	// Lambda body qualifies outer table column `a` while leaving parameter `x` unqualified,
+	// including inside nested scalar subqueries where outer `t` also has a column `x`.
 	if got, want := resolveAndDeparse(t, "SELECT ARRAY_FILTER(x -> x > a, arr) AS res FROM t"),
 		"select array_filter(`x` -> (`x` > `t`.`a`),`t`.`arr`) AS `res` from `t`"; got != want {
 		t.Errorf("lambda resolve:\n got: %s\nwant: %s", got, want)
+	}
+	if got, want := resolveAndDeparse(t, "SELECT ARRAY_FILTER(x -> (SELECT x + a), arr) AS res FROM t"),
+		"select array_filter(`x` -> (select (`x` + `t`.`a`)),`t`.`arr`) AS `res` from `t`"; got != want {
+		t.Errorf("lambda subquery mask:\n got: %s\nwant: %s", got, want)
+	}
+	if got, want := resolveAndDeparse(t, "SELECT ARRAY_FILTER(x -> (SELECT x FROM u), arr) AS res FROM t"),
+		"select array_filter(`x` -> (select `u`.`x` from `u`),`t`.`arr`) AS `res` from `t`"; got != want {
+		t.Errorf("lambda inner table shadows mask:\n got: %s\nwant: %s", got, want)
 	}
 
 	// TABLE(arr) resolves `arr` against preceding FROM item `t` without self-qualifying as `c.arr`.

@@ -704,10 +704,10 @@ func (r *Resolver) resolveColumnRef(col *ast.ColumnRef, sc *fromScope) ast.ExprN
 	}
 
 	lowerCol := strings.ToLower(col.Column)
-	if sc != nil && sc.maskedCols[lowerCol] {
-		return col
-	}
 	for cur := sc; cur != nil; cur = cur.parent {
+		if cur.maskedCols[lowerCol] {
+			return col
+		}
 		// A column a NATURAL or USING join joins on is the one copy the join
 		// keeps, which comes from its right input in a RIGHT join. A FULL join
 		// keeps COALESCE(left, right) instead, since either side may be the
