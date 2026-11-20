@@ -89,6 +89,7 @@ const (
 	ErrNotAllowedCommand                 = 1148
 	ErrWrongValueForVar                  = 1231
 	ErrWrongTypeForVar                   = 1232
+	ErrIncorrectGlobalLocalVar           = 1238
 	ErrWrongFkDef                        = 1239
 	ErrDuplicatedValueInType             = 1291
 	ErrTablespaceMissing                 = 1812
@@ -195,6 +196,7 @@ var sqlStateMap = map[int]string{
 	ErrNotAllowedCommand:                 "42000",
 	ErrWrongValueForVar:                  "42000",
 	ErrWrongTypeForVar:                   "42000",
+	ErrIncorrectGlobalLocalVar:           "HY000",
 	ErrWrongFkDef:                        "42000",
 	ErrDuplicatedValueInType:             "HY000",
 	ErrTablespaceMissing:                 "HY000",
@@ -758,6 +760,11 @@ func errWrongValueForVar(varName, val string) error {
 func errWrongTypeForVar(varName string) error {
 	return &Error{Code: ErrWrongTypeForVar, SQLState: sqlState(ErrWrongTypeForVar),
 		Message: fmt.Sprintf("Incorrect argument type to variable '%s'", varName)}
+}
+
+func errIncorrectGlobalLocalVar(varName, detail string) error {
+	return &Error{Code: ErrIncorrectGlobalLocalVar, SQLState: sqlState(ErrIncorrectGlobalLocalVar),
+		Message: fmt.Sprintf("Variable '%s' is a %s", varName, detail)}
 }
 
 func errDependentByDefaultValExpr(colName, tableName string) error {

@@ -3,6 +3,7 @@ package catalog
 import (
 	"path"
 	"strings"
+	"time"
 )
 
 type userVarKind int
@@ -20,26 +21,27 @@ type userVarValue struct {
 
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
-	databases        map[string]*Database    // lowered name -> Database
-	tablespaces      map[string]bool         // exact general tablespace names
-	undoTablespaces  map[string]bool         // exact undo tablespace names -> active
-	tablespaceFiles  map[string]string       // tablespace name -> normalized datafile path
-	tablespaceDirs   map[string]bool         // known InnoDB datafile directories
-	dataDir          string                  // InnoDB/server datadir (default /var/lib/mysql)
-	userVars         map[string]userVarValue // lowered user var name (without @) -> value
-	systemTimeZone   string                  // @@system_time_zone (default UTC)
-	globalTimeZone   string
-	globalSQLMode    string
-	currentDB        string
-	defaultCharset   string
-	defaultCollation string
-	charsetClient    string
-	collationConn    string
-	foreignKeyChecks bool // SET foreign_key_checks (default true)
-	loadingSDL       bool // true while LoadSDLWithVersion executes statements
-	generateGIPK     bool // SET sql_generate_invisible_primary_key
-	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
-	session          SessionState
+	databases         map[string]*Database    // lowered name -> Database
+	tablespaces       map[string]bool         // exact general tablespace names
+	undoTablespaces   map[string]bool         // exact undo tablespace names -> active
+	tablespaceFiles   map[string]string       // tablespace name -> normalized datafile path
+	tablespaceDirs    map[string]bool         // known InnoDB datafile directories
+	dataDir           string                  // InnoDB/server datadir (default /var/lib/mysql)
+	userVars          map[string]userVarValue // lowered user var name (without @) -> value
+	systemTimeZone    string                  // @@system_time_zone (default UTC)
+	systemTimeZoneLoc *time.Location          // optional host Location when @@system_time_zone is an abbreviation
+	globalTimeZone    string
+	globalSQLMode     string
+	currentDB         string
+	defaultCharset    string
+	defaultCollation  string
+	charsetClient     string
+	collationConn     string
+	foreignKeyChecks  bool // SET foreign_key_checks (default true)
+	loadingSDL        bool // true while LoadSDLWithVersion executes statements
+	generateGIPK      bool // SET sql_generate_invisible_primary_key
+	showGIPK          bool // SET show_gipk_in_create_table_and_information_schema
+	session           SessionState
 }
 
 type SessionState struct {
@@ -132,6 +134,20 @@ func (c *Catalog) SetSystemTimeZone(tz string) {
 	}
 	c.systemTimeZone = tz
 	c.session.SystemTimeZone = tz
+	c.systemTimeZoneLoc = nil
+}
+
+// SystemTimeZoneLocation returns the host *time.Location associated with
+// @@system_time_zone when explicitly configured, or nil.
+func (c *Catalog) SystemTimeZoneLocation() *time.Location {
+	return c.systemTimeZoneLoc
+}
+
+// SetSystemTimeZoneLocation configures the host *time.Location used whenever
+// session time_zone is "SYSTEM", preserving local/DST semantics even when
+// @@system_time_zone reports an OS abbreviation such as "EST" or "EDT".
+func (c *Catalog) SetSystemTimeZoneLocation(loc *time.Location) {
+	c.systemTimeZoneLoc = loc
 }
 
 func (c *Catalog) effectiveSessionTimeZone() string {
@@ -140,6 +156,21 @@ func (c *Catalog) effectiveSessionTimeZone() string {
 		return c.SystemTimeZone()
 	}
 	return tz
+}
+
+func (c *Catalog) resolveEffectiveTimeZone() resolvedTimeZone {
+	tz := strings.TrimSpace(c.session.TimeZone)
+	if tz == "" || strings.EqualFold(tz, "SYSTEM") {
+		if c.systemTimeZoneLoc != nil {
+			return resolvedTimeZone{
+				raw:   c.SystemTimeZone(),
+				valid: true,
+				loc:   c.systemTimeZoneLoc,
+			}
+		}
+		return resolveTimeZoneString(c.SystemTimeZone())
+	}
+	return resolveTimeZoneString(tz)
 }
 
 // DataDir returns the configured MySQL/InnoDB data directory (default "/var/lib/mysql").

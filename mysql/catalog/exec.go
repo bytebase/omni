@@ -158,11 +158,9 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				})
 			}
 		case "innodb_directories":
-			if v, ok := c.evalSetExpr(asgn.Value); ok && v.kind == userVarString {
-				dirList := v.str
-				updates = append(updates, func() {
-					c.AddTablespaceDir(dirList)
-				})
+			_, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
+			if !isPersistOnly {
+				return errIncorrectGlobalLocalVar("innodb_directories", "read only variable")
 			}
 		case "sql_mode":
 			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)

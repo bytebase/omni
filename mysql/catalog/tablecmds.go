@@ -511,7 +511,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 		} else if effDef := columnDefEffectiveDefaultExpr(colDef); effDef != nil {
-			normalizeColumnStoredDefault(col, effDef, true, false, c.session.TimeZone)
+			c.normalizeColumnStoredDefault(col, effDef, true, false)
 		}
 
 		// SERIAL implies UNIQUE KEY — add after the column is fully configured.
@@ -1376,7 +1376,7 @@ func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	}
 	val, kind := columnDefaultValue(expr)
 	if _, isParen := expr.(*nodes.ParenExpr); !isParen {
-		if coerced, ok := coerceNumericColumnDefault(col, expr, true, false, "SYSTEM"); ok {
+		if coerced, ok := coerceNumericColumnDefault(col, expr, true, false, utcResolvedTimeZone()); ok {
 			val = coerced
 		}
 	}
@@ -2242,11 +2242,10 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			if !isFulltextColumnType(col.DataType) {
 				return errCannotPartOfFulltext(ic.Name)
 			}
-			if ic.Length > 0 {
-				if maxLen, ok := fixedLengthStringColumnLimit(col); ok && ic.Length > maxLen {
-					return errIncorrectPrefixKey()
-				}
-			}
+			// MySQL ignores any specified prefix length on a FULLTEXT key part
+			// without raising 1089 and omits it from SHOW CREATE TABLE
+			// (measured on mysql:8.0.46).
+			ic.Length = 0
 			continue
 		}
 		if spatial {

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
@@ -3581,6 +3582,35 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:    1067,
 			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
 		},
+		// 21. Read-only innodb_directories SQL assignment refusal and FULLTEXT prefix clearing.
+		{
+			name: "SET GLOBAL innodb_directories rejected with 1238",
+			stmt: "SET GLOBAL innodb_directories = '/tmp'",
+			code: 1238,
+		},
+		{
+			name:     "CREATE TABLE FULLTEXT key ignores oversized prefix length",
+			stmt:     "CREATE TABLE a (c VARCHAR(10), FULLTEXT KEY fk1 (c(100)))",
+			code:     0,
+			contains: []string{"FULLTEXT KEY `fk1` (`c`)"},
+			omits:    []string{"(100)"},
+		},
+		{
+			name:     "ALTER TABLE ADD FULLTEXT index ignores oversized prefix length",
+			setup:    []string{"CREATE TABLE a (c VARCHAR(10))"},
+			stmt:     "ALTER TABLE a ADD FULLTEXT INDEX fk2 (c(100))",
+			code:     0,
+			contains: []string{"FULLTEXT KEY `fk2` (`c`)"},
+			omits:    []string{"(100)"},
+		},
+		{
+			name:     "CREATE FULLTEXT INDEX ignores oversized prefix length",
+			setup:    []string{"CREATE TABLE a (c VARCHAR(10))"},
+			stmt:     "CREATE FULLTEXT INDEX fk3 ON a (c(100))",
+			code:     0,
+			contains: []string{"FULLTEXT KEY `fk3` (`c`)"},
+			omits:    []string{"(100)"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -3953,7 +3983,9 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	}
 
 	// Configured system_time_zone governs session time_zone = 'SYSTEM' in both
-	// TIMESTAMP UTC bounds and offset-bearing DATETIME normalization.
+	// TIMESTAMP UTC bounds and offset-bearing DATETIME normalization; unresolved
+	// abbreviations like "EDT" are rejected rather than mapped to UTC, while an
+	// explicitly preserved host Location handles abbreviations and DST.
 	sysTZCat := New()
 	sysTZCat.SetSystemTimeZone("+14:00")
 	execAlterClauses(t, sysTZCat, "CREATE DATABASE d; USE d;")
@@ -3964,14 +3996,42 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	if gotShow := sysTZCat.ShowCreateTable("d", "ts_ok"); !strings.Contains(gotShow, "`dt` datetime DEFAULT '2024-01-01 14:00:00'") {
 		t.Fatalf("SYSTEM=+14:00 offset DATETIME normalization mismatch:\n%s", gotShow)
 	}
+	sysTZCat.SetSystemTimeZone("EDT")
+	if got, _ := simulationCatalogRefusal(t, sysTZCat, "CREATE TABLE ts_unres (ts TIMESTAMP DEFAULT '1970-01-01 00:00:01')"); got != 1298 {
+		t.Fatalf("unresolved SYSTEM='EDT' TIMESTAMP default got %d, want 1298", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, sysTZCat, "CREATE TABLE dt_unres (dt DATETIME DEFAULT '2024-01-01 00:00:00+00:00')"); got != 1298 {
+		t.Fatalf("unresolved SYSTEM='EDT' offset DATETIME default got %d, want 1298", got)
+	}
+	nyLoc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("LoadLocation(America/New_York): %v", err)
+	}
+	sysTZCat.SetSystemTimeZone("EST")
+	sysTZCat.SetSystemTimeZoneLocation(nyLoc)
+	if sysTZCat.SystemTimeZone() != "EST" {
+		t.Fatalf("SystemTimeZone() = %q, want EST", sysTZCat.SystemTimeZone())
+	}
+	execAlterClauses(t, sysTZCat, "CREATE TABLE ts_ny (ts TIMESTAMP DEFAULT '1970-01-01 00:00:01', dt DATETIME DEFAULT '2026-06-01 12:00:00+00:00');")
+	if gotShow := sysTZCat.ShowCreateTable("d", "ts_ny"); !strings.Contains(gotShow, "`ts` timestamp NULL DEFAULT '1970-01-01 00:00:01'") || !strings.Contains(gotShow, "`dt` datetime DEFAULT '2026-06-01 08:00:00'") {
+		t.Fatalf("preserved host Location SYSTEM=America/New_York normalization mismatch:\n%s", gotShow)
+	}
 
-	// Configured InnoDB tablespace directories (via AddTablespaceDir and SET
-	// GLOBAL innodb_directories) permit external datafiles while still rejecting
-	// unconfigured directories with 3121.
+	// innodb_directories is read-only at runtime via SQL (1238), while Go
+	// configuration setters remain available to configure external directories.
 	dirCat := New()
+	for _, sql := range []string{
+		"SET innodb_directories = '/opt/innodb1'",
+		"SET GLOBAL innodb_directories = '/opt/innodb1;/opt/innodb2'",
+		"SET PERSIST innodb_directories = '/opt/innodb1'",
+	} {
+		if got, _ := simulationCatalogRefusal(t, dirCat, sql); got != 1238 {
+			t.Fatalf("%s got %d, want 1238", sql, got)
+		}
+	}
 	dirCat.AddTablespaceDir("/srv/mysql")
+	dirCat.AddTablespaceDir("/opt/innodb1;/opt/innodb2")
 	execAlterClauses(t, dirCat, "CREATE TABLESPACE ts_srv ADD DATAFILE '/srv/mysql/ts_srv.ibd' ENGINE=InnoDB;")
-	execAlterClauses(t, dirCat, "SET GLOBAL innodb_directories = '/opt/innodb1;/opt/innodb2';")
 	execAlterClauses(t, dirCat, "CREATE TABLESPACE ts_opt ADD DATAFILE '/opt/innodb2/ts_opt.ibd' ENGINE=InnoDB;")
 	if got, _ := simulationCatalogRefusal(t, dirCat, "CREATE TABLESPACE ts_unconf ADD DATAFILE '/unconfigured/ts_unconf.ibd' ENGINE=InnoDB"); got != 3121 {
 		t.Fatalf("unconfigured tablespace directory got %d, want 3121", got)

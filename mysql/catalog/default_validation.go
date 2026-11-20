@@ -283,7 +283,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 	noZeroInDate := c.isNoZeroInDateSQLMode()
 	allowInvalidDates := c.isAllowInvalidDatesSQLMode()
 	truncateFrac := c.isTimeTruncateFractionalSQLMode()
-	sessionTZ := c.effectiveSessionTimeZone()
+	sessionTZ := c.resolveEffectiveTimeZone()
 	if col == nil || expr == nil {
 		return nil
 	}
@@ -396,7 +396,11 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 			return errInvalidDefault(col.Name)
 		}
 	case "date", "datetime", "timestamp":
-		if !validDateOrDatetimeLiteralDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac, sessionTZ) {
+		ok, unknownTZ := validDateOrDatetimeLiteralDefault(dt, temporalColumnFSP(col.ColumnType), kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac, sessionTZ)
+		if unknownTZ {
+			return errUnknownTimeZone(sessionTZ.raw)
+		}
+		if !ok {
 			return errInvalidDefault(col.Name)
 		}
 	case "time":
@@ -404,7 +408,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 			return errInvalidDefault(col.Name)
 		}
 	}
-	normalizeColumnStoredDefault(col, expr, strict, truncateFrac, sessionTZ)
+	c.normalizeColumnStoredDefault(col, expr, strict, truncateFrac)
 	return nil
 }
 
@@ -625,7 +629,7 @@ func formatDecimalLiteralDefault(colType string, unsigned bool, kind literalDefa
 	return formatted, true
 }
 
-func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ string) (string, bool) {
+func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ resolvedTimeZone) (string, bool) {
 	if col == nil || expr == nil {
 		return "", false
 	}
@@ -759,7 +763,7 @@ func myGcvtFloat32(f float32) string {
 	return res
 }
 
-func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ string) {
+func (c *Catalog) normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool) {
 	if col == nil || expr == nil || col.Default == nil {
 		return
 	}
@@ -781,7 +785,7 @@ func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, trun
 		col.Default = &v
 		return
 	}
-	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac, sessionTZ); ok {
+	if coerced, ok := coerceNumericColumnDefault(col, expr, strict, truncateFrac, c.resolveEffectiveTimeZone()); ok {
 		col.Default = &coerced
 	}
 }
@@ -1932,19 +1936,47 @@ func pow10Int(n int) int {
 	return p
 }
 
-func convertSessionLocalToUTC(year, month, day, hour, min, sec, nsec int, sessionTZ string) (time.Time, bool) {
-	tz := strings.TrimSpace(sessionTZ)
-	if tz == "" || strings.EqualFold(tz, "SYSTEM") || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
-		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC), true
+type resolvedTimeZone struct {
+	raw      string
+	valid    bool
+	hasFixed bool
+	fixedMin int
+	loc      *time.Location
+}
+
+func utcResolvedTimeZone() resolvedTimeZone {
+	return resolvedTimeZone{raw: "UTC", valid: true, hasFixed: true, fixedMin: 0}
+}
+
+func resolveTimeZoneString(raw string) resolvedTimeZone {
+	tz := strings.TrimSpace(raw)
+	if tz == "" || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
+		return resolvedTimeZone{raw: tz, valid: true, hasFixed: true, fixedMin: 0}
 	}
-	if _, off, ok := parseTimeZoneOffset(tz); ok {
-		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC).Add(-time.Duration(off) * time.Minute), true
+	if tz[0] == '+' || tz[0] == '-' {
+		if _, off, ok := parseTimeZoneOffset(tz); ok {
+			return resolvedTimeZone{raw: tz, valid: true, hasFixed: true, fixedMin: off}
+		}
+		return resolvedTimeZone{raw: raw}
 	}
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
-		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC), true
+		return resolvedTimeZone{raw: raw}
 	}
-	localT := time.Date(year, time.Month(month), day, hour, min, sec, nsec, loc)
+	return resolvedTimeZone{raw: tz, valid: true, loc: loc}
+}
+
+func convertSessionLocalToUTC(year, month, day, hour, min, sec, nsec int, sessionTZ resolvedTimeZone) (time.Time, bool) {
+	if !sessionTZ.valid {
+		return time.Time{}, false
+	}
+	if sessionTZ.hasFixed {
+		return time.Date(year, time.Month(month), day, hour, min, sec, nsec, time.UTC).Add(-time.Duration(sessionTZ.fixedMin) * time.Minute), true
+	}
+	if sessionTZ.loc == nil {
+		return time.Time{}, false
+	}
+	localT := time.Date(year, time.Month(month), day, hour, min, sec, nsec, sessionTZ.loc)
 	// Reject spring-forward DST gap times that do not exist in loc.
 	if localT.Year() != year || localT.Month() != time.Month(month) || localT.Day() != day ||
 		localT.Hour() != hour || localT.Minute() != min || localT.Second() != sec {
@@ -2362,7 +2394,7 @@ func splitDateTimeTrailingFraction(s string) (string, string) {
 	return s, ""
 }
 
-func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac bool, sessionTZ string) bool {
+func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates, truncateFrac bool, sessionTZ resolvedTimeZone) (valid bool, unknownTZ bool) {
 	var p parsedMySQLDateTime
 	var ok bool
 	switch {
@@ -2373,72 +2405,79 @@ func validDateOrDatetimeLiteralDefault(dt string, fsp int, kind literalDefaultKi
 	case kind == litHex || kind == litBit:
 		raw, decOK := decodeLiteralRawBytes(val, kind == litHex)
 		if !decOK {
-			return false
+			return false, false
 		}
 		p, ok = parseMySQLStringDateTime(dt, fsp, string(raw), truncateFrac)
 	default:
-		return false
+		return false, false
 	}
 	if !ok {
-		return false
+		return false, false
 	}
 	if p.allZero {
 		if p.hasTZ {
-			return false
+			return false, false
 		}
-		return !noZeroDate
+		return !noZeroDate, false
 	}
 	if p.month == 0 || p.day == 0 {
 		if dt == "timestamp" || p.hasTZ || noZeroInDate {
-			return false
+			return false, false
 		}
-		return true
+		return true, false
 	}
 	if (dt == "timestamp" || p.hasTZ || !allowInvalidDates) && p.day > daysInMonth(p.year, p.month) {
-		return false
+		return false, false
 	}
 	minUTC := time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC)
 	maxUTC := time.Date(2038, time.January, 19, 3, 14, 7, 999999000, time.UTC)
 	nsec := p.micros * 1000
 	if p.hasTZ {
+		if !sessionTZ.valid {
+			return false, true
+		}
 		utc := time.Date(p.year, time.Month(p.month), p.day, p.hour, p.min, p.sec, nsec, time.UTC).Add(-time.Duration(p.tzOffsetMin) * time.Minute)
 		if utc.Year() < 0 || utc.Year() > 9999 {
-			return false
+			return false, false
 		}
 		if dt == "timestamp" && (utc.Before(minUTC) || utc.After(maxUTC)) {
-			return false
+			return false, false
 		}
-		localT := convertUTCToSessionLocal(utc, sessionTZ)
+		localT, tzOK := convertUTCToSessionLocal(utc, sessionTZ)
+		if !tzOK {
+			return false, true
+		}
 		if localT.Year() < 0 || localT.Year() > 9999 {
-			return false
+			return false, false
 		}
-		return true
+		return true, false
 	}
 	if dt == "timestamp" {
+		if !sessionTZ.valid {
+			return false, true
+		}
 		utc, validLocal := convertSessionLocalToUTC(p.year, p.month, p.day, p.hour, p.min, p.sec, nsec, sessionTZ)
 		if !validLocal || utc.Before(minUTC) || utc.After(maxUTC) {
-			return false
+			return false, false
 		}
 	}
-	return true
+	return true, false
 }
 
-func convertUTCToSessionLocal(utc time.Time, sessionTZ string) time.Time {
-	tz := strings.TrimSpace(sessionTZ)
-	if tz == "" || strings.EqualFold(tz, "SYSTEM") || tz == "+00:00" || tz == "-00:00" || strings.EqualFold(tz, "UTC") {
-		return utc.UTC()
+func convertUTCToSessionLocal(utc time.Time, sessionTZ resolvedTimeZone) (time.Time, bool) {
+	if !sessionTZ.valid {
+		return time.Time{}, false
 	}
-	if _, off, ok := parseTimeZoneOffset(tz); ok {
-		return utc.UTC().Add(time.Duration(off) * time.Minute)
+	if sessionTZ.hasFixed {
+		return utc.UTC().Add(time.Duration(sessionTZ.fixedMin) * time.Minute), true
 	}
-	loc, err := time.LoadLocation(tz)
-	if err != nil {
-		return utc.UTC()
+	if sessionTZ.loc == nil {
+		return time.Time{}, false
 	}
-	return utc.In(loc)
+	return utc.In(sessionTZ.loc), true
 }
 
-func resolveTimezoneDateTimeToSession(p parsedMySQLDateTime, sessionTZ string) (parsedMySQLDateTime, bool) {
+func resolveTimezoneDateTimeToSession(p parsedMySQLDateTime, sessionTZ resolvedTimeZone) (parsedMySQLDateTime, bool) {
 	if !p.hasTZ {
 		return p, true
 	}
@@ -2447,8 +2486,8 @@ func resolveTimezoneDateTimeToSession(p parsedMySQLDateTime, sessionTZ string) (
 	if utc.Year() < 0 || utc.Year() > 9999 {
 		return parsedMySQLDateTime{}, false
 	}
-	localT := convertUTCToSessionLocal(utc, sessionTZ)
-	if localT.Year() < 0 || localT.Year() > 9999 {
+	localT, tzOK := convertUTCToSessionLocal(utc, sessionTZ)
+	if !tzOK || localT.Year() < 0 || localT.Year() > 9999 {
 		return parsedMySQLDateTime{}, false
 	}
 	return parsedMySQLDateTime{
@@ -2480,7 +2519,7 @@ func formatParsedDateOrDatetime(dt string, fsp int, p parsedMySQLDateTime) strin
 		p.year, p.month, p.day, p.hour, p.min, p.sec, fracSuffix)
 }
 
-func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool, sessionTZ string) (string, bool) {
+func coerceDateOrDatetimeDefault(dt string, fsp int, kind literalDefaultKind, val string, unquotedNum, truncateFrac bool, sessionTZ resolvedTimeZone) (string, bool) {
 	switch {
 	case kind == litNumber && unquotedNum:
 		p, ok := parseMySQLNumberDateTime(dt, fsp, val, truncateFrac)
