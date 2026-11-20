@@ -463,11 +463,38 @@ func parseDefElemBoolStrict(d *nodes.DefElem) (bool, bool) {
 	if !ok {
 		return false, false
 	}
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "true", "on", "yes", "1":
-		return true, true
-	case "false", "off", "no", "0":
-		return false, true
+	return parsePGBool(s)
+}
+
+// parsePGBool reads a Boolean as PostgreSQL's parse_bool does (bool.c): any
+// prefix of true, false, yes or no, a prefix of on or off at least two
+// characters long, or exactly 1 or 0, case-insensitively and untrimmed.
+func parsePGBool(s string) (bool, bool) {
+	v := strings.ToLower(s)
+	if v == "" {
+		return false, false
+	}
+	switch v[0] {
+	case 't':
+		return true, strings.HasPrefix("true", v)
+	case 'f':
+		return false, strings.HasPrefix("false", v)
+	case 'y':
+		return true, strings.HasPrefix("yes", v)
+	case 'n':
+		return false, strings.HasPrefix("no", v)
+	case 'o':
+		if len(v) < 2 {
+			return false, false
+		}
+		if strings.HasPrefix("on", v) {
+			return true, true
+		}
+		return false, strings.HasPrefix("off", v)
+	case '1':
+		return true, v == "1"
+	case '0':
+		return false, v == "0"
 	}
 	return false, false
 }

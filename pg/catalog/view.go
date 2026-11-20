@@ -958,10 +958,6 @@ func relOptionBool(de *nodes.DefElem) bool {
 	if i, ok := de.Arg.(*nodes.Integer); ok {
 		return i.Ival != 0
 	}
-	v := strings.ToLower(strings.TrimSpace(defElemString(de)))
-	switch {
-	case v == "on", v == "1", v != "" && strings.HasPrefix("true", v), v != "" && strings.HasPrefix("yes", v):
-		return true
-	}
-	return false
+	b, _ := parsePGBool(defElemString(de))
+	return b
 }

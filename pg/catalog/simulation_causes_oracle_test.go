@@ -5465,6 +5465,43 @@ func TestSimulationCausesOracle(t *testing.T) {
 			trigSetup141,
 			append(slices.Clone(trigSetup141), "ALTER TABLE t_tm_r41 DISABLE TRIGGER tg_tm_r41"),
 			[]string{`DISABLE TRIGGER "tg_tm_r41"`})
+		// Round 42: Boolean options read as parse_bool does, and a snapshot
+		// catalog that knows its database refuses other databases.
+		c142 := New()
+		for _, tc := range []struct{ sql, want string }{
+			{"CREATE TABLE bool_t_r42 (x int) WITH (autovacuum_enabled = 't')", "0"},
+			{"CREATE TABLE bool_tr_r42 (x int) WITH (autovacuum_enabled = 'tr')", "0"},
+			{"CREATE TABLE bool_n_r42 (x int) WITH (autovacuum_enabled = 'n')", "0"},
+			{"CREATE TABLE bool_o_r42 (x int) WITH (autovacuum_enabled = 'o')", CodeInvalidParameterValue},
+			{"CREATE TABLE bool_sp_r42 (x int) WITH (autovacuum_enabled = ' true')", CodeInvalidParameterValue},
+			{"CREATE VIEW bool_v_r42 WITH (security_invoker = 'of', security_barrier = 'ye') AS SELECT 1 AS x", "0"},
+		} {
+			if got := simulationCatalogCode(t, c142, tc.sql); got != tc.want {
+				t.Fatalf("%s answered %s, want %s", tc.sql, got, tc.want)
+			}
+		}
+		if v := c142.GetRelation("public", "bool_v_r42"); v == nil || v.SecurityInvoker || !v.SecurityBarrier {
+			t.Fatalf("expected security_invoker off and security_barrier on, got %+v", v)
+		}
+		cSnap142 := New()
+		cSnap142.SetSearchPath([]string{"public"})
+		if _, err := cSnap142.LoadMetadata(context.Background(), &metadata.DatabaseSchemaMetadata{
+			Name: "appdb_r42",
+			Schemas: []*metadata.SchemaMetadata{{Name: "public", Tables: []*metadata.TableMetadata{{
+				Name:    "t_snap_r42",
+				Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "integer"}},
+			}}}},
+		}, LoadMetadataOptions{Full: true}); err != nil {
+			t.Fatalf("LoadMetadata: %v", err)
+		}
+		for _, tc := range []struct{ sql, want string }{
+			{"CREATE VIEW v_other_db_r42 AS SELECT other_db.public.t_snap_r42.* FROM public.t_snap_r42", CodeFeatureNotSupported},
+			{"CREATE VIEW v_same_db_r42 AS SELECT appdb_r42.public.t_snap_r42.* FROM public.t_snap_r42", "0"},
+		} {
+			if got := simulationCatalogCode(t, cSnap142, tc.sql); got != tc.want {
+				t.Fatalf("%s answered %s, want %s", tc.sql, got, tc.want)
+			}
+		}
 		roundTrip137("operator class parameters",
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},

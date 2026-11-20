@@ -1603,7 +1603,12 @@ func (ac *analyzeCtx) transformTargetEntry(rt *nodes.ResTarget, startIdx int) ([
 }
 
 func (c *Catalog) checkDatabaseQualifier(dbName string) error {
-	if dbName == "" || c.snapshot {
+	if dbName == "" {
+		return nil
+	}
+	// A known database name is checked even in a snapshot catalog: no
+	// definition the server accepted names another database.
+	if c.databaseName == "" && c.snapshot {
 		return nil
 	}
 	if c.databaseName != "" {
