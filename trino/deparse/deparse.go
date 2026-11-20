@@ -4,8 +4,65 @@ import (
 	"fmt"
 	"strings"
 
+	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/analysis"
 )
+
+// DatabaseDefinitionFromProto renders a Trino database schema proto as SDL.
+func DatabaseDefinitionFromProto(metadata *metadatapb.DatabaseSchemaMetadata) (string, error) {
+	return GetDatabaseDefinition(fromProtoMetadata(metadata))
+}
+
+func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) *DatabaseSchemaMetadata {
+	if metadata == nil {
+		return nil
+	}
+	out := &DatabaseSchemaMetadata{
+		Name:    metadata.Name,
+		Schemas: make([]*SchemaMetadata, 0, len(metadata.Schemas)),
+	}
+	for _, s := range metadata.Schemas {
+		if s == nil {
+			continue
+		}
+		schemaMeta := &SchemaMetadata{
+			Name:   s.Name,
+			Tables: make([]*TableMetadata, 0, len(s.Tables)),
+			Views:  make([]*ViewMetadata, 0, len(s.Views)),
+		}
+		for _, t := range s.Tables {
+			if t == nil {
+				continue
+			}
+			tableMeta := &TableMetadata{
+				Name:    t.Name,
+				Columns: make([]*ColumnMetadata, 0, len(t.Columns)),
+			}
+			for _, c := range t.Columns {
+				if c == nil {
+					continue
+				}
+				tableMeta.Columns = append(tableMeta.Columns, &ColumnMetadata{
+					Name:     c.Name,
+					Type:     c.Type,
+					Nullable: c.Nullable,
+				})
+			}
+			schemaMeta.Tables = append(schemaMeta.Tables, tableMeta)
+		}
+		for _, v := range s.Views {
+			if v == nil {
+				continue
+			}
+			schemaMeta.Views = append(schemaMeta.Views, &ViewMetadata{
+				Name:       v.Name,
+				Definition: v.Definition,
+			})
+		}
+		out.Schemas = append(out.Schemas, schemaMeta)
+	}
+	return out
+}
 
 // GetDatabaseDefinition renders the schema metadata as the DDL that recreates
 // it: one CREATE SCHEMA per schema, then one CREATE TABLE per table, then one

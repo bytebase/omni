@@ -11,10 +11,63 @@ import (
 
 	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser/statements"
+	"github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
 	// Registers parser.ParseDoBlockFn; without it the SQL parser panics on a DO block.
 	_ "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
 )
+
+// ParsedStatement is an opaque parsed CockroachDB statement that keeps
+// cockroachdb-parser AST types encapsulated inside this package.
+type ParsedStatement struct {
+	stmt statements.Statement[tree.Statement]
+}
+
+// Text returns the statement SQL as CockroachDB's parser read it.
+func (s ParsedStatement) Text() string {
+	return s.stmt.SQL
+}
+
+// ParseScript parses script, the whole script or one statement, into opaque
+// ParsedStatement values.
+func ParseScript(script string) ([]ParsedStatement, error) {
+	stmts, err := Parse(script)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ParsedStatement, len(stmts))
+	for i, stmt := range stmts {
+		out[i] = ParsedStatement{stmt: stmt}
+	}
+	return out, nil
+}
+
+// SplitScript parses script and returns each statement's SQL terminated with a
+// semicolon. Unlike Split, which splits lexically and keeps empty segments,
+// SplitScript parses the script and omits empty statements.
+func SplitScript(script string) ([]string, error) {
+	stmts, err := Parse(script)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]string, 0, len(stmts))
+	for _, stmt := range stmts {
+		sql := stmt.SQL
+		if !strings.HasSuffix(sql, ";") {
+			sql += ";"
+		}
+		result = append(result, sql)
+	}
+	return result, nil
+}
+
+func unwrapStatements(stmts []ParsedStatement) statements.Statements {
+	out := make(statements.Statements, len(stmts))
+	for i, stmt := range stmts {
+		out[i] = stmt.stmt
+	}
+	return out
+}
 
 // Parse parses script, the whole script or one statement, into statements
 // carrying the AST and the text CockroachDB's parser read. A trailing

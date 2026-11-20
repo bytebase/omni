@@ -51,6 +51,12 @@ const (
 	Update          StatementType = "UPDATE"
 )
 
+// StatementTypesFromParsed returns the StatementTypes of opaque
+// ParsedStatement values, keeping cockroachdb-parser types out of callers.
+func StatementTypesFromParsed(stmts []ParsedStatement) []StatementType {
+	return StatementTypes(unwrapStatements(stmts))
+}
+
 // StatementTypes returns the type of each statement that has one, in order,
 // each followed by the types of the mutations in its CTEs and statement
 // sources, each type once per statement. EXPLAIN ANALYZE takes the types of

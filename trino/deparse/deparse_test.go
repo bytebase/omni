@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -315,4 +316,52 @@ func oneTable(catalog, schema string, table *TableMetadata) *DatabaseSchemaMetad
 			{Name: schema, Tables: []*TableMetadata{table}},
 		},
 	}
+}
+
+func TestDatabaseDefinitionFromProto(t *testing.T) {
+	gotNil, err := DatabaseDefinitionFromProto(nil)
+	require.NoError(t, err)
+	assert.Equal(t, "", gotNil)
+
+	protoMeta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{
+			nil,
+			{
+				Name: "s",
+				Tables: []*metadatapb.TableMetadata{
+					nil,
+					{
+						Name: "t",
+						Columns: []*metadatapb.ColumnMetadata{
+							nil,
+							{Name: "id", Type: "bigint", Nullable: false},
+							{Name: "label", Type: "varchar", Nullable: true},
+						},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					nil,
+					{Name: "v_top", Definition: `SELECT id FROM "s"."v_base"`},
+					{Name: "v_base", Definition: `SELECT id FROM "s"."t"`},
+				},
+			},
+		},
+	}
+	got, err := DatabaseDefinitionFromProto(protoMeta)
+	require.NoError(t, err)
+	assert.Equal(t, `CREATE SCHEMA IF NOT EXISTS "s";
+
+CREATE TABLE IF NOT EXISTS "s"."t" (
+    "id" bigint NOT NULL,
+    "label" varchar
+);
+
+CREATE OR REPLACE VIEW "s"."v_base" AS
+SELECT id FROM "s"."t";
+
+CREATE OR REPLACE VIEW "s"."v_top" AS
+SELECT id FROM "s"."v_base";
+
+`, got)
 }
