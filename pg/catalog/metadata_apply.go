@@ -50,7 +50,7 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		case DiffAdd:
 			addRelation(result, sm, catAfter, rel)
 		case DiffModify:
-			modifyRelation(sm, catBefore, catAfter, rel)
+			modifyRelation(result, sm, catBefore, catAfter, rel)
 		default:
 		}
 	}
@@ -758,6 +758,13 @@ func appendPartitionToParent(result *metadatapb.DatabaseSchemaMetadata, fallback
 		parentSchemaName = parentRel.Schema.Name
 	}
 	part := relationToPartitionProto(cat, rel.To, parentRel, parentSchemaName)
+	return attachPartitionProto(result, fallbackSchema, parentRel, parentSchemaName, part)
+}
+
+func attachPartitionProto(result *metadatapb.DatabaseSchemaMetadata, fallbackSchema *metadatapb.SchemaMetadata, parentRel *Relation, parentSchemaName string, part *metadatapb.TablePartitionMetadata) bool {
+	if parentRel == nil {
+		return false
+	}
 	parentSM := findSchema(result, parentSchemaName)
 	if parentSM == nil {
 		parentSM = fallbackSchema
@@ -769,7 +776,7 @@ func appendPartitionToParent(result *metadatapb.DatabaseSchemaMetadata, fallback
 		parentTbl.Partitions = append(parentTbl.Partitions, part)
 		return true
 	}
-	if parentPart := findPartition(parentSM, parentRel.Name); parentPart != nil {
+	if parentPart := findPartitionInSchema(result, parentSchemaName, parentRel.Name); parentPart != nil {
 		parentPart.Subpartitions = append(parentPart.Subpartitions, part)
 		return true
 	}
@@ -813,38 +820,160 @@ func dropRelation(result *metadatapb.DatabaseSchemaMetadata, schemaName string, 
 		sm.Views = removeViewByName(sm.Views, name)
 		sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, name)
 	}
-	for _, s := range result.Schemas {
-		for _, t := range s.Tables {
-			t.Partitions = removePartitionInSchema(t.Partitions, s.Name, schemaName, name)
-		}
-	}
+	_ = popPartitionInSchema(result, schemaName, name)
 }
 
-func removePartitionInSchema(partitions []*metadatapb.TablePartitionMetadata, parentSchema, targetSchema, name string) []*metadatapb.TablePartitionMetadata {
-	if len(partitions) == 0 {
-		return partitions
-	}
-	out := make([]*metadatapb.TablePartitionMetadata, 0, len(partitions))
-	for _, p := range partitions {
-		partSchema := partitionSchemaName(parentSchema, p)
-		if p.Name == name && partSchema == targetSchema {
+func popTableByName(tables []*metadatapb.TableMetadata, name string) (*metadatapb.TableMetadata, []*metadatapb.TableMetadata) {
+	var popped *metadatapb.TableMetadata
+	out := make([]*metadatapb.TableMetadata, 0, len(tables))
+	for _, t := range tables {
+		if t.Name == name && popped == nil {
+			popped = t
 			continue
 		}
-		p.Subpartitions = removePartitionInSchema(p.Subpartitions, partSchema, targetSchema, name)
-		out = append(out, p)
+		out = append(out, t)
 	}
-	return out
+	return popped, out
 }
 
-func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel RelationDiffEntry) {
+func upsertTableInSchema(sm *metadatapb.SchemaMetadata, tbl *metadatapb.TableMetadata) {
+	for i, existing := range sm.Tables {
+		if existing.Name == tbl.Name {
+			sm.Tables[i] = tbl
+			return
+		}
+	}
+	sm.Tables = append(sm.Tables, tbl)
+}
+
+func findPartitionInSchema(meta *metadatapb.DatabaseSchemaMetadata, targetSchema, name string) *metadatapb.TablePartitionMetadata {
+	var walk func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) *metadatapb.TablePartitionMetadata
+	walk = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) *metadatapb.TablePartitionMetadata {
+		for _, p := range partitions {
+			partSchema := partitionSchemaName(parentSchema, p)
+			if p.Name == name && partSchema == targetSchema {
+				return p
+			}
+			if found := walk(partSchema, p.Subpartitions); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+	for _, s := range meta.Schemas {
+		for _, t := range s.Tables {
+			if found := walk(s.Name, t.Partitions); found != nil {
+				return found
+			}
+		}
+	}
+	return nil
+}
+
+func popPartitionInSchema(meta *metadatapb.DatabaseSchemaMetadata, targetSchema, name string) *metadatapb.TablePartitionMetadata {
+	var popped *metadatapb.TablePartitionMetadata
+	var walk func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) []*metadatapb.TablePartitionMetadata
+	walk = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) []*metadatapb.TablePartitionMetadata {
+		if len(partitions) == 0 {
+			return partitions
+		}
+		out := make([]*metadatapb.TablePartitionMetadata, 0, len(partitions))
+		for _, p := range partitions {
+			partSchema := partitionSchemaName(parentSchema, p)
+			if p.Name == name && partSchema == targetSchema && popped == nil {
+				popped = p
+				continue
+			}
+			p.Subpartitions = walk(partSchema, p.Subpartitions)
+			out = append(out, p)
+		}
+		return out
+	}
+	for _, s := range meta.Schemas {
+		for _, t := range s.Tables {
+			t.Partitions = walk(s.Name, t.Partitions)
+		}
+	}
+	return popped
+}
+
+func samePartitionParent(catBefore, catAfter *Catalog, fromRel, toRel *Relation) bool {
+	if fromRel == nil || toRel == nil {
+		return false
+	}
+	if fromRel.PartitionOf == 0 && toRel.PartitionOf == 0 {
+		return true
+	}
+	if (fromRel.PartitionOf == 0) != (toRel.PartitionOf == 0) {
+		return false
+	}
+	fromParent := catBefore.GetRelationByOID(fromRel.PartitionOf)
+	toParent := catAfter.GetRelationByOID(toRel.PartitionOf)
+	if fromParent == nil || toParent == nil {
+		return fromRel.PartitionOf == toRel.PartitionOf
+	}
+	fromSchema, toSchema := "", ""
+	if fromParent.Schema != nil {
+		fromSchema = fromParent.Schema.Name
+	}
+	if toParent.Schema != nil {
+		toSchema = toParent.Schema.Name
+	}
+	return fromSchema == toSchema && fromParent.Name == toParent.Name
+}
+
+func modifyRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel RelationDiffEntry) {
 	if rel.To == nil {
 		return
 	}
 	switch rel.To.RelKind {
 	case 'r', 'p':
+		wasPartition := rel.From != nil && rel.From.PartitionOf != 0
+		isPartition := rel.To.PartitionOf != 0
+		if wasPartition && !isPartition {
+			prevPart := popPartitionInSchema(result, sm.Name, rel.Name)
+			tbl := relationToTableProto(cat, rel.To)
+			if prevPart != nil {
+				tbl.Comment = prevPart.Comment
+				preserveIndexMetadata(tbl.Indexes, prevPart.Indexes)
+				preserveConstraintComments(tbl, &metadatapb.TableMetadata{CheckConstraints: prevPart.CheckConstraints})
+			}
+			upsertTableInSchema(sm, tbl)
+			return
+		}
+		if isPartition && (!wasPartition || !samePartitionParent(catBefore, cat, rel.From, rel.To)) {
+			var prevComment string
+			var prevIndexes []*metadatapb.IndexMetadata
+			var prevChecks []*metadatapb.CheckConstraintMetadata
+			if prevTbl, remaining := popTableByName(sm.Tables, rel.Name); prevTbl != nil {
+				sm.Tables = remaining
+				prevComment = prevTbl.Comment
+				prevIndexes = prevTbl.Indexes
+				prevChecks = prevTbl.CheckConstraints
+			} else if prevPart := popPartitionInSchema(result, sm.Name, rel.Name); prevPart != nil {
+				prevComment = prevPart.Comment
+				prevIndexes = prevPart.Indexes
+				prevChecks = prevPart.CheckConstraints
+			}
+			parentRel := cat.GetRelationByOID(rel.To.PartitionOf)
+			parentSchemaName := rel.SchemaName
+			if parentRel != nil && parentRel.Schema != nil && parentRel.Schema.Name != "" {
+				parentSchemaName = parentRel.Schema.Name
+			}
+			part := relationToPartitionProto(cat, rel.To, parentRel, parentSchemaName)
+			if prevComment != "" {
+				part.Comment = prevComment
+			}
+			preserveIndexMetadata(part.Indexes, prevIndexes)
+			preserveConstraintComments(&metadatapb.TableMetadata{CheckConstraints: part.CheckConstraints}, &metadatapb.TableMetadata{CheckConstraints: prevChecks})
+			if !attachPartitionProto(result, sm, parentRel, parentSchemaName, part) {
+				upsertTableInSchema(sm, relationToTableProto(cat, rel.To))
+			}
+			return
+		}
 		tbl := findTable(sm, rel.Name)
 		if tbl == nil {
-			if p := findPartition(sm, rel.Name); p != nil {
+			if p := findPartitionInSchema(result, sm.Name, rel.Name); p != nil {
 				applyPartitionDiffs(p, catBefore, cat, rel)
 				return
 			}
@@ -1336,7 +1465,14 @@ func applyIndexDiffs(tbl *metadatapb.TableMetadata, cat *Catalog, rel RelationDi
 			if id.To != nil {
 				for i, idx := range tbl.Indexes {
 					if idx.Name == id.Name {
-						tbl.Indexes[i] = indexToProto(cat, rel.To, id.To)
+						updated := indexToProto(cat, rel.To, id.To)
+						if updated.Comment == "" {
+							updated.Comment = idx.Comment
+						}
+						if len(updated.Constraints) == 0 {
+							updated.Constraints = idx.Constraints
+						}
+						tbl.Indexes[i] = updated
 						break
 					}
 				}
@@ -1463,13 +1599,21 @@ func columnToProto(cat *Catalog, col *Column) *metadatapb.ColumnMetadata {
 	return cm
 }
 
-func indexToProto(_ *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMetadata {
+func indexToProto(cat *Catalog, rel *Relation, idx *Index) *metadatapb.IndexMetadata {
 	im := &metadatapb.IndexMetadata{
 		Name:         idx.Name,
 		Type:         idx.AccessMethod,
 		Unique:       idx.IsUnique,
 		Primary:      idx.IsPrimary,
 		IsConstraint: idx.ConstraintOID != 0,
+	}
+	if cat != nil && idx.ParentIndexOID != 0 {
+		if parentIdx := cat.GetIndexByOID(idx.ParentIndexOID); parentIdx != nil {
+			im.ParentIndexName = parentIdx.Name
+			if parentRel := cat.GetRelationByOID(parentIdx.RelOID); parentRel != nil && parentRel.Schema != nil {
+				im.ParentIndexSchema = parentRel.Schema.Name
+			}
+		}
 	}
 
 	nKey := idx.NKeyColumns
@@ -1736,10 +1880,10 @@ func buildUserProcDDL(cat *Catalog, up *UserProc) string {
 		b.WriteString("CREATE OR REPLACE FUNCTION ")
 	}
 	if up.Schema != nil && up.Schema.Name != "" {
-		b.WriteString(up.Schema.Name)
+		b.WriteString(quoteWalkThroughIdent(up.Schema.Name))
 		b.WriteByte('.')
 	}
-	b.WriteString(up.Name)
+	b.WriteString(quoteWalkThroughIdent(up.Name))
 	b.WriteByte('(')
 	b.WriteString(formatFuncParams(cat, up))
 	b.WriteString(")\n")
@@ -2192,10 +2336,10 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				continue
 			}
 			sm := findSchema(result, schemaName)
-			if sm == nil {
-				continue
-			}
 			if c.SubID != 0 {
+				if sm == nil {
+					continue
+				}
 				colName := resolveCommentColumnName(catAfter, catBefore, schemaName, relName, c.SubID)
 				if colName == "" {
 					continue
@@ -2217,11 +2361,15 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				}
 				continue
 			}
-			if tbl := findTable(sm, relName); tbl != nil {
-				tbl.Comment = c.To
-			} else if p := findPartition(sm, relName); p != nil {
+			if sm != nil {
+				if tbl := findTable(sm, relName); tbl != nil {
+					tbl.Comment = c.To
+					continue
+				}
+			}
+			if p := findPartitionInSchema(result, schemaName, relName); p != nil {
 				p.Comment = c.To
-			} else {
+			} else if sm != nil {
 				for _, v := range sm.Views {
 					if v.Name == relName {
 						v.Comment = c.To
@@ -2240,11 +2388,7 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 			if !ok {
 				continue
 			}
-			sm := findSchema(result, schemaName)
-			if sm == nil {
-				continue
-			}
-			setIndexCommentInSchema(sm, idxName, c.To)
+			setIndexComment(result, schemaName, idxName, c.To)
 		case 't':
 			schemaName, typeName, ok := strings.Cut(c.ObjDescription, ".")
 			if !ok {
@@ -2372,37 +2516,46 @@ func resolveCommentColumnName(catAfter, catBefore *Catalog, schemaName, relName 
 	return ""
 }
 
-func setIndexCommentInSchema(sm *metadatapb.SchemaMetadata, idxName, comment string) {
-	var setInPartitions func(partitions []*metadatapb.TablePartitionMetadata) bool
-	setInPartitions = func(partitions []*metadatapb.TablePartitionMetadata) bool {
+func setIndexComment(meta *metadatapb.DatabaseSchemaMetadata, targetSchema, idxName, comment string) {
+	var setInPartitions func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) bool
+	setInPartitions = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) bool {
 		for _, p := range partitions {
-			for _, idx := range p.Indexes {
-				if idx.Name == idxName {
-					idx.Comment = comment
-					return true
+			partSchema := partitionSchemaName(parentSchema, p)
+			if partSchema == targetSchema {
+				for _, idx := range p.Indexes {
+					if idx.Name == idxName {
+						idx.Comment = comment
+						return true
+					}
 				}
 			}
-			if setInPartitions(p.Subpartitions) {
+			if setInPartitions(partSchema, p.Subpartitions) {
 				return true
 			}
 		}
 		return false
 	}
-	for _, tbl := range sm.Tables {
-		for _, idx := range tbl.Indexes {
-			if idx.Name == idxName {
-				idx.Comment = comment
-				return
+	if sm := findSchema(meta, targetSchema); sm != nil {
+		for _, tbl := range sm.Tables {
+			for _, idx := range tbl.Indexes {
+				if idx.Name == idxName {
+					idx.Comment = comment
+					return
+				}
 			}
 		}
-		if setInPartitions(tbl.Partitions) {
-			return
+		for _, mv := range sm.MaterializedViews {
+			for _, idx := range mv.Indexes {
+				if idx.Name == idxName {
+					idx.Comment = comment
+					return
+				}
+			}
 		}
 	}
-	for _, mv := range sm.MaterializedViews {
-		for _, idx := range mv.Indexes {
-			if idx.Name == idxName {
-				idx.Comment = comment
+	for _, s := range meta.Schemas {
+		for _, tbl := range s.Tables {
+			if setInPartitions(s.Name, tbl.Partitions) {
 				return
 			}
 		}

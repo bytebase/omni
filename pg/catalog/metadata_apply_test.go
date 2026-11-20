@@ -1005,3 +1005,150 @@ func TestApplyDiffToMetadataRound5Fixes(t *testing.T) {
 	require.Len(t, pub.Views[0].DependencyColumns, 1)
 	require.Equal(t, "orders_renamed", pub.Views[0].DependencyColumns[0].Table)
 }
+
+func TestApplyDiffToMetadataRound6Fixes(t *testing.T) {
+	ctx := context.Background()
+
+	// 1. Cross-schema partition comment & index comment.
+	// 2. Partition index ParentIndexSchema & ParentIndexName on create & ATTACH.
+	// 3. ATTACH PARTITION moves standalone table under parent Partitions, DETACH moves it back.
+	// 4. Quoted routine identifier ("select") in reconstructed definition.
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "events",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:        "events_id_idx",
+							Type:        "btree",
+							Expressions: []string{"id"},
+						}},
+						Partitions: []*metadatapb.TablePartitionMetadata{{
+							Name:   "events_p1",
+							Schema: "archive",
+							Type:   metadatapb.TablePartitionMetadata_RANGE,
+							Value:  "FOR VALUES FROM (1) TO (10)",
+							Indexes: []*metadatapb.IndexMetadata{{
+								Name:              "events_p1_id_idx",
+								Type:              "btree",
+								Expressions:       []string{"id"},
+								ParentIndexSchema: "public",
+								ParentIndexName:   "events_id_idx",
+							}},
+						}},
+					},
+					{
+						Name:    "events_p2",
+						Comment: "p2 doc",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:        "events_p2_idx",
+							Type:        "btree",
+							Expressions: []string{"id"},
+							Comment:     "p2 idx doc",
+						}},
+					},
+				},
+			},
+			{Name: "archive"},
+		},
+	}
+
+	catBefore := New()
+	for _, stmt := range []string{
+		`CREATE SCHEMA archive;`,
+		`CREATE TABLE public.events (id integer) PARTITION BY RANGE (id);`,
+		`CREATE INDEX events_id_idx ON ONLY public.events (id);`,
+		`CREATE TABLE archive.events_p1 PARTITION OF public.events FOR VALUES FROM (1) TO (10);`,
+		`CREATE INDEX events_p1_id_idx ON archive.events_p1 (id);`,
+		`ALTER INDEX public.events_id_idx ATTACH PARTITION archive.events_p1_id_idx;`,
+		`CREATE TABLE public.events_p2 (id integer);`,
+		`CREATE INDEX events_p2_idx ON public.events_p2 (id);`,
+	} {
+		_, err := catBefore.Exec(stmt, nil)
+		require.NoError(t, err, stmt)
+	}
+
+	// Step A: comment on cross-schema partition & its index, ATTACH events_p2 & index, create partition events_p3 with cloned index, create quoted routine "select".
+	catAttach := catBefore.Clone()
+	results, err := catAttach.Exec(`
+		COMMENT ON TABLE archive.events_p1 IS 'p1 table doc';
+		COMMENT ON INDEX archive.events_p1_id_idx IS 'p1 idx doc';
+		ALTER TABLE public.events ATTACH PARTITION public.events_p2 FOR VALUES FROM (10) TO (20);
+		CREATE TABLE archive.events_p3 PARTITION OF public.events FOR VALUES FROM (20) TO (30);
+		CREATE FUNCTION public."select"(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	attachedMeta := ApplyDiffToMetadata(meta, catBefore, catAttach, Diff(catBefore, catAttach))
+	pub := findSchema(attachedMeta, "public")
+	require.Nil(t, findTable(pub, "events_p2"))
+	eventsTbl := findTable(pub, "events")
+	require.NotNil(t, eventsTbl)
+	require.Len(t, eventsTbl.Partitions, 3)
+
+	p1 := findPartitionInSchema(attachedMeta, "archive", "events_p1")
+	require.NotNil(t, p1)
+	require.Equal(t, "p1 table doc", p1.Comment)
+	require.Len(t, p1.Indexes, 1)
+	require.Equal(t, "p1 idx doc", p1.Indexes[0].Comment)
+	require.Equal(t, "public", p1.Indexes[0].ParentIndexSchema)
+	require.Equal(t, "events_id_idx", p1.Indexes[0].ParentIndexName)
+
+	p2 := findPartitionInSchema(attachedMeta, "public", "events_p2")
+	require.NotNil(t, p2)
+	require.Equal(t, "p2 doc", p2.Comment)
+	require.Len(t, p2.Indexes, 2)
+	require.Equal(t, "p2 idx doc", p2.Indexes[0].Comment)
+	require.Equal(t, "public", p2.Indexes[1].ParentIndexSchema)
+	require.Equal(t, "events_id_idx", p2.Indexes[1].ParentIndexName)
+
+	p3 := findPartitionInSchema(attachedMeta, "archive", "events_p3")
+	require.NotNil(t, p3)
+	require.Len(t, p3.Indexes, 1)
+	require.Equal(t, "public", p3.Indexes[0].ParentIndexSchema)
+	require.Equal(t, "events_id_idx", p3.Indexes[0].ParentIndexName)
+
+	// Verify quoted routine definition reloads cleanly into a fresh catalog.
+	var selectFn *metadatapb.FunctionMetadata
+	for _, fn := range pub.Functions {
+		if fn.Name == "select" {
+			selectFn = fn
+			break
+		}
+	}
+	require.NotNil(t, selectFn)
+	require.Contains(t, selectFn.Definition, `public."select"`)
+	reloadCat := New()
+	report, err := reloadCat.LoadMetadata(ctx, attachedMeta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Len(t, reloadCat.findUserProcsByName(reloadCat.GetSchema("public"), "select"), 1)
+
+	// Step B: DETACH archive.events_p1 moves it from public.events.Partitions into archive.Tables without duplication.
+	catDetach := catAttach.Clone()
+	_, err = catDetach.Exec(`ALTER TABLE public.events DETACH PARTITION archive.events_p1;`, nil)
+	require.NoError(t, err)
+	detachedMeta := ApplyDiffToMetadata(attachedMeta, catAttach, catDetach, Diff(catAttach, catDetach))
+	require.Nil(t, findPartitionInSchema(detachedMeta, "archive", "events_p1"))
+	arch := findSchema(detachedMeta, "archive")
+	detachedTbl := findTable(arch, "events_p1")
+	require.NotNil(t, detachedTbl)
+	require.Equal(t, "p1 table doc", detachedTbl.Comment)
+	var detachedIdx *metadatapb.IndexMetadata
+	for _, idx := range detachedTbl.Indexes {
+		require.Empty(t, idx.ParentIndexName)
+		if idx.Name == "events_p1_id_idx" {
+			detachedIdx = idx
+		}
+	}
+	require.NotNil(t, detachedIdx)
+	require.Equal(t, "p1 idx doc", detachedIdx.Comment)
+}

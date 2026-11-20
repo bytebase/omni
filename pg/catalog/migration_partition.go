@@ -42,9 +42,15 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				continue
 			}
 
-			// Inheritance changed: PG does not support ALTER TABLE ... INHERITS.
-			// We must DROP + CREATE the table. Only for actual tables.
-			if fromIsTable && toIsTable && !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
+			// Partition attach/detach/reattach: generate ALTER TABLE ... DETACH/ATTACH
+			// PARTITION rather than dropping and recreating the table.
+			if fromIsTable && toIsTable && (isPartitionRelation(entry.From) || isPartitionRelation(entry.To)) {
+				if !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
+					ops = append(ops, generatePartitionAttachmentOps(from, to, entry)...)
+				}
+			} else if fromIsTable && toIsTable && !inhParentsEqual(from, to, entry.From.InhParents, entry.To.InhParents) {
+				// Non-partition inheritance changed: PG does not support ALTER TABLE ... INHERITS.
+				// We must DROP + CREATE the table. Only for actual tables.
 				ops = append(ops, buildTableRecreateOps(from, to, entry, "changing table inheritance")...)
 				continue
 			}
@@ -70,13 +76,71 @@ func generatePartitionDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	return ops
 }
 
+func isPartitionRelation(rel *Relation) bool {
+	return rel != nil && (rel.IsPartition || rel.PartitionOf != 0)
+}
+
+func relationSchemaOrDefault(rel *Relation, fallback string) string {
+	if rel != nil && rel.Schema != nil && rel.Schema.Name != "" {
+		return rel.Schema.Name
+	}
+	return fallback
+}
+
+func generatePartitionAttachmentOps(from, to *Catalog, entry RelationDiffEntry) []MigrationOp {
+	var ops []MigrationOp
+	childQN := migrationQualifiedName(entry.SchemaName, entry.Name)
+
+	if entry.From != nil && entry.From.PartitionOf != 0 {
+		if parentRel := from.GetRelationByOID(entry.From.PartitionOf); parentRel != nil {
+			parentSchema := relationSchemaOrDefault(parentRel, entry.SchemaName)
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				SchemaName:    parentSchema,
+				ObjectName:    parentRel.Name,
+				SQL:           fmt.Sprintf("ALTER TABLE %s DETACH PARTITION %s", migrationQualifiedName(parentSchema, parentRel.Name), childQN),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'r',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityTrigger,
+			})
+		}
+	}
+
+	if entry.To != nil && entry.To.PartitionOf != 0 {
+		if parentRel := to.GetRelationByOID(entry.To.PartitionOf); parentRel != nil {
+			parentSchema := relationSchemaOrDefault(parentRel, entry.SchemaName)
+			boundClause := formatPartitionBound(entry.To.PartitionBound)
+			sql := fmt.Sprintf("ALTER TABLE %s ATTACH PARTITION %s", migrationQualifiedName(parentSchema, parentRel.Name), childQN)
+			if boundClause != "" {
+				sql += " " + boundClause
+			}
+			ops = append(ops, MigrationOp{
+				Type:          OpAlterTable,
+				SchemaName:    parentSchema,
+				ObjectName:    parentRel.Name,
+				SQL:           sql,
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityIndex,
+			})
+		}
+	}
+
+	return ops
+}
+
 // tableRebuilt reports whether the plan drops and recreates a table: its kind
-// changes between plain and partitioned, or its inheritance changes, neither
-// of which ALTER TABLE can do.
+// changes between plain and partitioned, or its non-partition inheritance changes,
+// neither of which ALTER TABLE can do.
 func tableRebuilt(from, to *Catalog, fromRel, toRel *Relation) bool {
 	fromIsTable := fromRel.RelKind == 'r' || fromRel.RelKind == 'p'
 	toIsTable := toRel.RelKind == 'r' || toRel.RelKind == 'p'
-	return fromIsTable && toIsTable && (fromRel.RelKind != toRel.RelKind || !inhParentsEqual(from, to, fromRel.InhParents, toRel.InhParents))
+	inheritsChanged := !isPartitionRelation(fromRel) && !isPartitionRelation(toRel) && !inhParentsEqual(from, to, fromRel.InhParents, toRel.InhParents)
+	return fromIsTable && toIsTable && (fromRel.RelKind != toRel.RelKind || inheritsChanged)
 }
 
 // generatePartitionChildDDL generates CREATE TABLE ... PARTITION OF ... FOR VALUES ...

@@ -4505,3 +4505,54 @@ func TestFunctionSetClauseWithoutDefaultsPreserved(t *testing.T) {
 	require.Contains(t, sql, "SET search_path")
 	require.Contains(t, sql, "archive")
 }
+
+func TestPartitionAttachAndDetachMigration(t *testing.T) {
+	c0 := &metadatapb.TablePartitionMetadata{
+		Name:       "c0",
+		Type:       metadatapb.TablePartitionMetadata_RANGE,
+		Expression: "RANGE (id)",
+		Value:      "FOR VALUES FROM (0) TO (1)",
+	}
+	c1 := &metadatapb.TablePartitionMetadata{
+		Name:       "c1",
+		Type:       metadatapb.TablePartitionMetadata_RANGE,
+		Expression: "RANGE (id)",
+		Value:      "FOR VALUES FROM (1) TO (10)",
+	}
+	standalone := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{
+				{
+					Name:       "p",
+					Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+					Partitions: []*metadatapb.TablePartitionMetadata{c0},
+				},
+				{
+					Name:    "c1",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				},
+			},
+		}},
+	}
+	attached := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:       "p",
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Position: 1}},
+				Partitions: []*metadatapb.TablePartitionMetadata{c0, c1},
+			}},
+		}},
+	}
+
+	sqlAttach, err := testMetadataMigration(standalone, attached)
+	require.NoError(t, err)
+	require.Contains(t, sqlAttach, `ALTER TABLE "public"."p" ATTACH PARTITION "public"."c1" FOR VALUES FROM ('1') TO ('10')`)
+	require.NotContains(t, sqlAttach, `DROP TABLE`)
+
+	sqlDetach, err := testMetadataMigration(attached, standalone)
+	require.NoError(t, err)
+	require.Contains(t, sqlDetach, `ALTER TABLE "public"."p" DETACH PARTITION "public"."c1"`)
+	require.NotContains(t, sqlDetach, `DROP TABLE`)
+}
