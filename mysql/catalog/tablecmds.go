@@ -2342,6 +2342,25 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 			}
 		}
 	}
+	if !fulltext && !spatial {
+		if maxBytes, ok := c.maxIndexTotalKeyBytes(tbl); ok {
+			totalBytes := 0
+			for _, ic := range idxCols {
+				if ic == nil || ic.Name == "" {
+					continue
+				}
+				col := tbl.GetColumn(ic.Name)
+				if col == nil {
+					continue
+				}
+				totalBytes += indexKeyPartBytes(col, ic)
+			}
+			if totalBytes > maxBytes {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", maxBytes)}
+			}
+		}
+	}
 	return nil
 }
 
@@ -2358,13 +2377,7 @@ func charsetMaxBytes(charset string) int {
 	}
 }
 
-func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
-	if dt == "tinytext" || dt == "tinyblob" {
-		return 255
-	}
-	if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
-		return 1000
-	}
+func (c *Catalog) maxInnoDBIndexKeyBytes() int {
 	switch c.InnoDBPageSize() {
 	case 4096:
 		return 768
@@ -2373,6 +2386,48 @@ func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
 	default:
 		return 3072
 	}
+}
+
+func (c *Catalog) maxIndexTotalKeyBytes(tbl *Table) (int, bool) {
+	if tbl == nil {
+		return 0, false
+	}
+	if strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000, true
+	}
+	if isInnoDBEngine(tbl.Engine) {
+		return c.maxInnoDBIndexKeyBytes(), true
+	}
+	return 0, false
+}
+
+func (c *Catalog) maxBlobTextIndexPrefixBytes(tbl *Table, dt string) int {
+	if dt == "tinytext" || dt == "tinyblob" {
+		return 255
+	}
+	if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
+		return 1000
+	}
+	return c.maxInnoDBIndexKeyBytes()
+}
+
+func indexKeyPartBytes(col *Column, ic *IndexColumn) int {
+	if col == nil || ic == nil {
+		return 0
+	}
+	dt := strings.ToLower(col.DataType)
+	mb := 1
+	switch dt {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		mb = charsetMaxBytes(col.Charset)
+	}
+	if ic.Length > 0 {
+		return ic.Length * mb
+	}
+	if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
+		return maxLen * mb
+	}
+	return 0
 }
 
 // validateKeyPrefixLength validates a non-zero key part prefix length against

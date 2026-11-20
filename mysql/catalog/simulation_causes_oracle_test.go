@@ -4314,6 +4314,57 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "CREATE TEMPORARY TABLE a LIKE s",
 			code:    0,
 		},
+		{
+			name:  "Repeated DISCARD TABLESPACE accepted with warning on mysql 8.0.46",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a DISCARD TABLESPACE",
+			code:  0,
+		},
+		{
+			name:    "Repeated DISCARD TABLESPACE accepted under TRADITIONAL sql_mode",
+			setup:   []string{"CREATE TABLE a (id INT PRIMARY KEY)", "ALTER TABLE a DISCARD TABLESPACE"},
+			session: []string{"SET sql_mode = 'TRADITIONAL'"},
+			stmt:    "ALTER TABLE a DISCARD TABLESPACE",
+			code:    0,
+		},
+		{
+			name:    "SET sql_mode from decimal arithmetic user var rejected with 1232",
+			session: []string{"SET @mode = ''", "SET @mode = 1.5 + 1"},
+			stmt:    "SET sql_mode = @mode",
+			code:    1232,
+		},
+		{
+			name: "Composite TEXT index exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(2000), b(2000)))",
+			code: 1071,
+		},
+		{
+			name:    "Composite TEXT index exceeding 3072 bytes rejected with 1071 in non-strict mode",
+			session: []string{"SET sql_mode = ''"},
+			stmt:    "CREATE TABLE a (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(2000), b(2000)))",
+			code:    1071,
+		},
+		{
+			name: "Composite VARCHAR utf8mb4 index exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a VARCHAR(500) CHARACTER SET utf8mb4, b VARCHAR(500) CHARACTER SET utf8mb4, KEY(a, b))",
+			code: 1071,
+		},
+		{
+			name: "Composite TEXT index at exact 3072-byte boundary accepted",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(2000), b(1072)))",
+			code: 0,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY composite exceeding 3072 bytes rejected with 1071",
+			setup: []string{"CREATE TABLE a (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii)"},
+			stmt:  "ALTER TABLE a ADD KEY(a(2000), b(2000))",
+			code:  1071,
+		},
+		{
+			name: "Composite MyISAM TEXT index exceeding 1000 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(600), b(500))) ENGINE=MyISAM",
+			code: 1071,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4557,6 +4608,36 @@ func TestSimulationCausesOracle(t *testing.T) {
 	if strings.Contains(decEngineCreate, "ENCRYPTION=") || strings.Contains(decCatCreate, "ENCRYPTION=") {
 		t.Fatalf("decrypted resident SHOW CREATE TABLE still had ENCRYPTION:\nmysql:\n%s\ncatalog:\n%s", decEngineCreate, decCatCreate)
 	}
+
+	// Under default_table_encryption=ON with keyring_file loaded, an omitted
+	// ENCRYPTION clause on CREATE TABLESPACE defaults to ENCRYPTION='Y'.
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "SET SESSION default_table_encryption = OFF")
+		_, _ = conn.ExecContext(ctx, "DROP TABLE IF EXISTS a_def_enc")
+		_, _ = conn.ExecContext(ctx, "DROP TABLESPACE ts_def_enc")
+	})
+	for _, stmt := range []string{
+		"SET SESSION default_table_encryption = ON",
+		"CREATE TABLESPACE ts_def_enc ADD DATAFILE 'ts_def_enc.ibd'",
+	} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+		execAlterClauses(t, encOracleCat, stmt+";")
+	}
+	if got, _ := simulationEngineRefusal(t, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc", func() error {
+		_, err := conn.ExecContext(ctx, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc")
+		return err
+	}()); got != 3825 {
+		t.Fatalf("mysql plain table in default-encrypted tablespace got %d, want 3825", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, encOracleCat, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc"); got != 3825 {
+		t.Fatalf("catalog plain table in default-encrypted tablespace got %d, want 3825", got)
+	}
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc ENCRYPTION='Y'"); err != nil {
+		t.Fatalf("mysql encrypted table in default-encrypted tablespace: %v", err)
+	}
+	execAlterClauses(t, encOracleCat, "CREATE TABLE a_def_enc (id INT) TABLESPACE ts_def_enc ENCRYPTION='Y';")
 
 	// SET CHARACTER SET preserves the current database's non-default collation
 	// as @@collation_connection on both live MySQL 8.0.46 and Catalog.
@@ -5121,4 +5202,36 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		}
 	}
 	execAlterClauses(t, ae64k, "CREATE TABLESPACE ts64_16 ADD DATAFILE 'ts64_16.ibd' AUTOEXTEND_SIZE=16M; CREATE TABLE t64_16 (id INT) AUTOEXTEND_SIZE=16M;")
+
+	// Decimal arithmetic in SET user variable assignments evaluates exact
+	// decimal strings and division-by-zero NULL rather than dropping the update.
+	decCat := New()
+	execAlterClauses(t, decCat, "SET @a = 1.5 + 1, @b = 1.50 * 2, @c = 10.5 - 3, @d = 1 / 2, @e = 1.5 / 0, @f = 5 % 2.5, @g = -1.25 + 3;")
+	if decCat.userVars["a"].str != "2.5" || decCat.userVars["b"].str != "3.00" || decCat.userVars["c"].str != "7.5" || decCat.userVars["d"].str != "0.5000" || decCat.userVars["e"].kind != userVarNull || decCat.userVars["g"].str != "1.75" {
+		t.Fatalf("decimal SET arithmetic mismatch: %+v", decCat.userVars)
+	}
+	if got, _ := simulationCatalogRefusal(t, decCat, "SET sql_mode = @a"); got != 1232 {
+		t.Fatalf("SET sql_mode = @a (2.5) got %d, want 1232", got)
+	}
+
+	// default_table_encryption separates GLOBAL and SESSION scopes and drives
+	// omitted CREATE TABLESPACE ENCRYPTION state.
+	dteCat := New()
+	execAlterClauses(t, dteCat, "CREATE DATABASE d; USE d; SET GLOBAL default_table_encryption = ON; SET @gd=@@GLOBAL.default_table_encryption, @sd=@@SESSION.default_table_encryption;")
+	if dteCat.userVars["gd"].str != "1" || dteCat.userVars["sd"].str != "0" {
+		t.Fatalf("default_table_encryption scope leak: %+v", dteCat.userVars)
+	}
+	execAlterClauses(t, dteCat, "SET SESSION default_table_encryption = DEFAULT; CREATE TABLESPACE ts_dte ADD DATAFILE 'ts_dte.ibd';")
+	if got, _ := simulationCatalogRefusal(t, dteCat, "CREATE TABLE t_dte_plain (id INT) TABLESPACE ts_dte"); got != 3825 {
+		t.Fatalf("plain table in default-encrypted tablespace got %d, want 3825", got)
+	}
+
+	// Composite index key byte total scales with configured 4K InnoDB page size.
+	comp4k := New()
+	comp4k.SetInnoDBPageSize(4096)
+	execAlterClauses(t, comp4k, "CREATE DATABASE d; USE d;")
+	if got, _ := simulationCatalogRefusal(t, comp4k, "CREATE TABLE t4k_comp_bad (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(400), b(400)))"); got != 1071 {
+		t.Fatalf("4K composite KEY(a(400),b(400)) got %d, want 1071", got)
+	}
+	execAlterClauses(t, comp4k, "CREATE TABLE t4k_comp_ok (a TEXT CHARACTER SET ascii, b TEXT CHARACTER SET ascii, KEY(a(400), b(368)));")
 }

@@ -538,7 +538,11 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 	if c.tablespaceEncrypted == nil {
 		c.tablespaceEncrypted = make(map[string]bool)
 	}
-	c.tablespaceEncrypted[stmt.Name] = strings.EqualFold(stmt.Encryption, "Y")
+	tsEnc := strings.EqualFold(stmt.Encryption, "Y")
+	if !stmt.HasEncryption && stmt.Encryption == "" {
+		tsEnc = c.session.DefaultTableEncryption
+	}
+	c.tablespaceEncrypted[stmt.Name] = tsEnc
 	if dfBase != "" {
 		c.tablespaceFiles[stmt.Name] = dfBase
 	}
@@ -726,6 +730,8 @@ func (c *Catalog) alterDiscardImportTablespace(tbl *Table, isImport bool) error 
 				return errRowIsReferenced2()
 			}
 		}
+		// On mysql:8.0.46, repeating DISCARD TABLESPACE after a prior discard
+		// succeeds (0) with Warning 1812 rather than failing with 1814.
 		tbl.TablespaceDiscarded = true
 		return nil
 	}

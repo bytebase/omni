@@ -290,6 +290,13 @@ func init() {
 			func(c *Catalog) bool { return c.session.ExplicitDefaultsForTimestamp },
 			func(c *Catalog, v bool) { c.session.ExplicitDefaultsForTimestamp = v },
 		),
+		"default_table_encryption": makeBoolSysvarSpec(
+			false,
+			func(c *Catalog) bool { return c.globalDefaultTableEncrypt },
+			func(c *Catalog, v bool) { c.globalDefaultTableEncrypt = v },
+			func(c *Catalog) bool { return c.session.DefaultTableEncryption },
+			func(c *Catalog, v bool) { c.session.DefaultTableEncryption = v },
+		),
 		"innodb_directories": {
 			kind: sysvarGlobalOnlyStatic,
 			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
@@ -945,16 +952,23 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				return v, true, nil
 			}
 			n, ok := parseSetNumericInt64(v)
+			if ok {
+				if e.Op == nodes.UnaryMinus {
+					if n == math.MinInt64 {
+						return userVarValue{}, false, errBigintOutOfRange()
+					}
+					n = -n
+				}
+				return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true, nil
+			}
+			r, scale, ok := parseSetDecimalRat(v)
 			if !ok {
 				return userVarValue{}, false, nil
 			}
 			if e.Op == nodes.UnaryMinus {
-				if n == math.MinInt64 {
-					return userVarValue{}, false, errBigintOutOfRange()
-				}
-				n = -n
+				r.Neg(r)
 			}
-			return userVarValue{kind: userVarNumeric, str: strconv.FormatInt(n, 10)}, true, nil
+			return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale)}, true, nil
 		}
 		return userVarValue{}, false, nil
 	case *nodes.BinaryExpr:
@@ -1061,7 +1075,7 @@ func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, b
 	ln, lok := parseSetNumericInt64(left)
 	rn, rok := parseSetNumericInt64(right)
 	if !lok || !rok {
-		return userVarValue{}, false, nil
+		return evalSetDecimalBinaryExpr(e.Op, left, right)
 	}
 	var out int64
 	switch e.Op {
@@ -1141,6 +1155,92 @@ func parseSetNumericInt64(v userVarValue) (int64, bool) {
 		return 0, false
 	}
 	return n, true
+}
+
+func parseSetDecimalRat(v userVarValue) (*big.Rat, int, bool) {
+	if v.kind != userVarNumeric && v.kind != userVarString {
+		return nil, 0, false
+	}
+	s := strings.TrimSpace(v.str)
+	if s == "" {
+		return nil, 0, false
+	}
+	digits := strings.TrimLeft(s, "+-")
+	if strings.ContainsAny(digits, "eE/") {
+		return nil, 0, false
+	}
+	dot := strings.IndexByte(digits, '.')
+	scale := 0
+	if dot >= 0 {
+		scale = len(digits) - dot - 1
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return nil, 0, false
+	}
+	return r, scale, true
+}
+
+func formatSetDecimalRat(r *big.Rat, scale int) string {
+	if r == nil {
+		return "0"
+	}
+	if scale < 0 {
+		scale = 0
+	}
+	return r.FloatString(scale)
+}
+
+func evalSetDecimalBinaryExpr(op nodes.BinaryOp, left, right userVarValue) (userVarValue, bool, error) {
+	lr, lScale, lok := parseSetDecimalRat(left)
+	rr, rScale, rok := parseSetDecimalRat(right)
+	if !lok || !rok {
+		return userVarValue{}, false, nil
+	}
+	maxScale := lScale
+	if rScale > maxScale {
+		maxScale = rScale
+	}
+	out := new(big.Rat)
+	switch op {
+	case nodes.BinOpAdd:
+		out.Add(lr, rr)
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
+	case nodes.BinOpSub:
+		out.Sub(lr, rr)
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
+	case nodes.BinOpMul:
+		out.Mul(lr, rr)
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, lScale+rScale)}, true, nil
+	case nodes.BinOpDiv:
+		if rr.Sign() == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out.Quo(lr, rr)
+		divScale := lScale + 4
+		if divScale < 4 {
+			divScale = 4
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, divScale)}, true, nil
+	case nodes.BinOpDivInt:
+		if rr.Sign() == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out.Quo(lr, rr)
+		q := new(big.Int).Quo(out.Num(), out.Denom())
+		return userVarValue{kind: userVarNumeric, str: q.String()}, true, nil
+	case nodes.BinOpMod:
+		if rr.Sign() == 0 {
+			return userVarValue{kind: userVarNull}, true, nil
+		}
+		out.Quo(lr, rr)
+		q := new(big.Rat).SetInt(new(big.Int).Quo(out.Num(), out.Denom()))
+		q.Mul(q, rr)
+		out.Sub(lr, q)
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
+	default:
+		return userVarValue{}, false, nil
+	}
 }
 
 func normalizeSetVariableName(col *nodes.ColumnRef) string {

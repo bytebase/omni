@@ -21,37 +21,38 @@ type userVarValue struct {
 
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
-	databases                map[string]*Database      // lowered name -> Database
-	tablespaces              map[string]bool           // exact general tablespace names
-	tablespaceBlockSizes     map[string]uint64         // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
-	tablespaceEncrypted      map[string]bool           // general tablespace name -> ENCRYPTION='Y'
-	undoTablespaces          map[string]bool           // exact undo tablespace names -> active
-	tablespaceFiles          map[string]string         // tablespace name -> normalized datafile path
-	tablespaceDirs           map[string]bool           // known InnoDB datafile directories
-	dataDir                  string                    // InnoDB/server datadir (default /var/lib/mysql)
-	userVars                 map[string]userVarValue   // lowered user var name (without @) -> value
-	systemTimeZone           string                    // @@system_time_zone (default UTC)
-	systemTimeZoneLoc        *time.Location            // optional host Location when @@system_time_zone is an abbreviation
-	namedTimeZones           map[string]*time.Location // lowercased mysql.time_zone_name entries -> Location
-	globalTimeZone           string
-	globalSQLMode            string
-	globalCharsetClient      string
-	globalCollationConn      string
-	globalForeignKeyChecks   bool
-	globalGenerateGIPK       bool
-	globalShowGIPK           bool
-	globalExplicitDefaultsTS bool
-	currentDB                string
-	defaultCharset           string
-	defaultCollation         string
-	charsetClient            string
-	collationConn            string
-	innodbPageSize           uint64 // configured innodb_page_size (0 => 16384)
-	foreignKeyChecks         bool   // SET foreign_key_checks (default true)
-	loadingSDL               bool   // true while LoadSDLWithVersion executes statements
-	generateGIPK             bool   // SET sql_generate_invisible_primary_key
-	showGIPK                 bool   // SET show_gipk_in_create_table_and_information_schema
-	session                  SessionState
+	databases                 map[string]*Database      // lowered name -> Database
+	tablespaces               map[string]bool           // exact general tablespace names
+	tablespaceBlockSizes      map[string]uint64         // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
+	tablespaceEncrypted       map[string]bool           // general tablespace name -> ENCRYPTION='Y'
+	undoTablespaces           map[string]bool           // exact undo tablespace names -> active
+	tablespaceFiles           map[string]string         // tablespace name -> normalized datafile path
+	tablespaceDirs            map[string]bool           // known InnoDB datafile directories
+	dataDir                   string                    // InnoDB/server datadir (default /var/lib/mysql)
+	userVars                  map[string]userVarValue   // lowered user var name (without @) -> value
+	systemTimeZone            string                    // @@system_time_zone (default UTC)
+	systemTimeZoneLoc         *time.Location            // optional host Location when @@system_time_zone is an abbreviation
+	namedTimeZones            map[string]*time.Location // lowercased mysql.time_zone_name entries -> Location
+	globalTimeZone            string
+	globalSQLMode             string
+	globalCharsetClient       string
+	globalCollationConn       string
+	globalForeignKeyChecks    bool
+	globalGenerateGIPK        bool
+	globalShowGIPK            bool
+	globalExplicitDefaultsTS  bool
+	globalDefaultTableEncrypt bool
+	currentDB                 string
+	defaultCharset            string
+	defaultCollation          string
+	charsetClient             string
+	collationConn             string
+	innodbPageSize            uint64 // configured innodb_page_size (0 => 16384)
+	foreignKeyChecks          bool   // SET foreign_key_checks (default true)
+	loadingSDL                bool   // true while LoadSDLWithVersion executes statements
+	generateGIPK              bool   // SET sql_generate_invisible_primary_key
+	showGIPK                  bool   // SET show_gipk_in_create_table_and_information_schema
+	session                   SessionState
 }
 
 type SessionState struct {
@@ -61,6 +62,7 @@ type SessionState struct {
 	CharsetClient                string
 	CollationConnection          string
 	ExplicitDefaultsForTimestamp bool
+	DefaultTableEncryption       bool
 	SQLMode                      string
 	TimeZone                     string
 	SystemTimeZone               string
