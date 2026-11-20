@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"maps"
 	"os"
 	"slices"
@@ -1015,5 +1016,33 @@ func TestLoadMetadataKeepsTableWhosePartitioningIsRefused(t *testing.T) {
 	requireIncomplete(t, report, []string{"table:sales"})
 	if tbl := requireTable(t, c, "sales"); tbl.Partitioning != nil || len(tbl.Indexes) != 1 {
 		t.Errorf("sales = partitioning %+v, %d indexes; want no partitioning and the index", tbl.Partitioning, len(tbl.Indexes))
+	}
+}
+
+// TestLoadMetadataEncryptedGeneralTablespace loads a table in an encrypted
+// general tablespace: the server's CREATE_OPTIONS carry ENCRYPTION='Y', so the
+// tablespace is inferred encrypted, and a later table in it takes ENCRYPTION='Y'
+// and refuses an unencrypted one with 3825, as mysql:8.0.46 does.
+func TestLoadMetadataEncryptedGeneralTablespace(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(&metadata.TableMetadata{
+		Name:          "enc",
+		Engine:        "InnoDB",
+		CreateOptions: "tablespace=`enc_ts` ENCRYPTION='Y'",
+		Columns:       []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+	}))
+	requireReport(t, report, nil, nil)
+	if tbl := requireTable(t, c, "enc"); tbl.Encryption != "Y" || tbl.Tablespace != "enc_ts" {
+		t.Fatalf("loaded table encryption %q, tablespace %q; want Y, enc_ts", tbl.Encryption, tbl.Tablespace)
+	}
+	results, err := c.Exec("CREATE TABLE u (id INT) TABLESPACE enc_ts ENCRYPTION='Y'; CREATE TABLE v (id INT) TABLESPACE enc_ts;", &ExecOptions{ContinueOnError: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Error != nil {
+		t.Fatalf("encrypted table in the loaded encrypted tablespace: %v", results[0].Error)
+	}
+	var ce *Error
+	if !errors.As(results[1].Error, &ce) || ce.Code != 3825 {
+		t.Fatalf("unencrypted table in the loaded encrypted tablespace: %v, want 3825", results[1].Error)
 	}
 }

@@ -933,6 +933,14 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 		}
 		return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%d", e.Value)}, true, nil
 	case *nodes.FloatLit:
+		// A double literal reads as the double it is: 1.5e0 is 1.5 in
+		// CONCAT(1.5e0) and in any string comparison.
+		if strings.ContainsAny(e.Value, "eE") {
+			if r, _, _, ok := parseSetNumberPrefixRat(e.Value, true); ok {
+				f, _ := r.Float64()
+				return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+			}
+		}
 		return userVarValue{kind: userVarNumeric, str: e.Value, isFloat: strings.ContainsAny(e.Value, "eE")}, true, nil
 	case *nodes.BoolLit:
 		if e.Value {
@@ -958,6 +966,12 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				}
 				return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%s%d", sign, op.Value)}, true, nil
 			case *nodes.FloatLit:
+				if strings.ContainsAny(op.Value, "eE") {
+					if r, _, _, ok := parseSetNumberPrefixRat(sign+op.Value, true); ok {
+						f, _ := r.Float64()
+						return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
+					}
+				}
 				return userVarValue{kind: userVarNumeric, str: sign + op.Value, isFloat: strings.ContainsAny(op.Value, "eE")}, true, nil
 			}
 			v, ok, err := c.evalSetExprNode(e.Operand)
@@ -1372,6 +1386,35 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "quarter", "month", "year", "dayofmonth", "day":
+			// The date parts of a DATE or DATETIME, read from a string or a
+			// number: QUARTER('2008-01-01') is 1 and sets sql_mode
+			// REAL_AS_FLOAT; a zero month is quarter 0, and a value that is
+			// no date ('2008-02-30', 'x', '') is NULL.
+			fn := toLower(e.Name)
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			p, pok := setParseDateValue(v)
+			if !pok {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			n := 0
+			switch fn {
+			case "quarter":
+				n = (p.month + 2) / 3
+			case "month":
+				n = p.month
+			case "year":
+				n = p.year
+			default:
+				n = p.day
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "crc32":
 			// CRC32 is the IEEE checksum of the value's string form: a double
 			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.
@@ -1589,7 +1632,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if rok {
 				f, _ = r.Float64()
 			}
-			return userVarValue{kind: userVarNumeric, str: strconv.FormatFloat(math.Abs(f), 'g', -1, 64), isFloat: true}, true, nil
+			return userVarValue{kind: userVarNumeric, str: setFormatDouble(math.Abs(f)), isFloat: true}, true, nil
 		case "char_length", "character_length", "length", "octet_length", "bit_length":
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
@@ -1845,6 +1888,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs",
+				"quarter", "month", "year", "dayofmonth", "day",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
@@ -1975,6 +2019,15 @@ func isASCII(s string) bool {
 // spells it.
 func isBinaryIntroducer(cs string) bool {
 	return strings.EqualFold(strings.TrimPrefix(strings.TrimSpace(cs), "_"), "binary")
+}
+
+// setParseDateValue reads a value as a DATETIME the way the date-part
+// functions do, a string by its text and a number by its digits.
+func setParseDateValue(v userVarValue) (parsedMySQLDateTime, bool) {
+	if v.kind == userVarNumeric {
+		return parseMySQLNumberDateTime("datetime", 0, v.str, false)
+	}
+	return parseMySQLStringDateTime("datetime", 0, v.str, false)
 }
 
 // isBitwiseBinaryString reports a binary string a bitwise operator combines
@@ -2739,11 +2792,34 @@ func setRatToInt(r *big.Rat, mode byte) *big.Int {
 	return q
 }
 
+// setFormatDouble renders a double as MySQL renders it in a string context
+// (mysql:8.0.46, CONCAT): the shortest round-trip digits, fixed unless the
+// integer part passes 15 digits, the value is below 1e-15, or the fixed
+// form passes 22 characters, and then d.ddde<exp> with no '+' or padding:
+// 1e15, 100, 0.00000015, 1.2345678901234568e-10, 1e-16.
 func setFormatDouble(f float64) string {
 	if f == 0 {
-		f = 0 // no -0
+		return "0" // no -0
 	}
-	return strconv.FormatFloat(f, 'g', -1, 64)
+	sign := ""
+	if f < 0 {
+		sign, f = "-", -f
+	}
+	sci := strconv.FormatFloat(f, 'e', -1, 64)
+	mant, expStr, _ := strings.Cut(sci, "e")
+	e, _ := strconv.Atoi(expStr)
+	digits := strings.Replace(mant, ".", "", 1)
+	decpt := e + 1
+	if decpt > 15 || decpt < -14 || (decpt <= 0 && 2-decpt+len(digits) > 22) {
+		return sign + mant + "e" + strconv.Itoa(e)
+	}
+	switch {
+	case decpt <= 0:
+		return sign + "0." + strings.Repeat("0", -decpt) + digits
+	case decpt >= len(digits):
+		return sign + digits + strings.Repeat("0", decpt-len(digits))
+	}
+	return sign + digits[:decpt] + "." + digits[decpt:]
 }
 
 // setRoundValue is ROUND(x, d) or TRUNCATE(x, d) as mysql:8.0.46 answers it:
@@ -3017,7 +3093,7 @@ func evalSetDecimalBinaryExpr(op nodes.BinaryOp, left, right userVarValue) (user
 	out := new(big.Rat)
 	formatFloatOut := func(q *big.Rat) (userVarValue, bool, error) {
 		f, _ := q.Float64()
-		return userVarValue{kind: userVarNumeric, str: strconv.FormatFloat(f, 'g', -1, 64), isFloat: true}, true, nil
+		return userVarValue{kind: userVarNumeric, str: setFormatDouble(f), isFloat: true}, true, nil
 	}
 	switch op {
 	case nodes.BinOpAdd:

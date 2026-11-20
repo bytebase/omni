@@ -41435,6 +41435,63 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| CREATE TABLESPACE ts_dte_n ADD DATAFILE 'ts_dte_n.ibd' ENCRYPTION='N'
+< ok 0 0
+> exec
+| SET SESSION default_table_encryption = ON
+< ok 0 0
+> exec
+| CREATE TABLE z (id INT) TABLESPACE ts_dte_n
+< ok 0 0
+> exec
+| SET SESSION default_table_encryption = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_dte_n
+< ok 0 0
+> exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
 | SET sql_mode = IF(1, 'ANSI', no_such())
 < error
 | 1305 42000 FUNCTION test.no_such does not exist
@@ -48078,6 +48135,266 @@
 : bytes
 | 5
 > exec
+| SET @x = CONCAT(1.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1.5
+> exec
+| SET @x = CONCAT(1e20)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1e20
+> exec
+| SET @x = CONCAT(1e15)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1e15
+> exec
+| SET @x = CONCAT(1.5e-7)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0.00000015
+> exec
+| SET @x = CONCAT(123456789012345678e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1.2345678901234568e17
+> exec
+| SET @x = CONCAT(0.1e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0.1
+> exec
+| SET @x = CONCAT(1e-5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0.00001
+> exec
+| SET @x = CONCAT(-2.5e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| -2.5
+> exec
+| SET @x = CONCAT(1e16)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1e16
+> exec
+| SET @x = CONCAT(100e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 100
+> exec
+| SET @x = CONCAT(1e-16)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1e-16
+> exec
+| SET @x = CONCAT(1.2345678901234567e-10)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1.2345678901234568e-10
+> exec
+| SET @x = CONCAT(1.5e-15)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0.0000000000000015
+> exec
+| SET @x = CONCAT(1e14)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 100000000000000
+> exec
+| SET @x = CONCAT(0.000123456789012345678e0)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 0.00012345678901234567
+> exec
+| SET @x = CONCAT(1.2345678901234567e-5)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 1.2345678901234568e-5
+> exec
+| SET @x = CONCAT(1.5e0 + 1)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "LONGBLOB" "[]uint8"
+< row
+: bytes
+| 2.5
+> exec
+| SET @x = QUARTER('2008-01-01')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 1
+> exec
+| SET @x = QUARTER('2008-12-31')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 4
+> exec
+| SET @x = QUARTER(20080401)
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = QUARTER('2008-04-01 10:00:00')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2
+> exec
+| SET @x = QUARTER('2008-00-01')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 0
+> exec
+| SET @x = MONTH('2008-05-01')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 5
+> exec
+| SET @x = YEAR('2008-05-01')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 2008
+> exec
+| SET @x = DAYOFMONTH('2008-05-07')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 7
+> exec
+| SET @x = DAY('2008-05-07')
+< ok 0 0
+> query
+| SELECT CAST(@x AS BINARY)
+< result
+< column "CAST(@x AS BINARY)" "VARBINARY" "[]uint8"
+< row
+: bytes
+| 7
+> exec
 | SET @x = 1 << 63
 < ok 0 0
 > query
@@ -48681,6 +48998,45 @@
 | SET SESSION sql_mode = ''
 < ok 0 0
 > exec
+| SET SESSION sql_mode = (CONCAT(1.5e0) = '1.5')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = QUARTER('2008-01-01')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET SESSION sql_mode = IFNULL(QUARTER('2008-02-30'), 1)
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
 | SET SESSION sql_mode = IF(_binary'a' = 'A', 'ANSI', '')
 < ok 0 0
 > query
@@ -48914,6 +49270,54 @@
 > exec
 | SET GLOBAL sql_mode = DEFAULT
 < ok 0 0
+> query
+| SELECT DATABASE()
+< result
+< column "DATABASE()" "VARCHAR"
+< row
+: bytes
+| d_qual_own
+> exec
+| CREATE TABLESPACE ts_mig1 ADD DATAFILE 'ts_mig1.ibd'
+< ok 0 0
+> exec
+| CREATE TABLESPACE ts_mig2 ADD DATAFILE 'ts_mig2.ibd'
+< ok 0 0
+> exec
+| CREATE TABLE m_ts (id INT) TABLESPACE ts_mig1
+< ok 0 0
+> exec
+| ALTER TABLE `d_qual_own`.`m_ts` TABLESPACE=`ts_mig2`
+< ok 0 0
+> exec
+| CREATE TABLE `d_qual_own`.`n_ts` (
+|   `id` int
+| ) TABLESPACE `ts_mig2` ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+< ok 0 0
+> query
+| SHOW CREATE TABLE m_ts
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| m_ts
+: bytes
+| CREATE TABLE `m_ts` (
+|   `id` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `ts_mig2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+> query
+| SHOW CREATE TABLE n_ts
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| n_ts
+: bytes
+| CREATE TABLE `n_ts` (
+|   `id` int DEFAULT NULL
+| ) /*!50100 TABLESPACE `ts_mig2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
 > exec
 | SET SESSION sql_mode = ''
 < ok 0 0
@@ -49022,6 +49426,18 @@
 < ok 0 0
 > exec
 | SET SESSION time_zone = DEFAULT
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS m_ts
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS n_ts
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_mig1
+< ok 0 0
+> exec
+| DROP TABLESPACE ts_mig2
 < ok 0 0
 > exec
 | SET GLOBAL sql_mode = DEFAULT

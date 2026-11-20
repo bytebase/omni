@@ -156,7 +156,21 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 	if !strings.EqualFold(strings.TrimSpace(from.SecondaryEngine), strings.TrimSpace(to.SecondaryEngine)) {
 		return true
 	}
+	if canonicalTableTablespace(from) != canonicalTableTablespace(to) {
+		return true
+	}
 	return false
+}
+
+// canonicalTableTablespace is the general tablespace a table lives in, by its
+// case-sensitive name, or "" for its own file: innodb_file_per_table names
+// the default a table without TABLESPACE has.
+func canonicalTableTablespace(t *Table) string {
+	ts := unquoteTableOption(strings.TrimSpace(t.Tablespace))
+	if strings.EqualFold(ts, "innodb_file_per_table") {
+		return ""
+	}
+	return ts
 }
 
 // rowFormatChanged reports whether the table ROW_FORMAT differs in a way that matters.

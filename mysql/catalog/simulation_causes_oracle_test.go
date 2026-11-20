@@ -5096,6 +5096,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "functional binary CONCAT with -1.5 at 512 bytes", stmt: "CREATE TABLE z (b VARBINARY(508), KEY ((CONCAT(b, -1.5))))", code: 0},
 		// Binary strings of unequal length do not combine bitwise.
 		{name: "bitwise AND of unequal binary strings", stmt: "SET @x = CAST(X'0102' AS BINARY) & CAST(X'FF' AS BINARY)", code: 3513},
+		// default_table_encryption sets the default for schemas and general
+		// tablespaces, not tables: a table that omits ENCRYPTION is unencrypted,
+		// so an unencrypted general tablespace takes it (and, on a server with a
+		// keyring, an encrypted one refuses it with 3825).
+		{
+			name:    "default_table_encryption ON and a table in an unencrypted tablespace",
+			setup:   []string{"CREATE TABLESPACE ts_dte_n ADD DATAFILE 'ts_dte_n.ibd' ENCRYPTION='N'"},
+			session: []string{"SET SESSION default_table_encryption = ON"},
+			stmt:    "CREATE TABLE z (id INT) TABLESPACE ts_dte_n",
+			code:    0,
+			cleanup: []string{"SET SESSION default_table_encryption = DEFAULT", "DROP TABLE IF EXISTS z", "DROP TABLESPACE ts_dte_n"},
+		},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6198,6 +6210,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"CAST(X'8001' AS BINARY) >> 1",
 		"CAST(2.5 AS DOUBLE)", "CAST(2.5 AS FLOAT)", "CAST(0.1 AS FLOAT)", "CAST('2.5x' AS DOUBLE)", "CAST(2.5 AS REAL)",
 		"ABS(CAST(-9223372036854775808 AS DECIMAL(20,0)))", "ABS(CAST(-5 AS DECIMAL(3,0)))",
+		"CONCAT(1.5e0)", "CONCAT(1e20)", "CONCAT(1e15)", "CONCAT(1.5e-7)", "CONCAT(123456789012345678e0)",
+		"CONCAT(0.1e0)", "CONCAT(1e-5)", "CONCAT(-2.5e0)", "CONCAT(1e16)", "CONCAT(100e0)", "CONCAT(1e-16)",
+		"CONCAT(1.2345678901234567e-10)", "CONCAT(1.5e-15)", "CONCAT(1e14)", "CONCAT(0.000123456789012345678e0)",
+		"CONCAT(1.2345678901234567e-5)", "CONCAT(1.5e0 + 1)",
+		"QUARTER('2008-01-01')", "QUARTER('2008-12-31')", "QUARTER(20080401)", "QUARTER('2008-04-01 10:00:00')",
+		"QUARTER('2008-00-01')", "MONTH('2008-05-01')", "YEAR('2008-05-01')", "DAYOFMONTH('2008-05-07')", "DAY('2008-05-07')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6313,7 +6331,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
 		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "(CRC32('a') > 0)",
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
-		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
+		"IFNULL(QUARTER('2008-02-30'), 1)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
@@ -6452,6 +6471,46 @@ func TestSimulationCausesOracle(t *testing.T) {
 	execAlterClauses(t, castCat, "SET @m = @@SESSION.sql_mode; SET GLOBAL sql_mode = DEFAULT;")
 	if got := castCat.userVars["m"].str; got != scopeMode || scopeMode != "" {
 		t.Fatalf("SET GLOBAL ..., sql_mode = 'ANSI': catalog session sql_mode %q, mysql %q, want ''", got, scopeMode)
+	}
+
+	// A table's general tablespace is diffed and migrated: moving a table
+	// from one tablespace to another and creating one in a tablespace both
+	// run on the server and read back with the target's tablespace.
+	var curDB string
+	if err := conn.QueryRowContext(ctx, "SELECT DATABASE()").Scan(&curDB); err != nil {
+		t.Fatalf("mysql SELECT DATABASE(): %v", err)
+	}
+	t.Cleanup(func() {
+		for _, stmt := range []string{"DROP TABLE IF EXISTS m_ts", "DROP TABLE IF EXISTS n_ts", "DROP TABLESPACE ts_mig1", "DROP TABLESPACE ts_mig2"} {
+			_, _ = conn.ExecContext(ctx, stmt)
+		}
+	})
+	for _, stmt := range []string{"CREATE TABLESPACE ts_mig1 ADD DATAFILE 'ts_mig1.ibd'", "CREATE TABLESPACE ts_mig2 ADD DATAFILE 'ts_mig2.ibd'", "CREATE TABLE m_ts (id INT) TABLESPACE ts_mig1"} {
+		if _, err := conn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("mysql %s: %v", stmt, err)
+		}
+	}
+	tsBase := "CREATE DATABASE `" + curDB + "`; USE `" + curDB + "`; CREATE TABLESPACE ts_mig1 ADD DATAFILE 'ts_mig1.ibd'; CREATE TABLESPACE ts_mig2 ADD DATAFILE 'ts_mig2.ibd';"
+	fromCat, toCat := New(), New()
+	execAlterClauses(t, fromCat, tsBase+" CREATE TABLE m_ts (id INT) TABLESPACE ts_mig1;")
+	execAlterClauses(t, toCat, tsBase+" CREATE TABLE m_ts (id INT) TABLESPACE ts_mig2; CREATE TABLE n_ts (id INT) TABLESPACE ts_mig2;")
+	plan := GenerateMigration(fromCat, toCat, Diff(fromCat, toCat))
+	if len(plan.Ops) == 0 {
+		t.Fatal("tablespace move and new table produced no migration")
+	}
+	for _, op := range plan.Ops {
+		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
+			t.Fatalf("mysql migration %s: %v", op.SQL, err)
+		}
+	}
+	for _, tbl := range []string{"m_ts", "n_ts"} {
+		var name, create string
+		if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE "+tbl).Scan(&name, &create); err != nil {
+			t.Fatalf("mysql SHOW CREATE TABLE %s: %v", tbl, err)
+		}
+		if !strings.Contains(create, "TABLESPACE `ts_mig2`") {
+			t.Fatalf("migrated %s is not in ts_mig2:\n%s\nplan:\n%s", tbl, create, plan.SQL())
+		}
 	}
 
 	// NOT 0 chains into sql_mode as mode 1, REAL_AS_FLOAT.

@@ -147,6 +147,16 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 		clauses = append(clauses, "SECONDARY_ENGINE="+se)
 	}
 
+	// TABLESPACE — moving a table to another general tablespace, or back to
+	// its own file.
+	if from, to := canonicalTableTablespace(from), canonicalTableTablespace(to); from != to {
+		if to == "" {
+			clauses = append(clauses, "TABLESPACE=innodb_file_per_table")
+		} else {
+			clauses = append(clauses, "TABLESPACE="+quoteIdent(to))
+		}
+	}
+
 	if len(clauses) == 0 {
 		return MigrationOp{}, false
 	}
@@ -384,6 +394,9 @@ func migrationIndexColumn(ic *IndexColumn) string {
 func formatCreateTableOptions(tbl *Table, n *Normalizer) string {
 	var parts []string
 
+	if ts := canonicalTableTablespace(tbl); ts != "" {
+		parts = append(parts, "TABLESPACE "+quoteIdent(ts))
+	}
 	parts = append(parts, "ENGINE="+tableEngineName(tbl))
 
 	if cs := foldCharset(tbl.Charset); cs != "" {
