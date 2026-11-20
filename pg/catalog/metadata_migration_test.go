@@ -4424,3 +4424,55 @@ func TestRoutineParameterDefaultsPreserved(t *testing.T) {
 	require.Contains(t, sql, "CREATE OR REPLACE FUNCTION")
 	require.Contains(t, sql, "DEFAULT 2")
 }
+
+func TestUnloadedSnapshotObjectsAreRefusedWhenChanged(t *testing.T) {
+	rangeMeta := func(subtype string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:       "public",
+				RangeTypes: []*metadatapb.RangeTypeMetadata{{Name: "num_range", Subtype: subtype}},
+			}},
+		}
+	}
+	sql, err := testMetadataMigration(rangeMeta("numeric"), rangeMeta("numeric"))
+	require.NoError(t, err)
+	require.Empty(t, sql)
+	_, err = testMetadataMigration(rangeMeta("numeric"), rangeMeta("float8"))
+	require.ErrorContains(t, err, "range types")
+
+	serverMeta := func(host string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			ForeignServers: []*metadatapb.ForeignServerMetadata{{Name: "srv", Fdw: "postgres_fdw", Options: []string{"host=" + host}}},
+		}
+	}
+	sql, err = testMetadataMigration(serverMeta("a"), serverMeta("a"))
+	require.NoError(t, err)
+	require.Empty(t, sql)
+	_, err = testMetadataMigration(serverMeta("a"), serverMeta("b"))
+	require.ErrorContains(t, err, "foreign servers")
+
+	fdwMeta := func(handler string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{Name: "my_fdw", Handler: handler}},
+		}
+	}
+	sql, err = testMetadataMigration(fdwMeta("h1"), fdwMeta("h1"))
+	require.NoError(t, err)
+	require.Empty(t, sql)
+	_, err = testMetadataMigration(fdwMeta("h1"), fdwMeta("h2"))
+	require.ErrorContains(t, err, "foreign data wrappers")
+}
+
+func TestTableOwnerOnlyChangeDoesNotProduceSpuriousDiff(t *testing.T) {
+	withOwner := func(owner string) *metadatapb.DatabaseSchemaMetadata {
+		return &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{{
+				Name:   "public",
+				Tables: []*metadatapb.TableMetadata{{Name: "t", Owner: owner, Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+			}},
+		}
+	}
+	sql, err := testMetadataMigration(withOwner("alice"), withOwner("bob"))
+	require.NoError(t, err)
+	require.Empty(t, sql)
+}

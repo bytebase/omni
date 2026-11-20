@@ -754,3 +754,89 @@ func TestApplyDiffToMetadataExtensionsExternalTablesRenamesTriggersAndDefaults(t
 	require.Contains(t, greetFn.Definition, "DEFAULT 'world'")
 	require.Contains(t, greetFn.Definition, "DEFAULT 2")
 }
+
+func TestApplyDiffToMetadataTableAndFunctionRenamesAndOwnerOnly(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:  "orders",
+					Owner: "alice",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "id", Type: "integer", Position: 1},
+					},
+					Indexes: []*metadatapb.IndexMetadata{{
+						Name:         "orders_pkey",
+						Expressions:  []string{"id"},
+						Primary:      true,
+						Unique:       true,
+						IsConstraint: true,
+						Comment:      "pk doc",
+						Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "orders_pkey", Primary: true}},
+					}},
+				}},
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:             "fn_old",
+					Signature:        "fn_old(integer)",
+					Definition:       "CREATE FUNCTION public.fn_old(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$",
+					Comment:          "fn doc",
+					SkipDump:         true,
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "orders"}},
+				}},
+			},
+			{Name: "other"},
+		},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	// Ensure fn_old is installed as non-skip-dump for rename test.
+	_, err = catBefore.Exec(`CREATE FUNCTION public.fn_ren(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;`, nil)
+	require.NoError(t, err)
+	meta.Schemas[0].Functions = append(meta.Schemas[0].Functions, &metadatapb.FunctionMetadata{
+		Name:             "fn_ren",
+		Signature:        "public.fn_ren(integer)",
+		Definition:       "CREATE FUNCTION public.fn_ren(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$",
+		Comment:          "ren doc",
+		DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "orders"}},
+	})
+
+	// Case 1: owner-only change updates TableMetadata.Owner even with empty diff.
+	catOwner := catBefore.Clone()
+	_, err = catOwner.Exec(`ALTER TABLE public.orders OWNER TO bob;`, nil)
+	require.NoError(t, err)
+	ownerGot := ApplyDiffToMetadata(meta, catBefore, catOwner, Diff(catBefore, catOwner))
+	require.Equal(t, "bob", findTable(findSchema(ownerGot, "public"), "orders").Owner)
+
+	// Case 2: table rename preserves index comment & Constraints; function rename preserves DependencyTables & Comment.
+	catRen := catBefore.Clone()
+	results, err := catRen.Exec(`
+		ALTER TABLE public.orders RENAME TO orders_new;
+		ALTER FUNCTION public.fn_ren(integer) RENAME TO fn_new;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+	renGot := ApplyDiffToMetadata(meta, catBefore, catRen, Diff(catBefore, catRen))
+	pub := findSchema(renGot, "public")
+	tbl := findTable(pub, "orders_new")
+	require.NotNil(t, tbl)
+	require.Len(t, tbl.Indexes, 1)
+	require.Equal(t, "pk doc", tbl.Indexes[0].Comment)
+	require.Len(t, tbl.Indexes[0].Constraints, 1)
+
+	var fnNew *metadatapb.FunctionMetadata
+	for _, fn := range pub.Functions {
+		if fn.Name == "fn_new" {
+			fnNew = fn
+			break
+		}
+	}
+	require.NotNil(t, fnNew)
+	require.Equal(t, "ren doc", fnNew.Comment)
+	require.Len(t, fnNew.DependencyTables, 1)
+	require.Equal(t, "orders", fnNew.DependencyTables[0].Table)
+}

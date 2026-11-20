@@ -76,6 +76,9 @@ func MetadataMigration(ctx context.Context, oldMeta, newMeta *metadatapb.Databas
 	if err := refuseUnsupportedExternalTableChanges(oldMeta, newMeta, skipSchemas); err != nil {
 		return "", err
 	}
+	if err := refuseUnsupportedSnapshotObjectChanges(oldMeta, newMeta, skipSchemas); err != nil {
+		return "", err
+	}
 	diff := Diff(from, to)
 	extraRoutineOps := routineDefaultAlterOps(oldMeta, newMeta, nil, from, to, skipSchemas)
 	if diff.IsEmpty() && len(sourceDrops) == 0 && len(extraRoutineOps) == 0 {
@@ -134,73 +137,143 @@ func opTargetsSkippedSchema(op MigrationOp, skipSchemas map[string]bool) bool {
 }
 
 func refuseUnsupportedCollationChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, skipSchemas map[string]bool) error {
-	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]*metadatapb.CollationMetadata {
-		out := make(map[string]*metadatapb.CollationMetadata)
-		for _, s := range meta.GetSchemas() {
-			if skipSchemas[s.GetName()] {
-				continue
-			}
+	return refuseUnsupportedSchemaObjects(
+		oldMeta, newMeta, skipSchemas,
+		func(s *metadatapb.SchemaMetadata) []namedProtoMessage {
+			out := make([]namedProtoMessage, 0, len(s.GetCollations()))
 			for _, col := range s.GetCollations() {
-				out[objectKey(s.GetName(), col.GetName())] = col
+				out = append(out, namedProtoMessage{name: col.GetName(), msg: col})
 			}
-		}
-		return out
-	}
-	oldCollations := collect(oldMeta)
-	newCollations := collect(newMeta)
-	var changed []string
-	for key, oldCol := range oldCollations {
-		if !proto.Equal(oldCol, newCollations[key]) {
-			schemaName, colName := splitObjectKey(key)
-			changed = append(changed, quoteQualified(schemaName, colName))
-		}
-	}
-	for key := range newCollations {
-		if _, seen := oldCollations[key]; !seen {
-			schemaName, colName := splitObjectKey(key)
-			changed = append(changed, quoteQualified(schemaName, colName))
-		}
-	}
-	if len(changed) == 0 {
-		return nil
-	}
-	slices.Sort(changed)
-	return fmt.Errorf("cannot generate a migration for user-defined collations (%s): collation DDL is not supported", strings.Join(changed, ", "))
+			return out
+		},
+		"user-defined collations",
+		"collation DDL is not supported",
+	)
 }
 
 func refuseUnsupportedExternalTableChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, skipSchemas map[string]bool) error {
-	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]*metadatapb.ExternalTableMetadata {
-		out := make(map[string]*metadatapb.ExternalTableMetadata)
+	return refuseUnsupportedSchemaObjects(
+		oldMeta, newMeta, skipSchemas,
+		func(s *metadatapb.SchemaMetadata) []namedProtoMessage {
+			out := make([]namedProtoMessage, 0, len(s.GetExternalTables()))
+			for _, ext := range s.GetExternalTables() {
+				out = append(out, namedProtoMessage{name: ext.GetName(), msg: ext})
+			}
+			return out
+		},
+		"external tables",
+		"external table DDL is not supported",
+	)
+}
+
+func refuseUnsupportedSnapshotObjectChanges(oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata, skipSchemas map[string]bool) error {
+	if err := refuseUnsupportedSchemaObjects(
+		oldMeta, newMeta, skipSchemas,
+		func(s *metadatapb.SchemaMetadata) []namedProtoMessage {
+			out := make([]namedProtoMessage, 0, len(s.GetRangeTypes()))
+			for _, rt := range s.GetRangeTypes() {
+				out = append(out, namedProtoMessage{name: rt.GetName(), msg: rt})
+			}
+			return out
+		},
+		"range types",
+		"range type DDL is not supported",
+	); err != nil {
+		return err
+	}
+	if err := refuseUnsupportedDatabaseObjects(
+		oldMeta, newMeta,
+		func(m *metadatapb.DatabaseSchemaMetadata) []namedProtoMessage {
+			out := make([]namedProtoMessage, 0, len(m.GetForeignServers()))
+			for _, fs := range m.GetForeignServers() {
+				out = append(out, namedProtoMessage{name: fs.GetName(), msg: fs})
+			}
+			return out
+		},
+		"foreign servers",
+		"foreign server DDL is not supported",
+	); err != nil {
+		return err
+	}
+	return refuseUnsupportedDatabaseObjects(
+		oldMeta, newMeta,
+		func(m *metadatapb.DatabaseSchemaMetadata) []namedProtoMessage {
+			out := make([]namedProtoMessage, 0, len(m.GetForeignDataWrappers()))
+			for _, fdw := range m.GetForeignDataWrappers() {
+				out = append(out, namedProtoMessage{name: fdw.GetName(), msg: fdw})
+			}
+			return out
+		},
+		"foreign data wrappers",
+		"foreign data wrapper DDL is not supported",
+	)
+}
+
+type namedProtoMessage struct {
+	name string
+	msg  proto.Message
+}
+
+func refuseUnsupportedSchemaObjects(
+	oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
+	skipSchemas map[string]bool,
+	items func(*metadatapb.SchemaMetadata) []namedProtoMessage,
+	noun, reason string,
+) error {
+	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]proto.Message {
+		out := make(map[string]proto.Message)
 		for _, s := range meta.GetSchemas() {
 			if skipSchemas[s.GetName()] {
 				continue
 			}
-			for _, ext := range s.GetExternalTables() {
-				out[objectKey(s.GetName(), ext.GetName())] = ext
+			for _, item := range items(s) {
+				out[objectKey(s.GetName(), item.name)] = item.msg
 			}
 		}
 		return out
 	}
-	oldExt := collect(oldMeta)
-	newExt := collect(newMeta)
+	return diffNamedProtoMaps(collect(oldMeta), collect(newMeta), true, noun, reason)
+}
+
+func refuseUnsupportedDatabaseObjects(
+	oldMeta, newMeta *metadatapb.DatabaseSchemaMetadata,
+	items func(*metadatapb.DatabaseSchemaMetadata) []namedProtoMessage,
+	noun, reason string,
+) error {
+	collect := func(meta *metadatapb.DatabaseSchemaMetadata) map[string]proto.Message {
+		out := make(map[string]proto.Message)
+		for _, item := range items(meta) {
+			out[item.name] = item.msg
+		}
+		return out
+	}
+	return diffNamedProtoMaps(collect(oldMeta), collect(newMeta), false, noun, reason)
+}
+
+func diffNamedProtoMaps(oldMap, newMap map[string]proto.Message, schemaQualified bool, noun, reason string) error {
+	formatName := func(key string) string {
+		if schemaQualified {
+			schemaName, objName := splitObjectKey(key)
+			return quoteQualified(schemaName, objName)
+		}
+		return quoteIdentAlways(key)
+	}
 	var changed []string
-	for key, oldTable := range oldExt {
-		if !proto.Equal(oldTable, newExt[key]) {
-			schemaName, tableName := splitObjectKey(key)
-			changed = append(changed, quoteQualified(schemaName, tableName))
+	for key, oldMsg := range oldMap {
+		if !proto.Equal(oldMsg, newMap[key]) {
+			changed = append(changed, formatName(key))
 		}
 	}
-	for key := range newExt {
-		if _, seen := oldExt[key]; !seen {
-			schemaName, tableName := splitObjectKey(key)
-			changed = append(changed, quoteQualified(schemaName, tableName))
+	for key := range newMap {
+		if _, seen := oldMap[key]; !seen {
+			changed = append(changed, formatName(key))
 		}
 	}
 	if len(changed) == 0 {
 		return nil
 	}
 	slices.Sort(changed)
-	return fmt.Errorf("cannot generate a migration for external tables (%s): external table DDL is not supported", strings.Join(changed, ", "))
+	return fmt.Errorf("cannot generate a migration for %s (%s): %s", noun, strings.Join(changed, ", "), reason)
 }
 
 type routineDefEntry struct {

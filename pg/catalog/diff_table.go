@@ -118,7 +118,7 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 	if from.ForceRowSecurity != to.ForceRowSecurity {
 		changed = true
 	}
-	if from.Owner != to.Owner || from.OwnerName != to.OwnerName {
+	if from.Owner != to.Owner {
 		changed = true
 	}
 	if from.RelKind != to.RelKind {

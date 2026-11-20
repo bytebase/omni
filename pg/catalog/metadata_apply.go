@@ -15,8 +15,11 @@ import (
 // clone of the original metadata proto, producing the post-DDL metadata.
 // The original proto is NOT modified.
 func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, diff *SchemaDiff) *metadatapb.DatabaseSchemaMetadata {
-	if diff == nil || diff.IsEmpty() {
+	if (diff == nil || diff.IsEmpty()) && !hasRelationOwnerChange(catBefore, catAfter) {
 		return proto.CloneOf(original)
+	}
+	if diff == nil {
+		diff = &SchemaDiff{}
 	}
 
 	result, ok := proto.Clone(original).(*metadatapb.DatabaseSchemaMetadata)
@@ -166,95 +169,143 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 		}
 	}
 
-	for _, f := range diff.Functions {
-		schemaName := canonicalSchema(f.SchemaName)
-		isProcedure := f.To != nil && f.To.Kind == 'p'
-		wasProcedure := f.From != nil && f.From.Kind == 'p'
-		if f.Action == DiffDrop {
-			if renamedSchemas[f.SchemaName] != "" && hasMatchingFunctionAdd(diff.Functions, renamedSchemas[f.SchemaName], f) {
+	applyFunctionDiffs(result, catAfter, diff.Functions, canonicalSchema)
+
+	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
+	applyExtensionDiffs(result, catAfter, diff.Extensions)
+	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
+	applyRelationOwnerChanges(result, catBefore, catAfter)
+
+	return result
+}
+
+func hasRelationOwnerChange(catBefore, catAfter *Catalog) bool {
+	if catBefore == nil || catAfter == nil {
+		return false
+	}
+	for _, s := range catAfter.UserSchemas() {
+		for _, rel := range s.Relations {
+			if rel.RelKind != 'r' && rel.RelKind != 'p' {
 				continue
 			}
+			prev := catBefore.GetRelationByOID(rel.OID)
+			if prev == nil {
+				prev = catBefore.GetRelation(s.Name, rel.Name)
+			}
+			if prev != nil && prev.OwnerName != rel.OwnerName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func applyRelationOwnerChanges(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog) {
+	if catBefore == nil || catAfter == nil {
+		return
+	}
+	for _, s := range catAfter.UserSchemas() {
+		for _, rel := range s.Relations {
+			if rel.RelKind != 'r' && rel.RelKind != 'p' {
+				continue
+			}
+			prev := catBefore.GetRelationByOID(rel.OID)
+			if prev == nil {
+				prev = catBefore.GetRelation(s.Name, rel.Name)
+			}
+			if prev == nil || prev.OwnerName == rel.OwnerName {
+				continue
+			}
+			if sm := findSchema(result, s.Name); sm != nil {
+				if tbl := findTable(sm, rel.Name); tbl != nil {
+					tbl.Owner = rel.OwnerName
+				}
+			}
+		}
+	}
+}
+
+func applyFunctionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, functions []FunctionDiffEntry, canonicalSchema func(string) string) {
+	droppedByOID := make(map[uint32]FunctionDiffEntry)
+	addedByOID := make(map[uint32]FunctionDiffEntry)
+	for _, f := range functions {
+		if f.Action == DiffDrop && f.From != nil && f.From.OID != 0 {
+			droppedByOID[f.From.OID] = f
+		} else if f.Action == DiffAdd && f.To != nil && f.To.OID != 0 {
+			addedByOID[f.To.OID] = f
+		}
+	}
+	handledOIDs := make(map[uint32]bool)
+	for oid, dropEntry := range droppedByOID {
+		addEntry, ok := addedByOID[oid]
+		if !ok {
+			continue
+		}
+		handledOIDs[oid] = true
+		srcSchema := canonicalSchema(dropEntry.SchemaName)
+		dstSchema := canonicalSchema(addEntry.SchemaName)
+		srcSM := findSchema(result, srcSchema)
+		dstSM := findOrCreateSchema(result, dstSchema)
+		upsertRoutineFromDiff(srcSM, dstSM, catAfter, dropEntry.Identity, addEntry.Identity, addEntry.To)
+	}
+	for _, f := range functions {
+		if (f.From != nil && f.From.OID != 0 && handledOIDs[f.From.OID]) ||
+			(f.To != nil && f.To.OID != 0 && handledOIDs[f.To.OID]) {
+			continue
+		}
+		schemaName := canonicalSchema(f.SchemaName)
+		switch f.Action {
+		case DiffDrop:
 			if sm := findSchema(result, schemaName); sm != nil {
-				if wasProcedure {
+				if f.From != nil && f.From.Kind == 'p' {
 					_, sm.Procedures = popProcedureByIdentity(sm.Procedures, f.Identity)
 				} else {
 					_, sm.Functions = popFunctionByIdentity(sm.Functions, f.Identity)
 				}
 			}
-			continue
-		}
-		sm := findOrCreateSchema(result, schemaName)
-		switch f.Action {
-		case DiffAdd, DiffModify:
-			if oldSchema := renamedSchemas[f.SchemaName]; oldSchema == "" {
-				// Check if this DiffAdd belongs to a schema renamed from oldSchema.
-				for oldName, newName := range renamedSchemas {
-					if newName == f.SchemaName {
-						oldIdent := oldName + strings.TrimPrefix(f.Identity, f.SchemaName)
-						if isProcedure {
-							prev, procs := popProcedureByIdentity(sm.Procedures, oldIdent)
-							sm.Procedures = procs
-							if f.To != nil {
-								p := procedureToProto(catAfter, f.To, f.Identity)
-								if prev != nil {
-									p.Comment = prev.Comment
-									p.SkipDump = prev.SkipDump
-								}
-								sm.Procedures = append(sm.Procedures, p)
-							}
-						} else {
-							prev, funcs := popFunctionByIdentity(sm.Functions, oldIdent)
-							sm.Functions = funcs
-							if f.To != nil {
-								fn := functionToProto(catAfter, f.To, f.Identity)
-								if prev != nil {
-									fn.Comment = prev.Comment
-									fn.SkipDump = prev.SkipDump
-									fn.DependencyTables = prev.DependencyTables
-								}
-								sm.Functions = append(sm.Functions, fn)
-							}
-						}
-						goto nextFunction
-					}
-				}
-			}
+		case DiffAdd:
 			if f.To != nil {
-				if isProcedure {
-					var prev *metadatapb.ProcedureMetadata
-					if f.Action == DiffModify {
-						prev, sm.Procedures = popProcedureByIdentity(sm.Procedures, f.Identity)
-					}
-					p := procedureToProto(catAfter, f.To, f.Identity)
-					if prev != nil {
-						p.Comment = prev.Comment
-						p.SkipDump = prev.SkipDump
-					}
-					sm.Procedures = append(sm.Procedures, p)
-				} else {
-					var prev *metadatapb.FunctionMetadata
-					if f.Action == DiffModify {
-						prev, sm.Functions = popFunctionByIdentity(sm.Functions, f.Identity)
-					}
-					fn := functionToProto(catAfter, f.To, f.Identity)
-					if prev != nil {
-						fn.Comment = prev.Comment
-						fn.SkipDump = prev.SkipDump
-						fn.DependencyTables = prev.DependencyTables
-					}
-					sm.Functions = append(sm.Functions, fn)
-				}
+				sm := findOrCreateSchema(result, schemaName)
+				upsertRoutineFromDiff(nil, sm, catAfter, "", f.Identity, f.To)
+			}
+		case DiffModify:
+			if f.To != nil {
+				sm := findOrCreateSchema(result, schemaName)
+				upsertRoutineFromDiff(sm, sm, catAfter, f.Identity, f.Identity, f.To)
 			}
 		default:
 		}
-	nextFunction:
 	}
+}
 
-	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
-	applyExtensionDiffs(result, catAfter, diff.Extensions)
-	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
-
-	return result
+func upsertRoutineFromDiff(srcSM, dstSM *metadatapb.SchemaMetadata, catAfter *Catalog, oldIdentity, newIdentity string, to *UserProc) {
+	if to == nil || dstSM == nil {
+		return
+	}
+	if to.Kind == 'p' {
+		var prev *metadatapb.ProcedureMetadata
+		if srcSM != nil && oldIdentity != "" {
+			prev, srcSM.Procedures = popProcedureByIdentity(srcSM.Procedures, oldIdentity)
+		}
+		p := procedureToProto(catAfter, to, newIdentity)
+		if prev != nil {
+			p.Comment = prev.Comment
+			p.SkipDump = prev.SkipDump
+		}
+		dstSM.Procedures = append(dstSM.Procedures, p)
+		return
+	}
+	var prev *metadatapb.FunctionMetadata
+	if srcSM != nil && oldIdentity != "" {
+		prev, srcSM.Functions = popFunctionByIdentity(srcSM.Functions, oldIdentity)
+	}
+	fn := functionToProto(catAfter, to, newIdentity)
+	if prev != nil {
+		fn.Comment = prev.Comment
+		fn.SkipDump = prev.SkipDump
+		fn.DependencyTables = prev.DependencyTables
+	}
+	dstSM.Functions = append(dstSM.Functions, fn)
 }
 
 func applySchemaDiffs(result *metadatapb.DatabaseSchemaMetadata, schemas []SchemaDiffEntry) map[string]string {
@@ -433,18 +484,6 @@ func hasMatchingCompositeAdd(entries []CompositeTypeDiffEntry, newSchema, name s
 func hasMatchingRangeAdd(entries []RangeDiffEntry, newSchema, name string) bool {
 	for _, e := range entries {
 		if e.Action == DiffAdd && e.SchemaName == newSchema && e.Name == name {
-			return true
-		}
-	}
-	return false
-}
-
-func hasMatchingFunctionAdd(entries []FunctionDiffEntry, newSchema string, dropEntry FunctionDiffEntry) bool {
-	if dropEntry.From == nil {
-		return false
-	}
-	for _, e := range entries {
-		if e.Action == DiffAdd && e.SchemaName == newSchema && e.To != nil && e.To.OID == dropEntry.From.OID {
 			return true
 		}
 	}
@@ -658,7 +697,7 @@ func mergeMatViewProto(cat *Catalog, existing *metadatapb.MaterializedViewMetada
 	updated.DependencyColumns = existing.DependencyColumns
 	updated.SkipDump = existing.SkipDump
 	preserveTriggerComments(updated.Triggers, existing.Triggers)
-	preserveIndexComments(updated.Indexes, existing.Indexes)
+	preserveIndexMetadata(updated.Indexes, existing.Indexes)
 	return updated
 }
 
@@ -795,19 +834,24 @@ func preserveTriggerComments(dst, src []*metadatapb.TriggerMetadata) {
 	}
 }
 
-func preserveIndexComments(dst, src []*metadatapb.IndexMetadata) {
+func preserveIndexMetadata(dst, src []*metadatapb.IndexMetadata) {
 	if len(dst) == 0 || len(src) == 0 {
 		return
 	}
-	comments := make(map[string]string, len(src))
+	byName := make(map[string]*metadatapb.IndexMetadata, len(src))
 	for _, idx := range src {
-		if idx.Comment != "" {
-			comments[idx.Name] = idx.Comment
-		}
+		byName[idx.Name] = idx
 	}
 	for _, idx := range dst {
-		if c, ok := comments[idx.Name]; ok && idx.Comment == "" {
-			idx.Comment = c
+		prev, ok := byName[idx.Name]
+		if !ok {
+			continue
+		}
+		if idx.Comment == "" {
+			idx.Comment = prev.Comment
+		}
+		if len(idx.Constraints) == 0 {
+			idx.Constraints = prev.Constraints
 		}
 	}
 }
@@ -897,6 +941,7 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 		if tbl := findTable(sm, rel.Name); tbl != nil {
 			rebuilt := relationToTableProto(catAfter, add.To)
 			preserveColumnMetadata(rebuilt.Columns, tbl.Columns, rel.From, add.To)
+			preserveIndexMetadata(rebuilt.Indexes, tbl.Indexes)
 			preserveTriggerComments(rebuilt.Triggers, tbl.Triggers)
 			tbl.Name = add.Name
 			tbl.Columns = rebuilt.Columns
