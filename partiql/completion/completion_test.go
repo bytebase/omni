@@ -402,6 +402,27 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"Artist", "SongTitle"},
 		},
+		{
+			name:     "expression FROM inside TRIM does not suggest tables or suppress columns",
+			input:    "SELECT TRIM(' ' FROM |) FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "expression FROM inside SUBSTRING does not suppress later select-list columns",
+			input:    "SELECT SUBSTRING(Artist FROM 1 FOR 3), | FROM Music",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "expression FROM inside WHERE expression keeps column context",
+			input:    "SELECT * FROM Music WHERE SUBSTRING(Artist FROM |)",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
 	}
 
 	for _, tc := range tests {

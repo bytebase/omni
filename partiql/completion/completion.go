@@ -38,11 +38,7 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 
 	stmtSQL, localPos := extractCurrentStatement(input, pos)
 	prefix := extractPrefix(stmtSQL, localPos)
-
-	// Strip the partial word being typed so context detection inspects the
-	// token before it.
-	beforeCursor := strings.ToUpper(stmtSQL[:localPos-len(prefix)])
-	inFromContext := isInFromContext(beforeCursor)
+	inFromContext, inColumnContext := analyzeCursorContext(stmtSQL, localPos, len(prefix))
 
 	var candidates []Candidate
 	seen := make(map[string]struct{})
@@ -63,7 +59,7 @@ func CompleteWithMetadata(input string, pos int, cat *catalog.Catalog, meta *met
 		}
 	}
 
-	if meta != nil && isColumnContext(stmtSQL, localPos) {
+	if meta != nil && inColumnContext {
 		for _, col := range resolveColumnNames(stmtSQL, localPos, meta) {
 			if matchesPrefix(col, prefix) {
 				addCandidate(col, "column")
@@ -131,34 +127,147 @@ func isIdentChar(ch byte) bool {
 		(ch >= '0' && ch <= '9') || ch == '_' || ch == '$'
 }
 
-func isInFromContext(upper string) bool {
-	// The cursor is in a table-name position when the last completed clause
-	// keyword is FROM / JOIN / INTO. Each must match as a STANDALONE keyword:
-	// a dotted path step such as "x.from" (member access) also ends in "FROM",
-	// but `from` after a '.' is a path key, not a FROM clause, so it must NOT
-	// trigger table suggestions.
-	upper = strings.TrimRight(upper, " \t\n\r")
-	return endsWithKeyword(upper, "FROM") ||
-		endsWithKeyword(upper, "JOIN") ||
-		endsWithKeyword(upper, "INTO")
-}
+// analyzeCursorContext determines whether the cursor is in a table-introducing
+// clause (FROM / JOIN / INTO) or an expression/projection position where columns
+// are valid. Expression-nested FROM keywords (such as TRIM(' ' FROM ...) or
+// SUBSTRING(x FROM ...)) stay inside expression parentheses and do not suppress
+// column completion or trigger table suggestions.
+func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColumn bool) {
+	if pos > len(statement) {
+		pos = len(statement)
+	}
+	if pos < 0 {
+		pos = 0
+	}
+	beforeEnd := pos - prefixLen
+	if beforeEnd < 0 {
+		beforeEnd = 0
+	}
+	activeStart := findActiveQueryScopeStart(statement, beforeEnd)
+	slice := statement[activeStart:beforeEnd]
 
-// endsWithKeyword reports whether s ends with kw as a standalone keyword: kw is
-// a suffix of s, and either kw is the whole string or the character immediately
-// before it is whitespace (a real clause boundary).
-func endsWithKeyword(s, kw string) bool {
-	if !strings.HasSuffix(s, kw) {
-		return false
+	type clauseTok struct {
+		upper    string
+		afterDot bool
 	}
-	if len(s) == len(kw) {
-		return true
+	var clauseToks []clauseTok
+	type parenFrame struct {
+		tableParen bool
 	}
-	switch s[len(s)-len(kw)-1] {
-	case ' ', '\t', '\n', '\r':
-		return true
-	default:
-		return false
+	var stack []parenFrame
+	exprDepth := 0
+	prevDot := false
+
+	i := 0
+	for i < len(slice) {
+		c := slice[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
+		case c == '-' && i+1 < len(slice) && slice[i+1] == '-':
+			i = skipLineComment(slice, i) + 1
+		case c == '/' && i+1 < len(slice) && slice[i+1] == '*':
+			end, _ := skipBlockComment(slice, i)
+			i = end + 1
+		case c == '\'' || c == '"':
+			end := skipQuotedLiteral(slice, i, c)
+			if exprDepth == 0 {
+				clauseToks = append(clauseToks, clauseTok{upper: "_", afterDot: prevDot})
+			}
+			prevDot = false
+			i = end + 1
+		case c == '.':
+			prevDot = true
+			i++
+		case c == '(':
+			isTableParen := false
+			if exprDepth == 0 && len(clauseToks) > 0 {
+				last := clauseToks[len(clauseToks)-1]
+				if !last.afterDot && (last.upper == "FROM" || last.upper == "JOIN") {
+					isTableParen = true
+				}
+			}
+			stack = append(stack, parenFrame{tableParen: isTableParen})
+			if !isTableParen {
+				exprDepth++
+			}
+			prevDot = false
+			i++
+		case c == ')':
+			if len(stack) > 0 {
+				top := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				if !top.tableParen && exprDepth > 0 {
+					exprDepth--
+				}
+			}
+			if exprDepth == 0 {
+				clauseToks = append(clauseToks, clauseTok{upper: ")"})
+			}
+			prevDot = false
+			i++
+		case c == ',':
+			if exprDepth == 0 {
+				clauseToks = append(clauseToks, clauseTok{upper: ","})
+			}
+			prevDot = false
+			i++
+		case isIdentChar(c):
+			start := i
+			for i < len(slice) && isIdentChar(slice[i]) {
+				i++
+			}
+			if exprDepth == 0 {
+				clauseToks = append(clauseToks, clauseTok{
+					upper:    strings.ToUpper(slice[start:i]),
+					afterDot: prevDot,
+				})
+			}
+			prevDot = false
+		default:
+			prevDot = false
+			i++
+		}
 	}
+
+	if !prevDot && exprDepth == 0 && len(clauseToks) > 0 {
+		last := clauseToks[len(clauseToks)-1]
+		if !last.afterDot && (last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO") {
+			return true, false
+		}
+	}
+
+	selectIdx := -1
+	fromIdx := -1
+	for idx, tok := range clauseToks {
+		if tok.afterDot {
+			continue
+		}
+		switch tok.upper {
+		case "SELECT":
+			selectIdx = idx
+		case "FROM":
+			fromIdx = idx
+		}
+	}
+	if selectIdx >= 0 && (fromIdx < 0 || fromIdx < selectIdx) {
+		return false, true
+	}
+
+	for idx := len(clauseToks) - 1; idx >= 0; idx-- {
+		if idx <= fromIdx {
+			break
+		}
+		tok := clauseToks[idx]
+		if tok.afterDot {
+			continue
+		}
+		switch tok.upper {
+		case "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE":
+			return false, true
+		}
+	}
+	return false, false
 }
 
 func matchesPrefix(text, prefix string) bool {
@@ -166,68 +275,6 @@ func matchesPrefix(text, prefix string) bool {
 		return true
 	}
 	return strings.HasPrefix(strings.ToUpper(text), strings.ToUpper(prefix))
-}
-
-// isColumnContext reports whether pos appears to be in a context where column
-// names should be suggested (between SELECT and FROM, or inside expression
-// clauses after FROM such as WHERE, HAVING, SET, ORDER BY, GROUP BY).
-// Table-only contexts immediately after FROM/JOIN/INTO return false.
-func isColumnContext(statement string, pos int) bool {
-	if pos > len(statement) {
-		pos = len(statement)
-	}
-	// Mask comments, string literals, and quoted identifiers before uppercasing
-	// so neither literals like 'FROM' nor identifiers like "order" match keywords.
-	before := strings.ToUpper(maskCommentsStringsAndQuotedIdents(statement[:pos]))
-
-	trimmed := strings.TrimRight(before, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$\"")
-	trimmed = strings.TrimRight(trimmed, " \t\n\r")
-
-	if strings.HasSuffix(trimmed, "FROM") ||
-		strings.HasSuffix(trimmed, "JOIN") ||
-		strings.HasSuffix(trimmed, "INTO") {
-		return false
-	}
-
-	selectIdx := lastKeywordIndex(before, "SELECT")
-	fromIdx := lastKeywordIndex(before, "FROM")
-	if selectIdx >= 0 && (fromIdx < 0 || fromIdx < selectIdx) {
-		return true
-	}
-
-	for _, kw := range []string{"WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE"} {
-		kwIdx := lastKeywordIndex(before, kw)
-		if kwIdx >= 0 && kwIdx > fromIdx {
-			return true
-		}
-	}
-
-	return false
-}
-
-// lastKeywordIndex returns the byte index of the last standalone occurrence of
-// kw in s (not inside an identifier or after a '.' path step), or -1 if absent.
-// Both s and kw must be uppercase.
-func lastKeywordIndex(s, kw string) int {
-	search := s
-	for {
-		idx := strings.LastIndex(search, kw)
-		if idx < 0 {
-			return -1
-		}
-		end := idx + len(kw)
-		startOk := idx == 0 || (!isIdentRune(rune(search[idx-1])) && search[idx-1] != '.')
-		endOk := end >= len(search) || !isIdentRune(rune(search[end]))
-		if startOk && endOk {
-			return idx
-		}
-		search = search[:idx]
-	}
-}
-
-func isIdentRune(r rune) bool {
-	return (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') ||
-		(r >= '0' && r <= '9') || r == '_' || r == '$'
 }
 
 type tableRef struct {
@@ -541,6 +588,25 @@ func extractCurrentStatement(statement string, pos int) (string, int) {
 // WITH) start a new query scope; expression parentheses stay in the enclosing
 // query scope.
 func extractQueryScopes(statement string, pos int) []string {
+	subqueryStarts := findActiveSubqueryStarts(statement, pos)
+	var scopes []string
+	for k := len(subqueryStarts) - 1; k >= 0; k-- {
+		start := subqueryStarts[k]
+		scopes = append(scopes, statement[start:findSubqueryEnd(statement, start)])
+	}
+	scopes = append(scopes, statement)
+	return scopes
+}
+
+func findActiveQueryScopeStart(statement string, pos int) int {
+	starts := findActiveSubqueryStarts(statement, pos)
+	if len(starts) == 0 {
+		return 0
+	}
+	return starts[len(starts)-1]
+}
+
+func findActiveSubqueryStarts(statement string, pos int) []int {
 	var subqueryStarts []int
 	var isSubqueryParen []bool
 	for i := 0; i < len(statement) && i < pos; i++ {
@@ -569,14 +635,7 @@ func extractQueryScopes(statement string, pos int) []string {
 			}
 		}
 	}
-
-	var scopes []string
-	for k := len(subqueryStarts) - 1; k >= 0; k-- {
-		start := subqueryStarts[k]
-		scopes = append(scopes, statement[start:findSubqueryEnd(statement, start)])
-	}
-	scopes = append(scopes, statement)
-	return scopes
+	return subqueryStarts
 }
 
 func findSubqueryEnd(statement string, start int) int {
@@ -915,63 +974,6 @@ func maskStringsAndComments(s string) string {
 					}
 					break
 				}
-				i++
-			}
-		case s[i] == '-' && i+1 < len(s) && s[i+1] == '-':
-			b.WriteByte(' ')
-			i += 2
-			for i < len(s) && s[i] != '\n' && s[i] != '\r' {
-				i++
-			}
-		case s[i] == '/' && i+1 < len(s) && s[i+1] == '*':
-			b.WriteByte(' ')
-			i += 2
-			depth := 1
-			for i+1 < len(s) && depth > 0 {
-				if s[i] == '/' && s[i+1] == '*' {
-					depth++
-					i += 2
-				} else if s[i] == '*' && s[i+1] == '/' {
-					depth--
-					i += 2
-				} else {
-					i++
-				}
-			}
-			if depth > 0 {
-				i = len(s)
-			}
-		default:
-			b.WriteByte(s[i])
-			i++
-		}
-	}
-	return b.String()
-}
-
-func maskCommentsStringsAndQuotedIdents(s string) string {
-	var b strings.Builder
-	b.Grow(len(s))
-	i := 0
-	for i < len(s) {
-		switch {
-		case s[i] == '"' || s[i] == '\'':
-			q := s[i]
-			b.WriteByte('_')
-			i++
-			for i < len(s) {
-				if s[i] == q {
-					i++
-					if i < len(s) && s[i] == q {
-						b.WriteByte('_')
-						b.WriteByte('_')
-						i++
-						continue
-					}
-					b.WriteByte('_')
-					break
-				}
-				b.WriteByte('_')
 				i++
 			}
 		case s[i] == '-' && i+1 < len(s) && s[i+1] == '-':
