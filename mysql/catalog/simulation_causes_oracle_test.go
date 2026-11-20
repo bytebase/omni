@@ -4633,6 +4633,75 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (j JSON DEFAULT (JSON_ARRAY_INSERT('[]', '$[0]')))",
 			code: 1582,
 		},
+		{
+			name: "CREATE TABLE functional composite index exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a VARCHAR(400), b VARCHAR(400), KEY ((CONCAT(a, '')), (CONCAT(b, ''))))",
+			code: 1071,
+		},
+		{
+			name: "CREATE TABLE functional composite unique index exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a VARCHAR(400), b VARCHAR(400), UNIQUE KEY ((CONCAT(a, '')), (CONCAT(b, ''))))",
+			code: 1071,
+		},
+		{
+			name:  "ALTER TABLE ADD functional composite index exceeding 3072 bytes rejected with 1071",
+			setup: []string{"CREATE TABLE a (a VARCHAR(400), b VARCHAR(400))"},
+			stmt:  "ALTER TABLE a ADD KEY ((CONCAT(a, '')), (CONCAT(b, '')))",
+			code:  1071,
+		},
+		{
+			name:  "ALTER TABLE ADD functional composite unique index exceeding 3072 bytes rejected with 1071",
+			setup: []string{"CREATE TABLE a (a VARCHAR(400), b VARCHAR(400))"},
+			stmt:  "ALTER TABLE a ADD UNIQUE KEY ((CONCAT(a, '')), (CONCAT(b, '')))",
+			code:  1071,
+		},
+		{
+			name:  "ALTER TABLE ADD functional key before ADD columns exceeding 3072 bytes rejected with 1071",
+			setup: []string{"CREATE TABLE a (id INT)"},
+			stmt:  "ALTER TABLE a ADD KEY ((CONCAT(a, '')), (CONCAT(b, ''))), ADD a VARCHAR(400), ADD b VARCHAR(400)",
+			code:  1071,
+		},
+		{
+			name:  "CREATE INDEX functional composite exceeding 3072 bytes rejected with 1071",
+			setup: []string{"CREATE TABLE a (a VARCHAR(400), b VARCHAR(400))"},
+			stmt:  "CREATE INDEX idx_c ON a ((CONCAT(a, '')), (CONCAT(b, '')))",
+			code:  1071,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ST_X()) too few args rejected with 1582",
+			stmt: "CREATE TABLE a (x DOUBLE DEFAULT (ST_X()))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ST_X(POINT(1, 2))) accepted with 0",
+			stmt: "CREATE TABLE a (x DOUBLE DEFAULT (ST_X(POINT(1, 2))))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ST_X(POINT(1, 2), 3)) 2-arg setter accepted with 0",
+			stmt: "CREATE TABLE a (x DOUBLE DEFAULT (ST_X(POINT(1, 2), 3)))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (MBRWITHIN(POINT(1, 2))) too few args rejected with 1582",
+			stmt: "CREATE TABLE a (x INT DEFAULT (MBRWITHIN(POINT(1, 2))))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ROLES_GRAPHML('x')) too many args rejected with 1582",
+			stmt: "CREATE TABLE a (x VARCHAR(100) DEFAULT (ROLES_GRAPHML('x')))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE DEFAULT (ST_CONTAINS(POINT(1, 2))) too few args rejected with 1582",
+			stmt: "CREATE TABLE a (x INT DEFAULT (ST_CONTAINS(POINT(1, 2))))",
+			code: 1582,
+		},
+		{
+			name: "CREATE TABLE functional SUBSTRING index exceeding 3072 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (a TEXT, b TEXT, KEY ((SUBSTRING(a, 1, 400)), (SUBSTRING(b, 1, 400))))",
+			code: 1071,
+		},
 	}
 
 	for _, tc := range cases {
@@ -5634,5 +5703,20 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		if got, _ := simulationCatalogRefusal(t, compPG, "ALTER TABLE t_dyn ROW_FORMAT=COMPRESSED"); got != 1478 {
 			t.Fatalf("%d ALTER COMPRESSED got %d, want 1478", pgSize, got)
 		}
+	}
+
+	// Every builtin allowed in DEFAULT expressions has an explicit arity entry.
+	for fn := range allowedDefaultExprBuiltinFuncs {
+		if _, ok := defaultBuiltinFuncArity[fn]; !ok {
+			t.Errorf("allowedDefaultExprBuiltinFuncs[%q] missing from defaultBuiltinFuncArity", fn)
+		}
+	}
+
+	// Single-part synthesized functional index exceeding 3072 bytes is rejected
+	// after hidden generated column synthesis.
+	fnCat := New()
+	execAlterClauses(t, fnCat, "CREATE DATABASE d; USE d;")
+	if got, _ := simulationCatalogRefusal(t, fnCat, "CREATE TABLE t_fn_width (a VARCHAR(1000), KEY ((LOWER(a))))"); got != 1071 {
+		t.Fatalf("functional KEY ((LOWER(VARCHAR(1000)))) got %d, want 1071", got)
 	}
 }

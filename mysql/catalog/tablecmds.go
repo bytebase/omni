@@ -728,6 +728,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, nil, declared); err != nil {
 				return err
 			}
+			if hasFunctionalIndexColumns(uqIdx.Columns) {
+				if err := c.validateIndexTotalKeyWidth(tbl, uqIdx.Columns); err != nil {
+					return err
+				}
+			}
 			tbl.Indexes = append(tbl.Indexes, uqIdx)
 			uniqueKeys = append(uniqueKeys, declaredUniqueKey{uqIdx, con.Loc.Start})
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -844,6 +849,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			coerceInnoDBHashIndex(tbl, keyIdx)
 			if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, nil, declared); err != nil {
 				return err
+			}
+			if !spatial && hasFunctionalIndexColumns(keyIdx.Columns) {
+				if err := c.validateIndexTotalKeyWidth(tbl, keyIdx.Columns); err != nil {
+					return err
+				}
 			}
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
@@ -2348,23 +2358,32 @@ func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fullt
 		}
 	}
 	if !fulltext && !spatial {
-		if maxBytes, ok := c.maxIndexTotalKeyBytes(tbl); ok {
-			totalBytes := 0
-			for _, ic := range idxCols {
-				if ic == nil || ic.Name == "" {
-					continue
-				}
-				col := tbl.GetColumn(ic.Name)
-				if col == nil {
-					continue
-				}
-				totalBytes += indexKeyPartBytes(col, ic)
-			}
-			if totalBytes > maxBytes {
-				return &Error{Code: 1071, SQLState: "42000",
-					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", maxBytes)}
-			}
+		if err := c.validateIndexTotalKeyWidth(tbl, idxCols); err != nil {
+			return err
 		}
+	}
+	return nil
+}
+
+func (c *Catalog) validateIndexTotalKeyWidth(tbl *Table, idxCols []*IndexColumn) error {
+	maxBytes, ok := c.maxIndexTotalKeyBytes(tbl)
+	if !ok {
+		return nil
+	}
+	totalBytes := 0
+	for _, ic := range idxCols {
+		if ic == nil || ic.Name == "" {
+			continue
+		}
+		col := tbl.GetColumn(ic.Name)
+		if col == nil {
+			continue
+		}
+		totalBytes += indexKeyPartBytes(col, ic)
+	}
+	if totalBytes > maxBytes {
+		return &Error{Code: 1071, SQLState: "42000",
+			Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", maxBytes)}
 	}
 	return nil
 }

@@ -625,6 +625,14 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 	if err := recheckFunctionalIndexesOnFinalTable(tbl, addedIndexes); err != nil {
 		return err
 	}
+	for _, idx := range addedIndexes {
+		if idx == nil || idx.Fulltext || isSpatialIndexType(idx.IndexType) || !hasFunctionalIndexColumns(idx.Columns) {
+			continue
+		}
+		if err := c.validateIndexTotalKeyWidth(tbl, idx.Columns); err != nil {
+			return err
+		}
+	}
 	// A foreign key is judged on the table the statement leaves too: a local
 	// column a later command adds is what 3780 compares, and 1830 needs the
 	// NOT NULL that command writes (measured on mysql:8.0.46).
@@ -1464,6 +1472,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, leaves, true); err != nil {
 			return err
 		}
+		if hasFunctionalIndexColumns(uqIdx.Columns) {
+			if err := c.validateIndexTotalKeyWidth(tbl, uqIdx.Columns); err != nil {
+				return err
+			}
+		}
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
@@ -1581,6 +1594,11 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		coerceInnoDBHashIndex(tbl, keyIdx)
 		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, leaves, true); err != nil {
 			return err
+		}
+		if !spatial && hasFunctionalIndexColumns(keyIdx.Columns) {
+			if err := c.validateIndexTotalKeyWidth(tbl, keyIdx.Columns); err != nil {
+				return err
+			}
 		}
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 

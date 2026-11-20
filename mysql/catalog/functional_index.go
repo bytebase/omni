@@ -2,7 +2,9 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
@@ -91,7 +93,7 @@ func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index) error {
 				return err
 			}
 			if col := tbl.GetColumn(idxCol.Name); col != nil && col.Hidden == ColumnHiddenSystem {
-				resolved := columnFromResolvedType(inferFunctionalIndexExprType(tbl, idxCol.ExprNode))
+				resolved := resolvedFunctionalIndexColumnSpec(tbl, inferFunctionalIndexExprType(tbl, idxCol.ExprNode))
 				col.DataType = resolved.DataType
 				col.ColumnType = resolved.ColumnType
 				col.Charset = resolved.Charset
@@ -240,9 +242,17 @@ func renameFunctionalIndexHiddenColumns(tbl *Table, idx *Index, newIndexName str
 	}
 }
 
-func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
-	rt := inferFunctionalIndexExprType(tbl, idxCol.ExprNode)
+func resolvedFunctionalIndexColumnSpec(tbl *Table, rt *ResolvedType) *Column {
 	col := columnFromResolvedType(rt)
+	if rt != nil && isResolvedStringType(rt) && col.Charset == "" && tbl != nil {
+		col.Charset = tbl.Charset
+		col.Collation = tbl.Collation
+	}
+	return col
+}
+
+func columnFromFunctionalIndexExpr(tbl *Table, hiddenName string, idxCol *IndexColumn) *Column {
+	col := resolvedFunctionalIndexColumnSpec(tbl, inferFunctionalIndexExprType(tbl, idxCol.ExprNode))
 	col.Position = len(tbl.Columns) + 1
 	col.Name = hiddenName
 	col.Nullable = true
@@ -283,30 +293,142 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			}
 			return &ResolvedType{BaseType: BaseTypeVarchar, Length: 512}
 		}
-		name := strings.ToLower(e.Name)
-		switch name {
-		case "lower", "upper":
-			if len(e.Args) > 0 {
-				rt := inferFunctionalIndexExprType(tbl, e.Args[0])
-				if rt != nil && isResolvedStringType(rt) {
-					cp := *rt
-					return &cp
-				}
-			}
-			return &ResolvedType{BaseType: BaseTypeVarchar}
-		default:
-			args := make([]AnalyzedExpr, 0, len(e.Args))
-			for _, arg := range e.Args {
-				args = append(args, &ConstExprQ{Type: inferFunctionalIndexExprType(tbl, arg)})
-			}
-			return functionReturnType(name, args)
+		if rt := inferFunctionalIndexFuncType(tbl, e); rt != nil {
+			return rt
 		}
+		args := make([]AnalyzedExpr, 0, len(e.Args))
+		for _, arg := range e.Args {
+			args = append(args, &ConstExprQ{Type: inferFunctionalIndexExprType(tbl, arg)})
+		}
+		return functionReturnType(strings.ToLower(e.Name), args)
 	case *nodes.CastExpr:
 		if e.TypeName != nil {
 			return dataTypeToResolvedType(e.TypeName)
 		}
 	}
 	return &ResolvedType{BaseType: BaseTypeVarchar, Length: 255}
+}
+
+func extractNonNegIntLit(expr nodes.ExprNode) (int, bool) {
+	lit, ok := peelFunctionalIndexParens(expr).(*nodes.IntLit)
+	if !ok || lit.Value < 0 {
+		return 0, false
+	}
+	return int(lit.Value), true
+}
+
+func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, string) {
+	switch e := peelFunctionalIndexParens(expr).(type) {
+	case *nodes.StringLit:
+		cs := ""
+		if tbl != nil {
+			cs = tbl.Charset
+		}
+		return utf8.RuneCountInString(e.Value), true, cs
+	case *nodes.IntLit:
+		return len(strconv.FormatInt(e.Value, 10)), true, ""
+	default:
+		rt := inferFunctionalIndexExprType(tbl, e)
+		if rt != nil && rt.Length > 0 {
+			return rt.Length, true, rt.Charset
+		}
+		return 0, false, ""
+	}
+}
+
+func inferBoundedStringExprType(tbl *Table, args []nodes.ExprNode, limitIdx int) *ResolvedType {
+	if len(args) < 2 {
+		return nil
+	}
+	var maxLen int
+	var charset string
+	if arg0 := inferFunctionalIndexExprType(tbl, args[0]); arg0 != nil {
+		maxLen = arg0.Length
+		charset = arg0.Charset
+	}
+	if len(args) > limitIdx {
+		if k, ok := extractNonNegIntLit(args[limitIdx]); ok && k > 0 {
+			if maxLen == 0 || k < maxLen {
+				maxLen = k
+			}
+		}
+	}
+	if maxLen > 0 {
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: maxLen, Charset: charset}
+	}
+	return nil
+}
+
+func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedType {
+	name := strings.ToLower(e.Name)
+	switch name {
+	case "lower", "lcase", "upper", "ucase", "trim", "ltrim", "rtrim", "reverse":
+		if len(e.Args) > 0 {
+			rt := inferFunctionalIndexExprType(tbl, e.Args[0])
+			if rt != nil && isResolvedStringType(rt) {
+				cp := *rt
+				return &cp
+			}
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar}
+	case "concat", "concat_ws":
+		if len(e.Args) == 0 || (name == "concat_ws" && len(e.Args) < 2) {
+			return nil
+		}
+		sepLen := 0
+		sepOK := true
+		charset := ""
+		start := 0
+		if name == "concat_ws" {
+			sepLen, sepOK, charset = inferStringExprLenAndCharset(tbl, e.Args[0])
+			start = 1
+		}
+		if !sepOK {
+			return nil
+		}
+		totalLen := 0
+		for i := start; i < len(e.Args); i++ {
+			argLen, ok, cs := inferStringExprLenAndCharset(tbl, e.Args[i])
+			if !ok {
+				return nil
+			}
+			totalLen += argLen
+			if charset == "" && cs != "" {
+				charset = cs
+			}
+			if name == "concat_ws" && i > start {
+				totalLen += sepLen
+			}
+		}
+		if totalLen < 1 {
+			totalLen = 1
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: totalLen, Charset: charset}
+	case "substring", "substr", "mid":
+		return inferBoundedStringExprType(tbl, e.Args, 2)
+	case "left", "right":
+		return inferBoundedStringExprType(tbl, e.Args, 1)
+	case "lpad", "rpad":
+		if len(e.Args) < 2 {
+			return nil
+		}
+		if k, ok := extractNonNegIntLit(e.Args[1]); ok && k > 0 {
+			var charset string
+			if arg0 := inferFunctionalIndexExprType(tbl, e.Args[0]); arg0 != nil {
+				charset = arg0.Charset
+			}
+			return &ResolvedType{BaseType: BaseTypeVarchar, Length: k, Charset: charset}
+		}
+	case "repeat":
+		if len(e.Args) < 2 {
+			return nil
+		}
+		argLen, argOK, charset := inferStringExprLenAndCharset(tbl, e.Args[0])
+		if k, ok := extractNonNegIntLit(e.Args[1]); ok && argOK && k > 0 {
+			return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(argLen*k, 1), Charset: charset}
+		}
+	}
+	return nil
 }
 
 // jsonValueIndexType is the hidden column a functional index over JSON_VALUE ... RETURNING gets:
