@@ -25,7 +25,7 @@ func decodeStringLiteralDefault(sl *nodes.StringLit, colCharset string) (string,
 	case sl.National:
 		litCS = "utf8mb3"
 	default:
-		litCS = strings.ToLower(strings.TrimSpace(sl.Charset))
+		litCS = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(sl.Charset)), "_")
 	}
 	if litCS == "" {
 		if !utf8.ValidString(sl.Value) {
