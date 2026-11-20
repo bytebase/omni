@@ -32853,6 +32853,9 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET SESSION foreign_key_checks = 1
+< ok 0 0
+> exec
 | SET time_zone = 'America/New_York'
 < ok 0 0
 > exec
@@ -32908,6 +32911,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION foreign_key_checks = 1
 < ok 0 0
 > exec
 | CREATE TABLESPACE ts_sdl_plain ADD DATAFILE 'ts_sdl_plain.ibd'
@@ -32966,6 +32972,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION foreign_key_checks = 1
 < ok 0 0
 > exec
 | INSTALL PLUGIN keyring_file SONAME 'keyring_file.so'
@@ -33135,6 +33144,9 @@
 | DROP EVENT IF EXISTS e
 < ok 0 0
 > exec
+| SET SESSION foreign_key_checks = 1
+< ok 0 0
+> exec
 | SET foreign_key_checks = 0, sql_mode = 'NO_SUCH_MODE'
 < error
 | 1231 42000 Variable 'sql_mode' can't be set to the value of 'NO_SUCH_MODE'
@@ -33143,7 +33155,7 @@
 < result
 < column "@@foreign_key_checks" "BIGINT"
 < row
-: int64 0
+: int64 1
 > exec
 | SET @x_seq = 1, @y_seq = @x_seq + 1
 < ok 0 0
@@ -33153,6 +33165,16 @@
 < column "@y_seq" "DOUBLE" precision 9223372036854775807 scale 9223372036854775807
 < row
 : null
+> exec
+| SET SESSION sql_mode = REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 > exec
 | SET SESSION foreign_key_checks = 1
 < ok 0 0
