@@ -13,7 +13,12 @@ import (
 	pgparser "github.com/bytebase/omni/redshift/parser"
 )
 
-// DatabaseDefinition renders a synced Redshift database snapshot as DDL.
+// DatabaseDefinition renders a Redshift database snapshot from
+// metadatapb.DatabaseSchemaMetadata as logical DDL (schemas, tables, views,
+// materialized views, functions, procedures, comments, and owners). Physical
+// storage attributes (DISTSTYLE, DISTKEY, SORTKEY, column ENCODE) are not
+// captured by Redshift metadata sync into metadatapb; explicit unrendered table
+// or column option fields fail rather than being silently dropped.
 func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if to == nil {
 		return "", nil
@@ -1309,20 +1314,24 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				}
 			}
 		case objectKindView, objectKindMaterializedView:
-			var depCols []*metadatapb.DependencyColumn
-			if item.viewMeta != nil {
-				depCols = item.viewMeta.DependencyColumns
-			} else if item.mvMeta != nil {
-				depCols = item.mvMeta.DependencyColumns
-			}
-			for _, dep := range depCols {
-				if dep == nil {
-					continue
+			// Late-binding views (WITH NO SCHEMA BINDING) resolve relations at query
+			// time, so referenced relations do not need to exist prior to creation.
+			if item.kind != objectKindView || !isLateBindingView(item.view.definition) {
+				var depCols []*metadatapb.DependencyColumn
+				if item.viewMeta != nil {
+					depCols = item.viewMeta.DependencyColumns
+				} else if item.mvMeta != nil {
+					depCols = item.mvMeta.DependencyColumns
 				}
-				addRelDep(i, item.schema, "", dep.Schema, dep.Table)
-			}
-			for _, ref := range collectViewRelationRefs(item.view.definition) {
-				addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name)
+				for _, dep := range depCols {
+					if dep == nil {
+						continue
+					}
+					addRelDep(i, item.schema, "", dep.Schema, dep.Table)
+				}
+				for _, ref := range collectViewRelationRefs(item.view.definition) {
+					addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name)
+				}
 			}
 			addCallDeps(i, item.schema, collectSQLFunctionCalls(item.view.definition, item.schema, fnCat))
 		}
@@ -1623,6 +1632,9 @@ func writeTableWithOptions(w io.StringWriter, table *tableState, foreignKeys []*
 	if table.hasCheckConstraints {
 		return fmt.Errorf("table %s check constraints cannot be restored because Redshift does not support CHECK constraints", table.qualifiedName())
 	}
+	if table.unsupportedReason != "" {
+		return fmt.Errorf("table %s %s", table.qualifiedName(), table.unsupportedReason)
+	}
 	if len(table.columns) == 0 {
 		return fmt.Errorf("table %s has no columns", table.qualifiedName())
 	}
@@ -1847,6 +1859,7 @@ type tableState struct {
 	owner               string
 	duplicateColumn     string
 	hasCheckConstraints bool
+	unsupportedReason   string
 	columns             map[string]*columnState
 	defaultExprs        []string
 	indexes             []*indexState
@@ -1956,9 +1969,28 @@ func convertToTableState(id int, schemaName string, table *metadatapb.TableMetad
 			break
 		}
 	}
+	switch {
+	case table.CreateOptions != "":
+		state.unsupportedReason = fmt.Sprintf("create options %q cannot be restored by Redshift DDL renderer", table.CreateOptions)
+	case len(table.SortingKeys) > 0:
+		state.unsupportedReason = "sorting keys cannot be restored by Redshift DDL renderer"
+	case table.ShardingInfo != "":
+		state.unsupportedReason = "sharding info cannot be restored by Redshift DDL renderer"
+	case len(table.Partitions) > 0:
+		state.unsupportedReason = "partitions cannot be restored because Redshift does not support declarative partitions"
+	case len(table.Triggers) > 0:
+		state.unsupportedReason = "triggers cannot be restored because Redshift does not support triggers"
+	case len(table.Rules) > 0:
+		state.unsupportedReason = "rules cannot be restored because Redshift does not support rules"
+	case len(table.ExcludeConstraints) > 0:
+		state.unsupportedReason = "exclude constraints cannot be restored because Redshift does not support EXCLUDE constraints"
+	}
 	for i, column := range table.Columns {
 		if column == nil {
 			continue
+		}
+		if len(column.Options) > 0 && state.unsupportedReason == "" {
+			state.unsupportedReason = fmt.Sprintf("column %s options cannot be restored by Redshift DDL renderer", quoteDefinitionIdentifier(column.Name))
 		}
 		if _, exists := state.columns[column.Name]; exists && state.duplicateColumn == "" {
 			state.duplicateColumn = column.Name
