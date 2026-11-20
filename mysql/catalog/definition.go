@@ -473,11 +473,26 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE OR REPLACE VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "); err != nil {
+	if _, err := io.WriteString(out, "CREATE OR REPLACE"); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, view.Definition); err != nil {
+	if view.Algorithm != "" {
+		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
+			return err
+		}
+	}
+	if view.SqlSecurity != "" {
+		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, " VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "+view.Definition); err != nil {
 		return err
+	}
+	if view.CheckOption != "" && !strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
+		if _, err := fmt.Fprintf(out, " WITH %s CHECK OPTION", strings.ToUpper(view.CheckOption)); err != nil {
+			return err
+		}
 	}
 	_, err := io.WriteString(out, ";\n\n")
 	return err
@@ -636,6 +651,11 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 	}
 	if table.Comment != "" {
 		if _, err := fmt.Fprintf(buf, " COMMENT='%s'", table.Comment); err != nil {
+			return err
+		}
+	}
+	if ts := unquoteTableOption(table.Tablespace); ts != "" {
+		if _, err := fmt.Fprintf(buf, " /*!50100 TABLESPACE %s */", quoteIdent(ts)); err != nil {
 			return err
 		}
 	}

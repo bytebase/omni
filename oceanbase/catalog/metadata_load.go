@@ -394,7 +394,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 				return err
 			}
 			if inst := c.installedView(o.name); inst != nil && o.mview != nil {
-				inst.Comment = o.mview.GetComment()
+				inst.Comment = syncedComment(o.mview.GetComment())
 				inst.Indexes = metadataMVIndexes(o.mview.GetIndexes(), &o.incomplete)
 			}
 		} else {

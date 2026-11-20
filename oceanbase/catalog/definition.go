@@ -513,11 +513,26 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE OR REPLACE VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "); err != nil {
+	if _, err := io.WriteString(out, "CREATE OR REPLACE"); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, view.Definition); err != nil {
+	if view.Algorithm != "" {
+		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
+			return err
+		}
+	}
+	if view.SqlSecurity != "" {
+		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, " VIEW "+quoteIdent(view.Name)+viewColumnListClause(view)+" AS "+view.Definition); err != nil {
 		return err
+	}
+	if view.CheckOption != "" && !strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
+		if _, err := fmt.Fprintf(out, " WITH %s CHECK OPTION", strings.ToUpper(view.CheckOption)); err != nil {
+			return err
+		}
 	}
 	_, err := io.WriteString(out, ";\n\n")
 	return err
@@ -766,6 +781,11 @@ func writeCreateTable(buf *strings.Builder, table *metadata.TableMetadata, dbNam
 	}
 	if table.Comment != "" {
 		if _, err := fmt.Fprintf(buf, " COMMENT='%s'", table.Comment); err != nil {
+			return err
+		}
+	}
+	if ts := unquoteTableOption(table.Tablespace); ts != "" {
+		if _, err := fmt.Fprintf(buf, " /*!50100 TABLESPACE %s */", quoteIdent(ts)); err != nil {
 			return err
 		}
 	}
@@ -1182,6 +1202,8 @@ func indexQualifier(index *metadata.IndexMetadata) string {
 		return "FULLTEXT "
 	case strings.EqualFold(index.Type, mysqlIndexSpatial):
 		return "SPATIAL "
+	case index.IsVector:
+		return "VECTOR "
 	}
 	return ""
 }
@@ -1215,8 +1237,20 @@ func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, eng
 		}
 	}
 
-	if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
+	if _, err := fmt.Fprint(buf, ")"); err != nil {
 		return err
+	}
+
+	if index.IsVector && len(index.VectorParams) > 0 {
+		if _, err := fmt.Fprintf(buf, " WITH (%s)", strings.Join(index.VectorParams, ", ")); err != nil {
+			return err
+		}
+	}
+
+	if using := indexUsingClause(index.Type, engine); using != "" {
+		if _, err := buf.WriteString(using); err != nil {
+			return err
+		}
 	}
 
 	if index.Comment != "" {
@@ -1230,6 +1264,16 @@ func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, eng
 	// an INVISIBLE user `to` is a no-op instead of a DROP+ADD.
 	if !index.Visible {
 		if _, err := fmt.Fprint(buf, " /*!80000 INVISIBLE */"); err != nil {
+			return err
+		}
+	}
+
+	scope := index.Scope
+	if scope == "" && index.IsGlobal {
+		scope = "GLOBAL"
+	}
+	if scope != "" {
+		if _, err := fmt.Fprintf(buf, " %s", strings.ToUpper(scope)); err != nil {
 			return err
 		}
 	}

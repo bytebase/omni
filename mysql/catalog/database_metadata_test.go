@@ -528,3 +528,39 @@ func TestDatabaseMetadataIndexKeyBlockSizeRoundTrip(t *testing.T) {
 	require.NotNil(t, reKA)
 	require.Equal(t, 4, reKA.KeyBlockSize)
 }
+
+func TestDatabaseDefinitionFidelityForViewOptionsTablespaceAndComments(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE doc_tbl (
+			id INT PRIMARY KEY,
+			note VARCHAR(100) COMMENT 'it''s a \\ path'
+		) TABLESPACE ts_my COMMENT='O''Reilly & Co';
+		CREATE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW v_sec AS SELECT id, note FROM doc_tbl WITH LOCAL CHECK OPTION;
+	`, nil)
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "/*!50100 TABLESPACE `ts_my` */")
+	require.Contains(t, def, `COMMENT='O\'Reilly & Co'`)
+	require.Contains(t, def, `COMMENT 'it\'s a \\ path'`)
+	require.Contains(t, def, "CREATE OR REPLACE ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW `v_sec`")
+	require.Contains(t, def, "WITH LOCAL CHECK OPTION")
+
+	// Rendered script must execute cleanly into a fresh catalog with matching comments & tablespace.
+	restored := New()
+	_, err = restored.Exec("CREATE DATABASE app;\nUSE app;\n"+def, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	reTbl := restored.GetDatabase("app").GetTable("doc_tbl")
+	require.Equal(t, "O'Reilly & Co", reTbl.Comment)
+	require.Equal(t, `it's a \ path`, reTbl.GetColumn("note").Comment)
+	require.Equal(t, "ts_my", reTbl.Tablespace)
+	reView := restored.GetDatabase("app").Views["v_sec"]
+	require.Equal(t, "TEMPTABLE", reView.Algorithm)
+	require.Equal(t, "INVOKER", reView.SqlSecurity)
+	require.Equal(t, "LOCAL", reView.CheckOption)
+}

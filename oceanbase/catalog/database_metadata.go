@@ -78,7 +78,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			mvMeta := &metadata.MaterializedViewMetadata{
 				Name:       v.Name,
 				Definition: v.Definition,
-				Comment:    v.Comment,
+				Comment:    formatSyncedComment(v.Comment),
 			}
 			sortedMVIndexes := slices.Clone(v.Indexes)
 			slices.SortStableFunc(sortedMVIndexes, func(a, b *Index) int {
@@ -189,7 +189,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		Engine:       t.Engine,
 		Charset:      t.Charset,
 		Collation:    t.Collation,
-		Comment:      t.Comment,
+		Comment:      formatSyncedComment(t.Comment),
 		ColumnGroups: t.ColumnGroups.String(),
 		Tablespace:   t.Tablespace,
 	}
@@ -210,7 +210,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 			Nullable:           col.Nullable,
 			CharacterSet:       col.Charset,
 			Collation:          col.Collation,
-			Comment:            col.Comment,
+			Comment:            formatSyncedComment(col.Comment),
 			CharsetInherited:   col.Charset != "" && !col.CharsetExplicit,
 			CollationInherited: col.Collation != "" && !col.CollationExplicit,
 		}
@@ -548,6 +548,29 @@ func triggerToProto(tr *Trigger) *metadata.TriggerMetadata {
 		tm.CollationConnection = tr.CollationConnection
 	}
 	return tm
+}
+
+func formatSyncedComment(s string) string {
+	if !strings.ContainsAny(s, "\\'\x00\x1a") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 4)
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			b.WriteString(`\\`)
+		case '\'':
+			b.WriteString(`\'`)
+		case 0:
+			b.WriteString(`\0`)
+		case 26:
+			b.WriteString(`\Z`)
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }
 
 func sortedMapKeys[V any](m map[string]V) []string {

@@ -625,17 +625,26 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 
 	// Definition.
-	if _, err := io.WriteString(out, "CREATE VIEW `"); err != nil {
+	if _, err := io.WriteString(out, "CREATE"); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, view.Name); err != nil {
+	if view.Algorithm != "" {
+		if _, err := fmt.Fprintf(out, " ALGORITHM=%s", strings.ToUpper(view.Algorithm)); err != nil {
+			return err
+		}
+	}
+	if view.SqlSecurity != "" {
+		if _, err := fmt.Fprintf(out, " SQL SECURITY %s", strings.ToUpper(view.SqlSecurity)); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, " VIEW `"+view.Name+"`"+viewColumnListClause(view)+" AS "+view.Definition); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "`"+viewColumnListClause(view)+" AS "); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, view.Definition); err != nil {
-		return err
+	if view.CheckOption != "" && !strings.HasSuffix(strings.ToUpper(strings.TrimSpace(view.Definition)), "CHECK OPTION") {
+		if _, err := fmt.Fprintf(out, " WITH %s CHECK OPTION", strings.ToUpper(view.CheckOption)); err != nil {
+			return err
+		}
 	}
 	_, err := io.WriteString(out, ";\n\n")
 	return err
@@ -720,7 +729,11 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 	}
 
 	// Definition.
-	if _, err := fmt.Fprintf(out, "CREATE TABLE `%s` (\n", table.Name); err != nil {
+	createPrefix := "CREATE TABLE"
+	if table.IsGlobalTemporary {
+		createPrefix = "CREATE GLOBAL TEMPORARY TABLE"
+	}
+	if _, err := fmt.Fprintf(out, "%s `%s` (\n", createPrefix, table.Name); err != nil {
 		return err
 	}
 
@@ -810,6 +823,12 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 		}
 	}
 
+	if table.PlacementPolicy != "" {
+		if _, err := fmt.Fprintf(out, " /*T![placement] PLACEMENT POLICY=%s */", quoteIdent(table.PlacementPolicy)); err != nil {
+			return err
+		}
+	}
+
 	if table.TtlColumn != "" {
 		enable := "OFF"
 		if table.TtlEnable {
@@ -827,6 +846,12 @@ func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {
 
 	if len(table.Partitions) > 0 {
 		if err := printPartitionClause(out, table.Partitions); err != nil {
+			return err
+		}
+	}
+
+	if table.OnCommit != "" {
+		if _, err := fmt.Fprintf(out, " ON COMMIT %s", table.OnCommit); err != nil {
 			return err
 		}
 	}

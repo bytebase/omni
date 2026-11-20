@@ -601,4 +601,35 @@ func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttribut
 	require.NotNil(t, reMV)
 	require.Len(t, reMV.Indexes, 1)
 	require.Equal(t, "idx_good", reMV.Indexes[0].Name)
+
+	// DatabaseDefinition renders vector/global indexes, tablespace, view options, and escaped comments.
+	defCatalog := New()
+	_, err = defCatalog.Exec(`
+		CREATE DATABASE def_ob;
+		USE def_ob;
+		CREATE TABLE ob_tbl (
+			id INT NOT NULL,
+			k INT,
+			v VECTOR(3),
+			note VARCHAR(50) COMMENT 'it''s a \\ path',
+			PRIMARY KEY (id),
+			KEY k_global (k) GLOBAL,
+			VECTOR KEY v_cos (v) WITH (TYPE=HNSW, DISTANCE=COSINE, LIB=VSAG)
+		) TABLESPACE ts_ob COMMENT='O''Reilly' PARTITION BY HASH (id) PARTITIONS 2;
+		CREATE VIEW v_ob AS SELECT id, note FROM ob_tbl WITH LOCAL CHECK OPTION;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	defCatalog.GetDatabase("def_ob").Views["v_ob"].Algorithm = "MERGE"
+	defCatalog.GetDatabase("def_ob").Views["v_ob"].SqlSecurity = "INVOKER"
+
+	obDefMeta := defCatalog.DatabaseMetadata("def_ob")
+	obDef, err := DatabaseDefinition(obDefMeta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, obDef, "/*!50100 TABLESPACE `ts_ob` */")
+	require.Contains(t, obDef, `COMMENT='O\'Reilly'`)
+	require.Contains(t, obDef, `COMMENT 'it\'s a \\ path'`)
+	require.Contains(t, obDef, "VECTOR KEY `v_cos` (`v`) WITH (TYPE=HNSW, DISTANCE=COSINE, LIB=VSAG")
+	require.Contains(t, obDef, "KEY `k_global` (`k`) GLOBAL")
+	require.Contains(t, obDef, "CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `v_ob`")
+	require.Contains(t, obDef, "WITH LOCAL CHECK OPTION")
 }

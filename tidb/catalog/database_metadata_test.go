@@ -503,4 +503,23 @@ func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
 	require.Equal(t, "ev cmt", allocSchema.Events[0].Comment)
 	require.Len(t, allocSchema.Tables[0].Triggers, 1)
 	require.Equal(t, "trg_alloc", allocSchema.Tables[0].Triggers[0].Name)
+
+	// DatabaseDefinition renders view execution attributes, placement policy, and global temp tables.
+	defCatalog := New()
+	_, err = defCatalog.Exec(`
+		CREATE PLACEMENT POLICY p_tbl PRIMARY_REGION="us-east" REGIONS="us-east";
+		CREATE DATABASE def_db;
+		USE def_db;
+		CREATE TABLE placed_tbl (id INT PRIMARY KEY) PLACEMENT POLICY = p_tbl;
+		CREATE GLOBAL TEMPORARY TABLE gtt_tbl (id INT PRIMARY KEY) ON COMMIT DELETE ROWS;
+		CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW v_attr AS SELECT id FROM placed_tbl WITH CASCADED CHECK OPTION;
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+	defRendered, err := DatabaseDefinition(defCatalog.DatabaseMetadata("def_db"), DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, defRendered, "/*T![placement] PLACEMENT POLICY=`p_tbl` */")
+	require.Contains(t, defRendered, "CREATE GLOBAL TEMPORARY TABLE `gtt_tbl`")
+	require.Contains(t, defRendered, "ON COMMIT DELETE ROWS")
+	require.Contains(t, defRendered, "CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `v_attr`")
+	require.Contains(t, defRendered, "WITH CASCADED CHECK OPTION")
 }
