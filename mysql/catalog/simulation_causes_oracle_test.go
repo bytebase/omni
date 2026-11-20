@@ -5124,6 +5124,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:    0,
 			cleanup: []string{"DROP TABLE IF EXISTS z", "DROP TABLESPACE `hot data`"},
 		},
+		// An explicit ENCRYPTION='N' is the default, and SHOW CREATE TABLE
+		// leaves it out, so a migration reads it as no encryption.
+		{name: "CREATE TABLE ENCRYPTION='N' reads back without it", stmt: "CREATE TABLE a (id INT) ENCRYPTION='N'", code: 0, omits: []string{"ENCRYPTION"}},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6234,6 +6237,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"QUARTER('2008-00-01')", "MONTH('2008-05-01')", "YEAR('2008-05-01')", "DAYOFMONTH('2008-05-07')", "DAY('2008-05-07')",
 		"CAST(998 AS DECIMAL(2,0))", "CAST(-998 AS DECIMAL(2,0))", "CAST(1.256 AS DECIMAL(3,2))", "CAST(9.999 AS DECIMAL(3,2))",
 		"CAST(123.4 AS DECIMAL)", "CAST(12345678901.5 AS DECIMAL)", "CAST(1.5 AS DECIMAL(5))", "CAST('x' AS DECIMAL(3,1))",
+		"DAYOFWEEK('2008-01-06')", "DAYOFWEEK('2008-01-05')", "DAYOFWEEK(20080107)", "DAYOFWEEK('2008-01-06 23:59:59')",
+		"WEEKDAY('2008-01-06')", "WEEKDAY('2008-01-07')", "DAYOFYEAR('2008-12-31')",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6350,7 +6355,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "(CRC32('a') > 0)",
 		"BIT_COUNT(CAST(X'01' AS BINARY) | CAST(X'02' AS BINARY))", "(CAST(2.5 AS DOUBLE) = 2.5)",
 		"(ABS(CAST(-9223372036854775808 AS DECIMAL(20,0))) > 0)", "(CONCAT(1.5e0) = '1.5')", "QUARTER('2008-01-01')",
-		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"IFNULL(QUARTER('2008-02-30'), 1)", "CAST(MOD(CAST(998 AS DECIMAL(2,0)), 2) AS SIGNED)",
+		"DAYOFWEEK('2008-01-06')", "IFNULL(DAYOFWEEK('2008-00-01'), 1)", "IFNULL(DAYOFYEAR('2008-02-30'), 1)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

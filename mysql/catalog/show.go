@@ -596,8 +596,10 @@ func showTableOptions(tbl *Table) string {
 	if tbl.Compression != "" {
 		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
 	}
-	if tbl.Encryption != "" {
-		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	// mysql:8.0.46 echoes ENCRYPTION='Y' and leaves out an explicit
+	// ENCRYPTION='N', the default.
+	if canonicalTableEncryption(tbl) == "Y" {
+		parts = append(parts, "ENCRYPTION='Y'")
 	}
 	if tbl.StatsPersistent != "" && !eqFoldStr(tbl.StatsPersistent, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("STATS_PERSISTENT=%s", tbl.StatsPersistent))

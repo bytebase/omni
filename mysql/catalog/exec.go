@@ -8,6 +8,7 @@ import (
 	"math/bits"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -1386,6 +1387,33 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "dayofweek", "weekday", "dayofyear":
+			// These need a whole calendar date: DAYOFWEEK('2008-01-06') is 1
+			// (Sunday) and sets sql_mode REAL_AS_FLOAT, WEEKDAY counts from
+			// Monday at 0, and a zero month or day, or no date, is NULL.
+			fn := toLower(e.Name)
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(fn))
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			p, pok := setParseDateValue(v)
+			if !pok || p.month == 0 || p.day == 0 {
+				return userVarValue{kind: userVarNull}, true, nil
+			}
+			d := time.Date(p.year, time.Month(p.month), p.day, 0, 0, 0, 0, time.UTC)
+			n := 0
+			switch fn {
+			case "dayofweek":
+				n = int(d.Weekday()) + 1
+			case "weekday":
+				n = (int(d.Weekday()) + 6) % 7
+			default:
+				n = d.YearDay()
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "quarter", "month", "year", "dayofmonth", "day":
 			// The date parts of a DATE or DATETIME, read from a string or a
 			// number: QUARTER('2008-01-01') is 1 and sets sql_mode
@@ -1888,7 +1916,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs",
-				"quarter", "month", "year", "dayofmonth", "day",
+				"quarter", "month", "year", "dayofmonth", "day", "dayofweek", "weekday", "dayofyear",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
@@ -2024,10 +2052,21 @@ func isBinaryIntroducer(cs string) bool {
 // setParseDateValue reads a value as a DATETIME the way the date-part
 // functions do, a string by its text and a number by its digits.
 func setParseDateValue(v userVarValue) (parsedMySQLDateTime, bool) {
+	var p parsedMySQLDateTime
+	var ok bool
 	if v.kind == userVarNumeric {
-		return parseMySQLNumberDateTime("datetime", 0, v.str, false)
+		p, ok = parseMySQLNumberDateTime("datetime", 0, v.str, false)
+	} else {
+		p, ok = parseMySQLStringDateTime("datetime", 0, v.str, false)
 	}
-	return parseMySQLStringDateTime("datetime", 0, v.str, false)
+	// A day past its month's end is no date: QUARTER('2008-02-30') and
+	// DAYOFYEAR('2008-02-30') are NULL on mysql:8.0.46.
+	if ok && p.month >= 1 && p.month <= 12 && p.day > 0 {
+		if last := time.Date(p.year, time.Month(p.month)+1, 0, 0, 0, 0, 0, time.UTC).Day(); p.day > last {
+			return p, false
+		}
+	}
+	return p, ok
 }
 
 // isBitwiseBinaryString reports a binary string a bitwise operator combines

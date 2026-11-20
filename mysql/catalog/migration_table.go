@@ -157,6 +157,16 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 		}
 	}
 
+	// ENCRYPTION — with TABLESPACE in the same ALTER, so a move into an
+	// encrypted general tablespace carries the matching setting.
+	if canonicalTableEncryption(from) != canonicalTableEncryption(to) {
+		if canonicalTableEncryption(to) == "Y" {
+			clauses = append(clauses, "ENCRYPTION='Y'")
+		} else {
+			clauses = append(clauses, "ENCRYPTION='N'")
+		}
+	}
+
 	if len(clauses) == 0 {
 		return MigrationOp{}, false
 	}
@@ -422,6 +432,10 @@ func formatCreateTableOptions(tbl *Table, n *Normalizer) string {
 
 	if se := strings.TrimSpace(tbl.SecondaryEngine); se != "" {
 		parts = append(parts, "SECONDARY_ENGINE="+se)
+	}
+
+	if canonicalTableEncryption(tbl) == "Y" {
+		parts = append(parts, "ENCRYPTION='Y'")
 	}
 
 	return strings.Join(parts, " ")

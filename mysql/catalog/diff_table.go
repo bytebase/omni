@@ -159,7 +159,20 @@ func tableOptionsChanged(from, to *Table, n *Normalizer) bool {
 	if canonicalTableTablespace(from) != canonicalTableTablespace(to) {
 		return true
 	}
+	if canonicalTableEncryption(from) != canonicalTableEncryption(to) {
+		return true
+	}
 	return false
+}
+
+// canonicalTableEncryption is "Y" for an encrypted table and "" otherwise:
+// mysql:8.0.46 echoes ENCRYPTION='Y' in SHOW CREATE TABLE and leaves out an
+// explicit ENCRYPTION='N'.
+func canonicalTableEncryption(t *Table) string {
+	if strings.EqualFold(unquoteTableOption(strings.TrimSpace(t.Encryption)), "Y") {
+		return "Y"
+	}
+	return ""
 }
 
 // canonicalTableTablespace is the general tablespace a table lives in, by its
