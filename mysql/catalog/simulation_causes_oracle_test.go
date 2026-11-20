@@ -2574,6 +2574,118 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "ALTER TABLE a ENGINE=InnoDB",
 			code: 3510,
 		},
+		// Round-3 review oracle cases: datetime timezone offsets, trailing spaces on
+		// CHAR/VARCHAR defaults, hex/bit defaults on CHAR/VARCHAR, and non-strict
+		// TINYINT range behavior.
+		{
+			name: "CREATE TABLE DATETIME with +14:00 timezone offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 00:00:00+14:00')",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DATETIME with +14:01 out-of-range timezone offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 00:00:00+14:01')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATETIME with +99:00 invalid timezone offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 00:00:00+99:00')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATETIME with -13:59 timezone offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 12:00:00-13:59')",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DATETIME with -14:00 timezone offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 12:00:00-14:00')",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE DATETIME with -14:01 out-of-range timezone offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 12:00:00-14:01')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATETIME with -00:00 disallowed negative zero offset",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 00:00:00-00:00')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE DATETIME with trailing Z suffix rejected",
+			stmt: "CREATE TABLE a (c DATETIME DEFAULT '2024-01-01 00:00:00Z')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE TIMESTAMP underflowing 1970-01-01 UTC after timezone offset",
+			stmt: "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 02:00:00+05:00')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE TIMESTAMP valid in UTC after negative timezone offset",
+			stmt: "CREATE TABLE a (c TIMESTAMP DEFAULT '1970-01-01 00:00:01-05:00')",
+			code: 0,
+		},
+		{
+			name:     "CREATE TABLE CHAR(2) with excess trailing spaces in DEFAULT",
+			stmt:     "CREATE TABLE a (c CHAR(2) DEFAULT 'ab   ')",
+			code:     0,
+			contains: []string{"DEFAULT 'ab'"},
+		},
+		{
+			name:     "CREATE TABLE VARCHAR(2) truncating only excess trailing spaces in DEFAULT",
+			stmt:     "CREATE TABLE a (c VARCHAR(2) DEFAULT 'a   ')",
+			code:     0,
+			contains: []string{"DEFAULT 'a '"},
+		},
+		{
+			name: "CREATE TABLE BINARY(2) rejects excess trailing spaces in DEFAULT",
+			stmt: "CREATE TABLE a (c BINARY(2) DEFAULT 'ab   ')",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) with 1-char hex literal DEFAULT 0x41",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT 0x41)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) rejects 2-char hex literal DEFAULT 0x4142",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT 0x4142)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) accepts 3-byte UTF-8 1-rune hex literal DEFAULT",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT 0xE4B8AD)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) utf8mb4 rejects invalid UTF-8 hex literal DEFAULT 0xFF",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT 0xFF)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) latin1 accepts single-byte hex literal DEFAULT 0xFF",
+			stmt: "CREATE TABLE a (c CHAR(1) CHARACTER SET latin1 DEFAULT 0xFF)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE CHAR(1) rejects 2-byte bit literal DEFAULT",
+			stmt: "CREATE TABLE a (c CHAR(1) DEFAULT b'0100000101000010')",
+			code: 1067,
+		},
+		{
+			name:    "CREATE TABLE TINYINT out-of-range DEFAULT 128 rejected even under empty sql_mode",
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "CREATE TABLE a (c TINYINT DEFAULT 128)",
+			code:    1067,
+		},
+		{
+			name:    "CREATE TABLE DECIMAL non-numeric string DEFAULT coerced to 0 under empty sql_mode",
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "CREATE TABLE a (c DECIMAL(3,1) DEFAULT 'abc')",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {

@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"bytes"
 	"encoding/hex"
 	"errors"
 	"math"
@@ -8,6 +9,8 @@ import (
 	"math/bits"
 	"strconv"
 	"strings"
+	"time"
+	"unicode/utf16"
 	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -312,7 +315,7 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 			return errInvalidDefault(col.Name)
 		}
 	case "decimal", "numeric", "dec", "fixed":
-		if !validDecimalLiteralDefault(col.ColumnType, unsigned, kind, val) {
+		if !validDecimalLiteralDefault(col.ColumnType, unsigned, kind, val, strict) {
 			return errInvalidDefault(col.Name)
 		}
 	case "float", "double", "real":
@@ -323,11 +326,21 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
 			switch kind {
 			case litString:
-				if utf8.RuneCountInString(val) > maxLen {
+				// MySQL truncates excess trailing U+0020 spaces on CHAR and VARCHAR
+				// defaults rather than rejecting the column definition with 1067.
+				if utf8.RuneCountInString(strings.TrimRight(val, " ")) > maxLen {
 					return errInvalidDefault(col.Name)
 				}
 			case litNumber:
 				if !validNumericDefaultForStringLen(val, maxLen) {
+					return errInvalidDefault(col.Name)
+				}
+			case litHex:
+				if !validBinaryBytesForCharColumn(val, true, col.Charset, maxLen) {
+					return errInvalidDefault(col.Name)
+				}
+			case litBit:
+				if !validBinaryBytesForCharColumn(val, false, col.Charset, maxLen) {
 					return errInvalidDefault(col.Name)
 				}
 			}
@@ -520,21 +533,177 @@ func validIntegerLiteralDefault(dt string, unsigned bool, kind literalDefaultKin
 	return n.Cmp(minB) >= 0 && n.Cmp(maxB) <= 0
 }
 
-func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefaultKind, val string) bool {
-	if kind == litBit || kind == litHex {
-		return true
+func decodeLiteralRawBytes(val string, isHex bool) ([]byte, bool) {
+	if val == "" {
+		return nil, true
 	}
-	s := strings.TrimSpace(val)
-	if !isStrictNumberSyntax(s) {
-		return false
+	if isHex {
+		raw := val
+		if len(raw)%2 == 1 {
+			raw = "0" + raw
+		}
+		b, err := hex.DecodeString(raw)
+		if err != nil {
+			return nil, false
+		}
+		return b, true
 	}
-	r, ok := new(big.Rat).SetString(s)
+	pad := (8 - len(val)%8) % 8
+	bitsStr := strings.Repeat("0", pad) + val
+	out := make([]byte, len(bitsStr)/8)
+	for i := 0; i < len(out); i++ {
+		var v byte
+		for j := 0; j < 8; j++ {
+			ch := bitsStr[i*8+j]
+			if ch != '0' && ch != '1' {
+				return nil, false
+			}
+			v = (v << 1) | (ch - '0')
+		}
+		out[i] = v
+	}
+	return out, true
+}
+
+func validBinaryBytesForCharColumn(val string, isHex bool, charset string, maxLen int) bool {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
 	if !ok {
 		return false
 	}
-	if unsigned && r.Sign() < 0 {
-		return false
+	cs := strings.ToLower(strings.TrimSpace(charset))
+	switch cs {
+	case "", "utf8mb4", "utf8", "utf8mb3":
+		if !utf8.Valid(raw) {
+			return false
+		}
+		s := string(raw)
+		if cs == "utf8" || cs == "utf8mb3" {
+			for _, r := range s {
+				if r > 0xFFFF {
+					return false
+				}
+			}
+		}
+		return utf8.RuneCountInString(strings.TrimRight(s, " ")) <= maxLen
+	case "ascii":
+		for _, b := range raw {
+			if b >= 0x80 {
+				return false
+			}
+		}
+		return len(bytes.TrimRight(raw, " ")) <= maxLen
+	case "ucs2", "utf16", "utf16le":
+		if len(raw)%2 != 0 {
+			return false
+		}
+		u16 := make([]uint16, len(raw)/2)
+		for i := 0; i < len(u16); i++ {
+			if cs == "utf16le" {
+				u16[i] = uint16(raw[2*i]) | uint16(raw[2*i+1])<<8
+			} else {
+				u16[i] = uint16(raw[2*i])<<8 | uint16(raw[2*i+1])
+			}
+		}
+		for len(u16) > 0 && u16[len(u16)-1] == 0x0020 {
+			u16 = u16[:len(u16)-1]
+		}
+		if cs == "ucs2" {
+			return len(u16) <= maxLen
+		}
+		runes := utf16.Decode(u16)
+		for _, r := range runes {
+			if r == utf8.RuneError {
+				return false
+			}
+		}
+		return len(runes) <= maxLen
+	case "utf32":
+		if len(raw)%4 != 0 {
+			return false
+		}
+		n := len(raw) / 4
+		runes := make([]rune, n)
+		for i := 0; i < n; i++ {
+			cp := uint32(raw[4*i])<<24 | uint32(raw[4*i+1])<<16 | uint32(raw[4*i+2])<<8 | uint32(raw[4*i+3])
+			if cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF) {
+				return false
+			}
+			runes[i] = rune(cp)
+		}
+		return utf8.RuneCountInString(strings.TrimRight(string(runes), " ")) <= maxLen
+	default:
+		return len(bytes.TrimRight(raw, " ")) <= maxLen
 	}
+}
+
+// normalizeCharDefaultStringLiteral applies MySQL's trailing-space coercion when
+// storing a quoted string default on CHAR or VARCHAR: CHAR strips all trailing
+// U+0020 spaces, and VARCHAR strips only trailing U+0020 spaces past maxLen.
+func normalizeCharDefaultStringLiteral(col *Column, val string) (string, bool) {
+	if col == nil {
+		return val, false
+	}
+	switch strings.ToLower(col.DataType) {
+	case "char":
+		trimmed := strings.TrimRight(val, " ")
+		return trimmed, trimmed != val
+	case "varchar":
+		maxLen, ok := fixedLengthStringColumnLimit(col)
+		if !ok {
+			return val, false
+		}
+		runes := []rune(val)
+		if len(runes) <= maxLen {
+			return val, false
+		}
+		for len(runes) > maxLen && runes[len(runes)-1] == ' ' {
+			runes = runes[:len(runes)-1]
+		}
+		trimmed := string(runes)
+		return trimmed, trimmed != val
+	default:
+		return val, false
+	}
+}
+
+func leadingNumericPrefix(s string) string {
+	i := 0
+	if i < len(s) && (s[i] == '+' || s[i] == '-') {
+		i++
+	}
+	digits := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		digits++
+		i++
+	}
+	if i < len(s) && s[i] == '.' {
+		i++
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			digits++
+			i++
+		}
+	}
+	if digits == 0 {
+		return "0"
+	}
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		j := i + 1
+		if j < len(s) && (s[j] == '+' || s[j] == '-') {
+			j++
+		}
+		expDigits := 0
+		for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+			expDigits++
+			j++
+		}
+		if expDigits > 0 {
+			i = j
+		}
+	}
+	return s[:i]
+}
+
+func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
 	pt := parseColumnType(colType)
 	m, d := 10, 0
 	if pt.hasLen {
@@ -542,6 +711,33 @@ func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefau
 	}
 	if pt.hasScale && pt.scale >= 0 {
 		d = pt.scale
+	}
+	if kind == litBit || kind == litHex {
+		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		if !ok {
+			return false
+		}
+		n := new(big.Int).SetBytes(raw)
+		intDigits := m - d
+		if intDigits < 0 {
+			intDigits = 0
+		}
+		maxInt := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(intDigits)), nil)
+		return n.Cmp(maxInt) < 0
+	}
+	s := strings.TrimSpace(val)
+	if !isStrictNumberSyntax(s) {
+		if strict {
+			return false
+		}
+		s = leadingNumericPrefix(s)
+	}
+	r, ok := new(big.Rat).SetString(s)
+	if !ok {
+		return false
+	}
+	if unsigned && r.Sign() < 0 {
+		return false
 	}
 	scalePow := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(d)), nil)
 	scaled := new(big.Rat).Mul(new(big.Rat).Abs(r), new(big.Rat).SetInt(scalePow))
@@ -900,25 +1096,42 @@ func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val s
 	if s == "" {
 		return false
 	}
-	year, month, day, hour, min, sec, ok := parseMySQLDateTimeParts(s, unquotedNum)
+	year, month, day, hour, min, sec, hasTZ, tzOffsetMin, ok := parseMySQLDateTimeParts(s, unquotedNum)
 	if !ok {
 		return false
 	}
 	allZero := year == 0 && month == 0 && day == 0 && hour == 0 && min == 0 && sec == 0
 	if allZero {
+		if hasTZ {
+			return false
+		}
 		return !noZeroDate
 	}
 	if month > 12 || day > 31 || hour > 23 || min > 59 || sec > 59 {
 		return false
 	}
 	if month == 0 || day == 0 {
-		if dt == "timestamp" || noZeroInDate {
+		if dt == "timestamp" || hasTZ || noZeroInDate {
 			return false
 		}
 		return true
 	}
-	if (dt == "timestamp" || !allowInvalidDates) && day > daysInMonth(year, month) {
+	if (dt == "timestamp" || hasTZ || !allowInvalidDates) && day > daysInMonth(year, month) {
 		return false
+	}
+	if hasTZ {
+		utc := time.Date(year, time.Month(month), day, hour, min, sec, 0, time.UTC).Add(-time.Duration(tzOffsetMin) * time.Minute)
+		if utc.Year() < 0 || utc.Year() > 9999 {
+			return false
+		}
+		if dt == "timestamp" {
+			minUTC := time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC)
+			maxUTC := time.Date(2038, time.January, 19, 3, 14, 7, 0, time.UTC)
+			if utc.Before(minUTC) || utc.After(maxUTC) {
+				return false
+			}
+		}
+		return true
 	}
 	if dt == "timestamp" {
 		if year < 1970 || year > 2038 {
@@ -934,24 +1147,87 @@ func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val s
 	return true
 }
 
-func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour, min, sec int, ok bool) {
+func isASCIIDigit(b byte) bool {
+	return b >= '0' && b <= '9'
+}
+
+func countDigitRuns(s string) int {
+	n := 0
+	for i := 0; i < len(s); {
+		if isASCIIDigit(s[i]) {
+			n++
+			for i < len(s) && isASCIIDigit(s[i]) {
+				i++
+			}
+		} else {
+			i++
+		}
+	}
+	return n
+}
+
+func stripTrailingFraction(s string) string {
+	dot := strings.LastIndexByte(s, '.')
+	if dot < 0 {
+		return s
+	}
+	frac := s[dot+1:]
+	if len(frac) == 0 {
+		return s
+	}
+	for i := 0; i < len(frac); i++ {
+		if !isASCIIDigit(frac[i]) {
+			return s
+		}
+	}
+	if strings.ContainsAny(s[:dot], " Tt:") || len(s[:dot]) >= 12 {
+		return s[:dot]
+	}
+	return s
+}
+
+func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour, min, sec int, hasTZ bool, tzOffsetMin int, ok bool) {
 	if unquotedNum && s == "0" {
-		return 0, 0, 0, 0, 0, 0, true
+		return 0, 0, 0, 0, 0, 0, false, 0, true
 	}
 	base := s
-	if dot := strings.LastIndexByte(base, '.'); dot >= 0 {
-		frac := base[dot+1:]
-		allDigits := len(frac) > 0
-		for i := 0; i < len(frac); i++ {
-			if frac[i] < '0' || frac[i] > '9' {
-				allDigits = false
-				break
+	// Check for an attached timezone suffix `[+-]HH:MM` immediately following a
+	// full date-and-time value (no whitespace before the sign). MySQL 8.0.46
+	// accepts `-14:00` through `+14:00` and rejects `-00:00`.
+	if !unquotedNum && len(base) >= 7 {
+		tz := base[len(base)-6:]
+		if (tz[0] == '+' || tz[0] == '-') && isASCIIDigit(tz[1]) && isASCIIDigit(tz[2]) &&
+			tz[3] == ':' && isASCIIDigit(tz[4]) && isASCIIDigit(tz[5]) && isASCIIDigit(base[len(base)-7]) {
+			prefixNoFrac := stripTrailingFraction(base[:len(base)-6])
+			allPrefixDigits := len(prefixNoFrac) > 0
+			for i := 0; i < len(prefixNoFrac); i++ {
+				if !isASCIIDigit(prefixNoFrac[i]) {
+					allPrefixDigits = false
+					break
+				}
+			}
+			isFullDateTime := (allPrefixDigits && (len(prefixNoFrac) == 12 || len(prefixNoFrac) == 14)) ||
+				(!allPrefixDigits && countDigitRuns(prefixNoFrac) == 6)
+			if isFullDateTime {
+				tzH := int(tz[1]-'0')*10 + int(tz[2]-'0')
+				tzM := int(tz[4]-'0')*10 + int(tz[5]-'0')
+				if tz[0] == '-' && tzH == 0 && tzM == 0 {
+					return 0, 0, 0, 0, 0, 0, false, 0, false
+				}
+				if tzM > 59 || tzH*60+tzM > 14*60 {
+					return 0, 0, 0, 0, 0, 0, false, 0, false
+				}
+				hasTZ = true
+				tzOffsetMin = tzH*60 + tzM
+				if tz[0] == '-' {
+					tzOffsetMin = -tzOffsetMin
+				}
+				base = prefixNoFrac
 			}
 		}
-		// Only strip fractional seconds when there is a time part (or compact digits).
-		if allDigits && (strings.ContainsAny(base[:dot], " Tt:") || len(base[:dot]) >= 12) {
-			base = base[:dot]
-		}
+	}
+	if !hasTZ {
+		base = stripTrailingFraction(base)
 	}
 	// Compact all-digit forms: YYMMDD (6), YYYYMMDD (8), YYMMDDHHMMSS (12), YYYYMMDDHHMMSS (14).
 	allDigits := len(base) > 0
@@ -967,12 +1243,12 @@ func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour
 			y, _ := strconv.Atoi(base[0:2])
 			m, _ := strconv.Atoi(base[2:4])
 			d, _ := strconv.Atoi(base[4:6])
-			return expandTwoDigitYear(y, m, d), m, d, 0, 0, 0, true
+			return expandTwoDigitYear(y, m, d), m, d, 0, 0, 0, hasTZ, tzOffsetMin, true
 		case 8:
 			y, _ := strconv.Atoi(base[0:4])
 			m, _ := strconv.Atoi(base[4:6])
 			d, _ := strconv.Atoi(base[6:8])
-			return y, m, d, 0, 0, 0, true
+			return y, m, d, 0, 0, 0, hasTZ, tzOffsetMin, true
 		case 12:
 			y, _ := strconv.Atoi(base[0:2])
 			m, _ := strconv.Atoi(base[2:4])
@@ -980,7 +1256,7 @@ func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour
 			hh, _ := strconv.Atoi(base[6:8])
 			mm, _ := strconv.Atoi(base[8:10])
 			ss, _ := strconv.Atoi(base[10:12])
-			return expandTwoDigitYear(y, m, d), m, d, hh, mm, ss, true
+			return expandTwoDigitYear(y, m, d), m, d, hh, mm, ss, hasTZ, tzOffsetMin, true
 		case 14:
 			y, _ := strconv.Atoi(base[0:4])
 			m, _ := strconv.Atoi(base[4:6])
@@ -988,25 +1264,24 @@ func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour
 			hh, _ := strconv.Atoi(base[8:10])
 			mm, _ := strconv.Atoi(base[10:12])
 			ss, _ := strconv.Atoi(base[12:14])
-			return y, m, d, hh, mm, ss, true
+			return y, m, d, hh, mm, ss, hasTZ, tzOffsetMin, true
 		default:
-			return 0, 0, 0, 0, 0, 0, false
+			return 0, 0, 0, 0, 0, 0, false, 0, false
 		}
 	}
 
-	// Tokenize digit runs separated by punctuation / 'T' / space (and timezone offset +/-HH:MM).
-	// Reject any alphabetic characters other than a single 'T'/'t' between date and time, or trailing 'Z'/'z'.
-	cleaned := strings.TrimSuffix(strings.TrimSuffix(s, "Z"), "z")
+	// Tokenize digit runs separated by punctuation / 'T' / space.
+	// Reject any alphabetic characters other than a single 'T'/'t' between date and time.
 	var parts []string
 	i := 0
-	for i < len(cleaned) {
-		ch := cleaned[i]
+	for i < len(base) {
+		ch := base[i]
 		if ch >= '0' && ch <= '9' {
 			j := i
-			for j < len(cleaned) && cleaned[j] >= '0' && cleaned[j] <= '9' {
+			for j < len(base) && base[j] >= '0' && base[j] <= '9' {
 				j++
 			}
-			parts = append(parts, cleaned[i:j])
+			parts = append(parts, base[i:j])
 			i = j
 			continue
 		}
@@ -1015,18 +1290,18 @@ func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour
 				i++
 				continue
 			}
-			return 0, 0, 0, 0, 0, 0, false
+			return 0, 0, 0, 0, 0, 0, false, 0, false
 		}
 		i++
 	}
-	if len(parts) < 3 || len(parts) > 9 {
-		return 0, 0, 0, 0, 0, 0, false
+	if len(parts) < 3 || len(parts) > 6 {
+		return 0, 0, 0, 0, 0, 0, false, 0, false
 	}
 	y, err1 := strconv.Atoi(parts[0])
 	m, err2 := strconv.Atoi(parts[1])
 	d, err3 := strconv.Atoi(parts[2])
 	if err1 != nil || err2 != nil || err3 != nil || len(parts[0]) > 4 {
-		return 0, 0, 0, 0, 0, 0, false
+		return 0, 0, 0, 0, 0, 0, false, 0, false
 	}
 	if len(parts[0]) <= 2 {
 		y = expandTwoDigitYear(y, m, d)
@@ -1040,7 +1315,7 @@ func parseMySQLDateTimeParts(s string, unquotedNum bool) (year, month, day, hour
 	if len(parts) >= 6 {
 		sec, _ = strconv.Atoi(parts[5])
 	}
-	return y, m, d, hour, min, sec, true
+	return y, m, d, hour, min, sec, hasTZ, tzOffsetMin, true
 }
 
 func expandTwoDigitYear(y, m, d int) int {
