@@ -3346,6 +3346,58 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE a (c INT) TABLESPACE innodb_system AUTOEXTEND_SIZE=8M",
 			code: 1478,
 		},
+		// 17. Binary floating/decimal/integer defaults enforce 8-byte / signed-int64 limits without panic.
+		{
+			name: "CREATE TABLE DOUBLE DEFAULT >1024-bit hex rejected with 1067 without panic",
+			stmt: "CREATE TABLE a (c DOUBLE DEFAULT 0x" + strings.Repeat("FF", 140) + ")",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE FLOAT DEFAULT >8-byte hex rejected with 1067",
+			stmt: "CREATE TABLE a (c FLOAT DEFAULT 0x000000000000000001)",
+			code: 1067,
+		},
+		{
+			name: "CREATE TABLE signed DOUBLE DEFAULT 0x8000000000000000 rejected with 1067",
+			stmt: "CREATE TABLE a (c DOUBLE DEFAULT 0x8000000000000000)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE DOUBLE UNSIGNED DEFAULT 0xFFFFFFFFFFFFFFFF accepted and formatted",
+			stmt:     "CREATE TABLE a (c DOUBLE UNSIGNED DEFAULT 0xFFFFFFFFFFFFFFFF)",
+			code:     0,
+			contains: []string{"DEFAULT '1.8446744073709552e19'"},
+		},
+		{
+			name:     "CREATE TABLE FLOAT DEFAULT 0x7FFFFFFFFFFFFFFF accepted and formatted",
+			stmt:     "CREATE TABLE a (c FLOAT DEFAULT 0x7FFFFFFFFFFFFFFF)",
+			code:     0,
+			contains: []string{"DEFAULT '9.22337e18'"},
+		},
+		{
+			name: "CREATE TABLE DECIMAL(30,2) signed DEFAULT 0x8000000000000000 rejected with 1067",
+			stmt: "CREATE TABLE a (c DECIMAL(30,2) DEFAULT 0x8000000000000000)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE FLOAT DEFAULT 0x41424344 rounds to 6 significant digits",
+			stmt:     "CREATE TABLE a (c FLOAT DEFAULT 0x41424344)",
+			code:     0,
+			contains: []string{"DEFAULT '1094860000'"},
+		},
+		{
+			name: "CREATE TABLE BIGINT DEFAULT >8-byte leading-zero hex rejected with 1067",
+			stmt: "CREATE TABLE a (c BIGINT DEFAULT 0x000000000000000001)",
+			code: 1067,
+		},
+		{
+			name:     "CREATE TABLE non-strict DOUBLE and BIGINT clamp oversized hex defaults",
+			session:  []string{"SET SESSION sql_mode = ''"},
+			stmt:     "CREATE TABLE a (d DOUBLE DEFAULT 0xFFFFFFFFFFFFFFFF, b BIGINT DEFAULT 0x000000000000000001)",
+			code:     0,
+			contains: []string{"DEFAULT '9.223372036854776e18'", "DEFAULT '9223372036854775807'"},
+			cleanup:  []string{"SET SESSION sql_mode = DEFAULT"},
+		},
 	}
 
 	for _, tc := range cases {

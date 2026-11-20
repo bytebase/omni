@@ -318,7 +318,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 
 	switch dt {
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "boolean", "bool":
-		if !validIntegerLiteralDefault(dt, unsigned, kind, val) {
+		if !validIntegerLiteralDefault(dt, unsigned, kind, val, strict) {
 			return errInvalidDefault(col.Name)
 		}
 	case "decimal", "numeric", "dec", "fixed":
@@ -377,7 +377,7 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 			}
 		}
 	case "bit":
-		if !validBitLiteralDefault(col.ColumnType, kind, val, unquotedNum) {
+		if !validBitLiteralDefault(col.ColumnType, kind, val, unquotedNum, strict) {
 			return errInvalidDefault(col.Name)
 		}
 	case "year":
@@ -498,26 +498,41 @@ func intBoundsForType(dt string, unsigned bool) (*big.Int, *big.Int) {
 	}
 }
 
-func evalIntegerLiteralBigInt(kind literalDefaultKind, val string) (*big.Int, bool) {
+func evalBinaryNumericUint64(isHex bool, val string, unsigned, strict bool) (uint64, bool) {
+	raw, ok := decodeLiteralRawBytes(val, isHex)
+	if !ok {
+		return 0, false
+	}
+	if len(raw) > 8 {
+		if strict {
+			return 0, false
+		}
+		if unsigned {
+			return math.MaxUint64, true
+		}
+		return math.MaxInt64, true
+	}
+	var u uint64
+	for _, b := range raw {
+		u = (u << 8) | uint64(b)
+	}
+	if !unsigned && u > math.MaxInt64 {
+		if strict {
+			return 0, false
+		}
+		return math.MaxInt64, true
+	}
+	return u, true
+}
+
+func evalIntegerLiteralBigInt(kind literalDefaultKind, val string, unsigned, strict bool) (*big.Int, bool) {
 	switch kind {
-	case litBit:
-		trimmed := strings.TrimLeft(val, "0")
-		if len(trimmed) > 64 {
+	case litBit, litHex:
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
+		if !ok {
 			return nil, false
 		}
-		if trimmed == "" {
-			return big.NewInt(0), true
-		}
-		return new(big.Int).SetString(trimmed, 2)
-	case litHex:
-		trimmed := strings.TrimLeft(val, "0")
-		if len(trimmed) > 16 {
-			return nil, false
-		}
-		if trimmed == "" {
-			return big.NewInt(0), true
-		}
-		return new(big.Int).SetString(trimmed, 16)
+		return new(big.Int).SetUint64(u), true
 	default:
 		s := strings.TrimSpace(val)
 		if !isStrictNumberSyntax(s) {
@@ -531,9 +546,9 @@ func evalIntegerLiteralBigInt(kind literalDefaultKind, val string) (*big.Int, bo
 	}
 }
 
-func validIntegerLiteralDefault(dt string, unsigned bool, kind literalDefaultKind, val string) bool {
+func validIntegerLiteralDefault(dt string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
 	minB, maxB := intBoundsForType(dt, unsigned)
-	n, ok := evalIntegerLiteralBigInt(kind, val)
+	n, ok := evalIntegerLiteralBigInt(kind, val, unsigned, strict)
 	if !ok {
 		return false
 	}
@@ -550,11 +565,11 @@ func formatDecimalLiteralDefault(colType string, unsigned bool, kind literalDefa
 		d = pt.scale
 	}
 	if kind == litBit || kind == litHex {
-		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
 		if !ok {
 			return "", false
 		}
-		n := new(big.Int).SetBytes(raw)
+		n := new(big.Int).SetUint64(u)
 		intDigits := m - d
 		if intDigits < 0 {
 			intDigits = 0
@@ -643,8 +658,15 @@ func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, trunca
 			return coerceBinarySetDefault(col, kind == litHex, val)
 		}
 		return "", false
+	case "bit":
+		if !strict && (kind == litBit || kind == litHex) {
+			if raw, ok := decodeLiteralRawBytes(val, kind == litHex); ok && len(raw) > 8 {
+				return "b'" + strings.Repeat("1", 64) + "'", true
+			}
+		}
+		return "", false
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "boolean", "bool":
-		n, ok := evalIntegerLiteralBigInt(kind, val)
+		n, ok := evalIntegerLiteralBigInt(kind, val, unsigned, strict)
 		if !ok {
 			return "", false
 		}
@@ -664,15 +686,15 @@ func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, trunca
 		isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
 		var f float64
 		if kind == litBit || kind == litHex {
-			raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+			u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
 			if !ok {
 				return "", false
 			}
-			f, _ = new(big.Float).SetInt(new(big.Int).SetBytes(raw)).Float64()
+			f = float64(u)
 		} else {
 			var err error
 			f, err = strconv.ParseFloat(strings.TrimSpace(val), 64)
-			if err != nil {
+			if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
 				return "", false
 			}
 		}
@@ -698,16 +720,49 @@ func coerceNumericColumnDefault(col *Column, expr nodes.ExprNode, strict, trunca
 }
 
 func myGcvtFloat32(f float32) string {
+	if math.IsInf(float64(f), 0) || math.IsNaN(float64(f)) {
+		return ""
+	}
 	if f == 0 {
 		return "0"
 	}
-	raw := strconv.FormatFloat(float64(f), 'g', 6, 32)
-	ePos := strings.IndexByte(raw, 'e')
-	if ePos < 0 {
-		return raw
+	neg := f < 0
+	avail := 12
+	av := float64(f)
+	if neg {
+		avail = 11
+		av = -av
 	}
-	expVal, _ := strconv.Atoi(raw[ePos+1:])
-	return raw[:ePos] + "e" + strconv.Itoa(expVal)
+	sci := strconv.FormatFloat(av, 'e', 5, 32)
+	ePos := strings.IndexByte(sci, 'e')
+	if ePos < 0 {
+		return ""
+	}
+	mant := strings.ReplaceAll(sci[:ePos], ".", "")
+	mant = strings.TrimRight(mant, "0")
+	if mant == "" {
+		mant = "0"
+	}
+	exp, _ := strconv.Atoi(sci[ePos+1:])
+	decpt := exp + 1
+	var res string
+	if decpt >= 1 && decpt <= avail {
+		if len(mant) <= decpt {
+			res = mant + strings.Repeat("0", decpt-len(mant))
+		} else {
+			res = mant[:decpt] + "." + mant[decpt:]
+		}
+	} else if decpt <= 0 && 2+(-decpt)+len(mant) <= avail {
+		res = "0." + strings.Repeat("0", -decpt) + mant
+	} else if len(mant) == 1 {
+		res = mant + "e" + strconv.Itoa(exp)
+	} else {
+		res = mant[:1] + "." + mant[1:] + "e" + strconv.Itoa(exp)
+	}
+	if neg {
+		return "-" + res
+	}
+	return res
 }
 
 func normalizeColumnStoredDefault(col *Column, expr nodes.ExprNode, strict, truncateFrac bool, sessionTZ string) {
@@ -971,11 +1026,11 @@ func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefau
 		d = pt.scale
 	}
 	if kind == litBit || kind == litHex {
-		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
 		if !ok {
 			return false
 		}
-		n := new(big.Int).SetBytes(raw)
+		n := new(big.Int).SetUint64(u)
 		intDigits := m - d
 		if intDigits < 0 {
 			intDigits = 0
@@ -1007,21 +1062,23 @@ func validDecimalLiteralDefault(colType string, unsigned bool, kind literalDefau
 func validFloatLiteralDefault(dt, colType string, unsigned bool, kind literalDefaultKind, val string, strict bool) bool {
 	pt := parseColumnType(colType)
 	hasMD := pt.hasLen && pt.hasScale && pt.scale >= 0
+	isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
 	if kind == litBit || kind == litHex {
-		if !hasMD {
-			return true
-		}
-		raw, ok := decodeLiteralRawBytes(val, kind == litHex)
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, unsigned, strict)
 		if !ok {
 			return false
 		}
-		n := new(big.Int).SetBytes(raw)
-		intDigits := pt.length - pt.scale
-		if intDigits < 0 {
-			intDigits = 0
+		f := float64(u)
+		if math.IsInf(f, 0) || math.IsNaN(f) {
+			return false
 		}
-		maxInt := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(intDigits)), nil)
-		return n.Cmp(maxInt) < 0
+		if isFloat32 && math.IsInf(float64(float32(f)), 0) {
+			return false
+		}
+		if hasMD {
+			return validDecimalLiteralDefault(colType, unsigned, litNumber, strconv.FormatUint(u, 10), strict)
+		}
+		return true
 	}
 	s := strings.TrimSpace(val)
 	if !isStrictNumberSyntax(s) {
@@ -1034,7 +1091,6 @@ func validFloatLiteralDefault(dt, colType string, unsigned bool, kind literalDef
 	if unsigned && f < 0 {
 		return false
 	}
-	isFloat32 := dt == "float" && !(pt.hasLen && !pt.hasScale && pt.length >= 25)
 	if isFloat32 && math.Abs(f) > math.MaxFloat32 {
 		return false
 	}
@@ -1052,22 +1108,15 @@ func bitColumnWidth(colType string) int {
 	return 1
 }
 
-func validBitLiteralDefault(colType string, kind literalDefaultKind, val string, unquotedNum bool) bool {
+func validBitLiteralDefault(colType string, kind literalDefaultKind, val string, unquotedNum, strict bool) bool {
 	width := bitColumnWidth(colType)
 	switch kind {
-	case litBit:
-		trimmed := strings.TrimLeft(val, "0")
-		return len(trimmed) <= width
-	case litHex:
-		raw := val
-		if len(raw)%2 == 1 {
-			raw = "0" + raw
-		}
-		b, err := hex.DecodeString(raw)
-		if err != nil {
+	case litBit, litHex:
+		u, ok := evalBinaryNumericUint64(kind == litHex, val, true, strict)
+		if !ok {
 			return false
 		}
-		return new(big.Int).SetBytes(b).BitLen() <= width
+		return bits.Len64(u) <= width
 	case litNumber:
 		if unquotedNum {
 			s := strings.TrimSpace(val)
@@ -1088,13 +1137,7 @@ func validBitLiteralDefault(colType string, kind literalDefaultKind, val string,
 
 func evalBinaryYearUint(isHex bool, val string) (uint64, bool) {
 	raw, ok := decodeLiteralRawBytes(val, isHex)
-	if !ok {
-		return 0, false
-	}
-	for len(raw) > 0 && raw[0] == 0 {
-		raw = raw[1:]
-	}
-	if len(raw) > 8 {
+	if !ok || len(raw) > 8 {
 		return 0, false
 	}
 	var u uint64
@@ -1284,6 +1327,9 @@ func formatGcvtFixed(av float64, neg bool, fracDigits int) string {
 func formatGcvtSci(av float64, neg bool, ndigits int) string {
 	raw := strconv.FormatFloat(av, 'e', ndigits-1, 64)
 	ePos := strings.IndexByte(raw, 'e')
+	if ePos < 0 {
+		return raw
+	}
 	mPart := raw[:ePos]
 	if strings.IndexByte(mPart, '.') >= 0 {
 		mPart = strings.TrimRight(mPart, "0")
@@ -1300,7 +1346,7 @@ func formatGcvtSci(av float64, neg bool, ndigits int) string {
 // myGcvtFormat reproduces MySQL's my_gcvt(f, MY_GCVT_ARG_DOUBLE, width, ...)
 // string output and reports whether f fits within width bytes without overflow.
 func myGcvtFormat(f float64, width int) (string, bool) {
-	if width <= 0 {
+	if width <= 0 || math.IsInf(f, 0) || math.IsNaN(f) {
 		return "", false
 	}
 	if f == 0 {
@@ -1319,6 +1365,9 @@ func myGcvtFormat(f float64, width int) (string, bool) {
 	}
 	sci := strconv.FormatFloat(av, 'e', -1, 64)
 	ePos := strings.IndexByte(sci, 'e')
+	if ePos < 0 {
+		return "", false
+	}
 	mant := strings.ReplaceAll(sci[:ePos], ".", "")
 	mant = strings.TrimRight(mant, "0")
 	if mant == "" {
@@ -1327,20 +1376,48 @@ func myGcvtFormat(f float64, width int) (string, bool) {
 	exp, _ := strconv.Atoi(sci[ePos+1:])
 	decpt := exp + 1
 
-	if decpt >= 1 {
+	if decpt >= 1 && decpt <= 15 {
 		if decpt < avail {
-			fracDigits := avail - decpt - 1
-			if fracDigits < 0 {
-				fracDigits = 0
+			if len(mant) <= decpt {
+				res := mant + strings.Repeat("0", decpt-len(mant))
+				if neg {
+					return "-" + res, true
+				}
+				return res, true
 			}
-			return formatGcvtFixed(av, neg, fracDigits), true
+			availFrac := avail - decpt - 1
+			if availFrac >= len(mant)-decpt {
+				res := mant[:decpt] + "." + mant[decpt:]
+				if neg {
+					return "-" + res, true
+				}
+				return res, true
+			}
+			if availFrac < 0 {
+				availFrac = 0
+			}
+			return formatGcvtFixed(av, neg, availFrac), true
 		}
 		if decpt == avail {
-			if len(mant) <= decpt || !(allNinePrefix(mant, decpt) && mant[decpt] >= '5') {
+			if len(mant) <= decpt {
+				res := mant + strings.Repeat("0", decpt-len(mant))
+				if neg {
+					return "-" + res, true
+				}
+				return res, true
+			}
+			if !(allNinePrefix(mant, decpt) && mant[decpt] >= '5') {
 				return formatGcvtFixed(av, neg, 0), true
 			}
 		}
-	} else if decpt >= -4 && avail >= 3-decpt {
+	} else if decpt <= 0 && decpt >= -5 && avail >= 3-decpt {
+		if avail-2 >= len(mant)-decpt {
+			res := "0." + strings.Repeat("0", -decpt) + mant
+			if neg {
+				return "-" + res, true
+			}
+			return res, true
+		}
 		return formatGcvtFixed(av, neg, avail-2), true
 	}
 
@@ -1353,7 +1430,19 @@ func myGcvtFormat(f float64, width int) (string, bool) {
 	}
 	ndigits := avail - expLen - dot
 	if ndigits >= 1 {
-		if !(ndigits < len(mant) && allNinePrefix(mant, ndigits) && mant[ndigits] >= '5' && avail-(1+len(strconv.Itoa(exp+1)))-dot < 1) {
+		if ndigits >= len(mant) {
+			var res string
+			if len(mant) == 1 {
+				res = mant + "e" + strconv.Itoa(exp)
+			} else {
+				res = mant[:1] + "." + mant[1:] + "e" + strconv.Itoa(exp)
+			}
+			if neg {
+				return "-" + res, true
+			}
+			return res, true
+		}
+		if !(allNinePrefix(mant, ndigits) && mant[ndigits] >= '5' && avail-(1+len(strconv.Itoa(exp+1)))-dot < 1) {
 			return formatGcvtSci(av, neg, ndigits), true
 		}
 	}
