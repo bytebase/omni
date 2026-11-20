@@ -418,7 +418,8 @@ func (p *Parser) parseSetValue(col *nodes.ColumnRef) (nodes.ExprNode, error) {
 			tok := p.advance()
 			return &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}, Value: strings.ToUpper(tok.Str)}, nil
 		case bareDefault:
-			return p.parseDefaultExpr()
+			tok := p.advance()
+			return &nodes.DefaultExpr{Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}, nil
 		}
 	}
 	// An expr holds no bare DEFAULT, so `SET a = (DEFAULT)` and `SET a = 1 + DEFAULT` are 1064s.

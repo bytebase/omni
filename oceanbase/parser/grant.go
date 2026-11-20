@@ -759,14 +759,18 @@ func (p *Parser) parseGrantPrivLevel() (*nodes.TableRef, error) {
 func (p *Parser) parseGranteeList() ([]string, error) {
 	var users []string
 	for {
-		user, err := p.parseUserName()
+		name, host, hasHost, curUser, curUserParens, err := p.parseUserAndHostFull()
 		if err != nil {
 			return nil, err
+		}
+		user := name
+		if hasHost {
+			user = name + "@" + host
 		}
 		users = append(users, user)
 
 		if p.cur.Type == kwIDENTIFIED {
-			if err := p.parseUserAuthOption(&nodes.UserSpec{}, true); err != nil {
+			if err := p.parseUserAuthOptionForUser(&nodes.UserSpec{}, true, curUser, curUserParens); err != nil {
 				return nil, err
 			}
 		}
@@ -851,31 +855,37 @@ func (p *Parser) parseUserName() (string, error) {
 // every statement that names a user through here, so all accept it where
 // oceanbase-ce:4.3.5 does.
 func (p *Parser) parseUserAndHost() (name, host string, hasHost bool, err error) {
+	name, host, hasHost, _, _, err = p.parseUserAndHostFull()
+	return name, host, hasHost, err
+}
+
+func (p *Parser) parseUserAndHostFull() (name, host string, hasHost, curUser, curUserParens bool, err error) {
 	switch {
 	case p.cur.Type == kwCURRENT_USER:
 		p.advance() // consume CURRENT_USER
 		if p.cur.Type == '(' {
 			p.advance() // consume '('
 			if _, err = p.expect(')'); err != nil {
-				return "", "", false, err
+				return "", "", false, false, false, err
 			}
+			return "CURRENT_USER", "", false, true, true, nil
 		}
-		return "CURRENT_USER", "", false, nil
+		return "CURRENT_USER", "", false, true, false, nil
 	case p.cur.Type == tokSCONST:
 		name = p.parseStringRun()
 	case p.isIdentToken():
 		name, _, err = p.parseIdent()
 		if err != nil {
-			return "", "", false, err
+			return "", "", false, false, false, err
 		}
 	default:
-		return "", "", false, &ParseError{
+		return "", "", false, false, false, &ParseError{
 			Message:  "expected user name",
 			Position: p.cur.Loc,
 		}
 	}
 	host, hasHost, err = p.parseUserHostOpt()
-	return name, host, hasHost, err
+	return name, host, hasHost, false, false, err
 }
 
 // atAtIdent reports whether the current token is an '@' the lexer scanned as
@@ -1464,7 +1474,7 @@ func (p *Parser) parseUserSpec(byPassword bool) (*nodes.UserSpec, error) {
 	start := p.pos()
 	spec := &nodes.UserSpec{Loc: nodes.Loc{Start: start}}
 
-	name, host, _, err := p.parseUserAndHost()
+	name, host, _, curUser, curUserParens, err := p.parseUserAndHostFull()
 	if err != nil {
 		return nil, err
 	}
@@ -1472,7 +1482,7 @@ func (p *Parser) parseUserSpec(byPassword bool) (*nodes.UserSpec, error) {
 
 	// Optional IDENTIFIED BY/WITH
 	if p.cur.Type == kwIDENTIFIED {
-		if err := p.parseUserAuthOption(spec, byPassword); err != nil {
+		if err := p.parseUserAuthOptionForUser(spec, byPassword, curUser, curUserParens); err != nil {
 			return nil, err
 		}
 	}
@@ -1656,14 +1666,31 @@ func (p *Parser) parseDropRoleStmt(start int) (*nodes.DropRoleStmt, error) {
 // 1064 for `CREATE USER u@'h' IDENTIFIED` and for the same tail on a GRANT
 // grantee, so an arm has to follow.
 func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec, byPassword bool) error {
+	return p.parseUserAuthOptionForUser(spec, byPassword, false, false)
+}
+
+// parseUserAuthOptionForUser parses the IDENTIFIED clause of a user spec,
+// enforcing user_specification_with_password's split on CURRENT_USER vs
+// CURRENT_USER() when byPassword is set (sql_parser_mysql_mode.y, v4.3.5_CE_BP6,
+// lines 17003-17021): bare CURRENT_USER takes `BY password` without PASSWORD,
+// CURRENT_USER() takes `BY PASSWORD password` alone, and neither takes AS.
+func (p *Parser) parseUserAuthOptionForUser(spec *nodes.UserSpec, byPassword, curUser, curUserParens bool) error {
 	p.advance() // consume IDENTIFIED
 	switch p.cur.Type {
 	case kwBY:
 		p.advance()
+		if byPassword && curUser {
+			if curUserParens != (p.cur.Type == kwPASSWORD) {
+				return p.syntaxErrorAtCur()
+			}
+		}
 		if err := p.parseAuthByTail(spec, byPassword); err != nil {
 			return err
 		}
 	case kwAS:
+		if byPassword && curUser {
+			return p.syntaxErrorAtCur()
+		}
 		// user_specification_with_password's `IDENTIFIED opt_auth_plugin AS
 		// password` arm: the plugin's WITH is optional and the hash follows AS.
 		p.advance()
@@ -1682,10 +1709,18 @@ func (p *Parser) parseUserAuthOption(spec *nodes.UserSpec, byPassword bool) erro
 		switch p.cur.Type {
 		case kwBY:
 			p.advance()
+			if byPassword && curUser {
+				if curUserParens != (p.cur.Type == kwPASSWORD) {
+					return p.syntaxErrorAtCur()
+				}
+			}
 			if err := p.parseAuthByTail(spec, true); err != nil {
 				return err
 			}
 		case kwAS:
+			if byPassword && curUser {
+				return p.syntaxErrorAtCur()
+			}
 			p.advance()
 			if p.cur.Type != tokSCONST {
 				return p.syntaxErrorAtCur()
@@ -1972,8 +2007,7 @@ func (p *Parser) parseRequireClause() (*nodes.RequireClause, error) {
 		if p.cur.Type != tokSCONST {
 			return nil, p.syntaxErrorAtCur()
 		}
-		*out = p.cur.Str
-		p.advance()
+		*out = p.parseStringRun()
 
 		required = p.cur.Type == kwAND
 		if required {

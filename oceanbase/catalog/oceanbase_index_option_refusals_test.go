@@ -15,6 +15,7 @@ func TestOracle_OceanBaseIndexOptionRefusals(t *testing.T) {
 			{table, taken},
 			{"ALTER TABLE a ADD KEY (c) WITH (a = 1)", 1235},
 			{"ALTER TABLE a ADD KEY (zz) DATA_TABLE_ID 1", 1235},
+			{"ALTER TABLE a ADD KEY (zz) VIRTUAL_COLUMN_ID 1", 1235},
 			{"ALTER TABLE a ADD KEY idx_c (c) INDEX_TABLE_ID 1", 1235},
 			{"ALTER TABLE a ADD UNIQUE (c) STORAGE_CACHE_POLICY (GLOBAL = 'hot')", 1235},
 			{"ALTER TABLE a ADD b INT, ADD KEY (c) WITH (a = 1)", 1235},
@@ -24,8 +25,10 @@ func TestOracle_OceanBaseIndexOptionRefusals(t *testing.T) {
 			{table, taken},
 			{"CREATE TABLE a (b INT PRIMARY KEY, KEY (b) WITH (a = 1))", 1235},
 			{"CREATE TABLE t2 (b INT PRIMARY KEY, KEY (b) DATA_TABLE_ID 1)", 1235},
+			{"CREATE TABLE t3 (b INT PRIMARY KEY, KEY (b) VIRTUAL_COLUMN_ID = 1)", 1235},
 			{"CREATE INDEX i ON a (c) WITH (a = 1)", 1235},
 			{"CREATE INDEX i ON a (c) DATA_TABLE_ID 1", 4179},
+			{"CREATE INDEX i ON a (c) VIRTUAL_COLUMN_ID = 1", 1064},
 			{"CREATE INDEX i ON a (c) STORAGE_CACHE_POLICY (GLOBAL = 'hot')", 1235},
 		}},
 	})

@@ -96,9 +96,6 @@ var reservedWordPositions = []string{
 var reservedWordSweepGap = map[string]bool{
 	"create procedure p() comment: loop leave comment; end loop":   true,
 	"create procedure p() contains: loop leave contains; end loop": true,
-	"select default from t":                                        true,
-	"select 1 from t where a = default":                            true,
-	"select default + 1 from t":                                    true,
 	"create procedure p() end: loop leave end; end loop":           true,
 	"create procedure p() language: loop leave language; end loop": true,
 }

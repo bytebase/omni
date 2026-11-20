@@ -52,14 +52,26 @@ var nestingShapes = []struct {
 	{"date arithmetic expression argument", func(n int) string {
 		return "SELECT " + nest(n, "adddate(a, ", "1", ")")
 	}},
+	{"date arithmetic interval expression", func(n int) string {
+		return "SELECT " + nest(n, "adddate(a, INTERVAL ", "1", " DAY + 1)")
+	}},
+	{"sum with INTERVAL function", func(n int) string {
+		return "SELECT " + nest(n, "1 + INTERVAL(", "1", ", 2) * 3")
+	}},
 	{"interval literal", func(n int) string {
-		return "SELECT " + strings.Repeat("INTERVAL ", n) + "1" + strings.Repeat(" DAY", n)
+		return "SELECT " + nest(n, "a + INTERVAL ", "1", " DAY")
 	}},
 	// A parenthesized value, which the reader has to tell from the INTERVAL
 	// function's argument list: the classifier scans the group, so this is
 	// also where a scan per level rather than per group would show.
 	{"parenthesized interval literal", func(n int) string {
-		return "SELECT " + nest(n, "INTERVAL (", "1", ") DAY")
+		return "SELECT " + nest(n, "a + INTERVAL (", "1", ") DAY")
+	}},
+	{"array lambda", func(n int) string {
+		return "SELECT " + nest(n, "ARRAY_FILTER(a -> ", "a", ", b)")
+	}},
+	{"TABLE collection", func(n int) string {
+		return "SELECT * FROM " + nest(n, "TABLE((SELECT a FROM ", "t", "))")
 	}},
 	{"CONVERT", func(n int) string { return "SELECT " + nest(n, "CONVERT(", "1", ", SIGNED)") }},
 	{"CASE", func(n int) string { return "SELECT " + nest(n, "CASE WHEN ", "1", " THEN 1 END") }},
@@ -187,7 +199,7 @@ var chainShapes = []struct {
 	{"AND", func(n int) string { return "SELECT 1 FROM t WHERE " + strings.Repeat("a AND ", n) + "a" }},
 	{"XOR", func(n int) string { return "SELECT 1 FROM t WHERE " + strings.Repeat("a XOR ", n) + "a" }},
 	{"comparisons", func(n int) string { return "SELECT 1" + strings.Repeat(" = 1", n) }},
-	{"JSON access", func(n int) string { return "SELECT a" + strings.Repeat("->'$'", n) + " FROM t" }},
+	{"interval sum", func(n int) string { return "SELECT a" + strings.Repeat(" + INTERVAL 1 DAY", n) + " FROM t" }},
 	{"COLLATE", func(n int) string { return "SELECT 'a'" + strings.Repeat(" COLLATE utf8mb4_bin", n) }},
 	{"IS NULL", func(n int) string { return "SELECT a" + strings.Repeat(" IS NULL", n) + " FROM t" }},
 	{"BETWEEN", func(n int) string { return "SELECT a" + strings.Repeat(" = a BETWEEN 1 AND 2", n) + " FROM t" }},

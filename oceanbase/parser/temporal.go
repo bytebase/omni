@@ -161,13 +161,39 @@ func (p *Parser) parseDateArgs(fc *nodes.FuncCallExpr, intervalOnly bool) error 
 		if _, literal := second.(*nodes.IntervalExpr); !literal {
 			return p.syntaxErrorAtCur()
 		}
+	} else if p.cur.Type == kwINTERVAL {
+		// Parse the INTERVAL head once and resume infix parsing if an operator
+		// follows, avoiding exponential reparsing on nested ADDDATE(..., INTERVAL
+		// ... DAY + 1).
+		ivStart := p.pos()
+		iv, err := p.parseIntervalExpr()
+		if err != nil {
+			return err
+		}
+		if _, literal := iv.(*nodes.IntervalExpr); literal {
+			if p.cur.Type == ')' {
+				second = iv
+			} else {
+				if p.cur.Type != '+' {
+					return p.syntaxErrorAtCur()
+				}
+				second, err = p.parseInfixExprPrec(iv, ivStart, precAssign, precJsonAccess)
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			second, err = p.parseInfixExprPrec(iv, ivStart, precAssign, precJsonAccess)
+			if err != nil {
+				return err
+			}
+		}
 	} else {
-		written := p.cur.Type == kwINTERVAL
 		second, err = p.parseExpr()
 		if err != nil {
 			return err
 		}
-		if second == nil || (!written && isBareInterval(second)) {
+		if second == nil || isBareInterval(second) {
 			return p.syntaxErrorAtCur()
 		}
 	}

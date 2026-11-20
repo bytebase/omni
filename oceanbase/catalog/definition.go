@@ -2120,6 +2120,8 @@ func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 			expose(n.Alias)
 		case *nodes.UnnestExpr:
 			expose(n.Alias)
+		case *nodes.TableCollectionExpr:
+			expose(n.Alias)
 		}
 		return true
 	})

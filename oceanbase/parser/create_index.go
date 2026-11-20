@@ -566,10 +566,13 @@ func (p *Parser) parseIndexOption(fulltext bool) (*nodes.IndexOption, bool, erro
 	case p.isBareWord("STORING"):
 		return p.parseStoringOption()
 
-	// DATA_TABLE_ID, INDEX_TABLE_ID and MAX_USED_PART_ID [=] n. The first two parse and
-	// are refused later with 4179, and VIRTUAL_COLUMN_ID, which the grammar lists beside
-	// them, is a 1064 on 4.3.5.6 whatever follows it.
-	case p.isBareWord("DATA_TABLE_ID"), p.isBareWord("INDEX_TABLE_ID"), p.isBareWord("MAX_USED_PART_ID"):
+	// DATA_TABLE_ID, INDEX_TABLE_ID, VIRTUAL_COLUMN_ID and MAX_USED_PART_ID [=] n
+	// (index_option in sql_parser_mysql_mode.y, v4.3.5_CE_BP6, lines 10655-10675).
+	// The first two are refused after parsing with 4179 on CREATE INDEX and 1235 on
+	// CREATE/ALTER TABLE, and VIRTUAL_COLUMN_ID with a bare post-parse 1064 ("Parse error")
+	// on CREATE INDEX and 1235 on CREATE/ALTER TABLE.
+	case p.isBareWord("DATA_TABLE_ID"), p.isBareWord("INDEX_TABLE_ID"),
+		p.isBareWord("VIRTUAL_COLUMN_ID"), p.isBareWord("MAX_USED_PART_ID"):
 		name := strings.ToUpper(p.advance().Str)
 		p.match('=')
 		valStart := p.pos()

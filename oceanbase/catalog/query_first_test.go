@@ -40,6 +40,16 @@ func TestQueryFirstReadsWhatTheAnalyzerCannotRefuse(t *testing.T) {
 		{"CREATE VIEW v AS WITH RECURSIVE r(x) AS ((SELECT 1 UNION ALL SELECT x+1 FROM r WHERE x<3)) SELECT * FROM r", 0},
 		{"CREATE VIEW v AS SELECT x.column_0 FROM (VALUES ROW(1)) x", 0},
 		{"CREATE VIEW v AS VALUES ROW(1) ORDER BY column_0", 0},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> x > b, b) AS f FROM a", 0},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> x > zz, b) AS f FROM a", 1054},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> EXISTS (SELECT 1 FROM missing_tbl WHERE c = x), b) AS f FROM a", 1146},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(x -> EXISTS (SELECT zz FROM a WHERE b = x), b) AS f FROM a", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM a, TABLE(missing) c", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM TABLE(b) c, a", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM a, TABLE((SELECT 1 FROM missing_tbl)) c", 1146},
+		{"CREATE VIEW v AS SELECT a.zz FROM a, TABLE(a.b) c", 1054},
+		{"CREATE VIEW v AS SELECT 1 FROM a, TABLE(a.b) c, missing_tbl", 1146},
+		{"CREATE VIEW v AS SELECT c.element FROM a, TABLE(a.b) c", 0},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT)")
 		if err != nil {
@@ -120,6 +130,12 @@ func TestAnalyzedQueryKeptOnlyWhenItIsFaithful(t *testing.T) {
 		// position, so the query is kept unanalyzed rather than changed.
 		{"CREATE VIEW v AS SELECT 2 AS q, b FROM a ORDER BY q", ""},
 		{"CREATE VIEW v AS SELECT 99 AS q, b FROM a ORDER BY q", ""},
+		// Lambda bodies keep parameter bindings masked (including across correlated
+		// subqueries) while qualifying free outer columns and inner shadow columns.
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(b -> b > c, b) AS f FROM a, z", "select array_filter(`b` -> (`b` > `z`.`c`), `a`.`b`) as `f` from `d`.`a`, `d`.`z`"},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(b -> EXISTS (SELECT 1 FROM z WHERE z.c = b), b) AS f FROM a", "select array_filter(`b` -> exists (select 1 as `1` from `d`.`z` where (`z`.`c` = `b`)), `a`.`b`) as `f` from `d`.`a`"},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(c -> EXISTS (SELECT c FROM z), b) AS f FROM a", "select array_filter(`c` -> exists (select `z`.`c` from `d`.`z`), `a`.`b`) as `f` from `d`.`a`"},
+		{"CREATE VIEW v AS SELECT ARRAY_FILTER(b -> (b IN (1, 2)), b) AS f FROM a", "select array_filter(`b` -> (`b` in (1, 2)), `a`.`b`) as `f` from `d`.`a`"},
 	} {
 		c, err := LoadSQL("CREATE DATABASE d; USE d; CREATE TABLE a (b INT); CREATE TABLE z (c INT)")
 		if err != nil {

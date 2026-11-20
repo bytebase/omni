@@ -86,6 +86,11 @@ type Query struct {
 	// result columns is not known to be missing, and its error is no refusal.
 	namesUncertain bool
 
+	// unfaithful marks a query that contains a FROM construct (such as TABLE(...),
+	// UNNEST, or RB_ITERATE) whose columns/arguments were validated by the analyzer
+	// but whose RangeTableEntryQ has no round-trip writer in DeparseQuery.
+	unfaithful bool
+
 	// CommandType discriminates SELECT / INSERT / UPDATE / DELETE.
 	// Phase 1 only emits CmdSelect; the field exists so the IR shape is stable
 	// when DML analysis is added in Phase 8+.
@@ -1259,6 +1264,49 @@ func odbcTemporalValid(kind, v string) bool {
 		i := strings.IndexAny(v, " T")
 		return i > 0 && date(v[:i]) && clock(strings.TrimSpace(v[i+1:]), 23)
 	}
+}
+
+// ----------------------------------------------------------------------------
+// LambdaExprQ / LambdaParamExprQ / ResTargetExprQ
+// ----------------------------------------------------------------------------
+
+// LambdaExprQ is an analyzed lambda expression (`x -> body` or `(x, y) -> body`).
+type LambdaExprQ struct {
+	Params []string
+	Body   AnalyzedExpr
+}
+
+func (*LambdaExprQ) analyzedExprTag()        {}
+func (*LambdaExprQ) exprType() *ResolvedType { return nil }
+func (*LambdaExprQ) exprCollation() string   { return "" }
+
+// LambdaParamExprQ is an unqualified identifier bound to an enclosing LambdaExprQ parameter.
+type LambdaParamExprQ struct {
+	Name string
+}
+
+func (*LambdaParamExprQ) analyzedExprTag()        {}
+func (*LambdaParamExprQ) exprType() *ResolvedType { return nil }
+func (*LambdaParamExprQ) exprCollation() string   { return "" }
+
+// ResTargetExprQ preserves an alias on an expression inside an argument list (`STATISTICS(a AS b)`).
+type ResTargetExprQ struct {
+	Name string
+	Val  AnalyzedExpr
+}
+
+func (*ResTargetExprQ) analyzedExprTag() {}
+func (r *ResTargetExprQ) exprType() *ResolvedType {
+	if r.Val == nil {
+		return nil
+	}
+	return r.Val.exprType()
+}
+func (r *ResTargetExprQ) exprCollation() string {
+	if r.Val == nil {
+		return ""
+	}
+	return r.Val.exprCollation()
 }
 
 // ----------------------------------------------------------------------------

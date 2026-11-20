@@ -352,10 +352,10 @@ func (p *Parser) parseRowValue() ([]nodes.ExprNode, error) {
 	return row, nil
 }
 
-// parseValuesItem parses one value of a row: an expression or DEFAULT, which
-// parseExpr reads.
+// parseValuesItem parses one value of a row: an expression or bare DEFAULT
+// (expr_or_default).
 func (p *Parser) parseValuesItem() (nodes.ExprNode, error) {
-	e, err := p.parseExpr()
+	e, err := p.parseExprOrDefault()
 	if err != nil {
 		return nil, err
 	}

@@ -102,6 +102,10 @@ func collectVarExprs(q *Query, expr AnalyzedExpr, out *[]columnLineage) {
 		collectVarExprs(q, e.Arg, out)
 	case *OdbcEscapeExprQ:
 		collectVarExprs(q, e.Arg, out)
+	case *LambdaExprQ:
+		collectVarExprs(q, e.Body, out)
+	case *ResTargetExprQ:
+		collectVarExprs(q, e.Val, out)
 	case *GroupingSetExprQ:
 		for _, arg := range e.Args {
 			collectVarExprs(q, arg, out)
@@ -786,5 +790,14 @@ func TestRemoteViewMetadataAndMixedFullJoins(t *testing.T) {
 	}
 	if db.Views["v_row_grouping_set"].AnalyzedQuery == nil {
 		t.Fatal("expected v_row_grouping_set to analyze")
+	}
+
+	wtExec(t, c, `CREATE VIEW v_lambda_lineage AS SELECT ARRAY_FILTER(id -> id > ax, bx) AS filtered FROM ja JOIN jb USING (id)`)
+	if db.Views["v_lambda_lineage"].AnalyzedQuery == nil {
+		t.Fatal("expected v_lambda_lineage to analyze")
+	}
+	lin := collectColumnLineage(c, db.Views["v_lambda_lineage"].AnalyzedQuery)
+	if len(lin) != 1 || len(lin[0].SourceCols) != 2 {
+		t.Fatalf("unexpected v_lambda_lineage lineage: %+v", lin)
 	}
 }

@@ -21,10 +21,12 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 
 	if p.cur.Type == kwSTART {
 		p.advance() // consume START
+		p.match(tokHintValue)
 		return p.parseStartTransactionTail(start)
 	} else {
-		// BEGIN [WORK]
+		// BEGIN [/*HINT+...*/] [WORK]
 		p.advance() // consume BEGIN
+		p.match(tokHintValue)
 
 		// Completion: after BEGIN, offer WORK keyword.
 		p.checkCursor()
@@ -128,10 +130,17 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 	}
 
 	stmt := &nodes.CommitStmt{Loc: nodes.Loc{Start: start}}
+	_, hasHint := p.match(tokHintValue)
 
 	// Optional WORK
 	if p.cur.Type == kwWORK {
 		p.advance()
+	}
+	if hasHint {
+		// commit_stmt in sql_parser_mysql_mode.y (line 17957) is
+		// COMMIT opt_hint_value opt_work; AND CHAIN / RELEASE belong to no hint arm.
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// AND [NO] CHAIN
@@ -176,10 +185,17 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 	}
 
 	stmt := &nodes.RollbackStmt{Loc: nodes.Loc{Start: start}}
+	_, hasHint := p.match(tokHintValue)
 
 	// Optional WORK
 	if p.cur.Type == kwWORK {
 		p.advance()
+	}
+	if hasHint {
+		// rollback_stmt's hint arm in sql_parser_mysql_mode.y (line 17975) is
+		// ROLLBACK HINT_VALUE opt_work alone.
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
 
 	// TO [SAVEPOINT] identifier

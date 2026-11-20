@@ -28,10 +28,13 @@ func (s Segment) Empty() bool {
 			i = skipHashComment(t, i)
 			continue
 		}
-		// Skip block comments, but NOT conditional comments /*!...*/.
-		// Conditional comments contain executable SQL — segment is not empty.
+		// Skip block comments, but NOT conditional comments /*!...*/ or
+		// OceanBase /*HINT+...*/ tokens (HINT_VALUE).
 		if b == '/' && i+1 < len(t) && t[i+1] == '*' {
 			if i+2 < len(t) && t[i+2] == '!' {
+				return false
+			}
+			if hasHintPrefix(t, i) {
 				return false
 			}
 			// An unterminated block comment (no closing */ before EOF) is malformed
@@ -49,6 +52,26 @@ func (s Segment) Empty() bool {
 		}
 		// Found a non-whitespace, non-comment character.
 		return false
+	}
+	return true
+}
+
+// hasHintPrefix reports whether sql[i:] begins with OceanBase's /*HINT+
+// (case-insensitive), which the lexer scans as HINT_VALUE rather than a skipped
+// block comment.
+func hasHintPrefix(sql string, i int) bool {
+	if i+7 > len(sql) || sql[i] != '/' || sql[i+1] != '*' || sql[i+6] != '+' {
+		return false
+	}
+	const want = "HINT"
+	for j := 0; j < 4; j++ {
+		c := sql[i+2+j]
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		if c != want[j] {
+			return false
+		}
 	}
 	return true
 }

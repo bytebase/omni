@@ -213,6 +213,8 @@ func extractRefsFromTableExpr(te ast.TableExpr) []TableRef {
 		return refs
 	case *ast.ExternalTableRef:
 		return []TableRef{{Alias: v.Alias, Remote: true}}
+	case *ast.TableCollectionExpr:
+		return []TableRef{{Alias: v.Alias, Remote: true}}
 	case *ast.SubqueryExpr:
 		// Subquery tables don't leak to the outer scope.
 		return nil
