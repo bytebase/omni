@@ -451,9 +451,13 @@ func inferBoundedStringExprType(tbl *Table, args []nodes.ExprNode, limitIdx int)
 	}
 	var maxLen int
 	var charset string
+	base := BaseTypeVarchar
 	if arg0 := inferFunctionalIndexExprType(tbl, args[0]); arg0 != nil {
 		maxLen = arg0.Length
 		charset = arg0.Charset
+		if isResolvedBinaryType(arg0) {
+			base = BaseTypeVarBinary
+		}
 	}
 	if len(args) > limitIdx {
 		if k, ok := extractNonNegIntLit(args[limitIdx]); ok && k > 0 {
@@ -463,7 +467,7 @@ func inferBoundedStringExprType(tbl *Table, args []nodes.ExprNode, limitIdx int)
 		}
 	}
 	if maxLen > 0 {
-		return &ResolvedType{BaseType: BaseTypeVarchar, Length: maxLen, Charset: charset}
+		return &ResolvedType{BaseType: base, Length: maxLen, Charset: charset}
 	}
 	return nil
 }
@@ -474,7 +478,7 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 	case "lower", "lcase", "upper", "ucase", "trim", "ltrim", "rtrim", "reverse":
 		if len(e.Args) > 0 {
 			rt := inferFunctionalIndexExprType(tbl, e.Args[0])
-			if rt != nil && isResolvedStringType(rt) {
+			if rt != nil && (isResolvedStringType(rt) || isResolvedBinaryType(rt)) {
 				cp := *rt
 				return &cp
 			}
@@ -495,11 +499,31 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		if !sepOK {
 			return nil
 		}
+		base := BaseTypeVarchar
+		for _, arg := range e.Args {
+			at := inferFunctionalIndexExprType(tbl, arg)
+			if isFunctionalIndexLOBType(at) {
+				return at
+			}
+			if isResolvedBinaryType(at) {
+				base = BaseTypeVarBinary
+			}
+		}
 		totalLen := 0
 		for i := start; i < len(e.Args); i++ {
 			argLen, ok, cs := inferStringExprLenAndCharset(tbl, e.Args[i])
 			if !ok {
 				return nil
+			}
+			// A binary CONCAT counts a character argument at its charset's
+			// widest character, a literal at utf8mb4's: mysql:8.0.46 refuses
+			// KEY ((CONCAT(tinyblob, tinyblob, 'x'))), 255 + 255 + 4 bytes.
+			if base == BaseTypeVarBinary && !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[i])) {
+				w := "utf8mb4"
+				if cs != "" {
+					w = cs
+				}
+				argLen *= max(charsetMaxBytes(w), 1)
 			}
 			totalLen += argLen
 			charset = aggregateExprCharset(charset, cs)
@@ -510,7 +534,7 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		if totalLen < 1 {
 			totalLen = 1
 		}
-		return &ResolvedType{BaseType: BaseTypeVarchar, Length: totalLen, Charset: charset}
+		return &ResolvedType{BaseType: base, Length: totalLen, Charset: charset}
 	case "substring", "substr", "mid":
 		return inferBoundedStringExprType(tbl, e.Args, 2)
 	case "left", "right":
@@ -606,8 +630,23 @@ func resolvedTypeFromColumn(col *Column) *ResolvedType {
 		}
 	case "json":
 		rt.BaseType = BaseTypeJSON
-	case "text", "tinytext", "mediumtext", "longtext":
+	case "binary", "varbinary":
+		rt.BaseType = BaseTypeVarBinary
+		if n, ok := fixedLengthStringColumnLimit(col); ok {
+			rt.Length = n
+		}
+	// A TINYTEXT or TINYBLOB holds 255 bytes, which no function result over
+	// it turns into a LOB: mysql:8.0.46 takes KEY ((REVERSE(tinytext_col))).
+	case "tinyblob":
+		rt.BaseType = BaseTypeVarBinary
+		rt.Length = 255
+	case "tinytext":
+		rt.BaseType = BaseTypeVarchar
+		rt.Length = 255 / max(charsetMaxBytes(col.Charset), 1)
+	case "text", "mediumtext", "longtext":
 		rt.BaseType = BaseTypeText
+	case "blob", "mediumblob", "longblob":
+		rt.BaseType = BaseTypeBlob
 	default:
 		rt.BaseType = BaseTypeVarchar
 	}
@@ -907,9 +946,30 @@ func isFunctionalIndexJSONOrGeometryType(rt *ResolvedType) bool {
 	return false
 }
 
+// isResolvedBinaryType reports a binary string type a function result keeps.
+func isResolvedBinaryType(rt *ResolvedType) bool {
+	if rt == nil {
+		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeBinary, BaseTypeVarBinary, BaseTypeTinyBlob, BaseTypeBlob, BaseTypeMediumBlob, BaseTypeLongBlob:
+		return true
+	}
+	return false
+}
+
+// isFunctionalIndexLOBType reports a result a functional key part refuses with
+// 3757: a TEXT, BLOB, JSON or geometry type, or a string longer than 512
+// characters (bytes for a binary string), which MySQL makes a TEXT or BLOB:
+// mysql:8.0.46 takes KEY ((LEFT(v, 512))) and refuses KEY ((LEFT(v, 513))),
+// KEY ((CAST(i AS CHAR(513)))) and KEY ((REVERSE(varbinary_4000_col))).
 func isFunctionalIndexLOBType(rt *ResolvedType) bool {
 	if rt == nil {
 		return false
+	}
+	switch rt.BaseType {
+	case BaseTypeChar, BaseTypeVarchar, BaseTypeBinary, BaseTypeVarBinary:
+		return rt.Length > 512
 	}
 	switch rt.BaseType {
 	case BaseTypeJSON, BaseTypeTinyText, BaseTypeText, BaseTypeMediumText, BaseTypeLongText,

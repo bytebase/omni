@@ -4938,6 +4938,164 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt: "CREATE TABLE z (x DOUBLE DEFAULT (ATAN2(1)))",
 			code: 0,
 		},
+		// The type a functional key part's result takes: a BLOB, TEXT or binary
+		// column keeps its type through string functions, and a string or binary
+		// result longer than 512 characters is a LOB (3757).
+		{
+			name: "functional key part type: KEY ((REVERSE(b)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(b))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(b, 10)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(b, 10))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((SUBSTRING(b, 1, 10)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((SUBSTRING(b, 1, 10))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((CONCAT(b, 'x')))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CONCAT(b, 'x'))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LOWER(b)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LOWER(b))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(b, 512)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(b, 512))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(b, 513)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(b, 513))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(tb)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(tb))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((UPPER(tb)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((UPPER(tb))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((CONCAT(tb, tb, 'x')))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CONCAT(tb, tb, 'x'))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(vb)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(vb))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((CONCAT(vb, 'x')))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CONCAT(vb, 'x'))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(bn)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(bn))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(vbw)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(vbw))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((CONCAT(vbw, vbw)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CONCAT(vbw, vbw))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(vbw, 512)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(vbw, 512))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(vbw, 513)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(vbw, 513))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(tt)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(tt))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(ttl)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(ttl))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(tx, 10)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(tx, 10))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(v)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(v))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(v, 512)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(v, 512))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((LEFT(v, 513)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LEFT(v, 513))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((REVERSE(l)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((REVERSE(l))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((CAST(i AS CHAR(512))))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CAST(i AS CHAR(512)))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((CAST(i AS CHAR(513))))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CAST(i AS CHAR(513)))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((CAST(i AS BINARY(513))))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CAST(i AS BINARY(513)))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((CONCAT(v5, v5)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CONCAT(v5, v5))))",
+			code: 0,
+		},
+		{
+			name: "functional key part type: KEY ((CONCAT(v5, v5, v5)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((CONCAT(v5, v5, v5))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LOWER(v)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LOWER(v))))",
+			code: 3757,
+		},
+		{
+			name: "functional key part type: KEY ((LOWER(w1)), (LOWER(w2)))",
+			stmt: "CREATE TABLE z (i INT, b BLOB, tb TINYBLOB, vb VARBINARY(10), vbw VARBINARY(4000), bn BINARY(4), tt TINYTEXT, ttl TINYTEXT CHARACTER SET latin1, tx TEXT, v VARCHAR(600), l VARCHAR(600) CHARACTER SET latin1, v5 VARCHAR(256), w1 VARCHAR(500), w2 VARCHAR(500), KEY ((LOWER(w1)), (LOWER(w2))))",
+			code: 1071,
+		},
 		// Functional key parts (mysql:8.0.46): the built-ins DEFAULT (expr)
 		// takes but a generated column does not, the ones DEFAULT refuses too,
 		// stored and unknown functions, variables judged in post-order,
@@ -6453,12 +6611,13 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		}
 	}
 
-	// Single-part synthesized functional index exceeding 3072 bytes is rejected
-	// after hidden generated column synthesis.
+	// A synthesized functional index exceeding 3072 bytes is rejected after
+	// hidden generated column synthesis. Each part stays within 512 characters:
+	// a longer one is a TEXT, which 3757 refuses first (TestSimulationCausesOracle).
 	fnCat := New()
 	execAlterClauses(t, fnCat, "CREATE DATABASE d; USE d;")
-	if got, _ := simulationCatalogRefusal(t, fnCat, "CREATE TABLE t_fn_width (a VARCHAR(1000), KEY ((LOWER(a))))"); got != 1071 {
-		t.Fatalf("functional KEY ((LOWER(VARCHAR(1000)))) got %d, want 1071", got)
+	if got, _ := simulationCatalogRefusal(t, fnCat, "CREATE TABLE t_fn_width (a VARCHAR(500), b VARCHAR(500), KEY ((LOWER(a)), (LOWER(b))))"); got != 1071 {
+		t.Fatalf("functional KEY ((LOWER(VARCHAR(500))), (LOWER(VARCHAR(500)))) got %d, want 1071", got)
 	}
 
 	// SET IF(), CASE, TRIM_*, NULLIF, comparison/logical ops, and ContinueOnError
