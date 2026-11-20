@@ -167,12 +167,18 @@ func (s *schemaStore) listSchemas() []string {
 }
 
 func (s *schemaStore) getSchema(name string) (string, *metadatapb.SchemaMetadata) {
+	return s.getSchemaWithCase(name, false)
+}
+
+func (s *schemaStore) getSchemaWithCase(name string, quoted bool) (string, *metadatapb.SchemaMetadata) {
 	if sm, ok := s.schemas[name]; ok {
 		return name, sm
 	}
-	for k, sm := range s.schemas {
-		if strings.EqualFold(k, name) {
-			return k, sm
+	if !quoted {
+		for k, sm := range s.schemas {
+			if strings.EqualFold(k, name) {
+				return k, sm
+			}
 		}
 	}
 	if name == "" {
@@ -183,13 +189,12 @@ func (s *schemaStore) getSchema(name string) (string, *metadatapb.SchemaMetadata
 	}
 
 	targetName := name
-	for _, known := range s.schemaOrder {
-		if known == name {
-			targetName = known
-			break
-		}
-		if strings.EqualFold(known, name) {
-			targetName = known
+	if !quoted {
+		for _, known := range s.schemaOrder {
+			if strings.EqualFold(known, name) {
+				targetName = known
+				break
+			}
 		}
 	}
 	if s.loadedMisses[targetName] || s.schemaLoader == nil {
@@ -204,9 +209,11 @@ func (s *schemaStore) getSchema(name string) (string, *metadatapb.SchemaMetadata
 	if sm, ok := s.schemas[targetName]; ok {
 		return targetName, sm
 	}
-	for k, sm := range s.schemas {
-		if strings.EqualFold(k, targetName) {
-			return k, sm
+	if !quoted {
+		for k, sm := range s.schemas {
+			if strings.EqualFold(k, targetName) {
+				return k, sm
+			}
 		}
 	}
 	s.loadedMisses[targetName] = true
@@ -218,9 +225,12 @@ type tableRef interface {
 }
 
 type physicalTableRef struct {
-	Schema string
-	Table  string
-	Alias  string
+	Schema       string
+	SchemaQuoted bool
+	Table        string
+	TableQuoted  bool
+	Alias        string
+	AliasQuoted  bool
 }
 
 func (*physicalTableRef) isTableRef() {}
@@ -233,8 +243,25 @@ type virtualTableRef struct {
 func (*virtualTableRef) isTableRef() {}
 
 type tableTarget struct {
-	schema string
-	table  string
+	schema       string
+	schemaQuoted bool
+	table        string
+	tableQuoted  bool
+}
+
+type schemaQuery struct {
+	name   string
+	quoted bool
+}
+
+type qualifierPart struct {
+	name   string
+	quoted bool
+}
+
+type scopeRefLevel struct {
+	refs      []tableRef
+	scopeRefs []parser.RangeReference
 }
 
 type resolver struct {
@@ -246,6 +273,7 @@ type resolver struct {
 	completionIntent *parser.CompletionIntent
 	store            *schemaStore
 	references       []tableRef
+	scopeLevels      []scopeRefLevel
 	cteTables        []*virtualTableRef
 	scopeReferences  []parser.RangeReference
 }
@@ -308,21 +336,21 @@ func (r *resolver) resolve() []Candidate {
 		}
 	}
 
-	addRelationCandidates := func(schemaSet map[string]bool, includeTables, includeViews, includeMViews, includeSeqs, includeSyns bool) {
+	addRelationCandidates := func(schemaSet map[schemaQuery]bool, includeTables, includeViews, includeMViews, includeSeqs, includeSyns bool) {
 		includePublicSyns := false
-		for schema := range schemaSet {
-			if schema == "" && len(r.cteTables) > 0 && includeTables {
+		for sq := range schemaSet {
+			if sq.name == "" && len(r.cteTables) > 0 && includeTables {
 				for _, cte := range r.cteTables {
 					tables = append(tables, Candidate{Type: CandidateTable, Text: cte.Table})
 				}
 			}
-			if schema == "" || strings.EqualFold(schema, r.store.defaultSchema) {
+			if sq.name == "" || (!sq.quoted && strings.EqualFold(sq.name, r.store.defaultSchema)) || (sq.quoted && sq.name == r.store.defaultSchema) {
 				includePublicSyns = true
 			}
-			if schema == "" && r.store.defaultSchema != "" {
+			if sq.name == "" && r.store.defaultSchema != "" {
 				continue
 			}
-			_, sm := r.store.getSchema(schema)
+			_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 			if sm == nil {
 				continue
 			}
@@ -383,49 +411,52 @@ func (r *resolver) resolve() []Candidate {
 						functions = append(functions, Candidate{Type: CandidateFunction, Text: name})
 					}
 				}
-				r.insertSchemaFunctions(&functions, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaFunctions(&functions, schema, quoted)
 			case "schema_ref":
 				addSchemaCandidates()
 			case "table_ref":
+				schema, quoted := r.completionSchemaQualifier()
 				switch {
 				case r.completionIntentOnly(parser.ObjectKindTable):
-					schema := r.completionSchemaQualifier()
 					if schema == "" {
 						addSchemaCandidates()
 					}
-					addRelationCandidates(r.completionSchemas(schema), true, false, false, false, false)
+					addRelationCandidates(r.completionSchemas(schema, quoted), true, false, false, false, false)
 				case r.completionIntentOnly(parser.ObjectKindView):
-					schema := r.completionSchemaQualifier()
 					if schema == "" {
 						addSchemaCandidates()
 					}
-					addRelationCandidates(r.completionSchemas(schema), false, true, false, false, false)
+					addRelationCandidates(r.completionSchemas(schema, quoted), false, true, false, false, false)
 				default:
-					schema := r.completionSchemaQualifier()
 					if schema == "" {
 						addSchemaCandidates()
 					}
-					addRelationCandidates(r.completionSchemas(schema), true, true, true, true, true)
+					addRelationCandidates(r.completionSchemas(schema, quoted), true, true, true, true, true)
 				}
 			case "sequence_ref":
 				addRelationCandidates(r.sequenceCompletionSchemas(), false, false, false, true, false)
 			case "sequence_member_ref":
 				r.insertSequenceMemberCandidates(&keywords)
 			case "synonym_ref":
-				schema := r.completionSchemaQualifier()
-				addRelationCandidates(r.completionSchemas(schema), false, false, false, false, true)
+				schema, quoted := r.completionSchemaQualifier()
+				addRelationCandidates(r.completionSchemas(schema, quoted), false, false, false, false, true)
 			case "database_link_ref":
 				r.insertDatabaseLinkCandidates(&dbLinks)
 			case "proc_ref":
-				r.insertSchemaProcedures(&procs, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaProcedures(&procs, schema, quoted)
 			case "package_ref":
-				r.insertSchemaPackages(&packages, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaPackages(&packages, schema, quoted)
 			case "package_member_ref":
 				r.insertPackageMemberCandidates(&procs, &functions)
 			case "index_ref":
-				r.insertSchemaIndexes(&indexes, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaIndexes(&indexes, schema, quoted)
 			case "trigger_ref":
-				r.insertSchemaTriggers(&triggers, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaTriggers(&triggers, schema, quoted)
 			case "constraint_ref":
 				r.insertConstraintCandidates(&constraints)
 			case "type_name":
@@ -444,40 +475,45 @@ func (r *resolver) resolve() []Candidate {
 			case parser.ObjectKindSchema:
 				addSchemaCandidates()
 			case parser.ObjectKindTable:
-				schema := r.completionSchemaQualifier()
+				schema, quoted := r.completionSchemaQualifier()
 				if schema == "" {
 					addSchemaCandidates()
 				}
-				addRelationCandidates(r.completionSchemas(schema), true, false, false, false, false)
+				addRelationCandidates(r.completionSchemas(schema, quoted), true, false, false, false, false)
 			case parser.ObjectKindView:
-				schema := r.completionSchemaQualifier()
+				schema, quoted := r.completionSchemaQualifier()
 				if schema == "" {
 					addSchemaCandidates()
 				}
-				addRelationCandidates(r.completionSchemas(schema), false, true, false, false, false)
+				addRelationCandidates(r.completionSchemas(schema, quoted), false, true, false, false, false)
 			case parser.ObjectKindSequence:
 				addRelationCandidates(r.sequenceCompletionSchemas(), false, false, false, true, false)
 			case parser.ObjectKindSequenceMember:
 				r.insertSequenceMemberCandidates(&keywords)
 			case parser.ObjectKindSynonym:
-				schema := r.completionSchemaQualifier()
-				addRelationCandidates(r.completionSchemas(schema), false, false, false, false, true)
+				schema, quoted := r.completionSchemaQualifier()
+				addRelationCandidates(r.completionSchemas(schema, quoted), false, false, false, false, true)
 			case parser.ObjectKindDatabaseLink:
 				r.insertDatabaseLinkCandidates(&dbLinks)
 			case parser.ObjectKindColumn:
 				r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
 			case parser.ObjectKindFunction:
-				r.insertSchemaFunctions(&functions, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaFunctions(&functions, schema, quoted)
 			case parser.ObjectKindProcedure:
-				r.insertSchemaProcedures(&procs, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaProcedures(&procs, schema, quoted)
 			case parser.ObjectKindPackage:
-				r.insertSchemaPackages(&packages, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaPackages(&packages, schema, quoted)
 			case parser.ObjectKindPackageMember:
 				r.insertPackageMemberCandidates(&procs, &functions)
 			case parser.ObjectKindIndex:
-				r.insertSchemaIndexes(&indexes, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaIndexes(&indexes, schema, quoted)
 			case parser.ObjectKindTrigger:
-				r.insertSchemaTriggers(&triggers, r.completionSchemaQualifier())
+				schema, quoted := r.completionSchemaQualifier()
+				r.insertSchemaTriggers(&triggers, schema, quoted)
 			case parser.ObjectKindConstraint:
 				r.insertConstraintCandidates(&constraints)
 			case parser.ObjectKindType:
@@ -516,31 +552,35 @@ func (r *resolver) completionIntentOnly(kind parser.ObjectKind) bool {
 	return r.completionIntent != nil && len(r.completionIntent.ObjectKinds) == 1 && r.completionIntent.ObjectKinds[0] == kind
 }
 
-func (r *resolver) completionSchemaQualifier() string {
-	if r.completionIntent != nil && r.completionIntent.Qualifier.Schema != "" {
-		return r.completionIntent.Qualifier.Schema
-	}
+func (r *resolver) completionSchemaQualifier() (string, bool) {
 	parts := r.qualifierParts()
-	if len(parts) == 1 {
-		return parts[0]
+	if r.completionIntent != nil && r.completionIntent.Qualifier.Schema != "" {
+		if len(parts) == 1 && strings.EqualFold(parts[0].name, r.completionIntent.Qualifier.Schema) {
+			return parts[0].name, parts[0].quoted
+		}
+		return r.completionIntent.Qualifier.Schema, false
 	}
-	return ""
+	if len(parts) == 1 {
+		return parts[0].name, parts[0].quoted
+	}
+	return "", false
 }
 
-func (r *resolver) sequenceCompletionSchemas() map[string]bool {
-	return r.completionSchemas(r.completionSchemaQualifier())
+func (r *resolver) sequenceCompletionSchemas() map[schemaQuery]bool {
+	schema, quoted := r.completionSchemaQualifier()
+	return r.completionSchemas(schema, quoted)
 }
 
-func (r *resolver) completionSchemas(schema string) map[string]bool {
-	schemas := make(map[string]bool)
+func (r *resolver) completionSchemas(schema string, quoted bool) map[schemaQuery]bool {
+	schemas := make(map[schemaQuery]bool)
 	if schema != "" {
-		schemas[schema] = true
+		schemas[schemaQuery{name: schema, quoted: quoted}] = true
 		return schemas
 	}
 	if r.store.defaultSchema != "" {
-		schemas[r.store.defaultSchema] = true
+		schemas[schemaQuery{name: r.store.defaultSchema}] = true
 	}
-	schemas[""] = true
+	schemas[schemaQuery{}] = true
 	return schemas
 }
 
@@ -550,12 +590,12 @@ func (r *resolver) insertDatabaseLinkCandidates(dst *[]Candidate) {
 	}
 }
 
-func (r *resolver) insertSchemaFunctions(dst *[]Candidate, schema string) {
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+func (r *resolver) insertSchemaFunctions(dst *[]Candidate, schema string, quoted bool) {
+	for sq := range r.completionSchemas(schema, quoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
@@ -565,12 +605,12 @@ func (r *resolver) insertSchemaFunctions(dst *[]Candidate, schema string) {
 	}
 }
 
-func (r *resolver) insertSchemaProcedures(dst *[]Candidate, schema string) {
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+func (r *resolver) insertSchemaProcedures(dst *[]Candidate, schema string, quoted bool) {
+	for sq := range r.completionSchemas(schema, quoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
@@ -580,12 +620,12 @@ func (r *resolver) insertSchemaProcedures(dst *[]Candidate, schema string) {
 	}
 }
 
-func (r *resolver) insertSchemaPackages(dst *[]Candidate, schema string) {
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+func (r *resolver) insertSchemaPackages(dst *[]Candidate, schema string, quoted bool) {
+	for sq := range r.completionSchemas(schema, quoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
@@ -595,12 +635,12 @@ func (r *resolver) insertSchemaPackages(dst *[]Candidate, schema string) {
 	}
 }
 
-func (r *resolver) insertSchemaIndexes(dst *[]Candidate, schema string) {
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+func (r *resolver) insertSchemaIndexes(dst *[]Candidate, schema string, quoted bool) {
+	for sq := range r.completionSchemas(schema, quoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
@@ -618,23 +658,23 @@ func (r *resolver) insertSchemaIndexes(dst *[]Candidate, schema string) {
 }
 
 func (r *resolver) insertPackageMemberCandidates(procsOut, funcsOut *[]Candidate) {
-	schema, pkgName := r.columnQualifier()
+	schema, pkgName, schemaQuoted, pkgQuoted := r.columnQualifier()
 	if pkgName == "" && r.completionIntent != nil {
 		pkgName = r.completionIntent.Qualifier.Object
 	}
 	if pkgName == "" {
 		return
 	}
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+	for sq := range r.completionSchemas(schema, schemaQuoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
 		for _, pkg := range sm.GetPackages() {
-			if strings.EqualFold(pkg.GetName(), pkgName) {
+			if nameMatches(pkg.GetName(), pkgName, pkgQuoted) {
 				procs, funcs := parsePackageMembers(pkg.GetDefinition())
 				for _, p := range procs {
 					*procsOut = append(*procsOut, Candidate{Type: CandidateProcedure, Text: p})
@@ -655,14 +695,16 @@ func (r *resolver) insertConstraintCandidates(dst *[]Candidate) {
 			continue
 		}
 		schema := phys.Schema
+		schemaQuoted := phys.SchemaQuoted
 		if schema == "" {
 			schema = r.store.defaultSchema
+			schemaQuoted = false
 		}
-		_, sm := r.store.getSchema(schema)
+		_, sm := r.store.getSchemaWithCase(schema, schemaQuoted)
 		if sm == nil {
 			continue
 		}
-		t := findTableMeta(sm, phys.Table)
+		t := findTableMeta(sm, phys.Table, phys.TableQuoted)
 		if t == nil {
 			continue
 		}
@@ -684,12 +726,12 @@ func (r *resolver) insertConstraintCandidates(dst *[]Candidate) {
 	}
 }
 
-func (r *resolver) insertSchemaTriggers(dst *[]Candidate, schema string) {
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+func (r *resolver) insertSchemaTriggers(dst *[]Candidate, schema string, quoted bool) {
+	for sq := range r.completionSchemas(schema, quoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
@@ -717,23 +759,23 @@ func (r *resolver) insertSchemaTriggers(dst *[]Candidate, schema string) {
 }
 
 func (r *resolver) insertSequenceMemberCandidates(keywords *[]Candidate) {
-	schema, seqName := r.columnQualifier()
+	schema, seqName, schemaQuoted, seqQuoted := r.columnQualifier()
 	if seqName == "" && r.completionIntent != nil {
 		seqName = r.completionIntent.Qualifier.Object
 	}
 	if seqName == "" {
 		return
 	}
-	for s := range r.completionSchemas(schema) {
-		if s == "" && r.store.defaultSchema != "" {
+	for sq := range r.completionSchemas(schema, schemaQuoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
 			continue
 		}
-		_, sm := r.store.getSchema(s)
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
 		if sm == nil {
 			continue
 		}
 		for _, seq := range sm.GetSequences() {
-			if strings.EqualFold(seq.GetName(), seqName) {
+			if nameMatches(seq.GetName(), seqName, seqQuoted) {
 				*keywords = append(*keywords,
 					Candidate{Type: CandidateKeyword, Text: "NEXTVAL"},
 					Candidate{Type: CandidateKeyword, Text: "CURRVAL"},
@@ -747,74 +789,87 @@ func (r *resolver) insertSequenceMemberCandidates(keywords *[]Candidate) {
 func (r *resolver) insertColumnContextCandidates(
 	tablesOut, columnsOut *[]Candidate,
 	addSchemaCandidates func(),
-	addRelationCandidates func(schemaSet map[string]bool, includeTables, includeViews, includeMViews, includeSeqs, includeSyns bool),
+	addRelationCandidates func(schemaSet map[schemaQuery]bool, includeTables, includeViews, includeMViews, includeSeqs, includeSyns bool),
 ) {
-	schema, table := r.columnQualifier()
+	schema, table, schemaQuoted, tableQuoted := r.columnQualifier()
 	if table == "" && r.completionIntent != nil {
 		table = r.completionIntent.Qualifier.Object
 	}
 
-	schemas := make(map[string]bool)
+	schemas := make(map[schemaQuery]bool)
 	if schema != "" {
-		schemas[schema] = true
+		schemas[schemaQuery{name: schema, quoted: schemaQuoted}] = true
 	} else if table == "" {
 		for _, ref := range r.references {
 			if physical, ok := ref.(*physicalTableRef); ok && physical.Schema != "" {
-				schemas[physical.Schema] = true
+				schemas[schemaQuery{name: physical.Schema, quoted: physical.SchemaQuoted}] = true
 			}
 		}
 	}
 
 	var targets []tableTarget
-	addTarget := func(s, t string) {
+	addTarget := func(s, t string, sQuoted, tQuoted bool) {
 		if t == "" {
 			return
 		}
 		if s == "" {
 			s = r.store.defaultSchema
+			sQuoted = false
 		}
 		for _, existing := range targets {
-			if strings.EqualFold(existing.schema, s) && strings.EqualFold(existing.table, t) {
+			if existing.schema == s && existing.table == t && existing.schemaQuoted == sQuoted && existing.tableQuoted == tQuoted {
 				return
 			}
 		}
-		targets = append(targets, tableTarget{schema: s, table: t})
+		targets = append(targets, tableTarget{
+			schema:       s,
+			schemaQuoted: sQuoted,
+			table:        t,
+			tableQuoted:  tQuoted,
+		})
 	}
 
 	if table != "" {
 		matchedRef := false
-		for _, ref := range r.references {
-			switch ref := ref.(type) {
-			case *physicalTableRef:
-				if schema != "" && ref.Schema != "" && !strings.EqualFold(ref.Schema, schema) {
-					continue
-				}
-				if strings.EqualFold(ref.Alias, table) || strings.EqualFold(ref.Table, table) {
-					targetSchema := ref.Schema
-					if targetSchema == "" {
-						targetSchema = schema
+		for _, level := range r.scopeLevels {
+			for _, ref := range level.refs {
+				switch ref := ref.(type) {
+				case *physicalTableRef:
+					if schema != "" && ref.Schema != "" && !nameMatches(ref.Schema, schema, ref.SchemaQuoted || schemaQuoted) {
+						continue
 					}
-					addTarget(targetSchema, ref.Table)
-					matchedRef = true
-				}
-			case *virtualTableRef:
-				if schema == "" && strings.EqualFold(ref.Table, table) {
-					for _, col := range ref.Columns {
-						*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
+					if matchPhysicalQualifier(ref, table) {
+						targetSchema := ref.Schema
+						targetSchemaQuoted := ref.SchemaQuoted
+						if targetSchema == "" {
+							targetSchema = schema
+							targetSchemaQuoted = schemaQuoted
+						}
+						addTarget(targetSchema, ref.Table, targetSchemaQuoted, ref.TableQuoted)
+						matchedRef = true
 					}
-					matchedRef = true
+				case *virtualTableRef:
+					if schema == "" && strings.EqualFold(ref.Table, table) {
+						for _, col := range ref.Columns {
+							*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
+						}
+						matchedRef = true
+					}
 				}
+			}
+			if matchedRef {
+				break
 			}
 		}
 		if !matchedRef {
 			// Fallback for DDL/standalone qualified names (e.g. COMMENT ON COLUMN schema1.t2.|).
-			addTarget(schema, table)
+			addTarget(schema, table, schemaQuoted, tableQuoted)
 		}
 	} else if len(r.references) > 0 {
 		for _, ref := range r.references {
 			switch ref := ref.(type) {
 			case *physicalTableRef:
-				addTarget(ref.Schema, ref.Table)
+				addTarget(ref.Schema, ref.Table, ref.SchemaQuoted, ref.TableQuoted)
 			case *virtualTableRef:
 				for _, col := range ref.Columns {
 					*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
@@ -826,9 +881,9 @@ func (r *resolver) insertColumnContextCandidates(
 	}
 
 	if len(schemas) == 0 {
-		schemas[r.store.defaultSchema] = true
+		schemas[schemaQuery{name: r.store.defaultSchema}] = true
 	}
-	schemas[""] = true
+	schemas[schemaQuery{}] = true
 
 	if table == "" {
 		addSchemaCandidates()
@@ -845,6 +900,13 @@ func (r *resolver) insertColumnContextCandidates(
 	if table != "" && len(*columnsOut) == 0 {
 		r.insertAliasColumns(columnsOut, table)
 	}
+}
+
+func matchPhysicalQualifier(ref *physicalTableRef, qualifier string) bool {
+	if ref.Alias != "" && nameMatches(ref.Alias, qualifier, ref.AliasQuoted) {
+		return true
+	}
+	return nameMatches(ref.Table, qualifier, ref.TableQuoted)
 }
 
 func (r *resolver) insertAllColumns(columnsOut *[]Candidate) {
@@ -872,7 +934,7 @@ func (r *resolver) insertAllColumns(columnsOut *[]Candidate) {
 
 func (r *resolver) insertColumnsForTargets(columnsOut *[]Candidate, targets []tableTarget) {
 	for _, target := range targets {
-		if target.schema == "" {
+		if target.schema == "" && !target.tableQuoted {
 			for _, cte := range r.cteTables {
 				if strings.EqualFold(cte.Table, target.table) {
 					for _, col := range cte.Columns {
@@ -880,30 +942,38 @@ func (r *resolver) insertColumnsForTargets(columnsOut *[]Candidate, targets []ta
 					}
 				}
 			}
+		} else if target.schema == "" {
+			for _, cte := range r.cteTables {
+				if cte.Table == target.table {
+					for _, col := range cte.Columns {
+						*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
+					}
+				}
+			}
 		}
-		r.insertColumnsForObject(columnsOut, target.schema, target.table, 0)
+		r.insertColumnsForObject(columnsOut, target.schema, target.table, target.schemaQuoted, target.tableQuoted, 0)
 	}
 }
 
-func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name string, depth int) {
+func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name string, schemaQuoted, nameQuoted bool, depth int) {
 	if depth > 4 || name == "" {
 		return
 	}
-	resolvedSchema, sm := r.store.getSchema(schema)
+	resolvedSchema, sm := r.store.getSchemaWithCase(schema, schemaQuoted)
 	if sm != nil {
-		if t := findTableMeta(sm, name); t != nil {
+		if t := findTableMeta(sm, name, nameQuoted); t != nil {
 			for _, col := range t.GetColumns() {
 				*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, t.GetName(), col))
 			}
 			return
 		}
-		if ext := findExternalTableMeta(sm, name); ext != nil {
+		if ext := findExternalTableMeta(sm, name, nameQuoted); ext != nil {
 			for _, col := range ext.GetColumns() {
 				*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, ext.GetName(), col))
 			}
 			return
 		}
-		if v := findViewMeta(sm, name); v != nil {
+		if v := findViewMeta(sm, name, nameQuoted); v != nil {
 			if len(v.GetColumns()) > 0 {
 				for _, col := range v.GetColumns() {
 					*columnsOut = append(*columnsOut, columnCandidate(resolvedSchema, v.GetName(), col))
@@ -915,55 +985,66 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 				return
 			}
 		}
-		if mv := findMaterializedViewMeta(sm, name); mv != nil {
+		if mv := findMaterializedViewMeta(sm, name, nameQuoted); mv != nil {
 			if mv.GetDefinition() != "" {
 				r.insertResolvedRelationColumns(columnsOut, resolvedSchema, mv.GetName(), mv.GetDefinition())
 			}
 			return
 		}
-		if syn := findSynonymMeta(sm.GetSynonyms(), name); syn != nil && syn.GetTargetName() != "" {
+		if syn := findSynonymMeta(sm.GetSynonyms(), name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
 			targetSchema := syn.GetTargetSchema()
 			if targetSchema == "" {
 				targetSchema = resolvedSchema
 			}
-			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), depth+1)
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, depth+1)
 			return
 		}
 	}
-	if schema == "" || strings.EqualFold(schema, r.store.defaultSchema) {
-		if syn := findSynonymMeta(r.store.publicSynonyms, name); syn != nil && syn.GetTargetName() != "" {
+	if schema == "" || nameMatches(schema, r.store.defaultSchema, schemaQuoted) {
+		if syn := findSynonymMeta(r.store.publicSynonyms, name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
 			targetSchema := syn.GetTargetSchema()
 			if targetSchema == "" {
 				targetSchema = r.store.defaultSchema
 			}
-			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), depth+1)
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, depth+1)
 		}
 	}
 }
 
-func findExternalTableMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.ExternalTableMetadata {
+func nameMatches(candidate, query string, quoted bool) bool {
+	if quoted {
+		return candidate == query
+	}
+	return candidate == query || strings.EqualFold(candidate, query)
+}
+
+func findExternalTableMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.ExternalTableMetadata {
 	for _, ext := range sm.GetExternalTables() {
 		if ext.GetName() == name {
 			return ext
 		}
 	}
-	for _, ext := range sm.GetExternalTables() {
-		if strings.EqualFold(ext.GetName(), name) {
-			return ext
+	if !quoted {
+		for _, ext := range sm.GetExternalTables() {
+			if strings.EqualFold(ext.GetName(), name) {
+				return ext
+			}
 		}
 	}
 	return nil
 }
 
-func findMaterializedViewMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.MaterializedViewMetadata {
+func findMaterializedViewMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.MaterializedViewMetadata {
 	for _, mv := range sm.GetMaterializedViews() {
 		if mv.GetName() == name {
 			return mv
 		}
 	}
-	for _, mv := range sm.GetMaterializedViews() {
-		if strings.EqualFold(mv.GetName(), name) {
-			return mv
+	if !quoted {
+		for _, mv := range sm.GetMaterializedViews() {
+			if strings.EqualFold(mv.GetName(), name) {
+				return mv
+			}
 		}
 	}
 	return nil
@@ -999,6 +1080,7 @@ func (r *resolver) insertResolvedRelationColumns(columnsOut *[]Candidate, schema
 }
 
 func extractSelectFromViewDefinition(definition string) string {
+	// Definition comes from an engine-accepted synced view or materialized view; downgrade parse errors to no inferred columns.
 	stmts, err := oracle.Parse(definition)
 	if err != nil {
 		return ""
@@ -1015,43 +1097,49 @@ func extractSelectFromViewDefinition(definition string) string {
 	return ""
 }
 
-func findSynonymMeta(syns []*metadatapb.SynonymMetadata, name string) *metadatapb.SynonymMetadata {
+func findSynonymMeta(syns []*metadatapb.SynonymMetadata, name string, quoted bool) *metadatapb.SynonymMetadata {
 	for _, syn := range syns {
 		if syn.GetName() == name {
 			return syn
 		}
 	}
-	for _, syn := range syns {
-		if strings.EqualFold(syn.GetName(), name) {
-			return syn
+	if !quoted {
+		for _, syn := range syns {
+			if strings.EqualFold(syn.GetName(), name) {
+				return syn
+			}
 		}
 	}
 	return nil
 }
 
-func findTableMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.TableMetadata {
+func findTableMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.TableMetadata {
 	for _, t := range sm.GetTables() {
 		if t.GetName() == name {
 			return t
 		}
 	}
-	for _, t := range sm.GetTables() {
-		if strings.EqualFold(t.GetName(), name) {
-			return t
+	if !quoted {
+		for _, t := range sm.GetTables() {
+			if strings.EqualFold(t.GetName(), name) {
+				return t
+			}
 		}
 	}
 	return nil
 }
 
-func findViewMeta(sm *metadatapb.SchemaMetadata, name string) *metadatapb.ViewMetadata {
+func findViewMeta(sm *metadatapb.SchemaMetadata, name string, quoted bool) *metadatapb.ViewMetadata {
 	for _, v := range sm.GetViews() {
 		if v.GetName() == name {
 			return v
 		}
 	}
-	for _, v := range sm.GetViews() {
-		if strings.EqualFold(v.GetName(), name) {
-			return v
+	if !quoted {
+		for _, v := range sm.GetViews() {
+			if strings.EqualFold(v.GetName(), name) {
+				return v
+			}
 		}
 	}
 	return nil
@@ -1076,49 +1164,98 @@ func columnCandidate(schema, table string, col *metadatapb.ColumnMetadata) Candi
 
 func (r *resolver) collectCompletionCTEs(ctx *parser.CompletionContext) {
 	for _, ref := range ctx.CTEs {
-		// Only expose CTEs completely defined before the cursor so completing
-		// inside an earlier CTE body does not suggest later CTEs.
+		// Hide later CTEs, and hide the current CTE inside its own anchor member
+		// while exposing it in any recursive UNION member.
+		inRecursiveMember := false
+		unionLoc := -1
 		if ref.Loc.End >= 0 && r.collectOffset < ref.Loc.End {
-			continue
+			if ref.Loc.Start >= 0 && r.collectOffset < ref.Loc.Start {
+				continue
+			}
+			unionLoc = r.firstTopLevelUnionBefore(ref.BodyLoc.Start, r.collectOffset)
+			if unionLoc < 0 {
+				continue
+			}
+			inRecursiveMember = true
 		}
 		virtual := convertCompletionVirtualReference(ref)
 		if virtual == nil {
 			continue
 		}
 		if len(virtual.Columns) == 0 {
-			virtual.Columns = r.inferCompletionVirtualColumns(ref)
+			if inRecursiveMember {
+				virtual.Columns = r.inferCTEAnchorColumns(ref, unionLoc)
+			} else {
+				virtual.Columns = r.inferCompletionVirtualColumns(ref)
+			}
 		}
 		r.appendVirtualReferenceIfMissing(virtual)
 	}
+}
+
+func (r *resolver) firstTopLevelUnionBefore(bodyStart, limit int) int {
+	if bodyStart < 0 || bodyStart >= limit || limit > len(r.sql) {
+		return -1
+	}
+	depth := 0
+	for _, tok := range r.tokens {
+		if tok.Loc < bodyStart {
+			continue
+		}
+		if tok.Loc >= limit {
+			break
+		}
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case parser.UNION:
+			if depth == 0 {
+				return tok.Loc
+			}
+		}
+	}
+	return -1
 }
 
 func (r *resolver) collectCompletionScopeReferences(ctx *parser.CompletionContext) {
 	if ctx.Scope == nil {
 		return
 	}
-	appendRef := func(ref parser.RangeReference) {
-		if converted := r.convertCompletionScopeReference(ref); converted != nil {
-			r.appendReferenceIfMissing(converted)
-			r.appendScopeReferenceIfMissing(ref)
+	collectLevel := func(raw []parser.RangeReference) {
+		var level scopeRefLevel
+		for _, ref := range raw {
+			if converted := r.convertCompletionScopeReference(ref); converted != nil {
+				r.appendReferenceIfMissing(converted)
+				r.appendScopeReferenceIfMissing(ref)
+				level.refs = append(level.refs, converted)
+				level.scopeRefs = append(level.scopeRefs, ref)
+			}
+		}
+		if len(level.refs) > 0 {
+			r.scopeLevels = append(r.scopeLevels, level)
 		}
 	}
-	for _, ref := range ctx.Scope.LocalReferences {
-		appendRef(ref)
-	}
-	for _, level := range ctx.Scope.OuterReferences {
-		for _, ref := range level {
-			appendRef(ref)
-		}
+	collectLevel(ctx.Scope.LocalReferences)
+	for _, outer := range ctx.Scope.OuterReferences {
+		collectLevel(outer)
 	}
 }
 
 func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) tableRef {
 	switch ref.Kind {
 	case parser.RangeReferenceRelation, parser.RangeReferenceDMLTarget, parser.RangeReferenceMergeSource:
+		schemaQuoted, tableQuoted, aliasQuoted := r.refQuotedFlags(ref)
 		return &physicalTableRef{
-			Schema: ref.Schema,
-			Table:  ref.Name,
-			Alias:  ref.Alias,
+			Schema:       ref.Schema,
+			SchemaQuoted: schemaQuoted,
+			Table:        ref.Name,
+			TableQuoted:  tableQuoted,
+			Alias:        ref.Alias,
+			AliasQuoted:  aliasQuoted,
 		}
 	case parser.RangeReferenceCTE, parser.RangeReferenceSubquery, parser.RangeReferenceJoinAlias:
 		virtual := convertCompletionVirtualReference(ref)
@@ -1133,19 +1270,76 @@ func (r *resolver) convertCompletionScopeReference(ref parser.RangeReference) ta
 	}
 }
 
-func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string) {
-	for _, ref := range r.scopeReferences {
-		if !strings.EqualFold(ref.Alias, alias) && !strings.EqualFold(ref.Name, alias) {
+func (r *resolver) refQuotedFlags(ref parser.RangeReference) (schemaQuoted, tableQuoted, aliasQuoted bool) {
+	if ref.Loc.Start < 0 || ref.Loc.End <= ref.Loc.Start || ref.Loc.End > len(r.sql) {
+		return false, false, false
+	}
+	var toks []parser.Token
+	for _, tok := range r.tokens {
+		if tok.Loc < ref.Loc.Start {
 			continue
 		}
-		columns := append([]string{}, ref.Columns...)
-		if len(columns) == 0 {
-			columns = r.inferCompletionVirtualColumns(ref)
+		if tok.Loc >= ref.Loc.End {
+			break
 		}
-		for _, col := range columns {
-			*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
+		toks = append(toks, tok)
+	}
+	tableIdx := -1
+	if ref.Schema != "" {
+		for k := 0; k+2 < len(toks); k++ {
+			if toks[k+1].Type == '.' && strings.EqualFold(toks[k].Str, ref.Schema) {
+				schemaQuoted = r.isQuotedToken(toks[k])
+				tableQuoted = r.isQuotedToken(toks[k+2])
+				tableIdx = k + 2
+				break
+			}
 		}
-		return
+	} else {
+		for k, tok := range toks {
+			if tok.Str != "" && strings.EqualFold(tok.Str, ref.Name) {
+				tableQuoted = r.isQuotedToken(tok)
+				tableIdx = k
+				break
+			}
+		}
+	}
+	if ref.Alias != "" {
+		for k := len(toks) - 1; k >= 0; k-- {
+			if k == tableIdx {
+				continue
+			}
+			if toks[k].Str != "" && strings.EqualFold(toks[k].Str, ref.Alias) {
+				aliasQuoted = r.isQuotedToken(toks[k])
+				break
+			}
+		}
+	}
+	return schemaQuoted, tableQuoted, aliasQuoted
+}
+
+func (r *resolver) isQuotedToken(tok parser.Token) bool {
+	return tok.Loc >= 0 && tok.Loc < len(r.sql) && r.sql[tok.Loc] == '"'
+}
+
+func (r *resolver) insertAliasColumns(columnsOut *[]Candidate, alias string) {
+	for _, level := range r.scopeLevels {
+		matched := false
+		for _, ref := range level.scopeRefs {
+			if !strings.EqualFold(ref.Alias, alias) && !strings.EqualFold(ref.Name, alias) {
+				continue
+			}
+			matched = true
+			columns := append([]string{}, ref.Columns...)
+			if len(columns) == 0 {
+				columns = r.inferCompletionVirtualColumns(ref)
+			}
+			for _, col := range columns {
+				*columnsOut = append(*columnsOut, Candidate{Type: CandidateColumn, Text: col})
+			}
+		}
+		if matched {
+			return
+		}
 	}
 }
 
@@ -1177,6 +1371,14 @@ func convertCompletionVirtualReference(ref parser.RangeReference) *virtualTableR
 	}
 }
 
+func (r *resolver) inferCTEAnchorColumns(ref parser.RangeReference, unionLoc int) []string {
+	if ref.BodyLoc.Start < 0 || unionLoc <= ref.BodyLoc.Start || unionLoc > len(r.sql) {
+		return nil
+	}
+	anchor := r.sql[ref.BodyLoc.Start:unionLoc]
+	return r.resolveVirtualColumnsFromSQL(anchor)
+}
+
 func (r *resolver) inferCompletionVirtualColumns(ref parser.RangeReference) []string {
 	if ref.BodyLoc.Start < 0 || ref.BodyLoc.End <= ref.BodyLoc.Start || ref.BodyLoc.End > len(r.sql) {
 		return nil
@@ -1193,19 +1395,22 @@ func (r *resolver) inferCompletionVirtualColumns(ref parser.RangeReference) []st
 			statement = fmt.Sprintf("%s SELECT * FROM (%s) %s", withPrefix, body, quoteIdentifierForSQL(alias))
 		}
 	}
+	if cols := r.resolveVirtualColumnsFromSQL(statement); len(cols) > 0 {
+		return cols
+	}
+	if ref.Kind == parser.RangeReferenceCTE && ref.Name != "" {
+		if withPrefix := r.withClausePrefix(); withPrefix != "" {
+			return r.resolveVirtualColumnsFromSQL(fmt.Sprintf("%s SELECT * FROM %s", withPrefix, quoteIdentifierForSQL(ref.Name)))
+		}
+	}
+	return nil
+}
+
+func (r *resolver) resolveVirtualColumnsFromSQL(statement string) []string {
 	span, err := analysis.ResolveQuerySpan(statement, analysis.ResolveOptions{
 		DefaultDatabase: r.store.defaultSchema,
 		Catalog:         r.analysisCatalog(),
 	})
-	if (err != nil || span == nil || span.NotFoundError != nil) && ref.Kind == parser.RangeReferenceCTE && ref.Name != "" {
-		if withPrefix := r.withClausePrefix(); withPrefix != "" {
-			statement = fmt.Sprintf("%s SELECT * FROM %s", withPrefix, quoteIdentifierForSQL(ref.Name))
-			span, err = analysis.ResolveQuerySpan(statement, analysis.ResolveOptions{
-				DefaultDatabase: r.store.defaultSchema,
-				Catalog:         r.analysisCatalog(),
-			})
-		}
-	}
 	if err != nil || span == nil || span.NotFoundError != nil {
 		return nil
 	}
@@ -1235,39 +1440,19 @@ type analysisDatabase struct {
 func (d *analysisDatabase) HasSchema() bool { return d.schema != nil }
 
 func (d *analysisDatabase) GetTable(name string) *metadatapb.TableMetadata {
-	return findTableMeta(d.schema, name)
+	return findTableMeta(d.schema, name, false)
 }
 
 func (d *analysisDatabase) GetView(name string) *metadatapb.ViewMetadata {
-	return findViewMeta(d.schema, name)
+	return findViewMeta(d.schema, name, false)
 }
 
 func (d *analysisDatabase) GetMaterializedView(name string) *metadatapb.MaterializedViewMetadata {
-	for _, mv := range d.schema.GetMaterializedViews() {
-		if mv.GetName() == name {
-			return mv
-		}
-	}
-	for _, mv := range d.schema.GetMaterializedViews() {
-		if strings.EqualFold(mv.GetName(), name) {
-			return mv
-		}
-	}
-	return nil
+	return findMaterializedViewMeta(d.schema, name, false)
 }
 
 func (d *analysisDatabase) GetExternalTable(name string) *metadatapb.ExternalTableMetadata {
-	for _, ext := range d.schema.GetExternalTables() {
-		if ext.GetName() == name {
-			return ext
-		}
-	}
-	for _, ext := range d.schema.GetExternalTables() {
-		if strings.EqualFold(ext.GetName(), name) {
-			return ext
-		}
-	}
-	return nil
+	return findExternalTableMeta(d.schema, name, false)
 }
 
 func (r *resolver) withClausePrefix() string {
@@ -1353,21 +1538,22 @@ func scopeRefKey(ref parser.RangeReference) string {
 	}, "\x00")
 }
 
-func (r *resolver) qualifierParts() []string {
+func (r *resolver) qualifierParts() []qualifierPart {
 	offset := min(max(r.collectOffset, 0), len(r.sql))
 	before := strings.TrimRight(r.sql[:offset], " \t\r\n")
 	if !strings.HasSuffix(before, ".") {
 		return nil
 	}
 	before = strings.TrimSuffix(before, ".")
-	var parts []string
+	var parts []qualifierPart
 	for {
 		before = strings.TrimRight(before, " \t\r\n")
 		part, start := lastIdentifierSpan(before)
 		if part == "" {
 			break
 		}
-		parts = append([]string{unquoteIdent(part)}, parts...)
+		quoted := len(part) >= 2 && part[0] == '"' && part[len(part)-1] == '"'
+		parts = append([]qualifierPart{{name: unquoteIdent(part), quoted: quoted}}, parts...)
 		before = strings.TrimRight(before[:start], " \t\r\n")
 		if !strings.HasSuffix(before, ".") {
 			break
@@ -1413,15 +1599,17 @@ func unquoteIdent(s string) string {
 	return strings.ToUpper(s)
 }
 
-func (r *resolver) columnQualifier() (schema, table string) {
+func (r *resolver) columnQualifier() (schema, table string, schemaQuoted, tableQuoted bool) {
 	parts := r.qualifierParts()
 	switch len(parts) {
 	case 0:
-		return "", ""
+		return "", "", false, false
 	case 1:
-		return "", parts[0]
+		return "", parts[0].name, false, parts[0].quoted
 	default:
-		return parts[len(parts)-2], parts[len(parts)-1]
+		s := parts[len(parts)-2]
+		t := parts[len(parts)-1]
+		return s.name, t.name, s.quoted, t.quoted
 	}
 }
 

@@ -372,6 +372,36 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"AlbumId", "Title"},
 		},
+		{
+			name:     "block comment containing subquery does not hijack scope",
+			input:    "SELECT | FROM Music WHERE Artist = 'a' /* (SELECT 1 FROM Album */",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "line comment containing subquery does not hijack scope",
+			input:    "SELECT | FROM Music -- (SELECT 1 FROM Album\nWHERE Artist = 'a'",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "parenthesized table in FROM resolves table columns",
+			input:    "SELECT m.| FROM (Music) m",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "parenthesized subquery in FROM projects only selected columns",
+			input:    "SELECT m.| FROM (SELECT Artist AS performer FROM Music) m",
+			cat:      cat,
+			wantCols: []string{"performer"},
+		},
+		{
+			name:     "parenthesized star subquery in FROM expands inner table columns",
+			input:    "SELECT m.| FROM (SELECT * FROM Music) m",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
 	}
 
 	for _, tc := range tests {

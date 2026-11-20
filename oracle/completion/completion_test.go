@@ -885,6 +885,106 @@ func TestCompleteInsideQuotedPrefix(t *testing.T) {
 	}
 }
 
+func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "HR",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "ALBUM",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "ALBUM_ID", Type: "NUMBER"},
+							{Name: "TITLE", Type: "VARCHAR2(100)"},
+						},
+					},
+					{
+						Name: "MUSIC",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "MUSIC_ID", Type: "NUMBER"},
+							{Name: "SONG_TITLE", Type: "VARCHAR2(100)"},
+						},
+					},
+					{
+						Name: "EMPLOYEES",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "UPPER_ID", Type: "NUMBER"},
+						},
+					},
+				},
+			},
+			{
+				Name: "hr",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "employees",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "lower_id", Type: "NUMBER"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("shadowed alias stops at nearest scope", func(t *testing.T) {
+		sql, pos := splitCaret(t, "SELECT * FROM album x WHERE EXISTS (SELECT 1 FROM music x WHERE x.|)")
+		res := Complete(sql, pos, meta, WithDefaultSchema("HR"))
+		if !hasSpec(res, candidateSpec{text: "MUSIC_ID", typ: CandidateColumn}) || !hasSpec(res, candidateSpec{text: "SONG_TITLE", typ: CandidateColumn}) {
+			t.Fatalf("expected inner x (MUSIC) columns, got %v", res)
+		}
+		if hasSpec(res, candidateSpec{text: "ALBUM_ID", typ: CandidateColumn}) || hasSpec(res, candidateSpec{text: "TITLE", typ: CandidateColumn}) {
+			t.Fatalf("did not expect shadowed outer x (ALBUM) columns, got %v", res)
+		}
+	})
+
+	t.Run("recursive CTE visible in recursive member but hidden in anchor", func(t *testing.T) {
+		sql, pos := splitCaret(t, "WITH t(n) AS (SELECT 1 FROM dual UNION ALL SELECT n+1 FROM | WHERE n < 10) SELECT * FROM t")
+		res := Complete(sql, pos, meta, WithDefaultSchema("HR"))
+		if !hasSpec(res, candidateSpec{text: "T", typ: CandidateTable}) {
+			t.Fatalf("expected recursive CTE T in recursive member FROM, got %v", res)
+		}
+
+		sqlCols, posCols := splitCaret(t, "WITH t(n) AS (SELECT 1 FROM dual UNION ALL SELECT | FROM t) SELECT * FROM t")
+		resCols := Complete(sqlCols, posCols, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resCols, candidateSpec{text: "N", typ: CandidateColumn}) {
+			t.Fatalf("expected recursive CTE column N in recursive member SELECT, got %v", resCols)
+		}
+
+		sqlAnchor, posAnchor := splitCaret(t, "WITH t(n) AS (SELECT 1 FROM | UNION ALL SELECT n+1 FROM t WHERE n < 10) SELECT * FROM t")
+		resAnchor := Complete(sqlAnchor, posAnchor, meta, WithDefaultSchema("HR"))
+		if hasSpec(resAnchor, candidateSpec{text: "T", typ: CandidateTable}) {
+			t.Fatalf("did not expect CTE T inside its own anchor member, got %v", resAnchor)
+		}
+	})
+
+	t.Run("quoted identifier preserves exact case", func(t *testing.T) {
+		sqlMiss, posMiss := splitCaret(t, `SELECT | FROM "employees"`)
+		resMiss := Complete(sqlMiss, posMiss, meta, WithDefaultSchema("HR"))
+		if hasSpec(resMiss, candidateSpec{text: "UPPER_ID", typ: CandidateColumn}) {
+			t.Fatalf("did not expect uppercase EMPLOYEES columns for quoted lowercase table, got %v", resMiss)
+		}
+
+		sqlHit, posHit := splitCaret(t, `SELECT | FROM "hr"."employees"`)
+		resHit := Complete(sqlHit, posHit, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resHit, candidateSpec{text: "lower_id", typ: CandidateColumn}) {
+			t.Fatalf("expected lowercase employees column for quoted schema and table, got %v", resHit)
+		}
+		if hasSpec(resHit, candidateSpec{text: "UPPER_ID", typ: CandidateColumn}) {
+			t.Fatalf("did not expect uppercase HR.EMPLOYEES column, got %v", resHit)
+		}
+
+		sqlSchema, posSchema := splitCaret(t, `SELECT * FROM "hr".|`)
+		resSchema := Complete(sqlSchema, posSchema, meta, WithDefaultSchema("HR"))
+		if !hasSpec(resSchema, candidateSpec{text: "employees", typ: CandidateTable}) {
+			t.Fatalf("expected lowercase hr.employees table, got %v", resSchema)
+		}
+		if hasSpec(resSchema, candidateSpec{text: "EMPLOYEES", typ: CandidateTable}) {
+			t.Fatalf("did not expect uppercase HR.EMPLOYEES table for quoted hr., got %v", resSchema)
+		}
+	})
+}
+
 func completeTestSQL(t *testing.T, input string) []Candidate {
 	t.Helper()
 	sql, pos := splitCaret(t, input)

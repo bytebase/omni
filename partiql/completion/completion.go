@@ -231,8 +231,9 @@ func isIdentRune(r rune) bool {
 }
 
 type tableRef struct {
-	name  string
-	alias string
+	name     string
+	alias    string
+	subquery []tableToken
 }
 
 // resolveColumnNames extracts column names from tables visible in the active
@@ -252,17 +253,9 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 			var cols []string
 			matched := false
 			for _, ref := range refs {
-				if strings.EqualFold(ref.alias, qualifier) || (ref.alias == "" && strings.EqualFold(ref.name, qualifier)) || strings.EqualFold(ref.name, qualifier) {
+				if matchesTableQualifier(ref, qualifier) {
 					matched = true
-					table := findMetadataTable(allTables, ref.name)
-					if table == nil {
-						continue
-					}
-					for _, col := range table.GetColumns() {
-						if col.GetName() != "" {
-							cols = append(cols, col.GetName())
-						}
-					}
+					cols = append(cols, resolveTableRefColumns(ref, allTables, 0)...)
 				}
 			}
 			if matched {
@@ -290,17 +283,181 @@ func resolveColumnNames(statement string, pos int, meta *metadata.DatabaseSchema
 
 	var cols []string
 	for _, ref := range refs {
-		table := findMetadataTable(allTables, ref.name)
-		if table == nil {
-			continue
+		cols = append(cols, resolveTableRefColumns(ref, allTables, 0)...)
+	}
+	return cols
+}
+
+func matchesTableQualifier(ref tableRef, qualifier string) bool {
+	if ref.alias != "" && strings.EqualFold(ref.alias, qualifier) {
+		return true
+	}
+	return ref.name != "" && strings.EqualFold(ref.name, qualifier)
+}
+
+func resolveTableRefColumns(ref tableRef, allTables []*metadata.TableMetadata, depth int) []string {
+	if len(ref.subquery) > 0 {
+		if depth >= 4 {
+			return nil
 		}
-		for _, col := range table.GetColumns() {
-			if col.GetName() != "" {
-				cols = append(cols, col.GetName())
-			}
+		return resolveSubqueryColumns(ref.subquery, allTables, depth+1)
+	}
+	table := findMetadataTable(allTables, ref.name)
+	if table == nil {
+		return nil
+	}
+	var cols []string
+	for _, col := range table.GetColumns() {
+		if col.GetName() != "" {
+			cols = append(cols, col.GetName())
 		}
 	}
 	return cols
+}
+
+func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMetadata, depth int) []string {
+	for len(tokens) >= 2 && tokens[0].paren == '(' && findMatchingTokenParen(tokens, 0) == len(tokens)-1 {
+		tokens = tokens[1 : len(tokens)-1]
+	}
+	selIdx := findMainSelectIndex(tokens)
+	if selIdx < 0 {
+		return nil
+	}
+	listStart := selIdx + 1
+	listEnd := len(tokens)
+	parenDepth := 0
+	for i := listStart; i < len(tokens); i++ {
+		switch tokens[i].paren {
+		case '(':
+			parenDepth++
+			continue
+		case ')':
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			continue
+		}
+		if parenDepth == 0 && !tokens[i].quoted && isSelectListEndKeyword(strings.ToUpper(tokens[i].text)) {
+			listEnd = i
+			break
+		}
+	}
+
+	var innerRefs []tableRef
+	getInnerRefs := func() []tableRef {
+		if innerRefs == nil {
+			innerRefs = extractTableRefsFromTokens(tokens)
+		}
+		return innerRefs
+	}
+
+	var cols []string
+	itemStart := listStart
+	if itemStart < listEnd && !tokens[itemStart].quoted {
+		firstUpper := strings.ToUpper(tokens[itemStart].text)
+		if firstUpper == "DISTINCT" || firstUpper == "ALL" || firstUpper == "VALUE" {
+			itemStart++
+		}
+	}
+	parenDepth = 0
+	for i := itemStart; i <= listEnd; i++ {
+		if i < listEnd {
+			switch tokens[i].paren {
+			case '(':
+				parenDepth++
+				continue
+			case ')':
+				if parenDepth > 0 {
+					parenDepth--
+				}
+				continue
+			}
+		}
+		if i < listEnd && (parenDepth != 0 || !tokens[i].comma) {
+			continue
+		}
+		item := tokens[itemStart:i]
+		itemStart = i + 1
+		if len(item) == 0 {
+			continue
+		}
+		if len(item) == 1 && !item[0].quoted && item[0].text == "*" {
+			for _, ref := range getInnerRefs() {
+				cols = append(cols, resolveTableRefColumns(ref, allTables, depth)...)
+			}
+			continue
+		}
+		if len(item) == 1 && !item[0].quoted && strings.HasSuffix(item[0].text, ".*") {
+			qual := strings.TrimSuffix(item[0].text, ".*")
+			for _, ref := range getInnerRefs() {
+				if matchesTableQualifier(ref, qual) {
+					cols = append(cols, resolveTableRefColumns(ref, allTables, depth)...)
+				}
+			}
+			continue
+		}
+		if col := selectItemOutputName(item); col != "" {
+			cols = append(cols, col)
+		}
+	}
+	return cols
+}
+
+func findMainSelectIndex(tokens []tableToken) int {
+	depth := 0
+	for i, tok := range tokens {
+		switch tok.paren {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth == 0 && !tok.quoted && strings.ToUpper(tok.text) == "SELECT" {
+			return i
+		}
+	}
+	return -1
+}
+
+func isSelectListEndKeyword(upper string) bool {
+	switch upper {
+	case "FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET", "UNION", "INTERSECT", "EXCEPT":
+		return true
+	}
+	return false
+}
+
+func selectItemOutputName(item []tableToken) string {
+	if len(item) >= 2 && !item[len(item)-2].quoted && strings.ToUpper(item[len(item)-2].text) == "AS" {
+		last := item[len(item)-1]
+		if last.paren == 0 && !last.comma && last.text != "" {
+			return last.text
+		}
+	}
+	if len(item) >= 2 {
+		last := item[len(item)-1]
+		if last.paren == 0 && !last.comma && last.text != "" && (last.quoted || !isKeyword(strings.ToUpper(last.text))) {
+			return last.text
+		}
+	}
+	if len(item) == 1 && item[0].paren == 0 && !item[0].comma && item[0].text != "" {
+		name := item[0].text
+		if !item[0].quoted {
+			if dot := strings.LastIndexByte(name, '.'); dot >= 0 && dot+1 < len(name) {
+				name = name[dot+1:]
+			}
+			if strings.EqualFold(name, "NULL") || strings.EqualFold(name, "MISSING") ||
+				strings.EqualFold(name, "TRUE") || strings.EqualFold(name, "FALSE") {
+				return ""
+			}
+		}
+		return name
+	}
+	return ""
 }
 
 func columnQualifierBeforeCursor(statement string, pos int) string {
@@ -387,18 +544,22 @@ func extractQueryScopes(statement string, pos int) []string {
 	var subqueryStarts []int
 	var isSubqueryParen []bool
 	for i := 0; i < len(statement) && i < pos; i++ {
-		switch statement[i] {
-		case '\'':
+		switch {
+		case statement[i] == '\'':
 			i = skipQuotedLiteral(statement, i, '\'')
-		case '"':
+		case statement[i] == '"':
 			i = skipQuotedLiteral(statement, i, '"')
-		case '(':
+		case statement[i] == '-' && i+1 < len(statement) && statement[i+1] == '-':
+			i = skipLineComment(statement, i)
+		case statement[i] == '/' && i+1 < len(statement) && statement[i+1] == '*':
+			i, _ = skipBlockComment(statement, i)
+		case statement[i] == '(':
 			sub := parenOpensSubquery(statement, i+1)
 			isSubqueryParen = append(isSubqueryParen, sub)
 			if sub {
 				subqueryStarts = append(subqueryStarts, i+1)
 			}
-		case ')':
+		case statement[i] == ')':
 			if len(isSubqueryParen) > 0 {
 				wasSub := isSubqueryParen[len(isSubqueryParen)-1]
 				isSubqueryParen = isSubqueryParen[:len(isSubqueryParen)-1]
@@ -421,14 +582,18 @@ func extractQueryScopes(statement string, pos int) []string {
 func findSubqueryEnd(statement string, start int) int {
 	depth := 0
 	for i := start; i < len(statement); i++ {
-		switch statement[i] {
-		case '\'':
+		switch {
+		case statement[i] == '\'':
 			i = skipQuotedLiteral(statement, i, '\'')
-		case '"':
+		case statement[i] == '"':
 			i = skipQuotedLiteral(statement, i, '"')
-		case '(':
+		case statement[i] == '-' && i+1 < len(statement) && statement[i+1] == '-':
+			i = skipLineComment(statement, i)
+		case statement[i] == '/' && i+1 < len(statement) && statement[i+1] == '*':
+			i, _ = skipBlockComment(statement, i)
+		case statement[i] == '(':
 			depth++
-		case ')':
+		case statement[i] == ')':
 			if depth == 0 {
 				return i
 			}
@@ -436,6 +601,37 @@ func findSubqueryEnd(statement string, start int) int {
 		}
 	}
 	return len(statement)
+}
+
+func skipLineComment(s string, start int) int {
+	i := start + 2
+	for i < len(s) && s[i] != '\n' && s[i] != '\r' {
+		i++
+	}
+	if i >= len(s) {
+		return len(s) - 1
+	}
+	return i
+}
+
+func skipBlockComment(s string, start int) (int, bool) {
+	i := start + 2
+	depth := 1
+	for i+1 < len(s) && depth > 0 {
+		if s[i] == '/' && s[i+1] == '*' {
+			depth++
+			i += 2
+		} else if s[i] == '*' && s[i+1] == '/' {
+			depth--
+			i += 2
+		} else {
+			i++
+		}
+	}
+	if depth > 0 {
+		return len(s) - 1, false
+	}
+	return i - 1, true
 }
 
 func skipQuotedLiteral(s string, start int, quote byte) int {
@@ -461,29 +657,15 @@ func parenOpensSubquery(s string, pos int) bool {
 			continue
 		}
 		if c == '-' && pos+1 < len(s) && s[pos+1] == '-' {
-			pos += 2
-			for pos < len(s) && s[pos] != '\n' && s[pos] != '\r' {
-				pos++
-			}
+			pos = skipLineComment(s, pos) + 1
 			continue
 		}
 		if c == '/' && pos+1 < len(s) && s[pos+1] == '*' {
-			pos += 2
-			depth := 1
-			for pos+1 < len(s) && depth > 0 {
-				if s[pos] == '/' && s[pos+1] == '*' {
-					depth++
-					pos += 2
-				} else if s[pos] == '*' && s[pos+1] == '/' {
-					depth--
-					pos += 2
-				} else {
-					pos++
-				}
-			}
-			if depth > 0 {
+			end, closed := skipBlockComment(s, pos)
+			if !closed {
 				return false
 			}
+			pos = end + 1
 			continue
 		}
 		break
@@ -497,31 +679,19 @@ func parenOpensSubquery(s string, pos int) bool {
 }
 
 // extractTableRefsFromScope scans the active query scope for table names and
-// optional aliases after FROM, JOIN, INTO, or UPDATE keywords, skipping nested
-// subquery parentheses.
+// optional aliases after FROM, JOIN, INTO, or UPDATE keywords, unwrapping
+// parenthesized relation expressions and recording subqueries in FROM.
 func extractTableRefsFromScope(statement string) []tableRef {
 	cleaned := maskStringsAndComments(statement)
-	tokens := tokenizeForTableExtraction(cleaned)
+	return extractTableRefsFromTokens(tokenizeForTableExtraction(cleaned))
+}
 
+func extractTableRefsFromTokens(tokens []tableToken) []tableRef {
 	var refs []tableRef
 	i := 0
 	for i < len(tokens) {
 		if tokens[i].paren == '(' {
-			if nextIsSubqueryStart(tokens, i+1) {
-				depth := 1
-				i++
-				for i < len(tokens) && depth > 0 {
-					switch tokens[i].paren {
-					case '(':
-						depth++
-					case ')':
-						depth--
-					}
-					i++
-				}
-				continue
-			}
-			i++
+			i = findMatchingTokenParen(tokens, i) + 1
 			continue
 		}
 		if tokens[i].paren == ')' {
@@ -529,34 +699,15 @@ func extractTableRefsFromScope(statement string) []tableRef {
 			continue
 		}
 		upper := strings.ToUpper(tokens[i].text)
-		if (upper == "FROM" || upper == "JOIN" || upper == "INTO" || upper == "UPDATE") && i+1 < len(tokens) {
+		if (upper == "FROM" || upper == "JOIN" || upper == "INTO" || upper == "UPDATE") && i+1 < len(tokens) && !tokens[i].quoted {
 			i++
 			for i < len(tokens) {
-				if tokens[i].paren == '(' || tokens[i].paren == ')' {
+				parsed, next, ok := parseTableRefAt(tokens, i)
+				if !ok {
 					break
 				}
-				tok := tokens[i]
-				if tok.comma {
-					break
-				}
-				name := tok.text
-				if !tok.quoted && isKeyword(strings.ToUpper(name)) {
-					break
-				}
-				ref := tableRef{name: name}
-				i++
-				if i < len(tokens) && strings.ToUpper(tokens[i].text) == "AS" {
-					if i+1 < len(tokens) && !tokens[i+1].comma && tokens[i+1].paren == 0 {
-						ref.alias = tokens[i+1].text
-						i += 2
-					} else {
-						i++
-					}
-				} else if i < len(tokens) && !tokens[i].comma && tokens[i].paren == 0 && !isKeyword(strings.ToUpper(tokens[i].text)) {
-					ref.alias = tokens[i].text
-					i++
-				}
-				refs = append(refs, ref)
+				refs = append(refs, parsed...)
+				i = next
 				if i < len(tokens) && tokens[i].comma {
 					i++
 					continue
@@ -568,6 +719,110 @@ func extractTableRefsFromScope(statement string) []tableRef {
 		}
 	}
 	return refs
+}
+
+func parseTableRefAt(tokens []tableToken, i int) ([]tableRef, int, bool) {
+	if i >= len(tokens) {
+		return nil, i, false
+	}
+	if tokens[i].paren == '(' {
+		closeIdx := findMatchingTokenParen(tokens, i)
+		innerEnd := closeIdx
+		if innerEnd > len(tokens) {
+			innerEnd = len(tokens)
+		}
+		inner := tokens[i+1 : innerEnd]
+		nextIdx := innerEnd
+		if nextIdx < len(tokens) && tokens[nextIdx].paren == ')' {
+			nextIdx++
+		}
+		alias, nextIdx := parseOptionalAlias(tokens, nextIdx)
+		if nextIsSubqueryStart(inner, 0) {
+			return []tableRef{{alias: alias, subquery: inner}}, nextIdx, true
+		}
+		innerRefs := extractRefsFromParenthesizedExpr(inner)
+		if len(innerRefs) == 1 && alias != "" && innerRefs[0].alias == "" {
+			innerRefs[0].alias = alias
+		}
+		return innerRefs, nextIdx, true
+	}
+	if tokens[i].paren == ')' || tokens[i].comma {
+		return nil, i, false
+	}
+	tok := tokens[i]
+	if !tok.quoted && isKeyword(strings.ToUpper(tok.text)) {
+		return nil, i, false
+	}
+	alias, nextIdx := parseOptionalAlias(tokens, i+1)
+	return []tableRef{{name: tok.text, alias: alias}}, nextIdx, true
+}
+
+func parseOptionalAlias(tokens []tableToken, i int) (string, int) {
+	if i >= len(tokens) || tokens[i].comma || tokens[i].paren != 0 {
+		return "", i
+	}
+	if !tokens[i].quoted && strings.ToUpper(tokens[i].text) == "AS" {
+		if i+1 < len(tokens) && !tokens[i+1].comma && tokens[i+1].paren == 0 {
+			return tokens[i+1].text, i + 2
+		}
+		return "", i + 1
+	}
+	if tokens[i].quoted || !isKeyword(strings.ToUpper(tokens[i].text)) {
+		return tokens[i].text, i + 1
+	}
+	return "", i
+}
+
+func extractRefsFromParenthesizedExpr(tokens []tableToken) []tableRef {
+	var refs []tableRef
+	parsed, idx, ok := parseTableRefAt(tokens, 0)
+	if ok {
+		refs = append(refs, parsed...)
+	} else {
+		idx = 0
+	}
+	for idx < len(tokens) {
+		if tokens[idx].paren == '(' {
+			idx = findMatchingTokenParen(tokens, idx) + 1
+			continue
+		}
+		upper := strings.ToUpper(tokens[idx].text)
+		if tokens[idx].comma || (!tokens[idx].quoted && (upper == "JOIN" || upper == "FROM" || upper == "INTO" || upper == "UPDATE")) {
+			idx++
+			for idx < len(tokens) {
+				p, next, matched := parseTableRefAt(tokens, idx)
+				if !matched {
+					break
+				}
+				refs = append(refs, p...)
+				idx = next
+				if idx < len(tokens) && tokens[idx].comma {
+					idx++
+					continue
+				}
+				break
+			}
+			continue
+		}
+		idx++
+	}
+	return refs
+}
+
+func findMatchingTokenParen(tokens []tableToken, openIdx int) int {
+	depth := 1
+	for i := openIdx + 1; i < len(tokens); i++ {
+		switch tokens[i].paren {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return len(tokens)
 }
 
 func nextIsSubqueryStart(tokens []tableToken, idx int) bool {

@@ -392,6 +392,7 @@ func parsePackageMembers(definition string) (procs []string, funcs []string) {
 	if strings.TrimSpace(definition) == "" {
 		return nil, nil
 	}
+	// Definition comes from an engine-accepted synced package spec; downgrade parse errors to empty members.
 	stmts, err := oracle.Parse(definition)
 	if err != nil {
 		stmts, err = oracle.Parse("CREATE OR REPLACE " + definition)
