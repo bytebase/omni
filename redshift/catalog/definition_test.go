@@ -1090,6 +1090,22 @@ ALTER SCHEMA "public" OWNER TO "PublicOwner";
 	require.NoError(t, err)
 	require.Less(t, strings.Index(narrowCastFuncs, "f_num(x int8)"), strings.Index(narrowCastFuncs, "caller_big("))
 	require.Less(t, strings.Index(narrowCastFuncs, "caller_big("), strings.Index(narrowCastFuncs, "f_num(x int4)"))
+
+	// Database-level Owner emits ALTER DATABASE ... OWNER TO ... (and enables
+	// case-sensitive identifiers when needed), or rejects an empty database name.
+	dbOwned, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name:  "analytics",
+		Owner: "DbAdmin",
+	})
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+ALTER DATABASE "analytics" OWNER TO "DbAdmin";
+`, dbOwned)
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Owner: "DbAdmin",
+	})
+	require.ErrorContains(t, err, "database name is empty")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")

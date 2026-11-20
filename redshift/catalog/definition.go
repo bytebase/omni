@@ -207,6 +207,9 @@ func tableHasUpperIdentifier(table *metadatapb.TableMetadata) bool {
 }
 
 func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
+	if to.Owner != "" && (hasUpperASCII(to.Owner) || hasUpperASCII(to.Name)) {
+		return true
+	}
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -888,6 +891,14 @@ func writeOwners(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error
 			if _, err := w.WriteString(fmt.Sprintf("ALTER SCHEMA %s OWNER TO %s;\n", quoteDefinitionIdentifier(schema.Name), quoteDefinitionIdentifier(schema.Owner))); err != nil {
 				return err
 			}
+		}
+	}
+	if to.Owner != "" {
+		if to.Name == "" {
+			return fmt.Errorf("database owner %q cannot be restored because database name is empty", to.Owner)
+		}
+		if _, err := w.WriteString(fmt.Sprintf("ALTER DATABASE %s OWNER TO %s;\n", quoteDefinitionIdentifier(to.Name), quoteDefinitionIdentifier(to.Owner))); err != nil {
+			return err
 		}
 	}
 	return nil

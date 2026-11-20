@@ -659,4 +659,29 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 		}},
 	})
 	require.ErrorContains(t, err, "duplicate table")
+
+	// Array subscript propagates element type for overload disambiguation.
+	subscriptOverloads, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "elem_fn",
+					Definition: "CREATE FUNCTION s.elem_fn(v varchar) RETURNS varchar RETURN s.elem_caller(ARRAY['a'])",
+				},
+				{
+					Name:       "elem_caller",
+					Definition: "CREATE FUNCTION s.elem_caller(vals array(integer)) RETURNS integer RETURN s.elem_fn(vals[1])",
+				},
+				{
+					Name:       "elem_fn",
+					Definition: "CREATE FUNCTION s.elem_fn(n integer) RETURNS integer RETURN n",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_fn(n integer)"), strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_caller("))
+	assert.Less(t, strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_caller("), strings.Index(subscriptOverloads, "CREATE FUNCTION s.elem_fn(v varchar)"))
 }

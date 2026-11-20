@@ -758,8 +758,18 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 		case *trinoparser.Dereference:
 			walkExpr(e.Base, curEnv)
 		case *trinoparser.Subscript:
-			walkExpr(e.Value, curEnv)
+			baseType := walkExpr(e.Value, curEnv)
 			walkExpr(e.Index, curEnv)
+			if base, inner, ok := splitParameterizedType(baseType); ok {
+				switch base {
+				case "array":
+					return inner
+				case "map":
+					if parts := splitTopLevelComma(inner); len(parts) == 2 {
+						return parts[1]
+					}
+				}
+			}
 		case *trinoparser.Literal:
 			switch e.Kind {
 			case trinoparser.LiteralBool:
