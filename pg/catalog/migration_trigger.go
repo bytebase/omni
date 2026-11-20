@@ -13,7 +13,11 @@ func generateTriggerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 	for _, rel := range diff.Relations {
 		switch rel.Action {
 		case DiffModify:
-			ops = append(ops, triggerOpsForRelation(to, rel.SchemaName, rel.Name, rel.Triggers)...)
+			targetRel := rel.From
+			if targetRel == nil {
+				targetRel = rel.To
+			}
+			ops = append(ops, triggerOpsForRelation(to, rel.SchemaName, rel.Name, targetRel, rel.Triggers)...)
 		case DiffAdd:
 			// For newly added relations, triggers are not in the diff entry's
 			// Triggers slice (the relation itself is new). Generate triggers
@@ -45,7 +49,7 @@ func generateTriggerDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 }
 
 // triggerOpsForRelation generates trigger DDL for a modified relation.
-func triggerOpsForRelation(to *Catalog, schemaName, tableName string, triggers []TriggerDiffEntry) []MigrationOp {
+func triggerOpsForRelation(to *Catalog, schemaName, tableName string, fromRel *Relation, triggers []TriggerDiffEntry) []MigrationOp {
 	var ops []MigrationOp
 
 	for _, te := range triggers {
@@ -59,11 +63,11 @@ func triggerOpsForRelation(to *Catalog, schemaName, tableName string, triggers [
 			if te.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropTriggerOp(schemaName, tableName, te.From.Name, te.From.OID))
+			ops = append(ops, buildDropTriggerOpForRel(schemaName, tableName, fromRel, te.From.Name, te.From.OID))
 		case DiffModify:
 			// Modified trigger = DROP old + CREATE new.
 			if te.From != nil {
-				ops = append(ops, buildDropTriggerOp(schemaName, tableName, te.From.Name, te.From.OID))
+				ops = append(ops, buildDropTriggerOpForRel(schemaName, tableName, fromRel, te.From.Name, te.From.OID))
 			}
 			if te.To != nil {
 				ops = append(ops, buildCreateTriggerOp(to, schemaName, tableName, te.To))
@@ -76,7 +80,11 @@ func triggerOpsForRelation(to *Catalog, schemaName, tableName string, triggers [
 
 // buildDropTriggerOp creates a DROP TRIGGER operation.
 func buildDropTriggerOp(schemaName, tableName, trigName string, trigOID uint32) MigrationOp {
-	qualifiedTable := migrationQualifiedName(schemaName, tableName)
+	return buildDropTriggerOpForRel(schemaName, tableName, nil, trigName, trigOID)
+}
+
+func buildDropTriggerOpForRel(schemaName, tableName string, rel *Relation, trigName string, trigOID uint32) MigrationOp {
+	qualifiedTable := formatRelationName(schemaName, tableName, rel)
 	return MigrationOp{
 		Type:          OpDropTrigger,
 		SchemaName:    schemaName,

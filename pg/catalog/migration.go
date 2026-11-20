@@ -1101,6 +1101,7 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 	preDroppedRel := make(map[uint32]bool)
 	preDroppedIdx := make(map[uint32]bool)
 	preDroppedCon := make(map[uint32]bool)
+	preDroppedConKey := make(map[string]bool)
 	mainCreatedIdx := make(map[string]bool)
 	mainAddedCon := make(map[string]bool)
 	mainSetAMSQL := make(map[string]bool)
@@ -1115,6 +1116,10 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 				if op.ObjOID != 0 {
 					preDroppedCon[op.ObjOID] = true
 				}
+				if op.ParentObject != "" {
+					preDroppedConKey[op.SchemaName+"."+op.ParentObject+"."+op.ObjectName] = true
+				}
+				preDroppedConKey[op.SQL] = true
 			}
 		} else {
 			switch op.Type {
@@ -1216,13 +1221,18 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 		scName := idx.Schema.Name
 		if idx.ConstraintOID != 0 {
 			con := from.constraints[idx.ConstraintOID]
-			if con == nil || preDroppedCon[con.OID] || con.ConParentID != 0 {
+			if con == nil || con.ConParentID != 0 {
 				continue
 			}
 			relSc := fromRel.Schema.Name
-			preDroppedCon[con.OID] = true
-			preExtra = append(preExtra, buildDropConstraintOp(relSc, fromRel.Name, con))
 			conKey := relSc + "." + fromRel.Name + "." + con.Name
+			dropOp := buildDropConstraintOpForRel(relSc, fromRel.Name, fromRel, con)
+			if !preDroppedCon[con.OID] && !preDroppedConKey[conKey] && !preDroppedConKey[dropOp.SQL] {
+				preDroppedCon[con.OID] = true
+				preDroppedConKey[conKey] = true
+				preDroppedConKey[dropOp.SQL] = true
+				preExtra = append(preExtra, dropOp)
+			}
 			if !mainAddedCon[conKey] {
 				if toRel := to.GetRelation(relSc, fromRel.Name); toRel != nil {
 					for _, toCon := range to.ConstraintsOf(toRel.OID) {
@@ -2063,7 +2073,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 			if !preDroppedTrig[trig.OID] {
 				preDroppedTrig[trig.OID] = true
-				preExtra = append(preExtra, buildDropTriggerOp(scName, fromRel.Name, trig.Name, trig.OID))
+				preExtra = append(preExtra, buildDropTriggerOpForRel(scName, fromRel.Name, fromRel, trig.Name, trig.OID))
 			}
 			trigKey := scName + "." + fromRel.Name + "." + trig.Name
 			if !mainCreatedTrig[trigKey] {
@@ -2102,14 +2112,14 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 			if !preDroppedPol[pol.OID] {
 				preDroppedPol[pol.OID] = true
-				preExtra = append(preExtra, buildDropPolicyOp(scName, fromRel.Name, pol.Name, pol.OID))
+				preExtra = append(preExtra, buildDropPolicyOpForRel(scName, fromRel.Name, fromRel, pol.Name, pol.OID))
 			}
 			polKey := scName + "." + fromRel.Name + "." + pol.Name
 			if !mainCreatedPol[polKey] {
 				for _, toPol := range to.policiesByRel[toRel.OID] {
 					if toPol.Name == pol.Name {
 						mainCreatedPol[polKey] = true
-						mainExtra = append(mainExtra, buildCreatePolicyOp(scName, fromRel.Name, toPol))
+						mainExtra = append(mainExtra, buildCreatePolicyOpForRel(scName, fromRel.Name, toRel, toPol))
 						if txt, ok := to.GetComment('p', toPol.OID, 0); ok && txt != "" {
 							desc := scName + "." + fromRel.Name + "." + toPol.Name
 							if csql := formatCommentSQL(to, 'p', desc, 0, txt); csql != "" && !mainComments[csql] {
@@ -2621,7 +2631,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 			scName := fromRel.Schema.Name
 			preDroppedTrig[trig.OID] = true
-			preExtra = append(preExtra, buildDropTriggerOp(scName, fromRel.Name, trig.Name, trig.OID))
+			preExtra = append(preExtra, buildDropTriggerOpForRel(scName, fromRel.Name, fromRel, trig.Name, trig.OID))
 			trigKey := scName + "." + fromRel.Name + "." + trig.Name
 			if !mainCreatedTrig[trigKey] {
 				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
@@ -2645,14 +2655,14 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 			}
 			scName := fromRel.Schema.Name
 			preDroppedPol[pol.OID] = true
-			preExtra = append(preExtra, buildDropPolicyOp(scName, fromRel.Name, pol.Name, pol.OID))
+			preExtra = append(preExtra, buildDropPolicyOpForRel(scName, fromRel.Name, fromRel, pol.Name, pol.OID))
 			polKey := scName + "." + fromRel.Name + "." + pol.Name
 			if !mainCreatedPol[polKey] {
 				if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
 					for _, toPol := range to.policiesByRel[toRel.OID] {
 						if toPol.Name == pol.Name {
 							mainCreatedPol[polKey] = true
-							mainExtra = append(mainExtra, buildCreatePolicyOp(scName, fromRel.Name, toPol))
+							mainExtra = append(mainExtra, buildCreatePolicyOpForRel(scName, fromRel.Name, toRel, toPol))
 							break
 						}
 					}

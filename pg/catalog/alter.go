@@ -1192,10 +1192,20 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 
 	case nodes.AT_SetLogged:
 		rel.Persistence = 'p'
+		for _, seq := range c.sequenceByOID {
+			if seq != nil && seq.OwnerRelOID == rel.OID {
+				seq.Persistence = 'p'
+			}
+		}
 		return nil
 
 	case nodes.AT_SetUnLogged:
 		rel.Persistence = 'u'
+		for _, seq := range c.sequenceByOID {
+			if seq != nil && seq.OwnerRelOID == rel.OID {
+				seq.Persistence = 'u'
+			}
+		}
 		return nil
 
 	case nodes.AT_ClusterOn:

@@ -81,7 +81,7 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 		// Policy add/drop/modify within a modified or added relation.
 		switch rel.Action {
 		case DiffModify:
-			ops = append(ops, policyOpsForRelation(rel.SchemaName, rel.Name, rel.Policies)...)
+			ops = append(ops, policyOpsForRelation(rel.SchemaName, rel.Name, targetRel, rel.Policies)...)
 		case DiffAdd:
 			// For newly added relations, emit ENABLE ROW LEVEL SECURITY / FORCE ROW LEVEL SECURITY
 			// if the target table has RLS enabled.
@@ -116,7 +116,7 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 				// Policies come from the target catalog.
 				policies := to.policiesByRel[rel.To.OID]
 				for _, p := range policies {
-					ops = append(ops, buildCreatePolicyOp(rel.SchemaName, rel.Name, p))
+					ops = append(ops, buildCreatePolicyOpForRel(rel.SchemaName, rel.Name, rel.To, p))
 				}
 			}
 		}
@@ -137,7 +137,7 @@ func generatePolicyDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 }
 
 // policyOpsForRelation generates policy DDL for a modified relation.
-func policyOpsForRelation(schemaName, tableName string, policies []PolicyDiffEntry) []MigrationOp {
+func policyOpsForRelation(schemaName, tableName string, targetRel *Relation, policies []PolicyDiffEntry) []MigrationOp {
 	var ops []MigrationOp
 
 	for _, pe := range policies {
@@ -146,23 +146,23 @@ func policyOpsForRelation(schemaName, tableName string, policies []PolicyDiffEnt
 			if pe.To == nil {
 				continue
 			}
-			ops = append(ops, buildCreatePolicyOp(schemaName, tableName, pe.To))
+			ops = append(ops, buildCreatePolicyOpForRel(schemaName, tableName, targetRel, pe.To))
 		case DiffDrop:
 			if pe.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropPolicyOp(schemaName, tableName, pe.From.Name, pe.From.OID))
+			ops = append(ops, buildDropPolicyOpForRel(schemaName, tableName, targetRel, pe.From.Name, pe.From.OID))
 		case DiffModify:
 			if pe.From == nil || pe.To == nil {
 				continue
 			}
 			// If CmdType or Permissive changed, it's a complex change: DROP + CREATE.
 			if pe.From.CmdType != pe.To.CmdType || pe.From.Permissive != pe.To.Permissive {
-				ops = append(ops, buildDropPolicyOp(schemaName, tableName, pe.From.Name, pe.From.OID))
-				ops = append(ops, buildCreatePolicyOp(schemaName, tableName, pe.To))
+				ops = append(ops, buildDropPolicyOpForRel(schemaName, tableName, targetRel, pe.From.Name, pe.From.OID))
+				ops = append(ops, buildCreatePolicyOpForRel(schemaName, tableName, targetRel, pe.To))
 			} else {
 				// Simple change: ALTER POLICY.
-				ops = append(ops, buildAlterPolicyOp(schemaName, tableName, pe.From, pe.To))
+				ops = append(ops, buildAlterPolicyOpForRel(schemaName, tableName, targetRel, pe.From, pe.To))
 			}
 		}
 	}
@@ -172,7 +172,11 @@ func policyOpsForRelation(schemaName, tableName string, policies []PolicyDiffEnt
 
 // buildCreatePolicyOp creates a CREATE POLICY operation.
 func buildCreatePolicyOp(schemaName, tableName string, p *Policy) MigrationOp {
-	qualifiedTable := migrationQualifiedName(schemaName, tableName)
+	return buildCreatePolicyOpForRel(schemaName, tableName, nil, p)
+}
+
+func buildCreatePolicyOpForRel(schemaName, tableName string, rel *Relation, p *Policy) MigrationOp {
+	qualifiedTable := formatRelationName(schemaName, tableName, rel)
 	var b strings.Builder
 	b.WriteString("CREATE POLICY ")
 	b.WriteString(quoteIdentAlways(p.Name))
@@ -226,7 +230,11 @@ func buildCreatePolicyOp(schemaName, tableName string, p *Policy) MigrationOp {
 
 // buildDropPolicyOp creates a DROP POLICY operation.
 func buildDropPolicyOp(schemaName, tableName, policyName string, policyOID uint32) MigrationOp {
-	qualifiedTable := migrationQualifiedName(schemaName, tableName)
+	return buildDropPolicyOpForRel(schemaName, tableName, nil, policyName, policyOID)
+}
+
+func buildDropPolicyOpForRel(schemaName, tableName string, rel *Relation, policyName string, policyOID uint32) MigrationOp {
+	qualifiedTable := formatRelationName(schemaName, tableName, rel)
 	return MigrationOp{
 		Type:          OpDropPolicy,
 		SchemaName:    schemaName,
@@ -243,7 +251,11 @@ func buildDropPolicyOp(schemaName, tableName, policyName string, policyOID uint3
 
 // buildAlterPolicyOp creates an ALTER POLICY operation for simple changes.
 func buildAlterPolicyOp(schemaName, tableName string, from, to *Policy) MigrationOp {
-	qualifiedTable := migrationQualifiedName(schemaName, tableName)
+	return buildAlterPolicyOpForRel(schemaName, tableName, nil, from, to)
+}
+
+func buildAlterPolicyOpForRel(schemaName, tableName string, rel *Relation, from, to *Policy) MigrationOp {
+	qualifiedTable := formatRelationName(schemaName, tableName, rel)
 	var b strings.Builder
 	b.WriteString("ALTER POLICY ")
 	b.WriteString(quoteIdentAlways(to.Name))

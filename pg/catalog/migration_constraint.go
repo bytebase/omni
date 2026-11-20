@@ -74,13 +74,13 @@ func constraintOpsForRelation(to *Catalog, rel RelationDiffEntry) []MigrationOp 
 			if ce.From == nil {
 				continue
 			}
-			ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From))
+			ops = append(ops, buildDropConstraintOpForRel(rel.SchemaName, rel.Name, rel.From, ce.From))
 		case DiffModify:
 			// Modified constraint = DROP old + ADD new.
 			if ce.From != nil {
-				ops = append(ops, buildDropConstraintOp(rel.SchemaName, rel.Name, ce.From))
+				ops = append(ops, buildDropConstraintOpForRel(rel.SchemaName, rel.Name, rel.From, ce.From))
 			}
-			if ce.To != nil {
+			if te := ce.To; te != nil {
 				ops = append(ops, buildAddConstraintOp(to, rel.SchemaName, rel.Name, ce.To))
 			}
 		}
@@ -93,7 +93,14 @@ func constraintOpsForRelation(to *Catalog, rel RelationDiffEntry) []MigrationOp 
 // first, through its priority: it may hold the key it references, and a
 // DROP TABLE ... CASCADE of either table would take it along.
 func buildDropConstraintOp(schemaName, tableName string, con *Constraint) MigrationOp {
+	return buildDropConstraintOpForRel(schemaName, tableName, nil, con)
+}
+
+func buildDropConstraintOpForRel(schemaName, tableName string, rel *Relation, con *Constraint) MigrationOp {
 	qualifiedTable := quoteIdentifier(schemaName) + "." + quoteIdentifier(tableName)
+	if (rel != nil && rel.Persistence == 't') || isTempSchemaName(schemaName) {
+		qualifiedTable = quoteIdentifier(tableName)
+	}
 	priority := PriorityConstraint
 	if con.Type == ConstraintFK {
 		priority = PriorityFKDeferred
@@ -106,6 +113,7 @@ func buildDropConstraintOp(schemaName, tableName string, con *Constraint) Migrat
 		SQL:          fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", qualifiedTable, quoteIdentifier(con.Name)),
 		Phase:        PhasePre,
 		ObjType:      'c',
+		ObjOID:       con.OID,
 		Priority:     priority,
 	}
 }
@@ -290,6 +298,9 @@ func resolveRelationName(c *Catalog, relOID uint32) string {
 	schemaName := "public"
 	if rel.Schema != nil {
 		schemaName = rel.Schema.Name
+	}
+	if rel.Persistence == 't' && !isTempSchemaName(schemaName) {
+		return quoteIdentifier(rel.Name)
 	}
 	return quoteIdentifier(schemaName) + "." + quoteIdentifier(rel.Name)
 }

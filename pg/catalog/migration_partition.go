@@ -118,7 +118,7 @@ func generatePartitionChildDDL(from, c *Catalog, entry RelationDiffEntry) []Migr
 		return nil
 	}
 
-	qn := migrationQualifiedName(entry.SchemaName, rel.Name)
+	qn := formatRelationName(entry.SchemaName, rel.Name, rel)
 
 	var parentSchema string
 	if parentRel.Schema != nil {
@@ -126,10 +126,17 @@ func generatePartitionChildDDL(from, c *Catalog, entry RelationDiffEntry) []Migr
 	} else {
 		parentSchema = entry.SchemaName
 	}
-	parentQN := migrationQualifiedName(parentSchema, parentRel.Name)
+	parentQN := formatRelationName(parentSchema, parentRel.Name, parentRel)
 
 	var b strings.Builder
-	b.WriteString("CREATE TABLE ")
+	switch rel.Persistence {
+	case 'u':
+		b.WriteString("CREATE UNLOGGED TABLE ")
+	case 't':
+		b.WriteString("CREATE TEMP TABLE ")
+	default:
+		b.WriteString("CREATE TABLE ")
+	}
 	b.WriteString(qn)
 	b.WriteString(" PARTITION OF ")
 	b.WriteString(parentQN)
@@ -294,7 +301,7 @@ func formatInheritsClause(c *Catalog, rel *Relation) string {
 			schema = parentRel.Schema.Name
 		}
 		if schema != "" {
-			parents = append(parents, migrationQualifiedName(schema, parentRel.Name))
+			parents = append(parents, formatRelationName(schema, parentRel.Name, parentRel))
 		} else {
 			parents = append(parents, quoteIdentAlways(parentRel.Name))
 		}
@@ -313,7 +320,7 @@ func formatInheritsClause(c *Catalog, rel *Relation) string {
 // be regenerated. Dependent views are handled by wrapColumnTypeChangesWithViewOps.
 func buildTableRecreateOps(from, to *Catalog, entry RelationDiffEntry, reason string) []MigrationOp {
 	var ops []MigrationOp
-	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+	qn := formatRelationName(entry.SchemaName, entry.Name, entry.From)
 
 	ops = append(ops, MigrationOp{
 		Type:          OpDropTable,
