@@ -76,7 +76,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 	}
 	usingSpatial := !stmt.Unique && isSpatialIndexType(effUsingType)
-	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial); err != nil {
+	if err := c.validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial); err != nil {
 		return err
 	}
 	seenCols := make(map[string]bool, len(stmt.Columns))

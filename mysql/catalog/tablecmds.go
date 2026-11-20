@@ -633,7 +633,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				if err := validateUniqueOrPrimaryNotSpatial(tbl, idxCols, resolveConstraintIndexType(con)); err != nil {
 					return err
 				}
-				if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -696,7 +696,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 					return err
 				}
 			}
-			if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
 				return err
 			}
 			if declared {
@@ -733,7 +733,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			fkIdxCols := buildIndexColumns(con)
 			if declared {
-				if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -813,7 +813,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			spatial := isSpatialIndexType(resolveConstraintIndexType(con))
-			if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 				return err
 			}
 			if declared {
@@ -852,7 +852,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			idxCols := buildIndexColumns(con)
-			if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, true, false); err != nil {
 				return err
 			}
 			ftIdx := &Index{
@@ -882,7 +882,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 				return err
 			}
 			idxCols := buildIndexColumns(con)
-			if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+			if err := c.validateIndexColumns(tbl, idxCols, false, true); err != nil {
 				return err
 			}
 			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {
@@ -1377,15 +1377,24 @@ func timestampZeroDefault(fsp int) string {
 func (c *Catalog) resolveNormalizedStringDefaultLiteral(col *Column, sl *nodes.StringLit) (string, bool) {
 	litVal := sl.Value
 	decoded := false
-	hasSessionCS := c != nil && (c.effectiveClientCharset() != "utf8mb4" || c.effectiveConnCharset() != "utf8mb4")
+	clientCS := "utf8mb4"
+	connCS := "utf8mb4"
+	if c != nil {
+		clientCS = c.effectiveClientCharset()
+		connCS = c.effectiveConnCharset()
+	}
+	hasSessionCS := clientCS != "utf8mb4" || connCS != "utf8mb4"
 	if sl.Charset != "" || sl.National || hasSessionCS {
 		if dv, decOK := c.decodeStringLiteralDefault(sl, col.Charset); decOK {
 			litVal = dv
 			decoded = true
 		}
 	}
+	colIsBinary := strings.EqualFold(col.DataType, "binary") ||
+		strings.EqualFold(col.DataType, "varbinary") ||
+		strings.EqualFold(col.Charset, "binary")
 	litIsBinary := strings.EqualFold(strings.TrimSpace(sl.Charset), "binary") ||
-		(sl.Charset == "" && !sl.National && strings.EqualFold(col.Charset, "binary"))
+		(colIsBinary && (sl.Charset != "" || sl.National || clientCS == connCS))
 	normVal, changed := normalizeCharDefaultStringLiteral(col, litVal)
 	return normVal, changed || (decoded && !litIsBinary)
 }
@@ -2255,7 +2264,7 @@ func indexNameExists(tbl *Table, name string) bool {
 	return false
 }
 
-func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
+func (c *Catalog) validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
@@ -2298,7 +2307,8 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 			return &Error{Code: 1170, SQLState: "42000", Message: "BLOB/TEXT column used in key specification without a key length"}
 		}
 		if ic.Length > 0 {
-			if err := validateKeyPrefixLength(col, ic.Length); err != nil {
+			strict := c == nil || c.isStrictSQLMode()
+			if err := validateKeyPrefixLength(tbl, col, ic, strict); err != nil {
 				return err
 			}
 		}
@@ -2306,12 +2316,26 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 	return nil
 }
 
+func charsetMaxBytes(charset string) int {
+	switch strings.ToLower(strings.TrimSpace(charset)) {
+	case "utf8mb4", "utf16", "utf16le", "utf32", "gb18030":
+		return 4
+	case "utf8", "utf8mb3", "ujis", "eucjpms":
+		return 3
+	case "ucs2", "sjis", "cp932", "gbk", "gb2312", "big5", "euckr":
+		return 2
+	default:
+		return 1
+	}
+}
+
 // validateKeyPrefixLength validates a non-zero key part prefix length against
-// the column's data type and declared width (1089, measured on mysql:8.0.46).
-// Only string and binary types take a prefix length; every other type —
-// including BIT, YEAR, numeric, temporal, ENUM, SET and geometry — answers 1089.
-func validateKeyPrefixLength(col *Column, prefixLen int) error {
-	switch strings.ToLower(col.DataType) {
+// the column's data type and declared width (1089 for fixed-width types, 1071
+// or non-strict clamping for BLOB/TEXT types, measured on mysql:8.0.46).
+func validateKeyPrefixLength(tbl *Table, col *Column, ic *IndexColumn, strict bool) error {
+	prefixLen := ic.Length
+	dt := strings.ToLower(col.DataType)
+	switch dt {
 	case "char", "varchar", "binary", "varbinary":
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok && prefixLen > maxLen {
 			return errIncorrectPrefixKey()
@@ -2319,6 +2343,24 @@ func validateKeyPrefixLength(col *Column, prefixLen int) error {
 		return nil
 	case "tinytext", "text", "mediumtext", "longtext",
 		"tinyblob", "blob", "mediumblob", "longblob":
+		maxBytes := 3072
+		if tbl != nil && strings.EqualFold(tbl.Engine, "MyISAM") {
+			maxBytes = 1000
+		}
+		if dt == "tinytext" || dt == "tinyblob" {
+			maxBytes = 255
+		}
+		mb := 1
+		if strings.HasSuffix(dt, "text") {
+			mb = charsetMaxBytes(col.Charset)
+		}
+		if int64(prefixLen)*int64(mb) > int64(maxBytes) {
+			if strict {
+				return &Error{Code: 1071, SQLState: "42000",
+					Message: fmt.Sprintf("Specified key was too long; max key length is %d bytes", maxBytes)}
+			}
+			ic.Length = maxBytes / mb
+		}
 		return nil
 	default:
 		return errIncorrectPrefixKey()

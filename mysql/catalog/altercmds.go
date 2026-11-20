@@ -543,7 +543,7 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				if err := validateUniqueOrPrimaryNotSpatial(tbl, pkCols, resolveConstraintIndexType(con)); err != nil {
 					return err
 				}
-				if err := validateIndexColumns(tbl, pkCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, pkCols, false, false); err != nil {
 					return err
 				}
 				if name := duplicateKeyColumnName(con); name != "" {
@@ -559,23 +559,23 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				if err := validateUniqueOrPrimaryNotSpatial(tbl, uqCols, resolveConstraintIndexType(con)); err != nil {
 					return err
 				}
-				if err := validateIndexColumns(tbl, uqCols, false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, uqCols, false, false); err != nil {
 					return err
 				}
 			case nodes.ConstrIndex:
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con))); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, isSpatialIndexType(resolveConstraintIndexType(con))); err != nil {
 					return err
 				}
 			case nodes.ConstrFulltextIndex:
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), true, false); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), true, false); err != nil {
 					return err
 				}
 			case nodes.ConstrSpatialIndex:
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
 					return err
 				}
 			case nodes.ConstrForeignKey:
-				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+				if err := c.validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
 					return err
 				}
 			}
@@ -1350,7 +1350,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1405,7 +1405,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1438,7 +1438,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		fkIdxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+		if err := c.validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1521,7 +1521,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
-		if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 			return err
 		}
 		if name := duplicateKeyColumnName(con); name != "" {
@@ -1560,7 +1560,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, true, false); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, true, false); err != nil {
 			return err
 		}
 		ftIdx := &Index{
@@ -1590,7 +1590,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, true); err != nil {
+		if err := c.validateIndexColumns(tbl, idxCols, false, true); err != nil {
 			return err
 		}
 		if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {

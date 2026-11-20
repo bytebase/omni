@@ -3955,6 +3955,91 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a DROP PRIMARY KEY",
 			code:  1814,
 		},
+		{
+			name:    "non-strict sql_mode still rejects out-of-range TINYINT DEFAULT 999 with 1067",
+			session: []string{"SET sql_mode=''"},
+			stmt:    "CREATE TABLE a (a TINYINT DEFAULT 999)",
+			code:    1067,
+		},
+		{
+			name:     "BINARY(2) DEFAULT _latin1'é' counts encoded bytes as 2",
+			stmt:     "CREATE TABLE a (b BINARY(2) DEFAULT _latin1'é')",
+			code:     0,
+			contains: []string{"DEFAULT 'é'"},
+		},
+		{
+			name:     "VARBINARY(2) DEFAULT _latin1'é' counts encoded bytes as 2",
+			stmt:     "CREATE TABLE a (b VARBINARY(2) DEFAULT _latin1'é')",
+			code:     0,
+			contains: []string{"DEFAULT 'é'"},
+		},
+		{
+			name:    "SET NAMES latin1 BINARY(2) DEFAULT 'é' accepted",
+			session: []string{"SET NAMES latin1"},
+			cleanup: []string{"SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (b BINARY(2) DEFAULT 'é')",
+			code:    0,
+		},
+		{
+			name: "BINARY(2) DEFAULT _latin1'aé' exceeds 2 encoded bytes rejected with 1067",
+			stmt: "CREATE TABLE a (b BINARY(2) DEFAULT _latin1'aé')",
+			code: 1067,
+		},
+		{
+			name: "TINYBLOB prefix length 256 rejected with 1071",
+			stmt: "CREATE TABLE a (c TINYBLOB, KEY(c(256)))",
+			code: 1071,
+		},
+		{
+			name: "TINYTEXT utf8mb4 prefix length 64 exceeds 255 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (c TINYTEXT CHARACTER SET utf8mb4, KEY(c(64)))",
+			code: 1071,
+		},
+		{
+			name: "TINYTEXT utf8mb4 prefix length 63 fits 255 bytes accepted",
+			stmt: "CREATE TABLE a (c TINYTEXT CHARACTER SET utf8mb4, KEY(c(63)))",
+			code: 0,
+		},
+		{
+			name: "BLOB prefix length 3073 exceeds InnoDB key limit rejected with 1071",
+			stmt: "CREATE TABLE a (c BLOB, KEY(c(3073)))",
+			code: 1071,
+		},
+		{
+			name: "BLOB MyISAM prefix length 1001 exceeds 1000 bytes rejected with 1071",
+			stmt: "CREATE TABLE a (c BLOB, KEY(c(1001))) ENGINE=MyISAM",
+			code: 1071,
+		},
+		{
+			name:     "non-strict sql_mode clamps TINYBLOB prefix length 256 to 255",
+			session:  []string{"SET sql_mode=''"},
+			stmt:     "CREATE TABLE a (c TINYBLOB, KEY(c(256)))",
+			code:     0,
+			contains: []string{"KEY `c` (`c`(255))"},
+		},
+		{
+			name:    "CREATE TEMPORARY TABLE on general tablespace rejected with 1478",
+			setup:   []string{"CREATE TABLESPACE ts_tmp_tbl ADD DATAFILE 'ts_tmp_tbl.ibd' ENGINE=InnoDB"},
+			cleanup: []string{"DROP TABLESPACE ts_tmp_tbl"},
+			stmt:    "CREATE TEMPORARY TABLE a (id INT) TABLESPACE ts_tmp_tbl",
+			code:    1478,
+		},
+		{
+			name: "CREATE TEMPORARY TABLE on innodb_system rejected with 1478",
+			stmt: "CREATE TEMPORARY TABLE a (id INT) TABLESPACE innodb_system",
+			code: 1478,
+		},
+		{
+			name: "CREATE TEMPORARY TABLE on innodb_file_per_table rejected with 1478",
+			stmt: "CREATE TEMPORARY TABLE a (id INT) TABLESPACE innodb_file_per_table",
+			code: 1478,
+		},
+		{
+			name:    "CREATE TEMPORARY TABLE on innodb_temporary accepted",
+			cleanup: []string{"DROP TEMPORARY TABLE IF EXISTS a"},
+			stmt:    "CREATE TEMPORARY TABLE a (id INT) TABLESPACE innodb_temporary",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {

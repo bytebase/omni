@@ -217,6 +217,10 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 	}
 	switch {
 	case ts == "innodb_file_per_table" || ts == "innodb_system":
+		if temporary {
+			return &Error{Code: 1478, SQLState: "HY000",
+				Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain TEMPORARY tables.", ts)}
+		}
 		return nil
 	case ts == "innodb_temporary":
 		if temporary {
@@ -228,10 +232,16 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 	case strings.HasPrefix(strings.ToLower(ts), "innodb_"):
 		return errReservedInnoDBTablespacePrefix()
 	case c.tablespaces[ts]:
+		if temporary {
+			return &Error{Code: 1478, SQLState: "HY000",
+				Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain TEMPORARY tables.", ts)}
+		}
 		return nil
 	case c.loadingSDL:
-		// SDL captures schema-scoped DDL without instance-wide CREATE TABLESPACE
-		// statements; accept and register general tablespaces referenced by SDL tables.
+		if temporary {
+			return &Error{Code: 1478, SQLState: "HY000",
+				Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain TEMPORARY tables.", ts)}
+		}
 		c.tablespaces[ts] = true
 		return nil
 	default:

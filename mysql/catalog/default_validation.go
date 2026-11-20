@@ -504,7 +504,14 @@ func (c *Catalog) validateColumnLiteralDefault(col *Column, expr nodes.ExprNode)
 		if maxLen, ok := fixedLengthStringColumnLimit(col); ok {
 			switch kind {
 			case litString:
-				if len(val) > maxLen {
+				byteLen := len(val)
+				if sl, isSL := expr.(*nodes.StringLit); isSL &&
+					(sl.Charset != "" || sl.National || c.effectiveClientCharset() == c.effectiveConnCharset()) {
+					// Raw SQL literal bytes determine BINARY/VARBINARY width unless
+					// client->connection transcoding altered them (e.g. '?' substitution).
+					byteLen = len(sl.Value)
+				}
+				if byteLen > maxLen {
 					return errInvalidDefault(col.Name)
 				}
 			case litNumber:
