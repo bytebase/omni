@@ -4904,6 +4904,24 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "SET sql_mode = IF(1, 'ANSI', sim_oracle_missing.no_such())",
 			code:    1305,
 		},
+		{
+			name:    "SET sql_mode = CAST('ANSI' AS CHAR) enables ANSI mode on both server and catalog",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = CAST('ANSI' AS CHAR)",
+			code:    0,
+		},
+		{
+			name:    "SET IFNULL validates skipped second argument for missing function with 1305",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IFNULL('ANSI', sim_oracle_missing.no_such())",
+			code:    1305,
+		},
+		{
+			name:    "SET IF mixed numeric and string branch aggregates to string before comparison",
+			cleanup: []string{"SET SESSION sql_mode = DEFAULT"},
+			stmt:    "SET sql_mode = IF(IF(1, 1, 'x') = '01', 'ANSI', '')",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -6087,4 +6105,33 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		compCat.SetInnoDBPageSize(tc.pageSize)
 		execAlterClauses(t, compCat, tc.sql)
 	}
+
+	// CAST in SET, skipped IFNULL/COALESCE validation, mixed IF result typing,
+	// failed ALTER RENAME AST preservation, and LoadMetadata pre-existing tablespaces.
+	castCat := New()
+	execAlterClauses(t, castCat, "CREATE DATABASE d; USE d; SET sql_mode = CAST('ANSI' AS CHAR);")
+	if !strings.Contains(castCat.session.SQLMode, "ANSI") {
+		t.Fatalf("CAST('ANSI' AS CHAR) got %q, want ANSI", castCat.session.SQLMode)
+	}
+	if got, _ := simulationCatalogRefusal(t, castCat, "SET sql_mode = IFNULL('TRADITIONAL', d.no_such())"); got != 1305 {
+		t.Fatalf("IFNULL skipped missing func got %d, want 1305", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, castCat, "SET sql_mode = COALESCE(NULL, 'TRADITIONAL', d.no_such())"); got != 1305 {
+		t.Fatalf("COALESCE skipped missing func got %d, want 1305", got)
+	}
+	execAlterClauses(t, castCat, "SET sql_mode = IF(IF(1, 1, 'x') = '01', 'ANSI', '');")
+	if castCat.session.SQLMode != "" {
+		t.Fatalf("mixed IF(1,1,'x') = '01' enabled ANSI: %q", castCat.session.SQLMode)
+	}
+
+	renFailCat := New()
+	execAlterClauses(t, renFailCat, "CREATE DATABASE d; USE d; CREATE TABLE t (a INT, b INT DEFAULT (t.a + 1), KEY ((t.a + 1)));")
+	if got, _ := simulationCatalogRefusal(t, renFailCat, "ALTER TABLE t RENAME TO u, ADD COLUMN a INT"); got != 1060 {
+		t.Fatalf("failed RENAME+ADD COLUMN got %d, want 1060", got)
+	}
+	execAlterClauses(t, renFailCat, "ALTER TABLE t RENAME TO u2; ALTER TABLE u2 ADD COLUMN c INT;")
+
+	metaCat := New()
+	metaCat.tablespacesPartial = true
+	execAlterClauses(t, metaCat, "CREATE DATABASE d; USE d; CREATE TABLE t (id INT PRIMARY KEY) ENGINE=InnoDB; ALTER TABLE t TABLESPACE pre_existing_ts; CREATE TABLE u (id INT PRIMARY KEY) TABLESPACE pre_existing_ts ENGINE=InnoDB;")
 }

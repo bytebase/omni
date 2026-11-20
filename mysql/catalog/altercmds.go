@@ -1895,7 +1895,7 @@ func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTab
 	tbl.Name = newName
 	tbl.Database = newDB
 	newDB.Tables[newKey] = tbl
-	stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, false)
+	stripTableQualifiersFromTableExprs(tbl, oldDBName, oldTableName, true)
 	return nil
 }
 

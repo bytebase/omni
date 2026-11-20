@@ -65,6 +65,7 @@ func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseS
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
+	c.tablespacesPartial = true
 	c.selectMetadataDatabase(meta, database)
 	restore := c.loadSessionSettings()
 	defer restore()
@@ -443,6 +444,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 		{"COLLATE", t.GetCollation()},
 		{"COMMENT", syncedComment(t.GetComment())},
 		{"ROW_FORMAT", createOption(t.GetCreateOptions(), "row_format")},
+		{"TABLESPACE", unquoteTableOption(createOption(t.GetCreateOptions(), "tablespace"))},
 		{"SECONDARY_ENGINE", unquoteTableOption(createOption(t.GetCreateOptions(), "secondary_engine"))},
 		{"AUTOEXTEND_SIZE", createOption(t.GetCreateOptions(), "autoextend_size")},
 	} {

@@ -24,6 +24,8 @@ type userVarValue struct {
 type Catalog struct {
 	databases                 map[string]*Database      // lowered name -> Database
 	tablespaces               map[string]bool           // exact general tablespace names
+	droppedTablespaces        map[string]bool           // tablespaces explicitly dropped in session
+	tablespacesPartial        bool                      // true when seeded via LoadMetadata without full tablespace inventory
 	tablespaceBlockSizes      map[string]uint64         // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
 	tablespaceEncrypted       map[string]bool           // general tablespace name -> ENCRYPTION='Y'
 	undoTablespaces           map[string]bool           // exact undo tablespace names -> active

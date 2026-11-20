@@ -902,9 +902,16 @@ func (c *Catalog) evalSetExpr(expr nodes.ExprNode) (userVarValue, bool) {
 }
 
 func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, error) {
+	if err := c.validateSetExprStatic(expr); err != nil {
+		return userVarValue{}, false, err
+	}
+	return c.evalSetExprNode(expr)
+}
+
+func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, error) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return c.evalSetExprChecked(e.Expr)
+		return c.evalSetExprNode(e.Expr)
 	case *nodes.NullLit:
 		return userVarValue{kind: userVarNull}, true, nil
 	case *nodes.StringLit:
@@ -948,7 +955,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			case *nodes.FloatLit:
 				return userVarValue{kind: userVarNumeric, str: sign + op.Value}, true, nil
 			}
-			v, ok, err := c.evalSetExprChecked(e.Operand)
+			v, ok, err := c.evalSetExprNode(e.Operand)
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
@@ -976,9 +983,23 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 		}
 		return userVarValue{}, false, nil
 	case *nodes.BinaryExpr:
-		return c.evalSetBinaryExprChecked(e)
+		return c.evalSetBinaryExprNode(e)
 	case *nodes.CaseExpr:
-		return c.evalSetCaseExprChecked(e)
+		return c.evalSetCaseExprNode(e)
+	case *nodes.CastExpr:
+		v, ok, err := c.evalSetExprNode(e.Expr)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		out, ok := evalSetCastValue(v, e.TypeName, "")
+		return out, ok, nil
+	case *nodes.ConvertExpr:
+		v, ok, err := c.evalSetExprNode(e.Expr)
+		if err != nil || !ok {
+			return userVarValue{}, false, err
+		}
+		out, ok := evalSetCastValue(v, e.TypeName, e.Charset)
+		return out, ok, nil
 	case *nodes.VariableRef:
 		if !e.System {
 			if v, exists := c.userVars[toLower(e.Name)]; exists {
@@ -1018,7 +1039,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			}
 			if db := c.GetDatabase(targetDBName); db != nil && db.Functions[toLower(e.Name)] != nil {
 				for _, arg := range e.Args {
-					if _, _, err := c.evalSetExprChecked(arg); err != nil {
+					if _, _, err := c.evalSetExprNode(arg); err != nil {
 						return userVarValue{}, false, err
 					}
 				}
@@ -1035,31 +1056,28 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) != 3 {
 				return userVarValue{}, false, errWrongParamCount("IF")
 			}
-			cond, ok, err := c.evalSetExprChecked(e.Args[0])
+			cond, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
-			chosen, skipped := e.Args[2], e.Args[1]
+			chosen := e.Args[2]
 			if evalSetValueTruthy(cond) {
-				chosen, skipped = e.Args[1], e.Args[2]
+				chosen = e.Args[1]
 			}
-			res, resOK, resErr := c.evalSetExprChecked(chosen)
-			if resErr != nil {
-				return userVarValue{}, false, resErr
+			res, resOK, resErr := c.evalSetExprNode(chosen)
+			if resErr != nil || !resOK {
+				return res, resOK, resErr
 			}
-			if staticErr := c.validateSetExprStatic(skipped); staticErr != nil {
-				return userVarValue{}, false, staticErr
-			}
-			return res, resOK, nil
+			return c.aggregateConditionalResultKind(res, e.Args[1], e.Args[2]), true, nil
 		case "nullif":
 			if len(e.Args) != 2 {
 				return userVarValue{}, false, errWrongParamCount("NULLIF")
 			}
-			v0, ok, err := c.evalSetExprChecked(e.Args[0])
+			v0, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
-			v1, ok, err := c.evalSetExprChecked(e.Args[1])
+			v1, ok, err := c.evalSetExprNode(e.Args[1])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
@@ -1074,7 +1092,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount("ISNULL")
 			}
-			v, ok, err := c.evalSetExprChecked(e.Args[0])
+			v, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
@@ -1089,7 +1107,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			var b strings.Builder
 			isBin := false
 			for _, arg := range e.Args {
-				v, ok, err := c.evalSetExprChecked(arg)
+				v, ok, err := c.evalSetExprNode(arg)
 				if err != nil || !ok {
 					return userVarValue{}, false, err
 				}
@@ -1107,12 +1125,12 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				return userVarValue{}, false, errWrongParamCount("COALESCE")
 			}
 			for _, arg := range e.Args {
-				v, ok, err := c.evalSetExprChecked(arg)
+				v, ok, err := c.evalSetExprNode(arg)
 				if err != nil || !ok {
 					return userVarValue{}, false, err
 				}
 				if v.kind != userVarNull {
-					return v, true, nil
+					return c.aggregateConditionalResultKind(v, e.Args...), true, nil
 				}
 			}
 			return userVarValue{kind: userVarNull}, true, nil
@@ -1120,23 +1138,23 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) != 2 {
 				return userVarValue{}, false, errWrongParamCount("IFNULL")
 			}
-			v0, ok, err := c.evalSetExprChecked(e.Args[0])
+			v0, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
 			if v0.kind != userVarNull {
-				return v0, true, nil
+				return c.aggregateConditionalResultKind(v0, e.Args...), true, nil
 			}
-			v1, ok, err := c.evalSetExprChecked(e.Args[1])
+			v1, ok, err := c.evalSetExprNode(e.Args[1])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
-			return v1, true, nil
+			return c.aggregateConditionalResultKind(v1, e.Args...), true, nil
 		case "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase", "reverse":
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
-			v, ok, err := c.evalSetExprChecked(e.Args[0])
+			v, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok || v.kind == userVarNull {
 				return v, ok, err
 			}
@@ -1180,22 +1198,18 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			remBin := false
 			strExpr := e.Args[0]
 			if len(e.Args) == 2 {
-				rv, ok, err := c.evalSetExprChecked(e.Args[0])
+				rv, ok, err := c.evalSetExprNode(e.Args[0])
 				if err != nil || !ok {
 					return userVarValue{}, false, err
 				}
 				if rv.kind == userVarNull {
-					// Evaluate string arg to validate any sysvar/func errors first.
-					if _, ok2, err2 := c.evalSetExprChecked(e.Args[1]); err2 != nil || !ok2 {
-						return userVarValue{}, false, err2
-					}
 					return userVarValue{kind: userVarNull}, true, nil
 				}
 				rem = rv.str
 				remBin = rv.binary
 				strExpr = e.Args[1]
 			}
-			sv, ok, err := c.evalSetExprChecked(strExpr)
+			sv, ok, err := c.evalSetExprNode(strExpr)
 			if err != nil || !ok || sv.kind == userVarNull {
 				return sv, ok, err
 			}
@@ -1204,11 +1218,11 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) != 2 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
-			sv, ok, err := c.evalSetExprChecked(e.Args[0])
+			sv, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
-			nv, ok, err := c.evalSetExprChecked(e.Args[1])
+			nv, ok, err := c.evalSetExprNode(e.Args[1])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
@@ -1243,18 +1257,18 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) < 2 || len(e.Args) > 3 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
-			sv, ok, err := c.evalSetExprChecked(e.Args[0])
+			sv, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
-			pv, ok, err := c.evalSetExprChecked(e.Args[1])
+			pv, ok, err := c.evalSetExprNode(e.Args[1])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
 			var lv userVarValue
 			hasLen := len(e.Args) == 3
 			if hasLen {
-				lv, ok, err = c.evalSetExprChecked(e.Args[2])
+				lv, ok, err = c.evalSetExprNode(e.Args[2])
 				if err != nil || !ok {
 					return userVarValue{}, false, err
 				}
@@ -1325,7 +1339,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) != 1 {
 				return userVarValue{}, false, errWrongParamCount(strings.ToUpper(e.Name))
 			}
-			v, ok, err := c.evalSetExprChecked(e.Args[0])
+			v, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok || v.kind == userVarNull {
 				return v, ok, err
 			}
@@ -1341,7 +1355,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			args := make([]userVarValue, 3)
 			isBin := false
 			for i := 0; i < 3; i++ {
-				v, ok, err := c.evalSetExprChecked(e.Args[i])
+				v, ok, err := c.evalSetExprNode(e.Args[i])
 				if err != nil || !ok {
 					return userVarValue{}, false, err
 				}
@@ -1361,7 +1375,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			if len(e.Args) < 2 {
 				return userVarValue{}, false, errWrongParamCount("CONCAT_WS")
 			}
-			sep, ok, err := c.evalSetExprChecked(e.Args[0])
+			sep, ok, err := c.evalSetExprNode(e.Args[0])
 			if err != nil || !ok {
 				return userVarValue{}, false, err
 			}
@@ -1371,7 +1385,7 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 			isBin := sep.binary
 			var parts []string
 			for _, arg := range e.Args[1:] {
-				v, ok, err := c.evalSetExprChecked(arg)
+				v, ok, err := c.evalSetExprNode(arg)
 				if err != nil || !ok {
 					return userVarValue{}, false, err
 				}
@@ -1610,7 +1624,178 @@ func boolSetVar(b bool) userVarValue {
 	return userVarValue{kind: userVarNumeric, str: "0"}
 }
 
-func (c *Catalog) evalSetCaseExprChecked(e *nodes.CaseExpr) (userVarValue, bool, error) {
+func evalSetCastValue(v userVarValue, dt *nodes.DataType, usingCharset string) (userVarValue, bool) {
+	if v.kind == userVarNull {
+		return userVarValue{kind: userVarNull}, true
+	}
+	if usingCharset != "" {
+		return userVarValue{
+			kind:   userVarString,
+			str:    v.str,
+			binary: strings.EqualFold(strings.TrimSpace(usingCharset), "binary"),
+		}, true
+	}
+	if dt == nil {
+		return userVarValue{}, false
+	}
+	switch strings.ToLower(strings.TrimSpace(dt.Name)) {
+	case "char", "nchar", "varchar":
+		isBin := strings.EqualFold(dt.Charset, "binary")
+		s := v.str
+		if dt.HasLength && dt.Length >= 0 {
+			if isBin {
+				if len(s) > dt.Length {
+					s = s[:dt.Length]
+				}
+			} else {
+				runes := []rune(s)
+				if len(runes) > dt.Length {
+					s = string(runes[:dt.Length])
+				}
+			}
+		}
+		return userVarValue{kind: userVarString, str: s, binary: isBin}, true
+	case "binary", "varbinary":
+		s := v.str
+		if dt.HasLength && dt.Length >= 0 {
+			if len(s) > dt.Length {
+				s = s[:dt.Length]
+			} else if strings.EqualFold(dt.Name, "binary") && len(s) < dt.Length {
+				s += strings.Repeat("\x00", dt.Length-len(s))
+			}
+		}
+		return userVarValue{kind: userVarString, str: s, binary: true}, true
+	case "signed":
+		r := parseSetCoercedNumberRat(v)
+		q := new(big.Int).Quo(r.Num(), r.Denom())
+		return userVarValue{kind: userVarNumeric, str: q.String()}, true
+	case "unsigned":
+		r := parseSetCoercedNumberRat(v)
+		q := new(big.Int).Quo(r.Num(), r.Denom())
+		if q.Sign() < 0 {
+			var u uint64 = uint64(q.Int64())
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(u, 10)}, true
+		}
+		return userVarValue{kind: userVarNumeric, str: q.String()}, true
+	case "decimal", "numeric", "float", "double", "real":
+		r := parseSetCoercedNumberRat(v)
+		scale := dt.Scale
+		if scale < 0 {
+			scale = 0
+		}
+		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale)}, true
+	default:
+		return userVarValue{}, false
+	}
+}
+
+func (c *Catalog) setExprResultIsStringOrBinary(expr nodes.ExprNode) (isStr, isBin bool) {
+	switch e := expr.(type) {
+	case nil, *nodes.IntLit, *nodes.FloatLit, *nodes.BoolLit, *nodes.NullLit:
+		return false, false
+	case *nodes.ParenExpr:
+		return c.setExprResultIsStringOrBinary(e.Expr)
+	case *nodes.StringLit:
+		return true, false
+	case *nodes.HexLit, *nodes.BitLit:
+		return true, true
+	case *nodes.CastExpr:
+		if e.TypeName == nil {
+			return false, false
+		}
+		switch strings.ToLower(strings.TrimSpace(e.TypeName.Name)) {
+		case "binary", "varbinary":
+			return true, true
+		case "char", "nchar", "varchar":
+			return true, strings.EqualFold(e.TypeName.Charset, "binary")
+		}
+		return false, false
+	case *nodes.ConvertExpr:
+		if e.Charset != "" {
+			return true, strings.EqualFold(strings.TrimSpace(e.Charset), "binary")
+		}
+		if e.TypeName != nil {
+			return c.setExprResultIsStringOrBinary(&nodes.CastExpr{TypeName: e.TypeName})
+		}
+		return false, false
+	case *nodes.VariableRef:
+		if !e.System {
+			if v, exists := c.userVars[toLower(e.Name)]; exists {
+				return v.kind == userVarString, v.binary
+			}
+			return false, false
+		}
+		switch toLower(e.Name) {
+		case "sql_mode", "time_zone", "system_time_zone", "character_set_client", "collation_connection":
+			return true, false
+		}
+		return false, false
+	case *nodes.CaseExpr:
+		for _, w := range e.Whens {
+			if w != nil {
+				s, b := c.setExprResultIsStringOrBinary(w.Result)
+				isStr = isStr || s
+				isBin = isBin || b
+			}
+		}
+		if e.Default != nil {
+			s, b := c.setExprResultIsStringOrBinary(e.Default)
+			isStr = isStr || s
+			isBin = isBin || b
+		}
+		return isStr, isBin
+	case *nodes.FuncCallExpr:
+		switch toLower(e.Name) {
+		case "concat", "concat_ws", "trim", "ltrim", "rtrim", "upper", "lower",
+			"ucase", "lcase", "reverse", "trim_leading", "trim_trailing", "trim_both",
+			"trim_from", "left", "right", "substr", "substring", "mid", "replace":
+			for _, arg := range e.Args {
+				_, b := c.setExprResultIsStringOrBinary(arg)
+				isBin = isBin || b
+			}
+			return true, isBin
+		case "if":
+			if len(e.Args) == 3 {
+				s1, b1 := c.setExprResultIsStringOrBinary(e.Args[1])
+				s2, b2 := c.setExprResultIsStringOrBinary(e.Args[2])
+				return s1 || s2, b1 || b2
+			}
+		case "ifnull", "coalesce":
+			for _, arg := range e.Args {
+				s, b := c.setExprResultIsStringOrBinary(arg)
+				isStr = isStr || s
+				isBin = isBin || b
+			}
+			return isStr, isBin
+		case "nullif":
+			if len(e.Args) >= 1 {
+				return c.setExprResultIsStringOrBinary(e.Args[0])
+			}
+		}
+	}
+	return false, false
+}
+
+func (c *Catalog) aggregateConditionalResultKind(v userVarValue, exprs ...nodes.ExprNode) userVarValue {
+	if v.kind == userVarNull {
+		return v
+	}
+	isStr, isBin := false, false
+	for _, ex := range exprs {
+		s, b := c.setExprResultIsStringOrBinary(ex)
+		isStr = isStr || s
+		isBin = isBin || b
+	}
+	if isStr || v.kind == userVarString {
+		v.kind = userVarString
+		if isBin {
+			v.binary = true
+		}
+	}
+	return v
+}
+
+func (c *Catalog) evalSetCaseExprNode(e *nodes.CaseExpr) (userVarValue, bool, error) {
 	if e == nil {
 		return userVarValue{}, false, nil
 	}
@@ -1619,17 +1804,26 @@ func (c *Catalog) evalSetCaseExprChecked(e *nodes.CaseExpr) (userVarValue, bool,
 	if e.Operand != nil {
 		var ok bool
 		var err error
-		opVal, ok, err = c.evalSetExprChecked(e.Operand)
+		opVal, ok, err = c.evalSetExprNode(e.Operand)
 		if err != nil || !ok {
 			return userVarValue{}, false, err
 		}
 		hasOperand = true
 	}
-	for i, w := range e.Whens {
+	allResults := make([]nodes.ExprNode, 0, len(e.Whens)+1)
+	for _, w := range e.Whens {
+		if w != nil {
+			allResults = append(allResults, w.Result)
+		}
+	}
+	if e.Default != nil {
+		allResults = append(allResults, e.Default)
+	}
+	for _, w := range e.Whens {
 		if w == nil {
 			continue
 		}
-		cond, ok, err := c.evalSetExprChecked(w.Cond)
+		cond, ok, err := c.evalSetExprNode(w.Cond)
 		if err != nil || !ok {
 			return userVarValue{}, false, err
 		}
@@ -1640,45 +1834,32 @@ func (c *Catalog) evalSetCaseExprChecked(e *nodes.CaseExpr) (userVarValue, bool,
 			matched = evalSetValueTruthy(cond)
 		}
 		if matched {
-			res, resOK, resErr := c.evalSetExprChecked(w.Result)
-			if resErr != nil {
-				return userVarValue{}, false, resErr
+			res, resOK, resErr := c.evalSetExprNode(w.Result)
+			if resErr != nil || !resOK {
+				return res, resOK, resErr
 			}
-			for _, rem := range e.Whens[i+1:] {
-				if rem == nil {
-					continue
-				}
-				if err := c.validateSetExprStatic(rem.Cond); err != nil {
-					return userVarValue{}, false, err
-				}
-				if err := c.validateSetExprStatic(rem.Result); err != nil {
-					return userVarValue{}, false, err
-				}
-			}
-			if err := c.validateSetExprStatic(e.Default); err != nil {
-				return userVarValue{}, false, err
-			}
-			return res, resOK, nil
-		}
-		if err := c.validateSetExprStatic(w.Result); err != nil {
-			return userVarValue{}, false, err
+			return c.aggregateConditionalResultKind(res, allResults...), true, nil
 		}
 	}
 	if e.Default != nil {
-		return c.evalSetExprChecked(e.Default)
+		res, resOK, resErr := c.evalSetExprNode(e.Default)
+		if resErr != nil || !resOK {
+			return res, resOK, resErr
+		}
+		return c.aggregateConditionalResultKind(res, allResults...), true, nil
 	}
 	return userVarValue{kind: userVarNull}, true, nil
 }
 
-func (c *Catalog) evalSetBinaryExprChecked(e *nodes.BinaryExpr) (userVarValue, bool, error) {
+func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool, error) {
 	if e == nil {
 		return userVarValue{}, false, nil
 	}
-	left, ok, err := c.evalSetExprChecked(e.Left)
+	left, ok, err := c.evalSetExprNode(e.Left)
 	if err != nil || !ok {
 		return userVarValue{}, false, err
 	}
-	right, ok, err := c.evalSetExprChecked(e.Right)
+	right, ok, err := c.evalSetExprNode(e.Right)
 	if err != nil || !ok {
 		return userVarValue{}, false, err
 	}

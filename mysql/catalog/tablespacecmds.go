@@ -295,6 +295,12 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 		}
 		c.tablespaces[ts] = true
 		return nil
+	case c.tablespacesPartial && !c.droppedTablespaces[ts]:
+		if temporary {
+			return &Error{Code: 1478, SQLState: "HY000",
+				Message: fmt.Sprintf("InnoDB: Tablespace `%s` cannot contain TEMPORARY tables.", ts)}
+		}
+		return nil
 	default:
 		return errTablespaceDoesNotExist(ts)
 	}
@@ -550,6 +556,7 @@ func (c *Catalog) createTablespace(stmt *nodes.CreateTablespaceStmt) error {
 		return nil
 	}
 	c.tablespaces[stmt.Name] = true
+	delete(c.droppedTablespaces, stmt.Name)
 	if c.tablespaceBlockSizes == nil {
 		c.tablespaceBlockSizes = make(map[string]uint64)
 	}
@@ -724,6 +731,12 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	delete(c.tablespaceBlockSizes, stmt.Name)
 	delete(c.tablespaceEncrypted, stmt.Name)
 	delete(c.tablespaceFiles, stmt.Name)
+	if c.tablespacesPartial {
+		if c.droppedTablespaces == nil {
+			c.droppedTablespaces = make(map[string]bool)
+		}
+		c.droppedTablespaces[stmt.Name] = true
+	}
 	return nil
 }
 
