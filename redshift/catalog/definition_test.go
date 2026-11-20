@@ -465,6 +465,8 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
 			{Name: "max_score", Type: "integer", Default: "GREATEST(1, 2)"},
 			{Name: "big_num", Type: "double precision", Default: "2.0e19"},
 			{Name: "opt", Type: "integer", Default: "null", Nullable: true},
+			{Name: "esc_str", Type: "character varying(20)", Default: `E'line\n'`, Nullable: true},
+			{Name: "dollar_str", Type: "character varying(20)", Default: `$$pending$$`, Nullable: true},
 			{Name: "win_path", Type: "character varying(64)", Default: `C:\temp\a'b`, Comment: `\'; DROP TABLE victim; --`, Nullable: true},
 		},
 	})
@@ -479,6 +481,8 @@ func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testin
   "max_score" integer NOT NULL DEFAULT GREATEST(1, 2),
   "big_num" double precision NOT NULL DEFAULT 2.0e19,
   "opt" integer DEFAULT NULL,
+  "esc_str" character varying(20) DEFAULT E'line\n',
+  "dollar_str" character varying(20) DEFAULT $$pending$$,
   "win_path" character varying(64) DEFAULT 'C:\\temp\\a''b'
 );
 COMMENT ON COLUMN "public"."events"."win_path" IS '\\''; DROP TABLE victim; --';
@@ -560,6 +564,71 @@ CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_ba
 	})
 	require.NoError(t, err)
 	require.Contains(t, newlineNameDump, "-- Table structure for `safe DROP TABLE victim; --`\n--\nCREATE TABLE")
+}
+
+// TestDatabaseDefinitionRoutinesAndViewColumnComments pins UDF/procedure
+// emission order and view column COMMENT ON COLUMN statements.
+func TestDatabaseDefinitionRoutinesAndViewColumnComments(t *testing.T) {
+	viewDef, err := GetViewDefinition("public", &metadatapb.ViewMetadata{
+		Name:       "v",
+		Definition: "SELECT 1 AS id",
+		Comment:    "view note",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "integer", Comment: "view col note"},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `CREATE OR REPLACE VIEW "public"."v" AS SELECT 1 AS id;
+COMMENT ON VIEW "public"."v" IS 'view note';
+COMMENT ON COLUMN "public"."v"."id" IS 'view col note';
+`, viewDef)
+
+	got, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "skip_fn", SkipDump: true},
+					{
+						Name:       "f_inc",
+						Definition: "CREATE FUNCTION public.f_inc(x int) RETURNS int IMMUTABLE AS $$ SELECT x + 1 $$ LANGUAGE SQL",
+					},
+				},
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "t",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "public.f_inc(0)"}},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{
+						Name:       "v",
+						Definition: "SELECT public.f_inc(id) AS next_id FROM public.t",
+						Columns:    []*metadatapb.ColumnMetadata{{Name: "next_id", Type: "integer", Comment: "computed"}},
+					},
+				},
+				Procedures: []*metadatapb.ProcedureMetadata{
+					{Name: "skip_proc", SkipDump: true},
+					{
+						Name:       "p_cleanup",
+						Definition: "CREATE PROCEDURE public.p_cleanup() AS $$ BEGIN DELETE FROM public.t; END; $$ LANGUAGE plpgsql",
+					},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	fnIdx := strings.Index(got, "Function structure for `f_inc`")
+	tblIdx := strings.Index(got, "Table structure for `t`")
+	viewIdx := strings.Index(got, "View structure for `v`")
+	procIdx := strings.Index(got, "Procedure structure for `p_cleanup`")
+	require.GreaterOrEqual(t, fnIdx, 0)
+	require.Greater(t, tblIdx, fnIdx)
+	require.Greater(t, viewIdx, tblIdx)
+	require.Greater(t, procIdx, viewIdx)
+	require.Contains(t, got, `COMMENT ON COLUMN "public"."v"."next_id" IS 'computed';`)
+	require.NotContains(t, got, "skip_fn")
+	require.NotContains(t, got, "skip_proc")
 }
 
 // TestDatabaseDefinitionCrossKindViewsOmittedFKSchemaAndEmptyView pins that

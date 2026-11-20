@@ -28,10 +28,19 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeSchemas(&sb, to); err != nil {
 		return "", err
 	}
+	if err := writeFunctions(&sb, to, false); err != nil {
+		return "", err
+	}
 	if err := writeTables(&sb, to, toState); err != nil {
 		return "", err
 	}
+	if err := writeFunctions(&sb, to, true); err != nil {
+		return "", err
+	}
 	if err := writeAllViews(&sb, to, toState); err != nil {
+		return "", err
+	}
+	if err := writeProcedures(&sb, to); err != nil {
 		return "", err
 	}
 
@@ -193,8 +202,70 @@ func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
 				return true
 			}
 		}
+		for _, fn := range schema.Functions {
+			if fn != nil && !fn.SkipDump && (hasUpperASCII(fn.Name) || hasUpperQuotedIdent(fn.Definition)) {
+				return true
+			}
+		}
+		for _, proc := range schema.Procedures {
+			if proc != nil && !proc.SkipDump && (hasUpperASCII(proc.Name) || hasUpperQuotedIdent(proc.Definition)) {
+				return true
+			}
+		}
 	}
 	return false
+}
+
+func writeFunctions(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, withTableDeps bool) error {
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		for _, fn := range schema.Functions {
+			if fn == nil || fn.SkipDump {
+				continue
+			}
+			hasDeps := len(fn.DependencyTables) > 0
+			if hasDeps != withTableDeps {
+				continue
+			}
+			def := strings.TrimSpace(fn.Definition)
+			if def == "" {
+				return fmt.Errorf("function %s has no definition to restore", qualifyName(schema.Name, fn.Name))
+			}
+			if !strings.HasSuffix(def, ";") {
+				def += ";"
+			}
+			if _, err := w.WriteString(getFunctionAnnouncement(fn.Name) + def + "\n"); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		for _, proc := range schema.Procedures {
+			if proc == nil || proc.SkipDump {
+				continue
+			}
+			def := strings.TrimSpace(proc.Definition)
+			if def == "" {
+				return fmt.Errorf("procedure %s has no definition to restore", qualifyName(schema.Name, proc.Name))
+			}
+			if !strings.HasSuffix(def, ";") {
+				def += ";"
+			}
+			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name) + def + "\n"); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
@@ -638,7 +709,7 @@ func writeTableWithFKs(w io.StringWriter, table *tableState, foreignKeys []*fore
 	return err
 }
 
-// writeView writes one view and its comment.
+// writeView writes one view and the comments that belong to it and its columns.
 func writeView(w io.StringWriter, view *viewState) error {
 	buf := &strings.Builder{}
 	if err := view.toString(buf); err != nil {
@@ -646,6 +717,14 @@ func writeView(w io.StringWriter, view *viewState) error {
 	}
 	if view.comment != "" {
 		if _, err := fmt.Fprintf(buf, "COMMENT ON VIEW %s IS '%s';\n", view.qualifiedName(), escapeStringLiteral(view.comment)); err != nil {
+			return err
+		}
+	}
+	for _, column := range sortedColumns(view.columns) {
+		if column.comment == "" {
+			continue
+		}
+		if _, err := fmt.Fprintf(buf, "COMMENT ON COLUMN %s.%s IS '%s';\n", view.qualifiedName(), quoteDefinitionIdentifier(column.name), escapeStringLiteral(column.comment)); err != nil {
 			return err
 		}
 	}
@@ -664,6 +743,14 @@ func writeMaterializedView(w io.StringWriter, mv *viewState) error {
 
 func sanitizeBannerName(name string) string {
 	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(name)
+}
+
+func getFunctionAnnouncement(name string) string {
+	return fmt.Sprintf("\n--\n-- Function structure for `%s`\n--\n", sanitizeBannerName(name))
+}
+
+func getProcedureAnnouncement(name string) string {
+	return fmt.Sprintf("\n--\n-- Procedure structure for `%s`\n--\n", sanitizeBannerName(name))
 }
 
 func getTableAnnouncement(name string) string {
@@ -1175,19 +1262,11 @@ func isExpression(value string) bool {
 	if rt.Val == nil {
 		return false
 	}
-	switch v := rt.Val.(type) {
+	switch rt.Val.(type) {
 	case *nodes.ColumnRef:
 		return false
 	case *nodes.A_Const:
-		if v.Isnull {
-			return true
-		}
-		switch v.Val.(type) {
-		case *nodes.Integer, *nodes.Float, *nodes.Boolean, *nodes.BitString:
-			return true
-		default:
-			return false
-		}
+		return true
 	}
 	// Column defaults cannot reference columns; rejecting ColumnRef keeps
 	// raw strings like "pending (old)" from matching as FuncCall(ColumnRef).
@@ -1258,15 +1337,24 @@ type viewState struct {
 	name       string
 	definition string
 	comment    string
+	columns    map[string]*columnState
 }
 
 func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata) *viewState {
+	cols := make(map[string]*columnState, len(view.Columns))
+	for i, col := range view.Columns {
+		if col == nil {
+			continue
+		}
+		cols[col.Name] = convertToColumnState(i, col)
+	}
 	return &viewState{
 		id:         id,
 		schema:     schemaName,
 		name:       view.Name,
 		definition: view.Definition,
 		comment:    view.Comment,
+		columns:    cols,
 	}
 }
 
