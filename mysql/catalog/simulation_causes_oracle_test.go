@@ -41,6 +41,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 	t.Cleanup(reset)
 
 	oneTable := "CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))"
+	// Tables for the functional key part cases.
+	fiTable := "CREATE TABLE a (b INT PRIMARY KEY, c VARCHAR(10))"
+	fiGeometry := "CREATE TABLE s (g GEOMETRY NOT NULL SRID 0)"
 	// A table with no primary key, for the one a statement adds beside a column.
 	noPrimaryKey := "CREATE TABLE a (c INT, d INT, KEY idx_d (d))"
 	cases := []struct {
@@ -4929,6 +4932,288 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a DISCARD TABLESPACE",
 			code:  0,
 		},
+		// Functional key parts (mysql:8.0.46): the built-ins DEFAULT (expr)
+		// takes but a generated column does not, the ones DEFAULT refuses too,
+		// stored and unknown functions, variables judged in post-order,
+		// aggregates and window functions, and FULLTEXT / SPATIAL keys, which
+		// take no functional part (3759 / 3760, after the expression's checks).
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((CONNECTION_ID()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((CONNECTION_ID()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((UTC_TIMESTAMP()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((UTC_TIMESTAMP()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((UTC_TIMESTAMP(3)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((UTC_TIMESTAMP(3)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((CURRENT_DATE))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((CURRENT_DATE))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((CURRENT_USER()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((CURRENT_USER()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((DATABASE()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((DATABASE()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((UNIX_TIMESTAMP(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((UNIX_TIMESTAMP(c)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((UUID_SHORT()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((UUID_SHORT()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((STATEMENT_DIGEST_TEXT('select 1')))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((STATEMENT_DIGEST_TEXT('select 1')))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((LAST_INSERT_ID()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((LAST_INSERT_ID()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((VERSION()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((VERSION()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((GET_LOCK('a', 1)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((GET_LOCK('a', 1)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((VALUES(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((VALUES(c)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((NAME_CONST('a', 1)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((NAME_CONST('a', 1)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((nosuchfn(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((nosuchfn(c)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((d.nosuchfn(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((d.nosuchfn(c)))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((MATCH(c) AGAINST ('x')))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((MATCH(c) AGAINST ('x')))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((@x))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((@x))",
+			code:  3772,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((@x + NOW()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((@x + NOW()))",
+			code:  3772,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((NOW() + @x))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((NOW() + @x))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((SLEEP(@x)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((SLEEP(@x)))",
+			code:  3772,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((COUNT(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((COUNT(c)))",
+			code:  1111,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((GROUP_CONCAT(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((GROUP_CONCAT(c)))",
+			code:  1111,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((COUNT(c) + NOW()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((COUNT(c) + NOW()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((ROW_NUMBER() OVER ()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((ROW_NUMBER() OVER ()))",
+			code:  3593,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((COUNT(c) OVER ()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((COUNT(c) OVER ()))",
+			code:  3593,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((ANY_VALUE(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((ANY_VALUE(c)))",
+			code:  0,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((CHAR(65)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((CHAR(65)))",
+			code:  0,
+		},
+		{
+			name:  "functional key part: CREATE INDEX i ON a ((ELT(1, c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE INDEX i ON a ((ELT(1, c)))",
+			code:  0,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a ((LOWER(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a ((LOWER(c)))",
+			code:  3759,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a (c, (LOWER(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a (c, (LOWER(c)))",
+			code:  3759,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a ((CAST(c AS JSON)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a ((CAST(c AS JSON)))",
+			code:  3759,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a ((c))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a ((c))",
+			code:  3762,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a ((NOW()))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a ((NOW()))",
+			code:  3758,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a ((COUNT(c)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a ((COUNT(c)))",
+			code:  1111,
+		},
+		{
+			name:  "functional key part: CREATE FULLTEXT INDEX i ON a ((LOWER(nosuch)))",
+			setup: []string{fiTable},
+			stmt:  "CREATE FULLTEXT INDEX i ON a ((LOWER(nosuch)))",
+			code:  1054,
+		},
+		{
+			name:  "functional key part: CREATE SPATIAL INDEX i ON s ((ST_SRID(g)))",
+			setup: []string{fiGeometry},
+			stmt:  "CREATE SPATIAL INDEX i ON s ((ST_SRID(g)))",
+			code:  3760,
+		},
+		{
+			name:  "functional key part: CREATE SPATIAL INDEX i ON s ((g))",
+			setup: []string{fiGeometry},
+			stmt:  "CREATE SPATIAL INDEX i ON s ((g))",
+			code:  3762,
+		},
+		{
+			name:  "functional key part: ALTER TABLE a ADD FULLTEXT ((LOWER(c)))",
+			setup: []string{fiTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT ((LOWER(c)))",
+			code:  3759,
+		},
+		{
+			name:  "functional key part: ALTER TABLE a ADD FULLTEXT ((c))",
+			setup: []string{fiTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT ((c))",
+			code:  3762,
+		},
+		{
+			name:  "functional key part: ALTER TABLE a ADD FULLTEXT nosuch_idx (nosuch, (LOWER(c)))",
+			setup: []string{fiTable},
+			stmt:  "ALTER TABLE a ADD FULLTEXT nosuch_idx (nosuch, (LOWER(c)))",
+			code:  1072,
+		},
+		{
+			name:  "functional key part: ALTER TABLE a ADD SPATIAL ((LOWER(c)))",
+			setup: []string{fiTable},
+			stmt:  "ALTER TABLE a ADD SPATIAL ((LOWER(c)))",
+			code:  3760,
+		},
+		{
+			name: "functional key part: CREATE TABLE z (c VARCHAR(10), FULLTEXT ((LOWER(c))))",
+			stmt: "CREATE TABLE z (c VARCHAR(10), FULLTEXT ((LOWER(c))))",
+			code: 3759,
+		},
+		{
+			name: "functional key part: CREATE TABLE z (c VARCHAR(10), FULLTEXT ((c)))",
+			stmt: "CREATE TABLE z (c VARCHAR(10), FULLTEXT ((c)))",
+			code: 3762,
+		},
+		{
+			name: "functional key part: CREATE TABLE z (c VARCHAR(10), FULLTEXT ((NOW())))",
+			stmt: "CREATE TABLE z (c VARCHAR(10), FULLTEXT ((NOW())))",
+			code: 3758,
+		},
+		{
+			name: "functional key part: CREATE TABLE z (c VARCHAR(10), FULLTEXT ((LOWER(nosuch))))",
+			stmt: "CREATE TABLE z (c VARCHAR(10), FULLTEXT ((LOWER(nosuch))))",
+			code: 1054,
+		},
+		{
+			name: "functional key part: CREATE TABLE z (c VARCHAR(10), SPATIAL ((LOWER(c))))",
+			stmt: "CREATE TABLE z (c VARCHAR(10), SPATIAL ((LOWER(c))))",
+			code: 3760,
+		},
 	}
 
 	for _, tc := range cases {
@@ -5508,6 +5793,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 			t.Fatalf("%s: mysql ENCRYPTION=%q, catalog encrypted=%v", stmt, srvEnc, mysqlTSCat.tablespaceEncrypted["mysql"])
 		}
 	}
+
 }
 
 // simulationEngineRefusal reads the server's answer as the error number and

@@ -49,6 +49,9 @@ func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[
 				return err
 			}
 		}
+		if idx.Fulltext || idx.Spatial {
+			return validateFulltextSpatialFunctionalExpr(tbl, idx.Name, idxCol.ExprNode, idx.Spatial)
+		}
 		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
 			return err
 		}
@@ -699,12 +702,8 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
 		return errFunctionalIndexOnField()
 	}
-	if containsDisallowedFunctionalIndexExpr(expr) {
-		return &Error{
-			Code:     3758,
-			SQLState: "HY000",
-			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
-		}
+	if err := functionalIndexExprRefusal(indexName, expr); err != nil {
+		return err
 	}
 	// A JSON or geometry result has a code of its own: mysql:8.0.46 answers 3753 for
 	// KEY ((JSON_VALUE(a,'$.x' RETURNING JSON))) and KEY ((CAST(a->'$.x' AS JSON))).
@@ -725,6 +724,51 @@ func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNo
 	return nil
 }
 
+// validateFulltextSpatialFunctionalExpr refuses a functional key part of a
+// FULLTEXT (3759) or SPATIAL (3760) index. mysql:8.0.46 judges the expression
+// first, as for any functional key part, and its type only for a BLOB or TEXT
+// result: FULLTEXT ((NOW())) is 3758, FULLTEXT ((CONCAT(a, REPEAT(a, 10000))))
+// is 3757, and FULLTEXT ((CAST(a AS JSON))) is 3759, not 3753.
+func validateFulltextSpatialFunctionalExpr(tbl *Table, indexName string, expr nodes.ExprNode, spatial bool) error {
+	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
+		return errFunctionalIndexOnField()
+	}
+	if err := functionalIndexExprRefusal(indexName, expr); err != nil {
+		return err
+	}
+	if rt := inferFunctionalIndexExprType(tbl, expr); isFunctionalIndexLOBType(rt) && !isFunctionalIndexJSONOrGeometryType(rt) {
+		return &Error{
+			Code:     3757,
+			SQLState: "HY000",
+			Message:  "Cannot create a functional index on an expression that returns a BLOB or TEXT. Please consider using CAST.",
+		}
+	}
+	if spatial {
+		return errSpatialFunctionalIndex()
+	}
+	return errFulltextFunctionalIndex()
+}
+
+// validateFulltextSpatialFunctionalParts judges the functional key parts of a
+// FULLTEXT or SPATIAL key a table definition declares, after its plain key parts.
+func validateFulltextSpatialFunctionalParts(tbl *Table, leaves map[string]bool, checkRefs bool, indexName string, idxCols []*IndexColumn, spatial bool) error {
+	if indexName == "" {
+		indexName = "functional_index"
+	}
+	for _, ic := range idxCols {
+		if ic == nil || ic.Expr == "" {
+			continue
+		}
+		if checkRefs {
+			if err := validateFunctionalIndexColumnRefs(tbl, leaves, ic.ExprNode); err != nil {
+				return err
+			}
+		}
+		return validateFulltextSpatialFunctionalExpr(tbl, indexName, ic.ExprNode, spatial)
+	}
+	return nil
+}
+
 func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
 	for {
 		p, ok := expr.(*nodes.ParenExpr)
@@ -735,81 +779,123 @@ func peelFunctionalIndexParens(expr nodes.ExprNode) nodes.ExprNode {
 	}
 }
 
-func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
-	switch e := expr.(type) {
-	case nil:
-		return false
-	case *nodes.FuncCallExpr:
-		// A spaced gated keyword is a generic stored-function call, which a
-		// functional index forbids: mysql:8.0 answers 3758 for
-		// INDEX ((position (a))).
-		if e.SpacedParen {
-			return true
+// functionalIndexExprRefusal answers what mysql:8.0.46 answers for the first
+// node of a functional key part it refuses, or nil. It judges in post-order, a
+// function's arguments before the function: KEY ((@x + NOW())) and
+// KEY ((SLEEP(@x))) are 3772, KEY ((NOW() + @x)) is 3758. Aggregates (1111)
+// and window functions (3593) are judged only after the whole expression
+// passes: KEY ((COUNT(a) + NOW())) is 3758, KEY ((COUNT(a))) is 1111.
+func functionalIndexExprRefusal(indexName string, expr nodes.ExprNode) error {
+	v := &functionalIndexJudge{}
+	nodes.Walk(v, expr)
+	switch v.code {
+	case ErrDefaultValExprRefVariable:
+		return errDefaultValExprVariable(indexName)
+	case 3758:
+		return &Error{
+			Code:     3758,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Expression of functional index '%s' contains a disallowed function.", indexName),
 		}
-		switch strings.ToLower(e.Name) {
-		case "rand", "uuid", "sleep", "now", "current_timestamp", "sysdate":
-			return true
+	}
+	var err error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		fc, ok := n.(*nodes.FuncCallExpr)
+		if err != nil || !ok {
+			return err == nil
 		}
-		for _, arg := range e.Args {
-			if containsDisallowedFunctionalIndexExpr(arg) {
-				return true
+		if fc.Over != nil {
+			err = &Error{Code: 3593, SQLState: "HY000",
+				Message: fmt.Sprintf("You cannot use the window function '%s' in this context.'", strings.ToLower(fc.Name))}
+		} else if functionalIndexAggregates[strings.ToLower(fc.Name)] {
+			err = &Error{Code: 1111, SQLState: "HY000", Message: "Invalid use of group function"}
+		}
+		return err == nil
+	})
+	return err
+}
+
+type functionalIndexJudge struct {
+	stack []nodes.Node
+	code  int
+}
+
+func (v *functionalIndexJudge) Visit(n nodes.Node) nodes.Visitor {
+	if v.code != 0 {
+		return nil
+	}
+	if n == nil {
+		top := v.stack[len(v.stack)-1]
+		v.stack = v.stack[:len(v.stack)-1]
+		switch e := top.(type) {
+		case *nodes.VariableRef:
+			v.code = ErrDefaultValExprRefVariable
+		case *nodes.DefaultExpr, *nodes.MatchExpr:
+			v.code = 3758
+		case *nodes.FuncCallExpr:
+			if isFunctionalIndexDisallowedFunc(e) {
+				v.code = 3758
 			}
 		}
-	case *nodes.DefaultExpr, *nodes.SubqueryExpr, *nodes.ExistsExpr, *nodes.VariableRef:
-		return true
-	case *nodes.ParenExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.BinaryExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Left) || containsDisallowedFunctionalIndexExpr(e.Right)
-	case *nodes.UnaryExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Operand)
-	case *nodes.CastExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.CaseExpr:
-		if containsDisallowedFunctionalIndexExpr(e.Operand) || containsDisallowedFunctionalIndexExpr(e.Default) {
-			return true
-		}
-		for _, when := range e.Whens {
-			if containsDisallowedFunctionalIndexExpr(when.Cond) || containsDisallowedFunctionalIndexExpr(when.Result) {
-				return true
-			}
-		}
+		return nil
+	}
+	switch e := n.(type) {
+	case *nodes.SubqueryExpr, *nodes.ExistsExpr:
+		v.code = 3758
+		return nil
 	case *nodes.InExpr:
 		if e.Select != nil {
-			return true
+			v.code = 3758
+			return nil
 		}
-		if containsDisallowedFunctionalIndexExpr(e.Expr) {
-			return true
-		}
-		for _, item := range e.List {
-			if containsDisallowedFunctionalIndexExpr(item) {
-				return true
-			}
-		}
-	case *nodes.BetweenExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr) ||
-			containsDisallowedFunctionalIndexExpr(e.Low) ||
-			containsDisallowedFunctionalIndexExpr(e.High)
-	case *nodes.IsExpr:
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.WeightStringExpr:
-		// KEY ((weight_string(now() as char(4)))) is rejected by the engine
-		// exactly like KEY ((now())) — error 3758 (oracle 8.0.32).
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.PositionExpr:
-		// KEY ((position('x' in rand()))) → 3758, like KEY ((rand())), and
-		// position over a column is allowed (oracle 8.0.32, and 3758 on TiDB v8.5.5).
-		return containsDisallowedFunctionalIndexExpr(e.Substr) ||
-			containsDisallowedFunctionalIndexExpr(e.Str)
-	case *nodes.ExtractExpr:
-		// KEY ((extract(day from now()))) → 3758; extract over a column is
-		// allowed (oracle 8.0.32).
-		return containsDisallowedFunctionalIndexExpr(e.Expr)
-	case *nodes.IntervalExpr:
-		// KEY ((a + interval (day(now())) day)) → 3758 (oracle 8.0.32).
-		return containsDisallowedFunctionalIndexExpr(e.Value)
 	}
-	return false
+	v.stack = append(v.stack, n)
+	return v
+}
+
+// isFunctionalIndexDisallowedFunc reports a call a functional index refuses
+// with 3758: a stored function or UDF (a qualified or unknown name, or a spaced
+// gated keyword such as `position (a)`), a built-in DEFAULT (expr) refuses too
+// (LAST_INSERT_ID, VERSION, VALUES, ...), and the built-ins DEFAULT takes but a
+// generated column does not. Aggregates and window functions are judged apart.
+func isFunctionalIndexDisallowedFunc(e *nodes.FuncCallExpr) bool {
+	if e.Schema != "" || e.SpacedParen {
+		return true
+	}
+	name := strings.ToLower(e.Name)
+	if e.Over != nil || functionalIndexAggregates[name] {
+		return false
+	}
+	name = canonicalDefaultBuiltinName(name)
+	return functionalIndexDisallowedBuiltins[name] || !allowedDefaultExprBuiltinFuncs[name]
+}
+
+// functionalIndexAggregates are the group functions a functional key part
+// answers 1111 for. ANY_VALUE is not one: KEY ((ANY_VALUE(a))) is taken.
+var functionalIndexAggregates = map[string]bool{
+	"count": true, "sum": true, "avg": true, "min": true, "max": true,
+	"group_concat": true, "json_arrayagg": true, "json_objectagg": true,
+	"bit_and": true, "bit_or": true, "bit_xor": true,
+	"std": true, "stddev": true, "stddev_pop": true, "stddev_samp": true,
+	"var_pop": true, "var_samp": true, "variance": true,
+}
+
+// functionalIndexDisallowedBuiltins are the built-ins allowedDefaultExprBuiltinFuncs
+// takes that mysql:8.0.46 refuses in a functional key part with 3758: every
+// name of that list was probed as KEY ((fn(...))) and these answered 3758.
+var functionalIndexDisallowedBuiltins = map[string]bool{
+	"connection_id": true, "create_digest": true, "curdate": true, "current_date": true,
+	"current_role": true, "current_time": true, "current_timestamp": true, "current_user": true,
+	"curtime": true, "database": true, "geomcollfromtext": true, "geomcollfromwkb": true,
+	"geometrycollectionfromtext": true, "geometrycollectionfromwkb": true, "geomfromtext": true,
+	"geomfromwkb": true, "linefromtext": true, "linefromwkb": true, "localtime": true,
+	"localtimestamp": true, "mlinefromtext": true, "mlinefromwkb": true, "mpointfromtext": true,
+	"mpointfromwkb": true, "mpolyfromtext": true, "mpolyfromwkb": true, "now": true,
+	"pointfromtext": true, "pointfromwkb": true, "polyfromtext": true, "polyfromwkb": true,
+	"rand": true, "roles_graphml": true, "schema": true, "session_user": true,
+	"statement_digest": true, "statement_digest_text": true, "sysdate": true, "system_user": true,
+	"unix_timestamp": true, "user": true, "utc_date": true, "utc_time": true,
+	"utc_timestamp": true, "uuid": true, "uuid_short": true,
 }
 
 func isFunctionalIndexJSONOrGeometryType(rt *ResolvedType) bool {

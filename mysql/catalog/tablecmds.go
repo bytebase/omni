@@ -876,6 +876,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 		case nodes.ConstrFulltextIndex:
+			if declared {
+				if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+					return err
+				}
+			}
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
@@ -894,6 +899,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			if err := c.validateIndexColumns(tbl, idxCols, true, false, false); err != nil {
 				return err
 			}
+			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, false); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -906,6 +914,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			tbl.Indexes = append(tbl.Indexes, ftIdx)
 
 		case nodes.ConstrSpatialIndex:
+			if declared {
+				if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+					return err
+				}
+			}
 			idxName := con.Name
 			if idxName == "" && len(cols) > 0 {
 				idxName = allocIndexName(tbl, cols[0])
@@ -922,6 +935,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 			}
 			idxCols := buildIndexColumns(con)
 			if err := c.validateIndexColumns(tbl, idxCols, false, true, false); err != nil {
+				return err
+			}
+			if err := validateFulltextSpatialFunctionalParts(tbl, nil, declared, idxName, idxCols, true); err != nil {
 				return err
 			}
 			if strings.EqualFold(resolveConstraintIndexType(con), "BTREE") {

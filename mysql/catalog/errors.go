@@ -820,6 +820,14 @@ func errFunctionalIndexPrimaryKey() error {
 		Message: "The primary key cannot be a functional index"}
 }
 
+func errFulltextFunctionalIndex() error {
+	return &Error{Code: 3759, SQLState: "HY000", Message: "Fulltext functional index is not supported."}
+}
+
+func errSpatialFunctionalIndex() error {
+	return &Error{Code: 3760, SQLState: "HY000", Message: "Spatial functional index is not supported."}
+}
+
 func errFunctionalIndexOnField() error {
 	return &Error{Code: ErrFunctionalIndexOnField, SQLState: sqlState(ErrFunctionalIndexOnField),
 		Message: "Functional index on a column is not supported. Consider using a regular index instead."}

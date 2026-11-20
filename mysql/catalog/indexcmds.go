@@ -29,10 +29,8 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateNonPrimaryIndexName(stmt.IndexName); err != nil {
 		return err
 	}
-	if !stmt.Fulltext && !stmt.Spatial {
-		if err := validateNoColumnFunctionalParts(stmt.Columns); err != nil {
-			return err
-		}
+	if err := validateNoColumnFunctionalParts(stmt.Columns); err != nil {
+		return err
 	}
 
 	// Check for duplicate key name.
