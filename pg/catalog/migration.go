@@ -279,6 +279,10 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			if !inhParentsEqual(from, to, rel.From.InhParents, rel.To.InhParents) {
 				needsViewWrap = true
 			}
+			if rel.From.RelKind == 'v' && rel.To.RelKind == 'v' &&
+				(viewColumnsChanged(rel) || normalizeRelPersistence(rel.From.Persistence) != normalizeRelPersistence(rel.To.Persistence)) {
+				needsViewWrap = true
+			}
 		}
 
 		if !needsViewWrap {

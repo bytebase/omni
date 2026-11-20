@@ -161,6 +161,9 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		if err := c.checkViewColumns(cols, existing); err != nil {
 			return err
 		}
+		if (rv != nil && rv.Relpersistence == 't') || queryReferencesTempRelation(c, analyzedQuery) {
+			existing.Persistence = 't'
+		}
 		existing.CheckOption = checkOption
 		// Update existing view in place.
 		return c.replaceView(schema, existing, cols, analyzedQuery)

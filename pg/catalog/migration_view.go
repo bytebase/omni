@@ -96,8 +96,8 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 
 			switch entry.To.RelKind {
 			case 'v':
-				if viewColumnsChanged(entry) {
-					// Column order/names/types changed — can't use CREATE OR REPLACE.
+				if viewColumnsChanged(entry) || normalizeRelPersistence(entry.From.Persistence) != normalizeRelPersistence(entry.To.Persistence) {
+					// Column order/names/types or persistence changed — can't use CREATE OR REPLACE.
 					qn := migrationQualifiedName(entry.SchemaName, entry.Name)
 					ops = append(ops, MigrationOp{
 						Type:          OpDropView,
@@ -142,7 +142,11 @@ func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder
-	b.WriteString("CREATE VIEW ")
+	if entry.To != nil && entry.To.Persistence == 't' {
+		b.WriteString("CREATE TEMP VIEW ")
+	} else {
+		b.WriteString("CREATE VIEW ")
+	}
 	b.WriteString(qn)
 	b.WriteString(" AS ")
 	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
@@ -229,7 +233,11 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
 
 	var b strings.Builder
-	b.WriteString("CREATE OR REPLACE VIEW ")
+	if entry.To != nil && entry.To.Persistence == 't' {
+		b.WriteString("CREATE OR REPLACE TEMP VIEW ")
+	} else {
+		b.WriteString("CREATE OR REPLACE VIEW ")
+	}
 	b.WriteString(qn)
 	b.WriteString(" AS ")
 	b.WriteString(strings.TrimRight(def, " \t\n\r;"))
@@ -326,7 +334,17 @@ func viewSelfChanged(from, to *Catalog, entry RelationDiffEntry) bool {
 	if entry.From.CheckOption != entry.To.CheckOption {
 		return true
 	}
+	if normalizeRelPersistence(entry.From.Persistence) != normalizeRelPersistence(entry.To.Persistence) {
+		return true
+	}
 	return len(entry.Columns) > 0 || len(entry.Triggers) > 0
+}
+
+func normalizeRelPersistence(p byte) byte {
+	if p == 0 {
+		return 'p'
+	}
+	return p
 }
 
 // viewColumnsChanged returns true if existing columns were renamed, removed,

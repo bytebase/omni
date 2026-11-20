@@ -108,6 +108,8 @@ func formatCreateTable(from, c *Catalog, schemaName string, fromRel, rel *Relati
 	switch persistence {
 	case 'u':
 		b.WriteString("CREATE UNLOGGED TABLE ")
+	case 't':
+		b.WriteString("CREATE TEMP TABLE ")
 	default:
 		b.WriteString("CREATE TABLE ")
 	}

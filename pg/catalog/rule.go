@@ -63,7 +63,10 @@ type ruleBindings struct {
 	isOnSelect     bool
 	allowOld       bool
 	allowNew       bool
+	inRuleWhere    bool
 	relByRV        map[*nodes.RangeVar]uint32
+	seqByRV        map[*nodes.RangeVar]uint32
+	tsmByRTS       map[*nodes.RangeTableSample]uint32
 	colByRef       map[*nodes.ColumnRef]ruleColBinding
 	colByRT        map[*nodes.ResTarget]ruleColBinding
 	targetNameByRT map[*nodes.ResTarget]string
@@ -113,7 +116,10 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 		isOnSelect:     b.isOnSelect,
 		allowOld:       b.allowOld,
 		allowNew:       b.allowNew,
+		inRuleWhere:    b.inRuleWhere,
 		relByRV:        make(map[*nodes.RangeVar]uint32, len(b.relByRV)),
+		seqByRV:        make(map[*nodes.RangeVar]uint32, len(b.seqByRV)),
+		tsmByRTS:       make(map[*nodes.RangeTableSample]uint32, len(b.tsmByRTS)),
 		colByRef:       make(map[*nodes.ColumnRef]ruleColBinding, len(b.colByRef)),
 		colByRT:        make(map[*nodes.ResTarget]ruleColBinding, len(b.colByRT)),
 		targetNameByRT: make(map[*nodes.ResTarget]string, len(b.targetNameByRT)),
@@ -143,6 +149,12 @@ func cloneRuleBindings(b *ruleBindings) *ruleBindings {
 	}
 	for k, v := range b.relByRV {
 		cp.relByRV[k] = v
+	}
+	for k, v := range b.seqByRV {
+		cp.seqByRV[k] = v
+	}
+	for k, v := range b.tsmByRTS {
+		cp.tsmByRTS[k] = v
 	}
 	for k, v := range b.colByRef {
 		cp.colByRef[k] = v
@@ -620,6 +632,8 @@ func newRuleBindings(ownerRelOID uint32, event nodes.CmdType) *ruleBindings {
 		allowOld:       event == nodes.CMD_UPDATE || event == nodes.CMD_DELETE,
 		allowNew:       event == nodes.CMD_INSERT || event == nodes.CMD_UPDATE,
 		relByRV:        make(map[*nodes.RangeVar]uint32),
+		seqByRV:        make(map[*nodes.RangeVar]uint32),
+		tsmByRTS:       make(map[*nodes.RangeTableSample]uint32),
 		colByRef:       make(map[*nodes.ColumnRef]ruleColBinding),
 		colByRT:        make(map[*nodes.ResTarget]ruleColBinding),
 		targetNameByRT: make(map[*nodes.ResTarget]string),
@@ -748,7 +762,10 @@ func (ctx *ruleEvalContext) setScope(name string, se ruleScopeEntry) {
 func (c *Catalog) buildRuleBindings(ownerRel *Relation, event nodes.CmdType, whereClause nodes.Node, actions *nodes.List) (*ruleBindings, error) {
 	b := newRuleBindings(ownerRel.OID, event)
 	if whereClause != nil {
-		if err := c.bindRuleBoolExpr(b, whereClause, &ruleEvalContext{}, "WHERE"); err != nil {
+		b.inRuleWhere = true
+		err := c.bindRuleBoolExpr(b, whereClause, &ruleEvalContext{}, "WHERE")
+		b.inRuleWhere = false
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -852,6 +869,9 @@ func (c *Catalog) bindRangeVar(b *ruleBindings, rv *nodes.RangeVar, cteNames map
 	if err != nil {
 		if !forDMLTarget {
 			if seq, seqErr := c.findSequence(rv.Schemaname, rv.Relname); seqErr == nil && seq != nil {
+				if b != nil && b.seqByRV != nil {
+					b.seqByRV[rv] = seq.OID
+				}
 				b.addSeqDep(seq.OID)
 				return 0, "seq", nil
 			}
@@ -1197,6 +1217,37 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		if err := c.collectTableRefScope(b, v.Relation, ctx); err != nil {
 			return err
 		}
+		if !c.snapshot {
+			rv, isRV := v.Relation.(*nodes.RangeVar)
+			if !isRV || rv == nil {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "TABLESAMPLE clause can only be applied to tables and materialized views",
+				}
+			}
+			relOID := uint32(0)
+			if b != nil {
+				relOID = b.relByRV[rv]
+			}
+			rel := c.relationByOID[relOID]
+			if rel == nil || (rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm') {
+				return &Error{
+					Code:    CodeFeatureNotSupported,
+					Message: "TABLESAMPLE clause can only be applied to tables and materialized views",
+				}
+			}
+		}
+		handlerOID, err := c.resolveTablesampleHandler(v.Method)
+		if err != nil {
+			if !c.snapshot {
+				return err
+			}
+		} else if handlerOID >= FirstNormalObjectId && b != nil {
+			if b.tsmByRTS != nil {
+				b.tsmByRTS[v] = handlerOID
+			}
+			b.addFuncDep(handlerOID)
+		}
 		if v.Args != nil {
 			for _, item := range v.Args.Items {
 				if err := c.bindRuleExpr(b, item, ctx); err != nil {
@@ -1206,6 +1257,14 @@ func (c *Catalog) collectTableRefScope(b *ruleBindings, n nodes.Node, ctx *ruleE
 		}
 		if err := c.bindRuleExpr(b, v.Repeatable, ctx); err != nil {
 			return err
+		}
+		if v.Repeatable != nil && !c.snapshot {
+			if t := c.inferRuleExprType(b, v.Repeatable, ctx); t != 0 && t != UNKNOWNOID && !c.CanCoerce(t, FLOAT8OID, 'a') {
+				return &Error{
+					Code:    CodeDatatypeMismatch,
+					Message: fmt.Sprintf("TABLESAMPLE REPEATABLE requires numeric2 or float8, not %s", c.typeName(t)),
+				}
+			}
 		}
 	case *nodes.JoinExpr:
 		beforeKeys := make(map[string]bool, len(ctx.scope))
@@ -2241,6 +2300,12 @@ func (c *Catalog) bindRuleStmt(b *ruleBindings, n nodes.Node, parent *ruleEvalCo
 	}
 	switch s := n.(type) {
 	case *nodes.SelectStmt:
+		if s.IntoClause != nil && !c.snapshot {
+			return &Error{
+				Code:    CodeSyntaxError,
+				Message: "SELECT ... INTO is not allowed here",
+			}
+		}
 		cteNames, cteCols, cteColTypes, cteAny, err := c.bindWithClause(b, s.WithClause, parent)
 		if err != nil {
 			return err
@@ -4155,6 +4220,11 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		}
 		return nil
 	case *nodes.SubLink:
+		inRuleWhere := b != nil && b.inRuleWhere
+		if inRuleWhere {
+			b.inRuleWhere = false
+			defer func() { b.inRuleWhere = true }()
+		}
 		if err := c.bindRuleExpr(b, v.Testexpr, ctx); err != nil {
 			return err
 		}
@@ -4216,6 +4286,12 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				if _, err := c.bindRuleOperator(b, &nodes.List{Items: []nodes.Node{&nodes.String{Str: "="}}}, lType, qCols[0], false, true); err != nil {
 					return err
 				}
+			}
+		}
+		if inRuleWhere && !c.snapshot {
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "subqueries in rule WHERE clause are not supported",
 			}
 		}
 		return nil
@@ -4337,6 +4413,11 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		}
 		return c.bindRuleJsonOutput(b, v.Output)
 	case *nodes.JsonArrayQueryConstructor:
+		inRuleWhere := b != nil && b.inRuleWhere
+		if inRuleWhere {
+			b.inRuleWhere = false
+			defer func() { b.inRuleWhere = true }()
+		}
 		subCtx := &ruleEvalContext{}
 		if ctx != nil {
 			subCtx.outer = ctx
@@ -4347,7 +4428,16 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		if err := c.bindRuleStmt(b, v.Query, subCtx); err != nil {
 			return err
 		}
-		return c.bindRuleJsonOutput(b, v.Output)
+		if err := c.bindRuleJsonOutput(b, v.Output); err != nil {
+			return err
+		}
+		if inRuleWhere && !c.snapshot {
+			return &Error{
+				Code:    CodeFeatureNotSupported,
+				Message: "subqueries in rule WHERE clause are not supported",
+			}
+		}
+		return nil
 	case *nodes.JsonFuncExpr:
 		if err := c.bindRuleExpr(b, v.ContextItem, ctx); err != nil {
 			return err
@@ -6234,7 +6324,7 @@ func (d *ruleDeparser) deparseTableRef(n nodes.Node) string {
 		var b strings.Builder
 		b.WriteString(d.deparseTableRef(v.Relation))
 		b.WriteString(" TABLESAMPLE ")
-		b.WriteString(deparseFuncNameList(v.Method))
+		b.WriteString(d.deparseTablesampleMethod(v))
 		b.WriteString("(")
 		b.WriteString(d.deparseExprList(v.Args))
 		b.WriteString(")")
@@ -6336,6 +6426,15 @@ func (d *ruleDeparser) deparseRangeVar(rv *nodes.RangeVar, includeOnly bool) str
 					}
 				}
 			}
+		} else if seqOID, ok := d.b.seqByRV[rv]; ok {
+			if seq := d.cat.sequenceByOID[seqOID]; seq != nil {
+				relName = seq.Name
+				if seq.Schema != nil {
+					if schemaName != "" || seq.Schema.Name != "public" {
+						schemaName = seq.Schema.Name
+					}
+				}
+			}
 		}
 	}
 	if schemaName != "" {
@@ -6345,6 +6444,77 @@ func (d *ruleDeparser) deparseRangeVar(rv *nodes.RangeVar, includeOnly bool) str
 	b.WriteString(quoteIdentifier(relName))
 	b.WriteString(deparseRawAlias(rv.Alias))
 	return b.String()
+}
+
+func (c *Catalog) resolveTablesampleHandler(method *nodes.List) (uint32, error) {
+	if method == nil || len(method.Items) == 0 {
+		return 0, nil
+	}
+	fSchema, fName := qualifiedName(method)
+	if fName == "" {
+		return 0, nil
+	}
+	var searchNS []uint32
+	if fSchema != "" {
+		ns := c.schemaByName[fSchema]
+		if ns == nil {
+			return 0, errUndefinedSchema(fSchema)
+		}
+		searchNS = []uint32{ns.OID}
+	} else {
+		searchNS = c.searchPathWithCatalog()
+	}
+	shown := fName
+	if fSchema != "" {
+		shown = fSchema + "." + fName
+	}
+	for _, nsOID := range searchNS {
+		for _, p := range c.procByName[fName] {
+			if p.Kind == 'p' || len(p.ArgTypes) != 1 || p.ArgTypes[0] != INTERNALOID {
+				continue
+			}
+			pNS := uint32(PGCatalogNamespace)
+			if p.OID >= FirstNormalObjectId {
+				up := c.userProcs[p.OID]
+				if up == nil || up.Schema == nil {
+					continue
+				}
+				pNS = up.Schema.OID
+			}
+			if pNS != nsOID {
+				continue
+			}
+			if p.RetType != TSMHANDLEROID {
+				return 0, &Error{
+					Code:    CodeWrongObjectType,
+					Message: fmt.Sprintf("function %s must return type tsm_handler", shown),
+				}
+			}
+			return p.OID, nil
+		}
+	}
+	return 0, &Error{
+		Code:    CodeUndefinedFunction,
+		Message: fmt.Sprintf("tablesample method %s does not exist", shown),
+	}
+}
+
+func (d *ruleDeparser) deparseTablesampleMethod(v *nodes.RangeTableSample) string {
+	if v == nil {
+		return ""
+	}
+	if d.cat != nil && d.b != nil {
+		if procOID, ok := d.b.tsmByRTS[v]; ok {
+			if up := d.cat.userProcs[procOID]; up != nil {
+				origSchema, _ := qualifiedName(v.Method)
+				if up.Schema != nil && (origSchema != "" || up.Schema.Name != "public") {
+					return quoteIdentifier(up.Schema.Name) + "." + quoteIdentifier(up.Name)
+				}
+				return quoteIdentifier(up.Name)
+			}
+		}
+	}
+	return deparseFuncNameList(v.Method)
 }
 
 func deparseRawAlias(a *nodes.Alias) string {

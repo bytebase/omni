@@ -219,7 +219,14 @@ func isIdentitySequence(c *Catalog, schemaName, seqName string) bool {
 // The type is written unless it is the default, bigint.
 func formatCreateSequence(c *Catalog, schemaName string, seq *Sequence) string {
 	var b strings.Builder
-	b.WriteString("CREATE SEQUENCE ")
+	switch seq.Persistence {
+	case 'u':
+		b.WriteString("CREATE UNLOGGED SEQUENCE ")
+	case 't':
+		b.WriteString("CREATE TEMP SEQUENCE ")
+	default:
+		b.WriteString("CREATE SEQUENCE ")
+	}
 	b.WriteString(migrationQualifiedName(schemaName, seq.Name))
 	if seq.TypeOID != 0 && seq.TypeOID != INT8OID {
 		b.WriteString("\n    AS " + c.FormatType(seq.TypeOID, -1))

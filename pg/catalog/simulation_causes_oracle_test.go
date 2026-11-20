@@ -5111,10 +5111,43 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"CREATE RULE r_sublink_cols_r20 AS ON INSERT TO t_r20 WHERE NEW.id = (SELECT id, val FROM dst_r20) DO ALSO NOTHING", CodeSyntaxError},
 			{"CREATE RULE r_limit_type_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 LIMIT 'abc'::text", CodeDatatypeMismatch},
 			{"CREATE RULE r_ord_oob_r20 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 ORDER BY 2", CodeInvalidColumnReference},
+			{"PREPARE q_oob_r21(int) AS SELECT $2::int", CodeUndefinedParameter},
+			{"CREATE RULE r_where_sublink_r21 AS ON INSERT TO t_r20 WHERE EXISTS (SELECT 1 FROM dst_r20) DO ALSO NOTHING", CodeFeatureNotSupported},
+			{"CREATE RULE r_select_into_r21 AS ON INSERT TO t_r20 DO ALSO SELECT 1 INTO created_table_r21", CodeSyntaxError},
+			{"CREATE RULE r_bad_tsm_r21 AS ON INSERT TO t_r20 DO ALSO SELECT id FROM dst_r20 TABLESAMPLE no_such_method(10)", CodeUndefinedFunction},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
 			}
+		}
+
+		// Round 21 migration regressions:
+		// 1. Sequence range variables in rules track sequence renames.
+		// 2. Temporary views preserve CREATE TEMP VIEW in GenerateMigration.
+		c123From := New()
+		c123To := New()
+		for _, stmt := range []string{
+			"CREATE SEQUENCE seq_r21_old",
+			"CREATE TABLE t_r21 (id bigint)",
+			"CREATE RULE r_seq_r21 AS ON INSERT TO t_r21 DO ALSO INSERT INTO t_r21 (id) SELECT last_value FROM seq_r21_old",
+			"ALTER SEQUENCE seq_r21_old RENAME TO seq_r21_new",
+			"CREATE TEMP TABLE tmp_r21 (id int)",
+			"CREATE VIEW tv_r21 AS SELECT id FROM tmp_r21",
+		} {
+			if code := simulationCatalogCode(t, c123To, stmt); code != "0" {
+				t.Fatalf("c123To %s: %s", stmt, code)
+			}
+		}
+		mig123 := GenerateMigration(c123From, c123To, Diff(c123From, c123To))
+		sql123 := mig123.SQL()
+		if !strings.Contains(sql123, "CREATE TEMP VIEW") {
+			t.Fatalf("expected CREATE TEMP VIEW in migration SQL, got:\n%s", sql123)
+		}
+		if code := simulationCatalogCode(t, c123From, sql123); code != "0" {
+			t.Fatalf("applying c123From->c123To failed with %s:\n%s", code, sql123)
+		}
+		if rem := GenerateMigration(c123From, c123To, Diff(c123From, c123To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c123From->c123To, got:\n%s", rem.SQL())
 		}
 	})
 

@@ -85,8 +85,11 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		changed = true
 	}
 
-	// Compare CheckOption (views only) and populated state (matviews).
+	// Compare CheckOption (views only), persistence, and populated state (matviews).
 	if from.CheckOption != to.CheckOption {
+		changed = true
+	}
+	if normalizeRelPersistence(from.Persistence) != normalizeRelPersistence(to.Persistence) {
 		changed = true
 	}
 	if from.RelKind == 'm' && to.RelKind == 'm' && from.IsPopulated != to.IsPopulated {
