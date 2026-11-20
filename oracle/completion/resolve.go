@@ -244,10 +244,11 @@ type virtualTableRef struct {
 func (*virtualTableRef) isTableRef() {}
 
 type tableTarget struct {
-	schema       string
-	schemaQuoted bool
-	table        string
-	tableQuoted  bool
+	schema         string
+	schemaQuoted   bool
+	schemaExplicit bool
+	table          string
+	tableQuoted    bool
 }
 
 type schemaQuery struct {
@@ -338,6 +339,19 @@ func (r *resolver) resolve() []Candidate {
 		}
 	}
 
+	addTypeCandidates := func(objectOnly bool) {
+		schema, quoted := r.completionSchemaQualifier()
+		if objectOnly && schema == "" {
+			addSchemaCandidates()
+		}
+		r.insertSchemaCompositeTypes(&types, schema, quoted)
+		if !objectOnly {
+			for _, typ := range oracleDataTypes {
+				types = append(types, Candidate{Type: CandidateType_, Text: typ})
+			}
+		}
+	}
+
 	addRelationCandidates := func(schemaSet map[schemaQuery]bool, includeTables, includeViews, includeMViews, includeSeqs, includeSyns bool) {
 		includePublicSyns := false
 		for sq := range schemaSet {
@@ -346,7 +360,7 @@ func (r *resolver) resolve() []Candidate {
 					tables = append(tables, Candidate{Type: CandidateTable, Text: cte.Table})
 				}
 			}
-			if sq.name == "" || (!sq.quoted && strings.EqualFold(sq.name, r.store.defaultSchema)) || (sq.quoted && sq.name == r.store.defaultSchema) {
+			if sq.name == "" {
 				includePublicSyns = true
 			}
 			if sq.name == "" && r.store.defaultSchema != "" {
@@ -468,11 +482,9 @@ func (r *resolver) resolve() []Candidate {
 			case "variable_ref":
 				r.insertLocalVariableCandidates(&variables)
 			case "type_name":
-				for _, typ := range oracleDataTypes {
-					types = append(types, Candidate{Type: CandidateType_, Text: typ})
-				}
+				addTypeCandidates(r.isObjectTypeDDLContext())
 			case "columnref":
-				if !r.isMaterializedViewContext() {
+				if !r.isMaterializedViewContext() && !r.isObjectTypeDDLContext() {
 					r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
 				}
 			}
@@ -503,7 +515,7 @@ func (r *resolver) resolve() []Candidate {
 			case parser.ObjectKindSequence:
 				addRelationCandidates(r.sequenceCompletionSchemas(), false, false, false, true, false)
 			case parser.ObjectKindSequenceMember:
-				if !r.isMaterializedViewContext() {
+				if !r.isMaterializedViewContext() && !r.isObjectTypeDDLContext() {
 					r.insertSequenceMemberCandidates(&keywords)
 				}
 			case parser.ObjectKindSynonym:
@@ -512,7 +524,7 @@ func (r *resolver) resolve() []Candidate {
 			case parser.ObjectKindDatabaseLink:
 				r.insertDatabaseLinkCandidates(&dbLinks)
 			case parser.ObjectKindColumn:
-				if !r.isMaterializedViewContext() {
+				if !r.isMaterializedViewContext() && !r.isObjectTypeDDLContext() {
 					r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
 				}
 			case parser.ObjectKindFunction:
@@ -525,7 +537,7 @@ func (r *resolver) resolve() []Candidate {
 				schema, quoted := r.completionSchemaQualifier()
 				r.insertSchemaPackages(&packages, schema, quoted)
 			case parser.ObjectKindPackageMember:
-				if !r.isMaterializedViewContext() {
+				if !r.isMaterializedViewContext() && !r.isObjectTypeDDLContext() {
 					r.insertPackageMemberCandidates(&procs, &functions)
 				}
 			case parser.ObjectKindIndex:
@@ -539,18 +551,26 @@ func (r *resolver) resolve() []Candidate {
 			case parser.ObjectKindVariable:
 				r.insertLocalVariableCandidates(&variables)
 			case parser.ObjectKindType:
-				for _, typ := range oracleDataTypes {
-					types = append(types, Candidate{Type: CandidateType_, Text: typ})
-				}
+				addTypeCandidates(r.isObjectTypeDDLContext())
 			}
 		}
 	}
 
-	if r.isMaterializedViewContext() {
+	switch {
+	case r.isMaterializedViewContext():
 		if parts := r.qualifierParts(); len(parts) == 1 {
 			addRelationCandidates(r.completionSchemas(parts[0].name, parts[0].quoted), false, false, true, false, false)
 		}
-	} else if len(r.qualifierParts()) > 0 && len(columns) == 0 {
+	case r.isDropOrAlterTypeContext():
+		addTypeCandidates(true)
+	case r.isGrantExecuteContext():
+		if parts := r.qualifierParts(); len(parts) == 1 {
+			r.insertSchemaProcedures(&procs, parts[0].name, parts[0].quoted)
+			r.insertSchemaFunctions(&functions, parts[0].name, parts[0].quoted)
+			r.insertSchemaPackages(&packages, parts[0].name, parts[0].quoted)
+			r.insertSchemaCompositeTypes(&types, parts[0].name, parts[0].quoted)
+		}
+	case len(r.qualifierParts()) > 0 && len(columns) == 0:
 		r.insertColumnContextCandidates(&tables, &columns, addSchemaCandidates, addRelationCandidates)
 	}
 
@@ -645,6 +665,77 @@ func (r *resolver) insertSchemaProcedures(dst *[]Candidate, schema string, quote
 			*dst = append(*dst, Candidate{Type: CandidateProcedure, Text: p.GetName(), Comment: p.GetComment()})
 		}
 	}
+}
+
+func (r *resolver) insertSchemaCompositeTypes(dst *[]Candidate, schema string, quoted bool) {
+	for sq := range r.completionSchemas(schema, quoted) {
+		if sq.name == "" && r.store.defaultSchema != "" {
+			continue
+		}
+		_, sm := r.store.getSchemaWithCase(sq.name, sq.quoted)
+		if sm == nil {
+			continue
+		}
+		for _, ct := range sm.GetCompositeTypes() {
+			if ct.GetName() != "" {
+				*dst = append(*dst, Candidate{Type: CandidateType_, Text: ct.GetName()})
+			}
+		}
+	}
+}
+
+func (r *resolver) isObjectTypeDDLContext() bool {
+	return r.isDropOrAlterTypeContext() || r.isGrantExecuteContext()
+}
+
+func (r *resolver) isDropOrAlterTypeContext() bool {
+	stmtStart, _ := r.statementTokenBounds()
+	idx := r.caretTokenIndex - 1
+	if idx >= stmtStart && r.tokens[idx].Type == '.' {
+		idx--
+		if idx >= stmtStart && r.isIdentifierToken(r.tokens[idx]) {
+			idx--
+		} else {
+			return false
+		}
+	}
+	if idx-1 < stmtStart {
+		return false
+	}
+	kw := strings.ToUpper(parser.TokenName(r.tokens[idx].Type))
+	prevKw := strings.ToUpper(parser.TokenName(r.tokens[idx-1].Type))
+	return kw == "TYPE" && (prevKw == "DROP" || prevKw == "ALTER")
+}
+
+func (r *resolver) isGrantExecuteContext() bool {
+	stmtStart, _ := r.statementTokenBounds()
+	if stmtStart >= r.caretTokenIndex {
+		return false
+	}
+	stmtKw := strings.ToUpper(parser.TokenName(r.tokens[stmtStart].Type))
+	if stmtKw != "GRANT" && stmtKw != "REVOKE" {
+		return false
+	}
+	seenExecute := false
+	onIdx := -1
+	for i := stmtStart + 1; i < r.caretTokenIndex; i++ {
+		switch strings.ToUpper(parser.TokenName(r.tokens[i].Type)) {
+		case "EXECUTE":
+			if onIdx < 0 {
+				seenExecute = true
+			}
+		case "ON":
+			onIdx = i
+		}
+	}
+	if !seenExecute || onIdx < 0 {
+		return false
+	}
+	rest := r.caretTokenIndex - 1 - onIdx
+	if rest == 0 {
+		return true
+	}
+	return rest == 2 && r.isIdentifierToken(r.tokens[onIdx+1]) && r.tokens[onIdx+2].Type == '.'
 }
 
 func (r *resolver) insertSchemaPackages(dst *[]Candidate, schema string, quoted bool) {
@@ -845,20 +936,22 @@ func (r *resolver) insertColumnContextCandidates(
 		if t == "" {
 			return
 		}
+		explicit := s != ""
 		if s == "" {
 			s = r.store.defaultSchema
 			sQuoted = false
 		}
 		for _, existing := range targets {
-			if existing.schema == s && existing.table == t && existing.schemaQuoted == sQuoted && existing.tableQuoted == tQuoted {
+			if existing.schema == s && existing.table == t && existing.schemaQuoted == sQuoted && existing.tableQuoted == tQuoted && existing.schemaExplicit == explicit {
 				return
 			}
 		}
 		targets = append(targets, tableTarget{
-			schema:       s,
-			schemaQuoted: sQuoted,
-			table:        t,
-			tableQuoted:  tQuoted,
+			schema:         s,
+			schemaQuoted:   sQuoted,
+			schemaExplicit: explicit,
+			table:          t,
+			tableQuoted:    tQuoted,
 		})
 	}
 
@@ -993,7 +1086,7 @@ func (r *resolver) insertAllColumns(columnsOut *[]Candidate) {
 
 func (r *resolver) insertColumnsForTargets(columnsOut *[]Candidate, targets []tableTarget) {
 	for _, target := range targets {
-		if target.schema == "" {
+		if !target.schemaExplicit {
 			for _, cte := range r.cteTables {
 				if nameMatches(cte.Table, target.table, cte.Quoted || target.tableQuoted) {
 					for _, col := range cte.Columns {
@@ -1002,15 +1095,20 @@ func (r *resolver) insertColumnsForTargets(columnsOut *[]Candidate, targets []ta
 				}
 			}
 		}
-		r.insertColumnsForObject(columnsOut, target.schema, target.table, target.schemaQuoted, target.tableQuoted, 0)
+		r.insertColumnsForObject(columnsOut, target.schema, target.table, target.schemaQuoted, target.tableQuoted, !target.schemaExplicit, make(map[string]bool))
 	}
 }
 
-func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name string, schemaQuoted, nameQuoted bool, depth int) {
-	if depth > 4 || name == "" {
+func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name string, schemaQuoted, nameQuoted, allowPublicSyn bool, visited map[string]bool) {
+	if name == "" {
 		return
 	}
 	resolvedSchema, sm := r.store.getSchemaWithCase(schema, schemaQuoted)
+	visitKey := resolvedSchema + "\x00" + name
+	if visited[visitKey] {
+		return
+	}
+	visited[visitKey] = true
 	if sm != nil {
 		if t := findTableMeta(sm, name, nameQuoted); t != nil {
 			for _, col := range t.GetColumns() {
@@ -1044,20 +1142,22 @@ func (r *resolver) insertColumnsForObject(columnsOut *[]Candidate, schema, name 
 		}
 		if syn := findSynonymMeta(sm.GetSynonyms(), name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
 			targetSchema := syn.GetTargetSchema()
+			targetExplicit := targetSchema != ""
 			if targetSchema == "" {
 				targetSchema = resolvedSchema
 			}
-			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, depth+1)
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, !targetExplicit, visited)
 			return
 		}
 	}
-	if schema == "" || nameMatches(schema, r.store.defaultSchema, schemaQuoted) {
+	if allowPublicSyn && (schema == "" || nameMatches(schema, r.store.defaultSchema, schemaQuoted)) {
 		if syn := findSynonymMeta(r.store.publicSynonyms, name, nameQuoted); syn != nil && syn.GetTargetName() != "" {
 			targetSchema := syn.GetTargetSchema()
+			targetExplicit := targetSchema != ""
 			if targetSchema == "" {
 				targetSchema = r.store.defaultSchema
 			}
-			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, depth+1)
+			r.insertColumnsForObject(columnsOut, targetSchema, syn.GetTargetName(), false, false, !targetExplicit, visited)
 		}
 	}
 }

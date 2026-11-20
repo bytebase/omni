@@ -239,8 +239,24 @@ func analyzeCursorContext(statement string, pos, prefixLen int) (inFrom, inColum
 
 	if !prevDot && exprDepth == 0 && len(clauseToks) > 0 {
 		last := clauseToks[len(clauseToks)-1]
-		if !last.afterDot && (last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" || last.upper == "UPDATE") {
-			return true, false
+		if !last.afterDot {
+			if last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" || last.upper == "UPDATE" {
+				return true, false
+			}
+			if last.upper == "," {
+				for idx := len(clauseToks) - 2; idx >= 0; idx-- {
+					tok := clauseToks[idx]
+					if tok.afterDot {
+						continue
+					}
+					switch tok.upper {
+					case "FROM", "JOIN":
+						return true, false
+					case "SELECT", "WHERE", "SET", "GROUP", "HAVING", "ORDER", "VALUES", "RETURNING", "INTO", "UPDATE":
+						idx = -1
+					}
+				}
+			}
 		}
 	}
 
@@ -491,6 +507,15 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 			qual := strings.TrimSuffix(item[0].text, ".*")
 			for _, ref := range getInnerRefs() {
 				if matchesTableQualifier(ref, qual, false) {
+					cols = append(cols, resolveTableRefColumns(ref, allTables)...)
+				}
+			}
+			continue
+		}
+		if len(item) == 2 && item[0].quoted && !item[1].quoted && item[1].text == ".*" {
+			qual := item[0].text
+			for _, ref := range getInnerRefs() {
+				if matchesTableQualifier(ref, qual, true) {
 					cols = append(cols, resolveTableRefColumns(ref, allTables)...)
 				}
 			}

@@ -1138,6 +1138,86 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("expected alias a columns, got %v", resAlias)
 		}
 	})
+
+	t.Run("long synonym chains resolve target columns", func(t *testing.T) {
+		synMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "S1",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name: "TARGET_TBL",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "TARGET_COL", Type: "NUMBER"},
+							},
+						},
+					},
+					Synonyms: []*metadatapb.SynonymMetadata{
+						{Name: "SYN1", TargetSchema: "S1", TargetName: "SYN2"},
+						{Name: "SYN2", TargetSchema: "S1", TargetName: "SYN3"},
+						{Name: "SYN3", TargetSchema: "S1", TargetName: "SYN4"},
+						{Name: "SYN4", TargetSchema: "S1", TargetName: "SYN5"},
+						{Name: "SYN5", TargetSchema: "S1", TargetName: "TARGET_TBL"},
+					},
+				},
+			},
+		}
+		sqlSyn, posSyn := splitCaret(t, "SELECT | FROM syn1")
+		resSyn := Complete(sqlSyn, posSyn, synMeta, WithDefaultSchema("S1"))
+		if !hasSpec(resSyn, candidateSpec{text: "TARGET_COL", typ: CandidateColumn}) {
+			t.Fatalf("expected TARGET_COL through 5-hop synonym chain, got %v", resSyn)
+		}
+	})
+
+	t.Run("public synonyms excluded after explicit schema qualifier", func(t *testing.T) {
+		pubMeta := &metadatapb.DatabaseSchemaMetadata{
+			PublicSynonyms: []*metadatapb.SynonymMetadata{
+				{Name: "PUB_SYN", TargetSchema: "HR", TargetName: "ALBUM"},
+			},
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{Name: "ALBUM"},
+					},
+				},
+			},
+		}
+		sqlQual, posQual := splitCaret(t, "SELECT * FROM HR.|")
+		resQual := Complete(sqlQual, posQual, pubMeta, WithDefaultSchema("HR"))
+		if hasSpec(resQual, candidateSpec{text: "PUB_SYN", typ: CandidateSynonym}) {
+			t.Fatalf("did not expect public synonym PUB_SYN under HR., got %v", resQual)
+		}
+
+		sqlUnqual, posUnqual := splitCaret(t, "SELECT * FROM |")
+		resUnqual := Complete(sqlUnqual, posUnqual, pubMeta, WithDefaultSchema("HR"))
+		if !hasSpec(resUnqual, candidateSpec{text: "PUB_SYN", typ: CandidateSynonym}) {
+			t.Fatalf("expected public synonym PUB_SYN in unqualified FROM, got %v", resUnqual)
+		}
+	})
+
+	t.Run("object type DDL and GRANT EXECUTE include composite types without scalars", func(t *testing.T) {
+		typeMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					CompositeTypes: []*metadatapb.CompositeTypeMetadata{
+						{Name: "ADDRESS_T"},
+					},
+				},
+			},
+		}
+		for _, q := range []string{"DROP TYPE |", "ALTER TYPE |", "GRANT EXECUTE ON HR.|"} {
+			sqlT, posT := splitCaret(t, q)
+			resT := Complete(sqlT, posT, typeMeta, WithDefaultSchema("HR"))
+			if !hasSpec(resT, candidateSpec{text: "ADDRESS_T", typ: CandidateType_}) {
+				t.Fatalf("%q: expected ADDRESS_T candidate, got %v", q, resT)
+			}
+			if hasSpec(resT, candidateSpec{text: "NUMBER", typ: CandidateType_}) {
+				t.Fatalf("%q: did not expect scalar NUMBER candidate, got %v", q, resT)
+			}
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

@@ -497,6 +497,25 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			cat:      cat,
 			wantCols: []string{"Artist", "SongTitle"},
 		},
+		{
+			name:     "FROM-list comma offers table names",
+			input:    "SELECT * FROM Music, |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "quoted wildcard qualifier expands matching alias",
+			input:    `SELECT s.| FROM (SELECT "m".* FROM Music AS "m") s`,
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+		},
+		{
+			name:     "mismatched quoted wildcard qualifier yields no columns",
+			input:    `SELECT s.| FROM (SELECT "M".* FROM Music AS "m") s`,
+			cat:      cat,
+			wantCols: nil,
+		},
 	}
 
 	for _, tc := range tests {
