@@ -3646,6 +3646,15 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_shared ENGINE=InnoDB"); got != 1478 {
 		t.Fatalf("ALTER non-InnoDB partitioned table with shared partition tablespace to InnoDB got %d, want 1478", got)
 	}
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_myisam_add (b INT) ENGINE=MyISAM PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10))")); err != nil {
+		t.Fatalf("DefineTable non-InnoDB partitioned table: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_add ADD PARTITION (PARTITION p1 VALUES LESS THAN (20) TABLESPACE = ts_gone), ENGINE=InnoDB"); got != 3510 {
+		t.Fatalf("ALTER non-InnoDB partitioned table ADD PARTITION missing tablespace + ENGINE=InnoDB got %d, want 3510", got)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "ALTER TABLE p_myisam_add REORGANIZE PARTITION p0 INTO (PARTITION p0a VALUES LESS THAN (10) TABLESPACE = ts_p2), ENGINE=InnoDB"); got != 1478 {
+		t.Fatalf("ALTER non-InnoDB partitioned table REORGANIZE PARTITION shared tablespace + ENGINE=InnoDB got %d, want 1478", got)
+	}
 
 	// SET GLOBAL time_zone updates global default without clobbering session time_zone,
 	// and numeric temporal defaults round-trip cleanly via ShowCreateTable.

@@ -440,8 +440,9 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		beforeIndexes[idx] = true
 	}
 
+	targetEngine := alterTargetEngine(tbl, stmt.Commands)
 	for _, cmd := range stmt.Commands {
-		if err := c.execAlterCmd(db, tbl, cmd, leaves); err != nil {
+		if err := c.execAlterCmd(db, tbl, cmd, leaves, targetEngine); err != nil {
 			undoAlter(db, origKey, tbl, snapshot)
 			return err
 		}
@@ -788,7 +789,7 @@ func undoAlter(db *Database, key string, tbl *Table, snapshot Table) {
 	db.Tables[key] = tbl
 }
 
-func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool) error {
+func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCmd, leaves map[string]bool, targetEngine string) error {
 	switch cmd.Type {
 	case nodes.ATAddColumn:
 		return c.alterAddColumn(tbl, cmd, leaves)
@@ -827,7 +828,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATConvertCharset:
 		return c.alterConvertCharset(tbl, cmd)
 	case nodes.ATAddPartition:
-		return c.alterAddPartition(tbl, cmd)
+		return c.alterAddPartition(tbl, cmd, targetEngine)
 	case nodes.ATDropPartition:
 		return c.alterDropPartition(tbl, cmd)
 	case nodes.ATTruncatePartition:
@@ -835,7 +836,7 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATCoalescePartition:
 		return c.alterCoalescePartition(tbl, cmd)
 	case nodes.ATReorganizePartition:
-		return c.alterReorganizePartition(tbl, cmd)
+		return c.alterReorganizePartition(tbl, cmd, targetEngine)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
 	case nodes.ATRemovePartitioning:
@@ -2191,11 +2192,11 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 var _ = strings.ToLower
 
 // alterAddPartition adds partition definitions to a partitioned table.
-func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd, targetEngine string) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
-	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, tbl.Engine, cmd.PartitionDefs); err != nil {
+	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
@@ -2307,11 +2308,11 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 }
 
 // alterReorganizePartition reorganizes partitions into new definitions.
-func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd, targetEngine string) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}
-	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, tbl.Engine, cmd.PartitionDefs); err != nil {
+	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, targetEngine, cmd.PartitionDefs); err != nil {
 		return err
 	}
 	// Remove the old partitions.
