@@ -67,6 +67,11 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 			if prepSel, isSel := prep.query.(*nodes.SelectStmt); isSel {
 				selStmt = prepSel
 				ok = true
+			} else if !c.snapshot {
+				// pg: src/backend/commands/prepare.c — ExecuteQuery refuses a
+				// prepared INSERT/UPDATE/DELETE/MERGE as a CTAS source, even
+				// with RETURNING.
+				return &Error{Code: CodeWrongObjectType, Message: "prepared statement is not a SELECT"}
 			}
 		}
 		if !ok {

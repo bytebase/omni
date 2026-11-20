@@ -5281,6 +5281,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 			{"PREPARE q_values_srf_r39 AS INSERT INTO dst_r20 (id) VALUES (generate_series(1, 2)), (3)", CodeFeatureNotSupported},
 			{"CREATE OPERATOR ##> (LEFTARG = int, RIGHTARG = int, FUNCTION = eq_r38); CREATE OPERATOR ##> (LEFTARG = int, RIGHTARG = bigint, FUNCTION = int48eq); CREATE OPERATOR FAMILY fam_ovl_r39 USING btree; ALTER OPERATOR FAMILY fam_ovl_r39 USING btree ADD OPERATOR 3 ##> (int, int), OPERATOR 3 ##> (int, bigint)", "0"},
 			{"DROP OPERATOR ##> (int, bigint)", "0"},
+			// Round 40.
+			{"PREPARE q_ctas_dml_r40 AS INSERT INTO dst_r20 (id) VALUES (1) RETURNING id; CREATE TABLE t_ctas_dml_r40 AS EXECUTE q_ctas_dml_r40", CodeWrongObjectType},
 		} {
 			if got := simulationCatalogCode(t, c122, bad.sql); got != bad.want {
 				t.Fatalf("%s answered %s, want %s", bad.sql, got, bad.want)
@@ -5430,6 +5432,14 @@ func TestSimulationCausesOracle(t *testing.T) {
 			[]string{"CREATE TABLE mv_ix_src_r39 (a int)", "CREATE MATERIALIZED VIEW mv_ix_r39 AS SELECT a FROM mv_ix_src_r39", "CREATE VIEW v_on_mv_ix_r39 AS SELECT a FROM mv_ix_r39"},
 			[]string{"CREATE TABLE mv_ix_src_r39 (a int)", "CREATE MATERIALIZED VIEW mv_ix_r39 AS SELECT a FROM mv_ix_src_r39", "CREATE VIEW v_on_mv_ix_r39 AS SELECT a FROM mv_ix_r39", "CREATE INDEX mv_ix_a_r39 ON mv_ix_r39 (a)"},
 			[]string{"CREATE INDEX mv_ix_a_r39"})
+		roundTrip137("view created in pg_temp is temporary",
+			nil,
+			[]string{"CREATE VIEW pg_temp.v_pgtemp_r40 AS SELECT 1 AS x"},
+			[]string{`CREATE TEMP VIEW "v_pgtemp_r40"`})
+		roundTrip137("rebuilt table keeps a recreated rule's comment",
+			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
+			[]string{"CREATE TABLE p_rc_r40 (a int)", "CREATE TABLE c_rc_r40 (a int) INHERITS (p_rc_r40)", "CREATE RULE r_rc_r40 AS ON INSERT TO c_rc_r40 WHERE NEW.a > 0 DO ALSO NOTHING", "COMMENT ON RULE r_rc_r40 ON c_rc_r40 IS 'keep rule comment'"},
+			[]string{"COMMENT ON RULE", "keep rule comment"})
 		roundTrip137("operator class parameters",
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 32))"},
 			[]string{"CREATE TABLE ts_r37 (d tsvector)", "CREATE INDEX tsi_r37 ON ts_r37 USING gist (d tsvector_ops (siglen = 40))"},

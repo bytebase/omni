@@ -57,6 +57,10 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
+	if schemaName == "pg_temp" {
+		// PostgreSQL creates the session's temporary schema on first use.
+		c.ensureTempSchema()
+	}
 	schema, err := c.resolveTargetSchema(schemaName)
 	if err != nil {
 		return err
@@ -148,7 +152,10 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 		}
 	}
 
-	isTempView := (rv != nil && rv.Relpersistence == 't') || queryReferencesTempRelation(c, analyzedQuery)
+	// A view is temporary when TEMP is written, when it reads a temporary
+	// relation, or when it is created in the temporary schema itself.
+	isTempView := (rv != nil && rv.Relpersistence == 't') || queryReferencesTempRelation(c, analyzedQuery) ||
+		(schemaName != "" && isTempSchemaName(schemaName))
 	if isTempView {
 		if schemaName != "" && !isTempSchemaName(schemaName) {
 			return &Error{
@@ -251,7 +258,7 @@ func (c *Catalog) DefineView(stmt *nodes.ViewStmt) error {
 	if rv != nil && rv.Relpersistence != 0 {
 		persistence = rv.Relpersistence
 	}
-	if queryReferencesTempRelation(c, analyzedQuery) {
+	if isTempView {
 		persistence = 't'
 	}
 

@@ -329,14 +329,18 @@ func reconcileRulesWithDroppedRelations(from, to *Catalog, ops []MigrationOp) []
 		if len(toRel.Rules) > 0 {
 			names := make([]string, 0, len(toRel.Rules))
 			for name, r := range toRel.Rules {
-				if r != nil && !createdRules[schemaName+"\x00"+relName+"\x00"+name] {
+				if r != nil {
 					names = append(names, name)
 				}
 			}
 			sort.Strings(names)
 			for _, name := range names {
 				toRule := toRel.Rules[name]
-				filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRule)...)
+				// A rule generateRuleDDL already recreates still loses its
+				// comment with the dropped table.
+				if !createdRules[schemaName+"\x00"+relName+"\x00"+name] {
+					filtered = append(filtered, buildCreateAndModeRuleOps(to, schemaName, relName, toRel, toRule)...)
+				}
 				var fromRule *Rule
 				if from != nil {
 					if fromRel := from.GetRelation(schemaName, relName); fromRel != nil && fromRel.Rules != nil {
