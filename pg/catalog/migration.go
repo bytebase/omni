@@ -468,6 +468,35 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 			} else {
 				extraOps = append(extraOps, buildCreateViewOp(to, vEntry))
 			}
+			vDesc := v.schema + "." + v.name
+			if txt, ok := to.GetComment('r', toRel.OID, 0); ok && txt != "" {
+				if csql := formatCommentSQL(to, 'r', vDesc, 0, txt); csql != "" {
+					extraOps = append(extraOps, MigrationOp{
+						Type:          OpComment,
+						ObjectName:    vDesc,
+						SQL:           csql,
+						Transactional: true,
+						Phase:         PhaseMain,
+						ObjType:       'r',
+						Priority:      PriorityMetadata,
+					})
+				}
+			}
+			for _, col := range toRel.Columns {
+				if txt, ok := to.GetComment('r', toRel.OID, col.AttNum); ok && txt != "" {
+					if csql := formatCommentSQL(to, 'r', vDesc, col.AttNum, txt); csql != "" {
+						extraOps = append(extraOps, MigrationOp{
+							Type:          OpComment,
+							ObjectName:    vDesc,
+							SQL:           csql,
+							Transactional: true,
+							Phase:         PhaseMain,
+							ObjType:       'r',
+							Priority:      PriorityMetadata,
+						})
+					}
+				}
+			}
 		}
 	}
 
@@ -1105,6 +1134,7 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 	mainCreatedIdx := make(map[string]bool)
 	mainAddedCon := make(map[string]bool)
 	mainSetAMSQL := make(map[string]bool)
+	mainComments := make(map[string]bool)
 	for _, op := range ops {
 		if op.Phase == PhasePre {
 			switch op.Type {
@@ -1131,6 +1161,8 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 				}
 			case OpAlterTable, OpAlterView:
 				mainSetAMSQL[op.SQL] = true
+			case OpComment:
+				mainComments[op.SQL] = true
 			}
 		}
 	}
@@ -1239,6 +1271,20 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 						if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
 							mainAddedCon[conKey] = true
 							mainExtra = append(mainExtra, buildAddConstraintOp(to, relSc, fromRel.Name, toCon))
+							if txt, ok := to.GetComment('c', toCon.OID, 0); ok && txt != "" {
+								if csql := formatCommentSQL(to, 'c', conKey, 0, txt); csql != "" && !mainComments[csql] {
+									mainComments[csql] = true
+									mainExtra = append(mainExtra, MigrationOp{
+										Type:          OpComment,
+										ObjectName:    conKey,
+										SQL:           csql,
+										Transactional: true,
+										Phase:         PhaseMain,
+										ObjType:       'c',
+										Priority:      PriorityMetadata,
+									})
+								}
+							}
 							break
 						}
 					}
@@ -1279,6 +1325,20 @@ func wrapModifiedAccessMethodDependents(from, to *Catalog, diff *SchemaDiff, ops
 							Priority:      PriorityIndex,
 						})
 						mainExtra = append(mainExtra, buildIndexColumnRenameOps(scName, toIdx, defaultIndexColumnNames(to, toIdx), effectiveIndexColumnNames(to, toIdx))...)
+						if txt, ok := to.GetComment('i', toIdx.OID, 0); ok && txt != "" {
+							if csql := formatCommentSQL(to, 'i', idxKey, 0, txt); csql != "" && !mainComments[csql] {
+								mainComments[csql] = true
+								mainExtra = append(mainExtra, MigrationOp{
+									Type:          OpComment,
+									ObjectName:    idxKey,
+									SQL:           csql,
+									Transactional: true,
+									Phase:         PhaseMain,
+									ObjType:       'i',
+									Priority:      PriorityMetadata,
+								})
+							}
+						}
 					}
 				}
 			}
@@ -1454,7 +1514,7 @@ func collUsedInPhaseMain(from, to *Catalog, ops []MigrationOp, dropped map[uint3
 			if d.ObjSubID > 0 {
 				for _, col := range rel.Columns {
 					if int32(col.AttNum) == d.ObjSubID {
-						dropColSQL := fmt.Sprintf("ALTER TABLE %s.%s DROP COLUMN %s", quoteIdentifier(rel.Schema.Name), quoteIdentifier(rel.Name), quoteIdentifier(col.Name))
+						dropColSQL := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", formatRelationName(rel.Schema.Name, rel.Name, rel), quoteIdentifier(col.Name))
 						if !preDroppedCol[dropColSQL] {
 							return true
 						}
@@ -1702,6 +1762,22 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 	extraViewTables := make(map[uint32]bool)
 	directViews := make(map[uint32]bool)
 	var preExtra, mainExtra []MigrationOp
+	appendCommentRestoreOp := func(objType byte, toOID uint32, subID int16, desc string) {
+		if txt, ok := to.GetComment(objType, toOID, subID); ok && txt != "" {
+			if csql := formatCommentSQL(to, objType, desc, subID, txt); csql != "" && !mainComments[csql] {
+				mainComments[csql] = true
+				mainExtra = append(mainExtra, MigrationOp{
+					Type:          OpComment,
+					ObjectName:    desc,
+					SQL:           csql,
+					Transactional: true,
+					Phase:         PhaseMain,
+					ObjType:       objType,
+					Priority:      PriorityMetadata,
+				})
+			}
+		}
+	}
 
 	// 1. Rebuild kept domains and ranges whose own COLLATE changed or references a modified collation.
 	rebuiltDomains := make(map[uint32]*DomainType) // from domain TypeOID -> from DomainType
@@ -1806,6 +1882,10 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					ObjOID:        toOID,
 					Priority:      PriorityType,
 				})
+				appendCommentRestoreOp('t', toOID, 0, key)
+				for _, dc := range toDT.Constraints {
+					appendCommentRestoreOp('d', dc.OID, 0, key+"."+dc.Name)
+				}
 			}
 		}
 	}
@@ -1863,6 +1943,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					ObjOID:        toOID,
 					Priority:      PriorityType,
 				})
+				appendCommentRestoreOp('t', toOID, 0, key)
 			}
 		}
 	}
@@ -1923,7 +2004,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		}
 		cSc := cRel.Schema.Name
 		conKey := cSc + "." + cRel.Name + "." + con.Name
-		dropOp := buildDropConstraintOp(cSc, cRel.Name, con)
+		dropOp := buildDropConstraintOpForRel(cSc, cRel.Name, cRel, con)
 		if !preDroppedCon[con.OID] && !preDroppedConKey[conKey] && !preDroppedConKey[dropOp.SQL] {
 			preDroppedCon[con.OID] = true
 			preDroppedConKey[conKey] = true
@@ -1983,7 +2064,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					Type:          OpDropIndex,
 					SchemaName:    idxSc,
 					ObjectName:    idx.Name,
-					SQL:           fmt.Sprintf("DROP INDEX %s.%s", quoteIdentifier(idxSc), quoteIdentifier(idx.Name)),
+					SQL:           fmt.Sprintf("DROP INDEX %s", formatIndexTargetName(idxSc, idx)),
 					Transactional: true,
 					Phase:         PhasePre,
 					ObjType:       'i',
@@ -2213,7 +2294,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 		if toRel == nil || toRel.RelKind != fromRel.RelKind {
 			continue
 		}
-		tableName := fmt.Sprintf("%s.%s", quoteIdentifier(scName), quoteIdentifier(fromRel.Name))
+		tableName := formatRelationName(scName, fromRel.Name, fromRel)
 		qn := migrationQualifiedName(scName, fromRel.Name)
 
 		for _, fromCol := range fromRel.Columns {
@@ -2477,27 +2558,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				continue
 			}
 			if con := from.constraints[d.ObjOID]; con != nil {
-				if con.RelOID != 0 && !preDroppedRel[con.RelOID] && con.ConParentID == 0 {
-					fromRel := from.GetRelationByOID(con.RelOID)
-					if fromRel == nil || fromRel.Schema == nil {
-						continue
-					}
-					scName := fromRel.Schema.Name
-					preDroppedCon[con.OID] = true
-					preExtra = append(preExtra, buildDropConstraintOp(scName, fromRel.Name, con))
-					conKey := scName + "." + fromRel.Name + "." + con.Name
-					if !mainAddedCon[conKey] {
-						if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
-							for _, toCon := range to.ConstraintsOf(toRel.OID) {
-								if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
-									mainAddedCon[conKey] = true
-									mainExtra = append(mainExtra, buildAddConstraintOp(to, scName, fromRel.Name, toCon))
-									break
-								}
-							}
-						}
-					}
-				}
+				dropAndRestoreConstraint(con)
 			} else {
 				for domOID, dt := range from.domainTypes {
 					if preDroppedType[domOID] || dt == nil {
@@ -2545,6 +2606,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 											ObjOID:        toOID,
 											Priority:      PriorityConstraint,
 										})
+										appendCommentRestoreOp('d', dc.OID, 0, sc.Name+"."+bt.TypeName+"."+dc.Name)
 										break
 									}
 								}
@@ -2560,25 +2622,8 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				continue
 			}
 			if idx.ConstraintOID != 0 {
-				if con := from.constraints[idx.ConstraintOID]; con != nil && !preDroppedCon[con.OID] && con.ConParentID == 0 {
-					fromRel := from.GetRelationByOID(con.RelOID)
-					if fromRel != nil && fromRel.Schema != nil {
-						scName := fromRel.Schema.Name
-						preDroppedCon[con.OID] = true
-						preExtra = append(preExtra, buildDropConstraintOp(scName, fromRel.Name, con))
-						conKey := scName + "." + fromRel.Name + "." + con.Name
-						if !mainAddedCon[conKey] {
-							if toRel := to.GetRelation(scName, fromRel.Name); toRel != nil {
-								for _, toCon := range to.ConstraintsOf(toRel.OID) {
-									if toCon.Name == con.Name && toCon.Type != ConstraintTrigger {
-										mainAddedCon[conKey] = true
-										mainExtra = append(mainExtra, buildAddConstraintOp(to, scName, fromRel.Name, toCon))
-										break
-									}
-								}
-							}
-						}
-					}
+				if con := from.constraints[idx.ConstraintOID]; con != nil {
+					dropAndRestoreConstraint(con)
 				}
 				continue
 			}
@@ -2591,7 +2636,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 				Type:          OpDropIndex,
 				SchemaName:    scName,
 				ObjectName:    idx.Name,
-				SQL:           fmt.Sprintf("DROP INDEX %s.%s", quoteIdentifier(scName), quoteIdentifier(idx.Name)),
+				SQL:           fmt.Sprintf("DROP INDEX %s", formatIndexTargetName(scName, idx)),
 				Transactional: true,
 				Phase:         PhasePre,
 				ObjType:       'i',
@@ -2616,6 +2661,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 								Priority:      PriorityIndex,
 							})
 							mainExtra = append(mainExtra, buildIndexColumnRenameOps(scName, toIdx, defaultIndexColumnNames(to, toIdx), effectiveIndexColumnNames(to, toIdx))...)
+							appendCommentRestoreOp('i', toIdx.OID, 0, idxKey)
 						}
 					}
 				}
@@ -2639,6 +2685,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 						if toTrig.Name == trig.Name && toTrig.ParentTriggerOID == 0 {
 							mainCreatedTrig[trigKey] = true
 							mainExtra = append(mainExtra, buildCreateTriggerOp(to, scName, fromRel.Name, toTrig))
+							appendCommentRestoreOp('g', toTrig.OID, 0, trigKey)
 							break
 						}
 					}
@@ -2663,6 +2710,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 						if toPol.Name == pol.Name {
 							mainCreatedPol[polKey] = true
 							mainExtra = append(mainExtra, buildCreatePolicyOpForRel(scName, fromRel.Name, toRel, toPol))
+							appendCommentRestoreOp('p', toPol.OID, 0, polKey)
 							break
 						}
 					}
@@ -2708,6 +2756,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 					if toUP.Schema != nil && toUP.Schema.Name == scName && funcIdentity(to, toUP) == id {
 						mainCreatedFunc[fnKey] = true
 						mainExtra = append(mainExtra, buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP}))
+						appendCommentRestoreOp('f', toUP.OID, 0, id)
 						break
 					}
 				}
@@ -2718,6 +2767,7 @@ func wrapModifiedCollationDependents(from, to *Catalog, diff *SchemaDiff, ops []
 						for _, toUP := range to.userProcs {
 							if toUP.Schema != nil && toUP.Schema.Name == scName && funcIdentity(to, toUP) == id {
 								ops[i] = buildCreateFunctionOp(to, FunctionDiffEntry{Action: DiffAdd, SchemaName: scName, Identity: id, To: toUP})
+								appendCommentRestoreOp('f', toUP.OID, 0, id)
 								break
 							}
 						}

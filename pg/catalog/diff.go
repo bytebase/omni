@@ -326,7 +326,7 @@ func diffCollations(from, to *Catalog) []CollationDiffEntry {
 			continue
 		}
 		for name, uc := range s.Collations {
-			if uc != nil {
+			if uc != nil && !from.isExtensionMember(uc.OID) {
 				fromMap[key{s.Name, name}] = uc
 			}
 		}
@@ -337,7 +337,7 @@ func diffCollations(from, to *Catalog) []CollationDiffEntry {
 			continue
 		}
 		for name, uc := range s.Collations {
-			if uc != nil {
+			if uc != nil && !to.isExtensionMember(uc.OID) {
 				toMap[key{s.Name, name}] = uc
 			}
 		}
