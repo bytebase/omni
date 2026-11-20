@@ -41,7 +41,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			secret INT INVISIBLE NOT NULL DEFAULT 0,
 			SPATIAL INDEX sp_idx (g4326),
 			INDEX fn_idx ((UPPER(code)))
-		) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT='parent table';
+		) ENGINE=InnoDB ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=8 STATS_PERSISTENT=0 COMPRESSION='zlib' COMMENT='parent table';
 
 		CREATE TABLE mem_tbl (
 			id INT NOT NULL,
@@ -72,12 +72,12 @@ func TestDatabaseMetadataFull(t *testing.T) {
 
 		CREATE VIEW v_parent (vid, vcode) AS SELECT id, code FROM parent;
 
-		CREATE FUNCTION fn_add(a INT, b INT) RETURNS INT DETERMINISTIC
+		CREATE FUNCTION fn_add(a INT, b INT) RETURNS INT DETERMINISTIC COMMENT 'adds two ints'
 		BEGIN
 			RETURN a + b;
 		END;
 
-		CREATE PROCEDURE proc_noop()
+		CREATE PROCEDURE proc_noop() COMMENT 'noop proc'
 		BEGIN
 			SELECT 1;
 		END;
@@ -107,6 +107,9 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, "parent table", parent.Comment)
 	require.Equal(t, "InnoDB", parent.Engine)
 	require.Contains(t, parent.CreateOptions, "row_format=DYNAMIC")
+	require.Contains(t, parent.CreateOptions, "key_block_size=8")
+	require.Contains(t, parent.CreateOptions, "stats_persistent=0")
+	require.Contains(t, parent.CreateOptions, "compression='zlib'")
 	require.Len(t, parent.Columns, 12, "system-hidden functional index column must be excluded")
 
 	cols := map[string]*metadata.ColumnMetadata{}
@@ -161,9 +164,11 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Len(t, s.Functions, 1)
 	require.Contains(t, s.Functions[0].Definition, "CREATE")
 	require.Contains(t, s.Functions[0].Definition, "FUNCTION `fn_add`")
+	require.Equal(t, "adds two ints", s.Functions[0].Comment)
 	require.Len(t, s.Procedures, 1)
 	require.Contains(t, s.Procedures[0].Definition, "CREATE")
 	require.Contains(t, s.Procedures[0].Definition, "PROCEDURE `proc_noop`")
+	require.Equal(t, "noop proc", s.Procedures[0].Comment)
 
 	// Round-trip through LoadMetadata preserves objects cleanly.
 	reloaded := New()

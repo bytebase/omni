@@ -71,6 +71,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			SqlMode:             f.SQLMode,
 			CharacterSetClient:  f.CharacterSetClient,
 			CollationConnection: f.CollationConnection,
+			Comment:             f.Characteristics["COMMENT"],
 		})
 	}
 
@@ -82,6 +83,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			SqlMode:             p.SQLMode,
 			CharacterSetClient:  p.CharacterSetClient,
 			CollationConnection: p.CollationConnection,
+			Comment:             p.Characteristics["COMMENT"],
 		})
 	}
 
@@ -94,6 +96,7 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			CharacterSetClient:  e.CharacterSetClient,
 			CollationConnection: e.CollationConnection,
 			TimeZone:            e.TimeZone,
+			Comment:             e.Comment,
 		})
 	}
 
@@ -261,8 +264,44 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 
 func tableCreateOptions(t *Table) string {
 	var opts []string
+	if t.KeyBlockSize > 0 {
+		opts = append(opts, fmt.Sprintf("key_block_size=%d", t.KeyBlockSize))
+	}
 	if t.RowFormat != "" {
 		opts = append(opts, "row_format="+t.RowFormat)
+	}
+	if t.Compression != "" {
+		opts = append(opts, fmt.Sprintf("compression='%s'", escapeComment(unquoteTableOption(t.Compression))))
+	}
+	if t.Encryption != "" {
+		opts = append(opts, fmt.Sprintf("encryption='%s'", escapeComment(unquoteTableOption(t.Encryption))))
+	}
+	if t.StatsPersistent != "" && !eqFoldStr(t.StatsPersistent, "DEFAULT") {
+		opts = append(opts, "stats_persistent="+t.StatsPersistent)
+	}
+	if t.StatsAutoRecalc != "" && !eqFoldStr(t.StatsAutoRecalc, "DEFAULT") {
+		opts = append(opts, "stats_auto_recalc="+t.StatsAutoRecalc)
+	}
+	if t.StatsSamplePages != "" && !eqFoldStr(t.StatsSamplePages, "DEFAULT") {
+		opts = append(opts, "stats_sample_pages="+t.StatsSamplePages)
+	}
+	if t.MinRows != "" && t.MinRows != "0" {
+		opts = append(opts, "min_rows="+t.MinRows)
+	}
+	if t.MaxRows != "" && t.MaxRows != "0" {
+		opts = append(opts, "max_rows="+t.MaxRows)
+	}
+	if t.AvgRowLength != "" && t.AvgRowLength != "0" {
+		opts = append(opts, "avg_row_length="+t.AvgRowLength)
+	}
+	if t.PackKeys != "" && !eqFoldStr(t.PackKeys, "DEFAULT") {
+		opts = append(opts, "pack_keys="+t.PackKeys)
+	}
+	if t.Checksum != "" && t.Checksum != "0" {
+		opts = append(opts, "checksum="+t.Checksum)
+	}
+	if t.DelayKeyWrite != "" && t.DelayKeyWrite != "0" {
+		opts = append(opts, "delay_key_write="+t.DelayKeyWrite)
 	}
 	if t.Partitioning != nil {
 		opts = append(opts, "partitioned")

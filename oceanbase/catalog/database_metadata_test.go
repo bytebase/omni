@@ -38,7 +38,7 @@ func TestDatabaseMetadataFull(t *testing.T) {
 			g0 GEOMETRY NOT NULL SRID 0,
 			secret INT INVISIBLE NOT NULL DEFAULT 0,
 			SPATIAL INDEX sp_idx (g0)
-		) ENGINE=InnoDB ROW_FORMAT=DYNAMIC COMMENT='parent table';
+		) ENGINE=InnoDB ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=8 STATS_PERSISTENT=0 COMPRESSION='lz4_1.0' COMMENT='parent table';
 
 		CREATE TABLE child (
 			id INT PRIMARY KEY,
@@ -61,12 +61,12 @@ func TestDatabaseMetadataFull(t *testing.T) {
 		CREATE VIEW v_parent (vid, vcode) AS SELECT id, code FROM parent;
 		CREATE MATERIALIZED VIEW mv_parent AS SELECT id, code FROM parent;
 
-		CREATE FUNCTION fn_add(a INT, b INT) RETURNS INT DETERMINISTIC
+		CREATE FUNCTION fn_add(a INT, b INT) RETURNS INT DETERMINISTIC COMMENT 'adds two ints'
 		BEGIN
 			RETURN a + b;
 		END;
 
-		CREATE PROCEDURE proc_noop()
+		CREATE PROCEDURE proc_noop() COMMENT 'noop proc'
 		BEGIN
 			SELECT 1;
 		END;
@@ -93,6 +93,9 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Equal(t, "parent", parent.Name)
 	require.Equal(t, "parent table", parent.Comment)
 	require.Contains(t, parent.CreateOptions, "row_format=DYNAMIC")
+	require.Contains(t, parent.CreateOptions, "key_block_size=8")
+	require.Contains(t, parent.CreateOptions, "stats_persistent=0")
+	require.Contains(t, parent.CreateOptions, "compression='lz4_1.0'")
 
 	cols := map[string]*metadata.ColumnMetadata{}
 	for _, col := range parent.Columns {
@@ -113,6 +116,30 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	require.Len(t, parent.Triggers, 1)
 	require.Equal(t, "trg_parent", parent.Triggers[0].Name)
 
+	require.Len(t, s.Views, 1)
+	require.Equal(t, "v_parent", s.Views[0].Name)
+	require.Len(t, s.Views[0].Columns, 2)
+	require.Equal(t, "vid", s.Views[0].Columns[0].Name)
+	require.Len(t, s.MaterializedViews, 1)
+	require.Equal(t, "mv_parent", s.MaterializedViews[0].Name)
+	require.Len(t, s.Functions, 1)
+	require.Contains(t, s.Functions[0].Definition, "FUNCTION `fn_add`")
+	require.Equal(t, "adds two ints", s.Functions[0].Comment)
+	require.Len(t, s.Procedures, 1)
+	require.Contains(t, s.Procedures[0].Definition, "PROCEDURE `proc_noop`")
+	require.Equal(t, "noop proc", s.Procedures[0].Comment)
+	require.Len(t, s.Events, 1)
+
+	// Round-trip through LoadMetadata preserves objects cleanly.
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+	require.NotNil(t, reloaded.GetDatabase("app").Functions["fn_add"])
+	require.NotNil(t, reloaded.GetDatabase("app").Procedures["proc_noop"])
+
 	child := s.Tables[0]
 	require.Len(t, child.ForeignKeys, 1)
 	child.ForeignKeys[0].Columns[0] = "mutated"
@@ -129,26 +156,4 @@ func TestDatabaseMetadataFull(t *testing.T) {
 	partTbl := s.Tables[2]
 	require.Len(t, partTbl.Partitions, 2)
 	require.Len(t, partTbl.Partitions[0].Subpartitions, 2)
-
-	require.Len(t, s.Views, 1)
-	require.Equal(t, "v_parent", s.Views[0].Name)
-	require.Len(t, s.Views[0].Columns, 2)
-	require.Equal(t, "vid", s.Views[0].Columns[0].Name)
-	require.Len(t, s.MaterializedViews, 1)
-	require.Equal(t, "mv_parent", s.MaterializedViews[0].Name)
-	require.Len(t, s.Functions, 1)
-	require.Contains(t, s.Functions[0].Definition, "FUNCTION `fn_add`")
-	require.Len(t, s.Procedures, 1)
-	require.Contains(t, s.Procedures[0].Definition, "PROCEDURE `proc_noop`")
-	require.Len(t, s.Events, 1)
-
-	// Round-trip through LoadMetadata preserves objects cleanly.
-	reloaded := New()
-	report, err := reloaded.LoadMetadata(context.Background(), meta)
-	require.NoError(t, err)
-	require.Empty(t, report.Degraded)
-	require.Empty(t, report.Missing)
-	require.Empty(t, report.Incomplete)
-	require.NotNil(t, reloaded.GetDatabase("app").Functions["fn_add"])
-	require.NotNil(t, reloaded.GetDatabase("app").Procedures["proc_noop"])
 }

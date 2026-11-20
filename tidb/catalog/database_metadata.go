@@ -31,26 +31,8 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 		Name: "",
 	}
 
-	tableProtoByLowerName := make(map[string]*metadata.TableMetadata, len(db.Tables))
 	for _, tName := range sortedMapKeys(db.Tables) {
-		t := db.Tables[tName]
-		tableProto := tableToProto(t)
-		schemaMeta.Tables = append(schemaMeta.Tables, tableProto)
-		tableProtoByLowerName[strings.ToLower(t.Name)] = tableProto
-	}
-
-	for _, trName := range sortedMapKeys(db.Triggers) {
-		tr := db.Triggers[trName]
-		tableProto := tableProtoByLowerName[strings.ToLower(tr.Table)]
-		if tableProto == nil {
-			continue
-		}
-		tableProto.Triggers = append(tableProto.Triggers, &metadata.TriggerMetadata{
-			Name:   tr.Name,
-			Event:  tr.Event,
-			Timing: tr.Timing,
-			Body:   tr.Body,
-		})
+		schemaMeta.Tables = append(schemaMeta.Tables, tableToProto(db.Tables[tName]))
 	}
 
 	for _, vName := range sortedMapKeys(db.Views) {
@@ -59,30 +41,6 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 			Name:       v.Name,
 			Definition: v.Definition,
 			Columns:    viewColumnsToProto(v),
-		})
-	}
-
-	for _, fName := range sortedMapKeys(db.Functions) {
-		f := db.Functions[fName]
-		schemaMeta.Functions = append(schemaMeta.Functions, &metadata.FunctionMetadata{
-			Name:       f.Name,
-			Definition: c.ShowCreateFunction(dbName, f.Name),
-		})
-	}
-
-	for _, pName := range sortedMapKeys(db.Procedures) {
-		p := db.Procedures[pName]
-		schemaMeta.Procedures = append(schemaMeta.Procedures, &metadata.ProcedureMetadata{
-			Name:       p.Name,
-			Definition: c.ShowCreateProcedure(dbName, p.Name),
-		})
-	}
-
-	for _, eName := range sortedMapKeys(db.Events) {
-		e := db.Events[eName]
-		schemaMeta.Events = append(schemaMeta.Events, &metadata.EventMetadata{
-			Name:       e.Name,
-			Definition: c.ShowCreateEvent(dbName, e.Name),
 		})
 	}
 
