@@ -122,6 +122,8 @@ const (
 	// ErrWrongSubKey is 1089 for an index prefix length that exceeds the column's
 	// own length (measured on TiDB v8.5.5, 2026-11-09).
 	ErrWrongSubKey = 1089
+	// ErrKeyPartZeroLength is 1391 for an explicit zero key-part length, KEY (c(0)).
+	ErrKeyPartZeroLength = 1391
 	// Expression (functional) index restrictions TiDB v8.5.5 enforces (measured
 	// 2026-11-09): 3762 rejects an expression index over a bare column, 3753 one
 	// whose expression returns JSON or GEOMETRY, 3757 one that returns BLOB or
@@ -231,6 +233,7 @@ var sqlStateMap = map[int]string{
 	ErrInvalidDefault:                      "42000",
 	ErrInvalidOnUpdate:                     "HY000",
 	ErrWrongSubKey:                         "HY000",
+	ErrKeyPartZeroLength:                   "HY000",
 	ErrFunctionalIndexOnField:              "HY000",
 	ErrFunctionalIndexOnJSONOrGeo:          "HY000",
 	ErrFunctionalIndexOnBlob:               "HY000",
@@ -590,4 +593,11 @@ func checkLiteralDefaultAllowed(col *Column) error {
 func errBlobKeyWithoutLength(column string) error {
 	return &Error{Code: ErrBlobKeyWithoutLength, SQLState: sqlState(ErrBlobKeyWithoutLength),
 		Message: fmt.Sprintf("BLOB/TEXT column '%s' used in key specification without a key length", column)}
+}
+
+// errKeyPartZeroLength is what TiDB answers for an explicit zero key-part
+// length, before it looks up the table or the column.
+func errKeyPartZeroLength(name string) error {
+	return &Error{Code: ErrKeyPartZeroLength, SQLState: sqlState(ErrKeyPartZeroLength),
+		Message: fmt.Sprintf("Key part '%s' length cannot be 0", name)}
 }

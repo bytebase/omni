@@ -5077,6 +5077,12 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "COMPACT functional literal _latin1 of 256 characters", stmt: "CREATE TABLE z (a INT, KEY ((_latin1'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional literal plain of 192 characters", stmt: "CREATE TABLE z (a INT, KEY (('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 1071},
 		{name: "COMPACT functional literal _utf8mb3 of 256 characters", stmt: "CREATE TABLE z (a INT, KEY ((_utf8mb3'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'))) ROW_FORMAT=COMPACT", code: 1071},
+		// A literal's own charset sizes it in a binary CONCAT or REPLACE.
+		{name: "functional binary CONCAT with a latin1 literal", stmt: "CREATE TABLE z (b VARBINARY(511), KEY ((CONCAT(b, _latin1'x'))))", code: 0},
+		{name: "functional binary CONCAT with a utf8mb4 literal", stmt: "CREATE TABLE z (b VARBINARY(511), KEY ((CONCAT(b, 'x'))))", code: 3757},
+		{name: "functional binary CONCAT with a national literal", stmt: "CREATE TABLE z (b VARBINARY(509), KEY ((CONCAT(b, N'x'))))", code: 0},
+		{name: "functional binary REPLACE with a latin1 replacement", stmt: "CREATE TABLE z (b VARBINARY(100), KEY ((REPLACE(b, 'x', _latin1'yyyyy'))))", code: 0},
+		{name: "functional binary REPLACE with a utf8mb4 replacement", stmt: "CREATE TABLE z (b VARBINARY(100), KEY ((REPLACE(b, 'x', 'yyyyy'))))", code: 3757},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6172,6 +6178,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"LOCATE('a', 'a')", "LOCATE('A', 'a')", "LOCATE('b', 'abcb')", "LOCATE('b', 'abcb', 3)", "LOCATE('b', 'abcb', 0)",
 		"LOCATE('', 'abc')", "LOCATE('', 'abc', 3)", "LOCATE('', 'abc', 4)", "LOCATE('', 'abc', 5)", "LOCATE('b', 'abcb', -1)",
 		"INSTR('abcb', 'b')", "INSTR('a', 'A')", "LOCATE('b', 'abcb', 2.6)", "LOCATE(1, 21)",
+		"CRC32('a')", "CRC32('')", "CRC32(123)", "CRC32('é')", "CRC32(X'00')", "CRC32(1.5e0)",
 		"1 << 63", "(1 << 63) > 0", "-1 | 0", "1 << 64", "5 >> 1", "1.6 | 0", "'3' ^ 1", "-1 & 255",
 	} {
 		stmt := "SET @x = " + expr
@@ -6283,7 +6290,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
 		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
-		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
+		"ASCII(X'01')", "ORD(X'01')", "BIT_LENGTH('a')", "LOCATE('a', 'a')", "(CRC32('a') > 0)", "IF(_binary'a' = 'A', 'ANSI', '')", "IF(_utf8mb4'a' = 'A', 'ANSI', '')", "((1 << 63) > 0)", "IF(IF(1, REPLACE('ansi', X'78', ''), '') = 'ANSI', 'ANSI', '')",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {

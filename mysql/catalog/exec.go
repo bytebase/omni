@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"hash/crc32"
 	"math"
 	"math/big"
 	"math/bits"
@@ -1366,6 +1367,24 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "crc32":
+			// CRC32 is the IEEE checksum of the value's string form: a double
+			// as MySQL prints it, so CRC32('a') > 0 sets sql_mode 1.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("CRC32")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			str := v.str
+			if v.kind == userVarNumeric && v.isFloat {
+				if r, _, _, rok := parseSetNumberPrefixRat(v.str, true); rok {
+					f, _ := r.Float64()
+					str = setFormatDouble(f)
+				}
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(uint64(crc32.ChecksumIEEE([]byte(str))), 10)}, true, nil
 		case "locate", "instr":
 			// LOCATE(sub, str[, pos]) and INSTR(str, sub) find sub's first
 			// position, from pos, in characters: LOCATE('a', 'a') is 1 and
@@ -1820,7 +1839,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
-				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "abs",
+				"reverse", "char_length", "character_length", "length", "octet_length", "bit_length", "crc32", "abs",
 				"floor", "ceil", "ceiling", "sign", "bit_count", "ascii", "ord":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))

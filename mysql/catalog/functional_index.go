@@ -524,7 +524,16 @@ func aggregateExprCharset(a, b string) string {
 func inferStringExprLenAndCharset(tbl *Table, expr nodes.ExprNode) (int, bool, string) {
 	switch e := peelFunctionalIndexParens(expr).(type) {
 	case *nodes.StringLit:
-		return utf8.RuneCountInString(e.Value), true, ""
+		// A literal's own charset decides its byte width in a binary
+		// result: CONCAT(varbinary_511, _latin1'x') is 512 bytes.
+		cs := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(e.Charset)), "_")
+		if e.National {
+			cs = "utf8mb3"
+		}
+		if cs == "binary" {
+			return len(e.Value), true, cs
+		}
+		return utf8.RuneCountInString(e.Value), true, cs
 	case *nodes.IntLit:
 		return len(strconv.FormatInt(e.Value, 10)), true, ""
 	default:
@@ -693,7 +702,7 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		if arg0 == nil || !functionalTypeWidthKnown(arg0) || isFunctionalIndexLOBType(arg0) {
 			return arg0
 		}
-		replLen, ok, _ := inferStringExprLenAndCharset(tbl, e.Args[2])
+		replLen, ok, replCS := inferStringExprLenAndCharset(tbl, e.Args[2])
 		if !ok {
 			if _, isStr := peelFunctionalIndexParens(e.Args[2]).(*nodes.StringLit); !isStr {
 				return nil
@@ -704,7 +713,11 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 		if isResolvedBinaryType(arg0) {
 			base = BaseTypeVarBinary
 			if !isResolvedBinaryType(inferFunctionalIndexExprType(tbl, e.Args[2])) {
-				replLen *= 4
+				w := "utf8mb4"
+				if replCS != "" {
+					w = replCS
+				}
+				replLen *= max(charsetMaxBytes(w), 1)
 			}
 		}
 		n := arg0.Length
