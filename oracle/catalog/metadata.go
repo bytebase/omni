@@ -12,6 +12,11 @@ import (
 	"github.com/bytebase/omni/oracle/ast"
 )
 
+// GetDatabaseMetadata parses Oracle DDL and returns the schema it defines.
+func GetDatabaseMetadata(schemaText string) (*metadatapb.DatabaseSchemaMetadata, error) {
+	return metadataFromSQL(schemaText)
+}
+
 // metadataFromSQL parses Oracle DDL and returns the schema it defines.
 func metadataFromSQL(schemaText string) (*metadatapb.DatabaseSchemaMetadata, error) {
 	stmts, err := oracle.Parse(schemaText)

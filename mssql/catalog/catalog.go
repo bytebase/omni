@@ -376,6 +376,15 @@ func LoadSQL(sql string) (*Catalog, error) {
 	return c, nil
 }
 
+// GetDatabaseMetadata parses SQL Server DDL and returns the schema it defines.
+func GetDatabaseMetadata(schemaText string) (*metadata.DatabaseSchemaMetadata, error) {
+	c, err := LoadSQL(schemaText)
+	if err != nil {
+		return nil, err
+	}
+	return c.Metadata(), nil
+}
+
 // sortSchemas orders schemas by name, as Bytebase's metadata extraction does.
 func (c *Catalog) sortSchemas() {
 	slices.SortStableFunc(c.schemas, func(a, b *metadata.SchemaMetadata) int {

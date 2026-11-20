@@ -909,6 +909,19 @@ func writeProcedure(out *strings.Builder, schemaName string, procedure *metadata
 	}
 }
 
+// GetTableDefinition renders one table as the T-SQL that recreates it.
+func GetTableDefinition(schemaName string, table *metadata.TableMetadata, _ []*metadata.SequenceMetadata) (string, error) {
+	if table == nil || table.GetSkipDump() {
+		return "", nil
+	}
+	if schemaName == "" {
+		schemaName = defaultSchema
+	}
+	var buf strings.Builder
+	writeTable(&buf, schemaName, table)
+	return buf.String(), nil
+}
+
 // GetViewDefinition renders one view's definition without its extended
 // properties, which DatabaseDefinition emits after it.
 func GetViewDefinition(view *metadata.ViewMetadata) (string, error) {
