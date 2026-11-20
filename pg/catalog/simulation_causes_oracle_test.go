@@ -4495,6 +4495,73 @@ func TestSimulationCausesOracle(t *testing.T) {
 		if rem := GenerateMigration(c114AmFrom, c114AmTo, Diff(c114AmFrom, c114AmTo)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after mig114Am, got:\n%s", rem.SQL())
 		}
+
+		// Review round 13 regressions:
+		// 1. XML expressions (XMLPARSE, XMLELEMENT, XMLFOREST, XMLCONCAT, XMLPI,
+		//    XMLROOT, XMLSERIALIZE, IS DOCUMENT) in rule actions are preserved
+		//    and diffed when deparsing rules.
+		// 2. Index COLLATE references update when a user collation is renamed
+		//    or moved to another schema.
+		c115XmlFrom := New()
+		c115XmlTo := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_xml_r13 (id int, payload text)",
+			"CREATE TABLE audit_xml_r13 (doc xml, txt text)",
+			"CREATE RULE r_xml_r13 AS ON INSERT TO t_xml_r13 WHERE XMLPARSE(DOCUMENT NEW.payload) IS DOCUMENT DO ALSO INSERT INTO audit_xml_r13 (doc, txt) VALUES (XMLELEMENT(NAME item, XMLATTRIBUTES(NEW.id AS id), XMLPARSE(DOCUMENT '<a/>')), XMLSERIALIZE(DOCUMENT XMLPARSE(DOCUMENT '<a/>') AS text))",
+		} {
+			if code := simulationCatalogCode(t, c115XmlFrom, stmt); code != "0" {
+				t.Fatalf("c115XmlFrom %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_xml_r13 (id int, payload text)",
+			"CREATE TABLE audit_xml_r13 (doc xml, txt text)",
+			"CREATE RULE r_xml_r13 AS ON INSERT TO t_xml_r13 WHERE XMLPARSE(DOCUMENT NEW.payload) IS DOCUMENT DO ALSO INSERT INTO audit_xml_r13 (doc, txt) VALUES (XMLELEMENT(NAME item, XMLATTRIBUTES(NEW.id AS id), XMLPARSE(DOCUMENT '<b/>')), XMLSERIALIZE(DOCUMENT XMLPARSE(DOCUMENT '<b/>') AS text))",
+		} {
+			if code := simulationCatalogCode(t, c115XmlTo, stmt); code != "0" {
+				t.Fatalf("c115XmlTo %s: %s", stmt, code)
+			}
+		}
+		migEmpty115Xml := GenerateMigration(New(), c115XmlTo, Diff(New(), c115XmlTo))
+		if !strings.Contains(migEmpty115Xml.SQL(), "XMLPARSE(DOCUMENT '<b/>')") || !strings.Contains(migEmpty115Xml.SQL(), "XMLSERIALIZE(DOCUMENT") {
+			t.Fatalf("expected XML expressions in rule migration DDL, got:\n%s", migEmpty115Xml.SQL())
+		}
+		c115XmlApplied := New()
+		if code := simulationCatalogCode(t, c115XmlApplied, migEmpty115Xml.SQL()); code != "0" {
+			t.Fatalf("applying empty->c115XmlTo failed with %s:\n%s", code, migEmpty115Xml.SQL())
+		}
+		if rem := GenerateMigration(c115XmlApplied, c115XmlTo, Diff(c115XmlApplied, c115XmlTo)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c115XmlTo, got:\n%s", rem.SQL())
+		}
+		mig115XmlDiff := GenerateMigration(c115XmlFrom, c115XmlTo, Diff(c115XmlFrom, c115XmlTo))
+		if !strings.Contains(mig115XmlDiff.SQL(), "XMLPARSE(DOCUMENT '<b/>')") {
+			t.Fatalf("expected XML diff in rule migration, got:\n%s", mig115XmlDiff.SQL())
+		}
+
+		c115IdxColl := New()
+		for _, stmt := range []string{
+			"CREATE SCHEMA s_coll_r13",
+			"CREATE COLLATION c_idx_r13 (LOCALE = 'C')",
+			"CREATE TABLE t_idx_r13 (a text)",
+			"CREATE INDEX idx_coll_r13 ON t_idx_r13 (a COLLATE c_idx_r13)",
+			"ALTER COLLATION c_idx_r13 RENAME TO d_idx_r13",
+			"ALTER COLLATION d_idx_r13 SET SCHEMA s_coll_r13",
+		} {
+			if code := simulationCatalogCode(t, c115IdxColl, stmt); code != "0" {
+				t.Fatalf("c115IdxColl %s: %s", stmt, code)
+			}
+		}
+		migEmpty115Idx := GenerateMigration(New(), c115IdxColl, Diff(New(), c115IdxColl))
+		if !strings.Contains(migEmpty115Idx.SQL(), "COLLATE s_coll_r13.d_idx_r13") {
+			t.Fatalf("expected updated index collation in migration DDL, got:\n%s", migEmpty115Idx.SQL())
+		}
+		c115IdxApplied := New()
+		if code := simulationCatalogCode(t, c115IdxApplied, migEmpty115Idx.SQL()); code != "0" {
+			t.Fatalf("applying empty->c115IdxColl failed with %s:\n%s", code, migEmpty115Idx.SQL())
+		}
+		if rem := GenerateMigration(c115IdxApplied, c115IdxColl, Diff(c115IdxApplied, c115IdxColl)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c115IdxColl, got:\n%s", rem.SQL())
+		}
 	})
 
 	for _, tc := range cases {

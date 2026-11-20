@@ -1610,7 +1610,25 @@ func (d *deparseCtx) getCollateExpr(c *CollateExprQ) {
 	}
 	d.getRuleExprParen(c.Arg, true, c)
 	d.buf.WriteString(" COLLATE ")
-	d.buf.WriteString(quoteIdentifier(c.CollName))
+	collSQL := quoteIdentifier(c.CollName)
+	if d.catalog != nil && c.CollOID >= FirstNormalObjectId {
+		for _, s := range d.catalog.schemas {
+			if s == nil {
+				continue
+			}
+			for _, uc := range s.Collations {
+				if uc != nil && uc.OID == c.CollOID {
+					if s.Name != "public" && s.Name != "pg_catalog" {
+						collSQL = quoteIdentifier(s.Name) + "." + quoteIdentifier(uc.Name)
+					} else {
+						collSQL = quoteIdentifier(uc.Name)
+					}
+					break
+				}
+			}
+		}
+	}
+	d.buf.WriteString(collSQL)
 	if !d.prettyParen {
 		d.buf.WriteByte(')')
 	}

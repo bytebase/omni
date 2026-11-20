@@ -34,6 +34,11 @@ type Index struct {
 	// Collations holds, per key column, the explicit COLLATE identifier parts
 	// the statement named, or nil when omitted.
 	Collations [][]string
+	// UserCollationOIDs holds, per key column, the resolved user collation OID
+	// (0 when omitted or a built-in collation).
+	UserCollationOIDs []uint32
+	AnalyzedExprs     []AnalyzedExpr
+	AnalyzedWhere     AnalyzedExpr
 	// ParentIndexOID is the partitioned table's index this partition's index
 	// is attached to, or 0. Such an index comes and goes with its parent.
 	ParentIndexOID uint32
@@ -136,6 +141,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	var collations [][]string
 	var opClassRefs []opClassRef
 	var userCollOIDs []uint32
+	var keyUserCollOIDs []uint32
 	namedOpClass := false
 	namedCollation := false
 	if stmt.IndexParams != nil {
@@ -219,6 +225,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			}
 
 			var collParts []string
+			var elemUserCollOID uint32
 			if elem.Collation != nil && len(elem.Collation.Items) > 0 {
 				_, collOID, err := c.resolveColumnCollation(elem.Collation, opClassTypeOID)
 				if err != nil {
@@ -226,6 +233,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 				}
 				if collOID != 0 {
 					userCollOIDs = append(userCollOIDs, collOID)
+					elemUserCollOID = collOID
 				}
 				for _, part := range elem.Collation.Items {
 					collParts = append(collParts, stringVal(part))
@@ -273,6 +281,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			opClasses = append(opClasses, strings.Join(opClass, "."))
 			namedOpClass = namedOpClass || len(opClass) > 0
 			collations = append(collations, collParts)
+			keyUserCollOIDs = append(keyUserCollOIDs, elemUserCollOID)
 			namedCollation = namedCollation || len(collParts) > 0
 		}
 	}
@@ -281,6 +290,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 	}
 	if !namedCollation {
 		collations = nil
+		keyUserCollOIDs = nil
 	}
 
 	nKeyColumns := len(attnums)
@@ -421,24 +431,27 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		return errDuplicateObject("index", name)
 	}
 	idx := &Index{
-		OID:              c.oidGen.Next(),
-		Name:             name,
-		Schema:           schema,
-		RelOID:           rel.OID,
-		Columns:          attnums,
-		ColumnNames:      chosenColNames,
-		IsUnique:         stmt.Unique,
-		IsPrimary:        stmt.Primary,
-		AccessMethod:     accessMethod,
-		Tablespace:       normalizeTablespace(effectiveTablespace),
-		OwnerName:        rel.OwnerName,
-		NKeyColumns:      nKeyColumns,
-		WhereClause:      whereClause,
-		IndOption:        indOption,
-		NullsNotDistinct: stmt.Nulls_not_distinct,
-		Exprs:            exprTexts,
-		OpClasses:        opClasses,
-		Collations:       collations,
+		OID:               c.oidGen.Next(),
+		Name:              name,
+		Schema:            schema,
+		RelOID:            rel.OID,
+		Columns:           attnums,
+		ColumnNames:       chosenColNames,
+		IsUnique:          stmt.Unique,
+		IsPrimary:         stmt.Primary,
+		AccessMethod:      accessMethod,
+		Tablespace:        normalizeTablespace(effectiveTablespace),
+		OwnerName:         rel.OwnerName,
+		NKeyColumns:       nKeyColumns,
+		WhereClause:       whereClause,
+		IndOption:         indOption,
+		NullsNotDistinct:  stmt.Nulls_not_distinct,
+		Exprs:             exprTexts,
+		OpClasses:         opClasses,
+		Collations:        collations,
+		UserCollationOIDs: keyUserCollOIDs,
+		AnalyzedExprs:     analyzedExprs,
+		AnalyzedWhere:     analyzedWhere,
 	}
 
 	c.registerIndex(schema, idx)

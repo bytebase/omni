@@ -1443,8 +1443,211 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 		return c.bindRuleStmt(b, v.Subselect, subCtx)
 	case *nodes.MultiAssignRef:
 		return c.bindRuleExpr(b, v.Source, ctx)
+	case *nodes.ArrayExpr:
+		if v.Elements != nil {
+			for _, item := range v.Elements.Items {
+				if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	case *nodes.GroupingFunc:
+		if v.Args != nil {
+			for _, item := range v.Args.Items {
+				if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	case *nodes.XmlExpr:
+		if v.NamedArgs != nil {
+			for _, item := range v.NamedArgs.Items {
+				if rt, ok := item.(*nodes.ResTarget); ok {
+					if err := c.bindRuleExpr(b, rt.Val, ctx); err != nil {
+						return err
+					}
+				} else if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		if v.Args != nil {
+			for _, item := range v.Args.Items {
+				if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	case *nodes.XmlSerialize:
+		if err := c.bindRuleExpr(b, v.Expr, ctx); err != nil {
+			return err
+		}
+		if v.TypeName != nil {
+			oid, _, err := c.resolveTypeName(v.TypeName)
+			if err != nil {
+				if !c.snapshot {
+					return err
+				}
+				return nil
+			}
+			if oid != 0 {
+				isArr := v.TypeName.ArrayBounds != nil && len(v.TypeName.ArrayBounds.Items) > 0
+				elemOID := oid
+				if bt := c.typeByOID[oid]; bt != nil && bt.Elem != 0 {
+					elemOID = bt.Elem
+				}
+				b.typeByTN[v.TypeName] = ruleTypeBinding{typeOID: elemOID, isArray: isArr}
+				b.addTypeDep(elemOID)
+			}
+		}
+		return nil
+	case *nodes.JsonValueExpr:
+		if v == nil {
+			return nil
+		}
+		return c.bindRuleExpr(b, v.RawExpr, ctx)
+	case *nodes.JsonIsPredicate:
+		return c.bindRuleExpr(b, v.Expr, ctx)
+	case *nodes.JsonParseExpr:
+		if err := c.bindRuleExpr(b, v.Expr, ctx); err != nil {
+			return err
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonScalarExpr:
+		if err := c.bindRuleExpr(b, v.Expr, ctx); err != nil {
+			return err
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonSerializeExpr:
+		if err := c.bindRuleExpr(b, v.Expr, ctx); err != nil {
+			return err
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonObjectConstructor:
+		if v.Exprs != nil {
+			for _, item := range v.Exprs.Items {
+				if kv, ok := item.(*nodes.JsonKeyValue); ok {
+					if err := c.bindRuleExpr(b, kv.Key, ctx); err != nil {
+						return err
+					}
+					if err := c.bindRuleExpr(b, kv.Value, ctx); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonArrayConstructor:
+		if v.Exprs != nil {
+			for _, item := range v.Exprs.Items {
+				if err := c.bindRuleExpr(b, item, ctx); err != nil {
+					return err
+				}
+			}
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonArrayQueryConstructor:
+		subCtx := &ruleEvalContext{}
+		if ctx != nil {
+			subCtx.outer = ctx
+			subCtx.cteNames = ctx.cteNames
+		}
+		if err := c.bindRuleStmt(b, v.Query, subCtx); err != nil {
+			return err
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonFuncExpr:
+		if err := c.bindRuleExpr(b, v.ContextItem, ctx); err != nil {
+			return err
+		}
+		if err := c.bindRuleExpr(b, v.Pathspec, ctx); err != nil {
+			return err
+		}
+		if v.Passing != nil {
+			for _, item := range v.Passing.Items {
+				if ja, ok := item.(*nodes.JsonArgument); ok {
+					if err := c.bindRuleExpr(b, ja.Val, ctx); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if v.OnEmpty != nil {
+			if err := c.bindRuleExpr(b, v.OnEmpty.Expr, ctx); err != nil {
+				return err
+			}
+		}
+		if v.OnError != nil {
+			if err := c.bindRuleExpr(b, v.OnError.Expr, ctx); err != nil {
+				return err
+			}
+		}
+		return c.bindRuleJsonOutput(b, v.Output)
+	case *nodes.JsonObjectAgg:
+		if v.Arg != nil {
+			if err := c.bindRuleExpr(b, v.Arg.Key, ctx); err != nil {
+				return err
+			}
+			if err := c.bindRuleExpr(b, v.Arg.Value, ctx); err != nil {
+				return err
+			}
+		}
+		return c.bindRuleJsonAggConstructor(b, v.Constructor, ctx)
+	case *nodes.JsonArrayAgg:
+		if err := c.bindRuleExpr(b, v.Arg, ctx); err != nil {
+			return err
+		}
+		return c.bindRuleJsonAggConstructor(b, v.Constructor, ctx)
 	}
 	return nil
+}
+
+func (c *Catalog) bindRuleJsonOutput(b *ruleBindings, out *nodes.JsonOutput) error {
+	if out == nil || out.TypeName == nil {
+		return nil
+	}
+	oid, _, err := c.resolveTypeName(out.TypeName)
+	if err != nil {
+		if !c.snapshot {
+			return err
+		}
+		return nil
+	}
+	if oid != 0 {
+		isArr := out.TypeName.ArrayBounds != nil && len(out.TypeName.ArrayBounds.Items) > 0
+		elemOID := oid
+		if bt := c.typeByOID[oid]; bt != nil && bt.Elem != 0 {
+			elemOID = bt.Elem
+		}
+		b.typeByTN[out.TypeName] = ruleTypeBinding{typeOID: elemOID, isArray: isArr}
+		b.addTypeDep(elemOID)
+	}
+	return nil
+}
+
+func (c *Catalog) bindRuleJsonAggConstructor(b *ruleBindings, ac *nodes.JsonAggConstructor, ctx *ruleEvalContext) error {
+	if ac == nil {
+		return nil
+	}
+	if ac.Agg_order != nil {
+		for _, item := range ac.Agg_order.Items {
+			if sb, ok := item.(*nodes.SortBy); ok {
+				if err := c.bindRuleExpr(b, sb.Node, ctx); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if err := c.bindRuleExpr(b, ac.Agg_filter, ctx); err != nil {
+		return err
+	}
+	if err := c.bindWindowDef(b, ac.Over, ctx); err != nil {
+		return err
+	}
+	return c.bindRuleJsonOutput(b, ac.Output)
 }
 
 func (ctx *ruleEvalContext) colAliasesFor(relOID uint32) []string {
@@ -2588,8 +2791,500 @@ func (d *ruleDeparser) deparseExpr(n nodes.Node) string {
 		case nodes.SVFOP_CURRENT_SCHEMA:
 			return "CURRENT_SCHEMA"
 		}
+
+	case *nodes.ArrayExpr:
+		return fmt.Sprintf("ARRAY[%s]", d.deparseExprList(v.Elements))
+
+	case *nodes.GroupingFunc:
+		return fmt.Sprintf("GROUPING(%s)", d.deparseExprList(v.Args))
+
+	case *nodes.XmlExpr:
+		return d.deparseXmlExpr(v)
+
+	case *nodes.XmlSerialize:
+		opt := "CONTENT"
+		if v.Xmloption == nodes.XMLOPTION_DOCUMENT {
+			opt = "DOCUMENT"
+		}
+		var b strings.Builder
+		b.WriteString("XMLSERIALIZE(")
+		b.WriteString(opt)
+		b.WriteString(" ")
+		b.WriteString(d.deparseExpr(v.Expr))
+		b.WriteString(" AS ")
+		b.WriteString(d.deparseTypeName(v.TypeName))
+		if v.Indent {
+			b.WriteString(" INDENT")
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonValueExpr:
+		if v == nil {
+			return ""
+		}
+		s := d.deparseExpr(v.RawExpr)
+		if f := deparseJsonFormat(v.Format); f != "" {
+			s += " " + f
+		}
+		return s
+
+	case *nodes.JsonIsPredicate:
+		var b strings.Builder
+		b.WriteString("(")
+		b.WriteString(d.deparseExpr(v.Expr))
+		b.WriteString(" IS JSON")
+		switch v.ItemType {
+		case nodes.JS_TYPE_OBJECT:
+			b.WriteString(" OBJECT")
+		case nodes.JS_TYPE_ARRAY:
+			b.WriteString(" ARRAY")
+		case nodes.JS_TYPE_SCALAR:
+			b.WriteString(" SCALAR")
+		}
+		if v.UniqueKeys {
+			b.WriteString(" WITH UNIQUE KEYS")
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonParseExpr:
+		var b strings.Builder
+		b.WriteString("JSON(")
+		b.WriteString(d.deparseExpr(v.Expr))
+		if v.UniqueKeys {
+			b.WriteString(" WITH UNIQUE KEYS")
+		}
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonScalarExpr:
+		var b strings.Builder
+		b.WriteString("JSON_SCALAR(")
+		b.WriteString(d.deparseExpr(v.Expr))
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonSerializeExpr:
+		var b strings.Builder
+		b.WriteString("JSON_SERIALIZE(")
+		b.WriteString(d.deparseExpr(v.Expr))
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonObjectConstructor:
+		var b strings.Builder
+		b.WriteString("JSON_OBJECT(")
+		if v.Exprs != nil {
+			for i, item := range v.Exprs.Items {
+				if kv, ok := item.(*nodes.JsonKeyValue); ok {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					b.WriteString(d.deparseExpr(kv.Key))
+					b.WriteString(" : ")
+					b.WriteString(d.deparseExpr(kv.Value))
+				}
+			}
+		}
+		if v.AbsentOnNull {
+			b.WriteString(" ABSENT ON NULL")
+		}
+		if v.UniqueKeys {
+			b.WriteString(" WITH UNIQUE KEYS")
+		}
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonArrayConstructor:
+		var b strings.Builder
+		b.WriteString("JSON_ARRAY(")
+		if v.Exprs != nil {
+			for i, item := range v.Exprs.Items {
+				if i > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(d.deparseExpr(item))
+			}
+		}
+		if v.AbsentOnNull {
+			b.WriteString(" ABSENT ON NULL")
+		}
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonArrayQueryConstructor:
+		var b strings.Builder
+		b.WriteString("JSON_ARRAY(")
+		b.WriteString(d.deparseActionStmt(v.Query))
+		if f := deparseJsonFormat(v.Format); f != "" {
+			b.WriteString(" ")
+			b.WriteString(f)
+		}
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonFuncExpr:
+		var b strings.Builder
+		switch v.Op {
+		case nodes.JSON_EXISTS_OP:
+			b.WriteString("JSON_EXISTS(")
+		case nodes.JSON_QUERY_OP:
+			b.WriteString("JSON_QUERY(")
+		default:
+			b.WriteString("JSON_VALUE(")
+		}
+		b.WriteString(d.deparseExpr(v.ContextItem))
+		if v.Pathspec != nil {
+			b.WriteString(", ")
+			b.WriteString(d.deparseExpr(v.Pathspec))
+		}
+		if v.Passing != nil && len(v.Passing.Items) > 0 {
+			b.WriteString(" PASSING ")
+			for i, item := range v.Passing.Items {
+				if ja, ok := item.(*nodes.JsonArgument); ok {
+					if i > 0 {
+						b.WriteString(", ")
+					}
+					b.WriteString(d.deparseExpr(ja.Val))
+					b.WriteString(" AS ")
+					b.WriteString(quoteIdentifier(ja.Name))
+				}
+			}
+		}
+		if out := d.deparseJsonOutput(v.Output); out != "" {
+			b.WriteString(" ")
+			b.WriteString(out)
+		}
+		switch v.Wrapper {
+		case nodes.JSW_NONE:
+			b.WriteString(" WITHOUT ARRAY WRAPPER")
+		case nodes.JSW_CONDITIONAL:
+			b.WriteString(" WITH CONDITIONAL ARRAY WRAPPER")
+		case nodes.JSW_UNCONDITIONAL:
+			b.WriteString(" WITH UNCONDITIONAL ARRAY WRAPPER")
+		}
+		switch v.Quotes {
+		case nodes.JS_QUOTES_KEEP:
+			b.WriteString(" KEEP QUOTES")
+		case nodes.JS_QUOTES_OMIT:
+			b.WriteString(" OMIT QUOTES")
+		}
+		if v.OnEmpty != nil {
+			b.WriteString(" ")
+			b.WriteString(d.deparseJsonBehavior(v.OnEmpty))
+			b.WriteString(" ON EMPTY")
+		}
+		if v.OnError != nil {
+			b.WriteString(" ")
+			b.WriteString(d.deparseJsonBehavior(v.OnError))
+			b.WriteString(" ON ERROR")
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case *nodes.JsonObjectAgg:
+		var b strings.Builder
+		b.WriteString("JSON_OBJECTAGG(")
+		if v.Arg != nil {
+			b.WriteString(d.deparseExpr(v.Arg.Key))
+			b.WriteString(" : ")
+			b.WriteString(d.deparseExpr(v.Arg.Value))
+		}
+		if v.AbsentOnNull {
+			b.WriteString(" ABSENT ON NULL")
+		}
+		if v.UniqueKeys {
+			b.WriteString(" WITH UNIQUE KEYS")
+		}
+		if v.Constructor != nil {
+			if out := d.deparseJsonOutput(v.Constructor.Output); out != "" {
+				b.WriteString(" ")
+				b.WriteString(out)
+			}
+		}
+		b.WriteString(")")
+		if v.Constructor != nil {
+			b.WriteString(d.deparseJsonAggSuffix(v.Constructor))
+		}
+		return b.String()
+
+	case *nodes.JsonArrayAgg:
+		var b strings.Builder
+		b.WriteString("JSON_ARRAYAGG(")
+		b.WriteString(d.deparseExpr(v.Arg))
+		if v.Constructor != nil && v.Constructor.Agg_order != nil && len(v.Constructor.Agg_order.Items) > 0 {
+			b.WriteString(" ORDER BY ")
+			b.WriteString(d.deparseSortClause(v.Constructor.Agg_order))
+		}
+		if v.AbsentOnNull {
+			b.WriteString(" ABSENT ON NULL")
+		}
+		if v.Constructor != nil {
+			if out := d.deparseJsonOutput(v.Constructor.Output); out != "" {
+				b.WriteString(" ")
+				b.WriteString(out)
+			}
+		}
+		b.WriteString(")")
+		if v.Constructor != nil {
+			b.WriteString(d.deparseJsonAggSuffix(v.Constructor))
+		}
+		return b.String()
 	}
 	return ""
+}
+
+func (d *ruleDeparser) deparseXmlExpr(v *nodes.XmlExpr) string {
+	if v == nil {
+		return ""
+	}
+	switch v.Op {
+	case nodes.IS_XMLCONCAT:
+		return fmt.Sprintf("XMLCONCAT(%s)", d.deparseExprList(v.Args))
+
+	case nodes.IS_XMLELEMENT:
+		var b strings.Builder
+		b.WriteString("XMLELEMENT(NAME ")
+		b.WriteString(quoteIdentifier(v.Name))
+		if v.NamedArgs != nil && len(v.NamedArgs.Items) > 0 {
+			b.WriteString(", XMLATTRIBUTES(")
+			b.WriteString(d.deparseXmlNamedArgs(v.NamedArgs, v.ArgNames))
+			b.WriteString(")")
+		}
+		if v.Args != nil && len(v.Args.Items) > 0 {
+			b.WriteString(", ")
+			b.WriteString(d.deparseExprList(v.Args))
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case nodes.IS_XMLFOREST:
+		return fmt.Sprintf("XMLFOREST(%s)", d.deparseXmlNamedArgs(v.NamedArgs, v.ArgNames))
+
+	case nodes.IS_XMLPARSE:
+		opt := "CONTENT"
+		if v.Xmloption == nodes.XMLOPTION_DOCUMENT {
+			opt = "DOCUMENT"
+		}
+		var argSQL string
+		preserveWS := false
+		if v.Args != nil && len(v.Args.Items) > 0 {
+			argSQL = d.deparseExpr(v.Args.Items[0])
+			if len(v.Args.Items) > 1 {
+				if ac, ok := v.Args.Items[1].(*nodes.A_Const); ok && !ac.Isnull {
+					if bv, ok := ac.Val.(*nodes.Boolean); ok && bv.Boolval {
+						preserveWS = true
+					}
+				}
+			}
+		}
+		if preserveWS {
+			return fmt.Sprintf("XMLPARSE(%s %s PRESERVE WHITESPACE)", opt, argSQL)
+		}
+		return fmt.Sprintf("XMLPARSE(%s %s)", opt, argSQL)
+
+	case nodes.IS_XMLPI:
+		var b strings.Builder
+		b.WriteString("XMLPI(NAME ")
+		b.WriteString(quoteIdentifier(v.Name))
+		if v.Args != nil && len(v.Args.Items) > 0 {
+			b.WriteString(", ")
+			b.WriteString(d.deparseExpr(v.Args.Items[0]))
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case nodes.IS_XMLROOT:
+		var b strings.Builder
+		b.WriteString("XMLROOT(")
+		if v.Args != nil && len(v.Args.Items) > 0 {
+			b.WriteString(d.deparseExpr(v.Args.Items[0]))
+		}
+		if v.Args != nil && len(v.Args.Items) > 1 {
+			b.WriteString(", VERSION ")
+			if ac, ok := v.Args.Items[1].(*nodes.A_Const); ok && ac.Isnull {
+				b.WriteString("NO VALUE")
+			} else {
+				b.WriteString(d.deparseExpr(v.Args.Items[1]))
+			}
+		}
+		if v.Args != nil && len(v.Args.Items) > 2 {
+			if ac, ok := v.Args.Items[2].(*nodes.A_Const); ok && !ac.Isnull {
+				if iv, ok := ac.Val.(*nodes.Integer); ok {
+					switch iv.Ival {
+					case nodes.XML_STANDALONE_YES:
+						b.WriteString(", STANDALONE YES")
+					case nodes.XML_STANDALONE_NO:
+						b.WriteString(", STANDALONE NO")
+					case nodes.XML_STANDALONE_NO_VALUE:
+						b.WriteString(", STANDALONE NO VALUE")
+					}
+				}
+			}
+		}
+		b.WriteString(")")
+		return b.String()
+
+	case nodes.IS_XMLSERIALIZE:
+		opt := "CONTENT"
+		if v.Xmloption == nodes.XMLOPTION_DOCUMENT {
+			opt = "DOCUMENT"
+		}
+		var argSQL string
+		if v.Args != nil && len(v.Args.Items) > 0 {
+			argSQL = d.deparseExpr(v.Args.Items[0])
+		}
+		typSQL := "text"
+		if d.cat != nil && v.Type != 0 {
+			typSQL = d.cat.FormatType(uint32(v.Type), v.Typmod)
+		}
+		if v.Indent {
+			return fmt.Sprintf("XMLSERIALIZE(%s %s AS %s INDENT)", opt, argSQL, typSQL)
+		}
+		return fmt.Sprintf("XMLSERIALIZE(%s %s AS %s)", opt, argSQL, typSQL)
+
+	case nodes.IS_DOCUMENT:
+		var argSQL string
+		if v.Args != nil && len(v.Args.Items) > 0 {
+			argSQL = d.deparseExpr(v.Args.Items[0])
+		}
+		return fmt.Sprintf("(%s IS DOCUMENT)", argSQL)
+	}
+	return ""
+}
+
+func (d *ruleDeparser) deparseXmlNamedArgs(namedArgs, argNames *nodes.List) string {
+	if namedArgs == nil || len(namedArgs.Items) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(namedArgs.Items))
+	for i, item := range namedArgs.Items {
+		if rt, ok := item.(*nodes.ResTarget); ok {
+			s := d.deparseExpr(rt.Val)
+			if rt.Name != "" {
+				s += " AS " + quoteIdentifier(rt.Name)
+			}
+			parts = append(parts, s)
+			continue
+		}
+		s := d.deparseExpr(item)
+		if argNames != nil && i < len(argNames.Items) {
+			if name := stringVal(argNames.Items[i]); name != "" {
+				s += " AS " + quoteIdentifier(name)
+			}
+		}
+		parts = append(parts, s)
+	}
+	return strings.Join(parts, ", ")
+}
+
+func deparseJsonFormat(f *nodes.JsonFormat) string {
+	if f == nil || f.FormatType == nodes.JS_FORMAT_DEFAULT {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("FORMAT ")
+	if f.FormatType == nodes.JS_FORMAT_JSONB {
+		b.WriteString("JSONB")
+	} else {
+		b.WriteString("JSON")
+	}
+	switch f.Encoding {
+	case nodes.JS_ENC_UTF8:
+		b.WriteString(" ENCODING UTF8")
+	case nodes.JS_ENC_UTF16:
+		b.WriteString(" ENCODING UTF16")
+	case nodes.JS_ENC_UTF32:
+		b.WriteString(" ENCODING UTF32")
+	}
+	return b.String()
+}
+
+func (d *ruleDeparser) deparseJsonOutput(out *nodes.JsonOutput) string {
+	if out == nil || out.TypeName == nil {
+		return ""
+	}
+	s := "RETURNING " + d.deparseTypeName(out.TypeName)
+	if out.Returning != nil {
+		if f := deparseJsonFormat(out.Returning.Format); f != "" {
+			s += " " + f
+		}
+	}
+	return s
+}
+
+func (d *ruleDeparser) deparseJsonBehavior(jb *nodes.JsonBehavior) string {
+	if jb == nil {
+		return "NULL"
+	}
+	switch jb.Btype {
+	case nodes.JSON_BEHAVIOR_ERROR:
+		return "ERROR"
+	case nodes.JSON_BEHAVIOR_EMPTY:
+		return "EMPTY"
+	case nodes.JSON_BEHAVIOR_TRUE:
+		return "TRUE"
+	case nodes.JSON_BEHAVIOR_FALSE:
+		return "FALSE"
+	case nodes.JSON_BEHAVIOR_UNKNOWN:
+		return "UNKNOWN"
+	case nodes.JSON_BEHAVIOR_EMPTY_ARRAY:
+		return "EMPTY ARRAY"
+	case nodes.JSON_BEHAVIOR_EMPTY_OBJECT:
+		return "EMPTY OBJECT"
+	case nodes.JSON_BEHAVIOR_DEFAULT:
+		return "DEFAULT " + d.deparseExpr(jb.Expr)
+	default:
+		return "NULL"
+	}
+}
+
+func (d *ruleDeparser) deparseJsonAggSuffix(ac *nodes.JsonAggConstructor) string {
+	if ac == nil {
+		return ""
+	}
+	var b strings.Builder
+	if ac.Agg_filter != nil {
+		b.WriteString(" FILTER (WHERE ")
+		b.WriteString(d.deparseExpr(ac.Agg_filter))
+		b.WriteString(")")
+	}
+	if ac.Over != nil {
+		if ac.Over.Name != "" {
+			b.WriteString(" OVER ")
+			b.WriteString(quoteIdentifier(ac.Over.Name))
+		} else {
+			b.WriteString(" OVER (")
+			b.WriteString(d.deparseWindowSpec(ac.Over))
+			b.WriteString(")")
+		}
+	}
+	return b.String()
 }
 
 func deparseRawConstVal(n nodes.Node) string {

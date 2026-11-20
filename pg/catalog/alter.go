@@ -1495,6 +1495,11 @@ func (c *Catalog) renameSchema(stmt *nodes.RenameStmt) error {
 	delete(c.schemaByName, oldName)
 	s.Name = newName
 	c.schemaByName[newName] = s
+	for _, uc := range s.Collations {
+		if uc != nil {
+			c.syncRenamedUserCollationRefs(uc.OID, newName, uc.Name)
+		}
+	}
 	return nil
 }
 
@@ -3364,6 +3369,36 @@ func (c *Catalog) syncRenamedUserCollationRefs(collOID uint32, schemaName, collN
 		if rt != nil && rt.UserCollationOID == collOID {
 			rt.CollationSchema = qualSchema
 			rt.CollationName = collName
+		}
+	}
+	var collParts []string
+	if qualSchema != "" {
+		collParts = []string{qualSchema, collName}
+	} else {
+		collParts = []string{collName}
+	}
+	for _, idx := range c.indexes {
+		if idx == nil {
+			continue
+		}
+		for i, uid := range idx.UserCollationOIDs {
+			if uid == collOID && i < len(idx.Collations) {
+				idx.Collations[i] = slices.Clone(collParts)
+			}
+		}
+		if rel := c.relationByOID[idx.RelOID]; rel != nil {
+			if len(idx.AnalyzedExprs) > 0 && len(idx.AnalyzedExprs) == len(idx.Exprs) {
+				rte := c.buildRelationRTE(rel)
+				for i, ae := range idx.AnalyzedExprs {
+					if ae != nil {
+						idx.Exprs[i] = c.DeparseExpr(ae, []*RangeTableEntry{rte}, true)
+					}
+				}
+			}
+			if idx.AnalyzedWhere != nil {
+				rte := c.buildRelationRTE(rel)
+				idx.WhereClause = c.DeparseExpr(idx.AnalyzedWhere, []*RangeTableEntry{rte}, true)
+			}
 		}
 	}
 }

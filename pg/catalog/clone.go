@@ -232,6 +232,9 @@ func (c *Catalog) Clone() *Catalog {
 		}
 		ci.OpClasses = slices.Clone(idx.OpClasses)
 		ci.Collations = cloneStringSlices(idx.Collations)
+		ci.UserCollationOIDs = slices.Clone(idx.UserCollationOIDs)
+		ci.AnalyzedExprs = slices.Clone(idx.AnalyzedExprs)
+		ci.AnalyzedWhere = idx.AnalyzedWhere
 		ci.ColumnNames = slices.Clone(idx.ColumnNames)
 		ci.Schema = clone.schemas[idx.Schema.OID]
 		clone.indexes[oid] = &ci
