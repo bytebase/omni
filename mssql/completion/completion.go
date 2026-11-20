@@ -4,6 +4,7 @@ package completion
 import (
 	"strings"
 
+	"github.com/bytebase/omni/mssql/catalog"
 	"github.com/bytebase/omni/mssql/parser"
 )
 
@@ -25,6 +26,7 @@ const (
 	CandidateLogin                          // login name
 	CandidateUser                           // user name
 	CandidateRole                           // role name
+	CandidateDatabase                       // database name
 )
 
 // Candidate is a single completion suggestion.
@@ -38,7 +40,8 @@ type Candidate struct {
 // Complete returns completion candidates for the given SQL at the cursor offset.
 // cat may be nil if no catalog context is available; in that case only keyword
 // candidates are returned.
-func Complete(sql string, cursorOffset int, cat interface{}) []Candidate {
+func Complete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
+	sql, cursorOffset = isolateStatementAtCursor(sql, cursorOffset)
 	prefix := extractPrefix(sql, cursorOffset)
 
 	// When the cursor is mid-token, back up to the start of the token
@@ -51,6 +54,43 @@ func Complete(sql string, cursorOffset int, cat interface{}) []Candidate {
 	}
 
 	return filterByPrefix(result, prefix)
+}
+
+// isolateStatementAtCursor slices sql to the statement containing cursorOffset
+// when top-level semicolons or GO batch separators precede the cursor, so
+// syntax errors or table references in earlier statements do not leak into the
+// active completion scope.
+func isolateStatementAtCursor(sql string, cursorOffset int) (string, int) {
+	if cursorOffset < 0 {
+		cursorOffset = 0
+	}
+	if cursorOffset > len(sql) {
+		cursorOffset = len(sql)
+	}
+	tokens := parser.Tokenize(sql)
+	depth := 0
+	startByte := 0
+	for _, tok := range tokens {
+		if tok.Loc >= cursorOffset {
+			break
+		}
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ';', parser.GO:
+			if depth == 0 && tok.End <= cursorOffset {
+				startByte = tok.End
+			}
+		}
+	}
+	if startByte == 0 {
+		return sql, cursorOffset
+	}
+	return sql[startByte:], cursorOffset - startByte
 }
 
 // extractPrefix returns the partial token the user is typing at cursorOffset.
@@ -88,7 +128,7 @@ func filterByPrefix(candidates []Candidate, prefix string) []Candidate {
 
 // standardComplete collects parser-level candidates using Collect, then
 // resolves them into Candidate values.
-func standardComplete(sql string, cursorOffset int, cat interface{}) []Candidate {
+func standardComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 	cs := parser.Collect(sql, cursorOffset)
 	return resolve(cs, cat, sql, cursorOffset)
 }
@@ -97,7 +137,7 @@ func standardComplete(sql string, cursorOffset int, cat interface{}) []Candidate
 // resolve (e.g., trailing spaces after FROM, truncated keywords, commas, operators).
 // It inserts placeholder tokens to make incomplete SQL parseable, then
 // collects candidates from the patched SQL.
-func trickyComplete(sql string, cursorOffset int, cat interface{}) []Candidate {
+func trickyComplete(sql string, cursorOffset int, cat *catalog.Catalog) []Candidate {
 	if cursorOffset > len(sql) {
 		cursorOffset = len(sql)
 	}

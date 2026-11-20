@@ -11,7 +11,7 @@ func TestCompleteCandidateTypes(t *testing.T) {
 		CandidateKeyword, CandidateSchema, CandidateTable, CandidateView,
 		CandidateColumn, CandidateFunction, CandidateProcedure, CandidateIndex,
 		CandidateTrigger, CandidateSequence, CandidateType_, CandidateLogin,
-		CandidateUser, CandidateRole,
+		CandidateUser, CandidateRole, CandidateDatabase,
 	}
 	seen := make(map[CandidateType]bool)
 	for _, ct := range types {
@@ -20,8 +20,8 @@ func TestCompleteCandidateTypes(t *testing.T) {
 		}
 		seen[ct] = true
 	}
-	if len(seen) != 14 {
-		t.Errorf("expected 14 distinct types, got %d", len(seen))
+	if len(seen) != 15 {
+		t.Errorf("expected 15 distinct types, got %d", len(seen))
 	}
 }
 

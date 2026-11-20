@@ -38,6 +38,8 @@ type Catalog struct {
 	schemaByName          map[string]*metadata.SchemaMetadata
 	tableByName           map[tableKey]*metadata.TableMetadata
 	indexCounter          int
+	databaseOrder         []string
+	databaseByName        map[string]*Catalog
 }
 
 type tableKey struct {
@@ -48,9 +50,10 @@ type tableKey struct {
 // New returns an empty catalog.
 func New() *Catalog {
 	return &Catalog{
-		defaultSchema: defaultSchema,
-		schemaByName:  make(map[string]*metadata.SchemaMetadata),
-		tableByName:   make(map[tableKey]*metadata.TableMetadata),
+		defaultSchema:  defaultSchema,
+		schemaByName:   make(map[string]*metadata.SchemaMetadata),
+		tableByName:    make(map[tableKey]*metadata.TableMetadata),
+		databaseByName: make(map[string]*Catalog),
 	}
 }
 
@@ -59,6 +62,112 @@ func (c *Catalog) DatabaseName() string { return c.database }
 
 // DefaultSchema returns the schema an unqualified name resolves to.
 func (c *Catalog) DefaultSchema() string { return c.defaultSchema }
+
+// SetDefaultSchema sets the schema an unqualified name resolves to.
+func (c *Catalog) SetDefaultSchema(schemaName string) {
+	if schemaName != "" {
+		c.defaultSchema = schemaName
+	}
+}
+
+// Databases returns the loaded or registered database names in load order.
+func (c *Catalog) Databases() []string {
+	if len(c.databaseOrder) > 0 {
+		out := make([]string, len(c.databaseOrder))
+		copy(out, c.databaseOrder)
+		return out
+	}
+	if c.database != "" {
+		return []string{c.database}
+	}
+	return nil
+}
+
+// DatabaseCatalog returns the catalog for the named database, or the receiver
+// when database is empty or matches the primary database.
+func (c *Catalog) DatabaseCatalog(database string) *Catalog {
+	if c == nil {
+		return nil
+	}
+	if database == "" {
+		return c
+	}
+	if c.databaseByName != nil {
+		if sub, ok := c.databaseByName[normalize(database)]; ok {
+			return sub
+		}
+	}
+	if strings.EqualFold(c.database, database) {
+		return c
+	}
+	return nil
+}
+
+// Schemas returns the schemas in the named database (or the primary database
+// when database is empty).
+func (c *Catalog) Schemas(database string) []*metadata.SchemaMetadata {
+	target := c.DatabaseCatalog(database)
+	if target == nil {
+		return nil
+	}
+	return target.schemas
+}
+
+// ListDatabaseSchemaNames returns the schema names in the named database in
+// load order.
+func (c *Catalog) ListDatabaseSchemaNames(database string) []string {
+	target := c.DatabaseCatalog(database)
+	if target == nil {
+		return nil
+	}
+	return target.ListSchemaNames()
+}
+
+// GetDatabaseSchema returns the named schema in the named database, or nil.
+func (c *Catalog) GetDatabaseSchema(database, schemaName string) *metadata.SchemaMetadata {
+	target := c.DatabaseCatalog(database)
+	if target == nil {
+		return nil
+	}
+	if schemaName == "" {
+		schemaName = target.defaultSchema
+	}
+	return target.GetSchema(schemaName)
+}
+
+// GetDatabaseTable returns the named table in the named database and schema,
+// or nil.
+func (c *Catalog) GetDatabaseTable(database, schemaName, tableName string) *metadata.TableMetadata {
+	target := c.DatabaseCatalog(database)
+	if target == nil {
+		return nil
+	}
+	if schemaName == "" {
+		schemaName = target.defaultSchema
+	}
+	return target.GetTable(schemaName, tableName)
+}
+
+// GetView returns the named view in the named schema of the primary database,
+// or nil.
+func (c *Catalog) GetView(schemaName, viewName string) *metadata.ViewMetadata {
+	return c.GetDatabaseView("", schemaName, viewName)
+}
+
+// GetDatabaseView returns the named view in the named database and schema, or
+// nil.
+func (c *Catalog) GetDatabaseView(database, schemaName, viewName string) *metadata.ViewMetadata {
+	schema := c.GetDatabaseSchema(database, schemaName)
+	if schema == nil {
+		return nil
+	}
+	for _, view := range schema.Views {
+		if strings.EqualFold(view.Name, viewName) {
+			return view
+		}
+	}
+	return nil
+}
 
 // GetSchema returns the named schema, or nil.
 func (c *Catalog) GetSchema(name string) *metadata.SchemaMetadata {
@@ -103,14 +212,20 @@ func (c *Catalog) Metadata() *metadata.DatabaseSchemaMetadata {
 	return meta
 }
 
-// LoadMetadata replaces the catalog with the snapshot. Nothing can fail to
-// install: the catalog stores the snapshot's objects as they are, and a later
-// Exec or Definition reads them through the same helpers.
-func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchemaMetadata) error {
-	if err := ctx.Err(); err != nil {
-		return err
+func (c *Catalog) registerDatabaseName(database string) {
+	if database == "" {
+		return
 	}
-	c.database = meta.GetName()
+	for _, existing := range c.databaseOrder {
+		if strings.EqualFold(existing, database) {
+			return
+		}
+	}
+	c.databaseOrder = append(c.databaseOrder, database)
+}
+
+func (c *Catalog) loadPrimaryMetadata(meta *metadata.DatabaseSchemaMetadata, database string) {
+	c.database = database
 	c.defaultSchema = defaultSchema
 	c.metadataDefaultSchema = meta.GetDefaultSchema()
 	if meta.GetDefaultSchema() != "" {
@@ -122,16 +237,67 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	for _, schema := range meta.GetSchemas() {
 		c.addSchema(cloneSchema(schema))
 	}
+}
+
+// LoadMetadata replaces the catalog with the snapshot. Nothing can fail to
+// install: the catalog stores the snapshot's objects as they are, and a later
+// Exec or Definition reads them through the same helpers.
+func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchemaMetadata) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if c.databaseByName == nil {
+		c.databaseByName = make(map[string]*Catalog)
+	}
+	c.loadPrimaryMetadata(meta, meta.GetName())
+	if c.database != "" {
+		c.registerDatabaseName(c.database)
+		c.databaseByName[normalize(c.database)] = c
+	}
 	return nil
 }
 
-// LoadMetadataInto is LoadMetadata under a database name other than meta.Name,
-// so two snapshots of differently named databases can be diffed.
+// LoadMetadataInto loads meta under the given database name. When the receiver
+// has no primary database yet (or database matches the primary database), it
+// populates the receiver as the primary database; otherwise it stores the
+// snapshot as an additional database for cross-database resolution while
+// keeping the primary database intact. A nil meta registers the database name
+// without schemas.
 func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseSchemaMetadata, database string) error {
-	if err := c.LoadMetadata(ctx, meta); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	c.database = database
+	if c.databaseByName == nil {
+		c.databaseByName = make(map[string]*Catalog)
+	}
+	if meta == nil {
+		if database != "" {
+			if c.database == "" {
+				c.database = database
+			}
+			c.registerDatabaseName(database)
+			if _, ok := c.databaseByName[normalize(database)]; !ok {
+				sub := New()
+				sub.database = database
+				c.databaseByName[normalize(database)] = sub
+			}
+		}
+		return nil
+	}
+	if c.database == "" || strings.EqualFold(c.database, database) {
+		c.loadPrimaryMetadata(meta, database)
+		if database != "" {
+			c.registerDatabaseName(database)
+			c.databaseByName[normalize(database)] = c
+		}
+		return nil
+	}
+	sub := New()
+	sub.loadPrimaryMetadata(meta, database)
+	if database != "" {
+		c.registerDatabaseName(database)
+		c.databaseByName[normalize(database)] = sub
+	}
 	return nil
 }
 
