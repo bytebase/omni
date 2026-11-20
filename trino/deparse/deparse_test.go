@@ -819,4 +819,28 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	require.NoError(t, err)
 	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION s.named_fn(a varchar, b integer)"), strings.Index(namedArgs, "CREATE FUNCTION s.named_caller()"))
 	assert.Less(t, strings.Index(namedArgs, "CREATE FUNCTION s.named_caller()"), strings.Index(namedArgs, "CREATE FUNCTION s.named_fn(a integer, b varchar)"))
+
+	// Unqualified Trino function definitions are qualified with their schema, and
+	// non-skipped sequences fail explicitly.
+	unqualFn, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "analytics",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "f_unqual",
+				Definition: "CREATE FUNCTION f_unqual() RETURNS bigint RETURN 1",
+			}},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, unqualFn, `CREATE FUNCTION "analytics".f_unqual()`)
+
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:      "analytics",
+			Sequences: []*metadatapb.SequenceMetadata{{Name: "seq_1"}},
+		}},
+	})
+	require.ErrorContains(t, err, "sequence")
 }

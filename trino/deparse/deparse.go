@@ -53,12 +53,13 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			if fn == nil || fn.SkipDump {
 				continue
 			}
-			if err := validateTrinoFunctionIdentity(metadata.Name, s.Name, fn); err != nil {
+			def, err := prepareTrinoFunctionDefinition(metadata.Name, s.Name, fn)
+			if err != nil {
 				return nil, err
 			}
 			schemaMeta.Functions = append(schemaMeta.Functions, &FunctionMetadata{
 				Name:       fn.Name,
-				Definition: fn.Definition,
+				Definition: def,
 				Comment:    fn.Comment,
 			})
 		}
@@ -67,6 +68,11 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 				continue
 			}
 			return nil, fmt.Errorf("procedure %s.%s cannot be restored because Trino does not support restoring procedures", s.Name, p.Name)
+		}
+		for _, seq := range s.Sequences {
+			if seq != nil && !seq.SkipDump {
+				return nil, fmt.Errorf("sequence %s.%s cannot be restored because Trino does not support sequences", s.Name, seq.Name)
+			}
 		}
 		seenRelations := make(map[string]struct{}, len(s.Tables)+len(s.Views)+len(s.MaterializedViews))
 		for _, t := range s.Tables {
@@ -141,38 +147,42 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 	return out, nil
 }
 
-func validateTrinoFunctionIdentity(dbName, schemaName string, fn *metadatapb.FunctionMetadata) error {
+func prepareTrinoFunctionDefinition(dbName, schemaName string, fn *metadatapb.FunctionMetadata) (string, error) {
 	file, err := trinoparser.Parse(fn.Definition)
 	if err != nil || file == nil || len(file.Stmts) != 1 {
-		return nil
+		return fn.Definition, nil
 	}
 	cfs, ok := file.Stmts[0].(*trinoparser.CreateFunctionStmt)
 	if !ok || cfs.Spec.Declaration.Name == nil || len(cfs.Spec.Declaration.Name.Parts) == 0 {
-		return nil
+		return fn.Definition, nil
 	}
-	parts := cfs.Spec.Declaration.Name.Parts
+	declName := cfs.Spec.Declaration.Name
+	parts := declName.Parts
 	mismatch := func() error {
-		return fmt.Errorf("function %s.%s definition name %q does not match metadata identity", schemaName, fn.Name, cfs.Spec.Declaration.Name.String())
+		return fmt.Errorf("function %s.%s definition name %q does not match metadata identity", schemaName, fn.Name, declName.String())
 	}
 	switch len(parts) {
 	case 1:
 		if !strings.EqualFold(parts[0].Value, fn.Name) {
-			return mismatch()
+			return "", mismatch()
+		}
+		if schemaName != "" && declName.Loc.Start >= 0 && declName.Loc.End <= len(fn.Definition) && declName.Loc.Start < declName.Loc.End {
+			return fn.Definition[:declName.Loc.Start] + quoteIdentifier(schemaName) + "." + fn.Definition[declName.Loc.Start:], nil
 		}
 	case 2:
 		if !strings.EqualFold(parts[0].Value, schemaName) || !strings.EqualFold(parts[1].Value, fn.Name) {
-			return mismatch()
+			return "", mismatch()
 		}
 	case 3:
 		if (dbName != "" && !strings.EqualFold(parts[0].Value, dbName)) ||
 			!strings.EqualFold(parts[1].Value, schemaName) ||
 			!strings.EqualFold(parts[2].Value, fn.Name) {
-			return mismatch()
+			return "", mismatch()
 		}
 	default:
-		return mismatch()
+		return "", mismatch()
 	}
-	return nil
+	return fn.Definition, nil
 }
 
 func fromProtoColumns(cols []*metadatapb.ColumnMetadata) []*ColumnMetadata {

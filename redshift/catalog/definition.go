@@ -38,7 +38,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		}
 		seenSchemas[key] = struct{}{}
 	}
-	toState := convertToDatabaseState(to)
+	toState := convertToDatabaseState(to, caseSensitive)
 
 	var sb strings.Builder
 
@@ -53,7 +53,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	if err := writeOrderedObjects(&sb, to, toState, caseSensitive); err != nil {
 		return "", err
 	}
-	if err := writeProcedures(&sb, to); err != nil {
+	if err := writeProcedures(&sb, to, caseSensitive); err != nil {
 		return "", err
 	}
 	if err := writeOwners(&sb, to); err != nil {
@@ -90,13 +90,14 @@ func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string
 	if view == nil || view.SkipDump {
 		return "", nil
 	}
+	caseSensitive := hasUpperASCII(schemaName) || viewHasUpperIdentifier(view)
 	var sb strings.Builder
-	if hasUpperASCII(schemaName) || viewHasUpperIdentifier(view) {
+	if caseSensitive {
 		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n\n"); err != nil {
 			return "", err
 		}
 	}
-	if err := writeView(&sb, convertToViewState(0, schemaName, view)); err != nil {
+	if err := writeView(&sb, convertToViewState(0, schemaName, view, caseSensitive)); err != nil {
 		return "", err
 	}
 	return sb.String(), nil
@@ -456,6 +457,140 @@ func parseFunctionSignature(definition string) (declName []string, params []func
 		})
 	}
 	return declName, params, returnType, true
+}
+
+func detectCreateRoutineKind(definition string) string {
+	lex := pgparser.NewLexer(definition)
+	sawCreate := false
+	for i := 0; i < 6; i++ {
+		tok := lex.NextToken()
+		if tok.Type == 0 {
+			return ""
+		}
+		word := strings.ToUpper(tok.Str)
+		if !sawCreate {
+			if word == "CREATE" {
+				sawCreate = true
+				continue
+			}
+			return ""
+		}
+		switch word {
+		case "OR", "REPLACE":
+			continue
+		case "PROCEDURE":
+			return "procedure"
+		case "FUNCTION":
+			return "function"
+		default:
+			return ""
+		}
+	}
+	return ""
+}
+
+func splitTopLevelParams(s string) []string {
+	var parts []string
+	depth := 0
+	start := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				parts = append(parts, strings.TrimSpace(s[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	if tail := strings.TrimSpace(s[start:]); tail != "" {
+		parts = append(parts, tail)
+	}
+	return parts
+}
+
+func parseSignatureParamTypes(signature string) ([]string, bool) {
+	sig := strings.TrimSpace(signature)
+	if sig == "" {
+		return nil, false
+	}
+	if open := strings.IndexByte(sig, '('); open >= 0 {
+		close := strings.LastIndexByte(sig, ')')
+		if close <= open {
+			return nil, false
+		}
+		sig = strings.TrimSpace(sig[open+1 : close])
+	}
+	if sig == "" {
+		return []string{}, true
+	}
+	parts := splitTopLevelParams(sig)
+	out := make([]string, len(parts))
+	for i, part := range parts {
+		if paren := strings.IndexByte(part, '('); paren >= 0 {
+			part = strings.TrimSpace(part[:paren])
+		}
+		fields := strings.Fields(strings.ToLower(part))
+		if len(fields) == 0 {
+			return nil, false
+		}
+		if len(fields) >= 2 && fields[len(fields)-2] == "double" && fields[len(fields)-1] == "precision" {
+			out[i] = normalizeTypeAlias("double precision")
+			continue
+		}
+		if len(fields) >= 2 && fields[len(fields)-2] == "character" && fields[len(fields)-1] == "varying" {
+			out[i] = normalizeTypeAlias("character varying")
+			continue
+		}
+		out[i] = normalizeTypeAlias(fields[len(fields)-1])
+	}
+	return out, true
+}
+
+func validateRoutineIdentity(kind, schemaName, objName, signature, def string, expectProc, caseSensitive bool) ([]functionParam, string, bool, error) {
+	detectedKind := detectCreateRoutineKind(def)
+	declName, params, retType, parsed := parseFunctionSignature(def)
+	if expectProc && (!parsed || detectedKind != "procedure") {
+		return nil, "", false, fmt.Errorf("%s %s definition must be a CREATE PROCEDURE statement", kind, qualifyName(schemaName, objName))
+	}
+	if !expectProc && detectedKind == "procedure" {
+		return nil, "", false, fmt.Errorf("%s %s definition declares a procedure instead of a function", kind, qualifyName(schemaName, objName))
+	}
+	if len(declName) > 0 {
+		mismatch := func() error {
+			return fmt.Errorf("%s %s definition name %q does not match metadata identity", kind, qualifyName(schemaName, objName), strings.Join(declName, "."))
+		}
+		switch len(declName) {
+		case 1:
+			if !identEqual(declName[0], objName, caseSensitive) {
+				return nil, "", false, mismatch()
+			}
+		case 2:
+			if !identEqual(declName[0], schemaName, caseSensitive) || !identEqual(declName[1], objName, caseSensitive) {
+				return nil, "", false, mismatch()
+			}
+		default:
+			return nil, "", false, mismatch()
+		}
+	}
+	if parsed && signature != "" {
+		if sigTypes, ok := parseSignatureParamTypes(signature); ok {
+			if len(sigTypes) != len(params) {
+				return nil, "", false, fmt.Errorf("%s %s definition parameter count (%d) does not match signature %q", kind, qualifyName(schemaName, objName), len(params), signature)
+			}
+			for i, st := range sigTypes {
+				if st != "" && params[i].typeName != "" && st != params[i].typeName {
+					return nil, "", false, fmt.Errorf("%s %s parameter %d type %q does not match signature type %q", kind, qualifyName(schemaName, objName), i+1, params[i].typeName, st)
+				}
+			}
+		}
+	}
+	return params, retType, parsed, nil
 }
 
 func identKey(name string, caseSensitive bool) string {
@@ -884,7 +1019,7 @@ func writeWithSchemaSearchPath(w io.StringWriter, schemaName, body string) error
 	return nil
 }
 
-func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
+func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, caseSensitive bool) error {
 	for _, schema := range to.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
@@ -900,10 +1035,14 @@ func writeProcedures(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) e
 			if proc.Comment != "" {
 				return fmt.Errorf("procedure %s comment cannot be restored because Redshift does not support COMMENT ON PROCEDURE", qualifyName(schema.Name, proc.Name))
 			}
+			def = appendTerminator(def)
+			if _, _, _, err := validateRoutineIdentity("procedure", schema.Name, proc.Name, proc.Signature, def, true, caseSensitive); err != nil {
+				return err
+			}
 			if _, err := w.WriteString(getProcedureAnnouncement(proc.Name)); err != nil {
 				return err
 			}
-			if err := writeWithSchemaSearchPath(w, schema.Name, appendTerminator(def)+"\n"); err != nil {
+			if err := writeWithSchemaSearchPath(w, schema.Name, def+"\n"); err != nil {
 				return err
 			}
 		}
@@ -1220,23 +1359,9 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				return fmt.Errorf("function %s uses language %s, which Redshift no longer supports", qualifyName(schema.Name, fn.Name), lang)
 			}
 			def = appendTerminator(def)
-			declName, params, retType, parsed := parseFunctionSignature(def)
-			if len(declName) > 0 {
-				mismatch := func() error {
-					return fmt.Errorf("function %s definition name %q does not match metadata identity", qualifyName(schema.Name, fn.Name), strings.Join(declName, "."))
-				}
-				switch len(declName) {
-				case 1:
-					if !identEqual(declName[0], fn.Name, caseSensitive) {
-						return mismatch()
-					}
-				case 2:
-					if !identEqual(declName[0], schema.Name, caseSensitive) || !identEqual(declName[1], fn.Name, caseSensitive) {
-						return mismatch()
-					}
-				default:
-					return mismatch()
-				}
+			params, retType, parsed, err := validateRoutineIdentity("function", schema.Name, fn.Name, fn.Signature, def, false, caseSensitive)
+			if err != nil {
+				return err
 			}
 			entry := functionEntry{
 				schema:     schema.Name,
@@ -1881,14 +2006,14 @@ func newDatabaseState() *databaseState {
 	}
 }
 
-func convertToDatabaseState(database *metadatapb.DatabaseSchemaMetadata) *databaseState {
+func convertToDatabaseState(database *metadatapb.DatabaseSchemaMetadata, caseSensitive bool) *databaseState {
 	state := newDatabaseState()
 	state.name = database.Name
 	for _, schema := range database.Schemas {
 		if schema == nil || schema.SkipDump {
 			continue
 		}
-		state.schemas[schema.Name] = convertToSchemaState(schema)
+		state.schemas[schema.Name] = convertToSchemaState(schema, caseSensitive)
 	}
 	return state
 }
@@ -1941,7 +2066,7 @@ func newSchemaState() *schemaState {
 	}
 }
 
-func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
+func convertToSchemaState(schema *metadatapb.SchemaMetadata, caseSensitive bool) *schemaState {
 	state := newSchemaState()
 	state.name = schema.Name
 	for i, table := range schema.Tables {
@@ -1954,13 +2079,13 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 		if view == nil || view.SkipDump {
 			continue
 		}
-		state.views[view.Name] = convertToViewState(i, schema.Name, view)
+		state.views[view.Name] = convertToViewState(i, schema.Name, view, caseSensitive)
 	}
 	for i, mv := range schema.MaterializedViews {
 		if mv == nil || mv.SkipDump {
 			continue
 		}
-		state.materializedViews[mv.Name] = convertToMaterializedViewState(i, schema.Name, mv)
+		state.materializedViews[mv.Name] = convertToMaterializedViewState(i, schema.Name, mv, caseSensitive)
 	}
 	return state
 }
@@ -2521,15 +2646,16 @@ func isNumericOrBoolLiteral(s string) bool {
 }
 
 type viewState struct {
-	id         int
-	schema     string
-	name       string
-	definition string
-	comment    string
-	columns    map[string]*columnState
+	id            int
+	schema        string
+	name          string
+	definition    string
+	comment       string
+	columns       map[string]*columnState
+	caseSensitive bool
 }
 
-func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata) *viewState {
+func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata, caseSensitive bool) *viewState {
 	cols := make(map[string]*columnState, len(view.Columns))
 	for i, col := range view.Columns {
 		if col == nil {
@@ -2538,23 +2664,41 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 		cols[col.Name] = convertToColumnState(i, col)
 	}
 	return &viewState{
-		id:         id,
-		schema:     schemaName,
-		name:       view.Name,
-		definition: view.Definition,
-		comment:    view.Comment,
-		columns:    cols,
+		id:            id,
+		schema:        schemaName,
+		name:          view.Name,
+		definition:    view.Definition,
+		comment:       view.Comment,
+		columns:       cols,
+		caseSensitive: caseSensitive,
 	}
 }
 
-func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.MaterializedViewMetadata) *viewState {
+func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.MaterializedViewMetadata, caseSensitive bool) *viewState {
 	return &viewState{
-		id:         id,
-		schema:     schemaName,
-		name:       mv.Name,
-		definition: mv.Definition,
-		comment:    mv.Comment,
+		id:            id,
+		schema:        schemaName,
+		name:          mv.Name,
+		definition:    mv.Definition,
+		comment:       mv.Comment,
+		caseSensitive: caseSensitive,
 	}
+}
+
+func (v *viewState) validateTarget(kind string, rel *nodes.RangeVar) error {
+	if rel == nil {
+		return nil
+	}
+	target := qualifyName(rel.Schemaname, rel.Relname)
+	if rel.Catalogname != "" {
+		target = quoteDefinitionIdentifier(rel.Catalogname) + "." + target
+		return fmt.Errorf("%s %s definition target %s does not match metadata identity", kind, v.qualifiedName(), target)
+	}
+	if (rel.Schemaname != "" && !identEqual(rel.Schemaname, v.schema, v.caseSensitive)) ||
+		(rel.Relname != "" && !identEqual(rel.Relname, v.name, v.caseSensitive)) {
+		return fmt.Errorf("%s %s definition target %s does not match metadata identity", kind, v.qualifiedName(), target)
+	}
+	return nil
 }
 
 func (v *viewState) toString(buf io.StringWriter) error {
@@ -2563,8 +2707,14 @@ func (v *viewState) toString(buf io.StringWriter) error {
 		return fmt.Errorf("view %s has no definition to restore", v.qualifiedName())
 	}
 	var stmt string
-	if isCompleteCreateView(trimmed) {
+	if vs := parseViewStmt(trimmed); vs != nil {
+		if err := v.validateTarget("view", vs.View); err != nil {
+			return err
+		}
 		stmt = trimmed
+		if vs.View != nil && vs.View.Schemaname == "" {
+			return writeWithSchemaSearchPath(buf, v.schema, appendTerminator(stmt)+"\n")
+		}
 	} else {
 		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
@@ -2579,21 +2729,24 @@ func (v *viewState) toMaterializedString(buf io.StringWriter) error {
 		return fmt.Errorf("materialized view %s has no definition to restore", v.qualifiedName())
 	}
 	var stmt string
-	if isCompleteCreateMaterializedView(trimmed) {
-		stmt = trimmed
+	if ctas := parseMaterializedViewStmt(trimmed); ctas != nil {
+		if ctas.Into != nil {
+			if err := v.validateTarget("materialized view", ctas.Into.Rel); err != nil {
+				return err
+			}
+			stmt = trimmed
+			if ctas.Into.Rel != nil && ctas.Into.Rel.Schemaname == "" {
+				return writeWithSchemaSearchPath(buf, v.schema, appendTerminator(stmt)+"\n")
+			}
+		} else {
+			stmt = trimmed
+		}
 	} else {
 		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s", v.qualifiedName(), v.definition)
 	}
 	stmt = appendTerminator(stmt) + "\n"
 	_, err := buf.WriteString(stmt)
 	return err
-}
-
-// isCompleteCreateView reports whether definition already starts with a full
-// CREATE [OR REPLACE] VIEW statement (as SHOW VIEW returns for late-binding
-// views with WITH NO SCHEMA BINDING).
-func isCompleteCreateView(definition string) bool {
-	return parseViewStmt(definition) != nil
 }
 
 // isLateBindingView reports whether definition is a CREATE VIEW ... WITH NO
@@ -2624,15 +2777,18 @@ func parseViewStmt(definition string) *nodes.ViewStmt {
 	return vs
 }
 
-func isCompleteCreateMaterializedView(definition string) bool {
+func parseMaterializedViewStmt(definition string) *nodes.CreateTableAsStmt {
 	stmts, err := pgparser.Parse(definition)
 	if err != nil || stmts == nil || len(stmts.Items) != 1 {
-		return false
+		return nil
 	}
 	stmt := stmts.Items[0]
 	if raw, ok := stmt.(*nodes.RawStmt); ok {
 		stmt = raw.Stmt
 	}
 	ctas, ok := stmt.(*nodes.CreateTableAsStmt)
-	return ok && ctas.Objtype == nodes.OBJECT_MATVIEW
+	if !ok || ctas.Objtype != nodes.OBJECT_MATVIEW {
+		return nil
+	}
+	return ctas
 }

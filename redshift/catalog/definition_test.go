@@ -1398,6 +1398,52 @@ ALTER DATABASE "analytics" OWNER TO "DbAdmin";
 	require.NoError(t, err)
 	require.Contains(t, procOut, "SET search_path TO \"reporting\", public;\nCREATE PROCEDURE p_unqual()")
 	require.Contains(t, procOut, "RESET search_path;\n")
+
+	// Procedure identity / kind / signature mismatches and complete view target mismatches fail explicitly.
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p",
+				Definition: "CREATE PROCEDURE s.q() AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p",
+				Definition: "CREATE FUNCTION s.p() RETURNS int IMMUTABLE AS $$ SELECT 1 $$ LANGUAGE SQL",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "CREATE PROCEDURE")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Procedures: []*metadatapb.ProcedureMetadata{{
+				Name:       "p",
+				Signature:  "(int)",
+				Definition: "CREATE PROCEDURE s.p(v varchar(20)) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "signature")
+
+	_, err = DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{{
+				Name:       "v",
+				Definition: "CREATE VIEW s.w AS SELECT 1 WITH NO SCHEMA BINDING",
+			}},
+		}},
+	})
+	require.ErrorContains(t, err, "identity")
 }
 
 // TestDatabaseDefinitionDevSnapshotReplay verifies DatabaseDefinition on the
