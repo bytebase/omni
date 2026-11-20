@@ -637,6 +637,18 @@ func inferFunctionalIndexFuncType(tbl *Table, e *nodes.FuncCallExpr) *ResolvedTy
 			}
 			return &ResolvedType{BaseType: base, Length: k, Charset: charset}
 		}
+	case "space":
+		// SPACE(n) is n characters, and SPACE of anything but a constant
+		// is as long as a LOB: mysql:8.0.46 takes KEY ((SPACE(512))) and
+		// answers 3757 for SPACE(513) and SPACE(a).
+		if len(e.Args) != 1 {
+			return nil
+		}
+		k, ok := extractNonNegIntLit(e.Args[0])
+		if !ok || k > 1<<30 {
+			return &ResolvedType{BaseType: BaseTypeLongText}
+		}
+		return &ResolvedType{BaseType: BaseTypeVarchar, Length: max(k, 1)}
 	case "replace":
 		// REPLACE's width, as mysql:8.0.46 measures it, is the subject's
 		// times the replacement's length less one, at least the subject's:

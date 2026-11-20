@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"math/bits"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -1363,6 +1364,34 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				endIdx = startIdx + int(length)
 			}
 			return userVarValue{kind: userVarString, str: string(runes[startIdx:endIdx])}, true, nil
+		case "bit_count":
+			// BIT_COUNT counts a binary string's bits byte by byte and any other
+			// value's as CAST(... AS UNSIGNED) reads it: BIT_COUNT(-1) is 64,
+			// BIT_COUNT(1.6) is 1, BIT_COUNT(X'FF') is 8.
+			if len(e.Args) != 1 {
+				return userVarValue{}, false, errWrongParamCount("BIT_COUNT")
+			}
+			v, ok, err := c.evalSetExprNode(e.Args[0])
+			if err != nil || !ok || v.kind == userVarNull {
+				return v, ok, err
+			}
+			n := 0
+			if v.kind == userVarString && v.binary {
+				for i := 0; i < len(v.str); i++ {
+					n += bits.OnesCount8(v.str[i])
+				}
+			} else {
+				us, ok := setCastInt(v, true)
+				if !ok {
+					return userVarValue{}, false, nil
+				}
+				u, perr := strconv.ParseUint(us, 10, 64)
+				if perr != nil {
+					return userVarValue{}, false, nil
+				}
+				n = bits.OnesCount64(u)
+			}
+			return userVarValue{kind: userVarNumeric, str: strconv.Itoa(n)}, true, nil
 		case "mod":
 			// MOD(a, b) is the % operator: MOD(5, 4) sets sql_mode 1.
 			if len(e.Args) != 2 {
@@ -1673,7 +1702,7 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 				}
 			case "isnull", "trim", "ltrim", "rtrim", "upper", "lower", "ucase", "lcase",
 				"reverse", "char_length", "character_length", "length", "abs",
-				"floor", "ceil", "ceiling", "sign":
+				"floor", "ceil", "ceiling", "sign", "bit_count":
 				if argc != 1 {
 					err = errWrongParamCount(strings.ToUpper(fn))
 				}

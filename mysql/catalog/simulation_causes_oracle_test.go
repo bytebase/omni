@@ -5041,6 +5041,22 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{name: "COMPACT functional key part width: s VARCHAR(10), KEY ((SHA1(s)))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((SHA1(s)))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional key part width: s VARCHAR(10), KEY ((MD5(s)))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((MD5(s)))) ROW_FORMAT=COMPACT", code: 0},
 		{name: "COMPACT functional key part width: s VARCHAR(10), KEY ((HEX(s)))", stmt: "CREATE TABLE z (s VARCHAR(10), KEY ((HEX(s)))) ROW_FORMAT=COMPACT", code: 0},
+		// An explicit zero key-part length is refused as the grammar reduces it
+		// (1391), before the table or column is looked up.
+		{name: "CREATE TABLE key part s(0)", stmt: "CREATE TABLE z (s VARCHAR(10), KEY (s(0)))", code: 1391},
+		{name: "CREATE TABLE key part s(0) over a missing column", stmt: "CREATE TABLE z (s VARCHAR(10), KEY (nosuch(0)))", code: 1391},
+		{name: "CREATE TABLE PRIMARY KEY part s(0)", stmt: "CREATE TABLE z (s VARCHAR(10), PRIMARY KEY (s(0)))", code: 1391},
+		{name: "ALTER ADD KEY part c(0)", setup: []string{oneTable}, stmt: "ALTER TABLE a ADD KEY (c(0))", code: 1391},
+		{name: "CREATE INDEX part c(0)", setup: []string{oneTable}, stmt: "CREATE INDEX i ON a (c(0))", code: 1391},
+		{name: "CREATE INDEX part s(0) on a missing table", stmt: "CREATE INDEX i ON nosuch (s(0))", code: 1391},
+		{name: "CREATE TABLE key part longer than the column", stmt: "CREATE TABLE z (s VARCHAR(10), KEY (s(11)))", code: 1089},
+		// SPACE(n) is n characters; SPACE of a non-constant is a LOB.
+		{name: "functional SPACE(512)", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(512))))", code: 0},
+		{name: "functional SPACE(513)", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(513))))", code: 3757},
+		{name: "functional SPACE of a huge count", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(9223372036854775807))))", code: 3757},
+		{name: "functional SPACE of a column", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(a))))", code: 3757},
+		{name: "COMPACT functional SPACE(191)", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(191)))) ROW_FORMAT=COMPACT", code: 0},
+		{name: "COMPACT functional SPACE(192)", stmt: "CREATE TABLE z (a INT, KEY ((SPACE(192)))) ROW_FORMAT=COMPACT", code: 1071},
 		// Functions in a SET expression are resolved before a branch is chosen:
 		// an unknown unqualified name is a stored function of the current
 		// database (1305), and aggregates (1111) and window functions (3593)
@@ -6127,6 +6143,8 @@ func TestSimulationCausesOracle(t *testing.T) {
 		"FLOOR(99999999999999999999.5)", "SIGN(-2.5)", "SIGN(0)", "SIGN('x')", "SIGN('-3')", "SIGN(2e0)",
 		"MOD(5, 4)", "MOD(-5, 4)", "MOD(5.5, 2)", "MOD('7', 4)", "MOD(5e0, 2)",
 		"~-2", "~0", "~'3'", "~1.6", "~1.5e0", "~'x'",
+		"BIT_COUNT(1)", "BIT_COUNT(-1)", "BIT_COUNT('3')", "BIT_COUNT(1.6)", "BIT_COUNT(1.5e0)", "BIT_COUNT('x')",
+		"BIT_COUNT(18446744073709551615)", "BIT_COUNT(X'FF')", "BIT_COUNT(b'101')",
 	} {
 		stmt := "SET @x = " + expr
 		if _, err := conn.ExecContext(ctx, stmt); err != nil {
@@ -6236,7 +6254,7 @@ func TestSimulationCausesOracle(t *testing.T) {
 	for _, expr := range []string{
 		"FLOOR(3.5)", "CEIL(3.2)", "ROUND(3.6)", "ROUND(4)", "ROUND(3.6e0)", "TRUNCATE(3.6, 0)",
 		"TRUNCATE(4, 1)", "ROUND(14, -1)", "SIGN(-2.5)", "SIGN(2.5)", "FLOOR('3.7')", "ABS(-4.0)",
-		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0",
+		"FLOOR(99999999999999999999.5)", "ROUND('4')", "MOD(5, 4)", "MOD(5.5, 2)", "~-2", "~0", "BIT_COUNT(1)",
 	} {
 		stmt := "SET SESSION sql_mode = " + expr
 		for _, pre := range []string{"SET SESSION sql_mode = ''"} {
