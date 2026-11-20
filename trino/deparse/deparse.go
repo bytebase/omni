@@ -59,10 +59,16 @@ func fromProtoMetadata(metadata *metadatapb.DatabaseSchemaMetadata) (*DatabaseSc
 			}
 			return nil, fmt.Errorf("procedure %s.%s cannot be restored because Trino does not support restoring procedures", s.Name, p.Name)
 		}
+		seenTables := make(map[string]struct{}, len(s.Tables))
 		for _, t := range s.Tables {
 			if t == nil || t.SkipDump {
 				continue
 			}
+			tableKey := strings.ToLower(t.Name)
+			if _, exists := seenTables[tableKey]; exists {
+				return nil, fmt.Errorf("schema %s has duplicate table %s", s.Name, quoteIdentifier(t.Name))
+			}
+			seenTables[tableKey] = struct{}{}
 			cols := fromProtoColumns(t.Columns)
 			// GetDatabaseDefinition keeps emitting empty CREATE TABLE () for legacy
 			// direct-struct oracle/golden parity, while DatabaseDefinitionFromProto
@@ -327,6 +333,7 @@ type parsedTrinoFn struct {
 }
 
 type trinoFuncCatalog struct {
+	dbName string
 	fns    []orderedFunction
 	parsed []parsedTrinoFn
 	byKey  map[string][]int
@@ -380,6 +387,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 	}
 
 	cat := &trinoFuncCatalog{
+		dbName: metadata.Name,
 		fns:    fns,
 		parsed: parsed,
 		byKey:  byKey,
@@ -415,6 +423,7 @@ func orderedFunctions(metadata *DatabaseSchemaMetadata) []orderedFunction {
 }
 
 type functionCallRef struct {
+	catalog  string
 	schema   string
 	name     string
 	argTypes []string
@@ -423,6 +432,9 @@ type functionCallRef struct {
 
 func (c *trinoFuncCatalog) resolveCall(callerSchema string, call functionCallRef) []int {
 	if c == nil || len(c.fns) == 0 {
+		return nil
+	}
+	if call.catalog != "" && (c.dbName == "" || !strings.EqualFold(call.catalog, c.dbName)) {
 		return nil
 	}
 	targetSchema := call.schema
@@ -1000,7 +1012,7 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 					}
 				}
 			}
-			var schema, name string
+			var catalog, schema, name string
 			if e.Name != nil && len(e.Name.Parts) > 0 {
 				parts := e.Name.Parts
 				switch len(parts) {
@@ -1008,12 +1020,16 @@ func collectTrinoASTFunctionCalls(root trinoparser.RoutineStatement, callerSchem
 					name = parts[0].Value
 				case 2:
 					schema, name = parts[0].Value, parts[1].Value
+				case 3:
+					catalog, schema, name = parts[0].Value, parts[1].Value, parts[2].Value
 				default:
-					schema, name = parts[len(parts)-2].Value, parts[len(parts)-1].Value
+					// 4+ parts cannot reference a local catalog function.
+					return ""
 				}
 			}
 			if name != "" {
 				ref := functionCallRef{
+					catalog:  catalog,
 					schema:   schema,
 					name:     name,
 					argTypes: argTypes,
@@ -1221,11 +1237,18 @@ func scanFunctionCallRefs(sql string) []functionCallRef {
 
 	var calls []functionCallRef
 	for i := 0; i+1 < len(toks); i++ {
+		if i > 0 && toks[i-1].punct == '.' {
+			continue
+		}
+		if i+5 < len(toks) && toks[i].isIdent && toks[i+1].punct == '.' && toks[i+2].isIdent && toks[i+3].punct == '.' && toks[i+4].isIdent && toks[i+5].punct == '(' {
+			calls = append(calls, functionCallRef{catalog: toks[i].text, schema: toks[i+2].text, name: toks[i+4].text, argCount: countArgs(i + 5)})
+			continue
+		}
 		if i+3 < len(toks) && toks[i].isIdent && toks[i+1].punct == '.' && toks[i+2].isIdent && toks[i+3].punct == '(' {
 			calls = append(calls, functionCallRef{schema: toks[i].text, name: toks[i+2].text, argCount: countArgs(i + 3)})
 			continue
 		}
-		if toks[i].isIdent && toks[i+1].punct == '(' && (i == 0 || toks[i-1].punct != '.') {
+		if toks[i].isIdent && toks[i+1].punct == '(' {
 			calls = append(calls, functionCallRef{name: toks[i].text, argCount: countArgs(i + 1)})
 		}
 	}

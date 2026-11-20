@@ -625,4 +625,38 @@ ALTER SCHEMA "s" SET AUTHORIZATION "schema_admin";
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "CREATE SCHEMA IF NOT EXISTS \"s\";\n\n", skippedProcOut)
+
+	// Cross-catalog calls (other_catalog.s.f()) do not create false dependencies
+	// against local s.f.
+	crossCatFuncs, err := DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "a",
+					Definition: "CREATE FUNCTION s.a() RETURNS bigint RETURN other_catalog.s.b()",
+				},
+				{
+					Name:       "b",
+					Definition: "CREATE FUNCTION s.b() RETURNS bigint RETURN s.a()",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	assert.Less(t, strings.Index(crossCatFuncs, "CREATE FUNCTION s.a()"), strings.Index(crossCatFuncs, "CREATE FUNCTION s.b()"))
+
+	// Duplicate tables (case-insensitive) fail explicitly.
+	_, err = DatabaseDefinitionFromProto(&metadatapb.DatabaseSchemaMetadata{
+		Name: "cat",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Tables: []*metadatapb.TableMetadata{
+				{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}},
+				{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "bigint"}}},
+			},
+		}},
+	})
+	require.ErrorContains(t, err, "duplicate table")
 }

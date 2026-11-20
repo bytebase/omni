@@ -315,7 +315,7 @@ func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []s
 			}
 			if paramType == argType {
 				score += 2
-			} else if isNumericType(argType) && isNumericType(paramType) {
+			} else if argRank, paramRank := numericTypeRank(argType), numericTypeRank(paramType); argRank > 0 && paramRank >= argRank {
 				score++
 			} else {
 				compatible = false
@@ -339,11 +339,25 @@ func resolveFunctionOverload(fns []functionEntry, candidates []int, argTypes []s
 }
 
 func isNumericType(t string) bool {
+	return numericTypeRank(t) > 0
+}
+
+func numericTypeRank(t string) int {
 	switch t {
-	case "int2", "int4", "int8", "numeric", "float4", "float8":
-		return true
+	case "int2":
+		return 1
+	case "int4":
+		return 2
+	case "int8":
+		return 3
+	case "numeric":
+		return 4
+	case "float4":
+		return 5
+	case "float8":
+		return 6
 	default:
-		return false
+		return 0
 	}
 }
 
@@ -1236,8 +1250,11 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 		}
 		dependencies[i][dep] = struct{}{}
 	}
-	addRelDep := func(i int, defaultSchema, relSchema, relName string) {
+	addRelDep := func(i int, defaultSchema, relCatalog, relSchema, relName string) {
 		if relName == "" {
+			return
+		}
+		if relCatalog != "" && (to.Name == "" || !strings.EqualFold(relCatalog, to.Name)) {
 			return
 		}
 		if relSchema != "" {
@@ -1267,7 +1284,7 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				if dep == nil {
 					continue
 				}
-				addRelDep(i, item.schema, dep.Schema, dep.Table)
+				addRelDep(i, item.schema, "", dep.Schema, dep.Table)
 			}
 			addCallDeps(i, item.schema, collectFunctionCalls(item.fn.def, item.schema, item.fn.params, fnCat))
 		case objectKindTable:
@@ -1291,10 +1308,10 @@ func writeOrderedObjects(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadat
 				if dep == nil {
 					continue
 				}
-				addRelDep(i, item.schema, dep.Schema, dep.Table)
+				addRelDep(i, item.schema, "", dep.Schema, dep.Table)
 			}
 			for _, ref := range collectViewRelationRefs(item.view.definition) {
-				addRelDep(i, item.schema, ref.schema, ref.name)
+				addRelDep(i, item.schema, ref.catalog, ref.schema, ref.name)
 			}
 			addCallDeps(i, item.schema, collectSQLFunctionCalls(item.view.definition, item.schema, fnCat))
 		}
@@ -1406,8 +1423,9 @@ func objectKey(schemaName, objectName string) string {
 }
 
 type relationRef struct {
-	schema string
-	name   string
+	catalog string
+	schema  string
+	name    string
 }
 
 func collectViewRelationRefs(definition string) []relationRef {
@@ -1434,8 +1452,8 @@ func (v *scopedRelVisitor) Visit(node nodes.Node) nodes.Visitor {
 	}
 	switch n := node.(type) {
 	case *nodes.RangeVar:
-		if n.Relname != "" && (n.Schemaname != "" || !v.cteScope[n.Relname]) {
-			*v.refs = append(*v.refs, relationRef{schema: n.Schemaname, name: n.Relname})
+		if n.Relname != "" && (n.Catalogname != "" || n.Schemaname != "" || !v.cteScope[n.Relname]) {
+			*v.refs = append(*v.refs, relationRef{catalog: n.Catalogname, schema: n.Schemaname, name: n.Relname})
 		}
 		return v
 	case *nodes.SelectStmt:

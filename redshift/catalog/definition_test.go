@@ -1049,6 +1049,47 @@ ALTER TABLE "public"."owned_tbl" OWNER TO "AppOwner";
 	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
 ALTER SCHEMA "public" OWNER TO "PublicOwner";
 `, publicOwned)
+
+	// Cross-database view references (otherdb.s.b) must not match local views
+	// and introduce false dependency cycles.
+	crossDBViews, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "localdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Views: []*metadatapb.ViewMetadata{
+				{Name: "a", Definition: "SELECT x FROM otherdb.s.b WITH NO SCHEMA BINDING"},
+				{Name: "b", Definition: "SELECT x FROM s.a WITH NO SCHEMA BINDING"},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(crossDBViews, `CREATE OR REPLACE VIEW "s"."a"`), strings.Index(crossDBViews, `CREATE OR REPLACE VIEW "s"."b"`))
+
+	// Redshift numeric overload resolution respects implicit cast direction
+	// (int8 argument cannot implicitly coerce to int4 overload).
+	narrowCastFuncs, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{
+		Name: "localdb",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "s",
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f_num",
+					Definition: "CREATE FUNCTION s.f_num(x int4) RETURNS int4 IMMUTABLE AS $$ SELECT s.caller_big(CAST(1 AS int8)) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "caller_big",
+					Definition: "CREATE FUNCTION s.caller_big(v int8) RETURNS int8 IMMUTABLE AS $$ SELECT s.f_num(v) $$ LANGUAGE SQL",
+				},
+				{
+					Name:       "f_num",
+					Definition: "CREATE FUNCTION s.f_num(x int8) RETURNS int8 IMMUTABLE AS $$ SELECT x $$ LANGUAGE SQL",
+				},
+			},
+		}},
+	})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(narrowCastFuncs, "f_num(x int8)"), strings.Index(narrowCastFuncs, "caller_big("))
+	require.Less(t, strings.Index(narrowCastFuncs, "caller_big("), strings.Index(narrowCastFuncs, "f_num(x int4)"))
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of view\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "SELECT id FROM reporting.t_child -- end of mv\n;\n")
 	require.Contains(t, deferredOwnersAndComments, "$$ LANGUAGE SQL -- trailing comment\n;\n")
