@@ -14,8 +14,8 @@ a fresh server wrote the same file.
 | --- | --- | --- | --- | --- |
 | `DorisParser.g4`, one per alternative | 2,354 | 2,354 | 0 | 0 |
 | `DorisParser.g4`, near-misses | 5,961 | 5,961 | 0 | 0 |
-| `DorisLegacyParser.g4`, one per alternative | 1,767 | 1,767 | 0 | 0 |
-| `DorisLegacyParser.g4`, near-misses | 5,885 | 5,885 | 0 | 0 |
+| `DorisLegacyParser.g4`, one per alternative | 1,769 | 1,769 | 0 | 0 |
+| `DorisLegacyParser.g4`, near-misses | 5,883 | 5,883 | 0 | 0 |
 
 Every row agrees: the 15,967 generated rows and the 346 `suite:` rows below.
 #1461 closed the last 201 of them, the tails the grammar derives and omni read
@@ -33,9 +33,10 @@ scanner never makes (`../../testdata/tokens.tsv`).
 ## Suites
 
 `suite:conformance` holds the 339 cases of the container test that compared
-`Parse` with a running Doris (`TestDorisSyntaxConformance`), each judged by the
-same recording; all agree. A statement added to it is a row with `?` in both
-verdict cells, judged by a recording:
+`Parse` with a running Doris (`TestDorisSyntaxConformance`), and
+`suite:comments` holds the 7 `//` and `#` lines Doris has no comment for, each
+judged by the same recording; all 346 agree. A statement added to a suite is a
+row with `?` in both verdict cells, judged by a recording:
 
 ```text
 ?	?	-	suite:conformance	<statement>

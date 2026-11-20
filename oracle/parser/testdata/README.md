@@ -58,9 +58,9 @@ to `lexerCorpus` and to the statements of `coverage/reference_oracle.tsv` and
 
 | Suite | Rows | Same cell | Both reject, another byte | Only Oracle accepts | Only omni accepts |
 | --- | --- | --- | --- | --- | --- |
-| `suite:lexer` | 77 | 57 | 7 | 9 | 4 |
-| `suite:reference` | 321 | 223 | 77 | 21 | 0 |
-| `suite:manifest` | 612 | 588 | 2 | 2 | 20 |
+| `suite:lexer` | 77 | 70 | 7 | 0 | 0 |
+| `suite:reference` | 321 | 229 | 76 | 16 | 0 |
+| `suite:manifest` | 612 | 589 | 20 | 1 | 2 |
 
 The manifest's `compat_comment_*` rows hold the categories `COMMENT ON`
 takes and the ones it refuses: `TABLE` (a view is commented through this

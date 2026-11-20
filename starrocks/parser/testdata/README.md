@@ -37,7 +37,9 @@ agree: `suite:conformance` (281, `TestStarRocksSyntaxConformance`),
 the PRs that added those forms). The 15 `suite:characters` rows, the
 characters no rule of `StarRocksLex.g4` matches, are a group of their own; the
 one that disagreed, `SELECT 1　AS x` with an ideographic space, agrees now that
-omni reads the character as one StarRocks refuses (#1467). A statement added
+omni reads the character as one StarRocks refuses (#1467). The other 465 rows
+are 7 `suite:comments`, 5 `suite:copy-into`, 396 `suite:keywords` and 57
+`suite:doris-residue`; all agree. A statement added
 to one is a row with `?` in
 both verdict cells, judged by a recording:
 
