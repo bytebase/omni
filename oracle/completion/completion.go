@@ -168,19 +168,26 @@ func Complete(sql string, cursorOffset int, meta *metadatapb.DatabaseSchemaMetad
 	store := newSchemaStore(meta, cfg)
 
 	stmtSQL, localOffset := isolateStatementAtCursor(sql, cursorOffset)
-	if inNonCodeSpan(stmtSQL, localOffset) {
+	suppressed, dQuoteStart, inDQuote := scanSQLState(stmtSQL, localOffset)
+	if suppressed {
 		return nil
 	}
-	prefix := extractPrefix(stmtSQL, localOffset)
-	collectOffset := localOffset - len(prefix)
-	if linkPrefix, linkStart, ok := extractDBLinkPrefix(stmtSQL, localOffset); ok {
-		prefix = linkPrefix
-		collectOffset = linkStart
-	}
-	prefixQuoted := false
-	if collectOffset > 0 && collectOffset <= len(stmtSQL) && stmtSQL[collectOffset-1] == '"' && insideDoubleQuotes(stmtSQL, localOffset) {
+	var (
+		prefix        string
+		collectOffset int
+		prefixQuoted  bool
+	)
+	if inDQuote {
+		prefix = strings.ReplaceAll(stmtSQL[dQuoteStart+1:localOffset], `""`, `"`)
+		collectOffset = dQuoteStart
 		prefixQuoted = true
-		collectOffset--
+	} else {
+		prefix = extractPrefix(stmtSQL, localOffset)
+		collectOffset = localOffset - len(prefix)
+		if linkPrefix, linkStart, ok := extractDBLinkPrefix(stmtSQL, localOffset); ok {
+			prefix = linkPrefix
+			collectOffset = linkStart
+		}
 	}
 
 	candidates := standardComplete(stmtSQL, collectOffset, store)
@@ -266,26 +273,9 @@ func isOracleIdentByte(c byte) bool {
 		c == '_' || c == '$' || c == '#'
 }
 
-func insideDoubleQuotes(sql string, offset int) bool {
+func scanSQLState(sql string, offset int) (suppressed bool, dQuoteStart int, inDQuote bool) {
 	if offset <= 0 {
-		return false
-	}
-	if offset > len(sql) {
-		offset = len(sql)
-	}
-	lex := parser.NewLexer(sql[:offset])
-	for {
-		tok := lex.NextToken()
-		if tok.Type == 0 {
-			break
-		}
-	}
-	return lex.Err != nil && strings.Contains(lex.Err.Error(), "unterminated")
-}
-
-func inNonCodeSpan(sql string, offset int) bool {
-	if offset <= 0 {
-		return false
+		return false, 0, false
 	}
 	if offset > len(sql) {
 		offset = len(sql)
@@ -300,7 +290,7 @@ func inNonCodeSpan(sql string, offset int) bool {
 			}
 			delimPos := i + prefixLen
 			if delimPos >= offset {
-				return true
+				return true, 0, false
 			}
 			openDelim := sql[delimPos]
 			if openDelim == ' ' || openDelim == '\t' || openDelim == '\n' || openDelim == '\r' || openDelim == '\f' {
@@ -319,7 +309,7 @@ func inNonCodeSpan(sql string, offset int) bool {
 				j++
 			}
 			if !closed {
-				return true
+				return true, 0, false
 			}
 		case sql[i] == '\'':
 			i++
@@ -337,10 +327,12 @@ func inNonCodeSpan(sql string, offset int) bool {
 				i++
 			}
 			if !closed {
-				return true
+				return true, 0, false
 			}
 		case sql[i] == '"':
+			start := i
 			i++
+			closed := false
 			for i < offset {
 				if sql[i] == '"' {
 					if i+1 < offset && sql[i+1] == '"' {
@@ -348,9 +340,13 @@ func inNonCodeSpan(sql string, offset int) bool {
 						continue
 					}
 					i++
+					closed = true
 					break
 				}
 				i++
+			}
+			if !closed {
+				return false, start, true
 			}
 		case sql[i] == '-' && i+1 < offset && sql[i+1] == '-':
 			i += 2
@@ -358,7 +354,7 @@ func inNonCodeSpan(sql string, offset int) bool {
 				i++
 			}
 			if i >= offset {
-				return true
+				return true, 0, false
 			}
 		case sql[i] == '/' && i+1 < offset && sql[i+1] == '*':
 			i += 2
@@ -372,13 +368,13 @@ func inNonCodeSpan(sql string, offset int) bool {
 				i++
 			}
 			if !closed {
-				return true
+				return true, 0, false
 			}
 		default:
 			i++
 		}
 	}
-	return false
+	return false, 0, false
 }
 
 func isQQuoteStart(sql string, i, limit int) bool {

@@ -144,6 +144,11 @@ func isIdentChar(ch byte) bool {
 		(ch >= '0' && ch <= '9') || ch == '_' || ch == '$'
 }
 
+type clauseTok struct {
+	upper    string
+	afterDot bool
+}
+
 // analyzeCursorContext determines whether the cursor is in a table-introducing
 // clause (FROM / JOIN / INTO / UPDATE) or an expression/projection position
 // where columns are valid, or suppressed inside an unfinished comment or
@@ -160,10 +165,6 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 	activeStart := findActiveQueryScopeStart(statement, prefixStart)
 	slice := isolateSetOperationArm(statement[activeStart:prefixStart], prefixStart-activeStart)
 
-	type clauseTok struct {
-		upper    string
-		afterDot bool
-	}
 	var clauseToks []clauseTok
 	type parenFrame struct {
 		tableParen bool
@@ -264,7 +265,11 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 	if !prevDot && exprDepth == 0 && len(clauseToks) > 0 {
 		last := clauseToks[len(clauseToks)-1]
 		if !last.afterDot {
-			if last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" || last.upper == "UPDATE" {
+			isConflictDoUpdate := last.upper == "UPDATE" && len(clauseToks) >= 2 &&
+				!clauseToks[len(clauseToks)-2].afterDot && clauseToks[len(clauseToks)-2].upper == "DO"
+			if last.upper == "FROM" || last.upper == "JOIN" || last.upper == "INTO" ||
+				(last.upper == "UPDATE" && !isConflictDoUpdate) ||
+				(last.upper == "ON" && isDDLIndexOn(clauseToks)) {
 				return true, false, false
 			}
 			if last.upper == "," {
@@ -276,7 +281,7 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 					switch tok.upper {
 					case "FROM", "JOIN":
 						return true, false, false
-					case "SELECT", "PIVOT", "AT", "LET", "WHERE", "SET", "GROUP", "HAVING", "ORDER", "VALUES", "RETURNING", "INTO", "UPDATE":
+					case "SELECT", "PIVOT", "AT", "LET", "REMOVE", "WHERE", "SET", "GROUP", "HAVING", "ORDER", "VALUES", "RETURNING", "INTO", "UPDATE":
 						idx = -1
 					}
 				}
@@ -309,12 +314,32 @@ func analyzeCursorContext(statement string, prefixStart int) (inFrom, inColumn, 
 		if tok.afterDot {
 			continue
 		}
+		if tok.upper == "ON" && (isDDLIndexOn(clauseToks[:idx+1]) ||
+			(idx+1 < len(clauseToks) && !clauseToks[idx+1].afterDot &&
+				(clauseToks[idx+1].upper == "CONFLICT" || clauseToks[idx+1].upper == "CONSTRAINT"))) {
+			break
+		}
+		if tok.upper == "CONFLICT" || tok.upper == "DO" {
+			break
+		}
 		switch tok.upper {
-		case "LET", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
+		case "LET", "REMOVE", "WHERE", "HAVING", "SET", "ORDER", "GROUP", "BY", "AND", "OR", "ON", "WHEN", "THEN", "ELSE", "RETURNING":
 			return false, true, false
 		}
 	}
 	return false, false, false
+}
+
+func isDDLIndexOn(toks []clauseTok) bool {
+	if len(toks) == 3 && !toks[0].afterDot && !toks[1].afterDot && !toks[2].afterDot &&
+		toks[0].upper == "CREATE" && toks[1].upper == "INDEX" && toks[2].upper == "ON" {
+		return true
+	}
+	if len(toks) == 4 && !toks[0].afterDot && !toks[1].afterDot && !toks[3].afterDot &&
+		toks[0].upper == "DROP" && toks[1].upper == "INDEX" && toks[3].upper == "ON" {
+		return true
+	}
+	return false
 }
 
 func matchesPrefix(text, prefix string, quoted bool) bool {
@@ -513,9 +538,28 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 		}
 		break
 	}
+	projEnd := listEnd
+	var excludeRules []excludeRule
+	exclDepth := 0
+	for i := itemStart; i < listEnd; i++ {
+		if delta := tokenNestDelta(tokens[i]); delta != 0 {
+			if exclDepth+delta >= 0 {
+				exclDepth += delta
+			} else {
+				exclDepth = 0
+			}
+			continue
+		}
+		if exclDepth == 0 && !tokens[i].quoted && strings.ToUpper(tokens[i].text) == "EXCLUDE" {
+			projEnd = i
+			excludeRules = parseExcludeClause(tokens[i+1 : listEnd])
+			break
+		}
+	}
+
 	nestDepth = 0
-	for i := itemStart; i <= listEnd; i++ {
-		if i < listEnd {
+	for i := itemStart; i <= projEnd; i++ {
+		if i < projEnd {
 			if delta := tokenNestDelta(tokens[i]); delta != 0 {
 				if nestDepth+delta >= 0 {
 					nestDepth += delta
@@ -525,7 +569,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 				continue
 			}
 		}
-		if i < listEnd && (nestDepth != 0 || !tokens[i].comma) {
+		if i < projEnd && (nestDepth != 0 || !tokens[i].comma) {
 			continue
 		}
 		item := tokens[itemStart:i]
@@ -535,7 +579,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 		}
 		if len(item) == 1 && !item[0].quoted && item[0].text == "*" {
 			for _, ref := range getInnerRefs() {
-				cols = append(cols, resolveTableRefColumns(ref, allTables)...)
+				cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumns(ref, allTables), excludeRules)
 			}
 			continue
 		}
@@ -543,7 +587,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 			qual := strings.TrimSuffix(item[0].text, ".*")
 			for _, ref := range getInnerRefs() {
 				if matchesTableQualifier(ref, qual, false) {
-					cols = append(cols, resolveTableRefColumns(ref, allTables)...)
+					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumns(ref, allTables), excludeRules)
 				}
 			}
 			continue
@@ -552,7 +596,7 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 			qual := item[0].text
 			for _, ref := range getInnerRefs() {
 				if matchesTableQualifier(ref, qual, true) {
-					cols = append(cols, resolveTableRefColumns(ref, allTables)...)
+					cols = appendFilteredExpandedColumns(cols, ref, resolveTableRefColumns(ref, allTables), excludeRules)
 				}
 			}
 			continue
@@ -562,6 +606,119 @@ func resolveSubqueryColumns(tokens []tableToken, allTables []*metadata.TableMeta
 		}
 	}
 	return cols
+}
+
+type excludeRule struct {
+	root       string
+	rootQuoted bool
+	col        string
+	colQuoted  bool
+	allCols    bool
+}
+
+func parseExcludeClause(tokens []tableToken) []excludeRule {
+	var rules []excludeRule
+	nestDepth := 0
+	start := 0
+	for i := 0; i <= len(tokens); i++ {
+		if i < len(tokens) {
+			if delta := tokenNestDelta(tokens[i]); delta != 0 {
+				if nestDepth+delta >= 0 {
+					nestDepth += delta
+				} else {
+					nestDepth = 0
+				}
+				continue
+			}
+			if nestDepth != 0 || !tokens[i].comma {
+				continue
+			}
+		}
+		if rule, ok := parseExcludeRule(tokens[start:i]); ok {
+			rules = append(rules, rule)
+		}
+		start = i + 1
+	}
+	return rules
+}
+
+func parseExcludeRule(tokens []tableToken) (excludeRule, bool) {
+	type pathSeg struct {
+		name   string
+		quoted bool
+	}
+	var segs []pathSeg
+	needSeg := true
+	for _, tok := range tokens {
+		if tok.paren != 0 || tok.delim != 0 || tok.comma {
+			return excludeRule{}, false
+		}
+		if tok.quoted {
+			if !needSeg {
+				return excludeRule{}, false
+			}
+			segs = append(segs, pathSeg{name: tok.text, quoted: true})
+			needSeg = false
+			continue
+		}
+		parts := strings.Split(tok.text, ".")
+		for idx, p := range parts {
+			if idx > 0 {
+				needSeg = true
+			}
+			if p == "" {
+				continue
+			}
+			if !needSeg {
+				return excludeRule{}, false
+			}
+			segs = append(segs, pathSeg{name: p, quoted: false})
+			needSeg = false
+		}
+	}
+	if len(segs) != 2 {
+		return excludeRule{}, false
+	}
+	rule := excludeRule{
+		root:       segs[0].name,
+		rootQuoted: segs[0].quoted,
+	}
+	if !segs[1].quoted && segs[1].name == "*" {
+		rule.allCols = true
+		return rule, true
+	}
+	rule.col = segs[1].name
+	rule.colQuoted = segs[1].quoted
+	return rule, true
+}
+
+func appendFilteredExpandedColumns(dst []string, ref tableRef, cols []string, rules []excludeRule) []string {
+	for _, col := range cols {
+		if isColumnExcluded(ref, col, rules) {
+			continue
+		}
+		dst = append(dst, col)
+	}
+	return dst
+}
+
+func isColumnExcluded(ref tableRef, col string, rules []excludeRule) bool {
+	for _, rule := range rules {
+		if !matchesTableQualifier(ref, rule.root, rule.rootQuoted) {
+			continue
+		}
+		if rule.allCols {
+			return true
+		}
+		if rule.colQuoted {
+			if col == rule.col {
+				return true
+			}
+		} else if strings.EqualFold(col, rule.col) {
+			return true
+		}
+	}
+	return false
 }
 
 func findMainSelectIndex(tokens []tableToken) int {
@@ -1315,7 +1472,8 @@ func isKeyword(w string) bool {
 		"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 		"NULL", "MISSING", "TRUE", "FALSE", "CAST", "CASE", "WHEN",
 		"THEN", "ELSE", "END", "EXISTS", "ASC", "DESC", "EXPLAIN", "RETURNING",
-		"PIVOT", "LET":
+		"PIVOT", "LET", "REMOVE", "CONFLICT", "DO", "NOTHING", "REPLACE",
+		"EXCLUDE", "EXCLUDED":
 		return true
 	}
 	return false
@@ -1333,5 +1491,5 @@ var keywords = []string{
 	"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 	"NULL", "MISSING", "TRUE", "FALSE",
 	"CAST", "CASE", "WHEN", "THEN", "ELSE", "END",
-	"EXISTS", "ASC", "DESC",
+	"EXISTS", "ASC", "DESC", "REMOVE", "EXCLUDED",
 }

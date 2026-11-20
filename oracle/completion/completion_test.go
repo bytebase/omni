@@ -1383,6 +1383,44 @@ func TestCompleteShadowedAliasRecursiveCTEAndQuotedCase(t *testing.T) {
 			t.Fatalf("expected DefaultSchema SCOTT table EMP only, got %v", resMulti)
 		}
 	})
+
+	t.Run("quoted prefix with punctuation preserves full prefix", func(t *testing.T) {
+		punctMeta := &metadatapb.DatabaseSchemaMetadata{
+			Schemas: []*metadatapb.SchemaMetadata{
+				{
+					Name: "HR",
+					Tables: []*metadatapb.TableMetadata{
+						{
+							Name: "Order-Items",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "Item-Code", Type: "VARCHAR2"},
+							},
+						},
+						{
+							Name: "ItemMaster",
+							Columns: []*metadatapb.ColumnMetadata{
+								{Name: "ID", Type: "NUMBER"},
+							},
+						},
+					},
+				},
+			},
+		}
+		sqlTab, posTab := splitCaret(t, `SELECT * FROM "Order-I|`)
+		resTab := Complete(sqlTab, posTab, punctMeta, WithDefaultSchema("HR"))
+		if !hasSpec(resTab, candidateSpec{text: "Order-Items", typ: CandidateTable}) {
+			t.Fatalf(`expected "Order-Items" for quoted prefix "Order-I, got %v`, resTab)
+		}
+		if hasSpec(resTab, candidateSpec{text: "ItemMaster", typ: CandidateTable}) {
+			t.Fatalf(`did not expect ItemMaster for quoted prefix "Order-I, got %v`, resTab)
+		}
+
+		sqlCol, posCol := splitCaret(t, `SELECT "Item-C| FROM "Order-Items"`)
+		resCol := Complete(sqlCol, posCol, punctMeta, WithDefaultSchema("HR"))
+		if !hasSpec(resCol, candidateSpec{text: "Item-Code", typ: CandidateColumn}) {
+			t.Fatalf(`expected "Item-Code" for quoted column prefix "Item-C, got %v`, resCol)
+		}
+	})
 }
 
 func completeTestSQL(t *testing.T, input string) []Candidate {

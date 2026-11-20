@@ -566,6 +566,47 @@ func TestCompleteWithMetadataColumns(t *testing.T) {
 			wantCols: []string{"Artist", "SongTitle"},
 			wantTabs: []string{},
 		},
+		{
+			name:     "SELECT wildcard with EXCLUDE removes excluded column from derived tuple",
+			input:    "SELECT s.| FROM (SELECT * EXCLUDE m.Artist FROM Music m) s",
+			cat:      cat,
+			wantCols: []string{"SongTitle"},
+		},
+		{
+			name:     "UPDATE REMOVE targets suggest table columns",
+			input:    "UPDATE Music REMOVE |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "FROM REMOVE targets suggest table columns",
+			input:    "FROM Music REMOVE |",
+			cat:      cat,
+			wantCols: []string{"Artist", "SongTitle"},
+			wantTabs: []string{},
+		},
+		{
+			name:     "ON CONFLICT DO UPDATE does not suggest tables",
+			input:    "INSERT INTO Music VALUE {'Artist': 'x'} ON CONFLICT DO UPDATE |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{},
+		},
+		{
+			name:     "CREATE INDEX ON suggests tables instead of columns",
+			input:    "CREATE INDEX ON |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
+		{
+			name:     "DROP INDEX idx ON suggests tables instead of columns",
+			input:    "DROP INDEX idx ON |",
+			cat:      cat,
+			wantCols: nil,
+			wantTabs: []string{"Album", "Music", "order"},
+		},
 	}
 
 	for _, tc := range tests {
@@ -648,6 +689,15 @@ func TestCompleteKeywordSuppressionAndQuotedPunctuationPrefix(t *testing.T) {
 	gotCol := CompleteWithMetadata(sqlCol, posCol, cat, meta)
 	if !hasCandidate(gotCol, "Item-Code", "column") {
 		t.Errorf(`expected "Item-Code" for quoted column prefix "Item-C, got %v`, gotCol)
+	}
+
+	sqlExcl, posExcl := splitMarker(t, "INSERT INTO ItemMaster VALUE {'Id': '1'} ON CONFLICT DO UPDATE |")
+	gotExcl := CompleteWithMetadata(sqlExcl, posExcl, cat, meta)
+	if !hasCandidate(gotExcl, "EXCLUDED", "keyword") {
+		t.Errorf("expected EXCLUDED keyword after ON CONFLICT DO UPDATE, got %v", gotExcl)
+	}
+	if countKind(gotExcl, "table") != 0 {
+		t.Errorf("did not expect tables after ON CONFLICT DO UPDATE, got %v", gotExcl)
 	}
 }
 
