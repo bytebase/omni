@@ -37413,6 +37413,89 @@
 | CREATE TABLE q_own (a INT, b INT DEFAULT (d_qual_own.q_own.a + 1), KEY ((d_qual_own.q_own.a + 1)))
 < ok 0 0
 > exec
+| SET NAMES utf8mb4
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS z
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS v
+< ok 0 0
+> exec
+| SET SESSION sql_generate_invisible_primary_key = OFF
+< ok 0 0
+> exec
+| DROP DATABASE IF EXISTS cteother
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS `dual`
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS c2
+< ok 0 0
+> exec
+| DROP EVENT IF EXISTS e
+< ok 0 0
+> exec
+| SET SESSION sql_mode = ''
+< ok 0 0
+> exec
+| SET sql_mode = IF(1, 'ANSI', @@no_such_variable)
+< error
+| 1193 HY000 Unknown system variable 'no_such_variable'
+> exec
+| SET sql_mode = IF(1e2 = 100, 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = IF('123euro' = 123, 'STRICT_ALL_TABLES', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| STRICT_ALL_TABLES
+> exec
+| SET sql_mode = IF(1e2 + 1 = 101, 'ANSI', '')
+< ok 0 0
+> query
+| SELECT @@sql_mode
+< result
+< column "@@sql_mode" "VARCHAR"
+< row
+: bytes
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
+> exec
+| SET sql_mode = 1e2 + 1
+< error
+| 1232 42000 Incorrect argument type to variable 'sql_mode'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
 | USE `db_cs_bin`
 < ok 0 0
 > exec

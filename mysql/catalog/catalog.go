@@ -15,9 +15,10 @@ const (
 )
 
 type userVarValue struct {
-	kind   userVarKind
-	str    string
-	binary bool
+	kind    userVarKind
+	str     string
+	binary  bool
+	isFloat bool
 }
 
 // Catalog is the in-memory MySQL catalog.

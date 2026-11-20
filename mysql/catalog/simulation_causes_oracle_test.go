@@ -13,6 +13,7 @@ import (
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
+	"github.com/bytebase/omni/mysql/validate"
 )
 
 // TestSimulationCausesOracle holds the refusals testdata/simulate.tsv records to
@@ -5360,6 +5361,56 @@ func TestSimulationCausesOracle(t *testing.T) {
 	}
 	qualCat := New()
 	execAlterClauses(t, qualCat, "CREATE DATABASE d_qual_own; USE d_qual_own; CREATE TABLE q_own (a INT, b INT DEFAULT (d_qual_own.q_own.a + 1), KEY ((d_qual_own.q_own.a + 1)));")
+
+	// Live MySQL 8.0.46 oracle checks for skipped-branch sysvar validation and scientific notation SET coercion.
+	reset()
+	t.Cleanup(func() {
+		_, _ = conn.ExecContext(ctx, "SET SESSION sql_mode = DEFAULT")
+	})
+	setExprOracleCat := New()
+	execAlterClauses(t, setExprOracleCat, "SET SESSION sql_mode = '';")
+	if _, err := conn.ExecContext(ctx, "SET SESSION sql_mode = ''"); err != nil {
+		t.Fatalf("mysql reset sql_mode: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SET sql_mode = IF(1, 'ANSI', @@no_such_variable)"); err == nil {
+		t.Fatal("mysql IF(..., @@no_such_variable) succeeded, want 1193")
+	} else if code, _ := simulationEngineRefusal(t, "SET sql_mode = IF(1, 'ANSI', @@no_such_variable)", err); code != 1193 {
+		t.Fatalf("mysql IF(..., @@no_such_variable) got %d, want 1193", code)
+	}
+	if got, _ := simulationCatalogRefusal(t, setExprOracleCat, "SET sql_mode = IF(1, 'ANSI', @@no_such_variable)"); got != 1193 {
+		t.Fatalf("catalog IF(..., @@no_such_variable) got %d, want 1193", got)
+	}
+	if setExprOracleCat.session.SQLMode != "" {
+		t.Fatalf("unknown sysvar failure mutated sql_mode: %q", setExprOracleCat.session.SQLMode)
+	}
+	for _, tc := range []struct {
+		stmt string
+		want string
+	}{
+		{"SET sql_mode = IF(1e2 = 100, 'ANSI', '')", "ANSI"},
+		{"SET sql_mode = IF('123euro' = 123, 'STRICT_ALL_TABLES', '')", "STRICT_ALL_TABLES"},
+		{"SET sql_mode = IF(1e2 + 1 = 101, 'ANSI', '')", "ANSI"},
+	} {
+		if _, err := conn.ExecContext(ctx, tc.stmt); err != nil {
+			t.Fatalf("mysql %s: %v", tc.stmt, err)
+		}
+		var srvMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@sql_mode").Scan(&srvMode); err != nil {
+			t.Fatalf("mysql SELECT @@sql_mode: %v", err)
+		}
+		execAlterClauses(t, setExprOracleCat, tc.stmt+"; SET @m = @@sql_mode;")
+		if !strings.Contains(srvMode, tc.want) || setExprOracleCat.userVars["m"].str != srvMode {
+			t.Fatalf("%s mismatch: srv=%q catalog=%q", tc.stmt, srvMode, setExprOracleCat.userVars["m"].str)
+		}
+	}
+	if _, err := conn.ExecContext(ctx, "SET sql_mode = 1e2 + 1"); err == nil {
+		t.Fatal("mysql SET sql_mode = 1e2 + 1 succeeded, want 1232")
+	} else if code, _ := simulationEngineRefusal(t, "SET sql_mode = 1e2 + 1", err); code != 1232 {
+		t.Fatalf("mysql SET sql_mode = 1e2 + 1 got %d, want 1232", code)
+	}
+	if got, _ := simulationCatalogRefusal(t, setExprOracleCat, "SET sql_mode = 1e2 + 1"); got != 1232 {
+		t.Fatalf("catalog SET sql_mode = 1e2 + 1 got %d, want 1232", got)
+	}
 }
 
 // simulationEngineRefusal reads the server's answer as the error number and
@@ -6150,6 +6201,37 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		t.Fatalf("CREATE TABLESPACE on metadata-loaded tablespace got %d, want 1813", got)
 	}
 	execAlterClauses(t, metaCat, "ALTER TABLESPACE loaded_ts ENCRYPTION='N';")
+	execAlterClauses(t, metaCat, "ALTER TABLESPACE loaded_ts RENAME TO loaded_ts2;")
+	if got, _ := simulationCatalogRefusal(t, metaCat, "CREATE TABLE u_old_ts (id INT PRIMARY KEY) TABLESPACE loaded_ts ENGINE=InnoDB"); got != 3510 {
+		t.Fatalf("CREATE TABLE on renamed-away loaded_ts got %d, want 3510", got)
+	}
+	execAlterClauses(t, metaCat, "ALTER TABLESPACE loaded_ts2 RENAME TO loaded_ts; CREATE TABLE u_restored_ts (id INT PRIMARY KEY) TABLESPACE loaded_ts ENGINE=InnoDB;")
+	if got, _ := simulationCatalogRefusal(t, metaCat, "CREATE TABLE u_old_ts2 (id INT PRIMARY KEY) TABLESPACE loaded_ts2 ENGINE=InnoDB"); got != 3510 {
+		t.Fatalf("CREATE TABLE on renamed-away loaded_ts2 got %d, want 3510", got)
+	}
+
+	// Bidirectional invariant: every modeled sysvar in mysqlSysvarSpecs must be a known MySQL 8.0 sysvar.
+	for name := range mysqlSysvarSpecs {
+		if !validate.IsKnownSystemVariable(name) {
+			t.Fatalf("mysqlSysvarSpecs entry %q missing from validate.IsKnownSystemVariable", name)
+		}
+	}
+	sciCat := New()
+	execAlterClauses(t, sciCat, "SET @saved_cr = @@CHARACTER_SET_RESULTS; SET sql_mode = IF(1.5e-2 * 2 = 0.03, 'ANSI', '');")
+	if !strings.Contains(sciCat.session.SQLMode, "ANSI") {
+		t.Fatalf("scientific arithmetic IF got sql_mode=%q, want ANSI", sciCat.session.SQLMode)
+	}
+	execAlterClauses(t, sciCat, "SET sql_mode = IF('0e5', 'ANSI', '');")
+	if sciCat.session.SQLMode != "" {
+		t.Fatalf("'0e5' truthiness got sql_mode=%q, want empty", sciCat.session.SQLMode)
+	}
+	execAlterClauses(t, sciCat, "SET sql_mode = IF(1e-400 = 0, 'ANSI', '');")
+	if !strings.Contains(sciCat.session.SQLMode, "ANSI") {
+		t.Fatalf("1e-400 underflow comparison got sql_mode=%q, want ANSI", sciCat.session.SQLMode)
+	}
+	if got, _ := simulationCatalogRefusal(t, sciCat, "SET sql_mode = (1e2 * 2) + 1"); got != 1232 {
+		t.Fatalf("compound float arithmetic SQLMode got %d, want 1232", got)
+	}
 
 	selfFKCat := New()
 	execAlterClauses(t, selfFKCat, "CREATE DATABASE d; USE d; CREATE TABLE s_fk (id INT PRIMARY KEY, pid INT, CONSTRAINT fk_s FOREIGN KEY (pid) REFERENCES s_fk(id)); ALTER TABLE s_fk DISCARD TABLESPACE;")

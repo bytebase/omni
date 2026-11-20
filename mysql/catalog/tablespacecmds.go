@@ -651,6 +651,10 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		}
 		delete(c.tablespaces, stmt.Name)
 		c.tablespaces[stmt.RenameTo] = true
+		if stmt.RenameTo != stmt.Name {
+			c.markTablespaceDropped(stmt.Name)
+		}
+		delete(c.droppedTablespaces, stmt.RenameTo)
 		if bs, ok := c.tablespaceBlockSizes[stmt.Name]; ok && stmt.RenameTo != stmt.Name {
 			delete(c.tablespaceBlockSizes, stmt.Name)
 			c.tablespaceBlockSizes[stmt.RenameTo] = bs
@@ -731,13 +735,18 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	delete(c.tablespaceBlockSizes, stmt.Name)
 	delete(c.tablespaceEncrypted, stmt.Name)
 	delete(c.tablespaceFiles, stmt.Name)
-	if c.tablespacesPartial {
-		if c.droppedTablespaces == nil {
-			c.droppedTablespaces = make(map[string]bool)
-		}
-		c.droppedTablespaces[stmt.Name] = true
-	}
+	c.markTablespaceDropped(stmt.Name)
 	return nil
+}
+
+func (c *Catalog) markTablespaceDropped(name string) {
+	if !c.tablespacesPartial || name == "" {
+		return
+	}
+	if c.droppedTablespaces == nil {
+		c.droppedTablespaces = make(map[string]bool)
+	}
+	c.droppedTablespaces[name] = true
 }
 
 func isBuiltinTablespaceName(ts string) bool {

@@ -10,6 +10,7 @@ import (
 
 	nodes "github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
+	"github.com/bytebase/omni/mysql/validate"
 )
 
 type ExecOptions struct {
@@ -727,15 +728,14 @@ func expandSQLModeForRead(mode string) string {
 			for _, f := range expanded {
 				seen[f] = true
 			}
-			continue
+			if tok == "DEFAULT" {
+				continue
+			}
 		}
 		seen[tok] = true
 	}
 	var out []string
 	for _, bf := range sqlModeBitFlags {
-		if bf.name == "ANSI" || bf.name == "TRADITIONAL" {
-			continue
-		}
 		if seen[bf.name] {
 			out = append(out, bf.name)
 		}
@@ -749,7 +749,7 @@ func validateAndNormalizeSQLMode(val userVarValue) (string, error) {
 		return "", errWrongValueForVar("sql_mode", "NULL")
 	case userVarNumeric:
 		s := strings.TrimSpace(val.str)
-		if strings.ContainsAny(s, ".eE") {
+		if val.isFloat || strings.ContainsAny(s, ".eE") {
 			return "", errWrongTypeForVar("sql_mode")
 		}
 		if strings.HasPrefix(s, "-") {
@@ -928,7 +928,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 		}
 		return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%d", e.Value)}, true, nil
 	case *nodes.FloatLit:
-		return userVarValue{kind: userVarNumeric, str: e.Value}, true, nil
+		return userVarValue{kind: userVarNumeric, str: e.Value, isFloat: strings.ContainsAny(e.Value, "eE")}, true, nil
 	case *nodes.BoolLit:
 		if e.Value {
 			return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
@@ -953,7 +953,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				}
 				return userVarValue{kind: userVarNumeric, str: fmt.Sprintf("%s%d", sign, op.Value)}, true, nil
 			case *nodes.FloatLit:
-				return userVarValue{kind: userVarNumeric, str: sign + op.Value}, true, nil
+				return userVarValue{kind: userVarNumeric, str: sign + op.Value, isFloat: strings.ContainsAny(op.Value, "eE")}, true, nil
 			}
 			v, ok, err := c.evalSetExprNode(e.Operand)
 			if err != nil || !ok {
@@ -963,7 +963,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 				return v, true, nil
 			}
 			n, ok := parseSetNumericInt64(v)
-			if ok {
+			if ok && !v.isFloat {
 				if e.Op == nodes.UnaryMinus {
 					if n == math.MinInt64 {
 						return userVarValue{}, false, errBigintOutOfRange()
@@ -979,7 +979,7 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			if e.Op == nodes.UnaryMinus {
 				r.Neg(r)
 			}
-			return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale)}, true, nil
+			return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(r, scale), isFloat: v.isFloat}, true, nil
 		}
 		return userVarValue{}, false, nil
 	case *nodes.BinaryExpr:
@@ -1007,21 +1007,14 @@ func (c *Catalog) evalSetExprNode(expr nodes.ExprNode) (userVarValue, bool, erro
 			}
 			return userVarValue{kind: userVarNull}, true, nil
 		}
-		if strings.EqualFold(e.Scope, "PERSIST") || strings.EqualFold(e.Scope, "PERSIST_ONLY") {
-			return userVarValue{}, false, &Error{
-				Code:     1193,
-				SQLState: "HY000",
-				Message:  fmt.Sprintf("Unknown system variable '%s.%s'", strings.ToUpper(e.Scope), e.Name),
-			}
+		spec, ok, err := validateSetSysvarRef(e)
+		if err != nil {
+			return userVarValue{}, false, err
 		}
-		spec, ok := mysqlSysvarSpecs[toLower(e.Name)]
 		if !ok {
 			return userVarValue{}, false, nil
 		}
 		if spec.kind != sysvarSessionAndGlobal {
-			if strings.EqualFold(e.Scope, "SESSION") || strings.EqualFold(e.Scope, "LOCAL") {
-				return userVarValue{}, false, errIncorrectGlobalLocalVar(toLower(e.Name), "GLOBAL variable")
-			}
 			if spec.readGlobal != nil {
 				return spec.readGlobal(c), true, nil
 			}
@@ -1420,36 +1413,36 @@ func evalSetValueTruthy(v userVarValue) bool {
 	if v.kind == userVarNull {
 		return false
 	}
-	if r, _, ok := parseSetDecimalRat(v); ok {
-		return r.Sign() != 0
-	}
-	return leadingMySQLNumericNonZero(v.str)
+	r, _, _, ok := parseSetNumberPrefixRat(v.str, false)
+	return ok && r.Sign() != 0
 }
 
-func leadingMySQLNumericNonZero(s string) bool {
-	s = strings.TrimSpace(s)
-	if len(s) > 0 && (s[0] == '+' || s[0] == '-') {
-		s = s[1:]
+func validateSetSysvarRef(x *nodes.VariableRef) (sysvarSpec, bool, error) {
+	if strings.EqualFold(x.Scope, "PERSIST") || strings.EqualFold(x.Scope, "PERSIST_ONLY") {
+		return sysvarSpec{}, false, &Error{
+			Code:     1193,
+			SQLState: "HY000",
+			Message:  fmt.Sprintf("Unknown system variable '%s.%s'", strings.ToUpper(x.Scope), x.Name),
+		}
 	}
-	hasDigit := false
-	hasNonZero := false
-	sawDot := false
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if ch >= '0' && ch <= '9' {
-			hasDigit = true
-			if ch != '0' {
-				hasNonZero = true
+	lowerName := toLower(x.Name)
+	spec, ok := mysqlSysvarSpecs[lowerName]
+	if !ok {
+		if !validate.IsKnownSystemVariable(lowerName) {
+			return sysvarSpec{}, false, &Error{
+				Code:     1193,
+				SQLState: "HY000",
+				Message:  fmt.Sprintf("Unknown system variable '%s'", x.Name),
 			}
-			continue
 		}
-		if ch == '.' && !sawDot {
-			sawDot = true
-			continue
-		}
-		break
+		return sysvarSpec{}, false, nil
 	}
-	return hasDigit && hasNonZero
+	if spec.kind != sysvarSessionAndGlobal {
+		if strings.EqualFold(x.Scope, "SESSION") || strings.EqualFold(x.Scope, "LOCAL") {
+			return sysvarSpec{}, false, errIncorrectGlobalLocalVar(lowerName, "GLOBAL variable")
+		}
+	}
+	return spec, true, nil
 }
 
 func trimSetString(mode, s, rem string) string {
@@ -1483,19 +1476,8 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 			if !x.System {
 				return true
 			}
-			if strings.EqualFold(x.Scope, "PERSIST") || strings.EqualFold(x.Scope, "PERSIST_ONLY") {
-				err = &Error{
-					Code:     1193,
-					SQLState: "HY000",
-					Message:  fmt.Sprintf("Unknown system variable '%s.%s'", strings.ToUpper(x.Scope), x.Name),
-				}
+			if _, _, err = validateSetSysvarRef(x); err != nil {
 				return false
-			}
-			if spec, ok := mysqlSysvarSpecs[toLower(x.Name)]; ok && spec.kind != sysvarSessionAndGlobal {
-				if strings.EqualFold(x.Scope, "SESSION") || strings.EqualFold(x.Scope, "LOCAL") {
-					err = errIncorrectGlobalLocalVar(toLower(x.Name), "GLOBAL variable")
-					return false
-				}
 			}
 		case *nodes.FuncCallExpr:
 			if x.Schema != "" || (x.SpacedParen && !c.isIgnoreSpaceSQLMode()) {
@@ -1564,41 +1546,11 @@ func (c *Catalog) validateSetExprStatic(n nodes.Node) error {
 }
 
 func parseSetCoercedNumberRat(v userVarValue) *big.Rat {
-	if r, _, ok := parseSetDecimalRat(v); ok {
-		return r
-	}
-	s := strings.TrimSpace(v.str)
-	if s == "" {
+	r, _, _, ok := parseSetNumberPrefixRat(v.str, false)
+	if !ok {
 		return new(big.Rat)
 	}
-	i := 0
-	if s[i] == '+' || s[i] == '-' {
-		i++
-	}
-	hasDigit := false
-	sawDot := false
-	for i < len(s) {
-		ch := s[i]
-		if ch >= '0' && ch <= '9' {
-			hasDigit = true
-			i++
-			continue
-		}
-		if ch == '.' && !sawDot {
-			sawDot = true
-			i++
-			continue
-		}
-		break
-	}
-	if !hasDigit {
-		return new(big.Rat)
-	}
-	prefix := s[:i]
-	if r, ok := new(big.Rat).SetString(prefix); ok {
-		return r
-	}
-	return new(big.Rat)
+	return r
 }
 
 func (c *Catalog) compareSetValues(left, right userVarValue) int {
@@ -1911,8 +1863,12 @@ func (c *Catalog) evalSetBinaryExprNode(e *nodes.BinaryExpr) (userVarValue, bool
 	case nodes.BinOpGe:
 		return boolSetVar(c.compareSetValues(left, right) >= 0), true, nil
 	}
-	ln, lok := parseSetNumericInt64(left)
-	rn, rok := parseSetNumericInt64(right)
+	var ln, rn int64
+	var lok, rok bool
+	if !left.isFloat && !right.isFloat {
+		ln, lok = parseSetNumericInt64(left)
+		rn, rok = parseSetNumericInt64(right)
+	}
 	if !lok || !rok {
 		return evalSetDecimalBinaryExpr(e.Op, left, right)
 	}
@@ -1996,28 +1952,114 @@ func parseSetNumericInt64(v userVarValue) (int64, bool) {
 	return n, true
 }
 
+// parseSetNumberPrefixRat parses a leading or full MySQL decimal/scientific
+// numeric literal (with exponent backtracking so '123euro' parses as 123).
+func parseSetNumberPrefixRat(raw string, strictFull bool) (*big.Rat, int, bool, bool) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil, 0, false, false
+	}
+	i := 0
+	neg := false
+	if s[i] == '+' || s[i] == '-' {
+		neg = s[i] == '-'
+		i++
+	}
+	var digits strings.Builder
+	sawDot := false
+	fracDigits := 0
+	for i < len(s) {
+		ch := s[i]
+		if ch >= '0' && ch <= '9' {
+			digits.WriteByte(ch)
+			if sawDot {
+				fracDigits++
+			}
+			i++
+			continue
+		}
+		if ch == '.' && !sawDot {
+			sawDot = true
+			i++
+			continue
+		}
+		break
+	}
+	if digits.Len() == 0 {
+		return nil, 0, false, false
+	}
+	hasExp := false
+	expVal := 0
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		expPos := i + 1
+		expNeg := false
+		if expPos < len(s) && (s[expPos] == '+' || s[expPos] == '-') {
+			expNeg = s[expPos] == '-'
+			expPos++
+		}
+		expDigitStart := expPos
+		for expPos < len(s) && s[expPos] >= '0' && s[expPos] <= '9' {
+			if expVal <= 1000 {
+				expVal = expVal*10 + int(s[expPos]-'0')
+			}
+			expPos++
+		}
+		if expPos > expDigitStart {
+			hasExp = true
+			if expNeg {
+				expVal = -expVal
+			}
+			i = expPos
+		}
+	}
+	if strictFull && i != len(s) {
+		return nil, 0, false, false
+	}
+	num, ok := new(big.Int).SetString(digits.String(), 10)
+	if !ok {
+		return nil, 0, false, false
+	}
+	if num.Sign() == 0 {
+		scale := fracDigits
+		if hasExp {
+			scale = 0
+		}
+		return new(big.Rat), scale, hasExp, true
+	}
+	totalExp := expVal - fracDigits
+	if hasExp {
+		if totalExp < -350 {
+			return new(big.Rat), 0, true, true
+		}
+		if totalExp > 350 {
+			totalExp = 350
+		}
+	}
+	ten := big.NewInt(10)
+	r := new(big.Rat)
+	if totalExp >= 0 {
+		pow := new(big.Int).Exp(ten, big.NewInt(int64(totalExp)), nil)
+		r.SetInt(new(big.Int).Mul(num, pow))
+	} else {
+		pow := new(big.Int).Exp(ten, big.NewInt(int64(-totalExp)), nil)
+		r.SetFrac(num, pow)
+	}
+	if neg {
+		r.Neg(r)
+	}
+	scale := fracDigits
+	if hasExp {
+		scale = 0
+	}
+	return r, scale, hasExp, true
+}
+
 func parseSetDecimalRat(v userVarValue) (*big.Rat, int, bool) {
 	if v.kind != userVarNumeric && v.kind != userVarString {
 		return nil, 0, false
 	}
-	s := strings.TrimSpace(v.str)
-	if s == "" {
-		return nil, 0, false
-	}
-	digits := strings.TrimLeft(s, "+-")
-	if strings.ContainsAny(digits, "eE/") {
-		return nil, 0, false
-	}
-	dot := strings.IndexByte(digits, '.')
-	scale := 0
-	if dot >= 0 {
-		scale = len(digits) - dot - 1
-	}
-	r, ok := new(big.Rat).SetString(s)
-	if !ok {
-		return nil, 0, false
-	}
-	return r, scale, true
+	r, scale, _, ok := parseSetNumberPrefixRat(v.str, true)
+	return r, scale, ok
 }
 
 func formatSetDecimalRat(r *big.Rat, scale int) string {
@@ -2031,31 +2073,52 @@ func formatSetDecimalRat(r *big.Rat, scale int) string {
 }
 
 func evalSetDecimalBinaryExpr(op nodes.BinaryOp, left, right userVarValue) (userVarValue, bool, error) {
-	lr, lScale, lok := parseSetDecimalRat(left)
-	rr, rScale, rok := parseSetDecimalRat(right)
+	if (left.kind != userVarNumeric && left.kind != userVarString) ||
+		(right.kind != userVarNumeric && right.kind != userVarString) {
+		return userVarValue{}, false, nil
+	}
+	lr, lScale, lFloat, lok := parseSetNumberPrefixRat(left.str, true)
+	rr, rScale, rFloat, rok := parseSetNumberPrefixRat(right.str, true)
 	if !lok || !rok {
 		return userVarValue{}, false, nil
 	}
+	isFloat := left.isFloat || right.isFloat || lFloat || rFloat
 	maxScale := lScale
 	if rScale > maxScale {
 		maxScale = rScale
 	}
 	out := new(big.Rat)
+	formatFloatOut := func(q *big.Rat) (userVarValue, bool, error) {
+		f, _ := q.Float64()
+		return userVarValue{kind: userVarNumeric, str: strconv.FormatFloat(f, 'g', -1, 64), isFloat: true}, true, nil
+	}
 	switch op {
 	case nodes.BinOpAdd:
 		out.Add(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
 		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
 	case nodes.BinOpSub:
 		out.Sub(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
 		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
 	case nodes.BinOpMul:
 		out.Mul(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
 		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, lScale+rScale)}, true, nil
 	case nodes.BinOpDiv:
 		if rr.Sign() == 0 {
 			return userVarValue{kind: userVarNull}, true, nil
 		}
 		out.Quo(lr, rr)
+		if isFloat {
+			return formatFloatOut(out)
+		}
 		divScale := lScale + 4
 		if divScale < 4 {
 			divScale = 4
@@ -2076,6 +2139,9 @@ func evalSetDecimalBinaryExpr(op nodes.BinaryOp, left, right userVarValue) (user
 		q := new(big.Rat).SetInt(new(big.Int).Quo(out.Num(), out.Denom()))
 		q.Mul(q, rr)
 		out.Sub(lr, q)
+		if isFloat {
+			return formatFloatOut(out)
+		}
 		return userVarValue{kind: userVarNumeric, str: formatSetDecimalRat(out, maxScale)}, true, nil
 	default:
 		return userVarValue{}, false, nil
