@@ -20,6 +20,11 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 
 	var sb strings.Builder
 
+	if needsCaseSensitiveIdentifiers(to) {
+		if _, err := sb.WriteString("SET enable_case_sensitive_identifier TO true;\n"); err != nil {
+			return "", err
+		}
+	}
 	if err := writeSchemas(&sb, to); err != nil {
 		return "", err
 	}
@@ -27,6 +32,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		return "", err
 	}
 	if err := writeViews(&sb, to, toState); err != nil {
+		return "", err
+	}
+	if err := writeMaterializedViews(&sb, to, toState); err != nil {
 		return "", err
 	}
 
@@ -39,7 +47,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 // GetTableDefinition renders one table as DDL, matching DatabaseDefinition
 // without the section banner.
 func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (string, error) {
-	if table == nil {
+	if table == nil || table.SkipDump {
 		return "", nil
 	}
 	var sb strings.Builder
@@ -52,7 +60,7 @@ func GetTableDefinition(schemaName string, table *metadatapb.TableMetadata) (str
 // GetViewDefinition renders one view as DDL, matching DatabaseDefinition
 // without the section banner.
 func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string, error) {
-	if view == nil {
+	if view == nil || view.SkipDump {
 		return "", nil
 	}
 	var sb strings.Builder
@@ -62,9 +70,75 @@ func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string
 	return sb.String(), nil
 }
 
+func needsCaseSensitiveIdentifiers(to *metadatapb.DatabaseSchemaMetadata) bool {
+	hasUpper := func(s string) bool {
+		for i := 0; i < len(s); i++ {
+			if s[i] >= 'A' && s[i] <= 'Z' {
+				return true
+			}
+		}
+		return false
+	}
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		if hasUpper(schema.Name) {
+			return true
+		}
+		for _, table := range schema.Tables {
+			if table == nil || table.SkipDump {
+				continue
+			}
+			if hasUpper(table.Name) {
+				return true
+			}
+			for _, col := range table.Columns {
+				if col != nil && hasUpper(col.Name) {
+					return true
+				}
+			}
+			for _, idx := range table.Indexes {
+				if idx != nil && (idx.Primary || idx.Unique) && hasUpper(idx.Name) {
+					return true
+				}
+			}
+			for _, fk := range table.ForeignKeys {
+				if fk == nil {
+					continue
+				}
+				if hasUpper(fk.Name) || hasUpper(fk.ReferencedSchema) || hasUpper(fk.ReferencedTable) {
+					return true
+				}
+				for _, c := range fk.Columns {
+					if hasUpper(c) {
+						return true
+					}
+				}
+				for _, c := range fk.ReferencedColumns {
+					if hasUpper(c) {
+						return true
+					}
+				}
+			}
+		}
+		for _, view := range schema.Views {
+			if view != nil && !view.SkipDump && hasUpper(view.Name) {
+				return true
+			}
+		}
+		for _, mv := range schema.MaterializedViews {
+			if mv != nil && !mv.SkipDump && hasUpper(mv.Name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
 	for _, schema := range to.Schemas {
-		if schema == nil || schema.Name == "" || schema.Name == "public" {
+		if schema == nil || schema.SkipDump || schema.Name == "" || schema.Name == "public" {
 			continue
 		}
 		if _, err := w.WriteString(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;\n", quoteDefinitionIdentifier(schema.Name))); err != nil {
@@ -134,8 +208,9 @@ func writeTables(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state
 }
 
 type orderedViewEntry struct {
-	state *viewState
-	meta  *metadatapb.ViewMetadata
+	state   *viewState
+	meta    *metadatapb.ViewMetadata
+	depCols []*metadatapb.DependencyColumn
 }
 
 func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
@@ -144,6 +219,18 @@ func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state 
 			return err
 		}
 		if err := writeView(w, view); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeMaterializedViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
+	for _, mv := range orderedMaterializedViews(to, state) {
+		if _, err := w.WriteString(getMaterializedViewAnnouncement(mv.name)); err != nil {
+			return err
+		}
+		if err := writeMaterializedView(w, mv); err != nil {
 			return err
 		}
 	}
@@ -159,7 +246,7 @@ func objectKey(schemaName, objectName string) string {
 func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*tableState {
 	var tables []*tableState
 	for _, schema := range to.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		schemaState, ok := state.schemas[schema.Name]
@@ -167,7 +254,7 @@ func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) 
 			continue
 		}
 		for _, table := range schema.Tables {
-			if table == nil {
+			if table == nil || table.SkipDump {
 				continue
 			}
 			ts, ok := schemaState.tables[table.Name]
@@ -217,7 +304,7 @@ func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) 
 func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*viewState {
 	var entries []orderedViewEntry
 	for _, schema := range to.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		schemaState, ok := state.schemas[schema.Name]
@@ -225,7 +312,7 @@ func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) [
 			continue
 		}
 		for _, view := range schema.Views {
-			if view == nil {
+			if view == nil || view.SkipDump {
 				continue
 			}
 			vs, ok := schemaState.views[view.Name]
@@ -236,6 +323,35 @@ func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) [
 			delete(schemaState.views, view.Name)
 		}
 	}
+	return sortViewEntries(entries)
+}
+
+func orderedMaterializedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*viewState {
+	var entries []orderedViewEntry
+	for _, schema := range to.Schemas {
+		if schema == nil || schema.SkipDump {
+			continue
+		}
+		schemaState, ok := state.schemas[schema.Name]
+		if !ok {
+			continue
+		}
+		for _, mv := range schema.MaterializedViews {
+			if mv == nil || mv.SkipDump {
+				continue
+			}
+			vs, ok := schemaState.materializedViews[mv.Name]
+			if !ok {
+				continue
+			}
+			entries = append(entries, orderedViewEntry{state: vs, depCols: mv.DependencyColumns})
+			delete(schemaState.materializedViews, mv.Name)
+		}
+	}
+	return sortViewEntries(entries)
+}
+
+func sortViewEntries(entries []orderedViewEntry) []*viewState {
 	if len(entries) < 2 {
 		out := make([]*viewState, len(entries))
 		for i, e := range entries {
@@ -259,7 +375,11 @@ func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) [
 		dependencies[i][dep] = struct{}{}
 	}
 	for i, e := range entries {
-		for _, dep := range e.meta.DependencyColumns {
+		depCols := e.depCols
+		if e.meta != nil {
+			depCols = e.meta.DependencyColumns
+		}
+		for _, dep := range depCols {
 			if dep == nil {
 				continue
 			}
@@ -482,12 +602,30 @@ func writeView(w io.StringWriter, view *viewState) error {
 	return err
 }
 
+func writeMaterializedView(w io.StringWriter, mv *viewState) error {
+	buf := &strings.Builder{}
+	if err := mv.toMaterializedString(buf); err != nil {
+		return err
+	}
+	if mv.comment != "" {
+		if _, err := fmt.Fprintf(buf, "COMMENT ON MATERIALIZED VIEW %s IS '%s';\n", mv.qualifiedName(), escapeSingleQuote(mv.comment)); err != nil {
+			return err
+		}
+	}
+	_, err := w.WriteString(buf.String())
+	return err
+}
+
 func getTableAnnouncement(name string) string {
 	return fmt.Sprintf("\n--\n-- Table structure for `%s`\n--\n", name)
 }
 
 func getViewAnnouncement(name string) string {
 	return fmt.Sprintf("\n--\n-- View structure for `%s`\n--\n", name)
+}
+
+func getMaterializedViewAnnouncement(name string) string {
+	return fmt.Sprintf("\n--\n-- Materialized view structure for `%s`\n--\n", name)
 }
 
 type databaseState struct {
@@ -505,7 +643,7 @@ func convertToDatabaseState(database *metadatapb.DatabaseSchemaMetadata) *databa
 	state := newDatabaseState()
 	state.name = database.Name
 	for _, schema := range database.Schemas {
-		if schema == nil {
+		if schema == nil || schema.SkipDump {
 			continue
 		}
 		state.schemas[schema.Name] = convertToSchemaState(schema)
@@ -514,9 +652,10 @@ func convertToDatabaseState(database *metadatapb.DatabaseSchemaMetadata) *databa
 }
 
 type schemaState struct {
-	name   string
-	tables map[string]*tableState
-	views  map[string]*viewState
+	name              string
+	tables            map[string]*tableState
+	views             map[string]*viewState
+	materializedViews map[string]*viewState
 }
 
 // qualifyName prefixes the object with its schema, so DDL for analytics.orders
@@ -553,8 +692,9 @@ func escapeSingleQuote(s string) string {
 
 func newSchemaState() *schemaState {
 	return &schemaState{
-		tables: make(map[string]*tableState),
-		views:  make(map[string]*viewState),
+		tables:            make(map[string]*tableState),
+		views:             make(map[string]*viewState),
+		materializedViews: make(map[string]*viewState),
 	}
 }
 
@@ -562,16 +702,22 @@ func convertToSchemaState(schema *metadatapb.SchemaMetadata) *schemaState {
 	state := newSchemaState()
 	state.name = schema.Name
 	for i, table := range schema.Tables {
-		if table == nil {
+		if table == nil || table.SkipDump {
 			continue
 		}
 		state.tables[table.Name] = convertToTableState(i, schema.Name, table)
 	}
 	for i, view := range schema.Views {
-		if view == nil {
+		if view == nil || view.SkipDump {
 			continue
 		}
 		state.views[view.Name] = convertToViewState(i, schema.Name, view)
+	}
+	for i, mv := range schema.MaterializedViews {
+		if mv == nil || mv.SkipDump {
+			continue
+		}
+		state.materializedViews[mv.Name] = convertToMaterializedViewState(i, schema.Name, mv)
 	}
 	return state
 }
@@ -862,14 +1008,17 @@ func (d *defaultValueExpression) toString() string {
 }
 
 type columnState struct {
-	id              int
-	name            string
-	tp              string
-	collationSchema string
-	collation       string
-	defaultValue    defaultValue
-	comment         string
-	nullable        bool
+	id                int
+	name              string
+	tp                string
+	collationSchema   string
+	collation         string
+	defaultValue      defaultValue
+	comment           string
+	nullable          bool
+	isIdentity        bool
+	identitySeed      int64
+	identityIncrement int64
 }
 
 func (c *columnState) toString(buf *strings.Builder) error {
@@ -884,12 +1033,21 @@ func (c *columnState) toString(buf *strings.Builder) error {
 			return err
 		}
 	}
+	if c.isIdentity {
+		seed, step := c.identitySeed, c.identityIncrement
+		if step == 0 {
+			seed, step = 1, 1
+		}
+		if _, err := fmt.Fprintf(buf, " IDENTITY(%d, %d)", seed, step); err != nil {
+			return err
+		}
+	}
 	if !c.nullable {
 		if _, err := buf.WriteString(" NOT NULL"); err != nil {
 			return err
 		}
 	}
-	if c.defaultValue != nil {
+	if !c.isIdentity && c.defaultValue != nil {
 		if _, err := fmt.Fprintf(buf, " DEFAULT %s", c.defaultValue.toString()); err != nil {
 			return err
 		}
@@ -899,13 +1057,16 @@ func (c *columnState) toString(buf *strings.Builder) error {
 
 func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnState {
 	result := &columnState{
-		id:              id,
-		name:            column.Name,
-		tp:              column.Type,
-		collationSchema: column.CollationSchema,
-		collation:       column.Collation,
-		nullable:        column.Nullable,
-		comment:         column.Comment,
+		id:                id,
+		name:              column.Name,
+		tp:                column.Type,
+		collationSchema:   column.CollationSchema,
+		collation:         column.Collation,
+		nullable:          column.Nullable,
+		comment:           column.Comment,
+		isIdentity:        column.IsIdentity,
+		identitySeed:      column.IdentitySeed,
+		identityIncrement: column.IdentityIncrement,
 	}
 	if column.Default == "NULL" {
 		result.defaultValue = &defaultValueNull{}
@@ -933,13 +1094,17 @@ func formatRedshiftCollation(schema, name string) string {
 }
 
 func isExpression(value string) bool {
-	upper := strings.ToUpper(strings.TrimSpace(value))
-	return strings.Contains(upper, "(") || strings.Contains(upper, ")") ||
-		strings.Contains(upper, "::") || strings.Contains(upper, "||") ||
-		strings.Contains(upper, "NOW") || strings.Contains(upper, "CURRENT_") ||
-		strings.Contains(upper, "GETDATE") || strings.Contains(upper, "TIMESTAMP") ||
-		strings.Contains(upper, "SEQUENCE") || upper == "SYSDATE" ||
-		upper == "LOCALTIME" || upper == "LOCALTIMESTAMP"
+	if strings.ContainsAny(value, "()") || strings.Contains(value, "::") || strings.Contains(value, "||") {
+		return true
+	}
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "SYSDATE", "CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP",
+		"CURRENT_USER", "CURRENT_SCHEMA", "LOCALTIME", "LOCALTIMESTAMP",
+		"SESSION_USER", "USER":
+		return true
+	default:
+		return false
+	}
 }
 
 // isQuotedSQLLiteral reports whether s is already a single-quoted SQL string
@@ -1004,12 +1169,73 @@ func convertToViewState(id int, schemaName string, view *metadatapb.ViewMetadata
 	}
 }
 
+func convertToMaterializedViewState(id int, schemaName string, mv *metadatapb.MaterializedViewMetadata) *viewState {
+	return &viewState{
+		id:         id,
+		schema:     schemaName,
+		name:       mv.Name,
+		definition: mv.Definition,
+		comment:    mv.Comment,
+	}
+}
+
 func (v *viewState) toString(buf io.StringWriter) error {
-	stmt := fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
+	trimmed := strings.TrimSpace(v.definition)
+	var stmt string
+	if isCompleteCreateView(trimmed) {
+		stmt = trimmed
+	} else {
+		stmt = fmt.Sprintf("CREATE OR REPLACE VIEW %s AS %s", v.qualifiedName(), v.definition)
+	}
 	if !strings.HasSuffix(stmt, ";") {
 		stmt += ";"
 	}
 	stmt += "\n"
 	_, err := buf.WriteString(stmt)
 	return err
+}
+
+func (v *viewState) toMaterializedString(buf io.StringWriter) error {
+	trimmed := strings.TrimSpace(v.definition)
+	var stmt string
+	if isCompleteCreateMaterializedView(trimmed) {
+		stmt = trimmed
+	} else {
+		stmt = fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s", v.qualifiedName(), v.definition)
+	}
+	if !strings.HasSuffix(stmt, ";") {
+		stmt += ";"
+	}
+	stmt += "\n"
+	_, err := buf.WriteString(stmt)
+	return err
+}
+
+// isCompleteCreateView reports whether definition already starts with a full
+// CREATE [OR REPLACE] VIEW statement (as SHOW VIEW returns for late-binding
+// views with WITH NO SCHEMA BINDING).
+func isCompleteCreateView(definition string) bool {
+	stmts, err := pgparser.Parse(definition)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	_, ok := stmt.(*nodes.ViewStmt)
+	return ok
+}
+
+func isCompleteCreateMaterializedView(definition string) bool {
+	stmts, err := pgparser.Parse(definition)
+	if err != nil || stmts == nil || len(stmts.Items) != 1 {
+		return false
+	}
+	stmt := stmts.Items[0]
+	if raw, ok := stmt.(*nodes.RawStmt); ok {
+		stmt = raw.Stmt
+	}
+	ctas, ok := stmt.(*nodes.CreateTableAsStmt)
+	return ok && ctas.Objtype == nodes.OBJECT_MATVIEW
 }

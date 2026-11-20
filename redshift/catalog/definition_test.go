@@ -437,3 +437,87 @@ func TestDatabaseDefinitionScopedCTEShadowing(t *testing.T) {
 	aIdx := strings.Index(got, "View structure for `a_consumer`")
 	require.Greater(t, aIdx, zIdx, "expected z_base before a_consumer:\n%s", got)
 }
+
+// TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump pins
+// late-binding view preservation, materialized view emission, identity columns,
+// token-based default expression matching, SkipDump, and mixed-case setting.
+func TestDatabaseDefinitionLateBindingViewMaterializedViewsAndSkipDump(t *testing.T) {
+	skippedTable, err := GetTableDefinition("public", &metadatapb.TableMetadata{Name: "ignored", SkipDump: true})
+	require.NoError(t, err)
+	require.Empty(t, skippedTable)
+
+	skippedView, err := GetViewDefinition("public", &metadatapb.ViewMetadata{Name: "ignored", Definition: "SELECT 1", SkipDump: true})
+	require.NoError(t, err)
+	require.Empty(t, skippedView)
+
+	tableWithIdentityAndStrings, err := GetTableDefinition("public", &metadatapb.TableMetadata{
+		Name: "events",
+		Columns: []*metadatapb.ColumnMetadata{
+			{Name: "id", Type: "bigint", IsIdentity: true, IdentitySeed: 10, IdentityIncrement: 5},
+			{Name: "weather", Type: "character varying(20)", Default: "snow", Nullable: true},
+			{Name: "status", Type: "character varying(20)", Default: "current_status", Nullable: true},
+			{Name: "note", Type: "character varying(40)", Default: "timestamp note", Nullable: true},
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, `CREATE TABLE "public"."events" (
+  "id" bigint IDENTITY(10, 5) NOT NULL,
+  "weather" character varying(20) DEFAULT 'snow',
+  "status" character varying(20) DEFAULT 'current_status',
+  "note" character varying(40) DEFAULT 'timestamp note'
+);
+`, tableWithIdentityAndStrings)
+
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{Name: "hidden_schema", SkipDump: true, Tables: []*metadatapb.TableMetadata{{Name: "t"}}},
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{Name: "SkipMe", SkipDump: true},
+					{Name: "Events", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					{Name: "skip_view", Definition: "SELECT 1", SkipDump: true},
+					{
+						Name:       "late_v",
+						Definition: `CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING`,
+					},
+				},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{
+					{Name: "skip_mv", Definition: "SELECT 1", SkipDump: true},
+					{Name: "a_mv_top", Definition: `SELECT id FROM "public"."z_mv_base"`},
+					{Name: "z_mv_base", Definition: `SELECT id FROM "public"."Events"`, Comment: "matview note"},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+	require.Equal(t, `SET enable_case_sensitive_identifier TO true;
+
+--
+-- Table structure for `+"`Events`"+`
+--
+CREATE TABLE "public"."Events" (
+  "id" integer NOT NULL
+);
+
+--
+-- View structure for `+"`late_v`"+`
+--
+CREATE VIEW "public"."late_v" AS SELECT id FROM "public"."Events" WITH NO SCHEMA BINDING;
+
+--
+-- Materialized view structure for `+"`z_mv_base`"+`
+--
+CREATE MATERIALIZED VIEW "public"."z_mv_base" AS SELECT id FROM "public"."Events";
+COMMENT ON MATERIALIZED VIEW "public"."z_mv_base" IS 'matview note';
+
+--
+-- Materialized view structure for `+"`a_mv_top`"+`
+--
+CREATE MATERIALIZED VIEW "public"."a_mv_top" AS SELECT id FROM "public"."z_mv_base";
+`, got)
+}
