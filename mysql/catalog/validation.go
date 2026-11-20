@@ -497,6 +497,10 @@ func (c *Catalog) isNoZeroInDateSQLMode() bool {
 	return c.isStrictSQLMode() && sqlModeHas(c.session.SQLMode, "NO_ZERO_IN_DATE")
 }
 
+func (c *Catalog) isAllowInvalidDatesSQLMode() bool {
+	return sqlModeHas(c.session.SQLMode, "ALLOW_INVALID_DATES")
+}
+
 // sqlModeHas reports whether mode holds the flag, expanding a composite mode as
 // MySQL does. `DEFAULT` expands to MySQL 8.0's default mode list.
 func sqlModeHas(mode, flag string) bool {

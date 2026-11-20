@@ -2257,6 +2257,164 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "ALTER TABLE a ADD x DATE DEFAULT '0000-00-00'",
 			code:    0,
 		},
+		// Partitioned InnoDB tables in shared tablespaces (1478 vs 3510),
+		// repeated DISCARD TABLESPACE (0), accent-insensitive vs accent-sensitive
+		// ENUM collations (1291 vs 0), ALLOW_INVALID_DATES (0 vs 1067), and
+		// expression-default column drop/rename dependencies (3766).
+		{
+			name: "CREATE TABLE partitioned in a shared general tablespace",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+			},
+			stmt:    "CREATE TABLE z (b INT) TABLESPACE ts_oracle PARTITION BY HASH (b) PARTITIONS 2",
+			code:    1478,
+			cleanup: []string{"DROP TABLESPACE ts_oracle"},
+		},
+		{
+			name: "CREATE TABLE with a partition in a shared general tablespace",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+			},
+			stmt:    "CREATE TABLE z (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE ts_oracle)",
+			code:    1478,
+			cleanup: []string{"DROP TABLESPACE ts_oracle"},
+		},
+		{
+			name: "CREATE TABLE with a partition naming a missing tablespace",
+			stmt: "CREATE TABLE z (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE nosuch_ts)",
+			code: 3510,
+		},
+		{
+			name: "CREATE TABLE with a partition in innodb_file_per_table",
+			stmt: "CREATE TABLE z (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE innodb_file_per_table)",
+			code: 0,
+		},
+		{
+			name: "ALTER TABLE partitioning a table in a shared general tablespace",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+				"CREATE TABLE a (b INT) TABLESPACE ts_oracle",
+			},
+			stmt:    "ALTER TABLE a PARTITION BY HASH (b) PARTITIONS 2",
+			code:    1478,
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_oracle"},
+		},
+		{
+			name: "ALTER TABLE moving a partitioned table into a shared general tablespace",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+				"CREATE TABLE a (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10))",
+			},
+			stmt:    "ALTER TABLE a TABLESPACE ts_oracle",
+			code:    1478,
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_oracle"},
+		},
+		{
+			name:  "DISCARD TABLESPACE twice succeeds",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a DISCARD TABLESPACE",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with accent-colliding values under utf8mb4_0900_ai_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('a', 'á')",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with accent-distinct values under utf8mb4_0900_as_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('a', 'á') COLLATE utf8mb4_0900_as_ci",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with case-colliding values under utf8mb4_0900_as_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('a', 'A') COLLATE utf8mb4_0900_as_ci",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with sharp-s and ss under utf8mb4_0900_ai_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('ß', 'ss') COLLATE utf8mb4_0900_ai_ci",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with sharp-s and ss under utf8mb4_general_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('ß', 'ss') COLLATE utf8mb4_general_ci",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with sharp-s and s under utf8mb4_general_ci",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('ß', 's') COLLATE utf8mb4_general_ci",
+			code:  1291,
+		},
+		{
+			name:    "ALTER TABLE ADD DATE with Feb 31 DEFAULT under ALLOW_INVALID_DATES",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ALLOW_INVALID_DATES'"},
+			stmt:    "ALTER TABLE a ADD x DATE DEFAULT '2024-02-31'",
+			code:    0,
+		},
+		{
+			name:    "ALTER TABLE ADD DATETIME with Feb 31 DEFAULT under ALLOW_INVALID_DATES",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ALLOW_INVALID_DATES'"},
+			stmt:    "ALTER TABLE a ADD x DATETIME DEFAULT '2024-02-31 12:00:00'",
+			code:    0,
+		},
+		{
+			name:    "ALTER TABLE ADD TIMESTAMP with Feb 31 DEFAULT under ALLOW_INVALID_DATES",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ALLOW_INVALID_DATES'"},
+			stmt:    "ALTER TABLE a ADD x TIMESTAMP DEFAULT '2024-02-31 12:00:00'",
+			code:    1067,
+		},
+		{
+			name:    "ALTER TABLE ADD DATE with day 32 DEFAULT under ALLOW_INVALID_DATES",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ALLOW_INVALID_DATES'"},
+			stmt:    "ALTER TABLE a ADD x DATE DEFAULT '2024-02-32'",
+			code:    1067,
+		},
+		{
+			name:  "DROP COLUMN referenced by an expression DEFAULT",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, c INT, x INT DEFAULT (c + 1))"},
+			stmt:  "ALTER TABLE a DROP COLUMN c",
+			code:  3766,
+		},
+		{
+			name:  "RENAME COLUMN referenced by an expression DEFAULT",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, c INT, x INT DEFAULT (c + 1))"},
+			stmt:  "ALTER TABLE a RENAME COLUMN c TO c2",
+			code:  3766,
+		},
+		{
+			name:  "CHANGE COLUMN renaming a column referenced by an expression DEFAULT",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, c INT, x INT DEFAULT (c + 1))"},
+			stmt:  "ALTER TABLE a CHANGE COLUMN c c2 INT",
+			code:  3766,
+		},
+		{
+			name:  "DROP and re-ADD a column referenced by an expression DEFAULT",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, c INT, x INT DEFAULT (c + 1))"},
+			stmt:  "ALTER TABLE a DROP COLUMN c, ADD COLUMN c INT",
+			code:  3766,
+		},
+		{
+			name:  "RENAME COLUMN while updating the dependent expression DEFAULT",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, c INT, x INT DEFAULT (c + 1))"},
+			stmt:  "ALTER TABLE a RENAME COLUMN c TO c2, ALTER COLUMN x SET DEFAULT (c2 + 1)",
+			code:  0,
+		},
+		{
+			name:  "DROP COLUMN together with the dependent expression-DEFAULT column",
+			setup: []string{"CREATE TABLE a (id INT PRIMARY KEY, c INT, x INT DEFAULT (c + 1))"},
+			stmt:  "ALTER TABLE a DROP COLUMN c, DROP COLUMN x",
+			code:  0,
+		},
 	}
 
 	for _, tc := range cases {
@@ -2486,5 +2644,21 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 	execAlterClauses(t, c, "DROP TABLESPACE ts2;")
 	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts2"); got != 3510 {
 		t.Fatalf("DROP missing TABLESPACE got %d, want 3510", got)
+	}
+
+	// Snapshot-loaded partition/subpartition tablespace ownership blocks DROP TABLESPACE (3120) and tracks RENAME.
+	execAlterClauses(t, c, "CREATE TABLESPACE ts_p ADD DATAFILE 'ts_p.ibd';")
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE p_snap (b INT) PARTITION BY RANGE (b) (PARTITION p0 VALUES LESS THAN (10) TABLESPACE = ts_p)")); err != nil {
+		t.Fatalf("DefineTable with partition tablespace: %v", err)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts_p"); got != 3120 {
+		t.Fatalf("DROP partition-referenced TABLESPACE got %d, want 3120", got)
+	}
+	execAlterClauses(t, c, "ALTER TABLESPACE ts_p RENAME TO ts_p2;")
+	if pSnap := c.GetDatabase("d").GetTable("p_snap"); pSnap.Partitioning.Partitions[0].Tablespace != "ts_p2" {
+		t.Fatalf("partition tablespace after rename = %q, want ts_p2", pSnap.Partitioning.Partitions[0].Tablespace)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts_p2"); got != 3120 {
+		t.Fatalf("DROP renamed partition-referenced TABLESPACE got %d, want 3120", got)
 	}
 }

@@ -79,6 +79,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 	}
+	if ((tbl.Partitioning != nil && !alterRemovesPartitioning(stmt.Commands)) || repartition != nil) &&
+		isInnoDBEngine(alterTargetEngine(tbl, stmt.Commands)) {
+		if err := validateInnoDBPartitionedSharedTablespace(alterTargetTablespace(tbl, stmt.Commands)); err != nil {
+			return err
+		}
+	}
 	// A ROW_FORMAT FIXED, COMPRESSION, or AUTOEXTEND_SIZE the statement writes is
 	// the engine's to take, and InnoDB refuses it — after the statement's other
 	// commands, which answer first: `ROW_FORMAT FIXED, ADD KEY(zzz)` is 1072.
@@ -205,6 +211,25 @@ func alterTargetEngine(tbl *Table, commands []*nodes.AlterTableCmd) string {
 	return engine
 }
 
+func alterTargetTablespace(tbl *Table, commands []*nodes.AlterTableCmd) string {
+	ts := tbl.Tablespace
+	for _, cmd := range commands {
+		if cmd != nil && cmd.Type == nodes.ATTableOption && cmd.Option != nil && strings.EqualFold(cmd.Option.Name, "tablespace") {
+			ts = cmd.Option.Value
+		}
+	}
+	return ts
+}
+
+func alterRemovesPartitioning(commands []*nodes.AlterTableCmd) bool {
+	for _, cmd := range commands {
+		if cmd != nil && cmd.Type == nodes.ATRemovePartitioning {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.AlterTableCmd) error {
 	engine := alterTargetEngine(tbl, commands)
 	if !isInnoDBEngine(engine) {
@@ -328,6 +353,14 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// final-table invariant failure rolls back all mutations cleanly.
 	snapshot := cloneTable(tbl)
 	origKey := key
+	origTableName := tbl.Name
+	preExprs := make(map[nodes.ExprNode]bool)
+	for _, col := range tbl.Columns {
+		if col != nil && col.DefaultIsExpr && col.DefaultExprNode != nil {
+			preExprs[col.DefaultExprNode] = true
+		}
+	}
+	droppedOrRenamed := collectDroppedOrRenamedColumns(tbl, stmt.Commands)
 	beforeConstraints := make(map[*Constraint]bool, len(tbl.Constraints))
 	for _, con := range tbl.Constraints {
 		beforeConstraints[con] = true
@@ -349,6 +382,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return errTableMustHaveColumns()
 	}
+	if err := validateDroppedOrRenamedDefaultExprDeps(tbl, origTableName, droppedOrRenamed, preExprs); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
 	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeIndexes, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
@@ -364,6 +401,30 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Clear transient cleanup tracking after successful ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
+}
+
+func collectDroppedOrRenamedColumns(tbl *Table, commands []*nodes.AlterTableCmd) []string {
+	var out []string
+	for _, cmd := range commands {
+		if cmd == nil {
+			continue
+		}
+		switch cmd.Type {
+		case nodes.ATDropColumn:
+			if tbl.GetColumn(cmd.Name) != nil {
+				out = append(out, cmd.Name)
+			}
+		case nodes.ATRenameColumn:
+			if tbl.GetColumn(cmd.Name) != nil && !strings.EqualFold(cmd.Name, cmd.NewName) {
+				out = append(out, cmd.Name)
+			}
+		case nodes.ATChangeColumn:
+			if cmd.Column != nil && tbl.GetColumn(cmd.Name) != nil && !strings.EqualFold(cmd.Name, cmd.Column.Name) {
+				out = append(out, cmd.Name)
+			}
+		}
+	}
+	return out
 }
 
 // checkKeysOnFinalTable re-checks the keys a statement added once every command
@@ -793,7 +854,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 			return err
 		}
 	}
-	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
+	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
 		return err
 	}
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
@@ -1065,7 +1126,7 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 			return err
 		}
 	}
-	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
+	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
 		return err
 	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
@@ -1690,7 +1751,7 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
 			return err
 		}
-		if err := validateColumnLiteralDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
+		if err := validateColumnLiteralDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
 			return err
 		}
 		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
@@ -2080,9 +2141,30 @@ func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error 
 			// same engine.
 			case "engine", "storage engine":
 				pdi.Engine = storedEngineName(opt.Value)
+			case "tablespace":
+				pdi.Tablespace = unquoteTableOption(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
+		}
+		for _, spd := range pd.SubPartitions {
+			spdi := &SubPartitionDefInfo{
+				Name:       spd.Name,
+				Engine:     pdi.Engine,
+				Tablespace: pdi.Tablespace,
+				Comment:    pdi.Comment,
+			}
+			for _, opt := range spd.Options {
+				switch toLower(opt.Name) {
+				case "engine", "storage engine":
+					spdi.Engine = storedEngineName(opt.Value)
+				case "tablespace":
+					spdi.Tablespace = unquoteTableOption(opt.Value)
+				case "comment":
+					spdi.Comment = opt.Value
+				}
+			}
+			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
 		}
 		tbl.Partitioning.Partitions = append(tbl.Partitioning.Partitions, pdi)
 	}
@@ -2184,9 +2266,30 @@ func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd)
 			// same engine.
 			case "engine", "storage engine":
 				pdi.Engine = storedEngineName(opt.Value)
+			case "tablespace":
+				pdi.Tablespace = unquoteTableOption(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
+		}
+		for _, spd := range pd.SubPartitions {
+			spdi := &SubPartitionDefInfo{
+				Name:       spd.Name,
+				Engine:     pdi.Engine,
+				Tablespace: pdi.Tablespace,
+				Comment:    pdi.Comment,
+			}
+			for _, opt := range spd.Options {
+				switch toLower(opt.Name) {
+				case "engine", "storage engine":
+					spdi.Engine = storedEngineName(opt.Value)
+				case "tablespace":
+					spdi.Tablespace = unquoteTableOption(opt.Value)
+				case "comment":
+					spdi.Comment = opt.Value
+				}
+			}
+			pdi.SubPartitions = append(pdi.SubPartitions, spdi)
 		}
 		newParts = append(newParts, pdi)
 	}

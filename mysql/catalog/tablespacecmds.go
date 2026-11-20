@@ -81,6 +81,63 @@ func (c *Catalog) validateInnoDBTablespace(tableName string, temporary bool, raw
 	}
 }
 
+func validateInnoDBPartitionedSharedTablespace(rawTS string) error {
+	ts := unquoteTableOption(strings.TrimSpace(rawTS))
+	if ts != "" && ts != "innodb_file_per_table" {
+		return errPartitionedTableSharedTablespace()
+	}
+	return nil
+}
+
+func tableUsesTablespace(tbl *Table, tsName string) bool {
+	if tbl == nil {
+		return false
+	}
+	if unquoteTableOption(tbl.Tablespace) == tsName {
+		return true
+	}
+	if tbl.Partitioning != nil {
+		for _, pd := range tbl.Partitioning.Partitions {
+			if pd == nil {
+				continue
+			}
+			if unquoteTableOption(pd.Tablespace) == tsName {
+				return true
+			}
+			for _, spd := range pd.SubPartitions {
+				if spd != nil && unquoteTableOption(spd.Tablespace) == tsName {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func renameTableTablespaceRefs(tbl *Table, oldName, newName string) {
+	if tbl == nil {
+		return
+	}
+	if unquoteTableOption(tbl.Tablespace) == oldName {
+		tbl.Tablespace = newName
+	}
+	if tbl.Partitioning != nil {
+		for _, pd := range tbl.Partitioning.Partitions {
+			if pd == nil {
+				continue
+			}
+			if unquoteTableOption(pd.Tablespace) == oldName {
+				pd.Tablespace = newName
+			}
+			for _, spd := range pd.SubPartitions {
+				if spd != nil && unquoteTableOption(spd.Tablespace) == oldName {
+					spd.Tablespace = newName
+				}
+			}
+		}
+	}
+}
+
 func validateTablespaceCreateName(name string) error {
 	if strings.HasPrefix(strings.ToLower(name), "innodb_") {
 		return errReservedInnoDBTablespacePrefix()
@@ -152,9 +209,7 @@ func (c *Catalog) alterTablespace(stmt *nodes.AlterTablespaceStmt) error {
 		c.tablespaces[stmt.RenameTo] = true
 		for _, db := range c.databases {
 			for _, tbl := range db.Tables {
-				if unquoteTableOption(tbl.Tablespace) == stmt.Name {
-					tbl.Tablespace = stmt.RenameTo
-				}
+				renameTableTablespaceRefs(tbl, stmt.Name, stmt.RenameTo)
 			}
 		}
 	}
@@ -178,7 +233,7 @@ func (c *Catalog) dropTablespace(stmt *nodes.DropTablespaceStmt) error {
 	}
 	for _, db := range c.databases {
 		for _, tbl := range db.Tables {
-			if unquoteTableOption(tbl.Tablespace) == stmt.Name {
+			if tableUsesTablespace(tbl, stmt.Name) {
 				return errTablespaceIsNotEmpty(stmt.Name)
 			}
 		}
@@ -239,6 +294,9 @@ func (c *Catalog) validatePartitionTablespaces(tableName string, temporary bool,
 			if err := c.validateInnoDBTablespace(tableName, temporary, partTS); err != nil {
 				return err
 			}
+			if err := validateInnoDBPartitionedSharedTablespace(partTS); err != nil {
+				return err
+			}
 		}
 		for _, sub := range pd.SubPartitions {
 			if sub == nil {
@@ -258,6 +316,9 @@ func (c *Catalog) validatePartitionTablespaces(tableName string, temporary bool,
 			}
 			if subTS != "" && isInnoDBEngine(subEngine) {
 				if err := c.validateInnoDBTablespace(tableName, temporary, subTS); err != nil {
+					return err
+				}
+				if err := validateInnoDBPartitionedSharedTablespace(subTS); err != nil {
 					return err
 				}
 			}

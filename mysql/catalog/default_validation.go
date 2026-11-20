@@ -7,7 +7,6 @@ import (
 	"math/bits"
 	"strconv"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -136,6 +135,40 @@ func validateTableDefaultExpressions(tbl *Table) error {
 	return nil
 }
 
+// validateDroppedOrRenamedDefaultExprDeps enforces MySQL 3766 when an ALTER
+// TABLE drops or renames a column that a surviving pre-existing expression
+// DEFAULT still references (measured on mysql:8.0.46).
+func validateDroppedOrRenamedDefaultExprDeps(tbl *Table, origTableName string, droppedOrRenamed []string, preExprs map[nodes.ExprNode]bool) error {
+	for _, target := range droppedOrRenamed {
+		for _, col := range tbl.Columns {
+			if col == nil || !col.DefaultIsExpr || col.DefaultExprNode == nil || !preExprs[col.DefaultExprNode] {
+				continue
+			}
+			if exprReferencesColumn(col.DefaultExprNode, tbl.Name, target) {
+				return errDependentByDefaultValExpr(target, origTableName)
+			}
+		}
+	}
+	return nil
+}
+
+func exprReferencesColumn(expr nodes.ExprNode, tableName, colName string) bool {
+	found := false
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if found {
+			return false
+		}
+		if cr, ok := n.(*nodes.ColumnRef); ok && cr.Column != "" {
+			if cr.Schema == "" && (cr.Table == "" || strings.EqualFold(cr.Table, tableName)) && strings.EqualFold(cr.Column, colName) {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
+
 // validateEnumSetDuplicates checks an ENUM or SET member list for duplicates
 // under the column's effective collation when strict sql_mode is active (1291,
 // measured on mysql:8.0.46). Trailing spaces are stripped before comparison, and
@@ -144,40 +177,16 @@ func validateEnumSetDuplicates(colName, dataType, collation, charset string, val
 	if !strict || !isEnumSetType(dataType) || len(values) == 0 {
 		return nil
 	}
-	caseSensitive, turkish := collationSensitivity(collation, charset)
 	seen := make(map[string]string, len(values))
 	for _, raw := range values {
 		trimmed := strings.TrimRight(raw, " ")
-		key := enumCollationKey(trimmed, caseSensitive, turkish)
+		key := collationComparisonKey(trimmed, collation, charset)
 		if first, dup := seen[key]; dup {
 			return errDuplicatedValueInType(colName, first, strings.ToUpper(dataType))
 		}
 		seen[key] = trimmed
 	}
 	return nil
-}
-
-func collationSensitivity(collation, charset string) (caseSensitive, turkish bool) {
-	coll := strings.ToLower(strings.TrimSpace(collation))
-	if coll == "" && charset != "" {
-		coll = defaultCollationForCharset[toLower(charset)]
-	}
-	if coll == "" {
-		coll = "utf8mb4_0900_ai_ci"
-	}
-	caseSensitive = coll == "binary" || strings.HasSuffix(coll, "_bin") || strings.HasSuffix(coll, "_cs")
-	turkish = strings.Contains(coll, "_tr_") || strings.Contains(coll, "_turkish_")
-	return caseSensitive, turkish
-}
-
-func enumCollationKey(s string, caseSensitive, turkish bool) string {
-	if caseSensitive {
-		return s
-	}
-	if turkish {
-		return strings.ToLowerSpecial(unicode.TurkishCase, s)
-	}
-	return strings.ToLower(s)
 }
 
 func enumMembersFromColumnType(colType string) []string {
@@ -263,7 +272,7 @@ func cleanHexDigits(s string) string {
 
 // validateColumnLiteralDefault checks an unparenthesized literal DEFAULT against
 // the column's type and length/range (1067, measured on mysql:8.0.46).
-func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZeroDate, noZeroInDate bool) error {
+func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZeroDate, noZeroInDate, allowInvalidDates bool) error {
 	if col == nil || expr == nil {
 		return nil
 	}
@@ -344,7 +353,7 @@ func validateColumnLiteralDefault(col *Column, expr nodes.ExprNode, strict, noZe
 			return errInvalidDefault(col.Name)
 		}
 	case "date", "datetime", "timestamp":
-		if !validDateOrDatetimeLiteralDefault(dt, kind, val, unquotedNum, strict, noZeroDate, noZeroInDate) {
+		if !validDateOrDatetimeLiteralDefault(dt, kind, val, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates) {
 			return errInvalidDefault(col.Name)
 		}
 	case "time":
@@ -635,10 +644,9 @@ func validEnumLiteralDefault(col *Column, kind literalDefaultKind, val string, u
 	if kind != litString {
 		return true
 	}
-	caseSensitive, turkish := collationSensitivity(col.Collation, col.Charset)
-	target := enumCollationKey(strings.TrimRight(val, " "), caseSensitive, turkish)
+	target := collationComparisonKey(strings.TrimRight(val, " "), col.Collation, col.Charset)
 	for _, m := range members {
-		if enumCollationKey(strings.TrimRight(m, " "), caseSensitive, turkish) == target {
+		if collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset) == target {
 			return true
 		}
 	}
@@ -666,20 +674,19 @@ func validSetLiteralDefault(col *Column, kind literalDefaultKind, val string, un
 	if val == "" {
 		return true
 	}
-	caseSensitive, turkish := collationSensitivity(col.Collation, col.Charset)
 	allowed := make(map[string]bool, len(members))
 	for _, m := range members {
-		allowed[enumCollationKey(strings.TrimRight(m, " "), caseSensitive, turkish)] = true
+		allowed[collationComparisonKey(strings.TrimRight(m, " "), col.Collation, col.Charset)] = true
 	}
 	for _, part := range strings.Split(val, ",") {
-		if !allowed[enumCollationKey(strings.TrimRight(part, " "), caseSensitive, turkish)] {
+		if !allowed[collationComparisonKey(strings.TrimRight(part, " "), col.Collation, col.Charset)] {
 			return false
 		}
 	}
 	return true
 }
 
-func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val string, unquotedNum, strict, noZeroDate, noZeroInDate bool) bool {
+func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val string, unquotedNum, noZeroDate, noZeroInDate, allowInvalidDates bool) bool {
 	if kind != litString && kind != litNumber {
 		return false
 	}
@@ -704,7 +711,7 @@ func validDateOrDatetimeLiteralDefault(dt string, kind literalDefaultKind, val s
 		}
 		return true
 	}
-	if day > daysInMonth(year, month) {
+	if (dt == "timestamp" || !allowInvalidDates) && day > daysInMonth(year, month) {
 		return false
 	}
 	if dt == "timestamp" {

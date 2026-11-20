@@ -100,6 +100,7 @@ const (
 	ErrReservedTablespaceName            = 3723
 	ErrFunctionalIndexPrimaryKey         = 3756
 	ErrFunctionalIndexOnField            = 3762
+	ErrDependentByDefaultVal             = 3766
 	ErrDefaultValExprNamedFuncNotAllowed = 3767
 	ErrDefaultValExprRefAutoInc          = 3768
 	ErrDefaultValExprContainSubquery     = 3769
@@ -194,6 +195,7 @@ var sqlStateMap = map[int]string{
 	ErrReservedTablespaceName:            "HY000",
 	ErrFunctionalIndexPrimaryKey:         "HY000",
 	ErrFunctionalIndexOnField:            "HY000",
+	ErrDependentByDefaultVal:             "HY000",
 	ErrDefaultValExprNamedFuncNotAllowed: "HY000",
 	ErrDefaultValExprRefAutoInc:          "HY000",
 	ErrDefaultValExprContainSubquery:     "HY000",
@@ -679,6 +681,16 @@ func errReservedTablespaceName(table, ts string) error {
 func errTempTablespaceNonTempTable() error {
 	return &Error{Code: 1478, SQLState: "HY000",
 		Message: "InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables."}
+}
+
+func errPartitionedTableSharedTablespace() error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: "InnoDB : A partitioned table is not allowed in a shared tablespace."}
+}
+
+func errDependentByDefaultValExpr(colName, tableName string) error {
+	return &Error{Code: ErrDependentByDefaultVal, SQLState: sqlState(ErrDependentByDefaultVal),
+		Message: fmt.Sprintf("Column '%s' of table '%s' has a default value expression dependency and cannot be dropped or renamed.", colName, tableName)}
 }
 
 func errFunctionalIndexPrimaryKey() error {

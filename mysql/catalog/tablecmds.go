@@ -497,7 +497,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 					return err
 				}
 			}
-			if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
+			if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode(), c.isAllowInvalidDatesSQLMode()); err != nil {
 				return err
 			}
 		}
@@ -953,6 +953,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt, declared bool, source
 		if err := validatePartitionClause(tbl, stmt.Partitions); err != nil {
 			return err
 		}
+		if declared && isInnoDBEngine(tbl.Engine) {
+			if err := validateInnoDBPartitionedSharedTablespace(tbl.Tablespace); err != nil {
+				return err
+			}
+		}
 		tbl.Partitioning = buildPartitionInfo(tbl, stmt.Partitions, declared)
 	}
 
@@ -1183,6 +1188,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 			switch toLower(opt.Name) {
 			case "engine":
 				pdi.Engine = partitionEngineName(opt.Value, declared)
+			case "tablespace":
+				pdi.Tablespace = unquoteTableOption(opt.Value)
 			case "comment":
 				pdi.Comment = opt.Value
 			}
@@ -1196,14 +1203,17 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause, declared bool) *P
 		}
 		for _, spd := range pd.SubPartitions {
 			spdi := &SubPartitionDefInfo{
-				Name:    spd.Name,
-				Engine:  pdi.Engine,
-				Comment: pdi.Comment,
+				Name:       spd.Name,
+				Engine:     pdi.Engine,
+				Tablespace: pdi.Tablespace,
+				Comment:    pdi.Comment,
 			}
 			for _, opt := range spd.Options {
 				switch toLower(opt.Name) {
 				case "engine":
 					spdi.Engine = partitionEngineName(opt.Value, declared)
+				case "tablespace":
+					spdi.Tablespace = unquoteTableOption(opt.Value)
 				case "comment":
 					spdi.Comment = opt.Value
 				}

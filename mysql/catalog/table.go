@@ -70,15 +70,17 @@ type PartitionDefInfo struct {
 	Name          string
 	ValueExpr     string // "LESS THAN (...)" or "IN (...)" or ""
 	Engine        string // ENGINE option for this partition
+	Tablespace    string // TABLESPACE option for this partition
 	Comment       string // COMMENT option for this partition
 	SubPartitions []*SubPartitionDefInfo
 }
 
 // SubPartitionDefInfo holds a single subpartition definition.
 type SubPartitionDefInfo struct {
-	Name    string
-	Engine  string
-	Comment string
+	Name       string
+	Engine     string
+	Tablespace string
+	Comment    string
 }
 
 type Column struct {
