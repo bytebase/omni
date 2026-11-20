@@ -1,6 +1,9 @@
 package catalog
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // relKey is the identity key for a relation: qualified name.
 type relKey struct {
@@ -8,12 +11,18 @@ type relKey struct {
 	name   string
 }
 
-// diffRelations compares relations (tables only, RelKind='r') between two catalogs.
+// diffRelations compares relations (tables only, RelKind='r' or 'p') between two catalogs.
 // Views and materialized views are handled separately.
 func diffRelations(from, to *Catalog) []RelationDiffEntry {
-	// Build maps of (schema, name) -> *Relation for both catalogs.
-	fromMap := buildRelationMap(from)
-	toMap := buildRelationMap(to)
+	return diffRelationMaps(from, to, buildRelationMap(from), buildRelationMap(to))
+}
+
+// diffForeignTables compares foreign tables (RelKind='f') between two catalogs.
+func diffForeignTables(from, to *Catalog) []RelationDiffEntry {
+	return diffRelationMaps(from, to, buildForeignTableMap(from), buildForeignTableMap(to))
+}
+
+func diffRelationMaps(from, to *Catalog, fromMap, toMap map[relKey]*Relation) []RelationDiffEntry {
 
 	var result []RelationDiffEntry
 
@@ -78,6 +87,20 @@ func buildRelationMap(c *Catalog) map[relKey]*Relation {
 	return m
 }
 
+// buildForeignTableMap builds a map of (schema, name) -> *Relation for foreign tables (RelKind='f').
+func buildForeignTableMap(c *Catalog) map[relKey]*Relation {
+	m := make(map[relKey]*Relation)
+	for _, s := range c.UserSchemas() {
+		for _, rel := range s.Relations {
+			if rel.RelKind != 'f' || c.isExtensionMember(rel.OID) {
+				continue
+			}
+			m[relKey{schema: s.Name, name: rel.Name}] = rel
+		}
+	}
+	return m
+}
+
 // compareRelation checks whether two relations with the same identity differ
 // in table-level properties or sub-objects (columns).
 func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (RelationDiffEntry, bool) {
@@ -99,6 +122,9 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		changed = true
 	}
 	if from.RelKind != to.RelKind {
+		changed = true
+	}
+	if from.ForeignServer != to.ForeignServer || !slices.Equal(from.ForeignOptions, to.ForeignOptions) {
 		changed = true
 	}
 

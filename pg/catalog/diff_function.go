@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -123,6 +124,9 @@ func funcChanged(from, to *Catalog, fp, tp *UserProc) bool {
 		return true
 	}
 	if fp.NArgDefaults != tp.NArgDefaults {
+		return true
+	}
+	if !slices.Equal(fp.ArgDefaults, tp.ArgDefaults) {
 		return true
 	}
 	return false

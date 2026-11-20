@@ -177,6 +177,7 @@ type GrantDiffEntry struct {
 type SchemaDiff struct {
 	Schemas        []SchemaDiffEntry
 	Relations      []RelationDiffEntry
+	ForeignTables  []RelationDiffEntry
 	Sequences      []SequenceDiffEntry
 	Functions      []FunctionDiffEntry
 	Enums          []EnumDiffEntry
@@ -193,6 +194,7 @@ type SchemaDiff struct {
 func (d *SchemaDiff) IsEmpty() bool {
 	return len(d.Schemas) == 0 &&
 		len(d.Relations) == 0 &&
+		len(d.ForeignTables) == 0 &&
 		len(d.Sequences) == 0 &&
 		len(d.Functions) == 0 &&
 		len(d.Enums) == 0 &&
@@ -213,6 +215,7 @@ func Diff(from, to *Catalog) *SchemaDiff {
 	return &SchemaDiff{
 		Schemas:        diffSchemas(from, to),
 		Relations:      relations,
+		ForeignTables:  diffForeignTables(from, to),
 		Sequences:      diffSequences(from, to),
 		Functions:      diffFunctions(from, to),
 		Enums:          diffEnums(from, to),

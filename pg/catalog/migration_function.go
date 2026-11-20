@@ -204,25 +204,28 @@ func formatFuncParams(c *Catalog, proc *UserProc) string {
 	}
 
 	var parts []string
+	inputIdx := 0
 	for i, toid := range argTypes {
 		// Skip TABLE mode params — they go in RETURNS TABLE(...).
-		if proc.ArgModes != nil && i < len(proc.ArgModes) && proc.ArgModes[i] == 't' {
+		var mode byte
+		if proc.ArgModes != nil && i < len(proc.ArgModes) {
+			mode = proc.ArgModes[i]
+		}
+		if mode == 't' {
 			continue
 		}
 
 		var param strings.Builder
 
 		// Mode prefix.
-		if proc.ArgModes != nil && i < len(proc.ArgModes) {
-			switch proc.ArgModes[i] {
-			case 'o':
-				param.WriteString("OUT ")
-			case 'b':
-				param.WriteString("INOUT ")
-			case 'v':
-				param.WriteString("VARIADIC ")
-				// 'i' (IN) is implicit, 't' (TABLE) handled separately
-			}
+		switch mode {
+		case 'o':
+			param.WriteString("OUT ")
+		case 'b':
+			param.WriteString("INOUT ")
+		case 'v':
+			param.WriteString("VARIADIC ")
+			// 'i' (IN) is implicit, 't' (TABLE) handled separately
 		}
 
 		// Parameter name.
@@ -233,6 +236,15 @@ func formatFuncParams(c *Catalog, proc *UserProc) string {
 
 		// Type.
 		param.WriteString(c.FormatType(toid, -1))
+
+		// Default expression for input parameters.
+		if mode != 'o' {
+			if proc.ArgDefaults != nil && inputIdx < len(proc.ArgDefaults) && proc.ArgDefaults[inputIdx] != "" {
+				param.WriteString(" DEFAULT ")
+				param.WriteString(proc.ArgDefaults[inputIdx])
+			}
+			inputIdx++
+		}
 
 		parts = append(parts, param.String())
 	}

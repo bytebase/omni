@@ -36,6 +36,8 @@ type UserProc struct {
 	// ArgDefaultTypes is the type of each parameter default, for the last
 	// NArgDefaults input parameters; nil when one could not be analyzed.
 	ArgDefaultTypes []uint32
+	// ArgDefaults stores deparsed default expressions parallel to ArgTypes.
+	ArgDefaults []string
 }
 
 // CreateFunctionStmt creates a user-defined function or procedure from a pgparser AST.
@@ -494,6 +496,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		parallel = 'u'
 	}
 
+	argDefaults := c.paramDefaults(stmt.Parameters, len(argOIDs), int(nArgDefaults))
 	defaultTypes := c.paramDefaultTypes(stmt.Parameters, argOIDs, int(nArgDefaults))
 
 	// Check for existing function with same signature.
@@ -528,6 +531,8 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 			}
 			up.NArgDefaults = nArgDefaults
 			up.ArgDefaultTypes = defaultTypes
+			up.ArgDefaults = argDefaults
+			up.ArgDefaults = argDefaults
 			existing.NArgDefaults = nArgDefaults
 			up.Volatile = volatile
 			up.Parallel = parallel
@@ -643,6 +648,7 @@ func (c *Catalog) CreateFunctionStmt(stmt *nodes.CreateFunctionStmt) error {
 		}
 	}
 	up.ArgDefaultTypes = defaultTypes
+	up.ArgDefaults = argDefaults
 
 	// Record dependencies from SQL function body.
 	// pg: src/backend/catalog/pg_proc.c — ProcedureCreate
@@ -692,6 +698,31 @@ func (c *Catalog) paramDefaultTypes(params *nodes.List, argOIDs []uint32, nDefau
 		}
 	}
 	return types
+}
+
+func (c *Catalog) paramDefaults(params *nodes.List, nInputArgs, nDefaults int) []string {
+	if params == nil || nDefaults == 0 || nDefaults > nInputArgs {
+		return nil
+	}
+	defaults := make([]string, nInputArgs)
+	inputIdx := 0
+	for _, item := range params.Items {
+		fp, ok := item.(*nodes.FunctionParameter)
+		if !ok {
+			continue
+		}
+		if fp.Mode == nodes.FUNC_PARAM_OUT || fp.Mode == nodes.FUNC_PARAM_TABLE {
+			continue
+		}
+		if fp.Defexpr != nil && inputIdx < len(defaults) {
+			analyzed, err := c.AnalyzeExprNoContext(fp.Defexpr)
+			if err == nil && analyzed != nil {
+				defaults[inputIdx] = c.DeparseExpr(analyzed, nil, false)
+			}
+		}
+		inputIdx++
+	}
+	return defaults
 }
 
 func createFunctionStmtIsProcedure(stmt *nodes.CreateFunctionStmt) bool {

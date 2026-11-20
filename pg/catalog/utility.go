@@ -95,7 +95,27 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 	case *nodes.CreateForeignTableStmt:
 		// CREATE FOREIGN TABLE: delegate to DefineRelation with relkind='f'
 		// pg: src/backend/commands/tablecmds.c — DefineRelation (foreign table)
-		return c.DefineRelation(&s.Base, 'f')
+		var schemaName, relName string
+		if s.Base.Relation != nil {
+			schemaName, relName = s.Base.Relation.Schemaname, s.Base.Relation.Relname
+		}
+		existed := s.Base.IfNotExists && c.GetRelation(schemaName, relName) != nil
+		if err := c.DefineRelation(&s.Base, 'f'); err != nil {
+			return err
+		}
+		if !existed {
+			if rel := c.GetRelation(schemaName, relName); rel != nil && rel.RelKind == 'f' {
+				rel.ForeignServer = s.Servername
+				if s.Options != nil {
+					for _, item := range s.Options.Items {
+						if de, ok := item.(*nodes.DefElem); ok {
+							rel.ForeignOptions = append(rel.ForeignOptions, de.Defname+"="+defElemString(de))
+						}
+					}
+				}
+			}
+		}
+		return nil
 	case *nodes.CreateStatsStmt:
 		// CREATE STATISTICS: no-op for pgddl (planner hint)
 		return nil

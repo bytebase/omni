@@ -92,6 +92,9 @@ type Relation struct {
 	// AccessMethod is the table access method (pg_class.relam), or "" when
 	// unset (e.g. default heap or partitioned table without explicit USING).
 	AccessMethod string
+	// ForeignServer and ForeignOptions store server and ftoptions for RelKind='f'.
+	ForeignServer  string
+	ForeignOptions []string
 	// OwnerName is the role that owns the relation, for ALTER ... OWNED BY.
 	OwnerName string
 

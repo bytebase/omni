@@ -634,3 +634,123 @@ func TestApplyDiffToMetadataPreservesMetadataOnRenamePartitionViewSequenceAndOwn
 	require.Len(t, renSM.MaterializedViews, 1)
 	require.Equal(t, "mv doc", renSM.MaterializedViews[0].Comment)
 }
+
+func TestApplyDiffToMetadataExtensionsExternalTablesRenamesTriggersAndDefaults(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "postgres",
+		Extensions: []*metadatapb.ExtensionMetadata{{
+			Name:        "old_ext",
+			Schema:      "public",
+			Version:     "1.0",
+			Description: "preexisting",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name: "t",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "id", Type: "integer", Position: 1},
+						{Name: "old_col", Type: "text", Position: 2, Nullable: true, Comment: "col comment"},
+					},
+					Triggers: []*metadatapb.TriggerMetadata{{
+						Name:    "tr_t",
+						Timing:  "BEFORE",
+						Event:   "INSERT",
+						Body:    "CREATE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.fn_a()",
+						Comment: "trig doc",
+					}},
+				}},
+				Views: []*metadatapb.ViewMetadata{{
+					Name:              "v_t",
+					Definition:        "SELECT id FROM public.t;",
+					Comment:           "v doc",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "t", Column: "id"}},
+					Rules:             []*metadatapb.RuleMetadata{{Name: "r1"}},
+				}},
+				MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+					Name:              "mv_t",
+					Definition:        "SELECT id FROM public.t;",
+					Comment:           "mv doc",
+					DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "t", Column: "id"}},
+				}},
+				Functions: []*metadatapb.FunctionMetadata{
+					{Name: "fn_a", Signature: "fn_a()", Definition: "CREATE FUNCTION public.fn_a() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+					{Name: "fn_b", Signature: "fn_b()", Definition: "CREATE FUNCTION public.fn_b() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END; $$"},
+				},
+			},
+			{Name: "other"},
+		},
+	}
+	catBefore := New()
+	_, err := catBefore.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true})
+	require.NoError(t, err)
+	_, err = catBefore.Exec(`CREATE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.fn_a();`, nil)
+	require.NoError(t, err)
+
+	catAfter := catBefore.Clone()
+	results, err := catAfter.Exec(`
+		DROP EXTENSION old_ext;
+		CREATE EXTENSION pg_trgm WITH SCHEMA other;
+		CREATE FOREIGN TABLE public.ft (id integer NOT NULL, note text) SERVER fsrv OPTIONS (schema_name 'remote', table_name 'ft');
+		ALTER TABLE public.t RENAME COLUMN old_col TO new_col;
+		CREATE OR REPLACE TRIGGER tr_t BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.fn_b();
+		ALTER VIEW public.v_t RENAME TO v_t2;
+		ALTER MATERIALIZED VIEW public.mv_t RENAME TO mv_t2;
+		CREATE FUNCTION public.greet(who text DEFAULT 'world', times integer DEFAULT 2) RETURNS text LANGUAGE sql AS $$ SELECT who $$;
+	`, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	for _, r := range results {
+		require.NoError(t, r.Error, r.SQL)
+	}
+
+	got := ApplyDiffToMetadata(meta, catBefore, catAfter, Diff(catBefore, catAfter))
+
+	// Extensions applied.
+	require.Len(t, got.Extensions, 1)
+	require.Equal(t, "pg_trgm", got.Extensions[0].Name)
+	require.Equal(t, "other", got.Extensions[0].Schema)
+
+	pub := findSchema(got, "public")
+	require.NotNil(t, pub)
+
+	// Foreign table stored under ExternalTables, not Tables.
+	require.Len(t, pub.Tables, 1)
+	require.Len(t, pub.ExternalTables, 1)
+	require.Equal(t, "ft", pub.ExternalTables[0].Name)
+	require.Equal(t, "fsrv", pub.ExternalTables[0].ExternalServerName)
+	require.Equal(t, []string{"schema_name=remote", "table_name=ft"}, pub.ExternalTables[0].Options)
+
+	// Renamed column kept its Comment; replaced trigger kept its Comment.
+	tbl := findTable(pub, "t")
+	require.NotNil(t, tbl)
+	require.Len(t, tbl.Columns, 2)
+	require.Equal(t, "new_col", tbl.Columns[1].Name)
+	require.Equal(t, "col comment", tbl.Columns[1].Comment)
+	require.Len(t, tbl.Triggers, 1)
+	require.Equal(t, "trig doc", tbl.Triggers[0].Comment)
+	require.Contains(t, tbl.Triggers[0].Body, "fn_b")
+
+	// Renamed view and materialized view kept metadata.
+	require.Len(t, pub.Views, 1)
+	require.Equal(t, "v_t2", pub.Views[0].Name)
+	require.Equal(t, "v doc", pub.Views[0].Comment)
+	require.Len(t, pub.Views[0].DependencyColumns, 1)
+	require.Len(t, pub.Views[0].Rules, 1)
+	require.Len(t, pub.MaterializedViews, 1)
+	require.Equal(t, "mv_t2", pub.MaterializedViews[0].Name)
+	require.Equal(t, "mv doc", pub.MaterializedViews[0].Comment)
+	require.Len(t, pub.MaterializedViews[0].DependencyColumns, 1)
+
+	// Function parameter DEFAULTs preserved in generated definition.
+	var greetFn *metadatapb.FunctionMetadata
+	for _, fn := range pub.Functions {
+		if fn.Name == "greet" {
+			greetFn = fn
+			break
+		}
+	}
+	require.NotNil(t, greetFn)
+	require.Contains(t, greetFn.Definition, "DEFAULT 'world'")
+	require.Contains(t, greetFn.Definition, "DEFAULT 2")
+}

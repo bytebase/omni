@@ -141,6 +141,7 @@ func (c *Catalog) Clone() *Catalog {
 			}
 			cr.PartitionBound = &pb
 		}
+		cr.ForeignOptions = slices.Clone(r.ForeignOptions)
 		// AnalyzedQuery: shallow copy (shared, not mutated by dry-run).
 		// Fix Schema pointer.
 		cr.Schema = clone.schemas[r.Schema.OID]
@@ -290,6 +291,7 @@ func (c *Catalog) Clone() *Catalog {
 			cup.ArgDefaultTypes = make([]uint32, len(up.ArgDefaultTypes))
 			copy(cup.ArgDefaultTypes, up.ArgDefaultTypes)
 		}
+		cup.ArgDefaults = slices.Clone(up.ArgDefaults)
 		cup.Schema = clone.schemas[up.Schema.OID]
 		clone.userProcs[oid] = &cup
 

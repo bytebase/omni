@@ -251,6 +251,8 @@ func ApplyDiffToMetadata(original *metadatapb.DatabaseSchemaMetadata, catBefore,
 	}
 
 	applyCommentDiffs(result, catBefore, catAfter, diff.Comments)
+	applyExtensionDiffs(result, catAfter, diff.Extensions)
+	applyForeignTableDiffs(result, catBefore, catAfter, diff.ForeignTables, canonicalSchema)
 
 	return result
 }
@@ -334,6 +336,69 @@ func rewritePartitionSchemaReferences(meta *metadatapb.DatabaseSchemaMetadata, o
 	for _, s := range meta.Schemas {
 		for _, tbl := range s.Tables {
 			walk(tbl.Partitions)
+		}
+	}
+	for _, ext := range meta.Extensions {
+		if ext.Schema == oldName {
+			ext.Schema = newName
+		}
+	}
+}
+
+func extSchemaName(cat *Catalog, ext *Extension) string {
+	if cat == nil || ext == nil || ext.SchemaOID == 0 {
+		return ""
+	}
+	if s := cat.schemas[ext.SchemaOID]; s != nil {
+		return s.Name
+	}
+	return ""
+}
+
+func applyExtensionDiffs(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, extensions []ExtensionDiffEntry) {
+	for _, e := range extensions {
+		switch e.Action {
+		case DiffDrop:
+			result.Extensions = slices.DeleteFunc(result.Extensions, func(ext *metadatapb.ExtensionMetadata) bool {
+				return ext.Name == e.Name
+			})
+		case DiffAdd:
+			if e.To == nil {
+				continue
+			}
+			updated := &metadatapb.ExtensionMetadata{
+				Name:    e.Name,
+				Schema:  extSchemaName(catAfter, e.To),
+				Version: e.To.Version,
+			}
+			replaced := false
+			for i, existing := range result.Extensions {
+				if existing.Name == e.Name {
+					updated.Description = existing.Description
+					result.Extensions[i] = updated
+					replaced = true
+					break
+				}
+			}
+			if !replaced {
+				result.Extensions = append(result.Extensions, updated)
+			}
+		case DiffModify:
+			if e.To == nil {
+				continue
+			}
+			for _, existing := range result.Extensions {
+				if existing.Name == e.Name {
+					if schemaName := extSchemaName(catAfter, e.To); schemaName != "" {
+						existing.Schema = schemaName
+					}
+					if e.To.Version != "" {
+						existing.Version = e.To.Version
+					}
+					break
+				}
+			}
+		default:
 		}
 	}
 }
@@ -447,7 +512,7 @@ func addRelation(result *metadatapb.DatabaseSchemaMetadata, sm *metadatapb.Schem
 		return
 	}
 	switch rel.To.RelKind {
-	case 'r', 'p', 'f':
+	case 'r', 'p':
 		if rel.To.PartitionOf != 0 {
 			if appendPartitionToParent(result, sm, cat, rel) {
 				return
@@ -535,7 +600,7 @@ func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel 
 		return
 	}
 	switch rel.To.RelKind {
-	case 'r', 'p', 'f':
+	case 'r', 'p':
 		tbl := findTable(sm, rel.Name)
 		if tbl == nil {
 			if p := findPartition(sm, rel.Name); p != nil {
@@ -545,46 +610,172 @@ func modifyRelation(sm *metadatapb.SchemaMetadata, catBefore, cat *Catalog, rel 
 			sm.Tables = append(sm.Tables, relationToTableProto(cat, rel.To))
 			return
 		}
-		applyColumnDiffs(tbl, cat, rel)
+		applyColumnDiffs(&tbl.Columns, cat, rel)
 		applyIndexDiffs(tbl, cat, rel)
 		applyConstraintDiffs(tbl, catBefore, cat, rel)
-		applyTriggerDiffs(tbl, cat, rel)
+		applyTriggerDiffs(&tbl.Triggers, cat, rel)
 		if (rel.From != nil && rel.From.OwnerName != rel.To.OwnerName) || (rel.To.OwnerName != "" && tbl.Owner != rel.To.OwnerName) {
 			tbl.Owner = rel.To.OwnerName
 		}
 	case 'v':
-		updated := relationToViewProto(cat, rel.To)
 		for i, existing := range sm.Views {
 			if existing.Name == rel.Name {
-				updated.Comment = existing.Comment
-				updated.DependencyColumns = existing.DependencyColumns
-				if len(updated.Columns) == 0 {
-					updated.Columns = existing.Columns
-				}
-				updated.Rules = existing.Rules
-				updated.SkipDump = existing.SkipDump
-				preserveTriggerComments(updated.Triggers, existing.Triggers)
-				sm.Views[i] = updated
+				sm.Views[i] = mergeViewProto(cat, existing, rel.To, rel.Name)
 				return
 			}
 		}
-		sm.Views = append(sm.Views, updated)
+		sm.Views = append(sm.Views, relationToViewProto(cat, rel.To))
 	case 'm':
-		updated := relationToMatViewProto(cat, rel.To)
 		for i, existing := range sm.MaterializedViews {
 			if existing.Name == rel.Name {
-				updated.Comment = existing.Comment
-				updated.DependencyColumns = existing.DependencyColumns
-				updated.SkipDump = existing.SkipDump
-				preserveTriggerComments(updated.Triggers, existing.Triggers)
-				preserveIndexComments(updated.Indexes, existing.Indexes)
-				sm.MaterializedViews[i] = updated
+				sm.MaterializedViews[i] = mergeMatViewProto(cat, existing, rel.To, rel.Name)
 				return
 			}
 		}
-		sm.MaterializedViews = append(sm.MaterializedViews, updated)
+		sm.MaterializedViews = append(sm.MaterializedViews, relationToMatViewProto(cat, rel.To))
 	default:
 	}
+}
+
+func mergeViewProto(cat *Catalog, existing *metadatapb.ViewMetadata, rel *Relation, name string) *metadatapb.ViewMetadata {
+	updated := relationToViewProto(cat, rel)
+	updated.Name = name
+	updated.Comment = existing.Comment
+	updated.DependencyColumns = existing.DependencyColumns
+	if len(updated.Columns) == 0 {
+		updated.Columns = existing.Columns
+	}
+	updated.Rules = existing.Rules
+	updated.SkipDump = existing.SkipDump
+	preserveTriggerComments(updated.Triggers, existing.Triggers)
+	return updated
+}
+
+func mergeMatViewProto(cat *Catalog, existing *metadatapb.MaterializedViewMetadata, rel *Relation, name string) *metadatapb.MaterializedViewMetadata {
+	updated := relationToMatViewProto(cat, rel)
+	updated.Name = name
+	updated.Comment = existing.Comment
+	updated.DependencyColumns = existing.DependencyColumns
+	updated.SkipDump = existing.SkipDump
+	preserveTriggerComments(updated.Triggers, existing.Triggers)
+	preserveIndexComments(updated.Indexes, existing.Indexes)
+	return updated
+}
+
+func findExternalTable(sm *metadatapb.SchemaMetadata, name string) *metadatapb.ExternalTableMetadata {
+	for _, ext := range sm.ExternalTables {
+		if ext.Name == name {
+			return ext
+		}
+	}
+	return nil
+}
+
+func relationToExternalTableProto(cat *Catalog, rel *Relation) *metadatapb.ExternalTableMetadata {
+	tbl := relationToTableProto(cat, rel)
+	return &metadatapb.ExternalTableMetadata{
+		Name:               rel.Name,
+		ExternalServerName: rel.ForeignServer,
+		Columns:            tbl.Columns,
+		Options:            slices.Clone(rel.ForeignOptions),
+		CheckConstraints:   tbl.CheckConstraints,
+		Triggers:           tbl.Triggers,
+	}
+}
+
+func applyForeignTableDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, catAfter *Catalog, entries []RelationDiffEntry, canonicalSchema func(string) string) {
+	if len(entries) == 0 {
+		return
+	}
+	renamed := renameForeignTables(result, catAfter, entries, canonicalSchema)
+	for _, rel := range entries {
+		if (rel.From != nil && renamed[rel.From.OID]) || (rel.To != nil && renamed[rel.To.OID]) {
+			continue
+		}
+		schemaName := canonicalSchema(rel.SchemaName)
+		if rel.Action == DiffDrop {
+			if sm := findSchema(result, schemaName); sm != nil {
+				sm.ExternalTables = slices.DeleteFunc(sm.ExternalTables, func(ext *metadatapb.ExternalTableMetadata) bool {
+					return ext.Name == rel.Name
+				})
+			}
+			continue
+		}
+		sm := findOrCreateSchema(result, schemaName)
+		switch rel.Action {
+		case DiffAdd:
+			if rel.To != nil {
+				sm.ExternalTables = append(sm.ExternalTables, relationToExternalTableProto(catAfter, rel.To))
+			}
+		case DiffModify:
+			if rel.To == nil {
+				continue
+			}
+			ext := findExternalTable(sm, rel.Name)
+			if ext == nil {
+				sm.ExternalTables = append(sm.ExternalTables, relationToExternalTableProto(catAfter, rel.To))
+				continue
+			}
+			applyColumnDiffs(&ext.Columns, catAfter, rel)
+			tbl := &metadatapb.TableMetadata{CheckConstraints: ext.CheckConstraints}
+			applyConstraintDiffs(tbl, catBefore, catAfter, rel)
+			ext.CheckConstraints = tbl.CheckConstraints
+			applyTriggerDiffs(&ext.Triggers, catAfter, rel)
+			if rel.To.ForeignServer != "" {
+				ext.ExternalServerName = rel.To.ForeignServer
+			}
+			if len(rel.To.ForeignOptions) > 0 || (rel.From != nil && len(rel.From.ForeignOptions) > 0) {
+				ext.Options = slices.Clone(rel.To.ForeignOptions)
+			}
+		default:
+		}
+	}
+}
+
+func renameForeignTables(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catalog, entries []RelationDiffEntry, canonicalSchema func(string) string) map[uint32]bool {
+	added := make(map[uint32]RelationDiffEntry)
+	for _, rel := range entries {
+		if rel.Action == DiffAdd && rel.To != nil {
+			added[rel.To.OID] = rel
+		}
+	}
+	renamed := make(map[uint32]bool)
+	for _, rel := range entries {
+		if rel.Action != DiffDrop || rel.From == nil {
+			continue
+		}
+		add, ok := added[rel.From.OID]
+		srcSchema := canonicalSchema(rel.SchemaName)
+		sm := findSchema(result, srcSchema)
+		if !ok || sm == nil {
+			continue
+		}
+		ext := findExternalTable(sm, rel.Name)
+		if ext == nil {
+			continue
+		}
+		rebuilt := relationToExternalTableProto(catAfter, add.To)
+		preserveColumnMetadata(rebuilt.Columns, ext.Columns, rel.From, add.To)
+		preserveTriggerComments(rebuilt.Triggers, ext.Triggers)
+		ext.Name = add.Name
+		ext.Columns = rebuilt.Columns
+		ext.CheckConstraints = rebuilt.CheckConstraints
+		ext.Triggers = rebuilt.Triggers
+		if add.To.ForeignServer != "" {
+			ext.ExternalServerName = add.To.ForeignServer
+		}
+		if len(add.To.ForeignOptions) > 0 || len(rel.From.ForeignOptions) > 0 {
+			ext.Options = slices.Clone(add.To.ForeignOptions)
+		}
+		if add.SchemaName != srcSchema {
+			sm.ExternalTables = slices.DeleteFunc(sm.ExternalTables, func(e *metadatapb.ExternalTableMetadata) bool {
+				return e.Name == add.Name
+			})
+			findOrCreateSchema(result, add.SchemaName).ExternalTables = append(findOrCreateSchema(result, add.SchemaName).ExternalTables, ext)
+		}
+		renamed[rel.From.OID] = true
+	}
+	return renamed
 }
 
 func preserveTriggerComments(dst, src []*metadatapb.TriggerMetadata) {
@@ -671,14 +862,49 @@ func renamePartitions(result *metadatapb.DatabaseSchemaMetadata, catAfter *Catal
 			renamed[rel.From.OID] = true
 			continue
 		}
+		if rel.From.RelKind == 'v' {
+			for i, existing := range sm.Views {
+				if existing.Name == rel.Name {
+					updated := mergeViewProto(catAfter, existing, add.To, add.Name)
+					if add.SchemaName != srcSchema {
+						sm.Views = removeViewByName(sm.Views, rel.Name)
+						findOrCreateSchema(result, add.SchemaName).Views = append(findOrCreateSchema(result, add.SchemaName).Views, updated)
+					} else {
+						sm.Views[i] = updated
+					}
+					renamed[rel.From.OID] = true
+					break
+				}
+			}
+			continue
+		}
+		if rel.From.RelKind == 'm' {
+			for i, existing := range sm.MaterializedViews {
+				if existing.Name == rel.Name {
+					updated := mergeMatViewProto(catAfter, existing, add.To, add.Name)
+					if add.SchemaName != srcSchema {
+						sm.MaterializedViews = removeMatViewByName(sm.MaterializedViews, rel.Name)
+						findOrCreateSchema(result, add.SchemaName).MaterializedViews = append(findOrCreateSchema(result, add.SchemaName).MaterializedViews, updated)
+					} else {
+						sm.MaterializedViews[i] = updated
+					}
+					renamed[rel.From.OID] = true
+					break
+				}
+			}
+			continue
+		}
 		if tbl := findTable(sm, rel.Name); tbl != nil {
 			rebuilt := relationToTableProto(catAfter, add.To)
+			preserveColumnMetadata(rebuilt.Columns, tbl.Columns, rel.From, add.To)
+			preserveTriggerComments(rebuilt.Triggers, tbl.Triggers)
 			tbl.Name = add.Name
 			tbl.Columns = rebuilt.Columns
 			tbl.Indexes = rebuilt.Indexes
 			tbl.ForeignKeys = rebuilt.ForeignKeys
 			tbl.CheckConstraints = rebuilt.CheckConstraints
 			tbl.ExcludeConstraints = rebuilt.ExcludeConstraints
+			tbl.Triggers = rebuilt.Triggers
 			if rel.From.OwnerName != add.To.OwnerName {
 				tbl.Owner = add.To.OwnerName
 			}
@@ -702,32 +928,111 @@ func applyPartitionDiffs(p *metadatapb.TablePartitionMetadata, catBefore, cat *C
 	p.Indexes, p.CheckConstraints, p.ExcludeConstraints = tbl.Indexes, tbl.CheckConstraints, tbl.ExcludeConstraints
 }
 
-func applyColumnDiffs(tbl *metadatapb.TableMetadata, cat *Catalog, rel RelationDiffEntry) {
+func mergeColumnProto(cat *Catalog, existing *metadatapb.ColumnMetadata, fromCol, toCol *Column) *metadatapb.ColumnMetadata {
+	updated := columnToProto(cat, toCol)
+	updated.Comment = existing.Comment
+	updated.CharacterSet = existing.CharacterSet
+	updated.Options = existing.Options
+	if fromCol != nil && fromCol.CollationName != toCol.CollationName {
+		if toCol.CollationName != "" {
+			updated.Collation = quoteIdentAlways(toCol.CollationName)
+		}
+	} else {
+		updated.Collation = existing.Collation
+		updated.CollationSchema = existing.CollationSchema
+	}
+	return updated
+}
+
+func preserveColumnMetadata(dst, src []*metadatapb.ColumnMetadata, fromRel, toRel *Relation) {
+	if len(dst) == 0 || len(src) == 0 {
+		return
+	}
+	srcByName := make(map[string]*metadatapb.ColumnMetadata, len(src))
+	for _, col := range src {
+		srcByName[col.Name] = col
+	}
+	fromByAttNum := make(map[int16]*Column)
+	if fromRel != nil {
+		for _, c := range fromRel.Columns {
+			if c != nil {
+				fromByAttNum[c.AttNum] = c
+			}
+		}
+	}
+	toByName := make(map[string]*Column)
+	if toRel != nil {
+		for _, c := range toRel.Columns {
+			if c != nil {
+				toByName[c.Name] = c
+			}
+		}
+	}
+	for i, col := range dst {
+		if tc := toByName[col.Name]; tc != nil {
+			if fc := fromByAttNum[tc.AttNum]; fc != nil {
+				if existing := srcByName[fc.Name]; existing != nil {
+					if col.Comment == "" {
+						col.Comment = existing.Comment
+					}
+					if col.CharacterSet == "" {
+						col.CharacterSet = existing.CharacterSet
+					}
+					if len(col.Options) == 0 {
+						col.Options = existing.Options
+					}
+					if fc.CollationName == tc.CollationName {
+						col.Collation = existing.Collation
+						col.CollationSchema = existing.CollationSchema
+					}
+					dst[i] = col
+				}
+			}
+		}
+	}
+}
+
+func applyColumnDiffs(cols *[]*metadatapb.ColumnMetadata, cat *Catalog, rel RelationDiffEntry) {
+	addedByAttNum := make(map[int16]ColumnDiffEntry)
+	for _, cd := range rel.Columns {
+		if cd.Action == DiffAdd && cd.To != nil && cd.To.AttNum > 0 {
+			addedByAttNum[cd.To.AttNum] = cd
+		}
+	}
+	handledAttNum := make(map[int16]bool)
+	for _, cd := range rel.Columns {
+		if cd.Action != DiffDrop || cd.From == nil || cd.From.AttNum <= 0 {
+			continue
+		}
+		add, ok := addedByAttNum[cd.From.AttNum]
+		if !ok {
+			continue
+		}
+		for i, col := range *cols {
+			if col.Name == cd.Name {
+				(*cols)[i] = mergeColumnProto(cat, col, cd.From, add.To)
+				handledAttNum[cd.From.AttNum] = true
+				break
+			}
+		}
+	}
 	for _, cd := range rel.Columns {
 		switch cd.Action {
 		case DiffAdd:
-			if cd.To != nil {
-				tbl.Columns = append(tbl.Columns, columnToProto(cat, cd.To))
+			if cd.To == nil || (cd.To.AttNum > 0 && handledAttNum[cd.To.AttNum]) {
+				continue
 			}
+			*cols = append(*cols, columnToProto(cat, cd.To))
 		case DiffDrop:
-			tbl.Columns = removeColumnByName(tbl.Columns, cd.Name)
+			if cd.From != nil && cd.From.AttNum > 0 && handledAttNum[cd.From.AttNum] {
+				continue
+			}
+			*cols = removeColumnByName(*cols, cd.Name)
 		case DiffModify:
 			if cd.To != nil {
-				for i, col := range tbl.Columns {
+				for i, col := range *cols {
 					if col.Name == cd.Name {
-						updated := columnToProto(cat, cd.To)
-						updated.Comment = col.Comment
-						updated.CharacterSet = col.CharacterSet
-						updated.Options = col.Options
-						if cd.From != nil && cd.From.CollationName != cd.To.CollationName {
-							if cd.To.CollationName != "" {
-								updated.Collation = quoteIdentAlways(cd.To.CollationName)
-							}
-						} else {
-							updated.Collation = col.Collation
-							updated.CollationSchema = col.CollationSchema
-						}
-						tbl.Columns[i] = updated
+						(*cols)[i] = mergeColumnProto(cat, col, cd.From, cd.To)
 						break
 					}
 				}
@@ -1488,25 +1793,33 @@ func relationToMatViewProto(c *Catalog, rel *Relation) *metadatapb.MaterializedV
 	return mv
 }
 
-func applyTriggerDiffs(tbl *metadatapb.TableMetadata, cat *Catalog, rel RelationDiffEntry) {
+func applyTriggerDiffs(triggers *[]*metadatapb.TriggerMetadata, cat *Catalog, rel RelationDiffEntry) {
 	if len(rel.Triggers) == 0 {
 		return
 	}
 	schemaName := rel.SchemaName
 	tableName := rel.Name
+	upsert := func(trig *Trigger) {
+		updated := triggerToProto(cat, schemaName, tableName, trig)
+		for i, existing := range *triggers {
+			if existing.Name == trig.Name {
+				updated.Comment = existing.Comment
+				(*triggers)[i] = updated
+				return
+			}
+		}
+		*triggers = append(*triggers, updated)
+	}
 	for _, td := range rel.Triggers {
 		switch td.Action {
-		case DiffAdd:
+		case DiffAdd, DiffModify:
 			if td.To != nil {
-				tbl.Triggers = append(tbl.Triggers, triggerToProto(cat, schemaName, tableName, td.To))
+				upsert(td.To)
+			} else if td.Action == DiffModify {
+				*triggers = removeTriggerByName(*triggers, td.Name)
 			}
 		case DiffDrop:
-			tbl.Triggers = removeTriggerByName(tbl.Triggers, td.Name)
-		case DiffModify:
-			tbl.Triggers = removeTriggerByName(tbl.Triggers, td.Name)
-			if td.To != nil {
-				tbl.Triggers = append(tbl.Triggers, triggerToProto(cat, schemaName, tableName, td.To))
-			}
+			*triggers = removeTriggerByName(*triggers, td.Name)
 		default:
 		}
 	}
@@ -1605,6 +1918,13 @@ func applyCommentDiffs(result *metadatapb.DatabaseSchemaMetadata, catBefore, cat
 				}
 				if tbl := findTable(sm, relName); tbl != nil {
 					for _, col := range tbl.Columns {
+						if col.Name == colName {
+							col.Comment = c.To
+							break
+						}
+					}
+				} else if ext := findExternalTable(sm, relName); ext != nil {
+					for _, col := range ext.Columns {
 						if col.Name == colName {
 							col.Comment = c.To
 							break
