@@ -70,6 +70,9 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 		if tbl == nil {
 			return errNoSuchTable(db.Name, ref.Name)
 		}
+		if tbl.TablespaceDiscarded {
+			return errTablespaceDiscarded(db.Name, tbl.Name)
+		}
 		tbl.AutoIncrement = 0
 	}
 	return nil

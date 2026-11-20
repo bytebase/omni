@@ -187,6 +187,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwMULTILINESTRING:    kwCatUnambiguous,
 	kwMULTIPOLYGON:       kwCatUnambiguous,
 	kwGEOMETRYCOLLECTION: kwCatUnambiguous,
+	kwGEOMCOLLECTION:     kwCatUnambiguous,
 	kwSERIAL:             kwCatUnambiguous,
 	kwNATIONAL:           kwCatUnambiguous,
 	kwNCHAR:              kwCatUnambiguous,

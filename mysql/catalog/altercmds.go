@@ -61,6 +61,9 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if err := validateAlterColumnSources(tbl, stmt.Commands); err != nil {
 		return err
 	}
+	if err := c.validateAlterTablespaceOptions(tbl, stmt.Commands); err != nil {
+		return err
+	}
 
 	repartition := alterRepartition(stmt.Commands)
 	if repartition != nil {
@@ -72,23 +75,34 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		if err := validatePartitionClauseShape(tbl, repartition); err != nil {
 			return err
 		}
-	}
-	// A ROW_FORMAT FIXED or COMPRESSION the statement writes is the engine's to
-	// take, and InnoDB refuses it with 1478 — after the statement's other
-	// commands, which answer first: `ROW_FORMAT FIXED, ADD KEY(zzz)` is 1072.
-	// MySQL leaves the table as it found it, so hold a copy to put back when the
-	// row option is what the statement fails on.
-	rowOption := refusedRowOption(tbl, stmt.Commands)
-	var rowOptionSnapshot Table
-	if rowOption != "" {
-		rowOptionSnapshot = cloneTable(tbl)
-	}
-	afterCommands := func(err error) error {
-		if err != nil || rowOption == "" {
+		if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, alterTargetEngine(tbl, stmt.Commands), repartition.Partitions); err != nil {
 			return err
 		}
-		undoAlter(db, key, tbl, rowOptionSnapshot)
-		return errUnsupportedRowOption(rowOption)
+	}
+	// A ROW_FORMAT FIXED, COMPRESSION, or AUTOEXTEND_SIZE the statement writes is
+	// the engine's to take, and InnoDB refuses it — after the statement's other
+	// commands, which answer first: `ROW_FORMAT FIXED, ADD KEY(zzz)` is 1072.
+	// MySQL leaves the table as it found it, so hold a copy to put back when the
+	// option is what the statement fails on.
+	rowOption := refusedRowOption(tbl, stmt.Commands)
+	autoextendErr := refusedAutoextendSize(tbl, stmt.Commands)
+	var optionSnapshot Table
+	if rowOption != "" || autoextendErr != nil {
+		optionSnapshot = cloneTable(tbl)
+	}
+	afterCommands := func(err error) error {
+		if err != nil {
+			return err
+		}
+		if autoextendErr != nil {
+			undoAlter(db, key, tbl, optionSnapshot)
+			return autoextendErr
+		}
+		if rowOption != "" {
+			undoAlter(db, key, tbl, optionSnapshot)
+			return errUnsupportedRowOption(rowOption)
+		}
+		return nil
 	}
 	if tbl.Partitioning == nil && repartition == nil {
 		return afterCommands(c.alterTableCommands(db, tbl, key, stmt))
@@ -181,6 +195,52 @@ func errUnsupportedRowOption(option string) error {
 		Message: fmt.Sprintf("Table storage engine 'InnoDB' does not support the create option '%s'", option)}
 }
 
+func alterTargetEngine(tbl *Table, commands []*nodes.AlterTableCmd) string {
+	engine := tbl.Engine
+	for _, cmd := range commands {
+		if cmd != nil && cmd.Type == nodes.ATTableOption && cmd.Option != nil && engineOptionName(cmd.Option.Name) {
+			engine = storedEngineName(cmd.Option.Value)
+		}
+	}
+	return engine
+}
+
+func (c *Catalog) validateAlterTablespaceOptions(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	engine := alterTargetEngine(tbl, commands)
+	if !isInnoDBEngine(engine) {
+		return nil
+	}
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		if strings.EqualFold(cmd.Option.Name, "tablespace") {
+			if err := c.validateInnoDBTablespace(tbl.Name, tbl.Temporary, cmd.Option.Value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func refusedAutoextendSize(tbl *Table, commands []*nodes.AlterTableCmd) error {
+	engine := alterTargetEngine(tbl, commands)
+	if !isInnoDBEngine(engine) {
+		return nil
+	}
+	for _, cmd := range commands {
+		if cmd == nil || cmd.Type != nodes.ATTableOption || cmd.Option == nil {
+			continue
+		}
+		if strings.EqualFold(cmd.Option.Name, "autoextend_size") {
+			if err := validateAutoextendSize(cmd.Option.Value); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // validateTableEngineReplaceable refuses an ENGINE the table cannot take:
 // PERFORMANCE_SCHEMA, which holds the performance schema's own tables (1031).
 func validateTableEngineReplaceable(tbl *Table, commands []*nodes.AlterTableCmd) error {
@@ -264,29 +324,17 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		return nil
 	}
 	leaves := alterFinalColumns(tbl, stmt.Commands)
-	if len(stmt.Commands) == 1 && !addNeedsRollback(stmt.Commands[0]) {
-		if !alterCanHideColumn(stmt.Commands[0]) {
-			// Single command carrying one table element: no rollback needed.
-			return c.execAlterCmd(db, tbl, stmt.Commands[0], leaves)
-		}
-		snapshot := cloneTable(tbl)
-		if err := c.execAlterCmd(db, tbl, stmt.Commands[0], leaves); err != nil {
-			return err
-		}
-		if !tableHasVisibleColumn(tbl) {
-			undoAlter(db, key, tbl, snapshot)
-			return errTableMustHaveColumns()
-		}
-		return nil
-	}
-
-	// Multi-command ALTER: MySQL treats this as atomic.
-	// Snapshot the table so we can rollback on any sub-command failure.
+	// MySQL treats ALTER TABLE as atomic. Snapshot the table so any command or
+	// final-table invariant failure rolls back all mutations cleanly.
 	snapshot := cloneTable(tbl)
 	origKey := key
 	beforeConstraints := make(map[*Constraint]bool, len(tbl.Constraints))
 	for _, con := range tbl.Constraints {
 		beforeConstraints[con] = true
+	}
+	beforeIndexes := make(map[*Index]bool, len(tbl.Indexes))
+	for _, idx := range tbl.Indexes {
+		beforeIndexes[idx] = true
 	}
 
 	for _, cmd := range stmt.Commands {
@@ -301,26 +349,21 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		undoAlter(db, origKey, tbl, snapshot)
 		return errTableMustHaveColumns()
 	}
-	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeConstraints); err != nil {
+	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeIndexes, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
-	// Clear transient cleanup tracking after successful multi-command ALTER.
+	if err := validateAutoIncrementKeyed(tbl); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	if err := validateTableDefaultExpressions(tbl); err != nil {
+		undoAlter(db, origKey, tbl, snapshot)
+		return err
+	}
+	// Clear transient cleanup tracking after successful ALTER.
 	tbl.droppedByCleanup = nil
 	return nil
-}
-
-// alterCanHideColumn reports whether a command can leave the table with a column
-// fewer visible ones.
-func alterCanHideColumn(cmd *nodes.AlterTableCmd) bool {
-	if cmd == nil {
-		return false
-	}
-	switch cmd.Type {
-	case nodes.ATAlterColumnInvisible, nodes.ATModifyColumn, nodes.ATChangeColumn:
-		return true
-	}
-	return false
 }
 
 // checkKeysOnFinalTable re-checks the keys a statement added once every command
@@ -330,7 +373,7 @@ func alterCanHideColumn(cmd *nodes.AlterTableCmd) bool {
 // SPATIAL key's part must be NOT NULL (1252). A primary key also makes the
 // columns it names NOT NULL, which its own command could not do while a later
 // column was still missing (measured on mysql:8.0.46).
-func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Constraint]bool) error {
+func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd, beforeIndexes map[*Index]bool, before map[*Constraint]bool) error {
 	for _, cmd := range commands {
 		if cmd == nil {
 			continue
@@ -344,6 +387,12 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				cols := extractColumnNames(con)
 				if err := validatePrimaryKeyColumns(tbl, cols); err != nil {
 					return err
+				}
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+					return err
+				}
+				if name := duplicateKeyColumnName(con); name != "" {
+					return errDupColumn(name)
 				}
 				for _, name := range cols {
 					if col := tbl.GetColumn(name); col != nil {
@@ -362,8 +411,21 @@ func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTable
 				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
 					return err
 				}
+			case nodes.ConstrForeignKey:
+				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, false); err != nil {
+					return err
+				}
 			}
 		}
+	}
+	var addedIndexes []*Index
+	for _, idx := range tbl.Indexes {
+		if !beforeIndexes[idx] {
+			addedIndexes = append(addedIndexes, idx)
+		}
+	}
+	if err := recheckFunctionalIndexesOnFinalTable(tbl, addedIndexes); err != nil {
+		return err
 	}
 	// A foreign key is judged on the table the statement leaves too: a local
 	// column a later command adds is what 3780 compares, and 1830 needs the
@@ -460,6 +522,9 @@ func (c *Catalog) alterDefinitions(commands []*nodes.AlterTableCmd) error {
 			// A bare NOW()-family DEFAULT the column's type cannot hold is
 			// 1067 here, with the other prepare-time answers.
 			if err := validateBareNowDefault(colDef); err != nil {
+				return err
+			}
+			if err := validateColumnOnUpdate(colDef); err != nil {
 				return err
 			}
 		}
@@ -645,6 +710,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 			return errPartitionMgmtOnNonPartitioned()
 		}
 		return nil
+	case nodes.ATSecondaryLoad, nodes.ATSecondaryUnload:
+		if tbl.SecondaryEngine == "" {
+			return errSecondaryEngineNotDefined()
+		}
+		return nil
+	case nodes.ATDiscardTablespace:
+		return c.alterDiscardImportTablespace(tbl, false)
+	case nodes.ATImportTablespace:
+		return c.alterDiscardImportTablespace(tbl, true)
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -711,6 +785,17 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
+		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+	}
+	if colDef.TypeName != nil {
+		if err := validateEnumSetDuplicates(col.Name, col.DataType, col.Collation, col.Charset, colDef.TypeName.EnumValues, c.isStrictSQLMode()); err != nil {
+			return err
+		}
+	}
+	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
+		return err
+	}
 	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
@@ -972,6 +1057,17 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if col.CharsetExplicit && col.CollationExplicit && !charsetMatchesCollation(col.Charset, col.Collation) {
+		return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+	}
+	if colDef.TypeName != nil {
+		if err := validateEnumSetDuplicates(col.Name, col.DataType, col.Collation, col.Charset, colDef.TypeName.EnumValues, c.isStrictSQLMode()); err != nil {
+			return err
+		}
+	}
+	if err := validateColumnLiteralDefault(col, columnDefEffectiveDefaultExpr(colDef), c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
+		return err
+	}
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
 		return errIncorrectAutoIncrementDefinition()
 	}
@@ -1044,6 +1140,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:
+		if constraintHasFunctionalKeyPart(con) {
+			return errFunctionalIndexPrimaryKey()
+		}
 		// Check for duplicate PK.
 		for _, idx := range tbl.Indexes {
 			if idx.Primary {
@@ -1057,6 +1156,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 			return err
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			return err
+		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
+		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -1088,9 +1193,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		})
 
 	case nodes.ConstrUnique:
+		if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+			return err
+		}
+		idxCols := buildIndexColumns(con)
 		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
+		if idxName == "" {
+			idxName = defaultIndexName(tbl, cols, idxCols)
 		} else if idxName != "" {
 			if err := validateNonPrimaryIndexName(idxName); err != nil {
 				return err
@@ -1102,7 +1211,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
-		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
@@ -1119,6 +1227,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, uqIdx)
+		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, uqIdx, leaves, true); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
@@ -1129,18 +1240,25 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		})
 
 	case nodes.ConstrForeignKey:
+		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
+			return err
+		}
+		fkIdxCols := buildIndexColumns(con)
+		if err := validateIndexColumns(tbl, fkIdxCols, false, false); err != nil {
+			return err
+		}
+		if name := duplicateKeyColumnName(con); name != "" {
+			return errDupColumn(name)
+		}
+		if len(con.RefColumns) == 0 || len(cols) != len(con.RefColumns) {
+			return errWrongFkDef(fkErrorDisplayName(con), "Key reference and table reference don't match")
+		}
 		conName := con.Name
 		if conName == "" {
 			conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
 		}
 		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
 			return errFKDupName(conName)
-		}
-		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
-			return err
-		}
-		if name := duplicateKeyColumnName(con); name != "" {
-			return errDupColumn(name)
 		}
 		refDBName := ""
 		refTable := ""
@@ -1168,7 +1286,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// Add implicit backing index for FK if needed.
-		ensureFKBackingIndex(tbl, fkIndexName(con), cols, buildIndexColumns(con))
+		ensureFKBackingIndex(tbl, fkIndexName(con), cols, fkIdxCols)
 
 	case nodes.ConstrCheck:
 		conName := con.Name
@@ -1190,9 +1308,13 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		})
 
 	case nodes.ConstrIndex:
+		if err := validateNoColumnFunctionalParts(con.IndexColumns); err != nil {
+			return err
+		}
+		idxCols := buildIndexColumns(con)
 		idxName := con.Name
-		if idxName == "" && len(cols) > 0 {
-			idxName = allocIndexName(tbl, cols[0])
+		if idxName == "" {
+			idxName = defaultIndexName(tbl, cols, idxCols)
 		} else if idxName != "" {
 			if err := validateNonPrimaryIndexName(idxName); err != nil {
 				return err
@@ -1204,7 +1326,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		if err := validateKeyColumnsExist(tbl, leaves, con); err != nil {
 			return err
 		}
-		idxCols := buildIndexColumns(con)
 		spatial := isSpatialIndexType(resolveConstraintIndexType(con))
 		if err := validateIndexColumns(tbl, idxCols, false, spatial); err != nil {
 			return err
@@ -1224,6 +1345,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, leave
 		// added by ALTER lost its comment, visibility and block size.
 		applyIndexOptions(keyIdx, con.IndexOptions)
 		coerceInnoDBHashIndex(tbl, keyIdx)
+		if err := synthesizeFunctionalIndexColumnsForStmt(tbl, keyIdx, leaves, true); err != nil {
+			return err
+		}
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -1299,8 +1423,10 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	key := toLower(name)
 
 	found := false
+	var dropped *Index
 	for i, idx := range tbl.Indexes {
 		if toLower(idx.Name) == key {
+			dropped = idx
 			tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
 			found = true
 			break
@@ -1317,6 +1443,7 @@ func (c *Catalog) alterDropIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		}
 		return errCantDropKey(name)
 	}
+	removeFunctionalIndexHiddenColumns(tbl, dropped)
 
 	// Also remove any constraint that references this index.
 	for i, con := range tbl.Constraints {
@@ -1378,7 +1505,9 @@ func (c *Catalog) alterDropConstraint(tbl *Table, cmd *nodes.AlterTableCmd) erro
 	if !isForeignKey {
 		for i, idx := range tbl.Indexes {
 			if toLower(idx.Name) == key {
+				dropped := idx
 				tbl.Indexes = append(tbl.Indexes[:i], tbl.Indexes[i+1:]...)
+				removeFunctionalIndexHiddenColumns(tbl, dropped)
 				break
 			}
 		}
@@ -1534,6 +1663,12 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		tbl.Checksum = normalizedChecksum(opt.Value)
 	case "delay_key_write":
 		tbl.DelayKeyWrite = opt.Value
+	case "secondary_engine":
+		if strings.EqualFold(opt.Value, "NULL") {
+			tbl.SecondaryEngine = ""
+		} else {
+			tbl.SecondaryEngine = opt.Value
+		}
 	}
 	return nil
 }
@@ -1548,7 +1683,14 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		if exprHasSpacedFuncCall(cmd.DefaultExpr) {
+			return &Error{Code: 3770, SQLState: "HY000",
+				Message: "Default value expression of column '" + col.Name + "' contains a disallowed function."}
+		}
 		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
+			return err
+		}
+		if err := validateColumnLiteralDefault(col, cmd.DefaultExpr, c.isStrictSQLMode(), c.isNoZeroDateSQLMode(), c.isNoZeroInDateSQLMode()); err != nil {
 			return err
 		}
 		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
@@ -1556,6 +1698,8 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
 		col.Default = nil
 		col.DefaultKind = ColumnDefaultNone
+		col.DefaultIsExpr = false
+		col.DefaultExprNode = nil
 		col.DefaultDropped = true
 	}
 	return nil
@@ -1737,10 +1881,22 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		case nodes.ColConstrNotSecondary:
 			col.NotSecondary = true
 		case nodes.ColConstrCollate:
-			if cc.Expr != nil {
+			collName := cc.Name
+			if collName == "" && cc.Expr != nil {
 				if s, ok := cc.Expr.(*nodes.StringLit); ok {
-					col.Collation = s.Value
-					col.CollationExplicit = true
+					collName = s.Value
+				}
+			}
+			if collName != "" {
+				col.Collation = collName
+				col.CollationExplicit = true
+				if !col.CharsetExplicit {
+					if cs := charsetForCollation(collName); cs != "" {
+						col.Charset = normalizeCharsetName(cs)
+					}
+				}
+				if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) && colDef.TypeName != nil {
+					col = convertToBinaryType(col, colDef.TypeName)
 				}
 			}
 		}
@@ -1831,13 +1987,43 @@ func (c *Catalog) alterCheckEnforced(tbl *Table, cmd *nodes.AlterTableCmd) error
 // This changes the table's default charset/collation AND converts all existing
 // string columns to the new charset/collation.
 func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) error {
-	charset := cmd.Name
-	collation := cmd.NewName
-
-	// If no collation specified, use the default collation for the charset.
-	if collation == "" {
-		if defColl, ok := defaultCollationForCharset[toLower(charset)]; ok {
+	var charset, collation string
+	if strings.EqualFold(cmd.Name, "DEFAULT") {
+		if tbl.Database != nil && tbl.Database.Charset != "" {
+			charset = normalizeCharsetName(tbl.Database.Charset)
+		} else {
+			charset = c.defaultCharset
+		}
+		if cmd.NewName != "" {
+			collation = cmd.NewName
+			if !charsetMatchesCollation(charset, collation) {
+				return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+			}
+		} else if tbl.Database != nil && tbl.Database.Collation != "" {
+			collation = tbl.Database.Collation
+		} else if defColl, ok := defaultCollationForCharset[toLower(charset)]; ok {
 			collation = defColl
+		}
+	} else {
+		charset = normalizeCharsetName(cmd.Name)
+		collation = cmd.NewName
+		if collation != "" {
+			if !charsetMatchesCollation(charset, collation) {
+				return &Error{Code: 1253, SQLState: "42000", Message: "COLLATION is not valid for CHARACTER SET"}
+			}
+		} else if defColl, ok := defaultCollationForCharset[toLower(charset)]; ok {
+			collation = defColl
+		}
+	}
+
+	if c.isStrictSQLMode() && !strings.EqualFold(charset, "binary") {
+		for _, col := range tbl.Columns {
+			if col != nil && isEnumSetType(col.DataType) {
+				members := enumMembersFromColumnType(col.ColumnType)
+				if err := validateEnumSetDuplicates(col.Name, col.DataType, collation, charset, members, true); err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -1849,6 +2035,8 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 		if isStringType(col.DataType) {
 			col.Charset = charset
 			col.Collation = collation
+			col.CharsetExplicit = false
+			col.CollationExplicit = false
 		}
 	}
 
@@ -1862,6 +2050,9 @@ var _ = strings.ToLower
 func (c *Catalog) alterAddPartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, tbl.Engine, cmd.PartitionDefs); err != nil {
+		return err
 	}
 	if cmd.Number > 0 && len(cmd.PartitionDefs) == 0 {
 		start := len(tbl.Partitioning.Partitions)
@@ -1954,6 +2145,9 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
+	}
+	if err := c.validatePartitionTablespaces(tbl.Name, tbl.Temporary, tbl.Engine, cmd.PartitionDefs); err != nil {
+		return err
 	}
 	// Remove the old partitions.
 	dropSet := make(map[string]bool)
@@ -2060,38 +2254,4 @@ func partitionTypeFromString(t string) nodes.PartitionType {
 func generatedExprReferencesColumn(expr, colName string) bool {
 	target := "`" + strings.ToLower(colName) + "`"
 	return strings.Contains(strings.ToLower(expr), target)
-}
-
-// addNeedsRollback reports whether an ADD action can fail after it has begun
-// changing the table, so that it needs the rollback a multi-command ALTER
-// gets rather than the single-command fast path. Two shapes can:
-//
-//   - `ADD [COLUMN] ( ... )` carries a table element list, so an element that
-//     fails part-way through would leave the earlier ones installed;
-//   - a column with constraints has them applied after the column itself is
-//     inserted, and those can fail -- a second primary key, a duplicate
-//     CHECK name, a CHECK naming another column.
-//
-// MySQL 8.0.46 leaves the table untouched for all of them:
-// `ADD (b INT, KEY i (b))` against a table that already has i,
-// `ADD b INT PRIMARY KEY` against a table that already has one, and
-// `ADD b INT CONSTRAINT ck CHECK (b > 0)` against a table that already has ck
-// (read on 2026-11-04). Any column constraint counts, rather than the three
-// that fail today, so a validation added later cannot reopen this.
-func addNeedsRollback(cmd *nodes.AlterTableCmd) bool {
-	if cmd == nil || cmd.Type != nodes.ATAddColumn {
-		return false
-	}
-	if len(cmd.Columns)+len(cmd.Constraints) > 1 {
-		return true
-	}
-	if cmd.Column != nil && len(cmd.Column.Constraints) > 0 {
-		return true
-	}
-	for _, col := range cmd.Columns {
-		if col != nil && len(col.Constraints) > 0 {
-			return true
-		}
-	}
-	return false
 }

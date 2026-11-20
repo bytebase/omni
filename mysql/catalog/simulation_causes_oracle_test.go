@@ -55,6 +55,9 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// keeps is the partitioning type the catalog must hold after a
 		// statement it took, "" for one it may not.
 		keeps string
+		// cleanup runs on the server after the subtest finishes, for instance-wide
+		// objects such as general tablespaces that DROP TABLE / reset do not clear.
+		cleanup []string
 	}{
 		{
 			name:  "ALTER VIEW over a table",
@@ -1569,11 +1572,705 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:  "ALTER TABLE a ENCRYPTION 's'",
 			code:  3184,
 		},
+		// 1. GEOMETRYCOLLECTION / GEOMCOLLECTION column type aliases store as
+		// geomcollection in SHOW CREATE TABLE (mysql:8.0.46).
+		{
+			name:     "ALTER TABLE ADD GEOMETRYCOLLECTION",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD g GEOMETRYCOLLECTION",
+			code:     0,
+			contains: []string{"`g` geomcollection DEFAULT NULL"},
+		},
+		{
+			name:     "ALTER TABLE ADD GEOMCOLLECTION",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD g GEOMCOLLECTION",
+			code:     0,
+			contains: []string{"`g` geomcollection DEFAULT NULL"},
+		},
+		// 2. Functional index naming (`functional_index`), bare-column refusal
+		// (3762 ahead of 1061 and 1054), primary-key functional refusal (3756 ahead
+		// of 1068), and functional expression column resolution (1054 / forward ADD).
+		{
+			name:     "ALTER TABLE ADD KEY over a constant expression",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD KEY((1))",
+			code:     0,
+			contains: []string{"KEY `functional_index` ((1))"},
+		},
+		{
+			name:     "ALTER TABLE ADD UNIQUE over an expression",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD UNIQUE((b + 1))",
+			code:     0,
+			contains: []string{"UNIQUE KEY `functional_index` ("},
+		},
+		{
+			name:  "ALTER TABLE ADD KEY over a bare column expression",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY((b))",
+			code:  3762,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY over a nested bare column expression",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(((b)))",
+			code:  3762,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY over a bare column expression with a duplicate index name",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY idx_d ((b))",
+			code:  3762,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY over an unknown bare column expression",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY((nosuch))",
+			code:  3762,
+		},
+		{
+			name:  "CREATE INDEX over a bare column expression with a duplicate index name",
+			setup: []string{oneTable},
+			stmt:  "CREATE INDEX idx_d ON a ((b))",
+			code:  3762,
+		},
+		{
+			name: "CREATE TABLE with a functional key over an unknown bare column",
+			stmt: "CREATE TABLE z (b INT, KEY ((nosuch)))",
+			code: 3762,
+		},
+		{
+			name:  "ALTER TABLE ADD KEY over an unknown column in an expression",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY((nosuch + 1))",
+			code:  1054,
+		},
+		{
+			name:     "ALTER TABLE ADD KEY over a column a later command adds in an expression",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD KEY((x2 + 1)), ADD x2 INT",
+			code:     0,
+			contains: []string{"KEY `functional_index` (", "`x2` int DEFAULT NULL"},
+		},
+		{
+			name:  "ALTER TABLE ADD PRIMARY KEY over a functional expression on a table with a PK",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD PRIMARY KEY((b + 1))",
+			code:  3756,
+		},
+		{
+			name: "CREATE TABLE with a functional PRIMARY KEY",
+			stmt: "CREATE TABLE z (b INT, PRIMARY KEY((b + 1)))",
+			code: 3756,
+		},
+		// 3. CONVERT TO CHARSET DEFAULT resolves to the database's charset and
+		// collation, clearing column-level overrides and re-checking ENUM/SET.
+		{
+			name: "CONVERT TO CHARSET DEFAULT",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY, s VARCHAR(10) CHARACTER SET latin1) DEFAULT CHARSET=latin1 COLLATE=latin1_bin",
+			},
+			stmt:     "ALTER TABLE a CONVERT TO CHARSET DEFAULT",
+			code:     0,
+			contains: []string{"DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci"},
+			omits:    []string{"latin1"},
+		},
+		{
+			name: "CONVERT TO CHARSET DEFAULT with an explicit COLLATE",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY, s VARCHAR(10) CHARACTER SET latin1) DEFAULT CHARSET=latin1",
+			},
+			stmt:     "ALTER TABLE a CONVERT TO CHARSET DEFAULT COLLATE utf8mb4_bin",
+			code:     0,
+			contains: []string{"DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin"},
+			omits:    []string{"latin1"},
+		},
+		{
+			name:  "CONVERT TO CHARSET DEFAULT with a mismatched COLLATE",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a CONVERT TO CHARSET DEFAULT COLLATE latin1_bin",
+			code:  1253,
+		},
+		{
+			name: "CONVERT TO CHARSET DEFAULT colliding case-distinct ENUM values",
+			setup: []string{
+				"CREATE TABLE a (e ENUM('a', 'A') CHARACTER SET utf8mb4 COLLATE utf8mb4_bin) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin",
+			},
+			stmt: "ALTER TABLE a CONVERT TO CHARSET DEFAULT",
+			code: 1291,
+		},
+		// 4. SECONDARY_LOAD and SECONDARY_UNLOAD require a defined SECONDARY_ENGINE (3889).
+		{
+			name:  "SECONDARY_LOAD with no secondary engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a SECONDARY_LOAD",
+			code:  3889,
+		},
+		{
+			name:  "ALGORITHM DEFAULT, SECONDARY_LOAD with no secondary engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALGORITHM DEFAULT, SECONDARY_LOAD",
+			code:  3889,
+		},
+		{
+			name:  "SECONDARY_UNLOAD with no secondary engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a SECONDARY_UNLOAD",
+			code:  3889,
+		},
+		{
+			name:     "SECONDARY_LOAD with a secondary engine defined",
+			setup:    []string{"CREATE TABLE a (b INT PRIMARY KEY) SECONDARY_ENGINE = rapid"},
+			stmt:     "ALTER TABLE a SECONDARY_LOAD",
+			code:     0,
+			contains: []string{"SECONDARY_ENGINE=rapid"},
+		},
+		{
+			name:  "SECONDARY_UNLOAD with a secondary engine defined",
+			setup: []string{"CREATE TABLE a (b INT PRIMARY KEY) SECONDARY_ENGINE = rapid"},
+			stmt:  "ALTER TABLE a SECONDARY_UNLOAD",
+			code:  0,
+		},
+		{
+			name: "SECONDARY_LOAD after clearing SECONDARY_ENGINE to NULL",
+			setup: []string{
+				"CREATE TABLE a (b INT PRIMARY KEY) SECONDARY_ENGINE = rapid",
+				"ALTER TABLE a SECONDARY_ENGINE = NULL",
+			},
+			stmt: "ALTER TABLE a SECONDARY_LOAD",
+			code: 3889,
+		},
+		// 5. TABLESPACE validation on InnoDB (3510, 3723, 3119, 1478) and CREATE TABLESPACE.
+		{
+			name:  "ALTER TABLE TABLESPACE over a missing tablespace",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE nosuch_ts",
+			code:  3510,
+		},
+		{
+			name:  "ALTER TABLE TABLESPACE judged before a missing key column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(nosuch_col), TABLESPACE nosuch_ts",
+			code:  3510,
+		},
+		{
+			name:  "CREATE TABLE TABLESPACE judged before a duplicate table name",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a (b INT) TABLESPACE nosuch_ts",
+			code:  3510,
+		},
+		{
+			name:  "ALTER TABLE TABLESPACE mysql reserved",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE mysql",
+			code:  3723,
+		},
+		{
+			name:  "ALTER TABLE TABLESPACE innodb_ prefix reserved",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE innodb_custom",
+			code:  3119,
+		},
+		{
+			name:  "ALTER TABLE TABLESPACE innodb_temporary on a non-temporary table",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE innodb_temporary",
+			code:  1478,
+		},
+		{
+			name:     "ALTER TABLE TABLESPACE innodb_file_per_table",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a TABLESPACE innodb_file_per_table",
+			code:     0,
+			contains: []string{"TABLESPACE `innodb_file_per_table`"},
+		},
+		{
+			name:  "ALTER TABLE TABLESPACE ignored on MyISAM",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE=MyISAM, TABLESPACE nosuch_ts",
+			code:  0,
+		},
+		{
+			name: "ALTER TABLE TABLESPACE over a created general tablespace",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+				oneTable,
+			},
+			stmt:     "ALTER TABLE a TABLESPACE ts_oracle",
+			code:     0,
+			contains: []string{"TABLESPACE `ts_oracle`"},
+			cleanup:  []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_oracle"},
+		},
+		{
+			name: "ALTER TABLE TABLESPACE is case-sensitive on general tablespaces",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+				oneTable,
+			},
+			stmt:    "ALTER TABLE a TABLESPACE TS_ORACLE",
+			code:    3510,
+			cleanup: []string{"DROP TABLESPACE ts_oracle"},
+		},
+		// 6. AUTOEXTEND_SIZE range [4M, 4096M] (4025) and 4M alignment (4023) on InnoDB.
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE below 4M",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a AUTOEXTEND_SIZE 1",
+			code:  4025,
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE above 4096M",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a AUTOEXTEND_SIZE 8192M",
+			code:  4025,
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE not a multiple of 4M",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a AUTOEXTEND_SIZE 5M",
+			code:  4023,
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE 0",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a AUTOEXTEND_SIZE 0",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE 4M",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a AUTOEXTEND_SIZE 4M",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE judged after a missing key column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(nosuch_col), AUTOEXTEND_SIZE 1",
+			code:  1072,
+		},
+		{
+			name:  "ALTER TABLE AUTOEXTEND_SIZE ignored on MyISAM",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE=MyISAM, AUTOEXTEND_SIZE 1",
+			code:  0,
+		},
+		{
+			name: "CREATE TABLE with AUTOEXTEND_SIZE below 4M",
+			stmt: "CREATE TABLE z (b INT) AUTOEXTEND_SIZE 1",
+			code: 4025,
+		},
+		// 7. DISCARD / IMPORT TABLESPACE (1813, 1812, 1031, 1148, and TRUNCATE 1814).
+		{
+			name:  "IMPORT TABLESPACE when tablespace has not been discarded",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a IMPORT TABLESPACE",
+			code:  1813,
+		},
+		{
+			name:  "IMPORT TABLESPACE after DISCARD TABLESPACE with no .ibd file",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "ALTER TABLE a IMPORT TABLESPACE",
+			code:  1812,
+		},
+		{
+			name:  "TRUNCATE TABLE after DISCARD TABLESPACE",
+			setup: []string{oneTable, "ALTER TABLE a DISCARD TABLESPACE"},
+			stmt:  "TRUNCATE TABLE a",
+			code:  1814,
+		},
+		{
+			name:  "IMPORT TABLESPACE on a MyISAM table",
+			setup: []string{"CREATE TABLE a (b INT) ENGINE=MyISAM"},
+			stmt:  "ALTER TABLE a IMPORT TABLESPACE",
+			code:  1031,
+		},
+		{
+			name: "DISCARD TABLESPACE on a table in a general tablespace",
+			setup: []string{
+				"CREATE TABLESPACE ts_oracle ADD DATAFILE 'ts_oracle.ibd' ENGINE=InnoDB",
+				"CREATE TABLE a (b INT) TABLESPACE ts_oracle",
+			},
+			stmt:    "ALTER TABLE a DISCARD TABLESPACE",
+			code:    1148,
+			cleanup: []string{"DROP TABLE IF EXISTS a", "DROP TABLESPACE ts_oracle"},
+		},
+		// 8. FOREIGN KEY without referenced columns or with mismatched arity (1239).
+		{
+			name:  "ALTER TABLE ADD FOREIGN KEY with no referenced columns",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(c) REFERENCES a",
+			code:  1239,
+		},
+		{
+			name:  "ALTER TABLE ADD FOREIGN KEY with mismatched referenced column count",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(b, c) REFERENCES a(b)",
+			code:  1239,
+		},
+		{
+			name:  "CREATE TABLE with FOREIGN KEY and no referenced columns",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE z (b INT, FOREIGN KEY(b) REFERENCES a)",
+			code:  1239,
+		},
+		{
+			name:    "ALTER TABLE ADD FOREIGN KEY with no referenced columns under foreign_key_checks=0",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION foreign_key_checks = 0"},
+			stmt:    "ALTER TABLE a ADD FOREIGN KEY(c) REFERENCES nosuch_tbl",
+			code:    1239,
+			cleanup: []string{"SET SESSION foreign_key_checks = ON"},
+		},
+		{
+			name: "ALTER TABLE ADD FOREIGN KEY with no referenced columns judged before duplicate FK name",
+			setup: []string{
+				"CREATE TABLE p (id INT PRIMARY KEY)",
+				"CREATE TABLE a (b INT PRIMARY KEY, c INT, CONSTRAINT fk1 FOREIGN KEY (c) REFERENCES p(id))",
+			},
+			stmt: "ALTER TABLE a ADD CONSTRAINT fk1 FOREIGN KEY(c) REFERENCES p",
+			code: 1239,
+		},
+		// 9. Key prefix length on non-prefixable types (1089) and JSON key (3152).
+		{
+			name:  "ALTER TABLE ADD KEY with a prefix on an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(c(1))",
+			code:  1089,
+		},
+		{
+			name:  "ALTER TABLE ADD PRIMARY KEY with a prefix on an INT column",
+			setup: []string{noPrimaryKey},
+			stmt:  "ALTER TABLE a ADD PRIMARY KEY(c(1))",
+			code:  1089,
+		},
+		{
+			name:  "ALTER TABLE ADD FOREIGN KEY with a prefix on an INT column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY(c(1)) REFERENCES a(b)",
+			code:  1089,
+		},
+		{
+			name:  "CREATE INDEX with a prefix on an INT column",
+			setup: []string{oneTable},
+			stmt:  "CREATE INDEX i ON a(c(1))",
+			code:  1089,
+		},
+		{
+			name: "CREATE TABLE with a prefix key on a DATETIME column",
+			stmt: "CREATE TABLE z (c DATETIME, KEY(c(1)))",
+			code: 1089,
+		},
+		{
+			name: "CREATE TABLE with a prefix key on an ENUM column",
+			stmt: "CREATE TABLE z (c ENUM('a','b'), KEY(c(1)))",
+			code: 1089,
+		},
+		{
+			name: "CREATE TABLE with a prefix on a SPATIAL KEY",
+			stmt: "CREATE TABLE z (g POINT NOT NULL, SPATIAL KEY(g(1)))",
+			code: 1089,
+		},
+		{
+			name: "CREATE TABLE with a prefix on a BIT column",
+			stmt: "CREATE TABLE z (b BIT(8), KEY(b(4)))",
+			code: 1089,
+		},
+		{
+			name: "CREATE TABLE with a prefix on a YEAR column",
+			stmt: "CREATE TABLE z (b YEAR, KEY(b(2)))",
+			code: 1089,
+		},
+		{
+			name: "CREATE TABLE with a valid prefix on a VARCHAR column",
+			stmt: "CREATE TABLE z (s VARCHAR(8), KEY(s(4)))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with a regular key on a JSON column",
+			stmt: "CREATE TABLE z (j JSON, KEY(j))",
+			code: 3152,
+		},
+		// 10. ON UPDATE CURRENT_TIMESTAMP prepare-time checks (1294) and FSP mismatch.
+		{
+			name: "ADD INT ON UPDATE CURRENT_TIMESTAMP over no table",
+			stmt: "ALTER TABLE nope ADD x INT ON UPDATE CURRENT_TIMESTAMP",
+			code: 1294,
+		},
+		{
+			name:  "ADD INT ON UPDATE CURRENT_TIMESTAMP over a duplicate column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD b INT ON UPDATE CURRENT_TIMESTAMP",
+			code:  1294,
+		},
+		{
+			name: "ADD DATETIME(3) ON UPDATE CURRENT_TIMESTAMP with mismatched FSP over no table",
+			stmt: "ALTER TABLE nope ADD x DATETIME(3) ON UPDATE CURRENT_TIMESTAMP",
+			code: 1294,
+		},
+		{
+			name: "ADD DATETIME(3) DEFAULT CURRENT_TIMESTAMP with mismatched FSP over no table",
+			stmt: "ALTER TABLE nope ADD x DATETIME(3) DEFAULT CURRENT_TIMESTAMP",
+			code: 1067,
+		},
+		{
+			name:  "ADD DATETIME(3) with matching FSP on DEFAULT and ON UPDATE",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)",
+			code:  0,
+		},
+		// 11. AUTO_INCREMENT key requirement on CREATE TABLE, ALTER TABLE and DROP INDEX (1075).
+		{
+			name:  "ALTER TABLE ADD unkeyed AUTO_INCREMENT column",
+			setup: []string{noPrimaryKey},
+			stmt:  "ALTER TABLE a ADD x INT AUTO_INCREMENT",
+			code:  1075,
+		},
+		{
+			name:  "ALTER TABLE ADD AUTO_INCREMENT column keyed by a later command",
+			setup: []string{noPrimaryKey},
+			stmt:  "ALTER TABLE a ADD x INT AUTO_INCREMENT, ADD KEY(x)",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD AUTO_INCREMENT column as non-leading key part on InnoDB",
+			setup: []string{noPrimaryKey},
+			stmt:  "ALTER TABLE a ADD x INT AUTO_INCREMENT, ADD KEY(c, x)",
+			code:  1075,
+		},
+		{
+			name: "CREATE TABLE with AUTO_INCREMENT column as secondary key part on MyISAM",
+			stmt: "CREATE TABLE z (c INT NOT NULL, x INT AUTO_INCREMENT, PRIMARY KEY (c, x)) ENGINE=MyISAM",
+			code: 0,
+		},
+		{
+			name:  "DROP INDEX of the only key covering an AUTO_INCREMENT column",
+			setup: []string{"CREATE TABLE a (b INT AUTO_INCREMENT, c INT, KEY k (b))"},
+			stmt:  "DROP INDEX k ON a",
+			code:  1075,
+		},
+		{
+			name:  "ALTER TABLE DROP INDEX of the only key covering an AUTO_INCREMENT column",
+			setup: []string{"CREATE TABLE a (b INT AUTO_INCREMENT, c INT, KEY k (b))"},
+			stmt:  "ALTER TABLE a DROP INDEX k",
+			code:  1075,
+		},
+		// 12. ENUM and SET duplicate member checks under strict sql_mode and collation (1291).
+		{
+			name:  "ALTER TABLE ADD ENUM with exact duplicate values",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('s', 's')",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with case-colliding values under default collation",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('s', 'S')",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with trailing-space duplicate under binary collation",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('s ', 's') COLLATE utf8mb4_bin",
+			code:  1291,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with case-distinct values under binary collation",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('s', 'S') COLLATE utf8mb4_bin",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with COLLATE after NOT NULL",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('s', 'S') NOT NULL COLLATE utf8mb4_bin",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD SET with case-colliding values",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x SET('a', 'A')",
+			code:  1291,
+		},
+		{
+			name:    "ALTER TABLE ADD ENUM with duplicate values under non-strict sql_mode",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "ALTER TABLE a ADD x ENUM('s', 's')",
+			code:    0,
+		},
+		// 13. Expression DEFAULT `(expr)` validation (3767, 3768, 1054, 3769, 3772).
+		{
+			name:  "ALTER TABLE ADD column with self-referencing expression DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT (x)",
+			code:  3767,
+		},
+		{
+			name:  "ALTER TABLE ALTER COLUMN SET self-referencing expression DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER COLUMN c SET DEFAULT (c)",
+			code:  3767,
+		},
+		{
+			name: "CREATE TABLE with forward expression DEFAULT referencing an expr-default column",
+			stmt: "CREATE TABLE z (x INT DEFAULT (y), y INT DEFAULT (1))",
+			code: 3767,
+		},
+		{
+			name: "CREATE TABLE with forward expression DEFAULT referencing a generated column",
+			stmt: "CREATE TABLE z (x INT DEFAULT (y), y INT AS (1))",
+			code: 3767,
+		},
+		{
+			name: "CREATE TABLE with forward expression DEFAULT referencing an ordinary column",
+			stmt: "CREATE TABLE z (x INT DEFAULT (y), y INT)",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with backward expression DEFAULT referencing an expr-default column",
+			stmt: "CREATE TABLE z (y INT DEFAULT (1), x INT DEFAULT (y))",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with forward expression DEFAULT referencing a bare NOW() column",
+			stmt: "CREATE TABLE z (x INT DEFAULT (dt), dt DATETIME DEFAULT NOW())",
+			code: 0,
+		},
+		{
+			name: "CREATE TABLE with forward expression DEFAULT referencing a parenthesized (NOW()) column",
+			stmt: "CREATE TABLE z (x INT DEFAULT (dt), dt DATETIME DEFAULT (NOW()))",
+			code: 3767,
+		},
+		{
+			name: "CREATE TABLE with expression DEFAULT referencing an AUTO_INCREMENT column",
+			stmt: "CREATE TABLE z (id INT AUTO_INCREMENT PRIMARY KEY, x INT DEFAULT (id))",
+			code: 3768,
+		},
+		{
+			name:  "ALTER TABLE ADD column with expression DEFAULT referencing a missing column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT (nosuch + 1)",
+			code:  1054,
+		},
+		{
+			name:  "ALTER TABLE ADD column with subquery in expression DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT ((SELECT 1))",
+			code:  3769,
+		},
+		{
+			name:  "ALTER TABLE ADD column with variable in expression DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT (@v)",
+			code:  3772,
+		},
+		// 14. Literal DEFAULT validation against column type and range (1067).
+		{
+			name:  "ALTER TABLE ADD INT with non-numeric string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT 's'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ALTER INT COLUMN SET non-numeric string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ALTER COLUMN c SET DEFAULT 's'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD INT with numeric string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT '123'",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD INT with parenthesized string expression DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x INT DEFAULT ('s')",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD TINYINT with out-of-range DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x TINYINT DEFAULT 128",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD TINYINT UNSIGNED with negative DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x TINYINT UNSIGNED DEFAULT -1",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD DECIMAL(4,2) with overflowing DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x DECIMAL(4,2) DEFAULT 100.00",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD VARCHAR(3) with overlong DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x VARCHAR(3) DEFAULT 'abcd'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD BIT(1) with overflowing byte string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x BIT(1) DEFAULT 's'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD BIT(8) with fitting byte string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x BIT(8) DEFAULT 's'",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ADD ENUM with non-member DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x ENUM('a', 'b') DEFAULT 'c'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD YEAR with invalid string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x YEAR DEFAULT 's'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD DATE with invalid string DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x DATE DEFAULT 's'",
+			code:  1067,
+		},
+		{
+			name:  "ALTER TABLE ADD DATE with zero date DEFAULT under default sql_mode",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD x DATE DEFAULT '0000-00-00'",
+			code:  1067,
+		},
+		{
+			name:    "ALTER TABLE ADD DATE with zero date DEFAULT under empty sql_mode",
+			setup:   []string{oneTable},
+			session: []string{"SET SESSION sql_mode = ''"},
+			stmt:    "ALTER TABLE a ADD x DATE DEFAULT '0000-00-00'",
+			code:    0,
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reset()
+			if len(tc.cleanup) > 0 {
+				t.Cleanup(func() {
+					for _, stmt := range tc.cleanup {
+						if _, err := conn.ExecContext(ctx, stmt); err != nil {
+							t.Fatalf("cleanup %s: %v", stmt, err)
+						}
+					}
+				})
+			}
 			for _, stmt := range tc.setup {
 				if _, err := conn.ExecContext(ctx, stmt); err != nil {
 					t.Fatalf("%s: %v", stmt, err)
@@ -1733,5 +2430,61 @@ func TestDefineTableKeepsWhatOnlyItsServerHas(t *testing.T) {
 		if results[0].Error == nil {
 			t.Errorf("Exec(%q) took what the pinned server does not have", stmt)
 		}
+	}
+}
+
+func TestSimulationRound4CatalogInvariants(t *testing.T) {
+	c := New()
+	execAlterClauses(t, c, "CREATE DATABASE d DEFAULT CHARSET=latin1 COLLATE=latin1_bin; USE d;")
+	execAlterClauses(t, c, "CREATE TABLE a (b INT PRIMARY KEY, s VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4;")
+
+	// CONVERT TO CHARSET DEFAULT inherits the database's non-utf8mb4 charset and collation.
+	execAlterClauses(t, c, "ALTER TABLE a CONVERT TO CHARSET DEFAULT;")
+	tbl := c.GetDatabase("d").GetTable("a")
+	if tbl.Charset != "latin1" || tbl.Collation != "latin1_bin" {
+		t.Fatalf("after CONVERT TO CHARSET DEFAULT got (%q, %q), want (latin1, latin1_bin)", tbl.Charset, tbl.Collation)
+	}
+	colS := tbl.GetColumn("s")
+	if colS.Charset != "latin1" || colS.Collation != "latin1_bin" || colS.CharsetExplicit || colS.CollationExplicit {
+		t.Fatalf("column s after CONVERT TO CHARSET DEFAULT: %+v", colS)
+	}
+
+	// Single-command ALTER failures leave the table completely untouched.
+	before := c.ShowCreateTable("d", "a")
+	for _, bad := range []struct {
+		stmt string
+		code int
+	}{
+		{"ALTER TABLE a ADD x INT AUTO_INCREMENT", 1075},
+		{"ALTER TABLE a ADD x INT DEFAULT (x)", 3767},
+		{"ALTER TABLE a AUTOEXTEND_SIZE 1", 4025},
+		{"ALTER TABLE a ADD e ENUM('x', 'x')", 1291},
+	} {
+		got, msg := simulationCatalogRefusal(t, c, bad.stmt)
+		if got != bad.code {
+			t.Fatalf("%s: got %d (%s), want %d", bad.stmt, got, msg, bad.code)
+		}
+		if after := c.ShowCreateTable("d", "a"); after != before {
+			t.Fatalf("failed %s mutated table:\nbefore:\n%s\nafter:\n%s", bad.stmt, before, after)
+		}
+	}
+
+	// Tablespace DDL lifecycle: create, duplicate (1813), rename, non-empty drop (3120), drop, missing drop (3510).
+	execAlterClauses(t, c, "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' AUTOEXTEND_SIZE = 4M;")
+	if got, _ := simulationCatalogRefusal(t, c, "CREATE TABLESPACE ts1 ADD DATAFILE 'ts1b.ibd'"); got != 1813 {
+		t.Fatalf("duplicate CREATE TABLESPACE got %d, want 1813", got)
+	}
+	execAlterClauses(t, c, "ALTER TABLE a TABLESPACE ts1;")
+	execAlterClauses(t, c, "ALTER TABLESPACE ts1 RENAME TO ts2;")
+	if tbl.Tablespace != "ts2" {
+		t.Fatalf("table tablespace after rename = %q, want ts2", tbl.Tablespace)
+	}
+	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts2"); got != 3120 {
+		t.Fatalf("DROP non-empty TABLESPACE got %d, want 3120", got)
+	}
+	execAlterClauses(t, c, "ALTER TABLE a TABLESPACE innodb_file_per_table;")
+	execAlterClauses(t, c, "DROP TABLESPACE ts2;")
+	if got, _ := simulationCatalogRefusal(t, c, "DROP TABLESPACE ts2"); got != 3510 {
+		t.Fatalf("DROP missing TABLESPACE got %d, want 3510", got)
 	}
 }

@@ -55,7 +55,10 @@ var simulationFixtures = []string{"one_table@missing", "one_table@table", "one_t
 // DDL on tables, indexes and views, whose whole effect is in the database a
 // row reads back. Statements on databases, routines, triggers, events,
 // tablespaces, accounts and the server are not simulated here yet: what they
-// change is outside that database, or is no table or view text.
+// change is outside that database, or is no table or view text. Note that
+// "CREATE DEFINER " (kept for views) also admits the four fixtures'
+// `CREATE DEFINER = utf8mb4 PROCEDURE utf8mb4() COMMIT;` rows, which stay open
+// until simulationForms reads stored routines in addition to SHOW FULL TABLES.
 var simulationFamilies = []string{
 	"ALTER TABLE ", "CREATE TABLE ", "DROP TABLE ", "RENAME TABLE ", "TRUNCATE ",
 	"CREATE INDEX ", "CREATE UNIQUE ", "CREATE FULLTEXT ", "CREATE SPATIAL ", "DROP INDEX ",

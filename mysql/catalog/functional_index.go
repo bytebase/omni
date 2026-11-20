@@ -34,9 +34,18 @@ func allocFunctionalIndexName(tbl *Table) string {
 }
 
 func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
+	return synthesizeFunctionalIndexColumnsForStmt(tbl, idx, nil, true)
+}
+
+func synthesizeFunctionalIndexColumnsForStmt(tbl *Table, idx *Index, leaves map[string]bool, checkRefs bool) error {
 	for _, idxCol := range idx.Columns {
 		if idxCol.Expr == "" {
 			continue
+		}
+		if checkRefs {
+			if err := validateFunctionalIndexColumnRefs(tbl, leaves, idxCol.ExprNode); err != nil {
+				return err
+			}
 		}
 		if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
 			return err
@@ -64,6 +73,90 @@ func synthesizeFunctionalIndexColumns(tbl *Table, idx *Index) error {
 		tbl.colByName[toLower(hiddenName)] = len(tbl.Columns) - 1
 	}
 	return nil
+}
+
+func recheckFunctionalIndexesOnFinalTable(tbl *Table, added []*Index) error {
+	for _, idx := range added {
+		if idx == nil {
+			continue
+		}
+		for _, idxCol := range idx.Columns {
+			if idxCol.Expr == "" {
+				continue
+			}
+			if err := validateFunctionalIndexColumnRefs(tbl, nil, idxCol.ExprNode); err != nil {
+				return err
+			}
+			if err := validateFunctionalIndexExpr(tbl, idx.Name, idxCol.ExprNode); err != nil {
+				return err
+			}
+			if col := tbl.GetColumn(idxCol.Name); col != nil && col.Hidden == ColumnHiddenSystem {
+				resolved := columnFromResolvedType(inferFunctionalIndexExprType(tbl, idxCol.ExprNode))
+				col.DataType = resolved.DataType
+				col.ColumnType = resolved.ColumnType
+				col.Charset = resolved.Charset
+				col.Collation = resolved.Collation
+			}
+		}
+	}
+	return nil
+}
+
+func constraintHasFunctionalKeyPart(con *nodes.Constraint) bool {
+	if con == nil {
+		return false
+	}
+	for _, ic := range con.IndexColumns {
+		if ic != nil && ic.Functional {
+			return true
+		}
+	}
+	return false
+}
+
+// validateNoColumnFunctionalParts refuses a functional key part that wraps a
+// bare column reference: mysql:8.0.46 answers 3762 before checking index name
+// collisions (1061) and before resolving whether the column exists (1054).
+func validateNoColumnFunctionalParts(parts []*nodes.IndexColumn) error {
+	for _, ic := range parts {
+		if ic != nil && ic.Functional {
+			if _, ok := peelFunctionalIndexParens(ic.Expr).(*nodes.ColumnRef); ok {
+				return errFunctionalIndexOnField()
+			}
+		}
+	}
+	return nil
+}
+
+func validateFunctionalIndexColumnRefs(tbl *Table, leaves map[string]bool, expr nodes.ExprNode) error {
+	var err error
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		cr, ok := n.(*nodes.ColumnRef)
+		if !ok || cr.Column == "" {
+			return true
+		}
+		if cr.Schema != "" || (cr.Table != "" && !strings.EqualFold(cr.Table, tbl.Name)) {
+			err = errNoSuchColumn(cr.Column, "functional index")
+			return false
+		}
+		if leaves != nil {
+			if !leaves[toLower(cr.Column)] {
+				err = errNoSuchColumn(cr.Column, "functional index")
+				return false
+			}
+		} else {
+			col := tbl.GetColumn(cr.Column)
+			if col == nil || col.Hidden == ColumnHiddenSystem {
+				err = errNoSuchColumn(cr.Column, "functional index")
+				return false
+			}
+		}
+		return true
+	})
+	return err
 }
 
 func removeFunctionalIndexHiddenColumns(tbl *Table, idx *Index) {
@@ -340,11 +433,7 @@ func isResolvedStringType(rt *ResolvedType) bool {
 
 func validateFunctionalIndexExpr(tbl *Table, indexName string, expr nodes.ExprNode) error {
 	if _, ok := peelFunctionalIndexParens(expr).(*nodes.ColumnRef); ok {
-		return &Error{
-			Code:     3762,
-			SQLState: "HY000",
-			Message:  fmt.Sprintf("Functional index on a column is not supported. Consider using a regular index instead. Index '%s'.", indexName),
-		}
+		return errFunctionalIndexOnField()
 	}
 	if containsDisallowedFunctionalIndexExpr(expr) {
 		return &Error{

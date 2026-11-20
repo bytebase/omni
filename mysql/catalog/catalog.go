@@ -3,12 +3,14 @@ package catalog
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
 	databases        map[string]*Database // lowered name -> Database
+	tablespaces      map[string]bool      // exact general tablespace names
 	currentDB        string
 	defaultCharset   string
 	defaultCollation string
 	charsetClient    string
 	collationConn    string
 	foreignKeyChecks bool // SET foreign_key_checks (default true)
+	loadingSDL       bool // true while LoadSDLWithVersion executes statements
 	generateGIPK     bool // SET sql_generate_invisible_primary_key
 	showGIPK         bool // SET show_gipk_in_create_table_and_information_schema
 	session          SessionState
@@ -31,6 +33,7 @@ func New() *Catalog {
 	session := defaultSessionState()
 	return &Catalog{
 		databases:        make(map[string]*Database),
+		tablespaces:      make(map[string]bool),
 		defaultCharset:   "utf8mb4",
 		defaultCollation: "utf8mb4_0900_ai_ci",
 		charsetClient:    session.CharsetClient,

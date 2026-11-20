@@ -86,7 +86,11 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	// restore the normal session default on the way out. The returned catalog
 	// then reflects a fully-validated schema for any later mutation.
 	c.SetForeignKeyChecks(false)
-	defer c.SetForeignKeyChecks(true)
+	c.loadingSDL = true
+	defer func() {
+		c.loadingSDL = false
+		c.SetForeignKeyChecks(true)
+	}()
 
 	// Order statements so every dependent runs after the objects it references.
 	deps := extractSDLDeps(stmts)

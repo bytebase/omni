@@ -577,6 +577,9 @@ func showTableOptions(tbl *Table) string {
 	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
 		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
 	}
+	if tbl.SecondaryEngine != "" {
+		parts = append(parts, fmt.Sprintf("SECONDARY_ENGINE=%s", tbl.SecondaryEngine))
+	}
 
 	return strings.Join(parts, " ")
 }

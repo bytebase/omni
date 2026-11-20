@@ -275,6 +275,12 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.dropEvent(s)
 	case *nodes.CreateSpatialRefSysStmt:
 		return validateCreateSpatialRefSys(s)
+	case *nodes.CreateTablespaceStmt:
+		return c.createTablespace(s)
+	case *nodes.AlterTablespaceStmt:
+		return c.alterTablespace(s)
+	case *nodes.DropTablespaceStmt:
+		return c.dropTablespace(s)
 	case *nodes.SetStmt:
 		return c.execSet(s)
 	case *nodes.CreateUserStmt, *nodes.AlterUserStmt, *nodes.DropUserStmt,
@@ -368,6 +374,14 @@ func stmtLocStart(node nodes.Node) int {
 	case *nodes.AlterEventStmt:
 		return s.Loc.Start
 	case *nodes.DropEventStmt:
+		return s.Loc.Start
+	case *nodes.CreateSpatialRefSysStmt:
+		return s.Loc.Start
+	case *nodes.CreateTablespaceStmt:
+		return s.Loc.Start
+	case *nodes.AlterTablespaceStmt:
+		return s.Loc.Start
+	case *nodes.DropTablespaceStmt:
 		return s.Loc.Start
 	case *nodes.SetStmt:
 		return s.Loc.Start

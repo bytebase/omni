@@ -84,6 +84,29 @@ const (
 	ErrDupPartitionField           = 1652
 	ErrSpatialColumnNotGeometrical = 1687
 	ErrSRSMissingAttribute         = 3708
+
+	ErrIncorrectPrefixKey                = 1089
+	ErrNotAllowedCommand                 = 1148
+	ErrWrongFkDef                        = 1239
+	ErrDuplicatedValueInType             = 1291
+	ErrTablespaceMissing                 = 1812
+	ErrTablespaceExists                  = 1813
+	ErrTablespaceDiscarded               = 1814
+	ErrCannotDiscardImportTempTable      = 3007
+	ErrWrongTablespaceName               = 3119
+	ErrTablespaceIsNotEmpty              = 3120
+	ErrJSONUsedAsKey                     = 3152
+	ErrTablespaceDoesNotExist            = 3510
+	ErrReservedTablespaceName            = 3723
+	ErrFunctionalIndexPrimaryKey         = 3756
+	ErrFunctionalIndexOnField            = 3762
+	ErrDefaultValExprNamedFuncNotAllowed = 3767
+	ErrDefaultValExprRefAutoInc          = 3768
+	ErrDefaultValExprContainSubquery     = 3769
+	ErrDefaultValExprRefVariable         = 3772
+	ErrSecondaryEngineNotDefined         = 3889
+	ErrAutoextendSizeNotMultiple         = 4023
+	ErrAutoextendSizeOutOfRange          = 4025
 )
 
 const (
@@ -156,6 +179,28 @@ var sqlStateMap = map[int]string{
 	ErrTableMustHaveColumns:              "HY000",
 	ErrSpatialColumnNotGeometrical:       "42000",
 	ErrSRSMissingAttribute:               "SR006",
+	ErrIncorrectPrefixKey:                "HY000",
+	ErrNotAllowedCommand:                 "42000",
+	ErrWrongFkDef:                        "42000",
+	ErrDuplicatedValueInType:             "HY000",
+	ErrTablespaceMissing:                 "HY000",
+	ErrTablespaceExists:                  "HY000",
+	ErrTablespaceDiscarded:               "HY000",
+	ErrCannotDiscardImportTempTable:      "HY000",
+	ErrWrongTablespaceName:               "42000",
+	ErrTablespaceIsNotEmpty:              "HY000",
+	ErrJSONUsedAsKey:                     "42000",
+	ErrTablespaceDoesNotExist:            "HY000",
+	ErrReservedTablespaceName:            "HY000",
+	ErrFunctionalIndexPrimaryKey:         "HY000",
+	ErrFunctionalIndexOnField:            "HY000",
+	ErrDefaultValExprNamedFuncNotAllowed: "HY000",
+	ErrDefaultValExprRefAutoInc:          "HY000",
+	ErrDefaultValExprContainSubquery:     "HY000",
+	ErrDefaultValExprRefVariable:         "HY000",
+	ErrSecondaryEngineNotDefined:         "HY000",
+	ErrAutoextendSizeNotMultiple:         "HY000",
+	ErrAutoextendSizeOutOfRange:          "HY000",
 }
 
 func sqlState(code int) string {
@@ -564,4 +609,119 @@ func errWrongParametersToNativeFct(fn string) error {
 func errWrongParametersToStoredFct(fn string) error {
 	return &Error{Code: 1584, SQLState: "42000",
 		Message: fmt.Sprintf("Incorrect parameters in the call to stored function `%s`", strings.ToLower(fn))}
+}
+
+func errIncorrectPrefixKey() error {
+	return &Error{Code: ErrIncorrectPrefixKey, SQLState: sqlState(ErrIncorrectPrefixKey),
+		Message: "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"}
+}
+
+func errNotAllowedCommand() error {
+	return &Error{Code: ErrNotAllowedCommand, SQLState: sqlState(ErrNotAllowedCommand),
+		Message: "The used command is not allowed with this MySQL version"}
+}
+
+func errWrongFkDef(forStr, reason string) error {
+	return &Error{Code: ErrWrongFkDef, SQLState: sqlState(ErrWrongFkDef),
+		Message: fmt.Sprintf("Incorrect foreign key definition for '%s': %s", forStr, reason)}
+}
+
+func errDuplicatedValueInType(colName, val, typ string) error {
+	return &Error{Code: ErrDuplicatedValueInType, SQLState: sqlState(ErrDuplicatedValueInType),
+		Message: fmt.Sprintf("Column '%s' has duplicated value '%s' in %s", colName, val, typ)}
+}
+
+func errTablespaceMissing(db, table string) error {
+	return &Error{Code: ErrTablespaceMissing, SQLState: sqlState(ErrTablespaceMissing),
+		Message: fmt.Sprintf("Tablespace is missing for table `%s`.`%s`.", db, table)}
+}
+
+func errTablespaceExists(name string) error {
+	return &Error{Code: ErrTablespaceExists, SQLState: sqlState(ErrTablespaceExists),
+		Message: fmt.Sprintf("Tablespace '%s' exists.", name)}
+}
+
+func errTablespaceDiscarded(db, table string) error {
+	return &Error{Code: ErrTablespaceDiscarded, SQLState: sqlState(ErrTablespaceDiscarded),
+		Message: fmt.Sprintf("Tablespace has been discarded for table '%s/%s'", db, table)}
+}
+
+func errCannotDiscardImportTempTable() error {
+	return &Error{Code: ErrCannotDiscardImportTempTable, SQLState: sqlState(ErrCannotDiscardImportTempTable),
+		Message: "Cannot DISCARD/IMPORT tablespace associated with temporary table"}
+}
+
+func errReservedInnoDBTablespacePrefix() error {
+	return &Error{Code: ErrWrongTablespaceName, SQLState: sqlState(ErrWrongTablespaceName),
+		Message: "InnoDB: Tablespace names starting with `innodb_` are reserved."}
+}
+
+func errTablespaceIsNotEmpty(name string) error {
+	return &Error{Code: ErrTablespaceIsNotEmpty, SQLState: sqlState(ErrTablespaceIsNotEmpty),
+		Message: fmt.Sprintf("Tablespace '%s' is not empty.", name)}
+}
+
+func errJSONUsedAsKey(colName string) error {
+	return &Error{Code: ErrJSONUsedAsKey, SQLState: sqlState(ErrJSONUsedAsKey),
+		Message: fmt.Sprintf("JSON column '%s' supports indexing only via generated columns on a specified JSON path.", colName)}
+}
+
+func errTablespaceDoesNotExist(name string) error {
+	return &Error{Code: ErrTablespaceDoesNotExist, SQLState: sqlState(ErrTablespaceDoesNotExist),
+		Message: fmt.Sprintf("Tablespace %s doesn't exist.", name)}
+}
+
+func errReservedTablespaceName(table, ts string) error {
+	return &Error{Code: ErrReservedTablespaceName, SQLState: sqlState(ErrReservedTablespaceName),
+		Message: fmt.Sprintf("The table '%s' may not be created in the reserved tablespace '%s'.", table, ts)}
+}
+
+func errTempTablespaceNonTempTable() error {
+	return &Error{Code: 1478, SQLState: "HY000",
+		Message: "InnoDB: Tablespace `innodb_temporary` can only contain TEMPORARY tables."}
+}
+
+func errFunctionalIndexPrimaryKey() error {
+	return &Error{Code: ErrFunctionalIndexPrimaryKey, SQLState: sqlState(ErrFunctionalIndexPrimaryKey),
+		Message: "The primary key cannot be a functional index"}
+}
+
+func errFunctionalIndexOnField() error {
+	return &Error{Code: ErrFunctionalIndexOnField, SQLState: sqlState(ErrFunctionalIndexOnField),
+		Message: "Functional index on a column is not supported. Consider using a regular index instead."}
+}
+
+func errDefaultValExprForwardRef(colName string) error {
+	return &Error{Code: ErrDefaultValExprNamedFuncNotAllowed, SQLState: sqlState(ErrDefaultValExprNamedFuncNotAllowed),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to a column defined after it if that column is a generated column or has an expression as default value.", colName)}
+}
+
+func errDefaultValExprRefAutoInc(colName string) error {
+	return &Error{Code: ErrDefaultValExprRefAutoInc, SQLState: sqlState(ErrDefaultValExprRefAutoInc),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to an auto-increment column.", colName)}
+}
+
+func errDefaultValExprSubquery(colName string) error {
+	return &Error{Code: ErrDefaultValExprContainSubquery, SQLState: sqlState(ErrDefaultValExprContainSubquery),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot contain subqueries.", colName)}
+}
+
+func errDefaultValExprVariable(colName string) error {
+	return &Error{Code: ErrDefaultValExprRefVariable, SQLState: sqlState(ErrDefaultValExprRefVariable),
+		Message: fmt.Sprintf("Default value expression of column '%s' cannot refer to user or system variables.", colName)}
+}
+
+func errSecondaryEngineNotDefined() error {
+	return &Error{Code: ErrSecondaryEngineNotDefined, SQLState: sqlState(ErrSecondaryEngineNotDefined),
+		Message: "Secondary engine operation failed. No secondary engine defined."}
+}
+
+func errAutoextendSizeNotMultiple() error {
+	return &Error{Code: ErrAutoextendSizeNotMultiple, SQLState: sqlState(ErrAutoextendSizeNotMultiple),
+		Message: "AUTOEXTEND_SIZE should be a multiple of 4M"}
+}
+
+func errAutoextendSizeOutOfRange() error {
+	return &Error{Code: ErrAutoextendSizeOutOfRange, SQLState: sqlState(ErrAutoextendSizeOutOfRange),
+		Message: "AUTOEXTEND_SIZE value should be between 4M and 4096M"}
 }

@@ -29,6 +29,11 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := validateNonPrimaryIndexName(stmt.IndexName); err != nil {
 		return err
 	}
+	if !stmt.Fulltext && !stmt.Spatial {
+		if err := validateNoColumnFunctionalParts(stmt.Columns); err != nil {
+			return err
+		}
+	}
 
 	// Check for duplicate key name.
 	if indexNameExists(tbl, stmt.IndexName) {
@@ -67,6 +72,19 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	usingSpatial := !stmt.Unique && isSpatialIndexType(resolveIndexUsingType(stmt.IndexType, stmt.Options))
 	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial || usingSpatial); err != nil {
 		return err
+	}
+	seenCols := make(map[string]bool, len(stmt.Columns))
+	for _, ic := range stmt.Columns {
+		if ic == nil || ic.Functional {
+			continue
+		}
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && cr.Column != "" {
+			k := toLower(cr.Column)
+			if seenCols[k] {
+				return errDupColumn(cr.Column)
+			}
+			seenCols[k] = true
+		}
 	}
 
 	// Determine index type: Fulltext/Spatial override IndexType.
@@ -145,6 +163,8 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
+	snapshot := cloneTable(tbl)
+
 	// Find and remove index.
 	key := toLower(stmt.Name)
 	found := false
@@ -168,6 +188,10 @@ func (c *Catalog) dropIndex(stmt *nodes.DropIndexStmt) error {
 			tbl.Constraints = append(tbl.Constraints[:i], tbl.Constraints[i+1:]...)
 			break
 		}
+	}
+	if err := validateAutoIncrementKeyed(tbl); err != nil {
+		undoAlter(db, toLower(tableName), tbl, snapshot)
+		return err
 	}
 
 	return nil
