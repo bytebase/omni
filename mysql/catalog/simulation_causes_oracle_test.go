@@ -4162,6 +4162,90 @@ func TestSimulationCausesOracle(t *testing.T) {
 			stmt:    "CREATE TABLE a (a VARCHAR(1) DEFAULT (my_udf ('x')))",
 			code:    3770,
 		},
+		{
+			name: "SET character_set_client impermissible ucs2 rejected with 1231",
+			stmt: "SET character_set_client = ucs2",
+			code: 1231,
+		},
+		{
+			name: "SET character_set_client impermissible utf16 rejected with 1231",
+			stmt: "SET character_set_client = utf16",
+			code: 1231,
+		},
+		{
+			name: "SET character_set_client impermissible utf16le rejected with 1231",
+			stmt: "SET character_set_client = utf16le",
+			code: 1231,
+		},
+		{
+			name: "SET character_set_client impermissible utf32 rejected with 1231",
+			stmt: "SET character_set_client = utf32",
+			code: 1231,
+		},
+		{
+			name: "SET NAMES impermissible utf16 rejected with 1231",
+			stmt: "SET NAMES utf16",
+			code: 1231,
+		},
+		{
+			name: "SET CHARACTER SET impermissible utf32 rejected with 1231",
+			stmt: "SET CHARACTER SET utf32",
+			code: 1231,
+		},
+		{
+			name: "SET NAMES mismatched COLLATE rejected with 1253",
+			stmt: "SET NAMES utf8mb4 COLLATE latin1_swedish_ci",
+			code: 1253,
+		},
+		{
+			name: "SET character_set_client NULL rejected with 1231",
+			stmt: "SET character_set_client = NULL",
+			code: 1231,
+		},
+		{
+			name:    "SET GLOBAL character_set_client does not alter session client charset",
+			session: []string{"SET GLOBAL character_set_client = latin1"},
+			cleanup: []string{"SET GLOBAL character_set_client = DEFAULT", "SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:    0,
+		},
+		{
+			name:    "SET PERSIST character_set_client does not alter session client charset",
+			session: []string{"SET PERSIST character_set_client = latin1"},
+			cleanup: []string{"SET GLOBAL character_set_client = DEFAULT", "SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (c CHAR(1) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:    0,
+		},
+		{
+			name:    "SET GLOBAL collation_connection does not alter session connection charset",
+			session: []string{"SET GLOBAL collation_connection = latin1_swedish_ci"},
+			cleanup: []string{"SET GLOBAL collation_connection = DEFAULT", "SET NAMES utf8mb4"},
+			stmt:    "CREATE TABLE a (b BINARY(2) DEFAULT 'é')",
+			code:    0,
+		},
+		{
+			name:     "SET character_set_client DEFAULT inherits SET GLOBAL value",
+			session:  []string{"SET GLOBAL character_set_client = ascii", "SET character_set_client = DEFAULT"},
+			cleanup:  []string{"SET GLOBAL character_set_client = DEFAULT", "SET NAMES utf8mb4"},
+			stmt:     "CREATE TABLE a (c CHAR(10) CHARACTER SET utf8mb4 DEFAULT 'é')",
+			code:     0,
+			contains: []string{"DEFAULT '??'"},
+		},
+		{
+			name: "SET system_time_zone read-only rejected with 1238",
+			stmt: "SET system_time_zone = 'UTC'",
+			code: 1238,
+		},
+		{
+			name: "SET PERSIST_ONLY system_time_zone non-persistent read-only rejected with 1238",
+			stmt: "SET PERSIST_ONLY system_time_zone = 'UTC'",
+			code: 1238,
+		},
+		{
+			name: "SET foreign_key_checks invalid value rejected with 1231",
+			stmt: "SET foreign_key_checks = 'bad'",
+			code: 1231,
+		},
 	}
 
 	for _, tc := range cases {
@@ -4690,4 +4774,14 @@ func TestSimulationRound4CatalogInvariants(t *testing.T) {
 		t.Fatalf("4K page size KEY(c(769)) got %d, want 1071", got)
 	}
 	execAlterClauses(t, pg4k, "CREATE TABLE t4k_ok (c TEXT CHARACTER SET ascii, KEY(c(768)));")
+
+	// Global vs session sysvar separation across bool and charset variables.
+	svCat := New()
+	execAlterClauses(t, svCat, "SET GLOBAL foreign_key_checks = 0; SET GLOBAL character_set_client = latin1; SET @g_cs = @@GLOBAL.character_set_client; SET @s_cs = @@SESSION.character_set_client; SET @g_fk = @@GLOBAL.foreign_key_checks; SET @s_fk = @@SESSION.foreign_key_checks;")
+	if !svCat.ForeignKeyChecks() || svCat.effectiveClientCharset() != "utf8mb4" {
+		t.Fatalf("SET GLOBAL mutated session state: fk=%v cs=%q", svCat.ForeignKeyChecks(), svCat.effectiveClientCharset())
+	}
+	if svCat.userVars["g_cs"].str != "latin1" || svCat.userVars["s_cs"].str != "utf8mb4" || svCat.userVars["g_fk"].str != "0" || svCat.userVars["s_fk"].str != "1" {
+		t.Fatalf("unexpected @@GLOBAL/@@SESSION readback: %+v", svCat.userVars)
+	}
 }

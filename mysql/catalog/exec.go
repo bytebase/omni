@@ -113,8 +113,10 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	// applying any variable update, so a failure rolls back the whole SET and an
 	// RHS reading @var sees the value from before this statement.
 	var updates []func()
+	pendingNamesCharset := ""
 	for _, asgn := range stmt.Assignments {
 		if asgn.Column != nil && strings.HasPrefix(asgn.Column.Column, "@") && !strings.HasPrefix(asgn.Column.Column, "@@") {
+			pendingNamesCharset = ""
 			uName := toLower(strings.TrimPrefix(asgn.Column.Column, "@"))
 			val, ok, err := c.evalSetExprChecked(asgn.Value)
 			if err != nil {
@@ -128,162 +130,27 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			continue
 		}
 		varName := normalizeSetVariableName(asgn.Column)
+		scope := parseSetAssignmentScope(asgn)
+		if varName != "collate" {
+			pendingNamesCharset = ""
+		}
 		switch varName {
-		case "foreign_key_checks":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				updates = append(updates, func() {
-					c.foreignKeyChecks = v
-					c.session.ForeignKeyChecks = v
-				})
-			}
-		case "sql_generate_invisible_primary_key":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				updates = append(updates, func() {
-					c.generateGIPK = v
-					c.session.GenerateInvisiblePrimaryKey = v
-				})
-			}
-		case "show_gipk_in_create_table_and_information_schema":
-			if v, ok := parseSetBool(asgn.Value); ok {
-				updates = append(updates, func() {
-					c.showGIPK = v
-					c.session.ShowGIPK = v
-				})
-			}
-		case "explicit_defaults_for_timestamp":
-			if isDefaultSetKeywordOrIdent(asgn.Value) {
-				updates = append(updates, func() {
-					c.session.ExplicitDefaultsForTimestamp = true
-				})
-			} else if v, ok := parseSetBool(asgn.Value); ok {
-				updates = append(updates, func() {
-					c.session.ExplicitDefaultsForTimestamp = v
-				})
-			}
-		case "innodb_directories":
-			_, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
-			if !isPersistOnly {
-				return errIncorrectGlobalLocalVar("innodb_directories", "read only variable")
-			}
-		case "innodb_page_size":
-			_, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
-			if !isPersistOnly {
-				return errIncorrectGlobalLocalVar("innodb_page_size", "read only variable")
-			}
-		case "sql_mode":
-			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
-			if isDefaultSetKeywordOrIdent(asgn.Value) {
-				if isPersistOnly {
-					continue
-				}
-				if isGlobal {
-					updates = append(updates, func() {
-						c.globalSQLMode = "DEFAULT"
-					})
-				} else {
-					defMode := c.globalSQLMode
-					if defMode == "" {
-						defMode = "DEFAULT"
-					}
-					updates = append(updates, func() {
-						c.session.SQLMode = defMode
-					})
-				}
-				continue
-			}
-			var val userVarValue
-			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
-				val = userVarValue{kind: userVarString, str: cr.Column}
-			} else {
-				var ok bool
-				var evalErr error
-				val, ok, evalErr = c.evalSetExprChecked(asgn.Value)
-				if evalErr != nil {
-					return evalErr
-				}
-				if !ok {
-					return errWrongValueForVar("sql_mode", strings.TrimSpace(nodeToSQL(asgn.Value)))
-				}
-			}
-			mode, err := validateAndNormalizeSQLMode(val)
-			if err != nil {
-				return err
-			}
-			if isPersistOnly {
-				continue
-			}
-			if isGlobal {
-				updates = append(updates, func() {
-					c.globalSQLMode = mode
-				})
-			} else {
-				updates = append(updates, func() {
-					c.session.SQLMode = mode
-				})
-			}
-		case "time_zone":
-			isGlobal, isPersistOnly := setAssignmentIsGlobalOrPersist(asgn)
-			if isDefaultSetKeywordOrIdent(asgn.Value) {
-				if isPersistOnly {
-					continue
-				}
-				if isGlobal {
-					updates = append(updates, func() {
-						c.globalTimeZone = "SYSTEM"
-					})
-				} else {
-					defTZ := c.globalTimeZone
-					if defTZ == "" {
-						defTZ = "SYSTEM"
-					}
-					updates = append(updates, func() {
-						c.session.TimeZone = defTZ
-					})
-				}
-				continue
-			}
-			var rawTZ string
-			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
-				rawTZ = cr.Column
-			} else {
-				val, ok, evalErr := c.evalSetExprChecked(asgn.Value)
-				if evalErr != nil {
-					return evalErr
-				}
-				if !ok {
-					return errUnknownTimeZone(strings.TrimSpace(nodeToSQL(asgn.Value)))
-				}
-				switch val.kind {
-				case userVarNull:
-					return errWrongValueForVar("time_zone", "NULL")
-				case userVarNumeric:
-					return errWrongTypeForVar("time_zone")
-				case userVarString:
-					rawTZ = val.str
-				}
-			}
-			tz, err := validateAndNormalizeSessionTimeZone(rawTZ)
-			if err != nil {
-				return err
-			}
-			if isPersistOnly {
-				continue
-			}
-			if isGlobal {
-				updates = append(updates, func() {
-					c.globalTimeZone = tz
-				})
-			} else {
-				updates = append(updates, func() {
-					c.session.TimeZone = tz
-				})
-			}
 		case "names":
-			raw, charset := c.resolveSetCharsetValue(asgn.Value)
+			raw, charset, isNull, err := c.resolveSetCharsetValueChecked(asgn.Value)
+			if err != nil {
+				return err
+			}
+			if isNull {
+				return errWrongValueForVar("character_set_client", "NULL")
+			}
 			coll, ok := defaultCollationForCharset[toLower(charset)]
 			if !ok {
 				return errUnknownCharacterSet(raw)
 			}
+			if !isPermissibleClientCharset(charset) {
+				return errWrongValueForVar("character_set_client", charset)
+			}
+			pendingNamesCharset = charset
 			updates = append(updates, func() {
 				c.charsetClient = charset
 				c.session.CharsetClient = charset
@@ -291,9 +158,18 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 				c.session.CollationConnection = coll
 			})
 		case "character set":
-			raw, charset := c.resolveSetCharsetValue(asgn.Value)
+			raw, charset, isNull, err := c.resolveSetCharsetValueChecked(asgn.Value)
+			if err != nil {
+				return err
+			}
+			if isNull {
+				return errWrongValueForVar("character_set_client", "NULL")
+			}
 			if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
 				return errUnknownCharacterSet(raw)
+			}
+			if !isPermissibleClientCharset(charset) {
+				return errWrongValueForVar("character_set_client", charset)
 			}
 			dbCS := c.defaultCharset
 			if c.currentDB != "" {
@@ -313,81 +189,33 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 					c.session.CollationConnection = dbColl
 				}
 			})
-		case "character_set_client":
-			raw, charset := c.resolveSetCharsetValue(asgn.Value)
-			if _, ok := defaultCollationForCharset[toLower(charset)]; !ok {
-				return errUnknownCharacterSet(raw)
-			}
-			updates = append(updates, func() {
-				c.charsetClient = charset
-				c.session.CharsetClient = charset
-			})
-		case "character_set_connection":
-			raw, charset := c.resolveSetCharsetValue(asgn.Value)
-			coll, ok := defaultCollationForCharset[toLower(charset)]
-			if !ok {
-				return errUnknownCharacterSet(raw)
-			}
-			updates = append(updates, func() {
-				c.collationConn = coll
-				c.session.CollationConnection = coll
-			})
 		case "collate":
 			collation := nodeToSQLValue(asgn.Value)
 			if collation != "" {
 				if !isValidMySQLCollationName(collation) {
 					return errUnknownCollation(collation)
 				}
-				coll := toLower(strings.TrimSpace(collation))
-				if strings.HasPrefix(coll, "utf8_") {
-					coll = "utf8mb3_" + strings.TrimPrefix(coll, "utf8_")
+				coll := canonicalMySQLCollationName(collation)
+				if pendingNamesCharset != "" && !charsetMatchesCollation(pendingNamesCharset, coll) {
+					return &Error{Code: 1253, SQLState: "42000",
+						Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET '%s'", coll, pendingNamesCharset)}
 				}
+				pendingNamesCharset = ""
 				updates = append(updates, func() {
 					c.collationConn = coll
 					c.session.CollationConnection = coll
 				})
 			}
-		case "collation_connection":
-			if isDefaultSetKeywordOrIdent(asgn.Value) {
-				defColl := defaultCollationForCharset[toLower(c.defaultCharset)]
-				if defColl == "" {
-					defColl = "utf8mb4_0900_ai_ci"
-				}
-				updates = append(updates, func() {
-					c.collationConn = defColl
-					c.session.CollationConnection = defColl
-				})
-				break
-			}
-			var rawColl string
-			if cr, isCol := asgn.Value.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
-				rawColl = cr.Column
-			} else {
-				val, ok, evalErr := c.evalSetExprChecked(asgn.Value)
-				if evalErr != nil {
-					return evalErr
-				}
-				if ok {
-					if val.kind == userVarNull {
-						return errWrongValueForVar("collation_connection", "NULL")
-					}
-					rawColl = val.str
-				} else {
-					rawColl = nodeToSQLValue(asgn.Value)
-				}
-			}
-			if !isValidMySQLCollationName(rawColl) {
-				return errUnknownCollation(rawColl)
-			}
-			coll := toLower(strings.TrimSpace(rawColl))
-			if strings.HasPrefix(coll, "utf8_") {
-				coll = "utf8mb3_" + strings.TrimPrefix(coll, "utf8_")
-			}
-			updates = append(updates, func() {
-				c.collationConn = coll
-				c.session.CollationConnection = coll
-			})
 		default:
+			if spec, ok := mysqlSysvarSpecs[varName]; ok {
+				upd, err := spec.assign(c, varName, scope, asgn.Value)
+				if err != nil {
+					return err
+				}
+				if upd != nil {
+					updates = append(updates, upd)
+				}
+			}
 			// Silently accept all other SET variables.
 		}
 	}
@@ -397,26 +225,406 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 	return nil
 }
 
-func setAssignmentIsGlobalOrPersist(asgn *nodes.Assignment) (isGlobal, isPersistOnly bool) {
+type setVarScope uint8
+
+const (
+	setScopeSession setVarScope = iota
+	setScopeGlobal
+	setScopePersist
+	setScopePersistOnly
+)
+
+type sysvarScopeKind uint8
+
+const (
+	sysvarSessionAndGlobal sysvarScopeKind = iota
+	sysvarGlobalOnlyStatic
+	sysvarGlobalOnlyNonPersist
+)
+
+type sysvarSpec struct {
+	kind       sysvarScopeKind
+	assign     func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error)
+	readGlobal func(c *Catalog) userVarValue
+	readSess   func(c *Catalog) userVarValue
+}
+
+var mysqlSysvarSpecs map[string]sysvarSpec
+
+func init() {
+	mysqlSysvarSpecs = map[string]sysvarSpec{
+		"foreign_key_checks": makeBoolSysvarSpec(
+			true,
+			func(c *Catalog) bool { return c.globalForeignKeyChecks },
+			func(c *Catalog, v bool) { c.globalForeignKeyChecks = v },
+			func(c *Catalog) bool { return c.session.ForeignKeyChecks },
+			func(c *Catalog, v bool) { c.foreignKeyChecks = v; c.session.ForeignKeyChecks = v },
+		),
+		"sql_generate_invisible_primary_key": makeBoolSysvarSpec(
+			false,
+			func(c *Catalog) bool { return c.globalGenerateGIPK },
+			func(c *Catalog, v bool) { c.globalGenerateGIPK = v },
+			func(c *Catalog) bool { return c.session.GenerateInvisiblePrimaryKey },
+			func(c *Catalog, v bool) { c.generateGIPK = v; c.session.GenerateInvisiblePrimaryKey = v },
+		),
+		"show_gipk_in_create_table_and_information_schema": makeBoolSysvarSpec(
+			false,
+			func(c *Catalog) bool { return c.globalShowGIPK },
+			func(c *Catalog, v bool) { c.globalShowGIPK = v },
+			func(c *Catalog) bool { return c.session.ShowGIPK },
+			func(c *Catalog, v bool) { c.showGIPK = v; c.session.ShowGIPK = v },
+		),
+		"explicit_defaults_for_timestamp": makeBoolSysvarSpec(
+			true,
+			func(c *Catalog) bool { return c.globalExplicitDefaultsTS },
+			func(c *Catalog, v bool) { c.globalExplicitDefaultsTS = v },
+			func(c *Catalog) bool { return c.session.ExplicitDefaultsForTimestamp },
+			func(c *Catalog, v bool) { c.session.ExplicitDefaultsForTimestamp = v },
+		),
+		"innodb_directories": {
+			kind: sysvarGlobalOnlyStatic,
+			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
+				return checkReadOnlySysvarWrite(varName, scope, true)
+			},
+		},
+		"innodb_page_size": {
+			kind: sysvarGlobalOnlyStatic,
+			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
+				return checkReadOnlySysvarWrite(varName, scope, true)
+			},
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(c.InnoDBPageSize(), 10)}
+			},
+		},
+		"system_time_zone": {
+			kind: sysvarGlobalOnlyNonPersist,
+			assign: func(_ *Catalog, varName string, scope setVarScope, _ nodes.ExprNode) (func(), error) {
+				return checkReadOnlySysvarWrite(varName, scope, false)
+			},
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.SystemTimeZone()}
+			},
+		},
+		"sql_mode": {
+			kind:   sysvarSessionAndGlobal,
+			assign: assignSQLModeSysvar,
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(effectiveNonEmpty(c.globalSQLMode, "DEFAULT"))}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}
+			},
+		},
+		"time_zone": {
+			kind:   sysvarSessionAndGlobal,
+			assign: assignTimeZoneSysvar,
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: effectiveNonEmpty(c.globalTimeZone, "SYSTEM")}
+			},
+			readSess: func(c *Catalog) userVarValue { return userVarValue{kind: userVarString, str: c.session.TimeZone} },
+		},
+		"character_set_client": {
+			kind:   sysvarSessionAndGlobal,
+			assign: makeCharsetSysvarAssign(true),
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveGlobalClientCharset()}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveClientCharset()}
+			},
+		},
+		"character_set_connection": {
+			kind:   sysvarSessionAndGlobal,
+			assign: makeCharsetSysvarAssign(false),
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveGlobalConnCharset()}
+			},
+			readSess: func(c *Catalog) userVarValue { return userVarValue{kind: userVarString, str: c.effectiveConnCharset()} },
+		},
+		"collation_connection": {
+			kind:   sysvarSessionAndGlobal,
+			assign: assignCollationConnSysvar,
+			readGlobal: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveGlobalCollationConn()}
+			},
+			readSess: func(c *Catalog) userVarValue {
+				return userVarValue{kind: userVarString, str: c.effectiveSessionCollationConn()}
+			},
+		},
+	}
+}
+
+func effectiveNonEmpty(s, fallback string) string {
+	if s == "" {
+		return fallback
+	}
+	return s
+}
+
+func isPermissibleClientCharset(cs string) bool {
+	switch toLower(normalizeCharsetName(cs)) {
+	case "ucs2", "utf16", "utf16le", "utf32":
+		return false
+	default:
+		return true
+	}
+}
+
+func canonicalMySQLCollationName(raw string) string {
+	coll := toLower(strings.TrimSpace(raw))
+	if strings.HasPrefix(coll, "utf8_") {
+		return "utf8mb3_" + strings.TrimPrefix(coll, "utf8_")
+	}
+	return coll
+}
+
+func checkReadOnlySysvarWrite(varName string, scope setVarScope, allowPersistOnly bool) (func(), error) {
+	if allowPersistOnly {
+		if scope != setScopePersistOnly {
+			return nil, errIncorrectGlobalLocalVar(varName, "read only variable")
+		}
+		return nil, nil
+	}
+	return nil, errIncorrectGlobalLocalVar(varName, "non persistent read only variable")
+}
+
+func applyScopedUpdate(scope setVarScope, setGlobal, setSession func()) func() {
+	switch scope {
+	case setScopePersistOnly:
+		return nil
+	case setScopeGlobal, setScopePersist:
+		return setGlobal
+	default:
+		return setSession
+	}
+}
+
+func makeBoolSysvarSpec(factoryDefault bool, getG func(*Catalog) bool, setG func(*Catalog, bool), getS func(*Catalog) bool, setS func(*Catalog, bool)) sysvarSpec {
+	return sysvarSpec{
+		kind: sysvarSessionAndGlobal,
+		assign: func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+			if isDefaultSetKeywordOrIdent(expr) {
+				if scope == setScopeGlobal || scope == setScopePersist {
+					return func() { setG(c, factoryDefault) }, nil
+				}
+				return applyScopedUpdate(scope, nil, func() { setS(c, getG(c)) }), nil
+			}
+			v, ok, err := c.evalSetBoolChecked(varName, expr)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, errWrongValueForVar(varName, strings.TrimSpace(nodeToSQL(expr)))
+			}
+			return applyScopedUpdate(scope, func() { setG(c, v) }, func() { setS(c, v) }), nil
+		},
+		readGlobal: func(c *Catalog) userVarValue {
+			if getG(c) {
+				return userVarValue{kind: userVarNumeric, str: "1"}
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}
+		},
+		readSess: func(c *Catalog) userVarValue {
+			if getS(c) {
+				return userVarValue{kind: userVarNumeric, str: "1"}
+			}
+			return userVarValue{kind: userVarNumeric, str: "0"}
+		},
+	}
+}
+
+func assignSQLModeSysvar(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		if scope == setScopeGlobal || scope == setScopePersist {
+			return func() { c.globalSQLMode = "DEFAULT" }, nil
+		}
+		defMode := effectiveNonEmpty(c.globalSQLMode, "DEFAULT")
+		return applyScopedUpdate(scope, nil, func() { c.session.SQLMode = defMode }), nil
+	}
+	var val userVarValue
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		val = userVarValue{kind: userVarString, str: cr.Column}
+	} else {
+		var ok bool
+		var evalErr error
+		val, ok, evalErr = c.evalSetExprChecked(expr)
+		if evalErr != nil {
+			return nil, evalErr
+		}
+		if !ok {
+			return nil, errWrongValueForVar(varName, strings.TrimSpace(nodeToSQL(expr)))
+		}
+	}
+	mode, err := validateAndNormalizeSQLMode(val)
+	if err != nil {
+		return nil, err
+	}
+	return applyScopedUpdate(scope, func() { c.globalSQLMode = mode }, func() { c.session.SQLMode = mode }), nil
+}
+
+func assignTimeZoneSysvar(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		if scope == setScopeGlobal || scope == setScopePersist {
+			return func() { c.globalTimeZone = "SYSTEM" }, nil
+		}
+		defTZ := effectiveNonEmpty(c.globalTimeZone, "SYSTEM")
+		return applyScopedUpdate(scope, nil, func() { c.session.TimeZone = defTZ }), nil
+	}
+	var rawTZ string
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		rawTZ = cr.Column
+	} else {
+		val, ok, evalErr := c.evalSetExprChecked(expr)
+		if evalErr != nil {
+			return nil, evalErr
+		}
+		if !ok {
+			return nil, errUnknownTimeZone(strings.TrimSpace(nodeToSQL(expr)))
+		}
+		switch val.kind {
+		case userVarNull:
+			return nil, errWrongValueForVar(varName, "NULL")
+		case userVarNumeric:
+			return nil, errWrongTypeForVar(varName)
+		case userVarString:
+			rawTZ = val.str
+		}
+	}
+	tz, err := validateAndNormalizeSessionTimeZone(rawTZ)
+	if err != nil {
+		return nil, err
+	}
+	return applyScopedUpdate(scope, func() { c.globalTimeZone = tz }, func() { c.session.TimeZone = tz }), nil
+}
+
+func makeCharsetSysvarAssign(isClient bool) func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	return func(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+		if isDefaultSetKeywordOrIdent(expr) {
+			if isClient {
+				if scope == setScopeGlobal || scope == setScopePersist {
+					return func() { c.globalCharsetClient = c.defaultCharset }, nil
+				}
+				target := c.effectiveGlobalClientCharset()
+				return applyScopedUpdate(scope, nil, func() {
+					c.charsetClient = target
+					c.session.CharsetClient = target
+				}), nil
+			}
+			if scope == setScopeGlobal || scope == setScopePersist {
+				defColl := defaultCollationForCharset[toLower(c.defaultCharset)]
+				return func() { c.globalCollationConn = defColl }, nil
+			}
+			targetColl := c.effectiveGlobalCollationConn()
+			return applyScopedUpdate(scope, nil, func() {
+				c.collationConn = targetColl
+				c.session.CollationConnection = targetColl
+			}), nil
+		}
+		raw, charset, isNull, err := c.resolveSetCharsetValueChecked(expr)
+		if err != nil {
+			return nil, err
+		}
+		if isNull {
+			return nil, errWrongValueForVar(varName, "NULL")
+		}
+		coll, ok := defaultCollationForCharset[toLower(charset)]
+		if !ok {
+			return nil, errUnknownCharacterSet(raw)
+		}
+		if isClient && !isPermissibleClientCharset(charset) {
+			return nil, errWrongValueForVar(varName, charset)
+		}
+		if isClient {
+			return applyScopedUpdate(
+				scope,
+				func() { c.globalCharsetClient = charset },
+				func() {
+					c.charsetClient = charset
+					c.session.CharsetClient = charset
+				},
+			), nil
+		}
+		return applyScopedUpdate(
+			scope,
+			func() { c.globalCollationConn = coll },
+			func() {
+				c.collationConn = coll
+				c.session.CollationConnection = coll
+			},
+		), nil
+	}
+}
+
+func assignCollationConnSysvar(c *Catalog, varName string, scope setVarScope, expr nodes.ExprNode) (func(), error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		if scope == setScopeGlobal || scope == setScopePersist {
+			defColl := effectiveNonEmpty(defaultCollationForCharset[toLower(c.defaultCharset)], "utf8mb4_0900_ai_ci")
+			return func() { c.globalCollationConn = defColl }, nil
+		}
+		targetColl := c.effectiveGlobalCollationConn()
+		return applyScopedUpdate(scope, nil, func() {
+			c.collationConn = targetColl
+			c.session.CollationConnection = targetColl
+		}), nil
+	}
+	var rawColl string
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		rawColl = cr.Column
+	} else {
+		val, ok, evalErr := c.evalSetExprChecked(expr)
+		if evalErr != nil {
+			return nil, evalErr
+		}
+		if ok {
+			if val.kind == userVarNull {
+				return nil, errWrongValueForVar(varName, "NULL")
+			}
+			rawColl = val.str
+		} else {
+			rawColl = nodeToSQLValue(expr)
+		}
+	}
+	if !isValidMySQLCollationName(rawColl) {
+		return nil, errUnknownCollation(rawColl)
+	}
+	coll := canonicalMySQLCollationName(rawColl)
+	return applyScopedUpdate(
+		scope,
+		func() { c.globalCollationConn = coll },
+		func() {
+			c.collationConn = coll
+			c.session.CollationConnection = coll
+		},
+	), nil
+}
+
+func parseSetAssignmentScope(asgn *nodes.Assignment) setVarScope {
 	if asgn == nil {
-		return false, false
+		return setScopeSession
 	}
 	switch strings.ToUpper(asgn.Scope) {
 	case "PERSIST_ONLY":
-		return true, true
-	case "GLOBAL", "PERSIST":
-		return true, false
+		return setScopePersistOnly
+	case "PERSIST":
+		return setScopePersist
+	case "GLOBAL":
+		return setScopeGlobal
 	}
 	if asgn.Column != nil {
 		col := toLower(strings.TrimPrefix(asgn.Column.Column, "@@"))
-		if strings.HasPrefix(col, "persist_only.") {
-			return true, true
+		if asgn.Column.Table != "" {
+			col = toLower(strings.TrimPrefix(asgn.Column.Table, "@@")) + "." + col
 		}
-		if strings.HasPrefix(col, "global.") || strings.HasPrefix(col, "persist.") {
-			return true, false
+		switch {
+		case strings.HasPrefix(col, "persist_only."):
+			return setScopePersistOnly
+		case strings.HasPrefix(col, "persist."):
+			return setScopePersist
+		case strings.HasPrefix(col, "global."):
+			return setScopeGlobal
 		}
 	}
-	return false, false
+	return setScopeSession
 }
 
 var validMySQL80SQLModes = map[string]string{
@@ -749,54 +957,23 @@ func (c *Catalog) evalSetExprChecked(expr nodes.ExprNode) (userVarValue, bool, e
 				Message:  fmt.Sprintf("Unknown system variable '%s.%s'", strings.ToUpper(e.Scope), e.Name),
 			}
 		}
-		isSessionScope := strings.EqualFold(e.Scope, "SESSION") || strings.EqualFold(e.Scope, "LOCAL")
-		switch toLower(e.Name) {
-		case "time_zone":
-			if strings.EqualFold(e.Scope, "GLOBAL") {
-				tz := c.globalTimeZone
-				if tz == "" {
-					tz = "SYSTEM"
-				}
-				return userVarValue{kind: userVarString, str: tz}, true, nil
-			}
-			return userVarValue{kind: userVarString, str: c.session.TimeZone}, true, nil
-		case "system_time_zone":
-			if isSessionScope {
-				return userVarValue{}, false, errIncorrectGlobalLocalVar("system_time_zone", "GLOBAL variable")
-			}
-			return userVarValue{kind: userVarString, str: c.SystemTimeZone()}, true, nil
-		case "sql_mode":
-			if strings.EqualFold(e.Scope, "GLOBAL") {
-				mode := c.globalSQLMode
-				if mode == "" {
-					mode = "DEFAULT"
-				}
-				return userVarValue{kind: userVarString, str: expandSQLModeForRead(mode)}, true, nil
-			}
-			return userVarValue{kind: userVarString, str: expandSQLModeForRead(c.session.SQLMode)}, true, nil
-		case "foreign_key_checks":
-			if c.session.ForeignKeyChecks {
-				return userVarValue{kind: userVarNumeric, str: "1"}, true, nil
-			}
-			return userVarValue{kind: userVarNumeric, str: "0"}, true, nil
-		case "character_set_client":
-			return userVarValue{kind: userVarString, str: c.effectiveClientCharset()}, true, nil
-		case "character_set_connection":
-			return userVarValue{kind: userVarString, str: c.effectiveConnCharset()}, true, nil
-		case "collation_connection":
-			coll := c.collationConn
-			if coll == "" {
-				coll = defaultCollationForCharset[c.effectiveConnCharset()]
-			}
-			return userVarValue{kind: userVarString, str: coll}, true, nil
-		case "innodb_page_size":
-			if isSessionScope {
-				return userVarValue{}, false, errIncorrectGlobalLocalVar("innodb_page_size", "GLOBAL variable")
-			}
-			return userVarValue{kind: userVarNumeric, str: strconv.FormatUint(c.InnoDBPageSize(), 10)}, true, nil
-		default:
+		spec, ok := mysqlSysvarSpecs[toLower(e.Name)]
+		if !ok {
 			return userVarValue{}, false, nil
 		}
+		if spec.kind != sysvarSessionAndGlobal {
+			if strings.EqualFold(e.Scope, "SESSION") || strings.EqualFold(e.Scope, "LOCAL") {
+				return userVarValue{}, false, errIncorrectGlobalLocalVar(toLower(e.Name), "GLOBAL variable")
+			}
+			if spec.readGlobal != nil {
+				return spec.readGlobal(c), true, nil
+			}
+			return userVarValue{}, false, nil
+		}
+		if strings.EqualFold(e.Scope, "GLOBAL") {
+			return spec.readGlobal(c), true, nil
+		}
+		return spec.readSess(c), true, nil
 	case *nodes.FuncCallExpr:
 		switch toLower(e.Name) {
 		case "concat":
@@ -966,21 +1143,6 @@ func normalizeSetVariableName(col *nodes.ColumnRef) string {
 	return name
 }
 
-func parseSetBool(expr nodes.ExprNode) (bool, bool) {
-	switch toLower(nodeToSQLValue(expr)) {
-	case "0", "off", "false":
-		return false, true
-	case "1", "on", "true":
-		return true, true
-	default:
-		return false, false
-	}
-}
-
-func isDefaultSetValue(expr nodes.ExprNode) bool {
-	return strings.EqualFold(nodeToSQLValue(expr), "DEFAULT")
-}
-
 // nodeToSQLValue extracts a simple string value from an expression node.
 func nodeToSQLValue(expr nodes.ExprNode) string {
 	switch e := expr.(type) {
@@ -1004,21 +1166,97 @@ func nodeToSQLValue(expr nodes.ExprNode) string {
 	}
 }
 
-func (c *Catalog) resolveSetCharsetValue(expr nodes.ExprNode) (string, string) {
-	if isDefaultSetKeywordOrIdent(expr) {
-		return "DEFAULT", c.defaultCharset
-	}
-	if ev, ok := c.evalSetExpr(expr); ok {
-		if ev.kind == userVarNull {
-			return "NULL", ""
+func (c *Catalog) evalSetBoolChecked(varName string, expr nodes.ExprNode) (bool, bool, error) {
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		switch toLower(cr.Column) {
+		case "on", "true":
+			return true, true, nil
+		case "off", "false":
+			return false, true, nil
+		default:
+			return false, false, nil
 		}
-		return ev.str, normalizeCharsetName(ev.str)
 	}
-	raw := nodeToSQLValue(expr)
+	v, ok, err := c.evalSetExprChecked(expr)
+	if err != nil {
+		return false, false, err
+	}
+	if !ok {
+		return false, false, nil
+	}
+	if v.kind == userVarNull {
+		return false, false, errWrongValueForVar(varName, "NULL")
+	}
+	switch toLower(strings.TrimSpace(v.str)) {
+	case "0", "off", "false":
+		return false, true, nil
+	case "1", "on", "true":
+		return true, true, nil
+	default:
+		return false, false, errWrongValueForVar(varName, v.str)
+	}
+}
+
+func (c *Catalog) resolveSetCharsetValueChecked(expr nodes.ExprNode) (raw, norm string, isNull bool, err error) {
+	if isDefaultSetKeywordOrIdent(expr) {
+		return "DEFAULT", c.defaultCharset, false, nil
+	}
+	if cr, isCol := expr.(*nodes.ColumnRef); isCol && cr.Schema == "" && cr.Table == "" {
+		raw = cr.Column
+		return raw, normalizeCharsetName(raw), false, nil
+	}
+	ev, ok, evalErr := c.evalSetExprChecked(expr)
+	if evalErr != nil {
+		return "", "", false, evalErr
+	}
+	if ok {
+		if ev.kind == userVarNull {
+			return "NULL", "", true, nil
+		}
+		return ev.str, normalizeCharsetName(ev.str), false, nil
+	}
+	raw = nodeToSQLValue(expr)
 	if strings.EqualFold(raw, "DEFAULT") {
-		return raw, c.defaultCharset
+		return raw, c.defaultCharset, false, nil
 	}
-	return raw, normalizeCharsetName(raw)
+	return raw, normalizeCharsetName(raw), false, nil
+}
+
+func (c *Catalog) effectiveGlobalClientCharset() string {
+	cs := ""
+	if c != nil {
+		cs = c.globalCharsetClient
+		if cs == "" {
+			cs = c.defaultCharset
+		}
+	}
+	return effectiveNonEmpty(strings.ToLower(strings.TrimSpace(normalizeCharsetName(cs))), "utf8mb4")
+}
+
+func (c *Catalog) effectiveGlobalCollationConn() string {
+	if c != nil && c.globalCollationConn != "" {
+		return c.globalCollationConn
+	}
+	return effectiveNonEmpty(defaultCollationForCharset[c.effectiveGlobalClientCharset()], "utf8mb4_0900_ai_ci")
+}
+
+func (c *Catalog) effectiveGlobalConnCharset() string {
+	if cs := strings.ToLower(strings.TrimSpace(normalizeCharsetName(charsetForCollation(c.effectiveGlobalCollationConn())))); cs != "" {
+		return cs
+	}
+	return "utf8mb4"
+}
+
+func (c *Catalog) effectiveSessionCollationConn() string {
+	if c != nil {
+		if c.collationConn != "" {
+			return c.collationConn
+		}
+		if c.session.CollationConnection != "" {
+			return c.session.CollationConnection
+		}
+	}
+	return effectiveNonEmpty(defaultCollationForCharset[c.effectiveConnCharset()], "utf8mb4_0900_ai_ci")
 }
 
 func isDML(stmt nodes.Node) bool {

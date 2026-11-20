@@ -21,29 +21,35 @@ type userVarValue struct {
 
 // Catalog is the in-memory MySQL catalog.
 type Catalog struct {
-	databases            map[string]*Database    // lowered name -> Database
-	tablespaces          map[string]bool         // exact general tablespace names
-	tablespaceBlockSizes map[string]uint64       // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
-	undoTablespaces      map[string]bool         // exact undo tablespace names -> active
-	tablespaceFiles      map[string]string       // tablespace name -> normalized datafile path
-	tablespaceDirs       map[string]bool         // known InnoDB datafile directories
-	dataDir              string                  // InnoDB/server datadir (default /var/lib/mysql)
-	userVars             map[string]userVarValue // lowered user var name (without @) -> value
-	systemTimeZone       string                  // @@system_time_zone (default UTC)
-	systemTimeZoneLoc    *time.Location          // optional host Location when @@system_time_zone is an abbreviation
-	globalTimeZone       string
-	globalSQLMode        string
-	currentDB            string
-	defaultCharset       string
-	defaultCollation     string
-	charsetClient        string
-	collationConn        string
-	innodbPageSize       uint64 // configured innodb_page_size (0 => 16384)
-	foreignKeyChecks     bool   // SET foreign_key_checks (default true)
-	loadingSDL           bool   // true while LoadSDLWithVersion executes statements
-	generateGIPK         bool   // SET sql_generate_invisible_primary_key
-	showGIPK             bool   // SET show_gipk_in_create_table_and_information_schema
-	session              SessionState
+	databases                map[string]*Database    // lowered name -> Database
+	tablespaces              map[string]bool         // exact general tablespace names
+	tablespaceBlockSizes     map[string]uint64       // general tablespace name -> resolved FILE_BLOCK_SIZE bytes
+	undoTablespaces          map[string]bool         // exact undo tablespace names -> active
+	tablespaceFiles          map[string]string       // tablespace name -> normalized datafile path
+	tablespaceDirs           map[string]bool         // known InnoDB datafile directories
+	dataDir                  string                  // InnoDB/server datadir (default /var/lib/mysql)
+	userVars                 map[string]userVarValue // lowered user var name (without @) -> value
+	systemTimeZone           string                  // @@system_time_zone (default UTC)
+	systemTimeZoneLoc        *time.Location          // optional host Location when @@system_time_zone is an abbreviation
+	globalTimeZone           string
+	globalSQLMode            string
+	globalCharsetClient      string
+	globalCollationConn      string
+	globalForeignKeyChecks   bool
+	globalGenerateGIPK       bool
+	globalShowGIPK           bool
+	globalExplicitDefaultsTS bool
+	currentDB                string
+	defaultCharset           string
+	defaultCollation         string
+	charsetClient            string
+	collationConn            string
+	innodbPageSize           uint64 // configured innodb_page_size (0 => 16384)
+	foreignKeyChecks         bool   // SET foreign_key_checks (default true)
+	loadingSDL               bool   // true while LoadSDLWithVersion executes statements
+	generateGIPK             bool   // SET sql_generate_invisible_primary_key
+	showGIPK                 bool   // SET show_gipk_in_create_table_and_information_schema
+	session                  SessionState
 }
 
 type SessionState struct {
@@ -64,25 +70,31 @@ type SessionState struct {
 func New() *Catalog {
 	session := defaultSessionState()
 	return &Catalog{
-		databases:            make(map[string]*Database),
-		tablespaces:          make(map[string]bool),
-		tablespaceBlockSizes: make(map[string]uint64),
-		undoTablespaces:      map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
-		tablespaceFiles:      map[string]string{"innodb_undo_001": "/var/lib/mysql/undo_001", "innodb_undo_002": "/var/lib/mysql/undo_002"},
-		tablespaceDirs:       make(map[string]bool),
-		dataDir:              "/var/lib/mysql",
-		userVars:             make(map[string]userVarValue),
-		systemTimeZone:       session.SystemTimeZone,
-		globalTimeZone:       "SYSTEM",
-		globalSQLMode:        "DEFAULT",
-		defaultCharset:       "utf8mb4",
-		defaultCollation:     "utf8mb4_0900_ai_ci",
-		charsetClient:        session.CharsetClient,
-		collationConn:        session.CollationConnection,
-		foreignKeyChecks:     session.ForeignKeyChecks,
-		generateGIPK:         session.GenerateInvisiblePrimaryKey,
-		showGIPK:             session.ShowGIPK,
-		session:              session,
+		databases:                make(map[string]*Database),
+		tablespaces:              make(map[string]bool),
+		tablespaceBlockSizes:     make(map[string]uint64),
+		undoTablespaces:          map[string]bool{"innodb_undo_001": true, "innodb_undo_002": true},
+		tablespaceFiles:          map[string]string{"innodb_undo_001": "/var/lib/mysql/undo_001", "innodb_undo_002": "/var/lib/mysql/undo_002"},
+		tablespaceDirs:           make(map[string]bool),
+		dataDir:                  "/var/lib/mysql",
+		userVars:                 make(map[string]userVarValue),
+		systemTimeZone:           session.SystemTimeZone,
+		globalTimeZone:           "SYSTEM",
+		globalSQLMode:            "DEFAULT",
+		globalCharsetClient:      session.CharsetClient,
+		globalCollationConn:      session.CollationConnection,
+		globalForeignKeyChecks:   session.ForeignKeyChecks,
+		globalGenerateGIPK:       session.GenerateInvisiblePrimaryKey,
+		globalShowGIPK:           session.ShowGIPK,
+		globalExplicitDefaultsTS: session.ExplicitDefaultsForTimestamp,
+		defaultCharset:           "utf8mb4",
+		defaultCollation:         "utf8mb4_0900_ai_ci",
+		charsetClient:            session.CharsetClient,
+		collationConn:            session.CollationConnection,
+		foreignKeyChecks:         session.ForeignKeyChecks,
+		generateGIPK:             session.GenerateInvisiblePrimaryKey,
+		showGIPK:                 session.ShowGIPK,
+		session:                  session,
 	}
 }
 
