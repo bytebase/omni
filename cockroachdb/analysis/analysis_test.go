@@ -69,12 +69,15 @@ func TestParseAndSplitScript(t *testing.T) {
 		t.Errorf("parsed[0].Text() = %q, want %q", parsed[0].Text(), "SELECT 1")
 	}
 
-	split, err := SplitScript(script)
-	if err != nil {
-		t.Fatalf("SplitScript: %v", err)
-	}
+	split := SplitScript(script)
 	want := []string{"SELECT 1;", "CREATE TABLE t (id INT);"}
 	if diff := cmp.Diff(want, split); diff != "" {
 		t.Errorf("SplitScript() mismatch (-want +got):\n%s", diff)
+	}
+
+	invalidSplit := SplitScript(`SELECT 1; ; SELECT FROM; SELECT 2`)
+	wantInvalid := []string{`SELECT 1;`, `SELECT FROM;`, `SELECT 2;`}
+	if diff := cmp.Diff(wantInvalid, invalidSplit); diff != "" {
+		t.Errorf("SplitScript(invalid) mismatch (-want +got):\n%s", diff)
 	}
 }

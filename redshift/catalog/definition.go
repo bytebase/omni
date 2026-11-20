@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/redshift/ast"
+	pgparser "github.com/bytebase/omni/redshift/parser"
 )
 
 // DatabaseDefinition renders a synced Redshift database snapshot as DDL.
@@ -18,6 +20,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 
 	var sb strings.Builder
 
+	if err := writeSchemas(&sb, to); err != nil {
+		return "", err
+	}
 	if err := writeTables(&sb, to, toState); err != nil {
 		return "", err
 	}
@@ -26,7 +31,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	}
 
 	s := sb.String()
-	// Trim the leading newline so the output starts directly with the first banner.
+	// Trim the leading newline so the output starts directly with the first statement or banner.
 	s = strings.TrimLeft(s, "\n")
 	return s, nil
 }
@@ -57,56 +62,259 @@ func GetViewDefinition(schemaName string, view *metadatapb.ViewMetadata) (string
 	return sb.String(), nil
 }
 
-func writeTables(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	// Follow the order of the input schemas.
+func writeSchemas(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata) error {
 	for _, schema := range to.Schemas {
-		schemaState, ok := state.schemas[schema.Name]
-		if !ok {
+		if schema == nil || schema.Name == "" || schema.Name == "public" {
 			continue
 		}
-		// Follow the order of the input tables.
-		for _, table := range schema.Tables {
-			tableState, ok := schemaState.tables[table.Name]
-			if !ok {
-				continue
-			}
-			if _, err := w.WriteString(getTableAnnouncement(tableState.name)); err != nil {
-				return err
-			}
-
-			if err := writeTable(w, tableState); err != nil {
-				return err
-			}
-			delete(schemaState.tables, tableState.name)
+		if _, err := w.WriteString(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;\n", quoteDefinitionIdentifier(schema.Name))); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
+func writeTables(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
+	for _, table := range orderedTables(to, state) {
+		if _, err := w.WriteString(getTableAnnouncement(table.name)); err != nil {
+			return err
+		}
+		if err := writeTable(w, table); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type orderedViewEntry struct {
+	state *viewState
+	meta  *metadatapb.ViewMetadata
+}
+
 func writeViews(w io.StringWriter, to *metadatapb.DatabaseSchemaMetadata, state *databaseState) error {
-	// Follow the order of the input schemas.
+	for _, view := range orderedViews(to, state) {
+		if _, err := w.WriteString(getViewAnnouncement(view.name)); err != nil {
+			return err
+		}
+		if err := writeView(w, view); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func objectKey(schemaName, objectName string) string {
+	return schemaName + "\x00" + objectName
+}
+
+// orderedTables returns tables in snapshot order, topologically sorted so
+// foreign-key referenced parent tables are created before child tables.
+func orderedTables(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*tableState {
+	var tables []*tableState
 	for _, schema := range to.Schemas {
+		if schema == nil {
+			continue
+		}
 		schemaState, ok := state.schemas[schema.Name]
 		if !ok {
 			continue
 		}
-		// Follow the order of the input views.
-		for _, view := range schema.Views {
-			viewState, ok := schemaState.views[view.Name]
+		for _, table := range schema.Tables {
+			if table == nil {
+				continue
+			}
+			ts, ok := schemaState.tables[table.Name]
 			if !ok {
 				continue
 			}
-			if _, err := w.WriteString(getViewAnnouncement(viewState.name)); err != nil {
-				return err
-			}
-
-			if err := writeView(w, viewState); err != nil {
-				return err
-			}
-			delete(schemaState.views, viewState.name)
+			tables = append(tables, ts)
+			delete(schemaState.tables, table.Name)
 		}
 	}
-	return nil
+	if len(tables) < 2 {
+		return tables
+	}
+
+	index := make(map[string]int, len(tables))
+	for i, t := range tables {
+		index[objectKey(t.schema, t.name)] = i
+	}
+	dependencies := make([]map[int]struct{}, len(tables))
+	for i, t := range tables {
+		for _, fk := range t.foreignKeys {
+			refSchema := fk.referencedSchema
+			if refSchema == "" {
+				refSchema = t.schema
+			}
+			dep, ok := index[objectKey(refSchema, fk.referencedTable)]
+			if !ok || dep == i {
+				continue
+			}
+			if dependencies[i] == nil {
+				dependencies[i] = map[int]struct{}{}
+			}
+			dependencies[i][dep] = struct{}{}
+		}
+	}
+
+	order := topoOrder(len(tables), dependencies)
+	ordered := make([]*tableState, len(order))
+	for i, idx := range order {
+		ordered[i] = tables[idx]
+	}
+	return ordered
+}
+
+// orderedViews returns views in snapshot order, topologically sorted so each
+// view follows any view it references.
+func orderedViews(to *metadatapb.DatabaseSchemaMetadata, state *databaseState) []*viewState {
+	var entries []orderedViewEntry
+	for _, schema := range to.Schemas {
+		if schema == nil {
+			continue
+		}
+		schemaState, ok := state.schemas[schema.Name]
+		if !ok {
+			continue
+		}
+		for _, view := range schema.Views {
+			if view == nil {
+				continue
+			}
+			vs, ok := schemaState.views[view.Name]
+			if !ok {
+				continue
+			}
+			entries = append(entries, orderedViewEntry{state: vs, meta: view})
+			delete(schemaState.views, view.Name)
+		}
+	}
+	if len(entries) < 2 {
+		out := make([]*viewState, len(entries))
+		for i, e := range entries {
+			out[i] = e.state
+		}
+		return out
+	}
+
+	index := make(map[string]int, len(entries))
+	for i, e := range entries {
+		index[objectKey(e.state.schema, e.state.name)] = i
+	}
+	dependencies := make([]map[int]struct{}, len(entries))
+	addDep := func(i, dep int) {
+		if dep == i {
+			return
+		}
+		if dependencies[i] == nil {
+			dependencies[i] = map[int]struct{}{}
+		}
+		dependencies[i][dep] = struct{}{}
+	}
+	for i, e := range entries {
+		for _, dep := range e.meta.DependencyColumns {
+			if dep == nil {
+				continue
+			}
+			depSchema := dep.Schema
+			if depSchema == "" {
+				depSchema = e.state.schema
+			}
+			if depIdx, ok := index[objectKey(depSchema, dep.Table)]; ok {
+				addDep(i, depIdx)
+			}
+		}
+		for _, ref := range collectViewRelationRefs(e.state.definition) {
+			if ref.schema != "" {
+				if depIdx, ok := index[objectKey(ref.schema, ref.name)]; ok {
+					addDep(i, depIdx)
+				}
+				continue
+			}
+			if depIdx, ok := index[objectKey(e.state.schema, ref.name)]; ok {
+				addDep(i, depIdx)
+			} else if depIdx, ok := index[objectKey("public", ref.name)]; ok {
+				addDep(i, depIdx)
+			}
+		}
+	}
+
+	order := topoOrder(len(entries), dependencies)
+	ordered := make([]*viewState, len(order))
+	for i, idx := range order {
+		ordered[i] = entries[idx].state
+	}
+	return ordered
+}
+
+type relationRef struct {
+	schema string
+	name   string
+}
+
+func collectViewRelationRefs(definition string) []relationRef {
+	if strings.TrimSpace(definition) == "" {
+		return nil
+	}
+	stmts, err := pgparser.Parse(definition)
+	if err != nil || stmts == nil {
+		return nil
+	}
+	cteNames := map[string]bool{}
+	nodes.Inspect(stmts, func(n nodes.Node) bool {
+		if cte, ok := n.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
+			cteNames[cte.Ctename] = true
+		}
+		return true
+	})
+	var refs []relationRef
+	nodes.Inspect(stmts, func(n nodes.Node) bool {
+		if rv, ok := n.(*nodes.RangeVar); ok && rv.Relname != "" {
+			if rv.Schemaname == "" && cteNames[rv.Relname] {
+				return true
+			}
+			refs = append(refs, relationRef{schema: rv.Schemaname, name: rv.Relname})
+		}
+		return true
+	})
+	return refs
+}
+
+// topoOrder returns indices 0..n-1 ordered so each item follows its
+// dependencies, preserving input order among independent items and breaking
+// cycles in input order.
+func topoOrder(n int, dependencies []map[int]struct{}) []int {
+	remaining := make([]int, n)
+	for i, deps := range dependencies {
+		remaining[i] = len(deps)
+	}
+	ordered := make([]int, 0, n)
+	done := make([]bool, n)
+	for len(ordered) < n {
+		progressed := false
+		for i := 0; i < n; i++ {
+			if done[i] || remaining[i] != 0 {
+				continue
+			}
+			done[i] = true
+			ordered = append(ordered, i)
+			progressed = true
+			for j, deps := range dependencies {
+				if _, ok := deps[i]; ok && !done[j] {
+					remaining[j]--
+				}
+			}
+		}
+		if !progressed {
+			for i := 0; i < n; i++ {
+				if !done[i] {
+					done[i] = true
+					ordered = append(ordered, i)
+				}
+			}
+		}
+	}
+	return ordered
 }
 
 // writeTable writes one table and the comments that belong to it. Column
@@ -213,8 +421,7 @@ func (v *viewState) qualifiedName() string {
 	return qualifyName(v.schema, v.name)
 }
 
-// escapeSingleQuote encodes a comment for a SQL string literal; an apostrophe in
-// "owner's orders" would otherwise close the literal and produce invalid DDL.
+// escapeSingleQuote encodes a comment or literal for a SQL string literal.
 func escapeSingleQuote(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
@@ -272,7 +479,9 @@ func (t *tableState) toString(buf *strings.Builder) error {
 
 	indexes := make([]*indexState, 0, len(t.indexes))
 	for _, index := range t.indexes {
-		indexes = append(indexes, index)
+		if index.primary || index.unique {
+			indexes = append(indexes, index)
+		}
 	}
 	slices.SortFunc(indexes, func(a, b *indexState) int {
 		if a.primary && !b.primary {
@@ -297,7 +506,9 @@ func (t *tableState) toString(buf *strings.Builder) error {
 
 	foreignKeys := make([]*foreignKeyState, 0, len(t.foreignKeys))
 	for _, fk := range t.foreignKeys {
-		foreignKeys = append(foreignKeys, fk)
+		if len(fk.columns) > 0 && len(fk.referencedColumns) > 0 {
+			foreignKeys = append(foreignKeys, fk)
+		}
 	}
 	slices.SortFunc(foreignKeys, func(a, b *foreignKeyState) int {
 		return strings.Compare(a.name, b.name)
@@ -396,29 +607,47 @@ func convertToForeignKeyState(id int, foreignKey *metadatapb.ForeignKeyMetadata)
 }
 
 func (f *foreignKeyState) toString(buf *strings.Builder) error {
-	for i, column := range f.columns {
-		if i >= len(f.referencedColumns) {
-			break
-		}
-		if _, err := buf.WriteString("FOREIGN KEY ("); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(quoteDefinitionIdentifier(column)); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(") REFERENCES "); err != nil {
-			return err
-		}
-		referencedColumn := f.referencedColumns[i]
-		// The sync strips the qualifier off ReferencedTable and keeps it in
-		// ReferencedSchema, so an unqualified target here would bind to whatever
-		// the search path resolves rather than the table the constraint names.
-		referenced := qualifyName(f.referencedSchema, f.referencedTable)
-		if _, err := fmt.Fprintf(buf, "%s(%s)", referenced, quoteDefinitionIdentifier(referencedColumn)); err != nil {
+	n := min(len(f.columns), len(f.referencedColumns))
+	if n == 0 {
+		return nil
+	}
+	if f.name != "" {
+		if _, err := fmt.Fprintf(buf, "CONSTRAINT %s ", quoteDefinitionIdentifier(f.name)); err != nil {
 			return err
 		}
 	}
-	return nil
+	if _, err := buf.WriteString("FOREIGN KEY ("); err != nil {
+		return err
+	}
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			if _, err := buf.WriteString(", "); err != nil {
+				return err
+			}
+		}
+		if _, err := buf.WriteString(quoteDefinitionIdentifier(f.columns[i])); err != nil {
+			return err
+		}
+	}
+	// The sync strips the qualifier off ReferencedTable and keeps it in
+	// ReferencedSchema, so an unqualified target here would bind to whatever
+	// the search path resolves rather than the table the constraint names.
+	referenced := qualifyName(f.referencedSchema, f.referencedTable)
+	if _, err := fmt.Fprintf(buf, ") REFERENCES %s(", referenced); err != nil {
+		return err
+	}
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			if _, err := buf.WriteString(", "); err != nil {
+				return err
+			}
+		}
+		if _, err := buf.WriteString(quoteDefinitionIdentifier(f.referencedColumns[i])); err != nil {
+			return err
+		}
+	}
+	_, err := buf.WriteString(")")
+	return err
 }
 
 type indexState struct {
@@ -452,6 +681,11 @@ func (i *indexState) toString(buf *strings.Builder) error {
 		keyword = "UNIQUE ("
 	default:
 		return nil
+	}
+	if i.name != "" {
+		if _, err := fmt.Fprintf(buf, "CONSTRAINT %s ", quoteDefinitionIdentifier(i.name)); err != nil {
+			return err
+		}
 	}
 	if _, err := buf.WriteString(keyword); err != nil {
 		return err
@@ -488,7 +722,7 @@ type defaultValueString struct {
 }
 
 func (d *defaultValueString) toString() string {
-	return fmt.Sprintf("'%s'", d.value)
+	return fmt.Sprintf("'%s'", escapeSingleQuote(d.value))
 }
 
 type defaultValueExpression struct {
@@ -500,12 +734,14 @@ func (d *defaultValueExpression) toString() string {
 }
 
 type columnState struct {
-	id           int
-	name         string
-	tp           string
-	defaultValue defaultValue
-	comment      string
-	nullable     bool
+	id              int
+	name            string
+	tp              string
+	collationSchema string
+	collation       string
+	defaultValue    defaultValue
+	comment         string
+	nullable        bool
 }
 
 func (c *columnState) toString(buf *strings.Builder) error {
@@ -514,6 +750,11 @@ func (c *columnState) toString(buf *strings.Builder) error {
 	}
 	if _, err := buf.WriteString(c.tp); err != nil {
 		return err
+	}
+	if c.collation != "" {
+		if _, err := fmt.Fprintf(buf, " COLLATE %s", qualifyName(c.collationSchema, c.collation)); err != nil {
+			return err
+		}
 	}
 	if !c.nullable {
 		if _, err := buf.WriteString(" NOT NULL"); err != nil {
@@ -530,16 +771,18 @@ func (c *columnState) toString(buf *strings.Builder) error {
 
 func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnState {
 	result := &columnState{
-		id:       id,
-		name:     column.Name,
-		tp:       column.Type,
-		nullable: column.Nullable,
-		comment:  column.Comment,
+		id:              id,
+		name:            column.Name,
+		tp:              column.Type,
+		collationSchema: column.CollationSchema,
+		collation:       column.Collation,
+		nullable:        column.Nullable,
+		comment:         column.Comment,
 	}
 	if column.Default == "NULL" {
 		result.defaultValue = &defaultValueNull{}
 	} else if column.Default != "" {
-		if isExpression(column.Default) {
+		if isExpression(column.Default) || isQuotedSQLLiteral(column.Default) || isNumericOrBoolLiteral(column.Default) {
 			result.defaultValue = &defaultValueExpression{value: column.Default}
 		} else {
 			result.defaultValue = &defaultValueString{value: column.Default}
@@ -549,13 +792,55 @@ func convertToColumnState(id int, column *metadatapb.ColumnMetadata) *columnStat
 }
 
 func isExpression(value string) bool {
-	if strings.Contains(value, "(") || strings.Contains(value, ")") ||
-		strings.Contains(value, "::") || strings.Contains(value, "NOW") ||
-		strings.Contains(value, "CURRENT_") || strings.Contains(value, "GETDATE") ||
-		strings.Contains(value, "TIMESTAMP") || strings.Contains(value, "SEQUENCE") {
+	return strings.Contains(value, "(") || strings.Contains(value, ")") ||
+		strings.Contains(value, "::") || strings.Contains(value, "||") ||
+		strings.Contains(value, "NOW") || strings.Contains(value, "CURRENT_") ||
+		strings.Contains(value, "GETDATE") || strings.Contains(value, "TIMESTAMP") ||
+		strings.Contains(value, "SEQUENCE")
+}
+
+// isQuotedSQLLiteral reports whether s is already a single-quoted SQL string
+// literal (such as 'active' or 'it”s ok'), so column defaults copied from
+// information_schema.columns.column_default are preserved verbatim.
+func isQuotedSQLLiteral(s string) bool {
+	if len(s) < 2 || s[0] != '\'' || s[len(s)-1] != '\'' {
+		return false
+	}
+	for i := 1; i < len(s)-1; i++ {
+		if s[i] == '\'' {
+			if i+1 >= len(s)-1 || s[i+1] != '\'' {
+				return false
+			}
+			i++
+		}
+	}
+	return true
+}
+
+func isNumericOrBoolLiteral(s string) bool {
+	if strings.EqualFold(s, "true") || strings.EqualFold(s, "false") {
 		return true
 	}
-	return false
+	if s == "" {
+		return false
+	}
+	i := 0
+	if s[i] == '+' || s[i] == '-' {
+		i++
+	}
+	digits := false
+	dot := false
+	for ; i < len(s); i++ {
+		switch {
+		case s[i] >= '0' && s[i] <= '9':
+			digits = true
+		case s[i] == '.' && !dot:
+			dot = true
+		default:
+			return false
+		}
+	}
+	return digits
 }
 
 type viewState struct {

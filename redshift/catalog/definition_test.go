@@ -79,6 +79,29 @@ COMMENT ON TABLE "public"."orders" IS 'owner''s orders';
 COMMENT ON COLUMN "public"."orders"."id" IS 'don''t drop';
 `,
 		},
+		{
+			name: "column collation and defaults",
+			get: func() (string, error) {
+				return GetTableDefinition("public", &metadatapb.TableMetadata{
+					Name: "items",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "status", Type: "character varying(20)", Default: "'active'"},
+						{Name: "title", Type: "character varying(50)", Collation: "en_US.utf8", Default: "'it''s ok'", Nullable: true},
+						{Name: "tag", Type: "character varying(20)", CollationSchema: "pg_catalog", Collation: "default", Default: "owner's", Nullable: true},
+						{Name: "qty", Type: "integer", Default: "0"},
+						{Name: "active", Type: "boolean", Default: "true"},
+					},
+				})
+			},
+			want: `CREATE TABLE "public"."items" (
+  "status" character varying(20) NOT NULL DEFAULT 'active',
+  "title" character varying(50) COLLATE "en_US.utf8" DEFAULT 'it''s ok',
+  "tag" character varying(20) COLLATE "pg_catalog"."default" DEFAULT 'owner''s',
+  "qty" integer NOT NULL DEFAULT 0,
+  "active" boolean NOT NULL DEFAULT true
+);
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -158,29 +181,116 @@ CREATE OR REPLACE VIEW "public"."recent_orders" AS SELECT id FROM orders;
 	require.Contains(t, got, table)
 }
 
-// TestForeignKeyKeepsReferencedSchema pins the qualifier on the REFERENCES
-// target, since Redshift sync strips it off ReferencedTable and keeps it in
-// ReferencedSchema.
-func TestForeignKeyKeepsReferencedSchema(t *testing.T) {
+// TestDatabaseDefinitionCreatesSchemasAndOrdersDependencies pins that
+// non-public schemas are created first, FK parent tables precede child tables,
+// dependent views follow the views they read, and nil entries do not panic.
+func TestDatabaseDefinitionCreatesSchemasAndOrdersDependencies(t *testing.T) {
+	metadata := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			nil,
+			{
+				Name: "analytics",
+				Tables: []*metadatapb.TableMetadata{
+					nil,
+					{
+						Name: "a_child",
+						Columns: []*metadatapb.ColumnMetadata{
+							nil,
+							{Name: "id", Type: "integer"},
+							{Name: "parent_id", Type: "integer", Nullable: true},
+						},
+						ForeignKeys: []*metadatapb.ForeignKeyMetadata{
+							nil,
+							{
+								Name:              "a_child_parent_fk",
+								Columns:           []string{"parent_id"},
+								ReferencedSchema:  "public",
+								ReferencedTable:   "z_parent",
+								ReferencedColumns: []string{"id"},
+							},
+						},
+					},
+				},
+				Views: []*metadatapb.ViewMetadata{
+					nil,
+					{Name: "a_summary", Definition: `SELECT id FROM "analytics"."z_base"`},
+					{Name: "z_base", Definition: `SELECT id FROM "analytics"."a_child"`},
+				},
+			},
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "z_parent",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "id", Type: "integer"},
+						},
+						Indexes: []*metadatapb.IndexMetadata{
+							{Name: "z_parent_pkey", Primary: true, Expressions: []string{"id"}},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	got, err := DatabaseDefinition(metadata)
+	require.NoError(t, err)
+
+	require.Equal(t, `CREATE SCHEMA IF NOT EXISTS "analytics";
+
+--
+-- Table structure for `+"`z_parent`"+`
+--
+CREATE TABLE "public"."z_parent" (
+  "id" integer NOT NULL,
+  CONSTRAINT "z_parent_pkey" PRIMARY KEY (id)
+);
+
+--
+-- Table structure for `+"`a_child`"+`
+--
+CREATE TABLE "analytics"."a_child" (
+  "id" integer NOT NULL,
+  "parent_id" integer,
+  CONSTRAINT "a_child_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."z_parent"("id")
+);
+
+--
+-- View structure for `+"`z_base`"+`
+--
+CREATE OR REPLACE VIEW "analytics"."z_base" AS SELECT id FROM "analytics"."a_child";
+
+--
+-- View structure for `+"`a_summary`"+`
+--
+CREATE OR REPLACE VIEW "analytics"."a_summary" AS SELECT id FROM "analytics"."z_base";
+`, got)
+}
+
+// TestForeignKeyKeepsReferencedSchemaAndCompositeColumns pins the qualifier on
+// the REFERENCES target and composite multi-column foreign key syntax.
+func TestForeignKeyKeepsReferencedSchemaAndCompositeColumns(t *testing.T) {
 	got, err := GetTableDefinition("analytics", &metadatapb.TableMetadata{
 		Name: "child",
 		Columns: []*metadatapb.ColumnMetadata{
 			{Name: "id", Type: "integer"},
+			{Name: "tenant_id", Type: "integer", Nullable: true},
 			{Name: "parent_id", Type: "integer", Nullable: true},
 		},
 		ForeignKeys: []*metadatapb.ForeignKeyMetadata{
 			{
 				Name:              "child_parent_fk",
-				Columns:           []string{"parent_id"},
+				Columns:           []string{"tenant_id", "parent_id"},
 				ReferencedSchema:  "warehouse",
 				ReferencedTable:   "parent",
-				ReferencedColumns: []string{"id"},
+				ReferencedColumns: []string{"tenant_id", "id"},
 			},
 		},
 	})
 	require.NoError(t, err)
-	require.Contains(t, got, `REFERENCES "warehouse"."parent"("id")`)
-	require.NotContains(t, got, `REFERENCES "parent"("id")`)
+	require.Contains(t, got, `CONSTRAINT "child_parent_fk" FOREIGN KEY ("tenant_id", "parent_id") REFERENCES "warehouse"."parent"("tenant_id", "id")`)
+	require.NotContains(t, got, `REFERENCES "parent"`)
 }
 
 // TestIdentifiersNeedingQuotesSurvive covers identifiers with spaces, mixed
@@ -201,7 +311,8 @@ COMMENT ON COLUMN "Sales Data"."MixedCase"."od""d" IS 'quoted name';
 }
 
 // TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted pins the split between
-// pg_get_indexdef expressions (already quoted) and foreign key columns (bare).
+// pg_get_indexdef expressions (already quoted) and foreign key columns (bare),
+// and checks that explicit constraint names are preserved.
 func TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted(t *testing.T) {
 	got, err := GetTableDefinition("public", &metadatapb.TableMetadata{
 		Name: "t",
@@ -224,7 +335,7 @@ func TestIndexKeysAreVerbatimAndForeignKeyColumnsAreQuoted(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	require.Contains(t, got, `PRIMARY KEY ("MixedCase")`)
+	require.Contains(t, got, `CONSTRAINT "t_pkey" PRIMARY KEY ("MixedCase")`)
 	require.NotContains(t, got, `"""MixedCase"""`)
-	require.Contains(t, got, `FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
+	require.Contains(t, got, `CONSTRAINT "t_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."parent"("id")`)
 }
