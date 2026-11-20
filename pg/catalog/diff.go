@@ -38,6 +38,7 @@ type RelationDiffEntry struct {
 	Indexes         []IndexDiffEntry
 	Triggers        []TriggerDiffEntry
 	Policies        []PolicyDiffEntry
+	Rules           []RuleDiffEntry
 	RLSChanged      bool
 	RLSEnabled      bool
 	ForceRLSEnabled bool
@@ -152,6 +153,14 @@ type PolicyDiffEntry struct {
 	Name   string
 	From   *Policy
 	To     *Policy
+}
+
+// RuleDiffEntry describes a rewrite rule change within a relation.
+type RuleDiffEntry struct {
+	Action DiffAction
+	Name   string
+	From   *Rule
+	To     *Rule
 }
 
 // CommentDiffEntry describes a comment change.

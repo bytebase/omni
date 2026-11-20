@@ -111,7 +111,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 						Priority:      PriorityView,
 					})
 					ops = append(ops, buildCreateViewOp(to, entry))
-				} else {
+				} else if viewSelfChanged(from, to, entry) {
 					ops = append(ops, buildModifyViewOps(from, to, entry)...)
 				}
 			case 'm':
@@ -309,6 +309,22 @@ func findDependentViews(c *Catalog, schemaName, viewName string) []viewRef {
 	}
 
 	return deps
+}
+
+// viewSelfChanged reports whether a view's own definition, check option,
+// columns, or triggers changed (as opposed to only rewrite rules).
+func viewSelfChanged(from, to *Catalog, entry RelationDiffEntry) bool {
+	if entry.From == nil || entry.To == nil {
+		return true
+	}
+	key := relKey{schema: entry.SchemaName, name: entry.Name}
+	if getViewDef(from, key, entry.From) != getViewDef(to, key, entry.To) {
+		return true
+	}
+	if entry.From.CheckOption != entry.To.CheckOption {
+		return true
+	}
+	return len(entry.Columns) > 0 || len(entry.Triggers) > 0
 }
 
 // viewColumnsChanged returns true if existing columns were renamed, removed,

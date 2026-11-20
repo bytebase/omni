@@ -526,7 +526,9 @@ func (c *Catalog) DefineRelation(stmt *nodes.CreateStmt, relkind byte) error {
 		}
 	}
 
-	if err := c.validateRelOptionsForCols(stmt.Options, relkind, "", columnsNeedToastTable(columns)); err != nil {
+	// DefineRelation calls toast_reloptions(toastOptions, true) unconditionally
+	// before NewRelationCreateToastTable checks whether a TOAST table is needed.
+	if err := c.validateRelOptions(stmt.Options, relkind, ""); err != nil {
 		return err
 	}
 	// PostgreSQL resolves a new relation's tablespace in DefineRelation order:

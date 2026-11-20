@@ -34,6 +34,7 @@ const (
 	PriorityView         = 8
 	PriorityIndex        = 9
 	PriorityTrigger      = 10
+	PriorityRule         = 10
 	PriorityEventTrigger = 10
 	PriorityPolicy       = 11
 	PriorityMetadata     = 12 // Comment/Grant/Revoke
@@ -81,6 +82,8 @@ const (
 	OpCreatePolicy       MigrationOpType = "CreatePolicy"
 	OpDropPolicy         MigrationOpType = "DropPolicy"
 	OpAlterPolicy        MigrationOpType = "AlterPolicy"
+	OpCreateRule         MigrationOpType = "CreateRule"
+	OpDropRule           MigrationOpType = "DropRule"
 	OpAlterTable         MigrationOpType = "AlterTable"
 	OpComment            MigrationOpType = "Comment"
 	OpGrant              MigrationOpType = "Grant"
@@ -226,6 +229,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	ops = append(ops, generateIndexDDL(from, to, diff)...)
 	ops = append(ops, generatePartitionDDL(from, to, diff)...)
 	ops = append(ops, generateTriggerDDL(from, to, diff)...)
+	ops = append(ops, generateRuleDDL(from, to, diff)...)
 	ops = append(ops, generateEventTriggerDDL(from, to, diff)...)
 	ops = append(ops, generatePolicyDDL(from, to, diff)...)
 	ops = append(ops, generateCommentDDL(from, to, diff)...)
@@ -237,6 +241,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	var extraViewTables, directViews map[uint32]bool
 	ops, extraViewTables, directViews = wrapModifiedCollationDependents(from, to, diff, ops)
 	ops = wrapColumnTypeChangesWithViewOps(from, to, diff, ops, extraViewTables, directViews)
+	ops = reconcileRulesWithDroppedRelations(from, to, ops)
 	ops = deferDropsOfTypesInUse(from, to, ops)
 
 	// Dependency-driven ordering: sort ops by phase, then topologically within each phase.

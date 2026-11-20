@@ -62,6 +62,7 @@ func (c *Catalog) RemoveObjects(stmt *nodes.DropStmt) error {
 					ruleName := stringVal(list.Items[len(list.Items)-1])
 					if _, rel, err := c.findRelation(schemaName, relName); err == nil && rel != nil {
 						delete(rel.Rules, ruleName)
+						rel.HasRules = len(rel.Rules) > 0
 					}
 				}
 			}
@@ -830,13 +831,21 @@ func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
 		}
 	}
 
+	restore := func() {}
+	if cascade && len(targets) > 0 {
+		restore = c.snapshotForAlterRollback()
+	}
+
 	for _, t := range targets {
 		uc := t.schema.Collations[t.name]
 		if uc == nil || uc.OID != t.oid {
 			continue
 		}
 		if cascade {
-			c.cascadeDropCollation(t.schema, t.name, t.oid)
+			if err := c.cascadeDropCollation(t.schema, t.name, t.oid); err != nil {
+				restore()
+				return err
+			}
 		} else {
 			delete(t.schema.Collations, t.name)
 			c.removeDepsOn('L', t.oid)
@@ -845,37 +854,107 @@ func (c *Catalog) removeCollationObjects(stmt *nodes.DropStmt) error {
 	return nil
 }
 
-func (c *Catalog) cascadeDropCollation(schema *Schema, name string, collOID uint32) {
+func (c *Catalog) cascadeDropCollation(schema *Schema, name string, collOID uint32) error {
 	deps := c.findNormalDependents('L', collOID)
+
+	type colTarget struct {
+		relOID  uint32
+		colName string
+	}
+	var colDrops []colTarget
+	seenCol := map[colTarget]bool{}
+
 	for _, dep := range deps {
-		if dep.ObjType == 'r' && dep.ObjSubID > 0 {
-			rel := c.relationByOID[dep.ObjOID]
+		if dep.ObjType != 'r' || dep.ObjSubID <= 0 {
+			continue
+		}
+		rel := c.relationByOID[dep.ObjOID]
+		if rel == nil || rel.RelKind == 'c' {
+			continue
+		}
+		for _, col := range rel.Columns {
+			if col.AttNum == int16(dep.ObjSubID) {
+				if col.UserCollationOID == collOID || col.Generated == 's' {
+					ct := colTarget{relOID: rel.OID, colName: col.Name}
+					if !seenCol[ct] {
+						seenCol[ct] = true
+						colDrops = append(colDrops, ct)
+					}
+				} else if col.HasDefault && col.Generated == 0 {
+					c.clearColumnDefaultDeps(rel, col)
+					col.HasDefault = false
+					col.Default = ""
+					col.DefaultAnalyzed = nil
+				}
+				break
+			}
+		}
+	}
+
+	// Drop root column definitions (InhCount == 0) first and recurse down
+	// inheritance/partition hierarchies, repeating until a fixed point so
+	// merged child columns whose InhCount drops to 0 are also removed.
+	for progressed := true; progressed; {
+		progressed = false
+		for _, ct := range colDrops {
+			rel := c.relationByOID[ct.relOID]
 			if rel == nil {
 				continue
 			}
-			if rel.RelKind == 'c' {
-				c.cascadeDropRelation(rel)
+			idx, exists := rel.colByName[ct.colName]
+			if !exists {
 				continue
 			}
-			for _, col := range rel.Columns {
-				if col.AttNum == int16(dep.ObjSubID) {
-					if col.UserCollationOID == collOID || col.Generated == 's' {
-						_ = c.atDropColumn(rel.Schema, rel, col.Name, true, true, false)
-					} else if col.HasDefault && col.Generated == 0 {
-						c.clearColumnDefaultDeps(rel, col)
-						col.HasDefault = false
-						col.Default = ""
-						col.DefaultAnalyzed = nil
+			col := rel.Columns[idx]
+			if col.InhCount != 0 {
+				continue
+			}
+			if err := c.checkChildColumnDrops(rel, col.Name, true); err != nil {
+				return err
+			}
+			if err := c.atDropColumn(rel.Schema, rel, col.Name, true, true, false); err != nil {
+				return err
+			}
+			for _, childOID := range c.findChildRelations(rel.OID) {
+				if child := c.relationByOID[childOID]; child != nil {
+					if err := c.atDropColumn(child.Schema, child, ct.colName, true, true, true); err != nil {
+						return err
 					}
-					break
 				}
+			}
+			progressed = true
+		}
+	}
+
+	// If any dependent column still remains (e.g. an inherited column whose
+	// parent did not depend on collOID), attempt the drop so PostgreSQL's
+	// refusal (42P16) aborts DROP COLLATION before deleting the collation.
+	for _, ct := range colDrops {
+		rel := c.relationByOID[ct.relOID]
+		if rel == nil {
+			continue
+		}
+		if _, exists := rel.colByName[ct.colName]; exists {
+			if err := c.atDropColumn(rel.Schema, rel, ct.colName, true, false, false); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Drop remaining non-column dependents (composites, domains, ranges, views, indexes, etc.).
+	for _, dep := range c.findNormalDependents('L', collOID) {
+		if dep.ObjType == 'r' && dep.ObjSubID > 0 {
+			if rel := c.relationByOID[dep.ObjOID]; rel != nil && rel.RelKind == 'c' {
+				c.cascadeDropRelation(rel)
 			}
 			continue
 		}
 		c.dropDependentObject(dep.ObjType, dep.ObjOID)
 	}
+
 	if schema != nil {
 		delete(schema.Collations, name)
 	}
 	c.removeDepsOn('L', collOID)
+	return nil
 }

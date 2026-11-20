@@ -123,9 +123,16 @@ func (c *Catalog) Clone() *Catalog {
 			}
 		}
 		if r.Rules != nil {
-			cr.Rules = make(map[string]byte, len(r.Rules))
+			cr.Rules = make(map[string]*Rule, len(r.Rules))
 			for k, v := range r.Rules {
-				cr.Rules[k] = v
+				if v == nil {
+					continue
+				}
+				rc := *v
+				if v.ActionsSQL != nil {
+					rc.ActionsSQL = append([]string(nil), v.ActionsSQL...)
+				}
+				cr.Rules[k] = &rc
 			}
 		}
 		if r.InhParents != nil {

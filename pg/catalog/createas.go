@@ -222,7 +222,7 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 		columns[i] = col
 	}
 
-	if err := c.validateRelOptionsForCols(into.Options, relkind, "", columnsNeedToastTable(columns)); err != nil {
+	if err := c.validateRelOptions(into.Options, relkind, ""); err != nil {
 		return err
 	}
 

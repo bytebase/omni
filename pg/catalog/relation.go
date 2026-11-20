@@ -98,12 +98,12 @@ type Relation struct {
 	OwnerName string
 
 	// Relation flags (pg_class).
-	Owner       uint32          // relowner
-	HasRules    bool            // relhasrules
-	Rules       map[string]byte // rule name → firing mode ('O', 'D', 'R', 'A')
-	HasSubclass bool            // relhassubclass — has child tables/partitions
-	IsPopulated bool            // relispopulated — matview populated state
-	IsPartition bool            // relispartition
+	Owner       uint32           // relowner
+	HasRules    bool             // relhasrules
+	Rules       map[string]*Rule // rule name → rewrite rule definition & firing mode
+	HasSubclass bool             // relhassubclass — has child tables/partitions
+	IsPopulated bool             // relispopulated — matview populated state
+	IsPartition bool             // relispartition
 }
 
 // relationNamespaceKind returns the relkind a schema's relation namespace

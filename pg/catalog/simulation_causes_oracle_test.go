@@ -11,6 +11,7 @@ import (
 	"github.com/bytebase/omni/metadata"
 	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
+	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 // TestSimulationCausesOracle holds the relation-namespace refusals
@@ -4103,6 +4104,175 @@ func TestSimulationCausesOracle(t *testing.T) {
 		}
 		if rem := GenerateMigration(c111From, c111To, Diff(c111From, c111To)); len(rem.Ops) != 0 {
 			t.Fatalf("expected zero remaining ops after c111From->c111To, got:\n%s", rem.SQL())
+		}
+
+		// Review round 10 regressions:
+		// 1. Bounded varlena columns below TOAST_TUPLE_THRESHOLD (2032) do not
+		//    need a TOAST table (so ALTER TABLE ... SET (toast.*) ignores
+		//    toast.* on varchar(1)/varchar(501) and rejects unknown toast.* on
+		//    varchar(502)/text/domains), while CREATE TABLE validates toast.*
+		//    unconditionally like PostgreSQL's DefineRelation.
+		// 2. REPLICA IDENTITY carries ReplicaIdentityStmt in the AST so AST-only
+		//    ProcessUtility callers apply FULL, NOTHING, DEFAULT, and USING INDEX.
+		// 3. DROP COLLATION ... CASCADE drops inherited and partitioned column
+		//    dependents recursively, and rolls back cleanly when a dependent
+		//    column (such as a partition key) cannot be dropped.
+		// 4. CREATE RULE definitions and firing modes are stored on Relation,
+		//    compared in compareRelation and compareView, and emitted in
+		//    GenerateMigration (including rule renames, mode changes, and view
+		//    rebuilds).
+		c112 := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_vc1_r10 (v varchar(1))",
+			"CREATE TABLE t_vc501_r10 (v varchar(501))",
+			"CREATE TABLE t_vc502_r10 (v varchar(502))",
+			"CREATE DOMAIN dom_vc1_r10 AS varchar(1)",
+			"CREATE TABLE t_dom_vc1_r10 (v dom_vc1_r10)",
+		} {
+			if code := simulationCatalogCode(t, c112, stmt); code != "0" {
+				t.Fatalf("c112 toast setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_vc1_r10 SET (toast.a = 1)"); code != "0" {
+			t.Fatalf("ALTER TABLE varchar(1) SET (toast.a = 1) answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_vc501_r10 SET (toast.a = 1)"); code != "0" {
+			t.Fatalf("ALTER TABLE varchar(501) SET (toast.a = 1) answered %s, want 0", code)
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_vc502_r10 SET (toast.a = 1)"); code != CodeInvalidParameterValue {
+			t.Fatalf("ALTER TABLE varchar(502) SET (toast.a = 1) answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+		if code := simulationCatalogCode(t, c112, "ALTER TABLE t_dom_vc1_r10 SET (toast.a = 1)"); code != CodeInvalidParameterValue {
+			t.Fatalf("ALTER TABLE domain(varchar(1)) SET (toast.a = 1) answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+		if code := simulationCatalogCode(t, c112, "CREATE TABLE t_ct_vc1_r10 (v varchar(1)) WITH (toast.a = 1)"); code != CodeInvalidParameterValue {
+			t.Fatalf("CREATE TABLE varchar(1) WITH (toast.a = 1) answered %s, want %s", code, CodeInvalidParameterValue)
+		}
+
+		// 2. AST-only ProcessUtility for REPLICA IDENTITY (no Exec / raw SQL).
+		if code := simulationCatalogCode(t, c112, "CREATE TABLE t_ri_ast_r10 (id int NOT NULL); CREATE UNIQUE INDEX t_ri_ast_r10_uk ON t_ri_ast_r10 (id)"); code != "0" {
+			t.Fatalf("c112 ri setup: %s", code)
+		}
+		for _, tcRI := range []struct {
+			sql  string
+			want byte
+		}{
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY FULL", 'f'},
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY NOTHING", 'n'},
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY USING INDEX t_ri_ast_r10_uk", 'i'},
+			{"ALTER TABLE t_ri_ast_r10 REPLICA IDENTITY DEFAULT", 'd'},
+		} {
+			parsed, err := pgparser.Parse(tcRI.sql)
+			if err != nil || parsed == nil || len(parsed.Items) != 1 {
+				t.Fatalf("Parse(%q): %v", tcRI.sql, err)
+			}
+			stmt := parsed.Items[0]
+			if raw, ok := stmt.(*nodes.RawStmt); ok {
+				stmt = raw.Stmt
+			}
+			if err := c112.ProcessUtility(stmt); err != nil {
+				t.Fatalf("ProcessUtility(%q): %v", tcRI.sql, err)
+			}
+			if got := c112.GetRelation("public", "t_ri_ast_r10").ReplicaIdentity; got != tcRI.want {
+				t.Fatalf("ProcessUtility(%q): ReplicaIdentity = %q, want %q", tcRI.sql, got, tcRI.want)
+			}
+		}
+
+		// 3. DROP COLLATION ... CASCADE on inherited, merged, partitioned, and partition-key columns.
+		for _, stmt := range []string{
+			"CREATE COLLATION c_inh_r10 (LOCALE = 'C')",
+			"CREATE TABLE p_inh_r10 (id int, a text COLLATE c_inh_r10, b text COLLATE c_inh_r10)",
+			"CREATE TABLE ch_inh_r10 () INHERITS (p_inh_r10)",
+			"CREATE TABLE ch_merge_r10 (a text COLLATE c_inh_r10) INHERITS (p_inh_r10)",
+			"CREATE TABLE gch_inh_r10 () INHERITS (ch_merge_r10)",
+			"CREATE TABLE p_part_r10 (k int, a text COLLATE c_inh_r10) PARTITION BY LIST (k)",
+			"CREATE TABLE ch_part_r10 PARTITION OF p_part_r10 FOR VALUES IN (1)",
+			"DROP COLLATION c_inh_r10 CASCADE",
+		} {
+			if code := simulationCatalogCode(t, c112, stmt); code != "0" {
+				t.Fatalf("c112 inh cascade %s: %s", stmt, code)
+			}
+		}
+		for _, tbl := range []string{"p_inh_r10", "ch_inh_r10", "ch_merge_r10", "gch_inh_r10", "p_part_r10", "ch_part_r10"} {
+			r := c112.GetRelation("public", tbl)
+			if r == nil {
+				t.Fatalf("expected %s to remain after DROP COLLATION CASCADE", tbl)
+			}
+			for _, col := range r.Columns {
+				if col.Name == "a" || col.Name == "b" {
+					t.Fatalf("expected column %s.%s to be dropped by DROP COLLATION CASCADE", tbl, col.Name)
+				}
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE COLLATION c_pkey_r10 (LOCALE = 'C')",
+			"CREATE TABLE p_pkey_r10 (a text COLLATE c_pkey_r10) PARTITION BY LIST (a)",
+			"CREATE TABLE ch_pkey_r10 PARTITION OF p_pkey_r10 FOR VALUES IN ('x')",
+		} {
+			if code := simulationCatalogCode(t, c112, stmt); code != "0" {
+				t.Fatalf("c112 pkey setup %s: %s", stmt, code)
+			}
+		}
+		if code := simulationCatalogCode(t, c112, "DROP COLLATION c_pkey_r10 CASCADE"); code != CodeInvalidTableDefinition {
+			t.Fatalf("DROP COLLATION CASCADE on partition-key column answered %s, want %s", code, CodeInvalidTableDefinition)
+		}
+		if c112.schemaByName["public"].Collations["c_pkey_r10"] == nil {
+			t.Fatal("failed DROP COLLATION CASCADE deleted c_pkey_r10 despite partition-key error")
+		}
+		if len(c112.GetRelation("public", "ch_pkey_r10").Columns) != 1 {
+			t.Fatal("failed DROP COLLATION CASCADE mutated child partition columns")
+		}
+
+		// 4. Rules diff and migration on tables and views (create, modify, rename, firing mode, drop, view rebuild).
+		c112From := New()
+		c112To := New()
+		for _, stmt := range []string{
+			"CREATE TABLE t_rule_r10 (id int, val varchar(10))",
+			"CREATE TABLE t_rule_log_r10 (id int, val text)",
+			"CREATE RULE r_keep_mode_r10 AS ON INSERT TO t_rule_r10 WHERE NEW.id > 0 DO ALSO INSERT INTO t_rule_log_r10 (id, val) VALUES (NEW.id, NEW.val)",
+			"CREATE RULE r_mod_r10 AS ON DELETE TO t_rule_r10 DO NOTHING",
+			"CREATE RULE r_drop_r10 AS ON UPDATE TO t_rule_r10 DO NOTHING",
+			"CREATE VIEW v_rule_r10 AS SELECT id, val FROM t_rule_r10",
+			"CREATE RULE r_v_ins_r10 AS ON INSERT TO v_rule_r10 DO INSTEAD INSERT INTO t_rule_r10 (id, val) VALUES (NEW.id, NEW.val)",
+		} {
+			if code := simulationCatalogCode(t, c112From, stmt); code != "0" {
+				t.Fatalf("c112From %s: %s", stmt, code)
+			}
+		}
+		for _, stmt := range []string{
+			"CREATE TABLE t_rule_r10 (id int, val varchar(50))",
+			"CREATE TABLE t_rule_log_r10 (id int, val text)",
+			"CREATE RULE r_keep_mode_r10 AS ON INSERT TO t_rule_r10 WHERE NEW.id > 0 DO ALSO INSERT INTO t_rule_log_r10 (id, val) VALUES (NEW.id, NEW.val)",
+			"ALTER TABLE t_rule_r10 DISABLE RULE r_keep_mode_r10",
+			"CREATE RULE r_mod_r10 AS ON DELETE TO t_rule_r10 WHERE OLD.id > 10 DO ALSO (DELETE FROM t_rule_log_r10 WHERE id = OLD.id; NOTIFY rule_ch_r10, 'del')",
+			"ALTER TABLE t_rule_r10 ENABLE ALWAYS RULE r_mod_r10",
+			"CREATE RULE r_oldname_r10 AS ON UPDATE TO t_rule_r10 DO NOTHING",
+			"ALTER RULE r_oldname_r10 ON t_rule_r10 RENAME TO r_added_r10",
+			"CREATE VIEW v_rule_r10 AS SELECT id, val FROM t_rule_r10",
+			"CREATE RULE r_v_ins_r10 AS ON INSERT TO v_rule_r10 DO INSTEAD INSERT INTO t_rule_r10 (id, val) VALUES (NEW.id, NEW.val)",
+			"CREATE RULE r_v_del_r10 AS ON DELETE TO v_rule_r10 DO INSTEAD DELETE FROM t_rule_r10 WHERE id = OLD.id",
+		} {
+			if code := simulationCatalogCode(t, c112To, stmt); code != "0" {
+				t.Fatalf("c112To %s: %s", stmt, code)
+			}
+		}
+		migEmpty112 := GenerateMigration(New(), c112To, Diff(New(), c112To))
+		c112Empty := New()
+		if code := simulationCatalogCode(t, c112Empty, migEmpty112.SQL()); code != "0" {
+			t.Fatalf("applying empty->c112To failed with %s:\n%s", code, migEmpty112.SQL())
+		}
+		if rem := GenerateMigration(c112Empty, c112To, Diff(c112Empty, c112To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after empty->c112To, got:\n%s", rem.SQL())
+		}
+		mig112 := GenerateMigration(c112From, c112To, Diff(c112From, c112To))
+		if !strings.Contains(mig112.SQL(), `DISABLE RULE "r_keep_mode_r10"`) || !strings.Contains(mig112.SQL(), `ENABLE ALWAYS RULE "r_mod_r10"`) {
+			t.Fatalf("expected rule firing mode DDL in migration, got:\n%s", mig112.SQL())
+		}
+		if code := simulationCatalogCode(t, c112From, mig112.SQL()); code != "0" {
+			t.Fatalf("applying c112From->c112To failed with %s:\n%s", code, mig112.SQL())
+		}
+		if rem := GenerateMigration(c112From, c112To, Diff(c112From, c112To)); len(rem.Ops) != 0 {
+			t.Fatalf("expected zero remaining ops after c112From->c112To, got:\n%s", rem.SQL())
 		}
 	})
 

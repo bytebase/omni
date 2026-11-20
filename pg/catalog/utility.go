@@ -116,32 +116,7 @@ func (c *Catalog) ProcessUtility(stmt nodes.Node) error {
 			return nil
 		}
 	case *nodes.RuleStmt:
-		if s.Relation != nil {
-			_, rel, err := c.findRelation(s.Relation.Schemaname, s.Relation.Relname)
-			if err != nil {
-				return err
-			}
-			switch rel.RelKind {
-			case 'r', 'v', 'p':
-			case 'm':
-				return &Error{Code: CodeFeatureNotSupported, Message: "rules on materialized views are not supported"}
-			default:
-				return errWrongObjectType(rel.Name, "a table or view")
-			}
-			if s.Rulename != "" {
-				if !s.Replace && rel.Rules != nil && rel.Rules[s.Rulename] != 0 {
-					return errDuplicateObject("rule", s.Rulename)
-				}
-				if rel.Rules == nil {
-					rel.Rules = make(map[string]byte)
-				}
-				if _, exists := rel.Rules[s.Rulename]; !exists {
-					rel.Rules[s.Rulename] = 'O'
-				}
-				rel.HasRules = true
-			}
-		}
-		return nil
+		return c.CreateRuleStmt(s)
 	case *nodes.CreateCastStmt:
 		return c.CreateCast(s)
 	case *nodes.CreateForeignTableStmt:

@@ -108,17 +108,105 @@ var attrRelOpts = map[string]relOptSpec{
 	"n_distinct_inherited": {typ: relOptReal, minReal: -1, maxReal: math.MaxFloat64},
 }
 
-// columnsNeedToastTable reports whether a relation with columns creates a
-// TOAST table in PostgreSQL (true if any column has storage 'x', 'e', or 'm').
+const (
+	// toastTupleThreshold is PostgreSQL's TOAST_TUPLE_THRESHOLD on 8KB pages:
+	// MaximumBytesPerTuple(TOAST_TUPPLES_PER_PAGE=4) = 2032.
+	toastTupleThreshold   = 2032
+	sizeofHeapTupleHeader = 23
+	utf8MaxMBLen          = 4
+)
+
+// columnsNeedToastTable reports whether a heap relation with cols creates a
+// TOAST table in PostgreSQL: at least one column has non-plain storage ('x',
+// 'e', or 'm') and the maximum possible tuple width (accounting for bounded
+// varlena type modifiers) exceeds TOAST_TUPLE_THRESHOLD.
 //
-// pg: src/backend/catalog/toasting.c — needs_toast_table
+// pg: src/backend/access/heap/heapam_handler.c — heapam_relation_needs_toast_table
 func columnsNeedToastTable(cols []*Column) bool {
+	var dataLen int64
+	hasToastable := false
+	unbounded := false
+	hasNull := false
+
 	for _, col := range cols {
-		if col.Storage == 'x' || col.Storage == 'e' || col.Storage == 'm' {
-			return true
+		if !col.NotNull {
+			hasNull = true
+		}
+		dataLen = alignNominal(dataLen, col.Align)
+		if col.Len > 0 {
+			dataLen += int64(col.Len)
+		} else if col.Len == -1 {
+			if col.Storage == 'x' || col.Storage == 'e' || col.Storage == 'm' {
+				hasToastable = true
+			}
+			maxWidth := typeMaximumSize(col.TypeOID, col.TypeMod)
+			if maxWidth < 0 {
+				unbounded = true
+			} else {
+				dataLen += maxWidth
+			}
+		} else {
+			// Null-terminated cstring (Len == -2): unbounded.
+			unbounded = true
 		}
 	}
-	return false
+	if !hasToastable {
+		return false
+	}
+	if unbounded {
+		return true
+	}
+	headerLen := int64(sizeofHeapTupleHeader)
+	if hasNull {
+		headerLen += int64((len(cols) + 7) / 8)
+	}
+	headerLen = (headerLen + 7) &^ 7
+	tupleLen := headerLen + ((dataLen + 7) &^ 7)
+	return tupleLen > toastTupleThreshold
+}
+
+func alignNominal(offset int64, align byte) int64 {
+	switch align {
+	case 'd':
+		return (offset + 7) &^ 7
+	case 'i':
+		return (offset + 3) &^ 3
+	case 's':
+		return (offset + 1) &^ 1
+	default:
+		return offset
+	}
+}
+
+// typeMaximumSize mirrors PostgreSQL's type_maximum_size (UTF-8 maxmblen=4),
+// returning the maximum on-disk varlena size in bytes or -1 if unbounded.
+// Note that PostgreSQL does not unwrap domain types here.
+//
+// pg: src/backend/utils/adt/format_type.c — type_maximum_size
+func typeMaximumSize(typeOID uint32, typemod int32) int64 {
+	if typemod < 0 {
+		return -1
+	}
+	switch typeOID {
+	case BPCHAROID, VARCHAROID:
+		if typemod < 4 {
+			return -1
+		}
+		return int64(typemod-4)*utf8MaxMBLen + 4
+	case BITOID, VARBITOID:
+		if typemod <= 0 {
+			return -1
+		}
+		return (int64(typemod)+7)/8 + 8
+	case NUMERICOID:
+		if typemod < 4 {
+			return -1
+		}
+		precision := int64(((typemod - 4) >> 16) & 0xffff)
+		return (((precision + 1 + 3) / 4) * 2) + 12
+	default:
+		return -1
+	}
 }
 
 // validateRelOptions validates storage parameters (WITH (...) / SET (...)) for

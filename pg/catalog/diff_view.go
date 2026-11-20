@@ -114,6 +114,12 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		changed = true
 	}
 
+	// Rule sub-diff (views can have user-defined rewrite rules).
+	rules := diffRules(from, to)
+	if len(rules) > 0 {
+		changed = true
+	}
+
 	if !changed {
 		return RelationDiffEntry{}, false
 	}
@@ -127,6 +133,7 @@ func compareView(fromCat, toCat *Catalog, key relKey, from, to *Relation) (Relat
 		Columns:    cols,
 		Indexes:    idxs,
 		Triggers:   trigs,
+		Rules:      rules,
 	}, true
 }
 

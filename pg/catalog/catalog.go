@@ -173,9 +173,6 @@ type Catalog struct {
 	// Session-local prepared statements registered via PREPARE.
 	preparedStmts map[string]*preparedStmt
 
-	// currentStmtSQL holds the raw SQL slice of the statement currently executing in Exec.
-	currentStmtSQL string
-
 	// Temporary CTE list for recursive CTE analysis. Set during analysis of
 	// the recursive term so that nested analyzeSelectStmt calls can see the
 	// partially-defined CTE.

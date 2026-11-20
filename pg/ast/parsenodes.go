@@ -189,6 +189,15 @@ type AlterTableCmd struct {
 
 func (n *AlterTableCmd) Tag() NodeTag { return T_AlterTableCmd }
 
+// ReplicaIdentityStmt represents the target of ALTER TABLE ... REPLICA IDENTITY.
+type ReplicaIdentityStmt struct {
+	IdentityType byte   // 'd'=DEFAULT, 'f'=FULL, 'n'=NOTHING, 'i'=USING INDEX
+	Name         string // index name for 'i'
+	Loc          Loc    // token location
+}
+
+func (n *ReplicaIdentityStmt) Tag() NodeTag { return T_ReplicaIdentityStmt }
+
 // AlterTableMoveAllStmt represents ALTER TABLE/INDEX/MATERIALIZED VIEW ALL IN TABLESPACE.
 type AlterTableMoveAllStmt struct {
 	OrigTablespacename string // source tablespace

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/pg/ast"
-	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 // atCmdPass maps AlterTableType to execution pass.
@@ -52,7 +51,6 @@ type pendingATCmd struct {
 	origIdx         int
 	cmd             *nodes.AlterTableCmd
 	identityOptions *nodes.List
-	replicaMode     byte
 }
 
 func alterTableRecurse(rv *nodes.RangeVar) bool {
@@ -243,11 +241,6 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	recurse := alterTableRecurse(stmt.Relation)
 
 	// Collect commands with pass numbers.
-	var replicaModes []byte
-	if c.currentStmtSQL != "" {
-		replicaModes = scanReplicaIdentityModes(c.currentStmtSQL)
-	}
-	replicaModeIdx := 0
 	var pending []pendingATCmd
 	for i, item := range stmt.Cmds.Items {
 		atc, ok := item.(*nodes.AlterTableCmd)
@@ -258,21 +251,11 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 		if err != nil {
 			return err
 		}
-		var repMode byte
-		if nodes.AlterTableType(transformed.Subtype) == nodes.AT_ReplicaIdentity && transformed.Name == "" {
-			if replicaModeIdx < len(replicaModes) {
-				repMode = replicaModes[replicaModeIdx]
-			} else {
-				repMode = 'd'
-			}
-			replicaModeIdx++
-		}
 		pending = append(pending, pendingATCmd{
 			pass:            atCmdPass(nodes.AlterTableType(transformed.Subtype)),
 			origIdx:         i,
 			cmd:             transformed,
 			identityOptions: identityOptions,
-			replicaMode:     repMode,
 		})
 	}
 
@@ -345,7 +328,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 
 	// Execute in pass order.
 	for _, p := range pending {
-		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, p.replicaMode, recurse, false); err != nil {
+		if err := c.execAlterTableCmd(schema, rel, relName, p.cmd, p.identityOptions, recurse, false); err != nil {
 			restore()
 			return err
 		}
@@ -355,7 +338,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 				if childRel == nil {
 					continue
 				}
-				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, p.replicaMode, recurse, true); err != nil {
+				if err := c.execAlterTableCmd(childRel.Schema, childRel, childRel.Name, p.cmd, p.identityOptions, recurse, true); err != nil {
 					restore()
 					return err
 				}
@@ -397,10 +380,8 @@ func (c *Catalog) snapshotForAlterRollback() func() {
 
 	return func() {
 		savedWarnings := c.warnings
-		savedStmtSQL := c.currentStmtSQL
 		*c = *snap
 		c.warnings = savedWarnings
-		c.currentStmtSQL = savedStmtSQL
 
 		c.schemas = make(map[uint32]*Schema, len(snap.schemas))
 		c.schemaByName = make(map[string]*Schema, len(snap.schemaByName))
@@ -669,7 +650,7 @@ func (c *Catalog) atExecAttachIndexPartition(parentIdx *Index, pc *nodes.Partiti
 }
 
 // execAlterTableCmd executes a single ALTER TABLE subcommand.
-func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName string, atc *nodes.AlterTableCmd, identityOptions *nodes.List, replicaMode byte, recurse, recursing bool) error {
+func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName string, atc *nodes.AlterTableCmd, identityOptions *nodes.List, recurse, recursing bool) error {
 	cascade := atc.Behavior == int(nodes.DROP_CASCADE)
 
 	switch nodes.AlterTableType(atc.Subtype) {
@@ -1200,7 +1181,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropCluster(rel)
 
 	case nodes.AT_ReplicaIdentity:
-		return c.atReplicaIdentity(rel, atc, replicaMode)
+		return c.atReplicaIdentity(rel, atc)
 
 	case nodes.AT_SetCompression:
 		compName := "default"
@@ -1216,20 +1197,20 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		return c.atDropOf(rel)
 
 	case nodes.AT_EnableRule, nodes.AT_DisableRule, nodes.AT_EnableAlwaysRule, nodes.AT_EnableReplicaRule:
-		if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'v' {
-			return errWrongObjectType(relName, "a table or view")
+		if rel.RelKind != 'r' && rel.RelKind != 'p' {
+			return errWrongObjectType(relName, "a table")
 		}
 		if rel.Rules != nil {
-			if _, ok := rel.Rules[atc.Name]; ok {
+			if rule := rel.Rules[atc.Name]; rule != nil {
 				switch nodes.AlterTableType(atc.Subtype) {
 				case nodes.AT_DisableRule:
-					rel.Rules[atc.Name] = 'D'
+					rule.Mode = 'D'
 				case nodes.AT_EnableAlwaysRule:
-					rel.Rules[atc.Name] = 'A'
+					rule.Mode = 'A'
 				case nodes.AT_EnableReplicaRule:
-					rel.Rules[atc.Name] = 'R'
+					rule.Mode = 'R'
 				default:
-					rel.Rules[atc.Name] = 'O'
+					rule.Mode = 'O'
 				}
 				return nil
 			}
@@ -1300,6 +1281,8 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 		return c.renameOpFamily(stmt)
 	case nodes.OBJECT_POLICY:
 		return c.renamePolicy(stmt)
+	case nodes.OBJECT_RULE:
+		return c.renameRule(stmt)
 	case nodes.OBJECT_DOMCONSTRAINT:
 		return nil // Domain constraints: no-op for pgddl
 	case nodes.OBJECT_ATTRIBUTE:
@@ -2421,6 +2404,11 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	newOID, newMod, err := c.ResolveType(newType)
 	if err != nil {
 		return err
+	}
+	if cd.TypeName != nil {
+		if rawMods := extractRawTypmods(cd.TypeName.Typmods); len(rawMods) > 0 {
+			newMod = encodeTypModByName(newType.Name, rawMods)
+		}
 	}
 
 	var collSchema, collName string
@@ -3750,18 +3738,26 @@ func (c *Catalog) atDropCluster(rel *Relation) error {
 // atReplicaIdentity sets the replica identity for a relation.
 //
 // pg: src/backend/commands/tablecmds.c — ATExecReplicaIdentity
-func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd, replicaMode byte) error {
-	if atc.Name != "" {
+func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd) error {
+	var mode byte
+	idxName := atc.Name
+	if ri, ok := atc.Def.(*nodes.ReplicaIdentityStmt); ok && ri != nil {
+		mode = ri.IdentityType
+		if idxName == "" {
+			idxName = ri.Name
+		}
+	}
+	if mode == 'i' || idxName != "" {
 		// USING INDEX variant — validate before clearing any existing flag.
-		idx, err := c.findNamedIndex(rel.Schema, atc.Name)
+		idx, err := c.findNamedIndex(rel.Schema, idxName)
 		if err != nil {
 			return err
 		}
 		if idx.RelOID != rel.OID {
-			return errUndefinedObject("index", atc.Name)
+			return errUndefinedObject("index", idxName)
 		}
 		if !idx.IsUnique {
-			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", atc.Name))
+			return errInvalidObjectDefinition(fmt.Sprintf("index %q is not a unique index", idxName))
 		}
 		for _, existing := range c.indexesByRel[rel.OID] {
 			existing.IsReplicaIdent = false
@@ -3774,59 +3770,12 @@ func (c *Catalog) atReplicaIdentity(rel *Relation, atc *nodes.AlterTableCmd, rep
 	for _, existing := range c.indexesByRel[rel.OID] {
 		existing.IsReplicaIdent = false
 	}
-	if replicaMode == 'f' || replicaMode == 'n' || replicaMode == 'd' {
-		rel.ReplicaIdentity = replicaMode
+	if mode == 'f' || mode == 'n' || mode == 'd' {
+		rel.ReplicaIdentity = mode
 	} else {
 		rel.ReplicaIdentity = 'd'
 	}
 	return nil
-}
-
-// scanReplicaIdentityModes scans an ALTER TABLE SQL statement for non-USING
-// REPLICA IDENTITY modes (DEFAULT -> 'd', FULL -> 'f', NOTHING -> 'n') in order.
-func scanReplicaIdentityModes(sql string) []byte {
-	lex := pgparser.NewLexer(sql)
-	lex.StandardConformingStrings = true
-	var tokens []string
-	depth := 0
-	for {
-		tok := lex.NextToken()
-		if tok.Type == 0 {
-			break
-		}
-		if tok.Type == '(' {
-			depth++
-			continue
-		}
-		if tok.Type == ')' {
-			if depth > 0 {
-				depth--
-			}
-			continue
-		}
-		if depth > 0 {
-			continue
-		}
-		if tok.Str != "" {
-			tokens = append(tokens, strings.ToLower(tok.Str))
-		} else {
-			tokens = append(tokens, "")
-		}
-	}
-	var modes []byte
-	for i := 0; i+2 < len(tokens); i++ {
-		if tokens[i] == "replica" && tokens[i+1] == "identity" {
-			switch tokens[i+2] {
-			case "full":
-				modes = append(modes, 'f')
-			case "nothing":
-				modes = append(modes, 'n')
-			case "default":
-				modes = append(modes, 'd')
-			}
-		}
-	}
-	return modes
 }
 
 // atSetCompression sets the compression method for a column.

@@ -150,6 +150,12 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		changed = true
 	}
 
+	// Rule sub-diff.
+	ruleDiffs := diffRules(from, to)
+	if len(ruleDiffs) > 0 {
+		changed = true
+	}
+
 	// RLS flag changes.
 	var rlsChanged bool
 	if from.RowSecurity != to.RowSecurity || from.ForceRowSecurity != to.ForceRowSecurity {
@@ -172,6 +178,7 @@ func compareRelation(fromCat, toCat *Catalog, key relKey, from, to *Relation) (R
 		Indexes:     idxDiffs,
 		Triggers:    trigDiffs,
 		Policies:    polDiffs,
+		Rules:       ruleDiffs,
 	}
 	if rlsChanged {
 		entry.RLSChanged = true

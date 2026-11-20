@@ -91,9 +91,7 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		}
 
 		// Execute DDL/utility via ProcessUtility.
-		c.currentStmtSQL = stmtSQL
 		execErr := c.ProcessUtility(stmt)
-		c.currentStmtSQL = ""
 		result.Error = execErr
 		result.Warnings = c.DrainWarnings()
 		results = append(results, result)
