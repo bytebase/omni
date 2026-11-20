@@ -57,7 +57,7 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 	case p.cur.Type == kwADD:
 		stmt.Action = "ADD_CONSTRAINT"
 		p.advance() // consume ADD
-		tc, err := p.parseTableConstraintBody()
+		tc, err := p.parseTableConstraintBody(false)
 		if err != nil {
 			return nil, err
 		}

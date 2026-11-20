@@ -194,6 +194,8 @@ func (p *Parser) isSelectQueryPartitionStart() bool {
 // clause: function and procedure definitions, each ending in its ';'.
 func (p *Parser) parseSelectWithDeclarations() (*nodes.List, error) {
 	defer p.restorePLSQLCode(p.setPLSQLCode(true))
+	defer func(saved bool) { p.inSelectQuery = saved }(p.inSelectQuery)
+	p.inSelectQuery = false
 	decls := &nodes.List{}
 	for p.cur.Type == kwFUNCTION || p.cur.Type == kwPROCEDURE {
 		var decl nodes.Node

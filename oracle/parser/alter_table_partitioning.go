@@ -133,7 +133,7 @@ func (p *Parser) parseATPartitionOrKey(name *string) error {
 //	[ OVERFLOW { physical_attributes_clause | logging_clause
 //	  | allocate_extent_clause | deallocate_unused_clause | SHRINK SPACE [ CASCADE ] } ]
 const atcPartitionAttributes = atcPhysical | atcAllocate | atcDeallocate | atcShrink |
-	atcCompression | atcInmemory | atcLobModify
+	atcCompression | atcInmemory | atcLobModify | atcLobStorage | atcClustering
 
 // parseATModifyPartitioning reads the MODIFY operations of
 // alter_table_partitioning: modify_table_default_attrs,
@@ -285,7 +285,7 @@ func (p *Parser) parseATModifyPartition(cmd *nodes.AlterTableCmd) error {
 		start := p.pos()
 		p.advance()
 		// Oracle takes OVERFLOW alone as well.
-		ok, err := p.parseATClause(atcPhysical|atcAllocate|atcDeallocate|atcShrink, nil)
+		ok, err := p.parseATClause(atcPhysical|atcAllocate|atcDeallocate|atcShrink|atcClustering, nil)
 		if err != nil {
 			return err
 		}
@@ -344,7 +344,7 @@ func (p *Parser) parseATModifySubpartition(cmd *nodes.AlterTableCmd) error {
 		}
 	default:
 		var ok bool
-		ok, err = p.parseATClause(atcAllocate|atcDeallocate|atcShrink|atcLobModify|atcReadOnly|atcIndexing, nil)
+		ok, err = p.parseATClause(atcAllocate|atcDeallocate|atcShrink|atcLobModify|atcLobStorage|atcReadOnly|atcIndexing|atcClustering, nil)
 		if err == nil && !ok {
 			err = p.syntaxErrorAtCur()
 		}

@@ -244,9 +244,11 @@ func (p *Parser) parseCreateTableInmemoryAttributes(memcompressSeen bool) error 
 				p.advance()
 			}
 			duplicate = true
-		case !duplicate && p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "DUPLICATE"):
+		case !duplicate && p.isKeywordStr("NO") && !isCreateTableWordTok(p.peekNext(), "INMEMORY") && p.peekNext().Type != kwFLASHBACK:
 			p.advance() // consume NO
-			p.advance() // consume DUPLICATE
+			if err := p.expectCreateTableWord("DUPLICATE"); err != nil {
+				return err
+			}
 			duplicate = true
 		default:
 			return nil
@@ -365,6 +367,10 @@ func (p *Parser) parseMviewInmemoryColumnKeyword() error {
 		p.advance() // consume INMEMORY
 		if p.isCreateTableMemcompressStart() {
 			return p.parseCreateTableMemcompress()
+		}
+		if p.isKeywordStr("NO") && !isCreateTableWordTok(p.peekNext(), "INMEMORY") {
+			p.advance() // consume NO
+			return p.expectCreateTableWord("MEMCOMPRESS")
 		}
 		return nil
 	case p.isKeywordStr("NO") && isCreateTableWordTok(p.peekNext(), "INMEMORY"):
@@ -604,7 +610,9 @@ func (p *Parser) parseCreateTableSubstitutable() error {
 	if p.cur.Type == kwNOT {
 		p.advance() // consume NOT
 	}
-	p.advance() // consume SUBSTITUTABLE
+	if err := p.expectCreateTableWord("SUBSTITUTABLE"); err != nil {
+		return err
+	}
 	if err := p.expectCreateTableWord("AT"); err != nil {
 		return err
 	}
@@ -612,6 +620,61 @@ func (p *Parser) parseCreateTableSubstitutable() error {
 		return err
 	}
 	return p.expectCreateTableWord("LEVELS")
+}
+
+// parseCreateTableObjectTypeColProperties reads object_type_col_properties.
+//
+//	COLUMN column substitutable_column_clause
+//	substitutable_column_clause:
+//	    { IS OF [ TYPE ] ( [ ONLY ] type )
+//	    | [ NOT ] SUBSTITUTABLE AT ALL LEVELS
+//	    }
+//
+// ELEMENT belongs to collection columns (VARRAY, NESTED TABLE): Oracle
+// 23ai refuses COLUMN a ELEMENT IS OF (t) at ELEMENT (ORA-00905).
+func (p *Parser) parseCreateTableObjectTypeColProperties() error {
+	p.advance() // consume COLUMN
+	if err := p.parseCreateTableNestedItem(); err != nil {
+		return err
+	}
+	switch {
+	case p.cur.Type == kwIS:
+		p.advance() // consume IS
+		if err := p.expectCreateTableToken(kwOF); err != nil {
+			return err
+		}
+		if p.cur.Type == kwTYPE {
+			p.advance()
+		}
+		if err := p.expectCreateTableToken('('); err != nil {
+			return err
+		}
+		if p.isKeywordStr("ONLY") {
+			p.advance()
+		}
+		typeName, err := p.parseRequiredObjectName()
+		if err != nil {
+			return err
+		}
+		_ = typeName
+		return p.expectCreateTableToken(')')
+	case p.cur.Type == kwNOT, p.isKeywordStr("SUBSTITUTABLE"):
+		if p.cur.Type == kwNOT {
+			p.advance() // consume NOT
+		}
+		if err := p.expectCreateTableWord("SUBSTITUTABLE"); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableWord("AT"); err != nil {
+			return err
+		}
+		if err := p.expectCreateTableToken(kwALL); err != nil {
+			return err
+		}
+		return p.expectCreateTableWord("LEVELS")
+	default:
+		return p.syntaxErrorAtCur()
+	}
 }
 
 // parseCreateTableVarrayColProperties reads varray_col_properties.
@@ -940,6 +1003,13 @@ func (p *Parser) parseCreateTableIlmPolicy() error {
 		p.advance() // consume MODIFY
 		if err := p.expectCreateTableWord("INMEMORY"); err != nil {
 			return err
+		}
+		if p.isKeywordStr("NO") {
+			p.advance() // consume NO
+			if err := p.expectCreateTableWord("MEMCOMPRESS"); err != nil {
+				return err
+			}
+			return p.parseCreateTableIlmInmemoryCondition()
 		}
 		if !p.isCreateTableMemcompressStart() {
 			return p.syntaxErrorAtCur()
@@ -1396,7 +1466,7 @@ func (p *Parser) parseCreateTableObjectTable(stmt *nodes.CreateTableStmt) error 
 	}
 	stmt.OfType = typeName
 	xmlType := typeName.Schema == "" && typeName.Name == "XMLTYPE"
-	if !xmlType && (p.isKeywordStr("SUBSTITUTABLE") || p.cur.Type == kwNOT && isCreateTableWordTok(p.peekNext(), "SUBSTITUTABLE")) {
+	if !xmlType && (p.isKeywordStr("SUBSTITUTABLE") || p.cur.Type == kwNOT) {
 		if err := p.parseCreateTableSubstitutable(); err != nil {
 			return err
 		}
@@ -1623,10 +1693,12 @@ func (p *Parser) parseCreateTableObjectAttribute(stmt *nodes.CreateTableStmt) er
 			if cc != nil {
 				col.Constraints.Items = append(col.Constraints.Items, cc)
 			}
-		case p.cur.Type == kwWITH && p.peekNext().Type == kwROWID:
+		case p.cur.Type == kwWITH:
 			start := p.pos()
 			p.advance() // consume WITH
-			p.advance() // consume ROWID
+			if err := p.expectCreateTableToken(kwROWID); err != nil {
+				return err
+			}
 			col.Constraints.Items = append(col.Constraints.Items, &nodes.ColumnConstraint{Type: nodes.CONSTRAINT_WITH_ROWID, Loc: nodes.Loc{Start: start, End: p.prev.End}})
 		case p.isKeywordStr("SCOPE") && p.peekNext().Type == kwIS:
 			start := p.pos()
