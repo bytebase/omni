@@ -195,6 +195,8 @@ type View struct {
 	// is, and this keeps a materialized view distinct from an ordinary view when
 	// one statement names the other.
 	Materialized bool
+	Comment      string
+	Indexes      []*Index
 }
 
 type ViewColumn struct {

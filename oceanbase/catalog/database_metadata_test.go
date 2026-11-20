@@ -486,3 +486,79 @@ func TestDatabaseMetadataViewOptionsTablespaceAndCharsetExplicit(t *testing.T) {
 	require.Equal(t, "utf8mb4_bin", bareColl)
 	require.Equal(t, "latin1_swedish_ci", csColl)
 }
+
+func TestDatabaseMetadataSubpartitionTemplateCommentsAndMaterializedViewAttributes(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+
+		CREATE TABLE tpl_tbl (
+			id INT NOT NULL,
+			reg INT NOT NULL
+		) PARTITION BY RANGE (id) SUBPARTITION BY LIST (reg) SUBPARTITION TEMPLATE (
+			SUBPARTITION sp_a VALUES IN (1, 2),
+			SUBPARTITION sp_b VALUES IN (3, 4)
+		) (
+			PARTITION p0 VALUES LESS THAN (100)
+		);
+		ALTER TABLE tpl_tbl ADD PARTITION (PARTITION p1 VALUES LESS THAN (200) (SUBPARTITION p1_custom VALUES IN (1, 2, 3, 4)));
+
+		CREATE TABLE base_t (id INT PRIMARY KEY, code VARCHAR(20));
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	// Simulate synced partition/subpartition comments and materialized view comment + indexes.
+	tbl := c.GetDatabase("app").GetTable("tpl_tbl")
+	tbl.Partitioning.Partitions[0].Comment = "part zero comment"
+	tbl.Partitioning.Partitions[0].SubPartitions[0].Comment = "sub a comment"
+	tbl.Partitioning.SubPartTemplate[0].Comment = "tpl a comment"
+
+	baseMeta := c.DatabaseMetadata("app")
+	baseMeta.Schemas[0].MaterializedViews = []*metadata.MaterializedViewMetadata{{
+		Name:       "mv_summary",
+		Definition: "select `app`.`base_t`.`id` AS `id`, `app`.`base_t`.`code` AS `code` from `app`.`base_t`",
+		Comment:    "mv container comment",
+		Indexes: []*metadata.IndexMetadata{
+			{Name: "PRIMARY", Type: "BTREE", Unique: true, Primary: true, Visible: true, Expressions: []string{"id"}, KeyLength: []int64{-1}, Descending: []bool{false}},
+			{Name: "idx_code", Type: "BTREE", Unique: false, Visible: true, Comment: "sec idx", Expressions: []string{"code"}, KeyLength: []int64{10}, Descending: []bool{true}},
+		},
+	}}
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), baseMeta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reExported := reloaded.DatabaseMetadata("app")
+	s := reExported.Schemas[0]
+
+	// Partition & subpartition comments + subpartition template preserved across round-trip.
+	reTbl := reloaded.GetDatabase("app").GetTable("tpl_tbl")
+	require.Equal(t, "part zero comment", reTbl.Partitioning.Partitions[0].Comment)
+	require.Equal(t, "sub a comment", reTbl.Partitioning.Partitions[0].SubPartitions[0].Comment)
+	require.Len(t, reTbl.Partitioning.SubPartTemplate, 2)
+	require.Equal(t, "tpl a comment", reTbl.Partitioning.SubPartTemplate[0].Comment)
+
+	// Subsequent ADD PARTITION without subpartitions still applies the restored template.
+	_, err = reloaded.Exec(`ALTER TABLE tpl_tbl ADD PARTITION (PARTITION p2 VALUES LESS THAN (300));`, nil)
+	require.NoError(t, err)
+	require.Len(t, reTbl.Partitioning.Partitions, 3)
+	require.Len(t, reTbl.Partitioning.Partitions[2].SubPartitions, 2)
+	require.Equal(t, "p2ssp_a", reTbl.Partitioning.Partitions[2].SubPartitions[0].Name)
+	require.Equal(t, "tpl a comment", reTbl.Partitioning.Partitions[2].SubPartitions[0].Comment)
+
+	// Materialized view comment and indexes preserved across LoadMetadata -> DatabaseMetadata.
+	require.Len(t, s.MaterializedViews, 1)
+	mvMeta := s.MaterializedViews[0]
+	require.Equal(t, "mv_summary", mvMeta.Name)
+	require.Equal(t, "mv container comment", mvMeta.Comment)
+	require.Len(t, mvMeta.Indexes, 2)
+	require.Equal(t, "PRIMARY", mvMeta.Indexes[0].Name)
+	require.Equal(t, "idx_code", mvMeta.Indexes[1].Name)
+	require.Equal(t, "sec idx", mvMeta.Indexes[1].Comment)
+	require.Equal(t, []int64{10}, mvMeta.Indexes[1].KeyLength)
+	require.Equal(t, []bool{true}, mvMeta.Indexes[1].Descending)
+}

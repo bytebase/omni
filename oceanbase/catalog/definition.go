@@ -843,46 +843,15 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 		}
 	}
 
+	var sub0 *metadata.TablePartitionMetadata
 	if len(partitions[0].Subpartitions) > 0 {
-		if _, err := fmt.Fprint(buf, "\nSUBPARTITION BY "); err != nil {
+		sub0 = partitions[0].Subpartitions[0]
+	} else if len(partitions[0].SubpartitionTemplate) > 0 {
+		sub0 = partitions[0].SubpartitionTemplate[0]
+	}
+	if sub0 != nil {
+		if err := writeSubpartitionBy(buf, sub0); err != nil {
 			return err
-		}
-		sub0 := partitions[0].Subpartitions[0]
-		switch sub0.Type {
-		case metadata.TablePartitionMetadata_RANGE:
-			if _, err := fmt.Fprintf(buf, "RANGE (%s)", sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_RANGE_COLUMNS:
-			if _, err := fmt.Fprintf(buf, "RANGE COLUMNS (%s)", sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_LIST:
-			if _, err := fmt.Fprintf(buf, "LIST (%s)", sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_LIST_COLUMNS:
-			if _, err := fmt.Fprintf(buf, "LIST COLUMNS (%s)", sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_HASH:
-			if _, err := fmt.Fprintf(buf, "HASH (%s)", sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_LINEAR_HASH:
-			if _, err := fmt.Fprintf(buf, "LINEAR HASH (%s)", sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_KEY:
-			if _, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(sub0.Algorithm), sub0.Expression); err != nil {
-				return err
-			}
-		case metadata.TablePartitionMetadata_LINEAR_KEY:
-			if _, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(sub0.Algorithm), sub0.Expression); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("invalid subpartition type: %v", sub0.Type)
 		}
 	}
 
@@ -1062,6 +1031,40 @@ func keyAlgorithmClause(algorithm int32) string {
 		return fmt.Sprintf(" ALGORITHM = %d", algorithm)
 	}
 	return ""
+}
+
+func writeSubpartitionBy(buf *strings.Builder, sub0 *metadata.TablePartitionMetadata) error {
+	if _, err := fmt.Fprint(buf, "\nSUBPARTITION BY "); err != nil {
+		return err
+	}
+	switch sub0.Type {
+	case metadata.TablePartitionMetadata_RANGE:
+		_, err := fmt.Fprintf(buf, "RANGE (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_RANGE_COLUMNS:
+		_, err := fmt.Fprintf(buf, "RANGE COLUMNS (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LIST:
+		_, err := fmt.Fprintf(buf, "LIST (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LIST_COLUMNS:
+		_, err := fmt.Fprintf(buf, "LIST COLUMNS (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_HASH:
+		_, err := fmt.Fprintf(buf, "HASH (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LINEAR_HASH:
+		_, err := fmt.Fprintf(buf, "LINEAR HASH (%s)", sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_KEY:
+		_, err := fmt.Fprintf(buf, "KEY%s (%s)", keyAlgorithmClause(sub0.Algorithm), sub0.Expression)
+		return err
+	case metadata.TablePartitionMetadata_LINEAR_KEY:
+		_, err := fmt.Fprintf(buf, "LINEAR KEY%s (%s)", keyAlgorithmClause(sub0.Algorithm), sub0.Expression)
+		return err
+	default:
+		return fmt.Errorf("invalid subpartition type: %v", sub0.Type)
+	}
 }
 
 func subPartitionTypeName(tp metadata.TablePartitionMetadata_Type) string {

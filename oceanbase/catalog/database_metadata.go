@@ -75,10 +75,19 @@ func (c *Catalog) DatabaseMetadata(dbName string) *metadata.DatabaseSchemaMetada
 	for _, vName := range sortedMapKeys(db.Views) {
 		v := db.Views[vName]
 		if v.Materialized {
-			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, &metadata.MaterializedViewMetadata{
+			mvMeta := &metadata.MaterializedViewMetadata{
 				Name:       v.Name,
 				Definition: v.Definition,
+				Comment:    v.Comment,
+			}
+			sortedMVIndexes := slices.Clone(v.Indexes)
+			slices.SortStableFunc(sortedMVIndexes, func(a, b *Index) int {
+				return cmp.Compare(a.Name, b.Name)
 			})
+			for _, idx := range sortedMVIndexes {
+				mvMeta.Indexes = append(mvMeta.Indexes, indexToProto(idx, ""))
+			}
+			schemaMeta.MaterializedViews = append(schemaMeta.MaterializedViews, mvMeta)
 			continue
 		}
 		schemaMeta.Views = append(schemaMeta.Views, &metadata.ViewMetadata{
@@ -241,45 +250,7 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		return cmp.Compare(a.Name, b.Name)
 	})
 	for _, idx := range sortedIndexes {
-		indexType := strings.ToUpper(idx.IndexType)
-		if indexType == "" && !idx.Vector && !idx.Fulltext && !idx.Spatial {
-			indexType = "BTREE"
-			if strings.EqualFold(t.Engine, "MEMORY") || strings.EqualFold(t.Engine, "HEAP") {
-				indexType = "HASH"
-			}
-		}
-		idxMeta := &metadata.IndexMetadata{
-			Name:             idx.Name,
-			Type:             indexType,
-			Unique:           idx.Unique,
-			Primary:          idx.Primary,
-			Visible:          idx.Visible,
-			Comment:          idx.Comment,
-			IsVector:         idx.Vector,
-			IsGlobal:         strings.EqualFold(idx.Scope, "GLOBAL"),
-			Scope:            idx.Scope,
-			StoringColumns:   slices.Clone(idx.Storing),
-			VectorParams:     slices.Clone(idx.VectorParams),
-			Parser:           idx.Parser,
-			ParserProperties: maps.Clone(idx.ParserProperties),
-		}
-		for _, col := range idx.Columns {
-			if col.Expr != "" {
-				idxMeta.Expressions = append(idxMeta.Expressions, col.Expr)
-			} else {
-				idxMeta.Expressions = append(idxMeta.Expressions, col.Name)
-			}
-			keyLength := int64(col.Length)
-			if keyLength == 0 {
-				keyLength = -1
-			}
-			if keyLength == -1 && indexType == mysqlIndexSpatial {
-				keyLength = 32
-			}
-			idxMeta.KeyLength = append(idxMeta.KeyLength, keyLength)
-			idxMeta.Descending = append(idxMeta.Descending, col.Descending)
-		}
-		table.Indexes = append(table.Indexes, idxMeta)
+		table.Indexes = append(table.Indexes, indexToProto(idx, t.Engine))
 	}
 
 	for _, con := range t.Constraints {
@@ -428,6 +399,9 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 				Algorithm:  int32(p.SubAlgo),
 			}}
 		}
+		if len(p.SubPartTemplate) > 0 && !p.UseDefaultSubpartitions {
+			part.SubpartitionTemplate = subpartitionTemplateToProto(p.SubPartTemplate, subType, subExpr, p.SubAlgo)
+		}
 		return []*metadata.TablePartitionMetadata{part}
 	}
 
@@ -468,7 +442,67 @@ func partitionsToProto(p *PartitionInfo) []*metadata.TablePartitionMetadata {
 		}
 		result = append(result, part)
 	}
+	if len(result) > 0 && len(p.SubPartTemplate) > 0 && !p.UseDefaultSubpartitions {
+		result[0].SubpartitionTemplate = subpartitionTemplateToProto(p.SubPartTemplate, subType, subExpr, p.SubAlgo)
+	}
 	return result
+}
+
+func subpartitionTemplateToProto(tpl []*SubPartitionDefInfo, subType metadata.TablePartitionMetadata_Type, subExpr string, subAlgo int) []*metadata.TablePartitionMetadata {
+	out := make([]*metadata.TablePartitionMetadata, 0, len(tpl))
+	for _, st := range tpl {
+		out = append(out, &metadata.TablePartitionMetadata{
+			Name:       st.Name,
+			Type:       subType,
+			Expression: subExpr,
+			Value:      st.ValueExpr,
+			Comment:    st.Comment,
+			Algorithm:  int32(subAlgo),
+		})
+	}
+	return out
+}
+
+func indexToProto(idx *Index, engine string) *metadata.IndexMetadata {
+	indexType := strings.ToUpper(idx.IndexType)
+	if indexType == "" && !idx.Vector && !idx.Fulltext && !idx.Spatial {
+		indexType = "BTREE"
+		if strings.EqualFold(engine, "MEMORY") || strings.EqualFold(engine, "HEAP") {
+			indexType = "HASH"
+		}
+	}
+	idxMeta := &metadata.IndexMetadata{
+		Name:             idx.Name,
+		Type:             indexType,
+		Unique:           idx.Unique,
+		Primary:          idx.Primary,
+		Visible:          idx.Visible,
+		Comment:          idx.Comment,
+		IsVector:         idx.Vector,
+		IsGlobal:         strings.EqualFold(idx.Scope, "GLOBAL"),
+		Scope:            idx.Scope,
+		StoringColumns:   slices.Clone(idx.Storing),
+		VectorParams:     slices.Clone(idx.VectorParams),
+		Parser:           idx.Parser,
+		ParserProperties: maps.Clone(idx.ParserProperties),
+	}
+	for _, col := range idx.Columns {
+		if col.Expr != "" {
+			idxMeta.Expressions = append(idxMeta.Expressions, col.Expr)
+		} else {
+			idxMeta.Expressions = append(idxMeta.Expressions, col.Name)
+		}
+		keyLength := int64(col.Length)
+		if keyLength == 0 {
+			keyLength = -1
+		}
+		if keyLength == -1 && indexType == mysqlIndexSpatial {
+			keyLength = 32
+		}
+		idxMeta.KeyLength = append(idxMeta.KeyLength, keyLength)
+		idxMeta.Descending = append(idxMeta.Descending, col.Descending)
+	}
+	return idxMeta
 }
 
 func partitionTypeToProto(t string, linear bool) metadata.TablePartitionMetadata_Type {

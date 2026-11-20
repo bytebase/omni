@@ -363,3 +363,50 @@ func TestDatabaseMetadataTTLPlacementIntervalAndViewCheckOption(t *testing.T) {
 
 	require.Equal(t, "CASCADED", reloaded.GetDatabase("app").Views["v_check"].CheckOption)
 }
+
+func TestDatabaseMetadataExplicitDefaultNullPreserved(t *testing.T) {
+	c := New()
+	_, err := c.Exec(`
+		CREATE DATABASE app;
+		USE app;
+		CREATE TABLE t_null (
+			id INT PRIMARY KEY,
+			s VARCHAR(20) DEFAULT NULL,
+			n INT DEFAULT NULL,
+			bare INT
+		);
+	`, &ExecOptions{ContinueOnError: false})
+	require.NoError(t, err)
+
+	meta := c.DatabaseMetadata("app")
+	cols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range meta.Schemas[0].Tables[0].Columns {
+		cols[col.Name] = col
+	}
+	require.Equal(t, "NULL", cols["s"].Default)
+	require.Equal(t, "NULL", cols["n"].Default)
+	require.Empty(t, cols["bare"].Default)
+
+	reloaded := New()
+	report, err := reloaded.LoadMetadata(context.Background(), meta)
+	require.NoError(t, err)
+	require.Empty(t, report.Degraded)
+	require.Empty(t, report.Missing)
+	require.Empty(t, report.Incomplete)
+
+	reTbl := reloaded.GetDatabase("app").GetTable("t_null")
+	require.NotNil(t, reTbl.GetColumn("s").Default)
+	require.Equal(t, "NULL", *reTbl.GetColumn("s").Default)
+	require.NotNil(t, reTbl.GetColumn("n").Default)
+	require.Equal(t, "NULL", *reTbl.GetColumn("n").Default)
+	require.Nil(t, reTbl.GetColumn("bare").Default)
+
+	reExport := reloaded.DatabaseMetadata("app")
+	reCols := map[string]*metadata.ColumnMetadata{}
+	for _, col := range reExport.Schemas[0].Tables[0].Columns {
+		reCols[col.Name] = col
+	}
+	require.Equal(t, "NULL", reCols["s"].Default)
+	require.Equal(t, "NULL", reCols["n"].Default)
+	require.Empty(t, reCols["bare"].Default)
+}

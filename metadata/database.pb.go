@@ -2992,8 +2992,11 @@ type TablePartitionMetadata struct {
 	Algorithm int32 `protobuf:"varint,14,opt,name=algorithm,proto3" json:"algorithm,omitempty"`
 	// Unexpanded TiDB RANGE INTERVAL (...) FIRST ... LAST ... clause.
 	IntervalClause string `protobuf:"bytes,15,opt,name=interval_clause,json=intervalClause,proto3" json:"interval_clause,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// OceanBase SUBPARTITION TEMPLATE definitions. Present on the first partition entry
+	// when the table retains an explicit subpartition template.
+	SubpartitionTemplate []*TablePartitionMetadata `protobuf:"bytes,16,rep,name=subpartition_template,json=subpartitionTemplate,proto3" json:"subpartition_template,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *TablePartitionMetadata) Reset() {
@@ -3129,6 +3132,13 @@ func (x *TablePartitionMetadata) GetIntervalClause() string {
 		return x.IntervalClause
 	}
 	return ""
+}
+
+func (x *TablePartitionMetadata) GetSubpartitionTemplate() []*TablePartitionMetadata {
+	if x != nil {
+		return x.SubpartitionTemplate
+	}
+	return nil
 }
 
 // ColumnMetadata is the metadata for columns.
@@ -5591,7 +5601,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\apattern\x18\n" +
 	" \x01(\tR\apattern\x12:\n" +
 	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x12!\n" +
-	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xba\x06\n" +
+	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\x96\a\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5612,7 +5622,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"split_size\x18\f \x01(\tR\tsplitSize\x12\x1b\n" +
 	"\tauto_size\x18\r \x01(\tR\bautoSize\x12\x1c\n" +
 	"\talgorithm\x18\x0e \x01(\x05R\talgorithm\x12'\n" +
-	"\x0finterval_clause\x18\x0f \x01(\tR\x0eintervalClause\"\x8a\x01\n" +
+	"\x0finterval_clause\x18\x0f \x01(\tR\x0eintervalClause\x12Z\n" +
+	"\x15subpartition_template\x18\x10 \x03(\v2%.omni.metadata.TablePartitionMetadataR\x14subpartitionTemplate\"\x8a\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05RANGE\x10\x01\x12\x11\n" +
@@ -5963,31 +5974,32 @@ var file_omni_metadata_database_proto_depIdxs = []int32{
 	37, // 40: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
 	24, // 41: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
 	25, // 42: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
-	29, // 43: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
-	4,  // 44: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
-	5,  // 45: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
-	31, // 46: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	28, // 47: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	19, // 48: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	20, // 49: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	31, // 50: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	19, // 51: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	37, // 52: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	33, // 53: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
-	38, // 54: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
-	39, // 55: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
-	48, // 56: omni.metadata.IndexMetadata.parser_properties:type_name -> omni.metadata.IndexMetadata.ParserPropertiesEntry
-	40, // 57: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
-	43, // 58: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
-	44, // 59: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
-	49, // 60: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
-	41, // 61: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
-	42, // 62: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
-	63, // [63:63] is the sub-list for method output_type
-	63, // [63:63] is the sub-list for method input_type
-	63, // [63:63] is the sub-list for extension type_name
-	63, // [63:63] is the sub-list for extension extendee
-	0,  // [0:63] is the sub-list for field type_name
+	27, // 43: omni.metadata.TablePartitionMetadata.subpartition_template:type_name -> omni.metadata.TablePartitionMetadata
+	29, // 44: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
+	4,  // 45: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
+	5,  // 46: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
+	31, // 47: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	28, // 48: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	19, // 49: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	20, // 50: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
+	31, // 51: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	19, // 52: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	37, // 53: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	33, // 54: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
+	38, // 55: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
+	39, // 56: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
+	48, // 57: omni.metadata.IndexMetadata.parser_properties:type_name -> omni.metadata.IndexMetadata.ParserPropertiesEntry
+	40, // 58: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
+	43, // 59: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
+	44, // 60: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
+	49, // 61: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
+	41, // 62: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
+	42, // 63: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
+	64, // [64:64] is the sub-list for method output_type
+	64, // [64:64] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_omni_metadata_database_proto_init() }

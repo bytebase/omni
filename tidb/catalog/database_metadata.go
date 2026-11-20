@@ -152,7 +152,11 @@ func tableToProto(t *Table) *metadata.TableMetadata {
 		case col.AutoIncrement:
 			colMeta.Default = autoIncrementSymbol
 		case col.Default != nil:
-			colMeta.Default = formatDefault(*col.Default, col)
+			if strings.EqualFold(*col.Default, "NULL") {
+				colMeta.Default = "NULL"
+			} else {
+				colMeta.Default = formatDefault(*col.Default, col)
+			}
 		default:
 		}
 		if col.OnUpdate != "" {

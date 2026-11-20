@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -263,6 +264,7 @@ type metadataObject struct {
 
 	table     *metadata.TableMetadata
 	view      *metadata.ViewMetadata
+	mview     *metadata.MaterializedViewMetadata
 	function  *metadata.FunctionMetadata
 	procedure *metadata.ProcedureMetadata
 	trigger   *metadata.TriggerMetadata
@@ -326,6 +328,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				name:             v.GetName(),
 				materialized:     true,
 				view:             &metadata.ViewMetadata{Name: v.GetName(), Definition: v.GetDefinition()},
+				mview:            v,
 				snapshotDatabase: meta.GetName(),
 			})
 		}
@@ -389,6 +392,10 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if o.materialized {
 			if err := c.DefineMaterializedView(stmt); err != nil {
 				return err
+			}
+			if inst := c.installedView(o.name); inst != nil && o.mview != nil {
+				inst.Comment = o.mview.GetComment()
+				inst.Indexes = metadataMVIndexes(o.mview.GetIndexes(), &o.incomplete)
 			}
 		} else {
 			if err := c.DefineView(stmt); err != nil {
@@ -545,7 +552,9 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase string) (stmt
 }
 
 // metadataPartitionClause parses the partitioning the snapshot records, as the
-// definition renderer prints it.
+// definition renderer prints it, and attaches attributes that OceanBase DDL
+// rejects inline (partition/subpartition comments) or forbids alongside explicit
+// partition lists (SUBPARTITION TEMPLATE).
 func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause, error) {
 	var buf strings.Builder
 	if err := printPartitionClause(&buf, t.GetPartitions(), t.GetEngine()); err != nil {
@@ -558,7 +567,133 @@ func metadataPartitionClause(t *metadata.TableMetadata) (*nodes.PartitionClause,
 	if stmt.Partitions == nil {
 		return nil, fmt.Errorf("no partitioning parsed from %q", buf.String())
 	}
+	for i, pd := range stmt.Partitions.Partitions {
+		if i >= len(t.GetPartitions()) {
+			break
+		}
+		partMeta := t.GetPartitions()[i]
+		if partMeta.GetComment() != "" {
+			pd.Options = append(pd.Options, &nodes.TableOption{Name: "COMMENT", Value: partMeta.GetComment()})
+		}
+		for j, spd := range pd.SubPartitions {
+			if j >= len(partMeta.GetSubpartitions()) {
+				break
+			}
+			if cmt := partMeta.GetSubpartitions()[j].GetComment(); cmt != "" {
+				spd.Options = append(spd.Options, &nodes.TableOption{Name: "COMMENT", Value: cmt})
+			}
+		}
+	}
+	if len(t.GetPartitions()) > 0 && len(t.GetPartitions()[0].GetSubpartitionTemplate()) > 0 {
+		tpl, err := metadataSubpartitionTemplate(t.GetPartitions()[0])
+		if err != nil {
+			return nil, err
+		}
+		stmt.Partitions.SubPartTemplate = tpl
+	}
 	return stmt.Partitions, nil
+}
+
+func metadataSubpartitionTemplate(partMeta *metadata.TablePartitionMetadata) ([]*nodes.SubPartitionDef, error) {
+	tpl := partMeta.GetSubpartitionTemplate()
+	sub0 := tpl[0]
+	if sub0.GetType() == metadata.TablePartitionMetadata_TYPE_UNSPECIFIED && len(partMeta.GetSubpartitions()) > 0 {
+		sub0 = partMeta.GetSubpartitions()[0]
+	}
+	var buf strings.Builder
+	buf.WriteString("CREATE TABLE `probe` (`c` int) PARTITION BY HASH (`c`)")
+	if err := writeSubpartitionBy(&buf, sub0); err != nil {
+		return nil, err
+	}
+	subType := subPartitionTypeName(sub0.GetType())
+	colCount := subPartitionColumnCount(sub0.GetExpression())
+	buf.WriteString(" SUBPARTITION TEMPLATE (")
+	for i, st := range tpl {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		fmt.Fprintf(&buf, "SUBPARTITION %s", quoteIdent(st.GetName()))
+		if vals := subpartitionValuesSQL(subType, colCount, st.GetValue()); vals != "" {
+			buf.WriteString(vals)
+		}
+	}
+	buf.WriteString(")")
+	stmt, err := parseFirstStatement[*nodes.CreateTableStmt](buf.String())
+	if err != nil {
+		return nil, err
+	}
+	if stmt.Partitions == nil {
+		return nil, fmt.Errorf("no subpartition template parsed from %q", buf.String())
+	}
+	for i, spd := range stmt.Partitions.SubPartTemplate {
+		if i < len(tpl) && tpl[i].GetComment() != "" {
+			spd.Options = append(spd.Options, &nodes.TableOption{Name: "COMMENT", Value: tpl[i].GetComment()})
+		}
+	}
+	return stmt.Partitions.SubPartTemplate, nil
+}
+
+func metadataMVIndexes(idxs []*metadata.IndexMetadata, omitted *error) []*Index {
+	if len(idxs) == 0 {
+		return nil
+	}
+	out := make([]*Index, 0, len(idxs))
+	for _, meta := range idxs {
+		if len(meta.GetExpressions()) == 0 {
+			continue
+		}
+		idxType := strings.ToUpper(strings.TrimSpace(meta.GetType()))
+		if idxType == "BTREE" {
+			idxType = ""
+		}
+		spatial := idxType == "SPATIAL"
+		idx := &Index{
+			Name:             meta.GetName(),
+			Unique:           meta.GetUnique() || meta.GetPrimary(),
+			Primary:          meta.GetPrimary(),
+			Visible:          meta.GetVisible() || meta.GetPrimary(),
+			Comment:          meta.GetComment(),
+			IndexType:        idxType,
+			Fulltext:         idxType == "FULLTEXT",
+			Spatial:          spatial,
+			Vector:           meta.GetIsVector(),
+			Scope:            meta.GetScope(),
+			Storing:          slices.Clone(meta.GetStoringColumns()),
+			VectorParams:     slices.Clone(meta.GetVectorParams()),
+			Parser:           meta.GetParser(),
+			ParserProperties: maps.Clone(meta.GetParserProperties()),
+		}
+		if idx.Scope == "" && meta.GetIsGlobal() {
+			idx.Scope = "GLOBAL"
+		}
+		var parseErr error
+		for i, expr := range meta.GetExpressions() {
+			desc := i < len(meta.GetDescending()) && meta.GetDescending()[i]
+			length := 0
+			if !spatial && i < len(meta.GetKeyLength()) && meta.GetKeyLength()[i] > 0 {
+				length = int(meta.GetKeyLength()[i])
+			}
+			col := &IndexColumn{
+				Length:     length,
+				Descending: desc,
+			}
+			if isExpressionKey(expr) {
+				if _, err := parseExpr(unescapeFunctionalIndexQuotes(expr)); err != nil && parseErr == nil {
+					parseErr = err
+				}
+				col.Expr = expr
+			} else {
+				col.Name = unquoteIdent(expr)
+			}
+			idx.Columns = append(idx.Columns, col)
+		}
+		if parseErr != nil && *omitted == nil {
+			*omitted = fmt.Errorf("index %q: %w", meta.GetName(), parseErr)
+			continue
+		}
+		out = append(out, idx)
+	}
+	return out
 }
 
 // createOption returns the value of one CREATE_OPTIONS entry; sync keeps them

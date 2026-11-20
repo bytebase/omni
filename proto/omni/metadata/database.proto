@@ -804,6 +804,10 @@ message TablePartitionMetadata {
 
   // Unexpanded TiDB RANGE INTERVAL (...) FIRST ... LAST ... clause.
   string interval_clause = 15;
+
+  // OceanBase SUBPARTITION TEMPLATE definitions. Present on the first partition entry
+  // when the table retains an explicit subpartition template.
+  repeated TablePartitionMetadata subpartition_template = 16;
 }
 
 // ColumnMetadata is the metadata for columns.

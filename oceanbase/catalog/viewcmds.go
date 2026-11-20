@@ -134,26 +134,47 @@ func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt,
 	if err := c.createView(materializedViewAsView(stmt), source, true, true); err != nil {
 		return err
 	}
-	if stmt.PrimaryKey == nil {
-		return nil
-	}
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
 	installed := db.Views[key]
-	for _, name := range stmt.PrimaryKey.Columns {
-		found := false
-		for _, out := range installed.Columns {
-			if strings.EqualFold(out, name) {
-				found = true
-				break
+	if stmt.PrimaryKey != nil {
+		for _, name := range stmt.PrimaryKey.Columns {
+			found := false
+			for _, out := range installed.Columns {
+				if strings.EqualFold(out, name) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				delete(db.Views, key)
+				return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
 			}
 		}
-		if !found {
-			delete(db.Views, key)
-			return &Error{Code: ErrNoSuchColumn, SQLState: sqlState(ErrNoSuchColumn), Message: fmt.Sprintf("Unknown column '%s' in 'field list'", name)}
+		cols := make([]*IndexColumn, 0, len(stmt.PrimaryKey.Columns))
+		for _, name := range stmt.PrimaryKey.Columns {
+			cols = append(cols, &IndexColumn{Name: name})
+		}
+		idxType := strings.ToUpper(stmt.PrimaryKey.IndexType)
+		if idxType == "" {
+			idxType = "BTREE"
+		}
+		installed.Indexes = append(installed.Indexes, &Index{
+			Name:      "PRIMARY",
+			Columns:   cols,
+			Unique:    true,
+			Primary:   true,
+			Visible:   true,
+			IndexType: idxType,
+			Comment:   stmt.PrimaryKey.Comment,
+		})
+	}
+	for _, opt := range stmt.Options {
+		if strings.EqualFold(opt.Name, "COMMENT") {
+			installed.Comment = opt.Value
 		}
 	}
 	return nil
